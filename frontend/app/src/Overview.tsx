@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import type { Meta, Overview as OverviewData } from './api';
+import type { Overview as OverviewData } from './api';
+import { Section } from './ui';
 import { formatBytes, formatUptime } from './format';
 import { Meter } from './Meter';
 
@@ -8,45 +8,6 @@ import { Meter } from './Meter';
 function dfTotal(f: { used_bytes?: number; avail_bytes?: number }): number | undefined {
   if (f.used_bytes === undefined || f.avail_bytes === undefined) return undefined;
   return f.used_bytes + f.avail_bytes;
-}
-
-function Sources({ meta }: { meta: Meta }) {
-  return (
-    <details className="sources">
-      <summary>Where this data comes from</summary>
-      <ul>
-        {meta.sources.map((s) => (
-          <li key={s}>
-            <code>{s}</code>
-          </li>
-        ))}
-      </ul>
-      {meta.errors && meta.errors.length > 0 && (
-        <ul className="source-errors">
-          {meta.errors.map((e) => (
-            <li key={e}>{e}</li>
-          ))}
-        </ul>
-      )}
-    </details>
-  );
-}
-
-function Section({ title, meta, children }: { title: string; meta: Meta; children: ReactNode }) {
-  return (
-    <section className="panel" aria-labelledby={`h-${title}`}>
-      <header className="panel-head">
-        <h2 id={`h-${title}`}>{title}</h2>
-        {meta.status !== 'ok' && (
-          <span className={`status status-${meta.status}`}>
-            {meta.status === 'partial' ? 'Partly available' : 'Unavailable'}
-          </span>
-        )}
-      </header>
-      {children}
-      <Sources meta={meta} />
-    </section>
-  );
 }
 
 export function Overview({ data }: { data: OverviewData }) {

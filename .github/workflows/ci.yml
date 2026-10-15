@@ -12,29 +12,27 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Actions are pinned by full commit SHA (ADR 0006); the comment names the tag.
 jobs:
   check:
     runs-on: ubuntu-24.04
     steps:
-      # TODO(M1): pin actions by full commit SHA (ADR 0006).
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version: '1.24.x'
           cache: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
       - name: Tools
         run: |
-          sudo apt-get update && sudo apt-get install -y shellcheck
+          sudo apt-get update && sudo apt-get install -y shellcheck rpm
           go install golang.org/x/vuln/cmd/govulncheck@latest
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-      - name: Install frontend deps (no install scripts)
-        run: make deps
-      - name: Lint
+      - name: Lint (installs frontend deps without scripts)
         run: make lint
       - name: Build (embeds UI)
         run: make build
@@ -44,21 +42,126 @@ jobs:
         run: make test-frontend
       - name: Security gate
         run: make security
-      - name: Debian dev package
-        run: make deb
-      - uses: actions/upload-artifact@v4
+      - name: Reproducible build check
+        run: make repro-check
+      - name: Packages (deb, rpm)
+        run: |
+          make deb
+          packaging/fedora/build-rpm.sh "$(git describe --tags --always)"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: build-${{ github.sha }}
+          name: build
           path: |
             build/hc-api
+            build/hc-broker
             build/hlctl
             build/SHA256SUMS
             build/*.deb
+            build/*.rpm
+
+  arch-package:
+    needs: check
+    runs-on: ubuntu-24.04
+    container: archlinux:latest
+    steps:
+      - name: Build tools
+        run: pacman -Syu --noconfirm --needed base-devel git
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: build
+          path: build
+      - name: makepkg (as unprivileged builder)
+        run: |
+          chmod +x build/hc-api build/hc-broker build/hlctl
+          useradd -m builder
+          chown -R builder "$GITHUB_WORKSPACE"
+          su builder -c "cd '$GITHUB_WORKSPACE' && packaging/arch/build-pkg.sh '${GITHUB_SHA::8}'"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: arch-package
+          path: build/*.pkg.tar.zst
+
+  # Install/run/remove the native package in each target distro (no systemd as PID 1:
+  # the broker and API are started by hand; services must report "unsupported").
+  install-matrix:
+    needs: [check, arch-package]
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: 'debian:stable', kind: deb, prep: 'apt-get update && apt-get install -y curl' }
+          - { image: 'debian:oldstable', kind: deb, prep: 'apt-get update && apt-get install -y curl' }
+          - { image: 'ubuntu:24.04', kind: deb, prep: 'apt-get update && apt-get install -y curl' }
+          - { image: 'ubuntu:22.04', kind: deb, prep: 'apt-get update && apt-get install -y curl' }
+          - { image: 'fedora:latest', kind: rpm, prep: 'dnf install -y curl util-linux shadow-utils findutils' }
+          - { image: 'opensuse/tumbleweed', kind: rpm, prep: 'zypper -n in curl util-linux shadow findutils' }
+          - { image: 'opensuse/leap:latest', kind: rpm, prep: 'zypper -n in curl util-linux shadow findutils' }
+          - { image: 'archlinux:latest', kind: zst, prep: 'pacman -Syu --noconfirm --needed curl util-linux' }
+    container: ${{ matrix.image }}
+    steps:
+      - name: Prepare
+        run: ${{ matrix.prep }}
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Install test
+        run: |
+          touch /etc/hc-disposable
+          case "${{ matrix.kind }}" in
+            deb) pkg=$(ls artifacts/*.deb) ;;
+            rpm) pkg=$(ls artifacts/*.rpm) ;;
+            zst) pkg=$(ls artifacts/*.pkg.tar.zst) ;;
+          esac
+          tests/packaging/install-test.sh "$pkg"
+
+  # Real systemd: the GitHub runner VM boots systemd as PID 1 and is discarded after the job.
+  systemd-ubuntu:
+    needs: check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: build
+          path: build
+      - name: Package + hardened units under systemd (incl. real upstream Webmin)
+        run: |
+          sudo touch /etc/hc-disposable
+          sudo env HC_SMOKE_EXTRA_UNITS=homelab-control-broker.socket \
+            HC_SMOKE_EXTRA_CHECKS="$PWD/tests/systemd/m1-checks.sh" \
+            HC_WEBMIN_SRC="$PWD/compat/webmin" \
+            HC_SMOKE_SCOPES=system.read,services.read,hardware.read \
+            tests/systemd/systemd-smoke.sh "$(ls build/*.deb)"
+
+  browser-e2e:
+    needs: check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: build
+          path: build
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+      - name: Playwright
+        run: |
+          pip install playwright==1.56.0  # version verified locally in M1
+          python -m playwright install --with-deps chromium
+      - name: API security checks + browser e2e (unprivileged)
+        run: |
+          chmod +x build/hc-api build/hlctl
+          tests/integration/run-hc-e2e.sh
 
   upstream-perl-tests:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Upstream Webmin test suite (pinned baseline)
         working-directory: compat/webmin
         run: |

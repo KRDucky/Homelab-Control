@@ -512,7 +512,9 @@ func (c *Collector) filesystems() Filesystems {
 	}
 	seen := map[string]bool{}
 	for _, m := range ParseMounts(b) {
-		local := localFS[m.FSType]
+		// The root filesystem is always reported, whatever its type: live,
+		// immutable and container hosts commonly mount / as overlay.
+		local := localFS[m.FSType] || (m.MountPoint == "/" && !networkFS[m.FSType])
 		remote := networkFS[m.FSType]
 		if !local && !remote {
 			continue // pseudo filesystems (proc, sysfs, tmpfs, overlay, ...)
@@ -661,6 +663,9 @@ func (c *Collector) network() Network {
 	finish(&n.Meta)
 	return n
 }
+
+// LegacyOnly returns just the unprivileged legacy-Webmin detection.
+func (c *Collector) LegacyOnly() Legacy { return c.legacy() }
 
 func (c *Collector) legacy() Legacy {
 	l := Legacy{ConfiguredURL: c.LegacyURL}

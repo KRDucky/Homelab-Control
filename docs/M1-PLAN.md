@@ -1,4 +1,8 @@
-# M1 implementation plan (proposed, not started)
+# M1 implementation plan
+
+> **Outcome (2026-10-15):** see `docs/M1-REPORT.md`. Items 3, 4, 6, 7 and 8 done; 1 done in disposable
+> systemd containers instead of the Vagrant VM; 2 blocked (no 2.680 release yet); 5 (PAM) deferred — it was
+> not in the owner's M1 priority list; 9 awaits the license decision; 10 partly (RPM built, Arch CI-only).
 
 **Goal (roadmap):** log in, navigate, view real read-only host info, fall back to legacy Webmin.
 **Builds on M0:** unprivileged `hc-api`, sessions/CSRF/RBAC, read-only overview, pinned upstream 2.670.

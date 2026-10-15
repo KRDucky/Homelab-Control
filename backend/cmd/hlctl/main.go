@@ -6,6 +6,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -15,6 +16,8 @@ import (
 
 	"homelab-control/backend/internal/api"
 	"homelab-control/backend/internal/auth"
+	"homelab-control/backend/internal/broker/proto"
+	"homelab-control/backend/internal/brokerclient"
 )
 
 const usage = `hlctl - Homelab Control administration CLI (M0)
@@ -24,6 +27,7 @@ Usage:
   hlctl user passwd  --file PATH --username NAME                          (password read from stdin)
   hlctl user disable --file PATH --username NAME
   hlctl user list    --file PATH
+  hlctl broker info  [--socket PATH]                                       (as root or homelab-control)
   hlctl version
 `
 
@@ -43,6 +47,9 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 		fmt.Fprintln(stdout, api.Version)
 		return nil
 	}
+	if args[0] == "broker" {
+		return brokerCmd(args[1:], stdout)
+	}
 	if args[0] != "user" || len(args) < 2 {
 		fmt.Fprint(stdout, usage)
 		return fmt.Errorf("unknown command %q", strings.Join(args, " "))
@@ -51,7 +58,7 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	fs := flag.NewFlagSet("user "+sub, flag.ContinueOnError)
 	file := fs.String("file", "/etc/homelab-control/users.json", "users file")
 	username := fs.String("username", "", "account name")
-	scopes := fs.String("scopes", auth.ScopeSystemRead, "comma-separated scopes")
+	scopes := fs.String("scopes", auth.DefaultScopes, "comma-separated scopes")
 	if err := fs.Parse(args[2:]); err != nil {
 		return err
 	}
@@ -150,4 +157,37 @@ func readPassword(r io.Reader) (string, error) {
 		return "", fmt.Errorf("password must be at least %d characters", auth.MinPasswordLength)
 	}
 	return pw, nil
+}
+
+// brokerCmd queries the broker's self-description. It has no scopes, so it can
+// only call scope-free ops (broker.info).
+func brokerCmd(args []string, stdout io.Writer) error {
+	if len(args) == 0 || args[0] != "info" {
+		return errors.New("usage: hlctl broker info [--socket PATH]")
+	}
+	fs := flag.NewFlagSet("broker info", flag.ContinueOnError)
+	sock := fs.String("socket", proto.DefaultSocket, "broker socket")
+	if err := fs.Parse(args[1:]); err != nil {
+		return err
+	}
+	var info struct {
+		Version  string `json:"version"`
+		Protocol int    `json:"protocol"`
+		Ops      []struct {
+			Name, Scope, Privilege, Description string
+		} `json:"ops"`
+		Exec []string `json:"exec_available"`
+	}
+	if err := brokerclient.New(*sock).Call(context.Background(), "broker.info", proto.Actor{User: "hlctl"}, &info); err != nil {
+		return fmt.Errorf("broker: %w", err)
+	}
+	fmt.Fprintf(stdout, "broker %s (protocol %d), exec available: %s\n", info.Version, info.Protocol, strings.Join(info.Exec, ","))
+	for _, o := range info.Ops {
+		scope := o.Scope
+		if scope == "" {
+			scope = "-"
+		}
+		fmt.Fprintf(stdout, "  %-24s %-14s %-18s %s\n", o.Name, scope, o.Privilege, o.Description)
+	}
+	return nil
 }

@@ -2,14 +2,15 @@
 
 | Target | Format | M0 status | Next step |
 |---|---|---|---|
-| Debian stable / Ubuntu LTS | `.deb` (`homelab-control-api`) | **Built and install/remove/purge tested** in an Ubuntu 24.04 container (no systemd running there, so the unit was installed but not started). Unsigned dev package. | Run under systemd in the Vagrant VM (M1); lintian; proper `debian/` source package (M13). |
-| Fedora | `.rpm` | Draft spec, untested | Build in a Fedora VM/mock (M1–M4). |
-| openSUSE Leap/Tumbleweed | `.rpm` (zypper) | Notes only | OBS build (M13). |
-| Arch / CachyOS | PKGBUILD → `.pkg.tar.zst` | Draft, untested | `makepkg` on the owner's CachyOS host (M1); Tier 2 validation for CachyOS. |
+| Debian stable / Ubuntu LTS | `.deb` (`homelab-control`, replaces `homelab-control-api`) | M1: built; **installed and run under real systemd (PID 1) on Ubuntu 22.04 and 24.04** disposable containers; install test without systemd on both. Debian itself: CI matrix only (mirror unreachable here). | lintian; source package (M13). |
+| Fedora | binary `.rpm` (`packaging/fedora/build-rpm.sh`) | M1: **built** (rpmbuild on Ubuntu); install test only in CI (`fedora:latest`), not yet run | Source RPM/mock (M13). |
+| openSUSE Leap/Tumbleweed | same binary `.rpm` (zypper) | M1: depends on `/usr/sbin/useradd` (works with openSUSE `shadow`); CI-only, not yet run | OBS build (M13). |
+| Arch / CachyOS | `.pkg.tar.zst` (`packaging/arch/build-pkg.sh`, makepkg) | M1: CI-only (no Arch environment reachable here), not yet run | Run on owner's CachyOS host; AUR/source PKGBUILD (M13). |
 
 ## Package contents (all formats)
-`/usr/bin/hc-api`, `/usr/bin/hlctl`, systemd unit (hardened, **not enabled on install**), sysusers
-entry for `homelab-control`, `/etc/homelab-control/hc-api.env` (conffile), license and notice files.
+`/usr/bin/hc-api`, `/usr/bin/hlctl`, `/usr/lib/homelab-control/hc-broker`, three systemd units
+(`homelab-control.service`, `homelab-control-broker.socket`, `homelab-control-broker.service`; hardened,
+**not enabled on install**), sysusers entry for `homelab-control`, `/etc/homelab-control/hc-api.env` (conffile), license and notice files.
 Webmin is **not** bundled in the M0 package; upstream Webmin is installed separately from upstream or
 distro packages. Bundling `compat/webmin` (with module pruning per `MODULE-INVENTORY.md`) is an M1/M2
 decision.

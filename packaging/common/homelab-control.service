@@ -1,8 +1,8 @@
 [Unit]
-Description=Homelab Control API and web UI (unprivileged, read-only in M0)
+Description=Homelab Control API and web UI (unprivileged, read-only)
 Documentation=file:///usr/share/doc/homelab-control/README.md
-After=network-online.target
-Wants=network-online.target
+After=network-online.target homelab-control-broker.socket
+Wants=network-online.target homelab-control-broker.socket
 
 [Service]
 Type=simple

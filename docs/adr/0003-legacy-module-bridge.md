@@ -44,6 +44,6 @@ function-call mechanisms (audit §4, §6).
 - Revisit after M2: whether option (b) is needed at all or Go adapters suffice.
 
 ## Action Items
-1. [ ] M1: legacy link + detection of an installed upstream Webmin (version/port via broker).
-2. [ ] M1: first bridged read-only op (candidate: `hardware-info`-equivalent inventory).
+1. [x] M1: legacy link + detection of an installed upstream Webmin (version/port/TLS/bind/RPC posture via broker op `legacy.webmin.status`; Webmin files are read, never executed or modified).
+2. [x] M1: hardware inventory implemented natively in Go (sysfs) instead of bridging `hardware-info` Perl; no Perl is executed by the new stack in M1.
 3. [ ] M2: parity-test harness against `compat/webmin` parsers.
