@@ -1,0 +1,118 @@
+index_screate=Maak een nieuwe veilige gebruiker.
+index_twofactor=Twee-factor authenticatie
+index_twofactor_enabled=Tweefactorauthenticatie is ingeschakeld voor deze gebruiker
+index_joingroup=Aan groep toevoegen:
+
+edit_title3=Maak een veilige webmingebruiker aan
+edit_email=Contact e-mailadres
+edit_twofactor=Twee-factor authenticatietype
+edit_twofactorprov=Gebruik provider $1 met ID $2
+edit_twofactorcancel=Verwijder twee-factor authenticatie vereiste
+edit_twofactornone=Nog geen configuratie
+edit_twofactoradd=Twee-factor voor gebruiker inschakelen
+edit_locale=Lokaal
+edit_forgot=Stuur wachtwoordherstellink
+edit_safe=Privilege niveau
+edit_safe0=onbeperkt
+edit_safe1=Alleen veilige modules
+edit_unsafe=Reset naar onbeperkt
+
+save_eunixname=De gebruikersnaam '$1' is geen Unix-gebruiker en kan dus niet in de veilige modus worden gebruikt
+save_eemail=E-mailadres mag het teken : niet bevatten
+
+delete_eanonuser=Deze gebruiker wordt gebruikt voor anonieme moduletoegang
+
+cert_etempdir=Ongeldig certificaatbestand
+
+acl_locale=Kan de locatie worden gewijzigd?
+
+log_joingroup=$1 Webmin-gebruikers toegevoegd aan $2
+log_twofactor=Ingeschreven gebruiker $1 bij two-factor provider $2
+log_onefactor=Uitgeschreven gebruiker $1 voor tweefactorauthenticatie
+log_forgot_send=Verzonden e-mail voor wachtwoordherstel voor gebruiker $1 naar $2
+log_forgot_reset=Wachtwoord opnieuw instellen voor gebruiker $1 met e-mailadres $2
+log_forgot_admin=Beheerder heeft wachtwoordherstel-e-mail verzonden voor gebruiker $1 naar $2
+
+convert_sync2=Wachtwoord synchroniseren met Unix-gebruiker in de toekomst?
+convert_user=Unix-gebruiker
+convert_action=Maatregelen die zijn genomen
+convert_users=Gebruikers om te zetten
+
+sync_when=Wanneer synchroniseren
+sync_modify=Hernoem de overeenkomende Webmin-gebruiker wanneer een Unix-gebruiker wordt hernoemd.
+
+unix_desc=Op deze pagina kunnen Unix- en directory-gebaseerde gebruikers, evenals PAM-only gebruikers, inloggen zonder voor elke gebruiker een apart Webmin-account aan te maken. Elke login ontvangt de toegangsrechten en gebruikt de authenticatiemethode van de gekoppelde Webmin-gebruiker.
+unix_def=Sta alleen Webmin-gebruikers toe om in te loggen
+unix_sel=Sta de onderstaande gebruikers en groepen toe om in te loggen
+unix_group=Leden van de groep
+unix_user=Unix-gebruiker
+unix_to=Gekoppelde Webmin-gebruiker
+unix_mapdesc=De geselecteerde Webmin-gebruiker levert zowel toegangsrechten als de authenticatiemethode. Om de oorspronkelijke gebruikersnaam te authenticeren via PAM, SSSD of de wachtwoorddatabase van het systeem, selecteert u een Webmin-gebruiker die is geconfigureerd voor <b>Unix-authenticatie</b>. Als de geselecteerde gebruiker een Webmin-wachtwoord heeft, gebruikt elke overeenkomende aanmelding dat gedeelde wachtwoord in plaats daarvan.
+unix_webminpass=Webmin-wachtwoord
+unix_restrict2=Aanvullende beperkingen
+unix_header=Unix-instellingen voor gebruikersauthenticatie
+unix_utable=Inlogtoewijzingen
+
+sessions_login_ago=Laatst actief geleden
+sessions_actions=Acties..
+sessions_all=Alle sessies..
+sessions_logouts=Toon ook uitgelogde sessies..
+sessions_state=Staat
+sessions_action=Acties
+sessions_this=Deze login
+sessions_in=Ingelogd
+sessions_out=Uitgelogd
+sessions_kill=Verbinding verbreken..
+
+logins_title=Recente Webmin-aanmeldingen
+
+udeletes_jerr=Kan gebruikers niet toevoegen aan groep
+
+sql_nocache0=Cacheverbindingen met database
+sql_nocache1=Open een nieuwe verbinding voor elke zoekopdracht
+sql_timeout_def=Gebruik standaard verbinding time-out (60 seconden)
+sql_timeout_for=Sluit cacheverbindingen na
+sql_timeout_secs=seconden
+sql_etimeout=Time-out voor verbinding in cache moet een getal zijn
+
+twofactor_err=Kan tweefactorauthenticatie niet instellen
+twofactor_euser=Uw Webmin-gebruiker is niet gevonden!
+twofactor_title=Twee-factor authenticatie
+twofactor_disable=Twee-factor-authenticatie uitschakelen
+twofactor_already=Uw Webmin-login heeft al tweefactorauthenticatie ingeschakeld met provider $1 en account-ID $2.
+twofactor_already2=Webmin login $3 heeft al twee-factor authenticatie ingeschakeld met provider $1 en account ID $2.
+twofactor_desc=Op deze pagina kunt u tweefactorauthenticatie inschakelen voor uw Webmin-login met behulp van <a href='$2' target=_blank>$1</a>. Eenmaal actief, is een extra authenticatietoken vereist bij het inloggen op Webmin.
+twofactor_desc2=Op deze pagina kunt u tweefactorauthenticatie inschakelen voor Webmin-aanmelding $3 met behulp van <a href='$2' target=_blank>$1</a>. Eenmaal actief, is een extra authenticatietoken vereist bij het inloggen op Webmin.
+twofactor_enable=Inschrijven voor tweefactorauthenticatie
+twofactor_header=Details voor registratie van tweefactorauthenticatie
+twofactor_enrolling=Aanmelden voor tweefactorauthenticatie bij provider $1..
+twofactor_failed=.. inschrijving mislukt: $1
+twofactor_done=.. compleet. Uw ID bij deze provider is <tt>$1</tt>.
+twofactor_setup=Tweefactorauthenticatie is nog niet ingeschakeld op dit systeem, maar kan worden ingeschakeld met de module <a href='$1'>Webmin-configuratie</a>.
+twofactor_ebutton=Er is niet op een knop geklikt!
+twofactor_testdesc=Voordat u uitlogt, kunt u hier uw nieuwe tweefactorauthenticatie testen door een token in te voeren. Als het om welke reden dan ook niet werkt, schakelt u de tweefactorauthenticatie uit en probeert u deze opnieuw in te stellen.
+twofactor_testfield=Tweefactortoken
+twofactor_test=Valideer token
+twofactor_terr=Het testen van de tweefactorauthenticatie is mislukt
+twofactor_etestuser=Bij het inloggen is tweefactorauthenticatie niet ingeschakeld!
+twofactor_testing=Het testen van tweefactorvalidatie met $1 ..
+twofactor_testfailed=... test mislukt! Mogelijk is een verkeerd token ingevoerd, of is uw authenticatie-app niet correct geconfigureerd?
+twofactor_testok=Test geslaagd! Je kunt nu veilig inloggen met tweefactorauthenticatie.
+twofactor_testdis=Schakel tweefactorauthenticatie nu uit
+
+forgot_title=Stuur wachtwoordherstellink
+forgot_err=Het is niet gelukt om de link voor het opnieuw instellen van het wachtwoord te versturen
+forgot_header=Details voor wachtwoordherstellink
+forgot_user=Wachtwoord voor gebruiker opnieuw instellen
+forgot_email=Linkleveringsmethode
+forgot_email_def=Link weergeven in Webmin
+forgot_email_sel=Link via e-mail verzenden naar
+forgot_send=Link verzenden
+forgot_desc=Met deze pagina kunt u een link genereren of versturen naar elk e-mailadres waarmee u een nieuw wachtwoord voor een Webmin-gebruiker kunt kiezen. Let op naar welk adres u deze link stuurt, want hiermee krijgt u in feite volledige toegang tot de Webmin-login!
+forgot_adminmsg=U ontvangt deze e-mail van de beheerder van het Webmin-systeem op $3, voor de login $1.\n\nAls u wilt doorgaan met het opnieuw instellen van het wachtwoord, volgt u deze link:\n$2
+forgot_sending=Verzenden van e-mail voor wachtwoordherstel van $2 naar $1 ..
+forgot_sent=.. verstuurd
+forgot_link=U kunt de onderstaande link gebruiken om het Webmin-wachtwoord voor $1 opnieuw in te stellen voor de komende $2 minuten :
+forgot_enosudo=Sudo is niet beschikbaar op dit systeem!
+forgot_ecansudo=De ingevoerde gebruiker heeft geen sudo-rechten
+forgot_eunix=De ingevoerde sudo-compatibele gebruiker bestaat niet!

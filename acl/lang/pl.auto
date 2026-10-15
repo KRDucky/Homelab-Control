@@ -1,0 +1,49 @@
+index_twofactor_enabled=Dla tego użytkownika włączono uwierzytelnianie dwuskładnikowe
+
+edit_email=Adres e-mail kontaktowy
+edit_forgot=Wyślij link do resetowania hasła
+
+save_eemail=Adres e-mail nie może zawierać znaku :
+
+log_forgot_send=Wysłano e-mail z resetem hasła dla użytkownika $1 do $2
+log_forgot_reset=Zresetuj hasło dla użytkownika $1 za pomocą adresu e-mail $2
+log_forgot_admin=Administrator wysłał e-mail z resetem hasła dla użytkownika $1 do $2
+
+unix_desc=Ta strona umożliwia użytkownikom systemów Unix i użytkowników korzystających z katalogów, a także użytkownikom korzystającym wyłącznie z PAM, logowanie się bez konieczności tworzenia osobnego konta Webmin dla każdego użytkownika. Każde logowanie otrzymuje uprawnienia dostępu i korzysta z metody uwierzytelniania zmapowanego użytkownika Webmin.
+unix_def=Zezwalaj na logowanie się tylko użytkownikom Webmin
+unix_sel=Zezwól użytkownikom i grupom zamapowanym poniżej na logowanie
+unix_group=Członkowie grupy
+unix_user=Użytkownik Unixa
+unix_to=Mapowany użytkownik Webmin
+unix_mapdesc=Wybrany użytkownik Webmin podaje zarówno prawa dostępu, jak i metodę uwierzytelniania. Aby uwierzytelnić oryginalną nazwę użytkownika za pomocą PAM, SSSD lub systemowej bazy haseł, wybierz użytkownika Webmin skonfigurowanego do <b>uwierzytelniania w systemie UNIX</b>. Jeśli wybrany użytkownik ma hasło Webmin, każde pasujące logowanie będzie używać tego współdzielonego hasła.
+unix_webminpass=Hasło Webmin
+unix_utable=Mapowania logowania
+
+sessions_login_ago=Ostatnia aktywność temu
+
+twofactor_testdesc=Przed wylogowaniem możesz przetestować nową konfigurację uwierzytelniania dwuskładnikowego, wprowadzając token. Jeśli z jakiegoś powodu nie działa, wyłącz uwierzytelnianie dwuskładnikowe i spróbuj skonfigurować je ponownie.
+twofactor_testfield=Token dwuskładnikowy
+twofactor_test=Sprawdź token
+twofactor_terr=Nie udało się przetestować konfiguracji dwuskładnikowej
+twofactor_etestuser=Logowanie nie ma włączonego uwierzytelniania dwuskładnikowego!
+twofactor_testing=Testowanie walidacji dwuskładnikowej za pomocą $1 ..
+twofactor_testfailed=.. test nie powiódł się! Może wprowadzono niewłaściwy token lub aplikacja uwierzytelniająca nie została poprawnie skonfigurowana?
+twofactor_testok=...test zaliczony! Możesz teraz bezpiecznie zalogować się za pomocą uwierzytelniania dwuskładnikowego.
+twofactor_testdis=Wyłącz teraz uwierzytelnianie dwuskładnikowe
+
+forgot_title=Wyślij link do resetowania hasła
+forgot_err=Nie udało się wysłać linku do resetowania hasła
+forgot_header=Szczegóły łącza do resetowania hasła
+forgot_user=Zresetuj hasło dla użytkownika
+forgot_email=Metoda dostarczania linków
+forgot_email_def=Wyświetl link w Webmin
+forgot_email_sel=Wyślij link e-mailem na adres
+forgot_send=Wyślij link
+forgot_desc=Ta strona umożliwia wygenerowanie lub wysłanie linku, który może zostać użyty do wybrania nowego hasła dla użytkownika Webmin na dowolny adres e-mail. Uważaj, na jaki adres wysyłasz ten link, ponieważ skutecznie przyzna on pełny dostęp do logowania Webmin!
+forgot_adminmsg=Otrzymujesz tę wiadomość e-mail od administratora systemu Webmin w $3, dla loginu $1.\n\nJeśli chcesz kontynuować resetowanie hasła, kliknij ten link:\n$2
+forgot_sending=Wysyłanie wiadomości e-mail z prośbą o zresetowanie hasła dla $2 do $1 ..
+forgot_sent=.. wysłano
+forgot_link=Poniższy link może zostać użyty do zresetowania hasła Webmin dla $1 na następne $2 minuty :
+forgot_enosudo=Sudo nie jest dostępne w tym systemie!
+forgot_ecansudo=Wprowadzony użytkownik nie ma uprawnień sudo
+forgot_eunix=Podany użytkownik obsługujący sudo nie istnieje!

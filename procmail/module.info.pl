@@ -1,0 +1,2 @@
+longdesc_pl=Skonfiguruj zaawansowane przekierowanie oparte na zawartości dla poczty wysyłanej na Twoje konto. Wymaga zainstalowanego i odpowiednio skonfigurowanego Procmail do obsługi dostarczania poczty.
+desc_pl=Filtr poczty Procmail

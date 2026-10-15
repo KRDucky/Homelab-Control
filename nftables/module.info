@@ -1,0 +1,5 @@
+name=Nftables
+desc=Linux Firewall
+os_support=*-linux
+category=net
+longdesc=Configure a Linux firewall using nftables. Allows the editing of tables, chains, sets, and rules.
