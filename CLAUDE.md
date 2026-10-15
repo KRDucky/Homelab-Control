@@ -45,3 +45,9 @@ Then: `docs/adr/README.md`, `docs/audit/SPEC-CONTRADICTIONS.md`, `docs/dev/DEVEL
 
 ## Current milestone
 M0 is complete pending owner review (see `docs/STATUS.md`). Next: `docs/M1-PLAN.md`, only after approval.
+
+# Append to root CLAUDE.md — File Services and Proxy Expansion
+
+Read `docs/addons/01-FILE-SERVICES-ARCHITECTURE.md` through `docs/addons/09-PROJECT-MEMORY-ADDENDUM.md` before implementing shares, remote mounts, proxies, certificates, or identity features. The existing root `CLAUDE.md`, ADRs, `docs/STATUS.md`, and `docs/M1-PLAN.md` retain precedence on current milestone and privilege boundaries.
+
+**Rules:** Implement typed adapters to native OS services; never embed a second network server into `hc-api`. Discovery/read-only inventory before writes. Every privileged change requires a narrow broker operation, RBAC, target revalidation, backup, dry-run plan, explicit confirmation, service-native validation, audit and recovery guidance. Never use a generic command runner. Never rewrite unmanaged configs. Never auto-open firewall ports, expose admin services publicly, or enable anonymous/guest access by default. Secrets never appear in URLs, logs, process argv, UI exports or Git. Mounts must be bounded, cancellable, and not hang host overview. Support Ubuntu, Debian, Fedora, openSUSE, Arch via capability detection and distribution-native packages; never silently add repos or run curl|sh. Upstream source repos are for study/attribution, not wholesale vendoring. Respect licenses and keep `compat/webmin/` pristine. Use disposable VMs, loopback block devices, and isolated networks for integration tests; never test destructive actions on real disks. Update ADRs and project memory only with verified facts. Do not skip M1 approval or claim features exist because specs were added.
