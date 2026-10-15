@@ -1,0 +1,6 @@
+# fixture
+NAME="Ubuntu"
+PRETTY_NAME="Ubuntu 24.04.1 LTS"
+ID=ubuntu
+ID_LIKE=debian
+VERSION_ID="24.04"

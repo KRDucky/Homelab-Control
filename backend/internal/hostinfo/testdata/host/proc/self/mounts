@@ -1,0 +1,8 @@
+/dev/nvme0n1p2 / ext4 rw,relatime 0 0
+proc /proc proc rw,nosuid,nodev,noexec,relatime 0 0
+tmpfs /run tmpfs rw,nosuid,nodev 0 0
+tank/media /mnt/media\040library zfs rw,xattr,noacl 0 0
+/dev/md0 /srv/raid xfs ro,relatime 0 0
+nas:/export /mnt/nas nfs4 rw,relatime 0 0
+media:pool /mnt/pool fuse.mergerfs rw,relatime 0 0
+overlay /var/lib/docker/overlay2/x/merged overlay rw 0 0
