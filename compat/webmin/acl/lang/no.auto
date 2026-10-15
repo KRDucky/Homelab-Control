@@ -1,0 +1,63 @@
+index_twofactor_enabled=Tofaktorautentisering er aktivert for denne brukeren
+
+edit_email=Kontakt-e-postadresse
+edit_locale=Språk
+edit_forgot=Send lenke til tilbakestilling av passord
+
+save_eemail=E-postadressen kan ikke inneholde tegnet:
+
+acl_locale=Kan du endre lokalitet?
+
+log_forgot_send=Sendte e-post for tilbakestilling av passord for bruker $1 til $2
+log_forgot_reset=Tilbakestill passord for bruker $1 med e-postadressen $2
+log_forgot_admin=Admin sendte e-post om tilbakestilling av passord for bruker $1 til $2
+
+sync_modify=Gi nytt navn til den samsvarende Webmin-brukeren når en Unix-bruker får nytt navn.
+
+unix_desc=Denne siden lar Unix- og katalogstøttede brukere, samt PAM-brukere, logge inn uten å opprette en separat Webmin-konto for hver bruker. Hver pålogging får tilgangsrettighetene og bruker autentiseringsmetoden til den tilordnede Webmin-brukeren.
+unix_def=Tillat kun Webmin-brukere å logge inn
+unix_sel=Tillat brukerne og gruppene som er kartlagt nedenfor å logge inn
+unix_group=Medlemmer av gruppen
+unix_user=Unix-bruker
+unix_to=Tilordnet Webmin-bruker
+unix_mapdesc=Den valgte Webmin-brukeren oppgir både tilgangsrettigheter og autentiseringsmetoden. For å autentisere det opprinnelige brukernavnet via PAM, SSSD eller systemets passorddatabase, velg en Webmin-bruker som er konfigurert for <b>Unix-autentisering</b>. Hvis den valgte brukeren har et Webmin-passord, bruker alle samsvarende pålogginger det delte passordet i stedet.
+unix_webminpass=Webmin-passord
+unix_utable=Påloggingskartlegginger
+
+sessions_login_ago=Sist aktiv for
+sessions_all=Alle økter..
+sessions_action=Handlinger
+
+sql_nocache0=Cache-tilkoblinger til databasen
+sql_nocache1=Åpne en ny forbindelse for hvert oppslag
+sql_timeout_def=Bruk standard tilkoblingstimeout (60 sekunder)
+sql_timeout_for=Lukk hurtigbufrede tilkoblinger etter
+sql_timeout_secs=sekunder
+sql_etimeout=Tidsavbrudd for hurtigbufret tilkobling må være et tall
+
+twofactor_testdesc=Før du logger ut, kan du teste den nye tofaktorautentiseringen din her ved å skrive inn en token. Hvis den av en eller annen grunn ikke fungerer, slå av tofaktorautentiseringen og prøv å sette den opp på nytt.
+twofactor_testfield=Tofaktortoken
+twofactor_test=Valider token
+twofactor_terr=Kunne ikke teste tofaktoroppsettet
+twofactor_etestuser=Innloggingen har ikke tofaktorfunksjon aktivert!
+twofactor_testing=Tester tofaktorvalidering med $1 ..
+twofactor_testfailed=.. testen mislyktes! Kanskje feil token ble skrevet inn, eller kanskje autentiseringsappen din ikke er riktig konfigurert?
+twofactor_testok=... testen er bestått! Du kan nå trygt logge inn med tofaktorautentisering.
+twofactor_testdis=Deaktiver tofaktor nå
+
+forgot_title=Send lenke til tilbakestilling av passord
+forgot_err=Kunne ikke sende lenken for tilbakestilling av passord
+forgot_header=Detaljer om lenke til tilbakestilling av passord
+forgot_user=Tilbakestill passord for bruker
+forgot_email=Leveringsmetode for lenker
+forgot_email_def=Vis lenke i Webmin
+forgot_email_sel=Send lenke via e-post til
+forgot_send=Send lenke
+forgot_desc=Denne siden lar deg generere eller sende en lenke som kan brukes til å velge et nytt passord for en Webmin-bruker til en hvilken som helst e-postadresse. Vær forsiktig med hvilken adresse du sender denne lenken til, da den effektivt vil gi full tilgang til Webmin-påloggingen!
+forgot_adminmsg=Du mottar denne e-posten fra administratoren av Webmin-systemet på $3, for påloggingen $1.\n\nHvis du vil fortsette med å tilbakestille passordet, følg denne lenken:\n$2
+forgot_sending=Sender e-post for tilbakestilling av passord for $2 til $1 ..
+forgot_sent=.. sendt
+forgot_link=Lenken nedenfor kan brukes til å tilbakestille Webmin-passordet for $1 for de neste $2 minuttene :
+forgot_enosudo=Sudo er ikke tilgjengelig på dette systemet!
+forgot_ecansudo=Brukeren som ble oppgitt har ikke sudo-tillatelser
+forgot_eunix=Den oppgitte sudo-kompatible brukeren finnes ikke!

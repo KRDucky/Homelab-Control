@@ -1,0 +1,4 @@
+category=net
+desc=Network Services
+name=Xinetd
+longdesc=Edit servers handled by Xinetd, a replacement for inetd.

@@ -1,0 +1,66 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      # TODO(M1): pin actions by full commit SHA (ADR 0006).
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+          cache: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Tools
+        run: |
+          sudo apt-get update && sudo apt-get install -y shellcheck
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Install frontend deps (no install scripts)
+        run: make deps
+      - name: Lint
+        run: make lint
+      - name: Build (embeds UI)
+        run: make build
+      - name: Go tests (non-root runner)
+        run: make test-go
+      - name: Frontend tests
+        run: make test-frontend
+      - name: Security gate
+        run: make security
+      - name: Debian dev package
+        run: make deb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ github.sha }}
+          path: |
+            build/hc-api
+            build/hlctl
+            build/SHA256SUMS
+            build/*.deb
+
+  upstream-perl-tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Upstream Webmin test suite (pinned baseline)
+        working-directory: compat/webmin
+        run: |
+          sudo apt-get update && sudo apt-get install -y libperl-critic-perl
+          prove -lr t

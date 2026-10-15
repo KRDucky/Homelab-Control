@@ -1,0 +1,5 @@
+id=dhcpd
+type=dhcpd
+desc=DHCP Server
+depends=dhcpd
+default=1

@@ -1,0 +1,8 @@
+# Pinned upstream Webmin baseline. Machine-readable; consumed by scripts/verify-upstream.sh.
+# Update only via scripts/sync-upstream.sh and record the change in docs/upstream/SYNC.md.
+upstream_url=https://github.com/webmin/webmin.git
+upstream_tag=2.670
+upstream_commit=3a2b2b8671c0669c129f5275b3dd1853106ae02b
+upstream_tree=a8482cc848f28a8e4c806861f237a2094514f533
+prefix=compat/webmin
+license=BSD-3-Clause
