@@ -1,0 +1,10 @@
+PASS  unauthenticated / serves login form
+PASS  bad password rejected (HTTP 200, no sid)
+PASS  valid login redirects (302)
+PASS  sid cookie is HttpOnly
+PASS  sid cookie has SameSite=Lax
+PASS  authenticated index served
+PASS  module links present for admin
+PASS  foreign Referer refused by upstream referer check
+PASS  logout invalidates session
+webmin-baseline-login: 9 passed, 0 failed

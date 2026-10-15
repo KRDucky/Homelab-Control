@@ -1,0 +1,27 @@
+# DRAFT — untested in M0. Builds from a local checkout; for AUR/official submission switch to a tagged source tarball + sha256sums.
+pkgname=homelab-control
+pkgver=0.1.0
+pkgrel=0
+pkgdesc="Homelab Control API and web UI (unprivileged, read-only in M0)"
+arch=('x86_64' 'aarch64')
+url="https://github.com/KRDucky/Homelab-Control---Webmin-Fork"
+license=('GPL-3.0-or-later' 'MIT' 'OFL-1.1')
+makedepends=('go' 'nodejs' 'npm' 'make' 'git')
+backup=('etc/homelab-control/hc-api.env')
+source=()
+sha256sums=()
+
+build() {
+  cd "$startdir/../.."
+  make build VERSION="$pkgver"
+}
+
+package() {
+  cd "$startdir/../.."
+  install -Dm0755 build/hc-api "$pkgdir/usr/bin/hc-api"
+  install -Dm0755 build/hlctl "$pkgdir/usr/bin/hlctl"
+  install -Dm0644 packaging/common/homelab-control.service "$pkgdir/usr/lib/systemd/system/homelab-control.service"
+  install -Dm0644 packaging/common/sysusers.conf "$pkgdir/usr/lib/sysusers.d/homelab-control.conf"
+  install -Dm0640 packaging/common/hc-api.env "$pkgdir/etc/homelab-control/hc-api.env"
+  install -Dm0644 LICENSE.md NOTICE.md -t "$pkgdir/usr/share/licenses/$pkgname/"
+}

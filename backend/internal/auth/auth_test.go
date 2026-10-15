@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -210,5 +211,20 @@ func TestThrottle(t *testing.T) {
 	}
 	if th.Allowed("fresh", "10.0.0.9") {
 		t.Fatal("per-IP limit not enforced across usernames")
+	}
+}
+
+func TestThrottleMemoryBounded(t *testing.T) {
+	th := NewThrottle()
+	now := time.Unix(1_700_000_000, 0)
+	th.now = func() time.Time { return now }
+	for i := 0; i < maxTracked+500; i++ {
+		th.Fail("user", "2001:db8::"+strconv.Itoa(i))
+		if i == maxTracked/2 {
+			now = now.Add(16 * time.Minute) // first half becomes stale
+		}
+	}
+	if n := th.Tracked(); n > maxTracked+2 {
+		t.Fatalf("throttle table unbounded: %d entries", n)
 	}
 }

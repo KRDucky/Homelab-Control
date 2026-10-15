@@ -6,7 +6,7 @@ set -euo pipefail
 tag=${1:?usage: $0 <upstream-tag>}
 [[ "$tag" =~ ^[0-9]+\.[0-9]+$ ]] || { echo "tag must look like 2.680"; exit 2; }
 cd "$(git rev-parse --show-toplevel)"
-git diff --quiet && git diff --cached --quiet || { echo "working tree not clean"; exit 1; }
+if ! git diff --quiet || ! git diff --cached --quiet; then echo "working tree not clean"; exit 1; fi
 url=$(grep '^upstream_url=' compat/webmin.lock | cut -d= -f2)
 git fetch --depth 1 "$url" "refs/tags/$tag:refs/tags/webmin-$tag"
 commit=$(git rev-parse "webmin-$tag^{commit}")

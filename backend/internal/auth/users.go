@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"sync"
+	"syscall"
 )
 
 // Scope names are enforced server-side on every endpoint. The full catalogue
@@ -82,7 +84,17 @@ var ErrInsecurePermissions = errors.New("users file must not be accessible by gr
 
 // LoadUsersFile reads and validates a users file, refusing insecure modes.
 func LoadUsersFile(path string) (*UsersFile, error) {
-	fi, err := os.Lstat(path)
+	// O_NOFOLLOW + fstat on the opened descriptor avoids a check/use race
+	// with a symlink swapped in after a separate stat.
+	fh, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		if errors.Is(err, syscall.ELOOP) {
+			return nil, fmt.Errorf("%s: refusing to follow a symlink", path)
+		}
+		return nil, err
+	}
+	defer fh.Close()
+	fi, err := fh.Stat()
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +104,7 @@ func LoadUsersFile(path string) (*UsersFile, error) {
 	if fi.Mode().Perm()&0o077 != 0 {
 		return nil, fmt.Errorf("%s: %w (got %#o)", path, ErrInsecurePermissions, fi.Mode().Perm())
 	}
-	data, err := os.ReadFile(path)
+	data, err := io.ReadAll(io.LimitReader(fh, 1<<20))
 	if err != nil {
 		return nil, err
 	}
@@ -127,6 +139,16 @@ func SaveUsersFile(path string, f *UsersFile) error {
 	if err := tmp.Chmod(0o600); err != nil {
 		tmp.Close()
 		return err
+	}
+	// Preserve the owner of an existing file (e.g. homelab-control) when an
+	// administrator edits it as root, so the service can still read it.
+	if fi, err := os.Lstat(path); err == nil {
+		if st, ok := fi.Sys().(*syscall.Stat_t); ok && os.Geteuid() == 0 {
+			if err := tmp.Chown(int(st.Uid), int(st.Gid)); err != nil {
+				tmp.Close()
+				return err
+			}
+		}
 	}
 	if _, err := tmp.Write(append(data, '\n')); err != nil {
 		tmp.Close()

@@ -12,6 +12,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -62,6 +63,9 @@ func main() {
 		log.Fatal("-behind-tls-proxy requires a loopback listen address so the proxy is the only client")
 	}
 
+	if err := validateLegacyURL(*legacyURL); err != nil {
+		log.Fatalf("-legacy-url: %v", err)
+	}
 	uf, err := auth.LoadUsersFile(*usersFile)
 	if err != nil {
 		log.Fatalf("users file: %v (create one with `hlctl user add`)", err)
@@ -125,4 +129,23 @@ func isLoopback(addr string) bool {
 	}
 	ip := net.ParseIP(host)
 	return ip != nil && ip.IsLoopback()
+}
+
+// validateLegacyURL accepts only absolute http(s) URLs without credentials, so
+// the value can be rendered as a link without enabling script URLs.
+func validateLegacyURL(raw string) error {
+	if raw == "" {
+		return nil
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return err
+	}
+	if (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return fmt.Errorf("must be an absolute http(s) URL, got %q", raw)
+	}
+	if u.User != nil {
+		return errors.New("must not contain credentials")
+	}
+	return nil
 }

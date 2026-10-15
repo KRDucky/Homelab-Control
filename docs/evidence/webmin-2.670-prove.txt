@@ -1,0 +1,30 @@
+# compile-checking 3537 files
+t/compile.t .......................... ok
+t/fail2ban-lib.t ..................... ok
+t/miniserv.t ......................... ok
+t/mysql-lib.t ........................ ok
+t/software-apt.t ..................... ok
+t/software-debian.t .................. ok
+t/software-view.t .................... ok
+t/software-yum.t ..................... ok
+t/ui-lib-escaping.t .................. ok
+t/ui-lib-widgets.t ................... ok
+t/web-lib-funcs-acl.t ................ ok
+t/web-lib-funcs-default-cert.t ....... ok
+t/web-lib-funcs-encoding.t ........... ok
+t/web-lib-funcs-filter_javascript.t .. ok
+t/web-lib-funcs-io.t ................. ok
+t/web-lib-funcs-ip.t ................. ok
+t/web-lib-funcs-login-mode.t ......... ok
+t/web-lib-funcs-numeric.t ............ ok
+t/web-lib-funcs-open-socket-vm.t ..... skipped: Set WEBMIN_OPEN_SOCKET_VM_TEST=1 on a disposable Linux VM
+t/web-lib-funcs-open-socket.t ........ ok
+t/web-lib-funcs-paths.t .............. ok
+t/web-lib-funcs-strings.t ............ ok
+t/web-lib-funcs-websocket-url.t ...... ok
+t/webmin-letsencrypt-paths.t ......... ok
+t/webmin-passwd.t .................... ok
+t/xmlrpc.t ........................... ok
+All tests successful.
+Files=26, Tests=4161, 51 wallclock secs ( 1.16 usr  0.10 sys + 37.22 cusr 12.76 csys = 51.24 CPU)
+Result: PASS

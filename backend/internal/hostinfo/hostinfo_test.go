@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func fixtureCollector(t *testing.T) *Collector {
@@ -191,5 +192,45 @@ func TestMissingRootsReportUnavailable(t *testing.T) {
 	}
 	if o.System.Hostname != "" || o.Memory.TotalBytes != 0 {
 		t.Fatal("no values may be fabricated")
+	}
+}
+
+func TestLargeMountTableReadCompletely(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "self"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var b strings.Builder
+	for i := 0; i < 3000; i++ { // ~200 KiB, typical of busy container hosts
+		b.WriteString("overlay /var/lib/docker/overlay2/" + strings.Repeat("x", 40) + "/merged overlay rw 0 0\n")
+	}
+	b.WriteString("/dev/vdb1 /srv/last ext4 rw 0 0\n")
+	if err := os.WriteFile(filepath.Join(dir, "self/mounts"), []byte(b.String()), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c := &Collector{Roots: Roots{Proc: dir}, Statfs: func(string) (uint64, uint64, uint64, error) { return 1, 1, 0, nil }}
+	fs := c.filesystems()
+	if len(fs.Items) != 1 || fs.Items[0].MountPoint != "/srv/last" {
+		t.Fatalf("mount table truncated: %+v", fs.Items)
+	}
+}
+
+func TestStatfsTimeoutDoesNotHang(t *testing.T) {
+	block := make(chan struct{})
+	defer close(block)
+	c := &Collector{StatfsTimeout: 50 * time.Millisecond, Statfs: func(string) (uint64, uint64, uint64, error) {
+		<-block
+		return 0, 0, 0, nil
+	}}
+	start := time.Now()
+	if _, _, _, err := c.statfsBounded("/stuck"); !errors.Is(err, errStatfsTimeout) {
+		t.Fatalf("want timeout, got %v", err)
+	}
+	// A second call while the first is still blocked must return immediately.
+	if _, _, _, err := c.statfsBounded("/stuck"); !errors.Is(err, errStatfsTimeout) {
+		t.Fatalf("want immediate timeout, got %v", err)
+	}
+	if time.Since(start) > time.Second {
+		t.Fatal("statfs timeout not enforced")
 	}
 }
