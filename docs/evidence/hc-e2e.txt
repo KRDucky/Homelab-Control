@@ -1,0 +1,36 @@
+# commit 05adffd2ce385c18e2c9c5e2b57ada9213b78011 — hc-api run as unprivileged user 'tester', loopback dev HTTP, disposable container
+PASS  health is public (200)
+PASS  overview requires login (401)
+PASS  login without Origin refused (403)
+PASS  login from foreign Origin refused (403)
+PASS  form-encoded login refused (415)
+PASS  wrong password (401)
+PASS  login succeeds (1)
+PASS  overview with session (200)
+PASS  logout without CSRF token (403)
+PASS  unknown API route (404)
+PASS  logout with CSRF token (204)
+PASS  session dead after logout (401)
+PASS  account without system.read gets 403 (403)
+PASS  audit log has no secrets (0)
+PASS  audit log mode 0600 (600)
+--- audit log (redacted by design) ---
+{"time":"2026-10-15T09:24:06.677241042Z","event":"csrf.origin_rejected","remote":"127.0.0.1","outcome":"denied"}
+{"time":"2026-10-15T09:24:06.685180592Z","event":"csrf.origin_rejected","remote":"127.0.0.1","outcome":"denied","detail":"http://evil.example"}
+{"time":"2026-10-15T09:24:07.09657876Z","event":"auth.login","user":"admin","remote":"127.0.0.1","outcome":"failure"}
+{"time":"2026-10-15T09:24:07.45655775Z","event":"auth.login","user":"admin","remote":"127.0.0.1","outcome":"success"}
+{"time":"2026-10-15T09:24:07.729467302Z","event":"csrf.token_rejected","user":"admin","remote":"127.0.0.1","outcome":"denied"}
+{"time":"2026-10-15T09:24:07.744537465Z","event":"auth.logout","user":"admin","remote":"127.0.0.1","outcome":"success"}
+{"time":"2026-10-15T09:24:08.120750933Z","event":"auth.login","user":"auditor","remote":"127.0.0.1","outcome":"success"}
+{"time":"2026-10-15T09:24:08.129927923Z","event":"authz.denied","user":"auditor","remote":"127.0.0.1","outcome":"denied","detail":"system.read"}
+hc-api live checks: 15 passed, 0 failed
+PASS  keyboard: first Tab focuses the username field
+PASS  wrong password shows a specific, non-revealing error
+PASS  overview shows the real hostname (vm)
+PASS  session cookie is HttpOnly + SameSite=Strict
+PASS  no element uses inline style attributes
+PASS  mobile layout has no horizontal page scroll
+PASS  sign out returns to the login form
+PASS  no CSP violations in the console
+PASS  legacy Webmin login page reachable
+browser e2e: 9 passed, 0 failed

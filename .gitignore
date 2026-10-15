@@ -1,0 +1,8 @@
+/build/
+node_modules/
+/frontend/app/dist/
+/backend/internal/webui/dist/*
+!/backend/internal/webui/dist/README.md
+/tests/e2e/artifacts/
+*.deb
+.dev/

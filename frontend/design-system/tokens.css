@@ -1,0 +1,72 @@
+/*
+ * Homelab Control design tokens (M0 seed of the token system described in
+ * docs/project/06-THEME-AND-PLUGIN-SDK.md). Themes will override these custom
+ * properties declaratively; components must only consume tokens, never raw values.
+ */
+:root {
+  color-scheme: dark;
+  /* palette */
+  --hc-color-ink: #0e1626;
+  --hc-color-panel: #16213a;
+  --hc-color-panel-raised: #1c2947;
+  --hc-color-rule: #26345a;
+  --hc-color-text: #e6ecf8;
+  --hc-color-muted: #93a2c3;
+  --hc-color-signal: #7c8cff;
+  --hc-color-signal-ink: #0e1626;
+  --hc-color-ok: #3dd68c;
+  --hc-color-warn: #f5b946;
+  --hc-color-crit: #ff6b6b;
+  --hc-color-meter-track: #22304f;
+  --hc-color-focus: #b7c0ff;
+
+  /* type */
+  --hc-font-family: 'Archivo Variable', system-ui, sans-serif;
+  --hc-font-stretch-display: 62%;
+  --hc-font-stretch-body: 100%;
+  --hc-font-size-xs: 0.75rem;
+  --hc-font-size-sm: 0.875rem;
+  --hc-font-size-md: 1rem;
+  --hc-font-size-lg: 1.25rem;
+  --hc-font-size-xl: 1.75rem;
+  --hc-font-size-display: clamp(2.75rem, 7vw, 4.75rem);
+  --hc-line-height: 1.5;
+
+  /* space, shape, motion */
+  --hc-space-1: 0.25rem;
+  --hc-space-2: 0.5rem;
+  --hc-space-3: 0.75rem;
+  --hc-space-4: 1rem;
+  --hc-space-6: 1.5rem;
+  --hc-space-8: 2rem;
+  --hc-radius-sm: 3px;
+  --hc-radius-md: 8px;
+  --hc-radius-plate: 14px;
+  --hc-focus-ring: 0 0 0 3px var(--hc-color-focus);
+  --hc-motion-fast: 120ms;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-hc-theme='dark']) {
+    color-scheme: light;
+    --hc-color-ink: #eef1f8;
+    --hc-color-panel: #ffffff;
+    --hc-color-panel-raised: #f6f8fd;
+    --hc-color-rule: #cfd7ea;
+    --hc-color-text: #121a2c;
+    --hc-color-muted: #4f5d7c;
+    --hc-color-signal: #4453d6;
+    --hc-color-signal-ink: #ffffff;
+    --hc-color-ok: #13804f;
+    --hc-color-warn: #9a6400;
+    --hc-color-crit: #c22b2b;
+    --hc-color-meter-track: #dfe5f3;
+    --hc-color-focus: #4453d6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --hc-motion-fast: 0ms;
+  }
+}

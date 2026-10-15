@@ -1,0 +1,12 @@
+== Shipped in the UI bundle (production dependencies)
+@fontsource-variable/archivo@5.3.0	OFL-1.1
+react-dom@19.3.1	MIT
+react@19.3.1	MIT
+scheduler@0.28.0	MIT
+
+== Development-only packages by license (not shipped)
+184	MIT
+18	Apache-2.0
+12	MPL-2.0
+11	ISC
+8	BSD-2-Clause
