@@ -3,7 +3,8 @@
 > This is a project-local working memory file for Claude Code, **not** a claim that ChatGPT or Claude has stored memory externally. Update only after verifying changes. Keep it short and factual.
 
 ## Current state
-- Status: **M0 complete, awaiting owner review.** Branch `m0-foundation`; nothing pushed by Claude.
+- Status: **M1 complete, awaiting owner review.** M0 merged (PR #1, e5c52c17). M1 on branch `m1-broker-foundation`; nothing pushed by Claude.
+- M1 (verified on d1077e4a, disposable containers): broker + 4 read-only ops; services/hardware/legacy pages; Go 94/94, UI 15/15, real systemd 249/255 37/37, no-systemd install 14/14, browser+axe 22/22. CI matrix not yet run. Final fix commit verified by make check only.
 - Product name: Homelab Control. Repo: `KRDucky/Homelab-Control---Webmin-Fork`.
 - Upstream baseline: Webmin **2.670** (`3a2b2b8671c0669c129f5275b3dd1853106ae02b`) at `compat/webmin/` via `git subtree --squash`; tree verified identical; no fork patches.
 - Implemented: unprivileged Go `hc-api` + `hlctl` (stdlib only), local accounts, sessions/CSRF/RBAC, read-only host overview, React/TS shell, Makefile/CI, Debian dev package, disposable-env scripts.
@@ -31,6 +32,7 @@
 |---|---|---|---|
 | 2026-10-15 | Planning | Specifications drafted; no build claimed | M0 not started |
 | 2026-10-15 | M0 | See "Current state"; evidence in `docs/evidence/` | Owner approvals above; VM run on owner hardware |
+| 2026-10-15 | M1 | docs/M1-REPORT.md, docs/evidence/m1/ | CI first run; ADR approvals; PAM; Webmin 2.680 |
 
 ## How to update
 Append dated verified decisions and test results. Record alternatives rejected and why. Never replace unknowns with guesses or present planned work as shipped.
