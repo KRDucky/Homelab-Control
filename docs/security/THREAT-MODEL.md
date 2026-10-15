@@ -48,3 +48,36 @@ build/CI ↔ release artifacts · upstream Webmin ↔ fork.
 3. No TLS certificate management yet; operators must supply certs or a reverse proxy.
 4. `govulncheck`/`shellcheck` could not run in the build environment (network policy); they run in CI.
 5. The systemd hardening profile has not been exercised on a real systemd host yet.
+
+## M1 additions: privileged broker (ADR 0008)
+
+New trust boundary: `hc-api` (uid homelab-control) ↔ `hc-broker` (root) over
+`/run/homelab-control/broker.sock` (0660 root:homelab-control, systemd socket activation).
+
+| Threat | Example | M1 control | Status |
+|---|---|---|---|
+| Elevation of privilege | Web-tier compromise asks broker to run a command or read `/etc/shadow` | Closed op registry (4 ops), no args accepted, no generic exec/file/RPC op; registry test fails if ops are added without review | Implemented, tested |
+| Elevation of privilege | Command injection via helper arguments | `runner` is the only `os/exec` user (guard test); allow-listed absolute binaries, root-owned, not group/world-writable; fixed argv; argument charset check; replaced env; no shell | Implemented, tested (incl. injection strings) |
+| Elevation of privilege | Helper process runs as root | Children run as `homelab-control` via `SysProcAttr.Credential`; observed live under systemd 249/255 | Implemented, verified |
+| Spoofing | Another local user talks to the broker | Socket mode 0660 + `SO_PEERCRED` uid allow-list (homelab-control, root); rejections audited | Implemented, verified (`nobody` refused) |
+| Information disclosure | Broker returns secrets from Webmin config | Allow-listed fields only; usernames, never hashes; key files never opened; test asserts hashes/keys absent | Implemented, tested on real Webmin 2.670 |
+| Tampering | Symlink planted at a root-read path | `O_NOFOLLOW` + regular-file check + size caps; pidfile path confined to /var or /run | Implemented, tested |
+| Denial of service | Slow/oversized/concurrent requests, hung `systemctl` | 5 s read deadline, 16 KiB request cap, 4 MiB response cap, 8 in flight, per-op timeouts killing the process group, output caps, panic containment | Implemented, tested |
+| Repudiation | Broker use not attributable | Broker audit log (root 0600): peer uid/pid, actor, op, outcome, duration | Implemented, verified |
+
+**Explicit assumption:** a compromised `hc-api` can invoke any registered op with any claimed scope
+(the broker cannot verify end-user sessions). M1 keeps that safe because every op is read-only,
+argument-free and returns bounded, non-secret data. Write ops (M2+) need broker-side confirmation and
+locking before they may exist.
+
+**Sensitive data newly exposed to authorised users:** SMBIOS serials/UUID (scope `hardware.read`),
+Webmin usernames with RPC capability (scope `system.read`), the full systemd unit list (scope
+`services.read`). These are read-only but identifying; grant scopes accordingly.
+
+## Residual risks after M1
+1. The legacy Webmin UI at 2.670 still lacks post-2.670 upstream fixes (`docs/upstream/SYNC.md`).
+2. `systemctl` JSON output is not a stable API; parsers are tolerant and tested against systemd 249/255 only.
+3. Real systemd validation used disposable containers (systemd PID 1, cgroup v1 host), not a full VM
+   with a real kernel boot; CI adds a GitHub runner VM (pending first run).
+4. govulncheck has not run in this environment (blocked); it runs in CI.
+5. Sessions and throttling remain in memory.

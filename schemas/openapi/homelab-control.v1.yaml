@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Homelab Control API
-  version: 1.0.0-m0
+  version: 1.1.0-m1
   description: >
     Versioned management API. M0 exposes authentication and a read-only host overview only.
     All non-GET requests require an Origin header matching the server and the session's
@@ -31,7 +31,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
@@ -134,6 +134,92 @@ components:
                 config_readable: { type: boolean }
                 configured_url: { type: string }
                 privilege_needed: { type: string }
+    Capability:
+      type: object
+      required: [id, label, path, scope, status]
+      properties:
+        id: { type: string, enum: [overview, services, hardware, legacy] }
+        label: { type: string }
+        path: { type: string }
+        scope: { type: string }
+        status: { type: string, enum: [available, degraded, unavailable, unsupported, forbidden] }
+        reason: { type: string }
+    Capabilities:
+      type: object
+      required: [broker, capabilities]
+      properties:
+        broker:
+          type: object
+          properties:
+            status: { type: string, enum: [available, unavailable] }
+            version: { type: string }
+            reason: { type: string }
+        capabilities: { type: array, items: { $ref: '#/components/schemas/Capability' } }
+    UnitList:
+      type: object
+      required: [units, counts, truncated, source]
+      properties:
+        systemd_version: { type: string }
+        truncated: { type: boolean }
+        source: { type: string }
+        counts: { type: object, additionalProperties: { type: integer } }
+        units:
+          type: array
+          items:
+            type: object
+            required: [name, type, load, active, sub, description]
+            properties:
+              name: { type: string, pattern: '^[A-Za-z0-9:_.\\@-]{1,256}$' }
+              type: { type: string }
+              load: { type: string }
+              active: { type: string }
+              sub: { type: string }
+              description: { type: string, maxLength: 256 }
+              unit_file_state: { type: string }
+              preset: { type: string }
+    Hardware:
+      type: object
+      required: [inventory, identity]
+      description: >
+        inventory comes from world-readable sysfs (hc-api); identity (SMBIOS serials/UUID) from the
+        broker op hardware.dmi.identity. Disk identity is never the kernel name; identity_confidence is
+        high (WWN), medium (serial), low (by-id only) or none.
+      properties:
+        inventory: { type: object }
+        identity:
+          type: object
+          properties:
+            status: { type: string, enum: [ok, unavailable] }
+            reason: { type: string }
+            data: { type: object }
+    LegacyWebmin:
+      type: object
+      required: [source]
+      properties:
+        source: { type: string, enum: [broker, unprivileged] }
+        reason: { type: string }
+        status:
+          type: object
+          description: Allow-listed fields only; never hashes, keys or session data.
+          properties:
+            installed: { type: boolean }
+            version: { type: string }
+            port: { type: integer }
+            tls: { type: boolean }
+            bind: { type: string }
+            listens_on_all_interfaces: { type: boolean }
+            running: { type: boolean }
+            user_count: { type: integer }
+            rpc_capable_users: { type: array, items: { type: string } }
+            checks:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: string }
+                  level: { type: string, enum: [ok, warn, info] }
+                  message: { type: string }
+        fallback: { type: object }
 paths:
   /health:
     get:
@@ -186,4 +272,38 @@ paths:
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Overview' } } } }
         '401': { description: No session, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /capabilities:
+    get:
+      summary: What this server can show this user right now (drives navigation)
+      security: [{ session: [] }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Capabilities' } } } }
+        '401': { description: No session, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /services:
+    get:
+      summary: systemd units (read-only, via broker op services.systemd.list)
+      security: [{ session: [] }]
+      x-required-scope: services.read
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/UnitList' } } } }
+        '403': { description: Missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '502': { description: Broker failure (details are not exposed), content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Broker unavailable or systemd not running, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '504': { description: Broker operation timed out, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /hardware:
+    get:
+      summary: Hardware inventory (read-only). Degrades instead of failing when the broker is down.
+      security: [{ session: [] }]
+      x-required-scope: hardware.read
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Hardware' } } } }
+        '403': { description: Missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /legacy/webmin:
+    get:
+      summary: Upstream Webmin status and security review (broker), or unprivileged fallback
+      security: [{ session: [] }]
+      x-required-scope: system.read
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/LegacyWebmin' } } } }
         '403': { description: Missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }

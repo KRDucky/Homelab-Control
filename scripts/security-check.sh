@@ -35,7 +35,7 @@ if git grep -nE -- '-----BEGIN ([A-Z]+ )?PRIVATE KEY-----' -- ':!compat/webmin' 
 else echo "OK: no private keys outside compat/webmin"; fi
 
 step "Shell scripts"
-if command -v shellcheck >/dev/null 2>&1; then shellcheck scripts/*.sh packaging/debian/*.sh tests/integration/*.sh dev/disposable/*.sh || fail=1
+if command -v shellcheck >/dev/null 2>&1; then shellcheck -x scripts/*.sh packaging/*/*.sh tests/integration/*.sh tests/systemd/*.sh tests/packaging/*.sh tests/e2e/*.sh dev/disposable/*.sh || fail=1
 else echo "SKIPPED: shellcheck not installed (CI installs it)"; fi
 
 exit $fail

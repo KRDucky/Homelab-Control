@@ -1,16 +1,19 @@
 # Safe rollback to upstream Webmin
 
-Homelab Control M0 **does not modify** an existing Webmin installation: it installs its own binaries
-(`/usr/bin/hc-api`, `/usr/bin/hlctl`), its own config (`/etc/homelab-control/`), logs
-(`/var/log/homelab-control/`), system user (`homelab-control`) and a systemd unit that is not enabled by
-default. It never reads or writes `/etc/webmin` beyond checking whether it exists.
+Homelab Control (M0/M1) **does not modify** an existing Webmin installation: it installs its own binaries
+(`/usr/bin/hc-api`, `/usr/bin/hlctl`, `/usr/lib/homelab-control/hc-broker`), config
+(`/etc/homelab-control/`), logs (`/var/log/homelab-control/`, `/var/log/homelab-control-broker/`), a
+system user (`homelab-control`) and three systemd units that are not enabled by default. Since M1 the
+root broker *reads* Webmin's configuration (allow-listed fields only); nothing writes under `/etc/webmin`.
 
 ## Remove Homelab Control, keep upstream Webmin
 ```bash
-sudo systemctl disable --now homelab-control.service   # if you enabled it
-sudo apt remove homelab-control-api                     # keeps /etc/homelab-control/hc-api.env
-sudo apt purge homelab-control-api                      # also removes users.json; audit logs are kept
-sudo rm -rf /var/log/homelab-control                    # optional, after reviewing audit logs
+sudo systemctl disable --now homelab-control.service homelab-control-broker.socket homelab-control-broker.service
+sudo apt remove homelab-control        # Debian/Ubuntu; keeps /etc/homelab-control/hc-api.env
+sudo apt purge homelab-control         # also removes users.json; audit logs are kept
+# Fedora/openSUSE: sudo dnf remove homelab-control / sudo zypper rm homelab-control
+# Arch:            sudo pacman -Rns homelab-control
+sudo rm -rf /var/log/homelab-control /var/log/homelab-control-broker   # optional, after review
 ```
 From a source install: stop the process, delete the two binaries, `/etc/homelab-control` and
 `/var/log/homelab-control`. Upstream Webmin keeps running on its port with its own accounts.
