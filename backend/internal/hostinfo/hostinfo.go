@@ -11,12 +11,14 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -147,6 +149,8 @@ type Collector struct {
 	LegacyURL string
 	// Statfs is replaceable in tests.
 	Statfs func(path string) (total, used, avail uint64, err error)
+	// StatfsTimeout overrides the default per-call timeout (tests).
+	StatfsTimeout time.Duration
 	// Addrs is replaceable in tests; returns interface addresses.
 	Addrs func(name string) []string
 }
@@ -170,7 +174,7 @@ func (c *Collector) Collect() Overview {
 	}
 }
 
-const maxRead = 1 << 20 // procfs files we read are tiny; bound everything.
+const maxRead = 4 << 20 // bound every read (mount tables on container hosts can be large).
 
 func readSmall(path string) ([]byte, error) {
 	f, err := os.Open(path)
@@ -178,12 +182,16 @@ func readSmall(path string) ([]byte, error) {
 		return nil, err
 	}
 	defer f.Close()
-	buf := make([]byte, maxRead)
-	n, err := f.Read(buf)
-	if err != nil && n == 0 {
+	// procfs/seq_file may return a large file over several reads; read to EOF
+	// (bounded) so long mount tables are never silently truncated.
+	b, err := io.ReadAll(io.LimitReader(f, maxRead+1))
+	if err != nil {
 		return nil, err
 	}
-	return buf[:n], nil
+	if len(b) > maxRead {
+		return nil, fmt.Errorf("%s: larger than %d bytes", path, maxRead)
+	}
+	return b, nil
 }
 
 func readTrim(path string) (string, error) {
@@ -517,7 +525,7 @@ func (c *Collector) filesystems() Filesystems {
 		if remote {
 			item.SkipReason = "network filesystem not probed (statfs could block)"
 		} else if c.Statfs != nil {
-			total, used, avail, err := c.Statfs(m.MountPoint)
+			total, used, avail, err := c.statfsBounded(m.MountPoint)
 			if err != nil {
 				item.SkipReason = "statfs failed: " + err.Error()
 			} else {
@@ -529,6 +537,53 @@ func (c *Collector) filesystems() Filesystems {
 	sort.Slice(fs.Items, func(i, j int) bool { return fs.Items[i].MountPoint < fs.Items[j].MountPoint })
 	finish(&fs.Meta)
 	return fs
+}
+
+// statfsTimeout bounds each statfs call. A FUSE filesystem (e.g. mergerfs)
+// with an unresponsive branch can block statfs indefinitely.
+const statfsTimeout = 2 * time.Second
+
+var (
+	inflightMu sync.Mutex
+	inflight   = map[string]bool{}
+)
+
+// errStatfsTimeout is reported when a statfs call does not return in time.
+var errStatfsTimeout = errors.New("timed out (filesystem not responding)")
+
+// statfsBounded runs Statfs with a timeout. A call that is still blocked from
+// an earlier request is not retried, so stuck mounts cannot accumulate
+// goroutines.
+func (c *Collector) statfsBounded(path string) (uint64, uint64, uint64, error) {
+	inflightMu.Lock()
+	if inflight[path] {
+		inflightMu.Unlock()
+		return 0, 0, 0, errStatfsTimeout
+	}
+	inflight[path] = true
+	inflightMu.Unlock()
+	type res struct {
+		t, u, a uint64
+		err     error
+	}
+	ch := make(chan res, 1)
+	go func() {
+		t, u, a, err := c.Statfs(path)
+		inflightMu.Lock()
+		delete(inflight, path)
+		inflightMu.Unlock()
+		ch <- res{t, u, a, err}
+	}()
+	timeout := c.StatfsTimeout
+	if timeout <= 0 {
+		timeout = statfsTimeout
+	}
+	select {
+	case r := <-ch:
+		return r.t, r.u, r.a, r.err
+	case <-time.After(timeout):
+		return 0, 0, 0, errStatfsTimeout
+	}
 }
 
 func statfs(path string) (uint64, uint64, uint64, error) {

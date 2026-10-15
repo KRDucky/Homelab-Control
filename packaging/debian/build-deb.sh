@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# Builds a development .deb (homelab-control-api) from ./build.
+# Unsigned, not for distribution. See docs/packaging/PLAN.md.
+set -euo pipefail
+ver_in=${1:-0.0.0}
+root=$(cd "$(dirname "$0")/../.." && pwd)
+# Debian versions must start with a digit.
+ver=$(sed -E 's/^v//; s/[^A-Za-z0-9.+~]/+/g' <<<"$ver_in"); [[ "$ver" =~ ^[0-9] ]] || ver="0.0.0+git.$ver"
+arch=$(dpkg --print-architecture)
+stage=$(mktemp -d); chmod 0755 "$stage"; trap 'rm -rf "$stage"' EXIT
+install -Dm0755 "$root/build/hc-api" "$stage/usr/bin/hc-api"
+install -Dm0755 "$root/build/hlctl"  "$stage/usr/bin/hlctl"
+install -Dm0644 "$root/packaging/common/homelab-control.service" "$stage/usr/lib/systemd/system/homelab-control.service"
+install -Dm0644 "$root/packaging/common/sysusers.conf" "$stage/usr/lib/sysusers.d/homelab-control.conf"
+install -Dm0640 "$root/packaging/common/hc-api.env" "$stage/etc/homelab-control/hc-api.env"
+install -Dm0644 "$root/LICENSE.md" "$stage/usr/share/doc/homelab-control/LICENSE.md"
+install -Dm0644 "$root/NOTICE.md"  "$stage/usr/share/doc/homelab-control/NOTICE.md"
+install -Dm0644 "$root/README.md"  "$stage/usr/share/doc/homelab-control/README.md"
+mkdir -p "$stage/DEBIAN"
+echo "/etc/homelab-control/hc-api.env" > "$stage/DEBIAN/conffiles"
+cat > "$stage/DEBIAN/control" <<CTRL
+Package: homelab-control-api
+Version: $ver
+Architecture: $arch
+Maintainer: Homelab Control developers <noreply@example.invalid>
+Section: admin
+Priority: optional
+Depends: adduser | systemd
+Recommends: systemd
+Homepage: https://github.com/KRDucky/Homelab-Control---Webmin-Fork
+Description: Homelab Control API and web UI (development build, M0)
+ Unprivileged, read-only host overview with authenticated sessions.
+ Coexists with upstream Webmin; does not modify /etc/webmin.
+CTRL
+cat > "$stage/DEBIAN/postinst" <<'POST'
+#!/bin/sh
+set -e
+if [ "$1" = configure ]; then
+  if command -v systemd-sysusers >/dev/null 2>&1; then
+    systemd-sysusers /usr/lib/sysusers.d/homelab-control.conf
+  elif ! getent passwd homelab-control >/dev/null; then
+    adduser --system --group --no-create-home --home /nonexistent homelab-control
+  fi
+  chgrp homelab-control /etc/homelab-control /etc/homelab-control/hc-api.env
+  chmod 0750 /etc/homelab-control
+  install -d -m 0700 -o homelab-control -g homelab-control /var/log/homelab-control
+  if [ -d /run/systemd/system ]; then systemctl daemon-reload || true; fi
+  echo "homelab-control-api installed but NOT enabled. Create an account with:"
+  echo "  sudo hlctl user add --file /etc/homelab-control/users.json --username admin"
+  echo "  sudo chown homelab-control:homelab-control /etc/homelab-control/users.json"
+  echo "then configure /etc/homelab-control/hc-api.env and run: systemctl enable --now homelab-control"
+fi
+POST
+cat > "$stage/DEBIAN/prerm" <<'PRE'
+#!/bin/sh
+set -e
+if [ -d /run/systemd/system ] && [ "$1" = remove ]; then systemctl stop homelab-control.service || true; fi
+PRE
+cat > "$stage/DEBIAN/postrm" <<'PRM'
+#!/bin/sh
+set -e
+if [ "$1" = purge ]; then
+  rm -f /etc/homelab-control/users.json
+  rmdir /etc/homelab-control 2>/dev/null || true
+  echo "Audit logs kept in /var/log/homelab-control (remove manually if no longer needed)."
+fi
+if [ -d /run/systemd/system ]; then systemctl daemon-reload || true; fi
+PRM
+chmod 0755 "$stage/DEBIAN/postinst" "$stage/DEBIAN/prerm" "$stage/DEBIAN/postrm"
+mkdir -p "$root/build"
+out="$root/build/homelab-control-api_${ver}_${arch}.deb"
+find "$stage" -exec touch -h -d "@${SOURCE_DATE_EPOCH:-0}" {} +
+dpkg-deb --root-owner-group -Zxz --build "$stage" "$out" >/dev/null
+echo "$out"

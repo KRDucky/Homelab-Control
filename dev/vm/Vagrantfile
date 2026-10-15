@@ -1,0 +1,32 @@
+# Disposable Debian 12 VM for Homelab Control development.
+# UNVERIFIED in M0 (no hypervisor in the build environment). Destroy with `vagrant destroy -f`.
+Vagrant.configure("2") do |config|
+  config.vm.box = "debian/bookworm64"
+  config.vm.hostname = "hc-dev"
+  # Ports are bound to the host's loopback only.
+  config.vm.network "forwarded_port", guest: 9180,  host: 9180,  host_ip: "127.0.0.1"
+  config.vm.network "forwarded_port", guest: 10000, host: 10000, host_ip: "127.0.0.1"
+  config.vm.synced_folder "../..", "/src", type: "rsync", rsync__exclude: [".git/", "node_modules/", "build/"]
+
+  # Two small extra virtual disks for future storage fixtures (M5+). Never real disks.
+  config.vm.provider :libvirt do |lv|
+    lv.memory = 2048
+    lv.cpus = 2
+    lv.storage :file, size: "2G", bus: "virtio"
+    lv.storage :file, size: "2G", bus: "virtio"
+  end
+  config.vm.provider :virtualbox do |vb|
+    vb.memory = 2048
+    vb.cpus = 2
+  end
+
+  config.vm.provision "shell", inline: <<-SHELL
+    set -eux
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get install -y --no-install-recommends perl libnet-ssleay-perl libauthen-pam-perl curl git make ca-certificates
+    # Go and Node from Debian are too old for this repo; install from the official tarball only after
+    # verifying its SHA-256 against https://go.dev/dl/ (do not curl-pipe-shell).
+    echo "Install Go >= 1.24 and Node >= 22 manually, then: cd /src && make build"
+  SHELL
+end

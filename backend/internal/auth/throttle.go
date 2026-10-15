@@ -50,11 +50,41 @@ func (t *Throttle) Allowed(user, ip string) bool {
 	return true
 }
 
+// maxTracked bounds memory use; beyond it, stale entries are pruned and, if
+// still full, the table is reset (failing open on counting, never on auth).
+const maxTracked = 50_000
+
+func (t *Throttle) pruneLocked(now time.Time) {
+	for k, ts := range t.failures {
+		if len(ts) == 0 || now.Sub(ts[len(ts)-1]) >= t.Window {
+			delete(t.failures, k)
+		}
+	}
+	for k, until := range t.locked {
+		if !now.Before(until) {
+			delete(t.locked, k)
+		}
+	}
+	if len(t.failures)+len(t.locked) > maxTracked {
+		t.failures = map[string][]time.Time{}
+	}
+}
+
+// Tracked returns the number of tracked keys (tests/metrics).
+func (t *Throttle) Tracked() int {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return len(t.failures) + len(t.locked)
+}
+
 // Fail records a failed attempt and applies lockouts.
 func (t *Throttle) Fail(user, ip string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	now := t.now()
+	if len(t.failures)+len(t.locked) >= maxTracked {
+		t.pruneLocked(now)
+	}
 	for k, limit := range map[string]int{userKey(user, ip): t.MaxPerKey, ipKey(ip): t.MaxPerIP} {
 		recent := t.failures[k][:0]
 		for _, ts := range t.failures[k] {

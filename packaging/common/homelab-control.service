@@ -1,0 +1,44 @@
+[Unit]
+Description=Homelab Control API and web UI (unprivileged, read-only in M0)
+Documentation=file:///usr/share/doc/homelab-control/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=homelab-control
+Group=homelab-control
+EnvironmentFile=/etc/homelab-control/hc-api.env
+ExecStart=/usr/bin/hc-api -users-file /etc/homelab-control/users.json -audit-log /var/log/homelab-control/audit.jsonl $HC_API_ARGS
+Restart=on-failure
+RestartSec=2s
+
+# Hardening: hc-api never needs privileges (ADR 0001).
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+UMask=0077
+LogsDirectory=homelab-control
+LogsDirectoryMode=0700
+
+[Install]
+WantedBy=multi-user.target

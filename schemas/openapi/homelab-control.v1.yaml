@@ -1,0 +1,189 @@
+openapi: 3.1.0
+info:
+  title: Homelab Control API
+  version: 1.0.0-m0
+  description: >
+    Versioned management API. M0 exposes authentication and a read-only host overview only.
+    All non-GET requests require an Origin header matching the server and the session's
+    X-CSRF-Token. Every endpoint except /health and /auth/login requires a session cookie.
+servers:
+  - url: /api/v1
+components:
+  securitySchemes:
+    session:
+      type: apiKey
+      in: cookie
+      name: __Host-hc_session
+      description: "Named hc_session (no Secure flag) only in loopback dev-insecure-http mode."
+    csrf:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+  schemas:
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error: { type: string, examples: [unauthenticated, forbidden, csrf_rejected, origin_rejected, throttled] }
+        message: { type: string }
+    Session:
+      type: object
+      required: [username, scopes, csrf_token, version]
+      properties:
+        username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read] } }
+        csrf_token: { type: string }
+        version: { type: string }
+        legacy_url: { type: string }
+    Meta:
+      type: object
+      required: [status, sources]
+      properties:
+        status: { type: string, enum: [ok, partial, unavailable] }
+        sources: { type: array, items: { type: string } }
+        errors: { type: array, items: { type: string } }
+    Overview:
+      type: object
+      required: [collected_at, system, cpu, memory, filesystems, network, legacy_webmin]
+      properties:
+        collected_at: { type: string, format: date-time }
+        system:
+          allOf:
+            - $ref: '#/components/schemas/Meta'
+            - type: object
+              properties:
+                hostname: { type: string }
+                kernel: { type: string }
+                os:
+                  type: object
+                  properties:
+                    id: { type: string }
+                    id_like: { type: string }
+                    name: { type: string }
+                    pretty_name: { type: string }
+                    version_id: { type: string }
+                distro_family: { type: string, enum: [debian, fedora, suse, arch, unknown] }
+                uptime_seconds: { type: number }
+                load_average: { type: array, items: { type: number }, minItems: 3, maxItems: 3 }
+        cpu:
+          allOf:
+            - $ref: '#/components/schemas/Meta'
+            - type: object
+              properties:
+                model: { type: string }
+                logical_cpus: { type: integer }
+                usage_percent: { type: number, description: Omitted when it could not be sampled }
+                sample_millis: { type: integer }
+        memory:
+          allOf:
+            - $ref: '#/components/schemas/Meta'
+            - type: object
+              properties:
+                total_bytes: { type: integer }
+                available_bytes: { type: integer }
+                used_bytes: { type: integer }
+                swap_total_bytes: { type: integer }
+                swap_free_bytes: { type: integer }
+        filesystems:
+          allOf:
+            - $ref: '#/components/schemas/Meta'
+            - type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [kernel_source, mount_point, fs_type, read_only, probed]
+                    properties:
+                      kernel_source: { type: string, description: "Kernel-reported source. /dev/sdX names are volatile and are not a drive identity." }
+                      mount_point: { type: string }
+                      fs_type: { type: string }
+                      read_only: { type: boolean }
+                      probed: { type: boolean }
+                      skip_reason: { type: string }
+                      total_bytes: { type: integer }
+                      used_bytes: { type: integer }
+                      avail_bytes: { type: integer }
+        network:
+          allOf:
+            - $ref: '#/components/schemas/Meta'
+            - type: object
+              properties:
+                interfaces:
+                  type: array
+                  items:
+                    type: object
+                    required: [name, physical, rx_bytes, tx_bytes]
+                    properties:
+                      name: { type: string }
+                      oper_state: { type: string }
+                      mac: { type: string }
+                      mtu: { type: integer }
+                      physical: { type: boolean }
+                      speed_mbps: { type: integer }
+                      rx_bytes: { type: integer }
+                      tx_bytes: { type: integer }
+                      addresses: { type: array, items: { type: string } }
+        legacy_webmin:
+          allOf:
+            - $ref: '#/components/schemas/Meta'
+            - type: object
+              properties:
+                installed: { type: boolean }
+                version: { type: string }
+                config_readable: { type: boolean }
+                configured_url: { type: string }
+                privilege_needed: { type: string }
+paths:
+  /health:
+    get:
+      summary: Liveness (public, no host data)
+      security: []
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { status: { const: ok }, api: { const: v1 } } } } } }
+  /auth/login:
+    post:
+      summary: Create a session
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string, maxLength: 1024 }
+      responses:
+        '200': { description: Session created; cookie set, content: { application/json: { schema: { $ref: '#/components/schemas/Session' } } } }
+        '400': { description: Malformed body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Invalid credentials, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Origin rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '415': { description: Not JSON, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '429': { description: Throttled, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /auth/logout:
+    post:
+      summary: Destroy the current session
+      security: [{ session: [], csrf: [] }]
+      responses:
+        '204': { description: Logged out }
+        '401': { description: No session, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Origin or CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /auth/session:
+    get:
+      summary: Current session and CSRF token
+      security: [{ session: [] }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Session' } } } }
+        '401': { description: No session, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /host/overview:
+    get:
+      summary: Read-only host overview (scope system.read)
+      security: [{ session: [] }]
+      x-required-scope: system.read
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Overview' } } } }
+        '401': { description: No session, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }

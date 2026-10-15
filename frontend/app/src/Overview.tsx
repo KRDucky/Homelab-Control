@@ -3,6 +3,13 @@ import type { Meta, Overview as OverviewData } from './api';
 import { formatBytes, formatUptime } from './format';
 import { Meter } from './Meter';
 
+// Match df(1): Use% = used / (used + available), so blocks reserved for root
+// count against free space the way administrators expect.
+function dfTotal(f: { used_bytes?: number; avail_bytes?: number }): number | undefined {
+  if (f.used_bytes === undefined || f.avail_bytes === undefined) return undefined;
+  return f.used_bytes + f.avail_bytes;
+}
+
 function Sources({ meta }: { meta: Meta }) {
   return (
     <details className="sources">
@@ -89,16 +96,16 @@ export function Overview({ data }: { data: OverviewData }) {
             total={memory.total_bytes}
             detail={`${formatBytes(memory.used_bytes)} of ${formatBytes(memory.total_bytes)}`}
           />
-          <Meter
-            label="Swap in use"
-            used={swapUsed}
-            total={memory.swap_total_bytes || undefined}
-            detail={
-              memory.swap_total_bytes > 0
-                ? `${formatBytes(swapUsed)} of ${formatBytes(memory.swap_total_bytes)}`
-                : 'No swap configured'
-            }
-          />
+          {memory.swap_total_bytes > 0 ? (
+            <Meter
+              label="Swap in use"
+              used={swapUsed}
+              total={memory.swap_total_bytes}
+              detail={`${formatBytes(swapUsed)} of ${formatBytes(memory.swap_total_bytes)}`}
+            />
+          ) : (
+            <p className="meter-detail">No swap is configured on this host.</p>
+          )}
         </Section>
       </div>
 
@@ -132,7 +139,7 @@ export function Overview({ data }: { data: OverviewData }) {
                         <Meter
                           label={`${f.mount_point} usage`}
                           used={f.used_bytes}
-                          total={f.total_bytes}
+                          total={dfTotal(f)}
                           detail={`${formatBytes(f.avail_bytes)} free of ${formatBytes(f.total_bytes)}`}
                         />
                       ) : (
