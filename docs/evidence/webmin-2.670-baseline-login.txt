@@ -1,3 +1,7 @@
+# commit 05adffd2ce385c18e2c9c5e2b57ada9213b78011 — disposable Ubuntu 24.04 container, upstream Webmin 2.670 from compat/webmin
+Starting Webmin server in /tmp/hc-disposable/webmin
+Upstream Webmin 2.670 running at http://127.0.0.1:10000/ (stop: /tmp/hc-disposable/etc-webmin/stop)
+
 PASS  unauthenticated / serves login form
 PASS  bad password rejected (HTTP 200, no sid)
 PASS  valid login redirects (302)
@@ -8,3 +12,4 @@ PASS  module links present for admin
 PASS  foreign Referer refused by upstream referer check
 PASS  logout invalidates session
 webmin-baseline-login: 9 passed, 0 failed
+# serving instance verified: /usr/local/bin/perl /tmp/hc-disposable/webmin/miniserv.pl /tmp/hc-disposable/etc-webmin/miniserv.conf
