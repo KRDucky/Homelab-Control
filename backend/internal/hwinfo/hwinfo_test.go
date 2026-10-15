@@ -1,6 +1,7 @@
 package hwinfo
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -107,5 +108,23 @@ func TestRankIdentity(t *testing.T) {
 	}
 	if c, _ := rankIdentity([]Identifier{{Kind: "by-id", Value: "x"}}); c != "low" {
 		t.Fatal(c)
+	}
+}
+
+func TestVirtualDiskMediaTypeUnknown(t *testing.T) {
+	root := t.TempDir()
+	d := filepath.Join(root, "sys/block/vda")
+	for f, v := range map[string]string{"size": "100", "queue/rotational": "1", "serial": "abc"} {
+		p := filepath.Join(d, f)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(v+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	inv := (&Collector{Roots: Roots{Root: root}}).Collect()
+	if len(inv.Disks.Devices) != 1 || inv.Disks.Devices[0].Rotational != nil {
+		t.Fatalf("virtio rotational flag must not be reported as media type: %+v", inv.Disks.Devices)
 	}
 }

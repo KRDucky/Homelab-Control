@@ -369,6 +369,8 @@ func (c *Collector) byIDIndex(m *Meta) map[string][]string {
 	return idx
 }
 
+func virtualTransport(t string) bool { return t == "virtio" || t == "xen" || t == "virtual" }
+
 func transportOf(name, devpath string) string {
 	switch {
 	case strings.HasPrefix(name, "nvme"):
@@ -415,7 +417,9 @@ func (c *Collector) disks() ([]Disk, Meta) {
 			Removable: readStr(filepath.Join(d, "removable"), 4) == "1", ReadOnly: readStr(filepath.Join(d, "ro"), 4) == "1",
 			Transport: transportOf(n, devpath), Identifiers: []Identifier{}}
 		dk.Virtual = dk.Transport == "virtual"
-		if r := readStr(filepath.Join(d, "queue/rotational"), 4); r != "" {
+		// The rotational flag is only meaningful for physical transports;
+		// virtio-blk, Xen and device-mapper/md report a default, not media type.
+		if r := readStr(filepath.Join(d, "queue/rotational"), 4); r != "" && !virtualTransport(dk.Transport) {
 			rot := r == "1"
 			dk.Rotational = &rot
 		}
