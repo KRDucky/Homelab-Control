@@ -1,0 +1,18 @@
+# commit 05adffd2ce385c18e2c9c5e2b57ada9213b78011
+
+ RUN  v5.0.4 /home/claude/hc/frontend/app
+
+ ✓ src/app.test.tsx > format helpers > formats bytes and uptime 2ms
+ ✓ src/app.test.tsx > format helpers > computes ratios and levels without inventing data 1ms
+ ✓ src/app.test.tsx > Meter > reports unknown instead of zero when data is missing 177ms
+ ✓ src/app.test.tsx > Meter > uses no inline styles (strict CSP) 11ms
+ ✓ src/app.test.tsx > App > shows the login form when there is no session 37ms
+ ✓ src/app.test.tsx > App > logs in, renders the overview and labels unavailable sections 183ms
+ ✓ src/app.test.tsx > App > explains bad credentials without saying which field was wrong 38ms
+ ✓ src/app.test.tsx > App > sends the CSRF token on sign-out 56ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  04:23:29
+   Duration  1.77s (environment 48%, tests 32%, transform 12%, import 8%)
+

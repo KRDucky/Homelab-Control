@@ -1,0 +1,78 @@
+# commit 05adffd2ce385c18e2c9c5e2b57ada9213b78011 — Ubuntu 24.04 container (no running systemd: unit installed, not started)
+# binaries: 31219899705d802f76acbeba6cc85d1cf553121cbedb03a93683eae4af5055d1  hc-api 3cb94e5e594c7c7b687dc8d461f8b4ed6ea88cecf6b1eb22283e8b27bce32a75  hlctl 
+# note: binaries rebuilt from 05adffd2 while docs/evidence/* (tracked) was being updated, so the embedded version reads "05adffd2-dirty"; only evidence files differed from the commit. Clean-tree reproducible hashes: docs/evidence/reproducible-build.txt
+$ dpkg-deb -f / -c
+Package: homelab-control-api
+Version: 0.1.0~m0+05adffd2
+Architecture: amd64
+Depends: adduser | systemd
+drwxr-xr-x root/root ./
+drwxr-xr-x root/root ./etc/
+drwxr-xr-x root/root ./etc/homelab-control/
+-rw-r----- root/root ./etc/homelab-control/hc-api.env
+drwxr-xr-x root/root ./usr/
+drwxr-xr-x root/root ./usr/bin/
+-rwxr-xr-x root/root ./usr/bin/hc-api
+-rwxr-xr-x root/root ./usr/bin/hlctl
+drwxr-xr-x root/root ./usr/lib/
+drwxr-xr-x root/root ./usr/lib/systemd/
+drwxr-xr-x root/root ./usr/lib/systemd/system/
+-rw-r--r-- root/root ./usr/lib/systemd/system/homelab-control.service
+drwxr-xr-x root/root ./usr/lib/sysusers.d/
+-rw-r--r-- root/root ./usr/lib/sysusers.d/homelab-control.conf
+drwxr-xr-x root/root ./usr/share/
+drwxr-xr-x root/root ./usr/share/doc/
+drwxr-xr-x root/root ./usr/share/doc/homelab-control/
+-rw-r--r-- root/root ./usr/share/doc/homelab-control/LICENSE.md
+-rw-r--r-- root/root ./usr/share/doc/homelab-control/NOTICE.md
+-rw-r--r-- root/root ./usr/share/doc/homelab-control/README.md
+
+$ dpkg -i
+Selecting previously unselected package homelab-control-api.
+Preparing to unpack .../homelab-control-api_0.1.0~m0+05adffd2_amd64.deb ...
+Unpacking homelab-control-api (0.1.0~m0+05adffd2) ...
+Setting up homelab-control-api (0.1.0~m0+05adffd2) ...
+Creating group 'homelab-control' with GID 995.
+Creating user 'homelab-control' (Homelab Control API) with UID 995 and GID 995.
+homelab-control-api installed but NOT enabled. Create an account with:
+  sudo hlctl user add --file /etc/homelab-control/users.json --username admin
+  sudo chown homelab-control:homelab-control /etc/homelab-control/users.json
+then configure /etc/homelab-control/hc-api.env and run: systemctl enable --now homelab-control
+
+$ ownership/modes
+750 root:homelab-control /etc/homelab-control
+640 root:homelab-control /etc/homelab-control/hc-api.env
+700 homelab-control:homelab-control /var/log/homelab-control
+755 root:root /usr/bin/hc-api
+644 root:root /usr/lib/systemd/system/homelab-control.service
+
+$ create account as root, hand to service user
+updated /etc/homelab-control/users.json (restart hc-api to apply)
+$ hlctl user passwd as root keeps owner (review fix)
+updated /etc/homelab-control/users.json (restart hc-api to apply)
+600 homelab-control:homelab-control /etc/homelab-control/users.json
+
+$ run as service user (-behind-tls-proxy, loopback)
+{"api":"v1","status":"ok"}
+
+HTTP/1.1 200 OK
+Set-Cookie: __Host-hc_session=<redacted>; Path=/; HttpOnly; Secure; SameSite=Strict
+homelab+ hc-api
+[1]+  Done                    runuser -u homelab-control -- hc-api -listen 127.0.0.1:9181 -behind-tls-proxy -users-file /etc/homelab-control/users.json -audit-log /var/log/homelab-control/audit.jsonl > /tmp/pkg.log 2>&1
+2026/10/15 04:25:24 hc-api 05adffd2-dirty listening on 127.0.0.1:9181 (tls=false)
+
+$ refusal paths
+refusing to run as root: hc-api is unprivileged by design (ADR 0001)
+-dev-insecure-http is only permitted on loopback listen addresses
+-legacy-url: must be an absolute http(s) URL, got "javascript:alert(1)"
+users file: /etc/homelab-control/users.json: users file must not be accessible by group or other (expected mode 0600) (got 0644) (create one with `hlctl user add`)
+
+$ dpkg -r
+Removing homelab-control-api (0.1.0~m0+05adffd2) ...
+hc-api.env
+users.json
+$ dpkg -P
+Purging configuration files for homelab-control-api (0.1.0~m0+05adffd2) ...
+Audit logs kept in /var/log/homelab-control (remove manually if no longer needed).
+cannot access '/etc/homelab-control': No such file or directory
+dpkg-query: package 'homelab-control-api' is not installed and no information is available
