@@ -89,8 +89,13 @@ export function Hardware({ onUnauthorized }: { onUnauthorized: () => void }) {
             ))}
           </dl>
         )}
-        <h3 className="subhead">Identifiers</h3>
-        <Identity id={data.identity} />
+        {/* When SMBIOS is absent the section note already says so; don't repeat it. */}
+        {!(data.identity.data && !data.identity.data.available) && (
+          <>
+            <h3 className="subhead">Identifiers</h3>
+            <Identity id={data.identity} />
+          </>
+        )}
       </Section>
 
       <Section title="Storage devices" meta={disks} id="disks">
