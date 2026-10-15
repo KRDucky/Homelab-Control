@@ -1,0 +1,18 @@
+#!/usr/local/bin/perl
+# restart.cgi
+# Restart the running squid process
+
+use strict;
+use warnings;
+no warnings 'redefine';
+no warnings 'uninitialized';
+our (%text, %in, %access, $squid_version, %config);
+require './squid-lib.pl';
+&ReadParse();
+&error_setup($text{'restart_ftrs'});
+$access{'restart'} || &error($text{'restart_ecannot'});
+my $err = &apply_configuration();
+&error($err) if ($err);
+&webmin_log("apply");
+&redirect($in{'redir'});
+

@@ -1,0 +1,191 @@
+index_screate=Créez un nouvel utilisateur sécurisé.
+index_twofactor=Authentification à deux facteurs
+index_twofactor_enabled=L'authentification à deux facteurs est activée pour cet utilisateur
+index_joingroup=Ajouter au groupe:
+index_eulist=Échec de la liste des utilisateurs: $1
+index_eglist=Échec de la liste des groupes: $1
+
+edit_title3=Créer un utilisateur Webmin sécurisé
+edit_email=Courriel de contact
+edit_passold=Le dernier mot de passe a été modifié il y a $1 jours
+edit_passtoday=Le mot de passe a été modifié il y a moins d'un jour
+edit_twofactor=Type d'authentification à deux facteurs
+edit_twofactorprov=Utilisation du fournisseur $1 avec l'ID $2
+edit_twofactorcancel=Supprimer l'exigence d'authentification à deux facteurs
+edit_twofactornone=Aucune configuration pour le moment
+edit_twofactoradd=Activer deux facteurs pour l'utilisateur
+edit_locale=Lieu
+edit_nochange=Appliquer les jours de changement de mot de passe?
+edit_overlay=Superposition de thème personnel
+edit_forgot=Envoyer le lien de réinitialisation du mot de passe
+edit_temppass=Forcer le changement à la prochaine connexion
+edit_security=Options de sécurité et de limites
+edit_proto=Type de stockage
+edit_proto_=Fichiers locaux
+edit_safe=Niveau privilège
+edit_safe0=Libre
+edit_safe1=Modules sécurisés uniquement
+edit_unsafe=Rétablir sans restriction
+
+save_eunixname=Le nom d'utilisateur '$1' n'est pas un utilisateur Unix et ne peut donc pas être utilisé en mode sans échec
+save_eoverlay=Une superposition de thème ne peut être sélectionnée que si un thème est
+save_eminsize=Longueur minimale du mot de passe manquante ou non numérique
+save_etemp=L'option pour forcer un changement de mot de passe à la prochaine connexion ne peut être utilisée que si <a href='$1'>invitant les utilisateurs à entrer de nouveaux mots de passe</a> est activée
+save_eemail=L'adresse e-mail ne peut pas contenir le caractère :
+
+delete_eanonuser=Cet utilisateur est utilisé pour l'accès au module anonyme
+
+cert_etempdir=Fichier de certificat non valide
+
+acl_locale=Peut changer de paramètres régionaux ?
+
+log_joingroup=Ajout de $1 utilisateurs Webmin au groupe $2
+log_pass=Restrictions de mot de passe modifiées
+log_unix=Authentification utilisateur Unix modifiée
+log_sync=Changement de la synchronisation des utilisateurs Unix
+log_sql=Base de données d'utilisateurs et de groupes modifiée
+log_twofactor=Utilisateur inscrit $1 avec un fournisseur à deux facteurs $2
+log_onefactor=Utilisateur désinscrit $1 pour l'authentification à deux facteurs
+log_forgot_send=Envoi d'un e-mail de réinitialisation du mot de passe pour l'utilisateur $1 à $2
+log_forgot_reset=Réinitialiser le mot de passe de l'utilisateur $1 avec l'e-mail $2
+log_forgot_admin=L'administrateur a envoyé un e-mail de réinitialisation du mot de passe pour l'utilisateur $1 à $2
+
+convert_sync2=Synchroniser le mot de passe avec l'utilisateur Unix à l'avenir?
+convert_user=Utilisateur Unix
+convert_action=Action prise
+convert_done=$1 utilisateurs convertis, $2 invalide, $3 existent déjà, $4 exclus.
+convert_users=Utilisateurs à convertir
+
+sync_when=Quand synchroniser
+sync_modify=Renommez l'utilisateur Webmin correspondant lorsqu'un utilisateur Unix est renommé.
+
+unix_err=Échec de l'enregistrement de l'authentification Unix
+unix_desc=Cette page permet aux utilisateurs Unix et aux utilisateurs utilisant un annuaire, ainsi qu'aux utilisateurs utilisant uniquement PAM, de se connecter sans avoir à créer un compte Webmin distinct pour chaque utilisateur. Chaque connexion bénéficie des droits d'accès et utilise la méthode d'authentification de l'utilisateur Webmin associé.
+unix_def=Autoriser uniquement les utilisateurs Webmin à se connecter
+unix_sel=Autoriser les utilisateurs et les groupes répertoriés ci-dessous à se connecter
+unix_group=Membres du groupe
+unix_user=utilisateur Unix
+unix_to=Utilisateur Webmin associé
+unix_mapdesc=L'utilisateur Webmin sélectionné fournit à la fois les droits d'accès et la méthode d'authentification. Pour authentifier le nom d'utilisateur d'origine via PAM, SSSD ou la base de données des mots de passe système, sélectionnez un utilisateur Webmin configuré pour l'<b>authentification Unix</b>. Si l'utilisateur sélectionné possède un mot de passe Webmin, ce mot de passe sera utilisé pour chaque connexion correspondante.
+unix_webminpass=Mot de passe Webmin
+unix_restrict2=Restrictions supplémentaires
+unix_esudo=La commande $1 n'est pas installée
+unix_esudomod=Le module Perl $1 nécessaire à l'authentification <tt>sudo</tt> n'est pas installé
+unix_header=Paramètres d'authentification utilisateur Unix
+unix_utable=Mappages de connexion
+
+sessions_login_ago=Dernière activité il y a
+sessions_all=Toutes les séances..
+sessions_action=Actions
+
+udeletes_jerr=Échec de l'ajout d'utilisateurs au groupe
+
+pass_header=Options d'application de mot de passe Webmin
+pass_minsize=Longueur minimale du mot de passe
+pass_nominsize=Pas de minimum
+pass_regexps=Les mots de passe des expressions régulières doivent correspondre
+pass_regdesc=Description lisible par l'homme pour l'expression régulière
+pass_maxdays=Jours avant le changement de mot de passe
+pass_lockdays=Jours avant le verrouillage du mot de passe non modifié
+pass_nomaxdays=Changement jamais requis
+pass_nolockdays=Le compte n'est jamais verrouillé
+pass_nouser=Interdire les mots de passe contenant un nom d'utilisateur?
+pass_nodict=Interdire les mots de passe des mots du dictionnaire?
+pass_oldblock=Nombre d'anciens mots de passe à rejeter
+pass_err=Échec de l'enregistrement des restrictions de mot de passe
+pass_eminsize=Longueur minimale du mot de passe manquante ou non numérique
+pass_emaxdays=Nombre de jours manquant ou non numérique avant de changer
+pass_elockdays=Nombre de jours manquant ou non numérique avant le verrouillage du compte
+pass_eoldblock=Nombre manquant ou non numérique d'anciens mots de passe à rejeter
+
+sql_title=Base de données d'utilisateurs et de groupes
+sql_ecannot=Vous n'êtes pas autorisé à configurer la base de données d'utilisateurs et de groupes
+sql_header=Options de backend de base de données pour les utilisateurs et les groupes
+sql_ssl=Cryptage de connexion
+sql_userclass=Classe d'objets pour les utilisateurs
+sql_groupclass=Classe d'objets pour les groupes
+sql_euserclass=Classe d'objets manquante ou non valide pour les utilisateurs
+sql_egroupclass=Classe d'objets manquante ou non valide pour les groupes
+sql_none=Utilisez uniquement des fichiers locaux pour stocker les utilisateurs et les groupes
+sql_mysql=Utiliser la base de données MySQL
+sql_postgresql=Utiliser la base de données PostgreSQL
+sql_ldap=Utiliser le serveur LDAP
+sql_prefix=Créer sous DN
+sql_addto0=Ajouter de nouveaux utilisateurs à la base de données sélectionnée ci-dessus
+sql_addto1=Ajouter de nouveaux utilisateurs aux fichiers locaux
+sql_nocache0=Cache les connexions à la base de données
+sql_nocache1=Ouvrez une nouvelle connexion pour chaque recherche
+sql_emod=Module Perl requis manquant <tt>$1</tt>
+sql_etable=Impossible d'interroger la table requise $1:$2
+sql_eldapdn=DN LDAP de base $1 est introuvable
+sql_eclass=La classe d'objets LDAP $1 n'existe pas dans le schéma du serveur
+sql_err=Échec de l'enregistrement des paramètres de base de données d'utilisateurs et de groupes
+sql_ehost=Nom d'hôte manquant ou non résoluble
+sql_euser=Nom d'utilisateur manquant ou invalide (aucun espace autorisé)
+sql_epass=Mot de passe invalide (aucun espace autorisé)
+sql_edb=Nom de base de données non valide (aucun espace autorisé)
+sql_eprefix=DN de base manquant ou invalide (aucun espace autorisé)
+sql_eprefix2=DN de base d'apparence non valide - devrait être comme <tt>dc = mydomain, dc = com</tt>
+sql_title2=Créer des tables manquantes
+sql_tableerr=Les paramètres de base de données d'utilisateurs et de groupes sont valides, mais certaines tables nécessaires à Webmin sont manquantes: $1
+sql_tableerr2=Cliquez sur le bouton <b>Créer des tables</b> ci-dessous pour les créer automatiquement ou exécutez manuellement le SQL ci-dessous.
+sql_title3=Créer un DN manquant
+sql_dnerr=Les paramètres de base de données d'utilisateurs et de groupes sont valides, mais le DN LDAP requis par Webmin est manquant: $1
+sql_dnerr2=Cliquez sur le bouton <b>Créer un DN</b> ci-dessous pour le créer automatiquement ou l'ajouter manuellement à votre serveur LDAP.
+sql_schema=Télécharger le schéma LDAP
+sql_timeout_def=Utiliser le délai de connexion par défaut (60 secondes)
+sql_timeout_for=Fermer les connexions mises en cache après
+sql_timeout_secs=secondes
+sql_etimeout=Le délai d'expiration de la connexion en cache doit être un nombre
+
+make_exec=Exécution de SQL $1..
+
+makedn_eoc=Aucune classe d'objets structurelle trouvée!
+makedn_exec=Création du DN parent $1..
+makedn_failed=.. la création a échoué: $1
+makedn_still=Certains problèmes ont été détectés même après la création du DN: $1
+
+schema_desc=Avant que Webmin puisse utiliser un serveur LDAP pour stocker des utilisateurs et des groupes, il doit être configuré pour utiliser le schéma ci-dessous. Cela peut généralement être fait en enregistrant la définition de schéma dans <tt>/etc/ldap/schema</tt> ou <tt>/etc/openldap/schema</tt> sous <tt>webmin.schema</tt>, puis en configurant le serveur pour charger ce fichier de schéma.
+schema_download=Téléchargez le fichier de schéma: <a href=$1>$1</a>
+
+twofactor_err=Impossible de configurer l'authentification à deux facteurs
+twofactor_euser=Votre utilisateur Webmin est introuvable!
+twofactor_title=Authentification à deux facteurs
+twofactor_disable=Désactiver l'authentification à deux facteurs
+twofactor_already=Votre connexion Webmin a déjà une authentification à deux facteurs activée avec le fournisseur $1 et l'ID de compte $2.
+twofactor_already2=La connexion Webmin $3 a déjà une authentification à deux facteurs activée avec le fournisseur $1 et l'ID de compte $2.
+twofactor_desc=Cette page vous permet d'activer l'authentification à deux facteurs pour votre connexion Webmin à l'aide de <a href='$2' target=_blank>$1</a>. Une fois activé, un jeton d'authentification supplémentaire sera requis lors de la connexion à Webmin.
+twofactor_desc2=Cette page vous permet d'activer l'authentification à deux facteurs pour la connexion Webmin $3 à l'aide de <a href='$2' target=_blank>$1</a>. Une fois activé, un jeton d'authentification supplémentaire sera requis lors de la connexion à Webmin.
+twofactor_enable=S'inscrire à l'authentification à deux facteurs
+twofactor_header=Détails de l'inscription à l'authentification à deux facteurs
+twofactor_enrolling=Inscription à l'authentification à deux facteurs avec le fournisseur $1..
+twofactor_failed=.. l'inscription a échoué: $1
+twofactor_done=.. Achevée. Votre ID auprès de ce fournisseur est <tt>$1</tt>.
+twofactor_setup=L'authentification à deux facteurs n'a pas encore été activée sur ce système, mais peut être activée à l'aide du module <a href='$1'>Configuration Webmin</a>.
+twofactor_ebutton=Aucun bouton cliqué!
+twofactor_testdesc=Avant de vous déconnecter, vous pouvez tester votre nouvelle configuration d'authentification à deux facteurs ici en saisissant un jeton. Si cela ne fonctionne pas, désactivez l'authentification à deux facteurs et réessayez.
+twofactor_testfield=Jeton à deux facteurs
+twofactor_test=Valider le jeton
+twofactor_terr=Échec du test de la configuration à deux facteurs
+twofactor_etestuser=L'authentification à deux facteurs n'est pas activée !
+twofactor_testing=Test de validation à deux facteurs avec $1 ..
+twofactor_testfailed=Le test a échoué ! Peut-être avez-vous saisi un jeton incorrect ou votre application d’authentification n’est-elle pas correctement configurée ?
+twofactor_testok=Test réussi ! Vous pouvez désormais vous connecter en toute sécurité grâce à l’authentification à deux facteurs.
+twofactor_testdis=Désactivez l'authentification à deux facteurs maintenant
+
+forgot_title=Envoyer le lien de réinitialisation du mot de passe
+forgot_err=Échec de l'envoi du lien de réinitialisation du mot de passe
+forgot_header=Détails du lien de réinitialisation du mot de passe
+forgot_user=Réinitialiser le mot de passe de l'utilisateur
+forgot_email=Méthode de livraison du lien
+forgot_email_def=Afficher le lien dans Webmin
+forgot_email_sel=Envoyer le lien par e-mail à
+forgot_send=Envoyer le lien
+forgot_desc=Cette page vous permet de générer ou d'envoyer un lien permettant de choisir un nouveau mot de passe pour un utilisateur Webmin, à n'importe quelle adresse e-mail. Soyez vigilant quant à l'adresse à laquelle vous envoyez ce lien, car il vous accordera un accès complet à la connexion Webmin !
+forgot_adminmsg=Vous recevez cet e-mail de l'administrateur du système Webmin à $3, pour la connexion $1.\n\nSi vous souhaitez procéder à la réinitialisation du mot de passe, suivez ce lien :\n$2
+forgot_sending=Envoi d'un e-mail de réinitialisation du mot de passe pour $2 à $1 ..
+forgot_sent=.. envoyé
+forgot_link=Le lien ci-dessous peut être utilisé pour réinitialiser le mot de passe Webmin pour $1 pour les $2 prochaines minutes  :
+forgot_enosudo=Sudo n'est pas disponible sur ce système !
+forgot_ecansudo=L'utilisateur saisi n'a pas les autorisations sudo
+forgot_eunix=L'utilisateur compatible sudo saisi n'existe pas !

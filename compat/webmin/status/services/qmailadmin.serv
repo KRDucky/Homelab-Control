@@ -1,0 +1,5 @@
+id=qmailadmin
+type=qmailadmin
+desc=QMail Server
+depends=qmailadmin
+default=1
