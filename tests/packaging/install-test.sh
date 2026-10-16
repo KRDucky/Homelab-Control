@@ -12,7 +12,7 @@ pkg=${1:?package}
 n_pass=0; n_fail=0
 # In GitHub Actions, failures are also emitted as annotations (readable via the
 # checks API even where raw job logs are not). %0A is the annotation newline.
-gha() { [ -n "${GITHUB_ACTIONS:-}" ] && echo "::error title=install-test ${HC_DISTRO:-}::$*" || true; }
+gha() { if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::error title=install-test ${HC_DISTRO:-}::$*"; fi; }
 logtail() { for f in "$@"; do [ -s "$f" ] && printf '%s:%%0A%s%%0A' "$f" "$(tail -n 15 "$f" | sed ':a;N;$!ba;s/\n/%0A/g')"; done; }
 on_exit() {
   rc=$?
