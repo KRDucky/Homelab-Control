@@ -49,10 +49,13 @@ if [[ ! "$state" =~ ^(running|degraded)$ ]]; then
 fi
 docker exec "$name" systemctl list-units --failed --no-legend --no-pager || true
 docker exec "$name" touch /etc/hc-disposable
-docker cp "$pkg" "$name":/tmp/pkg.deb
-docker cp "$root/tests/systemd" "$name":/tmp/hc-tests
+# Stage under /opt: systemd mounts a tmpfs over /tmp at boot on newer releases
+# (e.g. 26.04), which hides files docker cp writes to the image layer.
+docker exec "$name" mkdir -p /opt/hc
+docker cp "$pkg" "$name":/opt/hc/pkg.deb
+docker cp "$root/tests/systemd" "$name":/opt/hc/tests
 # Upstream Webmin source for the legacy-detection checks (installed only inside this container).
-docker cp "$root/compat/webmin" "$name":/tmp/hc-webmin
+docker cp "$root/compat/webmin" "$name":/opt/hc/webmin
 env_args=()
 for kv in "$@"; do env_args+=(-e "$kv"); done
-docker exec "${env_args[@]}" "$name" /tmp/hc-tests/systemd-smoke.sh /tmp/pkg.deb
+docker exec "${env_args[@]}" "$name" /opt/hc/tests/systemd-smoke.sh /opt/hc/pkg.deb

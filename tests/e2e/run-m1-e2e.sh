@@ -18,18 +18,21 @@ trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
 docker run -d --name "$name" --privileged --network host --tmpfs /run --tmpfs /run/lock \
   -v /sys/fs/cgroup:/sys/fs/cgroup:rw "$img" /sbin/init >/dev/null
 for _ in $(seq 60); do s=$(docker exec "$name" systemctl is-system-running 2>/dev/null || true); [[ "$s" =~ running|degraded ]] && break; sleep 0.5; done
-docker cp "$pkg" "$name":/tmp/pkg.deb
-docker cp "$root/compat/webmin" "$name":/tmp/hc-webmin
+# Stage under /opt: systemd mounts a tmpfs over /tmp at boot on newer releases
+# (e.g. 26.04), which hides files docker cp writes to the image layer.
+docker exec "$name" mkdir -p /opt/hc
+docker cp "$pkg" "$name":/opt/hc/pkg.deb
+docker cp "$root/compat/webmin" "$name":/opt/hc/webmin
 pw="e2e-$(head -c 9 /dev/urandom | od -An -tx1 | tr -d ' \n')"
 docker exec -e PW="$pw" "$name" bash -euc '
   touch /etc/hc-disposable
-  dpkg -i /tmp/pkg.deb >/dev/null
+  dpkg -i /opt/hc/pkg.deb >/dev/null
   printf "%s\n" "$PW" | hlctl user add --file /etc/homelab-control/users.json --username admin >/dev/null
   chown homelab-control:homelab-control /etc/homelab-control/users.json
   # Browser test over loopback without a TLS proxy: dev mode (loopback only).
   sed -i "s|^HC_API_ARGS=.*|HC_API_ARGS=-listen 127.0.0.1:9180 -dev-insecure-http -legacy-url http://127.0.0.1:10000/|" /etc/homelab-control/hc-api.env
   ln -sf /usr/bin/perl /usr/local/bin/perl
-  ( cd /tmp/hc-webmin && config_dir=/etc/webmin var_dir=/var/webmin perl=/usr/bin/perl port=10000 login=admin \
+  ( cd /opt/hc/webmin && config_dir=/etc/webmin var_dir=/var/webmin perl=/usr/bin/perl port=10000 login=admin \
       password="webmin-$RANDOM-pw" ssl=0 atboot=0 nostart=1 nouninstall=1 nopostinstall=1 noperlpath=1 \
       autoos=1 autothird=1 ./setup.sh >/tmp/webmin-setup.log 2>&1 )
   echo bind=127.0.0.1 >> /etc/webmin/miniserv.conf

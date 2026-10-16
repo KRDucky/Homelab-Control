@@ -77,8 +77,8 @@ rpm: build
 REL ?= noble
 systemd-smoke: deb
 	dev/disposable/systemd-container.sh $(REL) $$(ls -t build/*.deb | head -1) \
-	  HC_SMOKE_EXTRA_UNITS=homelab-control-broker.socket HC_SMOKE_EXTRA_CHECKS=/tmp/hc-tests/m1-checks.sh \
-	  HC_WEBMIN_SRC=/tmp/hc-webmin HC_SMOKE_SCOPES=system.read,services.read,hardware.read
+	  HC_SMOKE_EXTRA_UNITS=homelab-control-broker.socket HC_SMOKE_EXTRA_CHECKS=/opt/hc/tests/m1-checks.sh \
+	  HC_WEBMIN_SRC=/opt/hc/webmin HC_SMOKE_SCOPES=system.read,services.read,hardware.read
 
 e2e: build
 	tests/integration/run-hc-e2e.sh
