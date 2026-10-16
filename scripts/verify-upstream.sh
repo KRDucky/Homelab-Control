@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Verifies that compat/webmin matches the pinned upstream tree, or that any
 # divergence is accounted for in compat/PATCHES.md.
 set -euo pipefail

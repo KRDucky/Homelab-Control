@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # DRAFT — untested in M0. Builds from a local checkout; for AUR/official submission switch to a tagged source tarball + sha256sums.
 pkgname=homelab-control
 pkgver=0.1.0

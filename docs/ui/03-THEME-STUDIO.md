@@ -1,8 +1,10 @@
 # 3. Theme Studio interaction model (planning)
 
 A screen under **Settings → Appearance → Theme Studio**, available to accounts with a new scope
-`appearance.manage` (themes are per-installation; per-user preferences such as density, motion and
-dark/light choice need only a signed-in session). It edits theme documents (`02`); it never edits CSS.
+`appearance.manage` (themes are per-installation). It edits theme documents (`02`); it never edits CSS.
+Layout preferences (navigation style, density, dashboards) are not theme content and are not edited
+here; they live under **Settings → Layout** (`06` §6.5). Per-user motion/contrast/dark-light choices need
+only a signed-in session.
 
 ## 3.1 Layout
 ```
@@ -11,10 +13,10 @@ dark/light choice need only a signed-in session). It edits theme documents (`02`
 │ Mode: [Dark] [Light] [HC dark] [HC light]        │ Real components rendered in  │
 │ ▸ Colour  (surface, text, accent, status, chart) │ an isolated preview root:    │
 │ ▸ Typography (stack, scale, weights)             │ nav, faceplate, table, form, │
-│ ▸ Space & density                                │ dialog, toasts, charts,      │
+│ ▸ Space                                          │ dialog, toasts, charts,      │
 │ ▸ Shape & elevation                              │ status pills, meters         │
 │ ▸ Motion                                         │ [Desktop|Tablet|Phone]       │
-│ ▸ Navigation & status style                      │ [Reduced motion] [HC] toggles│
+│ ▸ Status style                                   │ [Reduced motion] [HC] toggles│
 ├──────────────── Issues panel (bottom, collapsible) ─────────────────────────────┤
 │ ✖ text.secondary on surface.raised = 3.9:1 (needs 4.5:1) [Fix: suggest #9aa8c6] │
 └──────────────────────────────────────────────────────────────────────────────────┘

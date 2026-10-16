@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # M1 validation inside a disposable hc-test- VM (guest side). Run as root via
 # dev/vm/run-m1-validation.sh, which stages these inputs under /opt/hc:
 #   pkg.deb  tests/  webmin/  axe.min.js

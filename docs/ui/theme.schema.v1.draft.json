@@ -67,13 +67,6 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "density": {
-          "enum": [
-            "compact",
-            "comfortable",
-            "spacious"
-          ]
-        },
         "motion": {
           "enum": [
             "full",
@@ -87,7 +80,8 @@
             "high"
           ]
         }
-      }
+      },
+      "description": "Appearance hints only. They never override the user's own motion or contrast preference. Layout preferences (navigation style, density, dashboards) are user settings, not theme content (ADR 0010)."
     },
     "modes": {
       "type": "object",
@@ -461,19 +455,6 @@
             }
           }
         },
-        "density": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "default": {
-              "enum": [
-                "compact",
-                "comfortable",
-                "spacious"
-              ]
-            }
-          }
-        },
         "shape": {
           "type": "object",
           "additionalProperties": false,
@@ -536,25 +517,6 @@
                 "standard",
                 "emphasized",
                 "linear"
-              ]
-            }
-          }
-        },
-        "navigation": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "sidebar": {
-              "enum": [
-                "expanded",
-                "rail",
-                "hidden"
-              ]
-            },
-            "position": {
-              "enum": [
-                "left",
-                "top"
               ]
             }
           }

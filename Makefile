@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Homelab Control — reproducible local build.
 # Requirements: Go >= 1.24, Node >= 22 with npm, GNU make, git. See docs/dev/DEVELOPMENT.md.
 

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 const UNITS = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
 
 export function formatBytes(n: number | undefined): string {

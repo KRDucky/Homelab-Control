@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import type { Overview as OverviewData } from './api';
 import { Section } from './ui';
 import { formatBytes, formatUptime } from './format';

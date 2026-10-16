@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package audit writes append-only JSON Lines audit records.
 //
 // M0 records authentication events only. Secrets (passwords, session IDs,

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Command hc-api is the unprivileged Homelab Control API and UI server.
 //
 // It must not run as root (see docs/adr/0001-privilege-boundary.md). In M0 it

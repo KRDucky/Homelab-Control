@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package ops is the closed registry of broker operations (ADR 0008).
 //
 // Rules for every operation (review checklist):

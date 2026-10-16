@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Basic security gate run by `make security` and CI. Fails on any finding.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
@@ -48,6 +53,11 @@ step "SBOM matches inputs and is valid SPDX 2.3"
 python3 -I scripts/gen-sbom.py --check || bad
 if command -v pyspdxtools >/dev/null 2>&1; then pyspdxtools -i docs/compliance/sbom/homelab-control.spdx.json || bad "pyspdxtools validation"
 else echo "SKIPPED: pyspdxtools not installed (CI installs spdx-tools)"; fi
+
+step "Licensing metadata (REUSE 3.3: SPDX licence + copyright for every file)"
+if command -v reuse >/dev/null 2>&1; then
+  if reuse lint --quiet; then echo "OK: REUSE compliant"; else reuse lint | tail -30; bad "reuse lint"; fi
+else echo "SKIPPED: reuse not installed (CI installs it)"; fi
 
 step "Committed secrets / private keys"
 if git grep -nE -- '-----BEGIN ([A-Z]+ )?PRIVATE KEY-----' -- ':!compat/webmin' ':!**/testdata/**'; then

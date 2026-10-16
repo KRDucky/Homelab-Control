@@ -6,7 +6,7 @@ content. Breakpoints are content-driven, expressed in `rem`:
 
 | Width | Navigation | Content |
 |---|---|---|
-| ≥ 75 rem (desktop) | Expanded sidebar (theme may choose rail) | Multi-column; tables show all columns |
+| ≥ 75 rem (desktop) | Expanded sidebar (user may choose rail, §6.5) | Multi-column; tables show all columns |
 | 48–75 rem (tablet) | Icon rail with labels on focus/hover | Two columns; low-priority columns hide (`hideBelow`) |
 | < 48 rem (phone) | Bottom-sheet menu from a header button | Single column; tables become stacked rows with the key column first |
 
@@ -28,3 +28,26 @@ is never a shortcut around confirmation.
 ## 6.4 Contextual actions
 Each resource page has one toolbar of actions; the same `Action` list appears in row menus and the
 palette. Destructive or privileged actions (M2+) are visually separated and always lead to a preview.
+
+## 6.5 Layout preferences (separate from themes)
+Navigation style, density and dashboard layout are **user preferences**, not theme content (ADR 0010).
+A theme never changes where things are or how much fits on screen; a user's layout survives switching
+themes, and a shared theme cannot rearrange anyone's interface.
+
+```ts
+export interface LayoutPreferences {
+  schemaVersion: 1;
+  navigation: { style: 'expanded' | 'rail' | 'hidden'; position: 'left' | 'top' };
+  density: 'compact' | 'comfortable' | 'spacious';
+  dashboard: string;                 // id of the user's active dashboard layout (04 §4.1)
+  refresh: { defaultMs: 0 | 2000 | 5000 | 15000 | 60000; paused: boolean }; // 05 §5.4
+}
+export interface AppearancePreferences {
+  themeId: string;                   // installed theme
+  mode: 'auto' | 'dark' | 'light';
+  contrast: 'auto' | 'standard' | 'high';   // auto follows prefers-contrast
+  motion: 'auto' | 'full' | 'reduced' | 'none'; // auto follows prefers-reduced-motion
+}
+```
+Both are stored per user in the settings store (M2; until then per browser only) and validated against
+their own schemas. Density maps to fixed spacing multipliers chosen by the engine, not by themes.

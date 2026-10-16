@@ -9,7 +9,7 @@
   "license": "MIT",
   "engine": ">=1.0.0 <2.0.0",
   "appearance": "auto",
-  "defaults": { "density": "comfortable", "motion": "full", "contrast": "standard" },
+  "defaults": { "motion": "full", "contrast": "standard" },
   "modes": {
     "dark": {
       "color": {
@@ -36,7 +36,6 @@
         "level3": { "y": 12, "blur": 32, "spread": -4, "color": "#00000099" }
       },
       "motion": { "duration": { "fast": 120, "normal": 200 }, "easing": "standard" },
-      "navigation": { "sidebar": "expanded", "position": "left" },
       "status": { "indicator": "pill" }
     },
     "light": {

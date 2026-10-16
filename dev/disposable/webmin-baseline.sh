@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Installs the pinned upstream Webmin (compat/webmin) into a throwaway prefix and
 # starts it on 127.0.0.1:10000 with SSL off. Intended ONLY for disposable
 # environments (container, VM). It never touches /etc/webmin or any disk device.

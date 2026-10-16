@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Starts a throwaway hc-api (unprivileged, loopback, dev HTTP) with a fresh
 # users file and runs the live HTTP security checks plus the browser e2e test.
 # Must run as a non-root user. State lives in a temp dir that is removed on exit.
@@ -51,6 +56,9 @@ echo "hc-api live checks: $n_pass passed, $n_fail failed"
 
 if python3 -c 'import playwright' 2>/dev/null; then
   python3 "$root/tests/e2e/hc_e2e.py" || n_fail=$((n_fail+1))
+  # Theme-engine feasibility (ADR 0010): CSSOM custom properties under the real CSP.
+  # HC_CSP_BROWSERS selects engines (CI: chromium,firefox,webkit; default chromium).
+  python3 "$root/tests/e2e/theme_cssom_csp.py" || n_fail=$((n_fail+1))
 else
   echo "SKIPPED: browser e2e (python3 playwright not installed)"
 fi

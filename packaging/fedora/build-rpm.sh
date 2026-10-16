@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Builds a binary development RPM (Fedora, openSUSE) from ./build. Unsigned.
 # The source-RPM spec for distribution builds remains packaging/fedora/homelab-control.spec (M13).
 set -euo pipefail

@@ -3,8 +3,10 @@
 ## 2.1 Principles
 - **Semantic, not literal.** Components consume `color.surface.raised`, never "dark blue". A theme maps
   semantic roles to values; components never see raw values (already true of `styles.css` today).
-- **Appearance only.** A theme changes how things look. Layout (dashboards, widget placement) and
-  function (what is shown, who may do what) are separate documents (`04-DASHBOARD-WIDGETS.md`).
+- **Appearance only.** A theme changes how things look. Layout preferences (navigation style, density,
+  dashboards and widget placement, refresh rates) are per-user settings defined in
+  `06-LAYOUT-AND-NAVIGATION.md` §6.5 and `04-DASHBOARD-WIDGETS.md`; function (what is shown, who may do
+  what) is never themeable. A theme that contains layout keys is rejected (ADR 0010).
 - **Typed and bounded values.** Every token has a type with a strict grammar and range (§2.4). There is
   no "free CSS string" token. This is what makes imported themes safe to apply (`09-THEME-SECURITY.md`).
 - **Small runtime.** Applying a theme sets at most ~120 CSS custom properties on `:root` through the
@@ -29,11 +31,9 @@ Dotted path → CSS custom property `--hc-<path with dots as dashes>` (e.g. `col
 | | `weight.regular`, `weight.strong` | integer 300–800 |
 | | `lineHeight` | number 1.1–2.0 |
 | `space` | `unit` (base step; others are multiples) | number, px 2–8 |
-| `density` | `default` | enum `compact` \| `comfortable` \| `spacious` |
 | `shape` | `radius.sm`, `radius.md`, `radius.lg`, `borderWidth` | number, px 0–24 / 0–4 |
 | `elevation` | `level1`, `level2`, `level3` | shadow **object** `{y, blur, spread, color}` |
 | `motion` | `duration.fast`, `duration.normal`, `easing` | duration (ms) 0–600; easing **enum** |
-| `navigation` | `sidebar` (`expanded` \| `rail` \| `hidden`), `position` (`left` \| `top`) | enum |
 | `status` | `indicator` (`dot` \| `pill` \| `icon-text`) | enum |
 
 Font stacks are an enumeration such as `system-sans`, `system-serif`, `system-mono`, `humanist-sans`,
@@ -51,7 +51,7 @@ arbitrary fonts and cannot load fonts from URLs.
   "engine": ">=1.0.0 <2.0.0",
   "appearance": "auto",
   "modes": { "dark": { "...": "TokenSet" }, "light": { "...": "TokenSet" } },
-  "defaults": { "density": "comfortable", "motion": "full", "contrast": "standard" }
+  "defaults": { "motion": "full", "contrast": "standard" }
 }
 ```
 - `appearance`: `dark` or `light` (one mode required) or `auto` (both required; follows

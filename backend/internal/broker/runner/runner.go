@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package runner is the ONLY place in the code base allowed to execute
 // programs (enforced by internal/guard). It runs allow-listed binaries with
 // argv fixed by the calling operation, a replaced environment, no stdin,

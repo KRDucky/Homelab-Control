@@ -24,11 +24,45 @@ or Authentic theme assets are used by the new interface.
 **Release packages contain no Webmin code or assets**; `compat/webmin/` is a development reference only
 (verified per build by `scripts/package-inventory.sh`; see `docs/compliance/WEBMIN-INDEPENDENCE.md`).
 
-## New Homelab Control code
+## Homelab Control code
 
-Code outside `compat/` is covered by the repository `LICENSE.md` (GNU GPL version 3). Whether later GPL
-versions are also granted, and the proposed MIT licence for SDK, schemas and themes (ADR 0005), await owner
-decisions — see `docs/compliance/LICENSE-AUDIT.md` (LA-02, LA-03).
+Copyright 2026 The Homelab Control Authors (see `AUTHORS.md`).
+
+Homelab Control is free software: you can redistribute it and/or modify it under the terms of the GNU
+General Public License as published by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version. It is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See
+`LICENSE.md` for the full licence text.
+
+SPDX: `GPL-3.0-or-later`, except the parts below. File-level boundaries are recorded in `REUSE.toml` and in
+SPDX headers; `compat/webmin/` keeps its upstream licences and is not relicensed.
+
+### MIT-licensed parts
+
+The public SDK (`sdk/`), schemas (`schemas/`, including the OpenAPI contract), theme definitions
+(`themes/`, theme schema and example themes under `docs/ui/`) and reusable design tokens
+(`frontend/design-system/`) are licensed under the MIT licence, so that third-party themes, plugins and API
+clients can use them without adopting the GPL. The design tokens are compiled into the web UI that `hc-api`
+embeds; this notice covers that use.
+
+```text
+Copyright (c) 2026 The Homelab Control Authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+associated documentation files (the "Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the
+following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial
+portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
+EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
 
 ## Third-party components in release artifacts
 

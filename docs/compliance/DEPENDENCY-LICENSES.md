@@ -51,7 +51,9 @@ output) is our own code, not a copy of the tool.
 | govulncheck | BSD-3-Clause | Security gate (CI) |
 | shellcheck 0.9 | GPL-3.0 | Shell lint (CI) |
 | spdx-tools 0.8.3 | Apache-2.0 | SBOM validation (CI) |
-| Playwright 1.63.0 (+ Chromium) | Apache-2.0 (Chromium: BSD-3-Clause and others) | Browser e2e (CI, VM) |
+| reuse 6.2.0 | GPL-3.0-or-later | REUSE licensing lint (CI security gate) |
+| lintian (Ubuntu 24.04 archive) | GPL-2.0-or-later | `.deb` copyright/licence check (CI) |
+| Playwright 1.63.0 (+ Chromium, Firefox, WebKit builds) | Apache-2.0 (Chromium: BSD-3-Clause and others; Firefox: MPL-2.0; WebKit: LGPL-2.1/BSD) | Browser e2e and theme CSSOM/CSP probe (CI, VM) |
 | dpkg-deb, rpmbuild, makepkg | GPL-2.0-or-later | Package builders |
 | debootstrap, libvirt/QEMU (owner workstation) | MIT; LGPL/GPL | Disposable test environments |
 

@@ -1,0 +1,37 @@
+# Machine-readable licensing of every file in this repository (REUSE 3.3, https://reuse.software).
+# Files that carry their own SPDX header use it ("closest"); every other file takes the
+# annotation below whose path matches it. Later annotations win over earlier ones.
+# Owner decisions 2026-10-16 (docs/compliance/LICENSE-AUDIT.md LA-02, LA-03):
+#   - Homelab Control core: GPL-3.0-or-later.
+#   - Public SDK, schemas, theme definitions and reusable design tokens: MIT.
+#   - compat/webmin/: third-party Webmin source under its own notices (not relicensed).
+version = 1
+
+[[annotations]]
+path = "**"
+precedence = "closest"
+SPDX-FileCopyrightText = "2026 The Homelab Control Authors"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+# MIT boundary (LA-03). Exact list; anything not matched here is GPL-3.0-or-later.
+[[annotations]]
+path = [
+  "sdk/**",
+  "schemas/**",
+  "themes/**",
+  "frontend/design-system/**",
+  "docs/ui/theme.schema.v1.draft.json",
+  "docs/ui/examples/themes/**",
+]
+precedence = "closest"
+SPDX-FileCopyrightText = "2026 The Homelab Control Authors"
+SPDX-License-Identifier = "MIT"
+
+# Upstream Webmin reference subtree: BSD-3-Clause with per-file exceptions; see
+# compat/webmin/LICENCE, the files themselves and docs/compliance/LICENSE-AUDIT.md (LA-08).
+# Never shipped in release packages.
+[[annotations]]
+path = "compat/webmin/**"
+precedence = "override"
+SPDX-FileCopyrightText = "Jamie Cameron and the Webmin contributors"
+SPDX-License-Identifier = "LicenseRef-Webmin-upstream"

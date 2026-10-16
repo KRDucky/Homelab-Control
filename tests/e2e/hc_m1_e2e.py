@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """M1 browser e2e: capability-aware navigation, Services, Hardware, Legacy,
 and graceful degradation when the broker stops. Driven by
 tests/e2e/run-m1-e2e.sh against a real stack in a disposable systemd host.

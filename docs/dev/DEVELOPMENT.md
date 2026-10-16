@@ -37,7 +37,8 @@ scripts/                  verify/sync upstream, security gate, reproducibility, 
 make build          # npm ci --ignore-scripts, vite build, embed UI, go build -> build/hc-api, build/hlctl
 make test           # Go unit/integration tests + Vitest
 make lint           # gofmt, go vet, tsc, eslint, prettier --check
-make security       # upstream provenance, guard tests, go vet, dependency policy, npm audit, secret scan
+make security       # upstream provenance, guard tests, go vet, dependency policy, npm audit, notices/SBOM drift, reuse lint, secret scan
+scripts/release-bundle.sh <ver> <dir>  # release DRY RUN: source archive, rebuild-from-archive check, packages, SHA256SUMS (publishes nothing; see BUILDING.md)
 make check          # lint + test + security
 make repro-check    # two clean builds of HEAD, compares SHA-256
 make deb            # dev .deb in build/ (unsigned)

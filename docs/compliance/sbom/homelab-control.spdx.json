@@ -1,25 +1,25 @@
 {
   "SPDXID": "SPDXRef-DOCUMENT",
   "creationInfo": {
-    "comment": "Inputs sha256 f15248d144f939f0a710e869772504bc736503b6addf293847ded88ed1d9e1dc over frontend/app/package-lock.json, backend/go.mod, compat/webmin.lock, scripts/gen-sbom.py. Build toolchain (CI): Go 1.26.x, Node.js 22, npm lockfileVersion 3, Vite 8.3.4, TypeScript 6.0.3. Package-payload inventories are produced per build by scripts/package-inventory.sh.",
-    "created": "2026-10-16T08:45:01Z",
+    "comment": "Inputs sha256 0bbd833e1dc5f3549fd848e93a1d2b0ba21af2469fdb03ef7b13caf233820893 over frontend/app/package-lock.json, backend/go.mod, compat/webmin.lock, scripts/gen-sbom.py. Build toolchain (CI): Go 1.26.x, Node.js 22, npm lockfileVersion 3, Vite 8.3.4, TypeScript 6.0.3. Package-payload inventories are produced per build by scripts/package-inventory.sh.",
+    "created": "2026-10-16T09:38:56Z",
     "creators": [
       "Person: Ian comings",
       "Tool: homelab-control-gen-sbom-1.0"
     ]
   },
   "dataLicense": "CC0-1.0",
-  "documentNamespace": "https://github.com/KRDucky/Homelab-Control---Webmin-Fork/spdx/f15248d144f939f0a710e869772504bc736503b6addf293847ded88ed1d9e1dc",
+  "documentNamespace": "https://github.com/KRDucky/Homelab-Control---Webmin-Fork/spdx/0bbd833e1dc5f3549fd848e93a1d2b0ba21af2469fdb03ef7b13caf233820893",
   "name": "homelab-control-source-sbom",
   "packages": [
     {
       "SPDXID": "SPDXRef-Package-homelab-control",
-      "comment": "Release packages (DEB/RPM/Arch): hc-api, hlctl, hc-broker, systemd units, sysusers, default env, LICENSE.md, NOTICE.md, THIRD-PARTY-NOTICES.md, README.md. licenseDeclared mirrors the packaging metadata; the repository text says GPL-3.0 without 'or later' (finding LA-02, owner decision).",
-      "copyrightText": "NOASSERTION",
+      "comment": "Release packages (DEB/RPM/Arch): hc-api, hlctl, hc-broker, systemd units, sysusers, default env, LICENSE.md, NOTICE.md, THIRD-PARTY-NOTICES.md, README.md (+ Debian copyright). Core code is GPL-3.0-or-later; the design tokens compiled into the UI bundle are MIT (file boundaries in REUSE.toml). Third-party components are listed as separate packages.",
+      "copyrightText": "Copyright 2026 The Homelab Control Authors",
       "downloadLocation": "git+https://github.com/KRDucky/Homelab-Control---Webmin-Fork.git",
       "filesAnalyzed": false,
       "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "GPL-3.0-or-later",
+      "licenseDeclared": "GPL-3.0-or-later AND MIT",
       "name": "homelab-control",
       "supplier": "Person: Ian comings",
       "versionInfo": "0.1.0-m0"
