@@ -63,6 +63,17 @@ const fixture: Overview = {
   legacy_webmin: { status: 'ok', sources: [], installed: false, config_readable: false },
 };
 
+// Test fixture only — not real host data.
+const allCaps = {
+  broker: { status: 'available', version: 't' },
+  capabilities: [
+    { id: 'overview', label: 'Overview', path: '/', scope: 'system.read', status: 'available' },
+    { id: 'services', label: 'Services', path: '/services', scope: 'services.read', status: 'available' },
+    { id: 'hardware', label: 'Hardware', path: '/hardware', scope: 'hardware.read', status: 'available' },
+    { id: 'legacy', label: 'Legacy Webmin', path: '/legacy', scope: 'system.read', status: 'available' },
+  ],
+};
+
 function mockFetch(routes: Record<string, { status: number; body?: unknown }>) {
   const calls: { url: string; init?: RequestInit }[] = [];
   vi.stubGlobal(
@@ -123,6 +134,7 @@ describe('App', () => {
         body: { username: 'admin', scopes: ['system.read'], csrf_token: 't', version: '0.1.0' },
       },
       'GET /api/v1/host/overview': { status: 200, body: fixture },
+      'GET /api/v1/capabilities': { status: 200, body: allCaps },
     });
     render(<App />);
     fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'admin' } });
@@ -152,6 +164,7 @@ describe('App', () => {
         body: { username: 'admin', scopes: ['system.read'], csrf_token: 'csrf-123', version: '0.1.0' },
       },
       'GET /api/v1/host/overview': { status: 200, body: fixture },
+      'GET /api/v1/capabilities': { status: 200, body: allCaps },
       'POST /api/v1/auth/logout': { status: 204 },
     });
     render(<App />);

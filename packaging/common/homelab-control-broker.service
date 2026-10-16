@@ -1,0 +1,41 @@
+[Unit]
+Description=Homelab Control privileged broker (typed read-only operations)
+Documentation=file:///usr/share/doc/homelab-control/README.md
+Requires=homelab-control-broker.socket
+After=homelab-control-broker.socket
+
+[Service]
+Type=simple
+ExecStart=/usr/lib/homelab-control/hc-broker -audit-log /var/log/homelab-control-broker/broker-audit.jsonl
+Restart=on-failure
+RestartSec=2s
+
+# Root, but only with the capabilities ADR 0008 needs: CAP_SETUID/CAP_SETGID to
+# run helper programs as the unprivileged service user. Root-only files are
+# read through owner (uid 0) permissions, no DAC override.
+CapabilityBoundingSet=CAP_SETUID CAP_SETGID
+AmbientCapabilities=
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateNetwork=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictAddressFamilies=AF_UNIX
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@resources @mount @swap @reboot @raw-io @module @obsolete @debug @cpu-emulation @clock
+UMask=0077
+LogsDirectory=homelab-control-broker
+LogsDirectoryMode=0700

@@ -1,10 +1,8 @@
 // Package guard contains repository-wide static security guards.
 //
-// TestNoProcessExecution enforces ADR 0001: the unprivileged API, its
-// libraries and the CLI must not spawn processes. Process execution will only
-// ever be permitted inside the future privileged broker's typed operation
-// adapters (backend/broker/ops/...), which do not exist in M0, and which must
-// use fixed argv arrays with no shell.
+// TestNoProcessExecution enforces ADR 0001/0008: no package may spawn
+// processes except internal/broker/runner, which runs allow-listed binaries
+// with fixed argv, no shell, as the unprivileged service user.
 package guard
 
 import (
@@ -12,6 +10,7 @@ import (
 	"go/parser"
 	"go/token"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -31,9 +30,9 @@ var forbiddenCalls = map[string]bool{
 	"os.StartProcess": true, "syscall.Setuid": true, "syscall.Setgid": true,
 }
 
-// allowedExecRoots lists directories where process execution may later be
-// introduced under review. Empty in M0.
-var allowedExecRoots = []string{}
+// allowedExecRoots lists the only directories allowed to execute programs.
+// Adding an entry requires security review (ADR 0008).
+var allowedExecRoots = []string{"internal/broker/runner/"}
 
 func TestNoProcessExecution(t *testing.T) {
 	root, err := filepath.Abs("../..")
@@ -125,5 +124,80 @@ func TestEveryAPIRouteIsWrapped(t *testing.T) {
 	})
 	if direct != 2 {
 		t.Errorf("expected exactly 2 direct mux registrations (catch-alls), found %d", direct)
+	}
+}
+
+// privileged packages that must never be linked into hc-api or hlctl.
+var privilegedPkgs = []string{
+	"homelab-control/backend/internal/broker/runner",
+	"homelab-control/backend/internal/broker/ops",
+	"homelab-control/backend/internal/broker/server",
+}
+
+// moduleImports returns the module-local and std imports of the non-test
+// files in a package directory.
+func moduleImports(t *testing.T, root, pkg string) []string {
+	t.Helper()
+	dir := filepath.Join(root, strings.TrimPrefix(pkg, "homelab-control/backend"))
+	fset := token.NewFileSet()
+	ents, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("%s: %v", pkg, err)
+	}
+	seen := map[string]bool{}
+	for _, e := range ents {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") || strings.HasSuffix(e.Name(), "_test.go") {
+			continue
+		}
+		f, err := parser.ParseFile(fset, filepath.Join(dir, e.Name()), nil, parser.ImportsOnly)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, imp := range f.Imports {
+			p, _ := strconv.Unquote(imp.Path.Value)
+			seen[p] = true
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for p := range seen {
+		out = append(out, p)
+	}
+	return out
+}
+
+// TestUnprivilegedBinariesDoNotLinkPrivilegedCode walks the module-local
+// import graph of hc-api and hlctl.
+func TestUnprivilegedBinariesDoNotLinkPrivilegedCode(t *testing.T) {
+	root, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, main := range []string{"homelab-control/backend/cmd/hc-api", "homelab-control/backend/cmd/hlctl"} {
+		visited := map[string]bool{}
+		queue := []string{main}
+		for len(queue) > 0 {
+			p := queue[0]
+			queue = queue[1:]
+			if visited[p] {
+				continue
+			}
+			visited[p] = true
+			for _, imp := range moduleImports(t, root, p) {
+				if imp == "os/exec" {
+					t.Errorf("%s (linked by %s) imports os/exec", p, main)
+				}
+				for _, bad := range privilegedPkgs {
+					if imp == bad {
+						t.Errorf("%s links privileged package %s via %s", main, bad, p)
+					}
+				}
+				if strings.HasPrefix(imp, "homelab-control/backend/") {
+					queue = append(queue, imp)
+				}
+			}
+		}
+		if len(visited) < 3 {
+			t.Fatalf("import walk for %s visited only %d packages", main, len(visited))
+		}
 	}
 }

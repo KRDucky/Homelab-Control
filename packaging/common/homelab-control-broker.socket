@@ -1,0 +1,15 @@
+[Unit]
+Description=Homelab Control privileged broker socket
+Documentation=file:///usr/share/doc/homelab-control/README.md
+
+[Socket]
+ListenStream=/run/homelab-control/broker.sock
+SocketUser=root
+SocketGroup=homelab-control
+SocketMode=0660
+DirectoryMode=0755
+Accept=no
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target

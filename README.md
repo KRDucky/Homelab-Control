@@ -4,10 +4,11 @@ Homelab-first Linux server administration, forked from [Webmin](https://github.c
 a modern React/TypeScript UI and a versioned, least-privilege management API on top of the proven
 Webmin codebase.
 
-> **Status: Milestone M0 (foundation).** What works today: an unprivileged API server with
-> authenticated sessions and a **read-only** host overview (system, CPU, memory, filesystems, network,
-> legacy-Webmin detection), plus the pinned upstream Webmin 2.670 source. Nothing in this build changes
-> your system. See [`docs/STATUS.md`](docs/STATUS.md).
+> **Status: Milestone M1.** What works today, all **read-only**: an unprivileged API and web UI with
+> authenticated sessions; a host overview; a systemd services list; a hardware inventory with stable
+> drive identity and confidence labels; and a legacy-Webmin status page with a security review. Root-level
+> data comes from a small privileged broker that exposes four fixed, read-only operations and never runs
+> commands as root. Nothing in this build changes your system. See [`docs/STATUS.md`](docs/STATUS.md).
 
 ## Quick start (development)
 ```bash
@@ -23,10 +24,10 @@ More: [`docs/dev/DEVELOPMENT.md`](docs/dev/DEVELOPMENT.md) · tests: `make check
 | Path | What it is |
 |---|---|
 | `compat/webmin/` | Upstream Webmin 2.670, unmodified (BSD-3 + per-file licenses), pinned in `compat/webmin.lock` |
-| `backend/` | Go API server `hc-api` and admin CLI `hlctl` |
+| `backend/` | Go API server `hc-api`, privileged broker `hc-broker`, admin CLI `hlctl` |
 | `frontend/` | React UI shell and design tokens |
 | `sdk/`, `plugins/`, `themes/`, `schemas/` | Extension SDK, plugins, themes, API/manifest schemas |
-| `packaging/` | systemd unit; Debian dev package; Fedora/openSUSE/Arch drafts |
+| `packaging/` | systemd units; dev packages for Debian/Ubuntu (.deb), Fedora/openSUSE (.rpm), Arch (.pkg.tar.zst) |
 | `tests/`, `dev/` | Integration/e2e/security tests; disposable container and VM setup |
 | `docs/` | Project spec, ADRs, upstream audit, threat model, plans, test evidence |
 

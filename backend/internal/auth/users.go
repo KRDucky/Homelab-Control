@@ -17,15 +17,22 @@ import (
 // is defined in docs/project/03-SECURITY-AND-OPERATIONS.md; M0 only grants and
 // uses system.read.
 const (
-	ScopeSystemRead = "system.read"
+	ScopeSystemRead   = "system.read"   // overview, legacy Webmin status
+	ScopeServicesRead = "services.read" // systemd unit list (M1)
+	ScopeHardwareRead = "hardware.read" // hardware inventory incl. DMI serials (M1)
 )
 
-// KnownScopes lists every scope the M0 server understands. Unknown scopes in the
+// KnownScopes lists every scope the server understands. Unknown scopes in the
 // users file are rejected at load time so typos cannot silently grant nothing
-// (or, in later milestones, the wrong thing).
+// (or, in later milestones, the wrong thing). All M1 scopes are read-only.
 var KnownScopes = map[string]bool{
-	ScopeSystemRead: true,
+	ScopeSystemRead:   true,
+	ScopeServicesRead: true,
+	ScopeHardwareRead: true,
 }
+
+// DefaultScopes are granted by `hlctl user add` when --scopes is not given.
+const DefaultScopes = ScopeSystemRead + "," + ScopeServicesRead + "," + ScopeHardwareRead
 
 var usernameRE = regexp.MustCompile(`^[a-z_][a-z0-9_-]{0,31}$`)
 

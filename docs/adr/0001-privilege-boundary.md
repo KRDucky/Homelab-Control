@@ -1,6 +1,6 @@
 # ADR-0001: Privilege boundary — unprivileged API, typed root broker
 
-**Status:** Proposed (M0 implements the unprivileged half; broker is M1/M2)
+**Status:** Implemented — unprivileged API (M0), broker with read-only typed ops (M1, see ADR 0008). Owner approval still pending.
 **Date:** 2026-10-15
 **Deciders:** Project owner (Ian); security review before any broker operation is enabled
 
@@ -20,7 +20,7 @@ Split the system into three processes with a hard boundary:
    `os.StartProcess`, `net/rpc`, `plugin`, `unsafe`) — and refuses to start as root.
    The systemd unit drops all capabilities and applies `ProtectSystem=strict`, `NoNewPrivileges`,
    syscall filtering.
-2. **`hc-broker` (root, M1/M2, not built yet).** Listens on a root-owned Unix socket
+2. **`hc-broker` (root; implemented in M1, see ADR 0008 for the concrete design).** Listens on a root-owned Unix socket
    (`/run/homelab-control/broker.sock`, mode 0660, group `homelab-control`), authenticates the peer
    with `SO_PEERCRED`, and exposes a **closed list of typed operations** (e.g. `storage.smart.read
    {disk_id}`, `services.unit.status {unit}`). Each operation has a JSON Schema for arguments, a
@@ -69,5 +69,5 @@ manages disks and networks on home servers exposed on LANs and tailnets, that is
 ## Action Items
 1. [x] Guard tests that block process execution in all current Go code (M0).
 2. [x] Hardened systemd unit for hc-api (M0, `packaging/common/homelab-control.service`).
-3. [ ] Broker IPC schema + `SO_PEERCRED` auth + first read-only op (M1).
-4. [ ] Locking/journaled operation state (M2).
+3. [x] Broker IPC schema + `SO_PEERCRED` auth + first read-only ops (M1, ADR 0008).
+4. [ ] Locking/journaled operation state and write-op confirmation (M2).

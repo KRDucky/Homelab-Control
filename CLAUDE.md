@@ -33,7 +33,7 @@ Then: `docs/adr/README.md`, `docs/audit/SPEC-CONTRADICTIONS.md`, `docs/dev/DEVEL
 
 ## Repository-specific rules (from M0)
 - `compat/webmin/` is a pristine `git subtree --squash` of upstream; any change there must be listed in `compat/PATCHES.md`. Sync with `scripts/sync-upstream.sh`, verify with `scripts/verify-upstream.sh`.
-- Backend Go code must not spawn processes or register routes outside `Server.handle` — `backend/internal/guard` tests enforce this. Privileged work belongs in the future broker (ADR 0001).
+- Only `backend/internal/broker/runner` may execute programs; `hc-api`/`hlctl` must not link broker internals; every API route goes through `Server.handle` and is documented in OpenAPI with its scope — `backend/internal/guard` tests enforce all of this. Privileged work happens only in broker ops (ADR 0001, ADR 0008); new ops need review and must stay read-only until M2 designs write safety.
 - Go: standard library only unless ADR 0006 is updated. npm: exact versions, `npm ci --ignore-scripts`.
 - Run `make check` before committing; run Go tests as a non-root user.
 
@@ -44,7 +44,7 @@ Then: `docs/adr/README.md`, `docs/audit/SPEC-CONTRADICTIONS.md`, `docs/dev/DEVEL
 - Maintain `docs/project/09-PROJECT-MEMORY.md` as concise verified project state, not as speculative facts.
 
 ## Current milestone
-M0 is complete pending owner review (see `docs/STATUS.md`). Next: `docs/M1-PLAN.md`, only after approval.
+M1 is complete pending owner review (see `docs/STATUS.md`, `docs/M1-REPORT.md`). Do not start M2 without approval.
 
 # Append to root CLAUDE.md — File Services and Proxy Expansion
 
