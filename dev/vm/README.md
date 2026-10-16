@@ -3,6 +3,9 @@
 Replaces the earlier Vagrantfile (never run; it used libvirt's default storage pool). Everything here
 runs as your normal user against `qemu:///system`; nothing uses `sudo` on the host.
 
+**Status:** verified 2026-10-16 on the owner's CachyOS/KVM workstation with Ubuntu 26.04 (full M1 suite
+green; evidence `docs/evidence/m1/vm-26.04/`). Ubuntu 24.04 is supported by the script but not yet run.
+
 ## Safety limits (enforced by `hc-vm.sh`, not just documented)
 - VM and volume names must start with `hc-test-`.
 - Disks are volumes in the existing **`hc-test`** pool only; no host block devices, no other paths.
