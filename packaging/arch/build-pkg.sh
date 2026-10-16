@@ -13,8 +13,11 @@ cp "$root"/packaging/common/{homelab-control.service,homelab-control-broker.serv
 cp "$root/LICENSE.md" "$root/NOTICE.md" "$root/README.md" "$work/"
 cat > "$work/homelab-control.install" <<'INST'
 post_install() {
-  # systemd's pacman hook has already run sysusers for usr/lib/sysusers.d.
-  chgrp homelab-control /etc/homelab-control /etc/homelab-control/hc-api.env 2>/dev/null || true
+  # Install scriptlets run BEFORE pacman's post-transaction hooks, so the
+  # 20-systemd-sysusers hook has not created the user yet. Create it here
+  # (idempotent; the hook re-running later is harmless), then set the group.
+  systemd-sysusers /usr/lib/sysusers.d/homelab-control.conf
+  chgrp homelab-control /etc/homelab-control /etc/homelab-control/hc-api.env
   echo "homelab-control installed but NOT enabled. See /usr/share/doc/homelab-control/README.md"
 }
 post_upgrade() { post_install; }
