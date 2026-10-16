@@ -22,7 +22,7 @@ Ubuntu 26.04.1 KVM guest, systemd 259.5 (`dev/vm/`, evidence `docs/evidence/m1/v
 systemd smoke + M1 checks **40/40** (hardening, socket-activated broker, auth, routes, host filesystems),
 `systemd-analyze security` 1.6 (hc-api) / 1.5 (broker), rollback + Webmin coexistence **13/13**,
 browser e2e **25/25**, axe WCAG 2.1 A/AA **0 violations** on 4 pages, final removal **4/4**.
-CI run 38866773032 on the same commit: all 16 jobs green.
+CI run 38866773032 on the same commit: all 15 jobs green.
 
 ## Outstanding external validation (not verified)
 - VM runs for distributions other than Ubuntu 26.04 (held until requested; 26.04 passed first).
