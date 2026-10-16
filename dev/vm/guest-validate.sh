@@ -85,7 +85,8 @@ step "3. browser e2e + axe (Playwright, Chromium) against the packaged stack"
   # set -e: the first failing prerequisite stops this step with its own error at the end of the log.
   apt-get install -y python3-venv
   python3 -m venv $H/venv
-  $H/venv/bin/pip install -q playwright==1.56.0
+  # >= 1.61.0 is the first Playwright that supports Ubuntu 26.04 (1.56 refuses to install Chromium there).
+  $H/venv/bin/pip install -q playwright==1.63.0
   if ! $H/venv/bin/python -m playwright install --with-deps chromium; then
     echo "playwright --with-deps not supported on this release; installing Chromium deps from the archive"
     for p in libnss3 libnspr4 libatk1.0-0t64 libatk-bridge2.0-0t64 libcups2t64 libxkbcommon0 libxcomposite1 \
