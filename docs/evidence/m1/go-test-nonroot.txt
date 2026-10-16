@@ -1,0 +1,219 @@
+=== RUN   TestValidateLegacyURL
+--- PASS: TestValidateLegacyURL (0.00s)
+=== RUN   TestIsLoopback
+--- PASS: TestIsLoopback (0.00s)
+PASS
+ok  	homelab-control/backend/cmd/hc-api	0.132s
+?   	homelab-control/backend/cmd/hc-broker	[no test files]
+=== RUN   TestUserLifecycle
+--- PASS: TestUserLifecycle (0.36s)
+PASS
+ok  	homelab-control/backend/cmd/hlctl	0.484s
+=== RUN   TestCapabilitiesWithBroker
+--- PASS: TestCapabilitiesWithBroker (0.17s)
+=== RUN   TestCapabilitiesBrokerDown
+--- PASS: TestCapabilitiesBrokerDown (0.17s)
+=== RUN   TestCapabilitiesNoSystemd
+--- PASS: TestCapabilitiesNoSystemd (0.35s)
+=== RUN   TestCapabilitiesRespectScopes
+--- PASS: TestCapabilitiesRespectScopes (0.19s)
+=== RUN   TestServicesEndpoint
+--- PASS: TestServicesEndpoint (0.17s)
+=== RUN   TestServicesWithoutBrokerConfigured
+--- PASS: TestServicesWithoutBrokerConfigured (0.19s)
+=== RUN   TestHardwareEndpoint
+--- PASS: TestHardwareEndpoint (0.18s)
+=== RUN   TestLegacyEndpointFallsBack
+--- PASS: TestLegacyEndpointFallsBack (0.17s)
+=== RUN   TestCapabilitiesRequireSession
+--- PASS: TestCapabilitiesRequireSession (0.08s)
+=== RUN   TestHealthIsPublicAndMinimal
+--- PASS: TestHealthIsPublicAndMinimal (0.10s)
+=== RUN   TestOverviewRequiresAuthentication
+--- PASS: TestOverviewRequiresAuthentication (0.09s)
+=== RUN   TestLoginAndReadOverview
+--- PASS: TestLoginAndReadOverview (0.15s)
+=== RUN   TestScopeEnforcedServerSide
+--- PASS: TestScopeEnforcedServerSide (0.13s)
+=== RUN   TestBadCredentialsAndThrottle
+--- PASS: TestBadCredentialsAndThrottle (0.46s)
+=== RUN   TestLoginRequiresSameOrigin
+--- PASS: TestLoginRequiresSameOrigin (0.09s)
+=== RUN   TestLoginStrictJSON
+--- PASS: TestLoginStrictJSON (0.09s)
+=== RUN   TestLogoutRequiresCSRFToken
+--- PASS: TestLogoutRequiresCSRFToken (0.13s)
+=== RUN   TestDisabledAccountLosesSession
+--- PASS: TestDisabledAccountLosesSession (0.12s)
+=== RUN   TestSessionFixationDefence
+--- PASS: TestSessionFixationDefence (0.17s)
+=== RUN   TestSecurityHeadersAndUnknownRoutes
+--- PASS: TestSecurityHeadersAndUnknownRoutes (0.10s)
+=== RUN   TestSecureCookieModeUsesHostPrefix
+--- PASS: TestSecureCookieModeUsesHostPrefix (0.13s)
+PASS
+ok  	homelab-control/backend/internal/api	3.573s
+=== RUN   TestLogInjectionIsNeutralised
+--- PASS: TestLogInjectionIsNeutralised (0.00s)
+=== RUN   TestFileCreatedPrivate
+--- PASS: TestFileCreatedPrivate (0.00s)
+PASS
+ok  	homelab-control/backend/internal/audit	0.004s
+=== RUN   TestHashAndVerify
+--- PASS: TestHashAndVerify (0.16s)
+=== RUN   TestRejectWeakOrMalformedHashes
+--- PASS: TestRejectWeakOrMalformedHashes (0.00s)
+=== RUN   TestUsersFilePermissions
+--- PASS: TestUsersFilePermissions (0.19s)
+=== RUN   TestUsersFileRejectsSymlink
+--- PASS: TestUsersFileRejectsSymlink (0.04s)
+=== RUN   TestUsersFileValidation
+--- PASS: TestUsersFileValidation (0.08s)
+=== RUN   TestAuthenticate
+--- PASS: TestAuthenticate (0.46s)
+=== RUN   TestSessionLifecycle
+--- PASS: TestSessionLifecycle (0.00s)
+=== RUN   TestSessionCap
+--- PASS: TestSessionCap (0.00s)
+=== RUN   TestCSRF
+--- PASS: TestCSRF (0.00s)
+=== RUN   TestThrottle
+--- PASS: TestThrottle (0.00s)
+=== RUN   TestThrottleMemoryBounded
+--- PASS: TestThrottleMemoryBounded (0.05s)
+PASS
+ok  	homelab-control/backend/internal/auth	1.121s
+=== RUN   TestRegistryIsClosedAndReadOnly
+--- PASS: TestRegistryIsClosedAndReadOnly (0.00s)
+=== RUN   TestAllOpsRejectArguments
+--- PASS: TestAllOpsRejectArguments (0.00s)
+=== RUN   TestWebminStatus
+--- PASS: TestWebminStatus (0.00s)
+=== RUN   TestWebminNotInstalledAndSymlinkRefused
+--- PASS: TestWebminNotInstalledAndSymlinkRefused (0.00s)
+=== RUN   TestWebminPidfileConfined
+--- PASS: TestWebminPidfileConfined (0.00s)
+=== RUN   TestVersionLess
+--- PASS: TestVersionLess (0.00s)
+=== RUN   TestDMIIdentity
+--- PASS: TestDMIIdentity (0.00s)
+=== RUN   TestParseRealSystemctlOutput
+--- PASS: TestParseRealSystemctlOutput (0.00s)
+=== RUN   TestParseRejectsHostileUnits
+--- PASS: TestParseRejectsHostileUnits (0.00s)
+=== RUN   TestSystemdListWithoutSystemctl
+--- PASS: TestSystemdListWithoutSystemctl (0.00s)
+=== RUN   TestBrokerInfoReportsSystemdBoot
+--- PASS: TestBrokerInfoReportsSystemdBoot (0.00s)
+PASS
+ok  	homelab-control/backend/internal/broker/ops	0.017s
+=== RUN   TestOpNames
+--- PASS: TestOpNames (0.00s)
+=== RUN   TestFrameRoundTripAndLimits
+--- PASS: TestFrameRoundTripAndLimits (0.00s)
+=== RUN   TestDecodeArgsStrict
+--- PASS: TestDecodeArgsStrict (0.00s)
+PASS
+ok  	homelab-control/backend/internal/broker/proto	0.003s
+=== RUN   TestOnlyAllowlistedBinaries
+--- PASS: TestOnlyAllowlistedBinaries (0.00s)
+=== RUN   TestShellMetacharactersRejected
+--- PASS: TestShellMetacharactersRejected (0.00s)
+=== RUN   TestEnvironmentReplaced
+--- PASS: TestEnvironmentReplaced (0.00s)
+=== RUN   TestTimeoutKillsProcessGroup
+--- PASS: TestTimeoutKillsProcessGroup (0.20s)
+=== RUN   TestOutputCapped
+--- PASS: TestOutputCapped (0.00s)
+=== RUN   TestUnsafeBinaryRejected
+--- PASS: TestUnsafeBinaryRejected (0.00s)
+=== RUN   TestMissingKnownBinaryIsNotExist
+--- PASS: TestMissingKnownBinaryIsNotExist (0.00s)
+PASS
+ok  	homelab-control/backend/internal/broker/runner	0.211s
+=== RUN   TestSocketMode
+--- PASS: TestSocketMode (0.00s)
+=== RUN   TestInfoAndUnknownOp
+--- PASS: TestInfoAndUnknownOp (0.00s)
+=== RUN   TestScopeRecheckedByBroker
+--- PASS: TestScopeRecheckedByBroker (0.00s)
+=== RUN   TestPeerNotAllowed
+--- PASS: TestPeerNotAllowed (0.00s)
+=== RUN   TestMalformedRequests
+--- PASS: TestMalformedRequests (0.00s)
+=== RUN   TestSlowClientTimesOut
+--- PASS: TestSlowClientTimesOut (5.00s)
+=== RUN   TestPanickingOpContained
+--- PASS: TestPanickingOpContained (0.00s)
+=== RUN   TestBusy
+--- PASS: TestBusy (0.20s)
+=== RUN   TestClientUnavailable
+--- PASS: TestClientUnavailable (0.00s)
+=== RUN   TestAuditHasNoResults
+--- PASS: TestAuditHasNoResults (0.00s)
+PASS
+ok  	homelab-control/backend/internal/broker/server	5.221s
+?   	homelab-control/backend/internal/broker/types	[no test files]
+?   	homelab-control/backend/internal/brokerclient	[no test files]
+=== RUN   TestNoProcessExecution
+--- PASS: TestNoProcessExecution (0.01s)
+=== RUN   TestEveryAPIRouteIsWrapped
+--- PASS: TestEveryAPIRouteIsWrapped (0.00s)
+=== RUN   TestUnprivilegedBinariesDoNotLinkPrivilegedCode
+--- PASS: TestUnprivilegedBinariesDoNotLinkPrivilegedCode (0.00s)
+=== RUN   TestOpenAPIMatchesRoutes
+--- PASS: TestOpenAPIMatchesRoutes (0.00s)
+PASS
+ok  	homelab-control/backend/internal/guard	0.016s
+=== RUN   TestSystemFromFixture
+--- PASS: TestSystemFromFixture (0.00s)
+=== RUN   TestDistroFamily
+--- PASS: TestDistroFamily (0.00s)
+=== RUN   TestParseOSReleaseQuoting
+--- PASS: TestParseOSReleaseQuoting (0.00s)
+=== RUN   TestCPUInfo
+--- PASS: TestCPUInfo (0.00s)
+=== RUN   TestMemory
+--- PASS: TestMemory (0.00s)
+=== RUN   TestMemoryWithoutMemAvailableIsLabelled
+--- PASS: TestMemoryWithoutMemAvailableIsLabelled (0.00s)
+=== RUN   TestFilesystems
+--- PASS: TestFilesystems (0.00s)
+=== RUN   TestUnescapeMount
+--- PASS: TestUnescapeMount (0.00s)
+=== RUN   TestNetwork
+--- PASS: TestNetwork (0.00s)
+=== RUN   TestLegacyNotInstalled
+--- PASS: TestLegacyNotInstalled (0.00s)
+=== RUN   TestLegacyUnreadableConfigNeedsPrivilege
+--- PASS: TestLegacyUnreadableConfigNeedsPrivilege (0.00s)
+=== RUN   TestMissingRootsReportUnavailable
+--- PASS: TestMissingRootsReportUnavailable (0.00s)
+=== RUN   TestLargeMountTableReadCompletely
+--- PASS: TestLargeMountTableReadCompletely (0.01s)
+=== RUN   TestStatfsTimeoutDoesNotHang
+--- PASS: TestStatfsTimeoutDoesNotHang (0.05s)
+=== RUN   TestOverlayRootIsReported
+--- PASS: TestOverlayRootIsReported (0.00s)
+PASS
+ok  	homelab-control/backend/internal/hostinfo	0.062s
+=== RUN   TestSystem
+--- PASS: TestSystem (0.00s)
+=== RUN   TestPCIWithNames
+--- PASS: TestPCIWithNames (0.00s)
+=== RUN   TestUSBSkipsInterfaces
+--- PASS: TestUSBSkipsInterfaces (0.00s)
+=== RUN   TestDiskIdentity
+--- PASS: TestDiskIdentity (0.00s)
+=== RUN   TestSensors
+--- PASS: TestSensors (0.00s)
+=== RUN   TestEmptyHostIsLabelledNotInvented
+--- PASS: TestEmptyHostIsLabelledNotInvented (0.00s)
+=== RUN   TestRankIdentity
+--- PASS: TestRankIdentity (0.00s)
+=== RUN   TestVirtualDiskMediaTypeUnknown
+--- PASS: TestVirtualDiskMediaTypeUnknown (0.00s)
+PASS
+ok  	homelab-control/backend/internal/hwinfo	0.008s
+?   	homelab-control/backend/internal/version	[no test files]
+?   	homelab-control/backend/internal/webui	[no test files]
