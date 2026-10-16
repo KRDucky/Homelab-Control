@@ -1,0 +1,27 @@
+{
+  "$schema": "../../theme.schema.v1.draft.json",
+  "schemaVersion": 1,
+  "id": "org.homelab-control.oled",
+  "name": "OLED Black",
+  "description": "True-black surfaces for OLED panels; inherits everything else from Homelab Default.",
+  "version": "1.0.0",
+  "license": "MIT",
+  "engine": ">=1.0.0 <2.0.0",
+  "extends": "org.homelab-control.default",
+  "appearance": "dark",
+  "defaults": { "density": "compact" },
+  "modes": {
+    "dark": {
+      "color": {
+        "surface": { "base": "#000000", "raised": "#0b0b0f", "sunken": "#000000", "overlay": "#131318" },
+        "border": { "subtle": "#22232b", "strong": "#62647a" },
+        "meter": { "track": "#1a1b22" }
+      },
+      "elevation": {
+        "level1": { "y": 0, "blur": 0, "color": "#00000000" },
+        "level2": { "y": 0, "blur": 0, "color": "#00000000" },
+        "level3": { "y": 0, "blur": 0, "color": "#00000000" }
+      }
+    }
+  }
+}

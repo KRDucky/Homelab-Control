@@ -1,0 +1,34 @@
+{
+  "$schema": "../../theme.schema.v1.draft.json",
+  "schemaVersion": 1,
+  "id": "org.homelab-control.high-contrast",
+  "name": "High Contrast",
+  "description": "Maximum legibility: 7:1 text contrast, strong borders, thicker focus ring, no shadows.",
+  "version": "1.0.0",
+  "license": "MIT",
+  "engine": ">=1.0.0 <2.0.0",
+  "appearance": "dark",
+  "defaults": { "contrast": "high", "motion": "reduced" },
+  "modes": {
+    "dark": {
+      "color": {
+        "surface": { "base": "#000000", "raised": "#000000", "sunken": "#000000", "overlay": "#101010" },
+        "text": { "primary": "#ffffff", "secondary": "#e0e0e0", "disabled": "#a0a0a0", "inverse": "#000000", "link": "#8fd3ff" },
+        "border": { "subtle": "#c8c8c8", "strong": "#ffffff" },
+        "accent": { "base": "#ffd84d", "hover": "#ffe580", "contrast": "#000000" },
+        "focus": { "ring": "#ffd84d" },
+        "status": { "ok": "#5dff9b", "warn": "#ffd84d", "crit": "#ff8a8a", "info": "#8fd3ff", "unknown": "#e0e0e0" },
+        "chart": { "series": ["#ffd84d", "#5dff9b", "#8fd3ff", "#ff8a8a", "#ffffff", "#d9a6ff"], "grid": "#5a5a5a", "axis": "#e0e0e0" },
+        "meter": { "track": "#5a5a5a", "fill": "#5dff9b" }
+      },
+      "shape": { "borderWidth": 2 },
+      "elevation": {
+        "level1": { "y": 0, "blur": 0, "color": "#00000000" },
+        "level2": { "y": 0, "blur": 0, "color": "#00000000" },
+        "level3": { "y": 0, "blur": 0, "color": "#00000000" }
+      },
+      "motion": { "duration": { "fast": 0, "normal": 0 }, "easing": "linear" },
+      "status": { "indicator": "icon-text" }
+    }
+  }
+}
