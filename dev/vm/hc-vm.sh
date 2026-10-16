@@ -133,7 +133,9 @@ create() {
   img=$(fetch_image "$rel" | tail -1)
   basevol="${PREFIX}base-ubuntu-$rel.qcow2"; vol="$name.qcow2"; seedvol="$name-seed.iso"
   for x in "$vol" "$seedvol"; do v vol-info --pool "$POOL" "$x" >/dev/null 2>&1 && die "volume $POOL/$x already exists; not touching it"; done
-  fmt=$(qemu-img info --output=json "$img" | sed -n 's/.*"format": *"\([a-z0-9]*\)".*/\1/p' | head -1)
+  # Human output: the image's own "file format:" line comes first (JSON lists child nodes such as
+  # "file" before the top-level format on newer qemu-img).
+  fmt=$(qemu-img info "$img" | awk -F': *' '/^file format:/{print $2; exit}')
   [ "$fmt" = qcow2 ] || die "unexpected image format '$fmt'"
   if ! v vol-info --pool "$POOL" "$basevol" >/dev/null 2>&1; then
     v vol-create-as "$POOL" "$basevol" "$(stat -c %s "$img")" --format qcow2 >/dev/null
