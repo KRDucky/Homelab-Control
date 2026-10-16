@@ -2,7 +2,7 @@
 
 | Target | Format | M0 status | Next step |
 |---|---|---|---|
-| Debian stable / Ubuntu LTS | `.deb` (`homelab-control`, replaces `homelab-control-api`) | M1: built; **installed and run under real systemd (PID 1) on Ubuntu 22.04 and 24.04** disposable containers; install test without systemd on both. Debian itself: CI matrix only (mirror unreachable here). Ubuntu 26.04 LTS: added to the CI install matrix and a real-systemd container job (2026-10-15); not yet verified. | lintian; source package (M13). |
+| Debian stable / Ubuntu LTS | `.deb` (`homelab-control`, replaces `homelab-control-api`) | M1: built; **installed and run under real systemd (PID 1) on Ubuntu 22.04 and 24.04** disposable containers; install test without systemd on both. Debian itself: CI matrix only (mirror unreachable here). Ubuntu 26.04 LTS: CI install test and real-systemd (259.5) container job pass on `da41162a` (run 38852873505). | lintian; source package (M13). |
 | Fedora | binary `.rpm` (`packaging/fedora/build-rpm.sh`) | M1: **built** (rpmbuild on Ubuntu); install test only in CI (`fedora:latest`), not yet run | Source RPM/mock (M13). |
 | openSUSE Leap/Tumbleweed | same binary `.rpm` (zypper) | M1: depends on `/usr/sbin/useradd` (works with openSUSE `shadow`); CI-only, not yet run | OBS build (M13). |
 | Arch / CachyOS | `.pkg.tar.zst` (`packaging/arch/build-pkg.sh`, makepkg) | M1: CI-only (no Arch environment reachable here), not yet run | Run on owner's CachyOS host; AUR/source PKGBUILD (M13). |

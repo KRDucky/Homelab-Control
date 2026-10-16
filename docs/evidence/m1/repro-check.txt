@@ -1,0 +1,51 @@
+Preparing worktree (detached HEAD da41162a)
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: '@asamuzakjp/css-color@7.1.5',
+npm warn EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },
+npm warn EBADENGINE   current: { node: 'v22.22.0', npm: '10.9.4' }
+npm warn EBADENGINE }
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: '@asamuzakjp/dom-selector@9.2.4',
+npm warn EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },
+npm warn EBADENGINE   current: { node: 'v22.22.0', npm: '10.9.4' }
+npm warn EBADENGINE }
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'jsdom@30.1.2',
+npm warn EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },
+npm warn EBADENGINE   current: { node: 'v22.22.0', npm: '10.9.4' }
+npm warn EBADENGINE }
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'w3c-xmlserializer@6.0.0',
+npm warn EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },
+npm warn EBADENGINE   current: { node: 'v22.22.0', npm: '10.9.4' }
+npm warn EBADENGINE }
+Preparing worktree (detached HEAD da41162a)
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: '@asamuzakjp/css-color@7.1.5',
+npm warn EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },
+npm warn EBADENGINE   current: { node: 'v22.22.0', npm: '10.9.4' }
+npm warn EBADENGINE }
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: '@asamuzakjp/dom-selector@9.2.4',
+npm warn EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },
+npm warn EBADENGINE   current: { node: 'v22.22.0', npm: '10.9.4' }
+npm warn EBADENGINE }
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'jsdom@30.1.2',
+npm warn EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },
+npm warn EBADENGINE   current: { node: 'v22.22.0', npm: '10.9.4' }
+npm warn EBADENGINE }
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'w3c-xmlserializer@6.0.0',
+npm warn EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },
+npm warn EBADENGINE   current: { node: 'v22.22.0', npm: '10.9.4' }
+npm warn EBADENGINE }
+build A:
+6136b32b717397bb4a5872542d5b8273816ae545b89f783a5d07b9d79b033f9e  hc-api
+29917a96f39dda9f094420b8dd477a322f6aa00b6db3ffc61716bda7530b584f  hc-broker
+4d69bb3b405215879124ced5d176a0d47ae9673652b7ffce3b197ea585610106  hlctl
+build B:
+6136b32b717397bb4a5872542d5b8273816ae545b89f783a5d07b9d79b033f9e  hc-api
+29917a96f39dda9f094420b8dd477a322f6aa00b6db3ffc61716bda7530b584f  hc-broker
+4d69bb3b405215879124ced5d176a0d47ae9673652b7ffce3b197ea585610106  hlctl
+REPRODUCIBLE: identical artifacts for da41162a4ecd9ba0732abdd04c44fb332ecac3c5
