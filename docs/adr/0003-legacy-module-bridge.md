@@ -1,6 +1,8 @@
 # ADR-0003: Legacy Webmin module bridge and migration
 
-**Status:** Proposed
+**Status:** Accepted (2026-10-16, owner) — architectural direction: coexistence plus audited per-operation adapters; no generic bridge or RPC.
+> **Owner decision recorded 2026-10-16:** this acceptance is **not** authorization to implement privileged write operations. Any write-capable broker operation needs a separate, explicit owner approval (M2 design: confirmation, locking, audit, rollback).
+
 **Date:** 2026-10-15
 **Deciders:** Project owner
 
