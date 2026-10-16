@@ -17,23 +17,22 @@ Homelab Control is a fork and modernization of **Webmin**.
 - Fork-specific changes inside `compat/webmin/` are listed in `compat/PATCHES.md`
   (none as of M0).
 
-Not vendored in M0: the Authentic theme (<https://github.com/webmin/authentic-theme>,
-MIT License, Copyright (c) Ilia Rostovtsev), which upstream release packages bundle.
-See `docs/adr/0005-release-and-license-strategy.md`.
+Webmin's Authentic theme (<https://github.com/webmin/authentic-theme>, MIT, Copyright (c) Ilia
+Rostovtsev), which upstream release packages bundle, is **not** part of this repository, and no Webmin
+or Authentic theme assets are used by the new interface.
+
+**Release packages contain no Webmin code or assets**; `compat/webmin/` is a development reference only
+(verified per build by `scripts/package-inventory.sh`; see `docs/compliance/WEBMIN-INDEPENDENCE.md`).
 
 ## New Homelab Control code
 
-Code outside `compat/` is currently covered by the repository `LICENSE.md`
-(GNU GPL v3). The final licensing split is a pending decision recorded in
-`docs/adr/0005-release-and-license-strategy.md`.
+Code outside `compat/` is covered by the repository `LICENSE.md` (GNU GPL version 3). Whether later GPL
+versions are also granted, and the proposed MIT licence for SDK, schemas and themes (ADR 0005), await owner
+decisions — see `docs/compliance/LICENSE-AUDIT.md` (LA-02, LA-03).
 
-## Third-party components shipped in the web UI build
+## Third-party components in release artifacts
 
-| Component | License |
-|---|---|
-| React, React DOM, scheduler | MIT |
-| Archivo variable font (`@fontsource-variable/archivo`) | SIL Open Font License 1.1 |
-
-Development-only tooling (Vite, TypeScript, ESLint, Vitest, Prettier, jsdom,
-Testing Library) is not shipped. The Go backend uses only the Go standard
-library (BSD 3-Clause, The Go Authors).
+The binaries and packages contain the Go standard library (BSD-3-Clause), React, React DOM and scheduler
+(MIT) and the Archivo variable font (SIL OFL 1.1). Their full copyright notices and licence texts are in
+`THIRD-PARTY-NOTICES.md`, which every package installs next to this file. Development-only tooling is not
+redistributed (`docs/compliance/DEPENDENCY-LICENSES.md`).
