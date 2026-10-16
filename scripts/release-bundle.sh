@@ -70,6 +70,7 @@ echo "archive build:"; cat "$src/build/SHA256SUMS"
 echo "git build:";     cat "$work/wt/build/SHA256SUMS"
 cmp -s "$src/build/SHA256SUMS" "$work/wt/build/SHA256SUMS" || { echo "FAIL: binaries differ between archive and git builds"; exit 1; }
 echo "OK: archive is complete and the build is reproducible"
+if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::notice title=release dry run::binaries built only from the source archive are byte-identical to the git build ($(tr '\n' ' ' < "$src/build/SHA256SUMS"))"; fi
 
 echo "== 4. release files"
 bin=$work/bin/$name-linux-$(go env GOARCH)
