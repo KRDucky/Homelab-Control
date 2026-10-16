@@ -1,6 +1,8 @@
 # ADR-0001: Privilege boundary — unprivileged API, typed root broker
 
-**Status:** Implemented — unprivileged API (M0), broker with read-only typed ops (M1, see ADR 0008). Owner approval still pending.
+**Status:** Accepted (2026-10-16, owner) — architectural direction. Implemented: unprivileged API (M0), broker with read-only typed ops (M1, ADR 0008).
+> **Owner decision recorded 2026-10-16:** this acceptance is **not** authorization to implement privileged write operations. Any write-capable broker operation needs a separate, explicit owner approval (M2 design: confirmation, locking, audit, rollback).
+
 **Date:** 2026-10-15
 **Deciders:** Project owner (Ian); security review before any broker operation is enabled
 

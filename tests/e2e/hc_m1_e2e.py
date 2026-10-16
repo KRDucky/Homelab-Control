@@ -4,7 +4,8 @@ and graceful degradation when the broker stops. Driven by
 tests/e2e/run-m1-e2e.sh against a real stack in a disposable systemd host.
 
 Env: HC_E2E_URL, HC_E2E_PASSWORD, HC_E2E_ARTIFACTS, HC_E2E_BROKER_STOP (shell
-command run by the harness to stop the broker; test-harness only).
+command run by the harness to stop the broker; test-harness only),
+HC_E2E_REQUIRE_AXE=1 (a missing axe-core is a failure, not a skip).
 """
 import os
 import subprocess
@@ -16,6 +17,7 @@ URL = os.environ["HC_E2E_URL"]
 PASSWORD = os.environ["HC_E2E_PASSWORD"]
 ART = os.environ.get("HC_E2E_ARTIFACTS", "tests/e2e/artifacts")
 STOP = os.environ.get("HC_E2E_BROKER_STOP")
+REQUIRE_AXE = os.environ.get("HC_E2E_REQUIRE_AXE") == "1"
 AXE = os.path.join(os.path.dirname(__file__), "../../frontend/app/node_modules/axe-core/axe.min.js")
 os.makedirs(ART, exist_ok=True)
 results = []
@@ -25,7 +27,10 @@ axe_report = []
 def axe(page, name):
     """Run axe-core (WCAG 2.1 A/AA rules) on the current page; serious/critical violations fail."""
     if not os.path.exists(AXE):
-        print("SKIP  axe (frontend/app/node_modules/axe-core missing)")
+        if REQUIRE_AXE:
+            check(f"a11y {name}: axe-core available (HC_E2E_REQUIRE_AXE=1)", False)
+        else:
+            print("SKIP  axe (frontend/app/node_modules/axe-core missing)")
         return
     # Evaluated over the DevTools protocol: the page's strict CSP (correctly)
     # refuses injected <script> tags, and the test must not weaken it.
@@ -122,6 +127,10 @@ with sync_playwright() as p:
     check("no CSP violations", not csp)
     browser.close()
 
+if axe_report:
+    import json
+    with open(os.path.join(ART, "axe-report.json"), "w", encoding="utf-8") as f:
+        json.dump([{"page": n, "violations": v} for n, v in axe_report], f, indent=2)
 failed = [n for n, ok in results if not ok]
 print(f"m1 browser e2e: {len(results) - len(failed)} passed, {len(failed)} failed")
 sys.exit(1 if failed else 0)
