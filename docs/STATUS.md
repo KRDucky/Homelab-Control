@@ -1,16 +1,20 @@
 # Current status — M1 closeout + compliance audit (updated 2026-10-16)
 
 ## License compliance and product independence (branch `compliance-audit`, PR #5, awaiting owner review)
-- **Release readiness: not ready.** Blockers: LA-02 (GPL-3.0 `-only` vs `-or-later`, owner decision),
-  LA-03 (MIT scope for SDK/schemas/themes/design tokens, owner decision), LA-13 (no release process for
-  corresponding source, checksums, signatures). See `docs/compliance/LICENSE-AUDIT.md` and
-  `docs/compliance/RELEASE-COMPLIANCE.md`.
-- Fixed in PR #5: third-party notices (MIT, OFL-1.1, BSD-3 texts) now ship in deb/rpm/Arch; package
-  metadata adds BSD-3-Clause; SPDX 2.3 SBOM (`docs/compliance/sbom/`); CI payload checks reject any
-  Webmin/Perl/CGI file and require notices.
+- **Release readiness: not ready.** One blocker: LA-13 — publishing/signing designed (ADR 0009,
+  `docs/compliance/RELEASE-PIPELINE.md`), not approved or enabled. A release **dry run** runs in CI: it
+  builds a complete corresponding-source archive, rebuilds the binaries only from it and requires them to
+  be byte-identical to a Git build.
+- Owner decisions 2026-10-16, implemented: core **GPL-3.0-or-later** (explicit grant), **MIT** for SDK,
+  schemas (incl. OpenAPI), theme definitions and design tokens (exact boundaries in `REUSE.toml`); SPDX
+  headers + `reuse lint` in CI; DEP-5 `copyright` in the `.deb` (lintian-checked); synthetic PCI fixture;
+  exceptions EX-02…EX-06 accepted under their conditions.
+- Proposed, awaiting approval: `CONTRIBUTING.md` (DCO), ADR 0009. Planned separately: Archivo font removal
+  (LA-06), Webmin migration phase 1 (approved for its own PR).
 - Webmin: packages contain zero Webmin files; runtime use is optional read-only detection only
-  (`docs/compliance/WEBMIN-INDEPENDENCE.md`). Migration phases 1–3 await approval; `compat/webmin/` unchanged.
-- UI/theme engine: planning documents only (`docs/ui/`); **nothing implemented**.
+  (`docs/compliance/WEBMIN-INDEPENDENCE.md`). `compat/webmin/` unchanged.
+- UI/theme engine: planning only (`docs/ui/`). `.hltheme` single JSON accepted in principle (ADR 0010);
+  CSSOM theme application under the real CSP verified by a browser probe. **Nothing implemented.**
 
 ## Working (read-only), verified — evidence in `docs/evidence/m1/README.md`
 - **hc-api** (unprivileged): sessions/CSRF/RBAC from M0; new scopes `services.read`, `hardware.read`;
@@ -55,11 +59,11 @@ CI run 38866773032 on the same commit: all 15 jobs green.
 5. ~~Validation gap~~ — closed 2026-10-16: hardening and socket activation verified on the workstation
    KVM VM (Ubuntu 26.04).
 Not M2-blocking but release-blocking: release builds must use a supported Go toolchain (govulncheck
-failed on EOL Go 1.24), and the license audit blockers above (LA-02, LA-03, LA-13).
+failed on EOL Go 1.24), and the remaining license blocker above (LA-13).
 
 ## Not done / limits
 - Earlier M1 evidence (d1077e4a) was never committed and is withdrawn (see evidence README).
 - Ubuntu 22.04 under real systemd: not verified (CI covers 24.04 runner and 26.04 container; VM covers 26.04).
-- PAM login deferred; upstream pin 2.670; license split accepted in principle; audit done, decisions pending (ADR 0005, PR #5).
+- PAM login deferred; upstream pin 2.670; licence decided (ADR 0005: GPL-3.0-or-later core, MIT SDK/schemas/themes/tokens); release publishing pending (ADR 0009).
 - Sessions/throttle in memory; no TLS management; govulncheck runs in CI only (passes on Go 1.26.x).
 - No host modifications or storage writes exist (by design).

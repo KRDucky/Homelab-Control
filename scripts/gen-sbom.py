@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """Generate the SPDX 2.3 JSON SBOM at docs/compliance/sbom/homelab-control.spdx.json.
 
 Deterministic: content comes only from committed inputs (package-lock.json, go.mod,
@@ -64,11 +69,12 @@ def main():
         "SPDXID": product, "name": "homelab-control", "versionInfo": root_pkg.get("version", "0.0.0"),
         "supplier": "Person: Ian comings", "downloadLocation": "git+" + REPO + ".git",
         "filesAnalyzed": False, "licenseConcluded": "NOASSERTION",
-        "licenseDeclared": "GPL-3.0-or-later",
-        "copyrightText": "NOASSERTION",
+        "licenseDeclared": "GPL-3.0-or-later AND MIT",
+        "copyrightText": "Copyright 2026 The Homelab Control Authors",
         "comment": "Release packages (DEB/RPM/Arch): hc-api, hlctl, hc-broker, systemd units, sysusers, default env, "
-                   "LICENSE.md, NOTICE.md, THIRD-PARTY-NOTICES.md, README.md. licenseDeclared mirrors the packaging "
-                   "metadata; the repository text says GPL-3.0 without 'or later' (finding LA-02, owner decision).",
+                   "LICENSE.md, NOTICE.md, THIRD-PARTY-NOTICES.md, README.md (+ Debian copyright). Core code is "
+                   "GPL-3.0-or-later; the design tokens compiled into the UI bundle are MIT (file boundaries in "
+                   "REUSE.toml). Third-party components are listed as separate packages.",
     })
     rels.append({"spdxElementId": "SPDXRef-DOCUMENT", "relationshipType": "DESCRIBES", "relatedSpdxElement": product})
 

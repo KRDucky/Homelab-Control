@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Lists the payload of a built release package and enforces release-compliance rules:
 #   - no Webmin code or assets (paths from the upstream tree, Perl/CGI, Webmin themes)
 #   - nothing outside the expected install locations
@@ -29,6 +34,10 @@ fi
 for f in LICENSE.md NOTICE.md THIRD-PARTY-NOTICES.md; do
   grep -qE "^/usr/share/(doc|licenses)/homelab-control/$f$" <<<"$files" || bad "missing $f"
 done
+# Debian Policy 12.5: every .deb carries /usr/share/doc/<package>/copyright.
+case "$pkg" in
+  *.deb) grep -qx /usr/share/doc/homelab-control/copyright <<<"$files" || bad "missing Debian copyright file" ;;
+esac
 
 report=$(printf '# Payload of %s\n# %s files\n%s\n' "$(basename "$pkg")" "$(wc -l <<<"$files")" "$list")
 if [ -n "$out" ]; then printf '%s\n' "$report" > "$out"; fi

@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Boots a disposable Ubuntu container with systemd as PID 1 and runs the
 # package smoke test inside it. Needs root, docker and debootstrap, and network
 # access to archive.ubuntu.com. Used when no hypervisor is available; a VM

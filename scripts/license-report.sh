@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Prints the license of every npm package in the frontend lockfile, split into
 # shipped (production) and development-only, plus the Go module policy.
 set -euo pipefail

@@ -50,11 +50,15 @@ with Webmin and does not modify `/etc/webmin` (true: the M1 rollback test checks
 | `compat/webmin/` were deleted today | Product unaffected. CI `upstream-perl-tests` and every real-Webmin legacy-detection test would break (they would need another Webmin source). |
 | The Legacy Webmin feature were removed | Loses accepted M1 functionality (legacy page, broker op, coexistence checks). **Not proposed.** It is detection of an operator-installed Webmin, not a dependency on Webmin. |
 
-## 4. Proposed migration (each phase needs owner approval)
+## 4. Migration (each phase needs owner approval)
+**Owner decision 2026-10-16:** phase 1 is **approved for a separate implementation PR** (not this one).
+The reference subtree stays where it is, and the accepted M1 Legacy Webmin functionality does not change.
+Phases 2 and 3 are not approved.
+
 | Phase | Change | Keeps M1 working? | Prerequisites |
 |---|---|---|---|
 | **0 — done** | Release packages free of Webmin; enforced in CI | Yes | — |
-| **1** | Tests obtain the pinned Webmin release from upstream (release tarball, SHA-256 pinned in `compat/webmin.lock`, upstream signature checked) into a cache instead of reading the subtree; unit fixtures unchanged | Yes | Confirm upstream signing key/provenance; network access in CI |
+| **1 — approved, separate PR** | Tests obtain the pinned Webmin release from upstream (release tarball, SHA-256 pinned in `compat/webmin.lock`, upstream signature checked) into a cache instead of reading the subtree; unit fixtures unchanged | Yes | Confirm upstream signing key/provenance; network access in CI |
 | **2** | Move `compat/webmin/` out of the main branch (archived tag or separate repository), keeping `webmin.lock`, ADR 0007 and the audit; `upstream-perl-tests` follows it or is dropped | Yes, after phase 1 | Owner decision that the reference subtree is no longer needed in-tree |
 | **3** | Re-evaluate the Legacy Webmin feature as an optional plugin (M3 plugin SDK) rather than core | Product decision | Plugin SDK exists |
 

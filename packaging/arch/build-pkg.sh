@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Builds a binary development package (.pkg.tar.zst) for Arch Linux and
 # derivatives from ./build using makepkg. Must run as a non-root user on an
 # Arch-based system (CI uses an archlinux container). Unsigned.

@@ -1,4 +1,10 @@
 /*
+ * SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+/*
  * Homelab Control design tokens (M0 seed of the token system described in
  * docs/project/06-THEME-AND-PLUGIN-SDK.md). Themes will override these custom
  * properties declaratively; components must only consume tokens, never raw values.

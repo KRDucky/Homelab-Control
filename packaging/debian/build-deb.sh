@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Builds a development .deb (homelab-control) from ./build.
 # Unsigned, not for distribution. See docs/packaging/PLAN.md.
 set -euo pipefail
@@ -23,6 +28,8 @@ install -Dm0644 "$root/LICENSE.md" "$stage/usr/share/doc/homelab-control/LICENSE
 install -Dm0644 "$root/NOTICE.md"  "$stage/usr/share/doc/homelab-control/NOTICE.md"
 install -Dm0644 "$root/docs/compliance/THIRD-PARTY-NOTICES.md" "$stage/usr/share/doc/homelab-control/THIRD-PARTY-NOTICES.md"
 install -Dm0644 "$root/README.md"  "$stage/usr/share/doc/homelab-control/README.md"
+# Debian Policy 12.5: machine-readable copyright file (generated, LA-12).
+install -Dm0644 "$root/packaging/debian/copyright" "$stage/usr/share/doc/homelab-control/copyright"
 mkdir -p "$stage/DEBIAN"
 echo "/etc/homelab-control/hc-api.env" > "$stage/DEBIAN/conffiles"
 cat > "$stage/DEBIAN/control" <<CTRL

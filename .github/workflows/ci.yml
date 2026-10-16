@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 name: ci
 
 on:
@@ -32,9 +36,9 @@ jobs:
           node-version: '22'
       - name: Tools
         run: |
-          sudo apt-get update && sudo apt-get install -y shellcheck rpm
+          sudo apt-get update && sudo apt-get install -y shellcheck rpm lintian
           go install golang.org/x/vuln/cmd/govulncheck@latest
-          python3 -m venv /tmp/spdx && /tmp/spdx/bin/pip install -q spdx-tools==0.8.3  # SBOM validation (CI-only tool)
+          python3 -m venv /tmp/spdx && /tmp/spdx/bin/pip install -q spdx-tools==0.8.3 reuse==6.2.0  # SBOM + REUSE validation (CI-only tools)
           echo /tmp/spdx/bin >> "$GITHUB_PATH"
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: Lint (installs frontend deps without scripts)
@@ -56,6 +60,11 @@ jobs:
       - name: Release payload compliance (deb, rpm)
         run: |
           for p in build/*.deb build/*.rpm; do scripts/package-inventory.sh "$p" "$p.inventory.txt"; done
+          # Debian copyright/licence tags only; other lintian findings are tracked separately (dev package).
+          for p in build/*.deb; do
+            lintian --tag-display-limit 0 "$p" | tee "$p.lintian.txt" || true
+            if grep -iE 'copyright|licen[cs]e|dep-?5' "$p.lintian.txt"; then echo "::error::lintian copyright/licence findings in $p"; exit 1; fi
+          done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: build
@@ -67,6 +76,36 @@ jobs:
             build/*.deb
             build/*.rpm
             build/*.inventory.txt
+            build/*.lintian.txt
+
+  # LA-13 / owner item 10: assembles the complete release (corresponding-source archive with the npm
+  # sources of everything compiled in, binaries, packages, notices, SBOM, SHA256SUMS), builds the
+  # binaries only from that archive and requires them to match a build from git. Publishes nothing:
+  # this workflow has read-only permissions, and there is no release/tag workflow until the owner
+  # approves docs/compliance/RELEASE-PIPELINE.md.
+  release-dry-run:
+    needs: check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: '1.26.x'
+          cache: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Tools
+        run: sudo apt-get update && sudo apt-get install -y rpm
+      - name: Release dry run (nothing is published)
+        run: scripts/release-bundle.sh "0.0.0~dryrun.${GITHUB_SHA::8}" dist/release
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-dry-run
+          path: dist/release
+          retention-days: 7
 
   arch-package:
     needs: check
@@ -188,8 +227,10 @@ jobs:
       - name: Playwright
         run: |
           pip install playwright==1.63.0  # >= 1.61 needed for Ubuntu 26.04; same pin as dev/vm/guest-validate.sh
-          python -m playwright install --with-deps chromium
+          python -m playwright install --with-deps chromium firefox webkit
       - name: API security checks + browser e2e (unprivileged)
+        env:
+          HC_CSP_BROWSERS: chromium,firefox,webkit
         run: |
           chmod +x build/hc-api build/hlctl
           tests/integration/run-hc-e2e.sh

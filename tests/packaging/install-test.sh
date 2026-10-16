@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Distro-agnostic package install test for containers WITHOUT systemd as
 # PID 1 (CI distro matrix). Installs the package with the native tool, runs the
 # broker and API by hand, checks behaviour (including "systemd not running"

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # DRAFT — untested in M0. Used for Fedora and (with minor macro differences) openSUSE.
 Name:           homelab-control
 Version:        0.1.0

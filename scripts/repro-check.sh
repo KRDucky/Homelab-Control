@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Reproducibility check: build the committed tree twice in separate clean
 # worktrees and compare SHA-256 of the produced binaries.
 set -euo pipefail
