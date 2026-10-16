@@ -16,6 +16,10 @@ Homelab Control is a fork and modernization of **Webmin**.
   affiliated with or endorsed by the Webmin project (BSD-3 clause 3).
 - Fork-specific changes inside `compat/webmin/` are listed in `compat/PATCHES.md`
   (none as of M0).
+- Not every file in the tree is BSD-3-Clause: several modules and bundled third-party libraries carry
+  other licences (GPL, MIT, Apache-2.0, Artistic, Perl terms), and some bundled third-party files state
+  none. Per-file inventory: `docs/compliance/WEBMIN-LICENSE-INVENTORY.md` (machine-readable in
+  `REUSE.toml`). Homelab Control does not relicense any of these files.
 
 Webmin's Authentic theme (<https://github.com/webmin/authentic-theme>, MIT, Copyright (c) Ilia
 Rostovtsev), which upstream release packages bundle, is **not** part of this repository, and no Webmin

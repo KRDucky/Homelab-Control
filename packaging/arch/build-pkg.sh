@@ -12,7 +12,10 @@ ver_in=${1:-0.0.0}
 root=$(cd "$(dirname "$0")/../.." && pwd)
 for f in hc-api hc-broker hlctl; do [ -x "$root/build/$f" ] || { echo "missing build/$f"; exit 1; }; done
 pkgver=$(sed -E 's/^v//; s/[^A-Za-z0-9.]+/./g; s/^([^0-9])/0.\1/' <<<"$ver_in")
-work=$(mktemp -d); trap 'rm -rf "$work"' EXIT
+# Fixed build path: makepkg records startdir/builddir in .BUILDINFO, so a random temp dir would make
+# every package different. The path is private to this script and removed before and after use.
+work=${HC_MAKEPKG_DIR:-/tmp/homelab-control-makepkg}
+rm -rf "$work"; mkdir -p "$work"; trap 'rm -rf "$work"' EXIT
 cp "$root/build/hc-api" "$root/build/hc-broker" "$root/build/hlctl" "$work/"
 cp "$root"/packaging/common/{homelab-control.service,homelab-control-broker.service,homelab-control-broker.socket,sysusers.conf,hc-api.env} "$work/"
 cp "$root/LICENSE.md" "$root/NOTICE.md" "$root/README.md" "$root/docs/compliance/THIRD-PARTY-NOTICES.md" "$work/"
@@ -59,7 +62,8 @@ package() {
   install -Dm0644 README.md "\$pkgdir/usr/share/doc/\$pkgname/README.md"
 }
 PKG
-(cd "$work" && SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH:-0} makepkg --nodeps --noconfirm --clean -f >/dev/null)
+(cd "$work" && SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH:-0} BUILDDIR="$work/build" PKGDEST="$work" \
+  PACKAGER="Homelab Control (unsigned development build)" makepkg --nodeps --noconfirm --clean -f >/dev/null)
 out=$(ls "$work"/*.pkg.tar.zst)
 cp "$out" "$root/build/"
 echo "$root/build/$(basename "$out")"

@@ -14,8 +14,10 @@
 #    every package compiled into the binaries, and RELEASE-BUILDINFO (exact toolchain).
 # 2. Extracts that archive in an empty directory and builds the binaries and packages ONLY
 #    from it. A missing file fails here.
-# 3. Builds the same commit from a git worktree and requires byte-identical binaries, which
-#    shows the archive is complete and the build reproducible.
+# 3. Builds the same commit from a git worktree and requires byte-identical binaries and
+#    .deb/.rpm packages. This shows the archive is complete and the build reproducible across
+#    two build directories on the same machine; CI repeats the whole run on two independent
+#    runners and compares the results (release-repro job).
 # 4. Writes SHA256SUMS over all release files. No signing, tagging or upload happens here.
 set -euo pipefail
 ver=${1:?usage: release-bundle.sh <version> [out-dir]}
@@ -44,7 +46,7 @@ go=$(go env GOVERSION)
 node=$(node --version)
 npm=$(npm --version)
 build_command=make build VERSION=$ver SOURCE_DATE_EPOCH=$sde
-packages_command=packaging/debian/build-deb.sh $ver; packaging/fedora/build-rpm.sh $ver
+packages_command=packaging/debian/build-deb.sh $ver; packaging/fedora/build-rpm.sh $ver; packaging/arch/build-pkg.sh $ver (on Arch Linux, packaging the binaries built above)
 excluded=compat/webmin/ (upstream Webmin reference tree; not used to build any binary; available at the tagged commit)
 INFO
 )
@@ -71,6 +73,19 @@ echo "git build:";     cat "$work/wt/build/SHA256SUMS"
 cmp -s "$src/build/SHA256SUMS" "$work/wt/build/SHA256SUMS" || { echo "FAIL: binaries differ between archive and git builds"; exit 1; }
 echo "OK: archive is complete and the build is reproducible"
 if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::notice title=release dry run::binaries built only from the source archive are byte-identical to the git build ($(tr '\n' ' ' < "$src/build/SHA256SUMS"))"; fi
+
+echo "== 3b. packages from both trees must be byte-identical"
+(cd "$work/wt" && packaging/debian/build-deb.sh "$ver" >/dev/null)
+if command -v rpmbuild >/dev/null 2>&1; then (cd "$work/wt" && packaging/fedora/build-rpm.sh "$ver" >/dev/null); fi
+pkgsum=""
+for p in "$src"/build/*.deb "$src"/build/*.rpm; do
+  [ -e "$p" ] || continue
+  q="$work/wt/build/$(basename "$p")"
+  cmp -s "$p" "$q" || { echo "FAIL: $(basename "$p") differs between archive and git builds"; sha256sum "$p" "$q"; exit 1; }
+  pkgsum="$pkgsum $(sha256sum "$p" | cut -c1-16)…  $(basename "$p");"
+done
+echo "OK: packages identical:$pkgsum"
+if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::notice title=release dry run::packages built from the archive and from git are byte-identical:$pkgsum"; fi
 
 echo "== 4. release files"
 bin=$work/bin/$name-linux-$(go env GOARCH)

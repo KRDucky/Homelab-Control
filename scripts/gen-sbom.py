@@ -124,11 +124,13 @@ def main():
         "SPDXID": wm, "name": "webmin", "versionInfo": pin.get("upstream_tag", "NOASSERTION"),
         "downloadLocation": "git+" + pin.get("upstream_url", "NOASSERTION") + "@" + pin.get("upstream_commit", ""),
         "filesAnalyzed": False, "licenseConcluded": "NOASSERTION",
-        "licenseDeclared": "BSD-3-Clause AND GPL-2.0-or-later AND LGPL-2.1-or-later AND MIT",
+        "licenseDeclared": "BSD-3-Clause",
         "copyrightText": "Copyright (c) Jamie Cameron and contributors (see compat/webmin/LICENCE and per-file headers)",
         "comment": "Development reference subtree at compat/webmin (tree " + pin.get("upstream_tree", "?") + "). NOT included in "
-                   "any release package (verified by scripts/package-inventory.sh). Per-file GPL/LGPL/MIT files are listed "
-                   "in docs/compliance/LICENSE-AUDIT.md; licenseDeclared is an approximation pending a per-file scan.",
+                   "any release package or release source archive (verified by scripts/package-inventory.sh). "
+                   "licenseDeclared is Webmin's top-level licence; many files differ (GPL-2.0-or-later, GPL without "
+                   "version, MIT, Apache-2.0, Artistic, Perl terms, some unstated): per-file inventory in "
+                   "docs/compliance/WEBMIN-LICENSE-INVENTORY.md and REUSE.toml.",
     })
     rels.append({"spdxElementId": wm, "relationshipType": "TEST_DEPENDENCY_OF", "relatedSpdxElement": product})
 

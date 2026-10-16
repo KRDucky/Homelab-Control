@@ -54,6 +54,9 @@ python3 -I scripts/gen-sbom.py --check || bad
 if command -v pyspdxtools >/dev/null 2>&1; then pyspdxtools -i docs/compliance/sbom/homelab-control.spdx.json || bad "pyspdxtools validation"
 else echo "SKIPPED: pyspdxtools not installed (CI installs spdx-tools)"; fi
 
+step "Webmin reference tree licence inventory (per-file upstream statements reviewed)"
+python3 -I scripts/gen-webmin-license-inventory.py --check || bad
+
 step "Licensing metadata (REUSE 3.3: SPDX licence + copyright for every file)"
 if command -v reuse >/dev/null 2>&1; then
   if reuse lint --quiet; then echo "OK: REUSE compliant"; else reuse lint | tail -30; bad "reuse lint"; fi
