@@ -72,4 +72,4 @@ check "services endpoint 503" 503 "$(getc /api/v1/services)"
 check "legacy falls back to unprivileged detection" unprivileged "$(jget "d['source']" <<<"$(get /api/v1/legacy/webmin)")"
 check "overview still works" 200 "$(getc /api/v1/host/overview)"
 systemctl start homelab-control-broker.socket
-[ -x /etc/webmin/stop ] && /etc/webmin/stop >/dev/null 2>&1 || true
+if [ -x /etc/webmin/stop ]; then /etc/webmin/stop >/dev/null 2>&1 || true; fi
