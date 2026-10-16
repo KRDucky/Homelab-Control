@@ -1,5 +1,8 @@
-Hit:1 http://archive.ubuntu.com/ubuntu resolute InRelease
-Hit:2 http://security.ubuntu.com/ubuntu resolute-security InRelease
-Hit:3 http://archive.ubuntu.com/ubuntu resolute-updates InRelease
+Hit:1 http://security.ubuntu.com/ubuntu resolute-security InRelease
+Hit:2 http://archive.ubuntu.com/ubuntu resolute InRelease
+Get:3 http://archive.ubuntu.com/ubuntu resolute-updates InRelease [137 kB]
 Hit:4 http://archive.ubuntu.com/ubuntu resolute-backports InRelease
+Get:5 http://archive.ubuntu.com/ubuntu resolute-updates/main amd64 Packages [738 kB]
+Get:6 http://archive.ubuntu.com/ubuntu resolute-updates/universe amd64 Packages [329 kB]
+Fetched 1205 kB in 2s (602 kB/s)
 Reading package lists...

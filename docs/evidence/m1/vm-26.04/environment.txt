@@ -1,4 +1,4 @@
-date_utc=2026-10-16T07:12:01Z
+date_utc=2026-10-16T07:29:23Z
 PRETTY_NAME="Ubuntu 26.04.1 LTS"
 VERSION_ID="26.04"
 VERSION_CODENAME=resolute
@@ -7,8 +7,8 @@ virt=kvm
 systemd=systemd 259 (259.5-0ubuntu3.4)
 cpus=2 mem_kib=4004568
 cgroup_fs=cgroup2fs
-package=Package: homelab-control Version: 0.0.0+git.f829cbb8
-package_sha256=2e2137c3d0adce51f5f3999d0e7ca948bbbb753511728561290a699431062068
+package=Package: homelab-control Version: 0.0.0+git.738fa37b
+package_sha256=9d946a1b6d6055ccb6340e8d0d845456c5cbc1bb4f7f4d5dad93313117e7129c
 block_devices:
   sr0  366K rom  QEMU DVD-ROM
   vda   20G disk 
