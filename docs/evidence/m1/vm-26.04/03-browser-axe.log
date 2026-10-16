@@ -5,10 +5,10 @@ python3-venv is already the newest version (3.14.3-0ubuntu2).
 Solving dependencies...
 0 upgraded, 0 newly installed, 0 to remove and 37 not upgraded.
 Installing dependencies...
-Hit:1 http://archive.ubuntu.com/ubuntu resolute InRelease
-Hit:2 http://archive.ubuntu.com/ubuntu resolute-updates InRelease
-Hit:3 http://archive.ubuntu.com/ubuntu resolute-backports InRelease
-Hit:4 http://security.ubuntu.com/ubuntu resolute-security InRelease
+Hit:1 http://security.ubuntu.com/ubuntu resolute-security InRelease
+Hit:2 http://archive.ubuntu.com/ubuntu resolute InRelease
+Hit:3 http://archive.ubuntu.com/ubuntu resolute-updates InRelease
+Hit:4 http://archive.ubuntu.com/ubuntu resolute-backports InRelease
 Reading package lists...
 Reading package lists...
 Building dependency tree...
@@ -27,7 +27,6 @@ libnspr4 is already the newest version (2:4.38.2-1ubuntu1).
 libnss3 is already the newest version (2:3.120-1ubuntu2.1).
 libpango-1.0-0 is already the newest version (1.57.0-1).
 libx11-6 is already the newest version (2:1.8.13-1ubuntu0.1).
-libx11-6 set to manually installed.
 libxcb1 is already the newest version (1.17.0-2ubuntu1).
 libxcomposite1 is already the newest version (1:0.4.6-1build1).
 libxdamage1 is already the newest version (1:1.1.7-1).
@@ -40,7 +39,6 @@ fonts-noto-color-emoji is already the newest version (2.051-1build1).
 fonts-unifont is already the newest version (1:16.0.04-1build1).
 libfontconfig1 is already the newest version (2.17.1-3ubuntu1).
 libfreetype6 is already the newest version (2.14.2+dfsg-1ubuntu0.2).
-libfreetype6 set to manually installed.
 xfonts-cyrillic is already the newest version (1:1.0.5+nmu1build1).
 xfonts-scalable is already the newest version (1:1.0.3-1.3build1).
 fonts-liberation is already the newest version (1:2.1.5-3build1).
@@ -57,14 +55,14 @@ Solving dependencies...
 The following NEW packages will be installed:
   homelab-control
 0 upgraded, 1 newly installed, 0 to remove and 37 not upgraded.
-Need to get 0 B/3597 kB of archives.
+Need to get 0 B/3598 kB of archives.
 After this operation, 0 B of additional disk space will be used.
-Get:1 /opt/hc/pkg.deb homelab-control amd64 0.0.0+git.f829cbb8 [3597 kB]
+Get:1 /opt/hc/pkg.deb homelab-control amd64 0.0.0+git.738fa37b [3598 kB]
 Selecting previously unselected package homelab-control.
 (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 93750 files and directories currently installed.)
 Preparing to unpack /opt/hc/pkg.deb ...
-Unpacking homelab-control (0.0.0+git.f829cbb8) ...
-Setting up homelab-control (0.0.0+git.f829cbb8) ...
+Unpacking homelab-control (0.0.0+git.738fa37b) ...
+Setting up homelab-control (0.0.0+git.738fa37b) ...
 homelab-control installed but NOT enabled. Create an account with:
   sudo hlctl user add --file /etc/homelab-control/users.json --username admin
   sudo chown homelab-control:homelab-control /etc/homelab-control/users.json

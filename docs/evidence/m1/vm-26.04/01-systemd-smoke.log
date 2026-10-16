@@ -4,8 +4,8 @@ Ubuntu 26.04.1 LTS; systemd 259 (259.5-0ubuntu3.4); kernel 7.0.0-34-generic
 Selecting previously unselected package homelab-control.
 (Reading database ... 93750 files and directories currently installed.)
 Preparing to unpack /opt/hc/pkg.deb ...
-Unpacking homelab-control (0.0.0+git.f829cbb8) ...
-Setting up homelab-control (0.0.0+git.f829cbb8) ...
+Unpacking homelab-control (0.0.0+git.738fa37b) ...
+Setting up homelab-control (0.0.0+git.738fa37b) ...
 homelab-control installed but NOT enabled. Create an account with:
   sudo hlctl user add --file /etc/homelab-control/users.json --username admin
   sudo chown homelab-control:homelab-control /etc/homelab-control/users.json
@@ -24,7 +24,7 @@ PASS  overview: network section ok (1)
 PASS  broker socket active (active)
 PASS  socket mode/owner (660 root:homelab-control)
 PASS  hlctl broker info (root peer) (1)
-broker f829cbb8 (protocol 1), exec available: systemctl
+broker 738fa37b (protocol 1), exec available: systemctl
   broker.info              -              none               Broker version and the list of registered operations
   hardware.dmi.identity    hardware.read  root-read          Root-only SMBIOS identifiers (system/board/chassis serials, product UUID)
   legacy.webmin.status     system.read    root-read          Installed upstream Webmin: version, listener, TLS and security posture (no secrets)
@@ -40,7 +40,7 @@ PASS  capability hardware available (available)
 PASS  capability legacy available (available)
 PASS  services: homelab-control.service listed active (active)
 PASS  services: unit-file state merged (enabled-or-disabled)
-   systemd 259 (259.5-0ubuntu3.4); units=348; failed=1
+   systemd 259 (259.5-0ubuntu3.4); units=346; failed=1
 PASS  systemctl helper never runs as root (0)
    helper users observed: homelab-control 
 PASS  hardware: inventory returned (1)
@@ -52,9 +52,13 @@ PASS  legacy: running miniserv detected (True)
 PASS  legacy: no secrets in response (0)
    checks: [('version', 'ok'), ('tls', 'warn'), ('bind', 'ok'), ('referer', 'ok'), ('rpc', 'warn')]
 PASS  broker audit log written (root 0600) (600 root)
-   last broker audit: {"time":"2026-10-16T07:12:05.247991211Z","event":"broker.op","user":"admin","remote":"uid=982 pid=12685","outcome":"ok","detail":"legacy.webmin.status 0s"}
+   last broker audit: {"time":"2026-10-16T07:29:27.582773104Z","event":"broker.op","user":"admin","remote":"uid=982 pid=15400","outcome":"ok","detail":"legacy.webmin.status 0s"}
 == systemd-analyze security (broker)
 → Overall exposure level for homelab-control-broker.service: 1.5 OK 🙂
+== M1: overview filesystems describe the host, not hc-api's sandbox
+PASS  filesystems taken from the host mount table (host)
+PASS  / read-only flag matches the host (False)
+PASS  no mount points that the host does not have (0)
 == M1: broker stopped → graceful degradation
 PASS  services unavailable without broker (unavailable)
 PASS  hardware degraded without broker (degraded)
@@ -66,14 +70,14 @@ Stopping homelab-control.service - Homelab Control API and web UI (unprivileged,
 homelab-control.service: Deactivated successfully.
 Stopped homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
 Started homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
-2026/10/16 07:12:02 hc-api f829cbb8 listening on 127.0.0.1:9180 (tls=false)
+2026/10/16 07:29:24 hc-api 738fa37b listening on 127.0.0.1:9180 (tls=false)
 == systemd-analyze security
 → Overall exposure level for homelab-control.service: 1.6 OK 🙂
 == remove + purge
 (Reading database ... 93762 files and directories currently installed.)
-Removing homelab-control (0.0.0+git.f829cbb8) ...
-Purging configuration files for homelab-control (0.0.0+git.f829cbb8) ...
+Removing homelab-control (0.0.0+git.738fa37b) ...
+Purging configuration files for homelab-control (0.0.0+git.738fa37b) ...
 Audit logs kept in /var/log/homelab-control and /var/log/homelab-control-broker (remove manually if no longer needed).
 PASS  binaries removed (0)
 PASS  unit removed (0)
-systemd-smoke: 37 passed, 0 failed
+systemd-smoke: 40 passed, 0 failed
