@@ -23,7 +23,8 @@ check() { if [ "$2" = "$3" ]; then echo "PASS  $1 ($3)"; n_pass=$((n_pass+1)); e
 code() { curl -s -o /dev/null -w '%{http_code}' "$@" || true; }
 echo "== $(grep -m1 ^PRETTY_NAME= /etc/os-release | cut -d'"' -f2)"
 case "$pkg" in
-  *.deb) dpkg -i "$pkg" 2>&1 | tee /tmp/install.log; remove() { dpkg -P homelab-control; } ;;
+  # apt resolves Depends (e.g. adduser, absent from current minimal images) as a user's install would.
+  *.deb) apt-get install -y "$(realpath "$pkg")" 2>&1 | tee /tmp/install.log; remove() { dpkg -P homelab-control; } ;;
   *.rpm) rpm -Uvh "$pkg" 2>&1 | tee /tmp/install.log; remove() { rpm -e homelab-control; } ;;
   *.pkg.tar.zst) pacman -U --noconfirm "$pkg" 2>&1 | tee /tmp/install.log; remove() { pacman -Rns --noconfirm homelab-control; } ;;
   *) echo "unknown package type"; exit 2 ;;
