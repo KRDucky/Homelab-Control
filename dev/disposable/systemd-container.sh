@@ -28,13 +28,25 @@ fi
 name=hc-sd-$rel-$$
 vol=$(mktemp -d /srv/hc-vol.XXXXXX)   # real local filesystem (host ext4/xfs) bound in as /srv/data
 trap 'docker rm -f "$name" >/dev/null 2>&1 || true; rm -rf "$vol"' EXIT
-docker run -d --name "$name" --privileged --tmpfs /run --tmpfs /run/lock \
-  -v /sys/fs/cgroup:/sys/fs/cgroup:rw -v "$vol":/srv/data "$img" /sbin/init >/dev/null
+# cgroup v2 hosts (current GitHub runners, most distros): systemd needs a writable
+# cgroup tree; bind-mounting the host tree into a private cgroup namespace makes it
+# exit at boot, so share the host namespace. v1 hosts keep the old bind mount.
+# (systemd >= 258, e.g. Ubuntu 26.04, supports only cgroup v2.)
+if [ "$(stat -fc %T /sys/fs/cgroup)" = cgroup2fs ]; then cg=(--cgroupns=host -v /sys/fs/cgroup:/sys/fs/cgroup:rw)
+else cg=(-v /sys/fs/cgroup:/sys/fs/cgroup:rw); fi
+docker run -d --name "$name" --privileged -e container=docker --tmpfs /run --tmpfs /run/lock \
+  "${cg[@]}" -v "$vol":/srv/data "$img" /sbin/init >/dev/null
+state=""
 for _ in $(seq 60); do
   state=$(docker exec "$name" systemctl is-system-running 2>/dev/null || true)
   [[ "$state" =~ ^(running|degraded)$ ]] && break; sleep 0.5
 done
 echo "container $name: systemd state=$state"
+if [[ ! "$state" =~ ^(running|degraded)$ ]]; then
+  echo "ERROR: systemd did not reach running/degraded in the container; init output:"
+  docker logs "$name" 2>&1 | tail -n 40 || true
+  exit 1
+fi
 docker exec "$name" systemctl list-units --failed --no-legend --no-pager || true
 docker exec "$name" touch /etc/hc-disposable
 docker cp "$pkg" "$name":/tmp/pkg.deb
