@@ -3,7 +3,7 @@
 ## Requirements
 | Tool | Version used in M0 | Notes |
 |---|---|---|
-| Go | 1.24.7 | `go.mod` requires ≥ 1.24 (stdlib `crypto/pbkdf2`). No third-party modules. |
+| Go | 1.24.7 (local), 1.26.x (CI) | `go.mod` requires ≥ 1.24 (stdlib `crypto/pbkdf2`). No third-party modules. Release/CI builds must use a *supported* Go line so stdlib security fixes apply; govulncheck in CI fails otherwise. |
 | Node.js / npm | 22.22.0 / 10.9.4 | jsdom (dev-only) warns it prefers Node ≥ 22.22.2; tests pass on 22.22.0. |
 | GNU make, git, bash, coreutils | any recent | |
 | Perl 5 | 5.38 | Only for the legacy Webmin baseline and upstream `prove` suite. |

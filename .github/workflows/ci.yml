@@ -22,7 +22,10 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          go-version: '1.24.x'
+          # Must be a supported Go release line: govulncheck gates on stdlib advisories,
+          # and EOL lines (1.24 since Feb 2026) no longer receive stdlib security fixes.
+          # go.mod's `go 1.24` stays as the minimum language version.
+          go-version: '1.26.x'
           cache: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
