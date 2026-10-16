@@ -21,6 +21,7 @@ install -Dm0644 "$root/packaging/common/sysusers.conf" "$stage/usr/lib/sysusers.
 install -Dm0640 "$root/packaging/common/hc-api.env" "$stage/etc/homelab-control/hc-api.env"
 install -Dm0644 "$root/LICENSE.md" "$stage/usr/share/doc/homelab-control/LICENSE.md"
 install -Dm0644 "$root/NOTICE.md"  "$stage/usr/share/doc/homelab-control/NOTICE.md"
+install -Dm0644 "$root/docs/compliance/THIRD-PARTY-NOTICES.md" "$stage/usr/share/doc/homelab-control/THIRD-PARTY-NOTICES.md"
 install -Dm0644 "$root/README.md"  "$stage/usr/share/doc/homelab-control/README.md"
 mkdir -p "$stage/DEBIAN"
 echo "/etc/homelab-control/hc-api.env" > "$stage/DEBIAN/conffiles"

@@ -41,6 +41,9 @@ step "npm audit (production dependencies)"
 step "Frontend XSS lint rules"
 (cd frontend/app && npx eslint .) || bad
 
+step "Third-party notices match shipped dependencies"
+python3 -I scripts/gen-third-party-notices.py --check || bad
+
 step "Committed secrets / private keys"
 if git grep -nE -- '-----BEGIN ([A-Z]+ )?PRIVATE KEY-----' -- ':!compat/webmin' ':!**/testdata/**'; then
   echo "private key material committed"; bad
