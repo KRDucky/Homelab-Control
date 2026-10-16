@@ -62,6 +62,15 @@ check "broker audit log written (root 0600)" "600 root" "$(stat -c '%a %U' /var/
 echo "   last broker audit: $(tail -1 /var/log/homelab-control-broker/broker-audit.jsonl)"
 echo "== systemd-analyze security (broker)"; systemd-analyze security --no-pager homelab-control-broker.service 2>/dev/null | tail -1 || true
 
+echo "== M1: overview filesystems describe the host, not hc-api's sandbox"
+# hc-api runs with ProtectSystem=strict/PrivateTmp/LogsDirectory; its own mount
+# view is read-only with extra bind mounts. The API must report the host's table.
+ov=$(get /api/v1/host/overview)
+check "filesystems taken from the host mount table" host "$(jget "d['filesystems'].get('view')" <<<"$ov")"
+hostro=$(awk '$2=="/"{print ($4 ~ /(^|,)ro(,|$)/) ? "True" : "False"; exit}' /proc/1/mounts)
+check "/ read-only flag matches the host" "$hostro" "$(jget "[f['read_only'] for f in d['filesystems']['items'] if f['mount_point']=='/'][0]" <<<"$ov")"
+check "no mount points that the host does not have" 0 "$(jget "len([f for f in d['filesystems']['items'] if f['mount_point'] not in {l.split()[1] for l in open('/proc/1/mounts')}])" <<<"$ov")"
+
 echo "== M1: broker stopped → graceful degradation"
 systemctl stop homelab-control-broker.socket homelab-control-broker.service
 sleep 6   # API caches broker state for 5 s

@@ -43,6 +43,7 @@ const fixture: Overview = {
   filesystems: {
     status: 'ok',
     sources: [],
+    view: 'host',
     items: [
       {
         kernel_source: 'nas:/x',

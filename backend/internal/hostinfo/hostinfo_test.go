@@ -250,3 +250,48 @@ func TestOverlayRootIsReported(t *testing.T) {
 		t.Fatalf("overlay root must be reported, other overlays not: %+v", fs.Items)
 	}
 }
+
+// hc-api's sandbox makes every mount read-only and adds bind mounts; the host
+// table (/proc/1/mounts) must win when readable.
+func TestFilesystemsPreferHostMountTable(t *testing.T) {
+	dir := t.TempDir()
+	for _, d := range []string{"self", "1"} {
+		if err := os.MkdirAll(filepath.Join(dir, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	sandbox := "/dev/vda1 / ext4 ro,relatime 0 0\n/dev/vda1 /var/log/homelab-control ext4 rw 0 0\n/dev/vda1 /var/tmp ext4 rw 0 0\n"
+	host := "/dev/vda1 / ext4 rw,relatime 0 0\n/dev/vda13 /boot ext4 rw 0 0\n"
+	if err := os.WriteFile(filepath.Join(dir, "self/mounts"), []byte(sandbox), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "1/mounts"), []byte(host), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c := &Collector{Roots: Roots{Proc: dir}, Statfs: func(string) (uint64, uint64, uint64, error) { return 10, 4, 6, nil }}
+	fs := c.filesystems()
+	if fs.View != "host" || fs.Note != "" || fs.Sources[0] != filepath.Join(dir, "1/mounts") {
+		t.Fatalf("want host view from 1/mounts: %+v", fs)
+	}
+	if len(fs.Items) != 2 || fs.Items[0].MountPoint != "/" || fs.Items[0].ReadOnly || fs.Items[1].MountPoint != "/boot" {
+		t.Fatalf("host table must be used, sandbox bind mounts and ro flags ignored: %+v", fs.Items)
+	}
+}
+
+func TestFilesystemsSandboxFallbackWithholdsReadOnly(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "self"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "self/mounts"), []byte("/dev/vda1 / ext4 ro 0 0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c := &Collector{Roots: Roots{Proc: dir}, Statfs: func(string) (uint64, uint64, uint64, error) { return 10, 4, 6, nil }}
+	fs := c.filesystems()
+	if fs.View != "service" || !strings.Contains(fs.Note, "sandboxed view") {
+		t.Fatalf("fallback must be labelled: %+v", fs)
+	}
+	if len(fs.Items) != 1 || fs.Items[0].ReadOnly {
+		t.Fatalf("sandbox read-only flag must not be reported as host state: %+v", fs.Items)
+	}
+}
