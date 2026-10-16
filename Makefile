@@ -73,8 +73,10 @@ rpm: build
 	packaging/fedora/build-rpm.sh $(VERSION)
 
 # Real-systemd package test in a disposable Ubuntu container (root + docker + debootstrap).
+# REL=resolute (26.04) | noble (24.04, default) | jammy (22.04)
+REL ?= noble
 systemd-smoke: deb
-	dev/disposable/systemd-container.sh noble $$(ls -t build/*.deb | head -1) \
+	dev/disposable/systemd-container.sh $(REL) $$(ls -t build/*.deb | head -1) \
 	  HC_SMOKE_EXTRA_UNITS=homelab-control-broker.socket HC_SMOKE_EXTRA_CHECKS=/tmp/hc-tests/m1-checks.sh \
 	  HC_WEBMIN_SRC=/tmp/hc-webmin HC_SMOKE_SCOPES=system.read,services.read,hardware.read
 
