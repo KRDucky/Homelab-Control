@@ -18,10 +18,12 @@
 #   dev/vm/hc-vm.sh preflight
 #   dev/vm/hc-vm.sh fetch-image <release>          # 26.04 | 24.04
 #   dev/vm/hc-vm.sh create <name> <release>        # e.g. hc-test-u2604 26.04
+#   dev/vm/hc-vm.sh wait <name>                    # wait for DHCP + SSH + cloud-init
 #   dev/vm/hc-vm.sh ip <name>
 #   dev/vm/hc-vm.sh ssh <name> [command...]
 #   dev/vm/hc-vm.sh copy <name> <local-path>... -- <remote-dir>
 #   dev/vm/hc-vm.sh status
+#   dev/vm/hc-vm.sh diagnose <name>                # read-only: state, leases, disks, boot
 #   dev/vm/hc-vm.sh destroy <name> --yes
 set -euo pipefail
 
@@ -158,6 +160,7 @@ ip_of() {
   local name=$1 a
   need_name "$name"
   a=$(v domifaddr "$name" --source lease 2>/dev/null | awk '/ipv4/{sub(/\/.*/,"",$4); print $4; exit}')
+  [ -n "$a" ] || a=$(v domifaddr "$name" --source arp 2>/dev/null | awk '/ipv4/{sub(/\/.*/,"",$4); print $4; exit}')
   [ -n "$a" ] || return 1
   echo "$a"
 }
@@ -165,14 +168,42 @@ ip_of() {
 sshopts() { echo "-i $state/id_ed25519 -o IdentitiesOnly=yes -o UserKnownHostsFile=$state/known_hosts -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 -o BatchMode=yes"; }
 
 wait_ssh() {
-  local name=$1 a=""
-  for _ in $(seq 120); do
+  local name=$1 a="" stage="no DHCP lease/ARP entry yet" err=""
+  for i in $(seq 120); do
     a=$(ip_of "$name" || true)
-    # shellcheck disable=SC2046
-    [ -n "$a" ] && ssh $(sshopts) "hc@$a" 'cloud-init status --wait >/dev/null 2>&1; true' 2>/dev/null && { echo "$name ready at $a"; return 0; }
+    if [ -n "$a" ]; then
+      stage="address $a, port 22 closed"
+      if (exec 3<>"/dev/tcp/$a/22") 2>/dev/null; then
+        stage="address $a, SSH up, login failed"
+        # shellcheck disable=SC2046
+        if err=$(ssh $(sshopts) "hc@$a" 'cloud-init status --wait >/dev/null 2>&1; true' 2>&1); then
+          echo "$name ready at $a"; return 0
+        fi
+      fi
+    fi
+    [ $((i % 6)) -eq 0 ] && echo "  ... $((i * 5))s: $stage"
     sleep 5
   done
-  die "$name did not become reachable over SSH within 10 minutes"
+  [ -n "$err" ] && echo "last ssh error: $err" >&2
+  die "$name not reachable over SSH within 10 minutes (last state: $stage). Run: dev/vm/hc-vm.sh diagnose $name"
+}
+
+# Read-only: state, NIC, leases, disks and boot settings of one harness VM.
+diagnose() {
+  local name=$1
+  need_name "$name"
+  echo "== domstate";       v domstate "$name" --reason || true
+  echo "== domiflist";      v domiflist "$name" || true
+  echo "== domifaddr lease"; v domifaddr "$name" --source lease || true
+  echo "== domifaddr arp";   v domifaddr "$name" --source arp || true
+  echo "== dhcp leases ($NET)"; v net-dhcp-leases "$NET" || true
+  echo "== domblklist";     v domblklist "$name" --details || true
+  echo "== os/boot/machine"; v dumpxml "$name" | grep -E '<(type|loader|boot|firmware|cpu mode|interface|model type|serial|console)' | sed 's/^ */  /'
+  echo "== seed volume";    v vol-info --pool "$POOL" "$name-seed.iso" 2>&1 || true
+  echo "== harness key";    ls -l "$state/id_ed25519" "$state/id_ed25519.pub" 2>&1
+  echo
+  echo "Next: watch the boot/cloud-init log on the serial console:"
+  echo "  virsh -c $CONN console $name     (press Enter; exit with Ctrl+])"
 }
 
 do_ssh() { local name=$1 a; shift; a=$(ip_of "$name") || die "no address for $name"
@@ -221,6 +252,8 @@ case "$cmd" in
   ssh) do_ssh "${1:?name}" "${@:2}" ;;
   copy) do_copy "$@" ;;
   status) status ;;
+  diagnose) diagnose "${1:?name}" ;;
+  wait) need_name "${1:?name}"; wait_ssh "$1" ;;
   destroy) destroy "${1:?name}" "${2:-}" ;;
   *) sed -n '2,25p' "$0"; exit 2 ;;
 esac

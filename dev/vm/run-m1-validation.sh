@@ -15,7 +15,8 @@ axe="$root/frontend/app/node_modules/axe-core/axe.min.js"
 out="$root/docs/evidence/m1/vm-$rel"; tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 
 "$vm" preflight
-virsh --connect qemu:///system dominfo "$name" >/dev/null 2>&1 || "$vm" create "$name" "$rel"
+if virsh --connect qemu:///system dominfo "$name" >/dev/null 2>&1; then "$vm" wait "$name"
+else "$vm" create "$name" "$rel"; fi
 
 # Stage inputs (no git checkout or toolchain needed in the guest).
 mkdir -p "$tmp/hc/tests"
