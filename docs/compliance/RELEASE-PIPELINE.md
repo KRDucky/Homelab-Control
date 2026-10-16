@@ -1,8 +1,8 @@
 # Release pipeline and signing (design — not enabled)
 
-**Status:** proposed for owner approval (ADR 0009). LA-13. **Nothing in this document publishes anything
-yet.** The repository has no tag-triggered workflow and CI runs with `contents: read`. What exists and
-runs today is the **dry run** (§2).
+**Status:** design **accepted** by the owner (ADR 0009, 2026-10-16). **Publishing is not enabled**: the
+prerequisites in ADR 0009 §5 are release blockers (LA-13). The repository has no tag-triggered workflow
+and CI runs with `contents: read`. What exists and runs today is the **dry run** (§2).
 
 ## 1. What a release publishes (GitHub Releases)
 | File | Content |
@@ -20,15 +20,32 @@ Binaries are published **only together with** the source archive of the same com
 For as long as binaries are offered, the matching source stays in the same release (GPL-3.0 §6(d)).
 
 ## 2. Dry run (implemented, runs in CI on every PR)
-`scripts/release-bundle.sh <version> <out>`, CI job `release-dry-run`:
+`scripts/release-bundle.sh <version> <out>`, CI jobs `release-dry-run` (runs **a** and **b** on two
+independent runners), `release-dry-run-arch` (a, b) and `release-repro`:
 1. Writes the source archive from the committed tree and fetches the npm sources, verifying each
    against the lockfile's sha512 integrity.
 2. Extracts the archive into an empty directory and builds binaries, `.deb` and `.rpm` **only from it**.
-3. Builds the same commit from a Git worktree; the binaries must be byte-identical. This proves the
-   archive is complete and the build reproducible.
+3. Builds the same commit from a Git worktree; binaries **and** `.deb`/`.rpm` must be byte-identical.
 4. Checks package payloads (`scripts/package-inventory.sh`) and writes `SHA256SUMS`.
-The result is uploaded as a 7-day CI artifact, not as a release. Two local runs on the same commit gave
-identical `SHA256SUMS` for every file (2026-10-16).
+5. `release-dry-run-arch`: in a fresh Arch container, extracts the same source archive, takes the binaries
+   built from it and runs `packaging/arch/build-pkg.sh` from the archive.
+6. `release-repro`: compares every file of run a with run b (source archive, binaries tarball, `.deb`,
+   `.rpm`, Arch package, SBOM, notices, `RELEASE-BUILDINFO`).
+The result is uploaded as 7-day CI artifacts, not as a release.
+
+### Reproducibility: what is and is not demonstrated
+| Claim | Evidence | Status |
+|---|---|---|
+| Binaries built from the source archive are byte-identical to binaries built from Git at the same commit | `release-bundle.sh` step 3, every CI run and locally | **Demonstrated** (same machine, same toolchain) |
+| `.deb` and `.rpm` from the archive tree = from the Git tree | step 3b, CI and locally | **Demonstrated** (same machine) |
+| All release files identical across two complete runs | Locally: two runs with separate Go build caches, 9/9 files identical incl. `.rpm` (2026-10-16). CI: `release-repro`, see PR #5 | **Demonstrated** on GitHub's `ubuntu-24.04` runners and one local container — not on other distributions or toolchain versions |
+| Arch package reproducible | `release-repro` compares the two Arch builds | Demonstrated only if `release-repro` is green; same container image and package set required (`.BUILDINFO` lists installed packages) |
+| Reproducible with a *different* Go or Node patch version, or on another distribution | — | **Not demonstrated and not expected**: Go embeds its version; use the toolchain in `RELEASE-BUILDINFO` |
+| Independent third-party rebuild on their own hardware | — | **Not demonstrated** (owner reproduction is part of the signing step, ADR 0009) |
+
+Fixed for this: RPM file mtimes and build host were nondeterministic (two builds differed); now
+`clamp_mtime_to_source_date_epoch` and a fixed `_buildhost` make them identical. The Arch build used a
+random temporary directory that `makepkg` records in `.BUILDINFO`; it now uses a fixed path.
 
 ## 3. Publishing workflow (to add after approval)
 Trigger: push of a **signed** tag `vX.Y.Z` made by the maintainer. Sketch:
@@ -49,8 +66,9 @@ jobs:
 ```
 The release stays a **draft** until the maintainer has (a) rebuilt from the source archive locally and
 matched `SHA256SUMS`, and (b) attached `SHA256SUMS.asc` (§4). Only then is it published.
-Changes needed before enabling: exact Go/Node versions pinned in the workflow (CI uses `1.26.x` today),
-`govulncheck` pinned to a version (currently `@latest`), and the Arch package built from the archive.
+Everything needed before enabling is listed as prerequisites P1–P10 in ADR 0009 §5 (exact toolchain pins,
+pinned `govulncheck`, Actions runtime upgrade, signed tags, protected environment, attestations, offline
+signing, versioned SBOM). The Arch package is already built from the archive in the dry run.
 
 ## 4. Signing strategy
 Two independent layers, so that neither GitHub alone nor one stolen key can produce a trusted release:
@@ -79,8 +97,8 @@ package repositories exist; it would use a separate subkey under the same rules.
   revocation, re-sign current releases with a new key, document in `SECURITY.md`.
 - Second maintainer (when one exists) holds their own key; releases list who signed.
 
-## 5. Owner decisions needed before enabling
-1. Approve this design (ADR 0009) or choose differently (e.g. Sigstore-only, no OpenPGP).
-2. Create the OpenPGP key and hardware token per §4 and publish the fingerprint.
-3. Create the protected `release` environment with the owner as required reviewer.
-4. Approve the first version number and whether `compat/webmin/` stays out of the source archive.
+## 5. Decisions (2026-10-16) and remaining owner actions
+Accepted: GitHub Releases; Sigstore attestations plus hardware-backed OpenPGP maintainer signatures;
+offline primary key with a signing subkey on a hardware token; `compat/webmin/` excluded from the source
+archive. Remaining owner actions (not delegable): create the key and token, publish the fingerprint,
+create the protected `release` environment, approve the release-workflow PR and the first version number.

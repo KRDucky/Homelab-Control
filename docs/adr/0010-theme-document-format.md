@@ -1,7 +1,8 @@
 # ADR-0010: Theme document format (`.hltheme`)
 
-**Status:** **Accepted in principle** (2026-10-16, owner). Implementation (theme engine, Theme Studio) is
-**not** authorized yet; it follows the phased plan in `docs/ui/10-PHASED-PLAN.md`.
+**Status:** **Accepted in principle** (2026-10-16, owner; retained at the PR #5 final review the same day,
+including the separation of navigation/layout preferences from appearance themes). Implementation
+(theme engine, Theme Studio, U1–U8) is **not** authorized yet; it follows `docs/ui/10-PHASED-PLAN.md`.
 **Date:** 2026-10-16
 **Refines:** `docs/project/06-THEME-AND-PLUGIN-SDK.md`, which described `.hltheme` as an archive.
 

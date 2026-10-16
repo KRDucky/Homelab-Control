@@ -1,7 +1,8 @@
 # Contributing to Homelab Control
 
-> **Status: proposed policy (LA-14), awaiting owner approval.** Until approved, the sign-off requirement
-> below is not enforced by CI, and existing commits are not required to carry it.
+> **Status: approved by the owner on 2026-10-16 (LA-14).** Existing history is grandfathered and is never
+> rewritten. The sign-off requirement applies to commits created after PR #5 is merged; automated
+> enforcement in CI is a follow-up PR (see "Enforcement").
 
 Thank you for helping. Please read `CLAUDE.md` (project rules), `docs/STATUS.md` (what is in scope now)
 and `docs/dev/DEVELOPMENT.md` (build and test) first. Milestones are gated: work beyond the current
@@ -53,10 +54,11 @@ AI assistance is allowed. The human who signs off is the author responsible for 
 
 ## Reporting security issues
 Do not open a public issue. Private vulnerability reporting is **not yet enabled** on the repository
-(checked 2026-10-16); enabling it (Settings → Code security) and adding a `SECURITY.md` is an owner action
-proposed with this policy. Until then, contact the owner through their GitHub profile.
+(checked 2026-10-16); enabling it (Settings → Code security) and adding a `SECURITY.md` is an owner action.
+Until then, contact the owner through their GitHub profile.
 
-## Enforcement (after approval)
-A CI check will require a `Signed-off-by:` line matching the commit author on every commit in a pull
-request, for commits created after the approval date. Earlier history is grandfathered: all commits up to
-the approval date were made by the project owner.
+## Enforcement
+A CI check (follow-up PR) will require a `Signed-off-by:` line matching the commit author on every commit
+in a pull request created after PR #5 is merged. Earlier history is grandfathered and not rewritten: all
+commits up to then were authored by the project owner. Sign-offs are never added by tools or on someone
+else's behalf.

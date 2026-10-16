@@ -52,6 +52,9 @@ with Webmin and does not modify `/etc/webmin` (true: the M1 rollback test checks
 
 ## 4. Migration (each phase needs owner approval)
 **Owner decision 2026-10-16:** phase 1 is **approved for a separate implementation PR** (not this one).
+`compat/webmin/` is also **excluded from release source archives** (approved), because every released
+artifact is built without it (proved by the release dry run, which builds from an archive that lacks it).
+Its per-file licences are recorded in `WEBMIN-LICENSE-INVENTORY.md`.
 The reference subtree stays where it is, and the accepted M1 Legacy Webmin functionality does not change.
 Phases 2 and 3 are not approved.
 

@@ -1,20 +1,21 @@
 # Current status — M1 closeout + compliance audit (updated 2026-10-16)
 
-## License compliance and product independence (branch `compliance-audit`, PR #5, awaiting owner review)
-- **Release readiness: not ready.** One blocker: LA-13 — publishing/signing designed (ADR 0009,
-  `docs/compliance/RELEASE-PIPELINE.md`), not approved or enabled. A release **dry run** runs in CI: it
-  builds a complete corresponding-source archive, rebuilds the binaries only from it and requires them to
-  be byte-identical to a Git build.
-- Owner decisions 2026-10-16, implemented: core **GPL-3.0-or-later** (explicit grant), **MIT** for SDK,
-  schemas (incl. OpenAPI), theme definitions and design tokens (exact boundaries in `REUSE.toml`); SPDX
-  headers + `reuse lint` in CI; DEP-5 `copyright` in the `.deb` (lintian-checked); synthetic PCI fixture;
-  exceptions EX-02…EX-06 accepted under their conditions.
-- Proposed, awaiting approval: `CONTRIBUTING.md` (DCO), ADR 0009. Planned separately: Archivo font removal
-  (LA-06), Webmin migration phase 1 (approved for its own PR).
-- Webmin: packages contain zero Webmin files; runtime use is optional read-only detection only
-  (`docs/compliance/WEBMIN-INDEPENDENCE.md`). `compat/webmin/` unchanged.
-- UI/theme engine: planning only (`docs/ui/`). `.hltheme` single JSON accepted in principle (ADR 0010);
-  CSSOM theme application under the real CSP verified by a browser probe. **Nothing implemented.**
+## License compliance and product independence (branch `compliance-audit`, PR #5, awaiting owner merge approval)
+- **Release readiness: not ready.** One blocker: LA-13 — release design **accepted** (ADR 0009: GitHub
+  Releases, Sigstore attestations, offline hardware-backed OpenPGP signatures) but publishing is not
+  enabled; prerequisites P1–P10 are open (toolchain and tool pins, Actions runtime, signed tags,
+  protected environment, attestations, owner key, versioned SBOM).
+- Release **dry run** in CI: complete corresponding-source archive; binaries, DEB, RPM and Arch packages
+  built only from it; archive build = Git build; two independent runs compared file by file. RPM and Arch
+  nondeterminism found and fixed. Not tested with other toolchain versions or distributions.
+- Licences: core **GPL-3.0-or-later**; **MIT** for SDK, schemas (incl. `schemas/openapi/`), theme
+  definitions and design tokens; SPDX headers, `REUSE.toml`, `reuse lint` in CI; DEP-5 `copyright` in the
+  `.deb`. `compat/webmin/` has a generated **per-file licence inventory** (not relicensed; 835 third-party
+  files with no stated licence marked unverified) and is excluded from packages and source archives.
+- Approved policies: `CONTRIBUTING.md` (DCO, AI disclosure; history grandfathered), "The Homelab Control
+  Authors". Follow-ups: CI sign-off check, `SECURITY.md`, Archivo removal (LA-06), Webmin phase 1.
+- UI/theme engine: planning only (`docs/ui/`); `.hltheme` single JSON (ADR 0010); layout preferences
+  separate from themes; CSSOM/CSP probe passes in Chromium, Firefox and WebKit. **Nothing implemented.**
 
 ## Working (read-only), verified — evidence in `docs/evidence/m1/README.md`
 - **hc-api** (unprivileged): sessions/CSRF/RBAC from M0; new scopes `services.read`, `hardware.read`;
