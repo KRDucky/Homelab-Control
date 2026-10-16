@@ -15,7 +15,7 @@ Name:           homelab-control
 Version:        $base
 Release:        $rel
 Summary:        Homelab Control API, web UI and privileged broker (development build)
-License:        GPL-3.0-or-later AND MIT AND OFL-1.1
+License:        GPL-3.0-or-later AND MIT AND OFL-1.1 AND BSD-3-Clause
 URL:            https://github.com/KRDucky/Homelab-Control---Webmin-Fork
 BuildArch:      x86_64
 Requires(pre):  /usr/sbin/useradd, /usr/sbin/groupadd
@@ -38,6 +38,7 @@ install -Dm0644 $root/packaging/common/sysusers.conf %{buildroot}/usr/lib/sysuse
 install -Dm0640 $root/packaging/common/hc-api.env %{buildroot}/etc/homelab-control/hc-api.env
 install -Dm0644 $root/LICENSE.md %{buildroot}/usr/share/licenses/homelab-control/LICENSE.md
 install -Dm0644 $root/NOTICE.md %{buildroot}/usr/share/licenses/homelab-control/NOTICE.md
+install -Dm0644 $root/docs/compliance/THIRD-PARTY-NOTICES.md %{buildroot}/usr/share/licenses/homelab-control/THIRD-PARTY-NOTICES.md
 install -Dm0644 $root/README.md %{buildroot}/usr/share/doc/homelab-control/README.md
 
 %pre
@@ -62,6 +63,7 @@ if [ -d /run/systemd/system ]; then systemctl daemon-reload >/dev/null 2>&1 || :
 %files
 %license /usr/share/licenses/homelab-control/LICENSE.md
 %license /usr/share/licenses/homelab-control/NOTICE.md
+%license /usr/share/licenses/homelab-control/THIRD-PARTY-NOTICES.md
 %doc /usr/share/doc/homelab-control/README.md
 /usr/bin/hc-api
 /usr/bin/hlctl

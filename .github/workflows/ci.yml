@@ -51,6 +51,9 @@ jobs:
         run: |
           make deb
           packaging/fedora/build-rpm.sh "$(git describe --tags --always)"
+      - name: Release payload compliance (deb, rpm)
+        run: |
+          for p in build/*.deb build/*.rpm; do scripts/package-inventory.sh "$p" "$p.inventory.txt"; done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: build
@@ -61,6 +64,7 @@ jobs:
             build/SHA256SUMS
             build/*.deb
             build/*.rpm
+            build/*.inventory.txt
 
   arch-package:
     needs: check
@@ -80,10 +84,14 @@ jobs:
           useradd -m builder
           chown -R builder "$GITHUB_WORKSPACE"
           su builder -c "cd '$GITHUB_WORKSPACE' && packaging/arch/build-pkg.sh '${GITHUB_SHA::8}'"
+      - name: Release payload compliance (Arch)
+        run: for p in build/*.pkg.tar.zst; do scripts/package-inventory.sh "$p" "$p.inventory.txt"; done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: arch-package
-          path: build/*.pkg.tar.zst
+          path: |
+            build/*.pkg.tar.zst
+            build/*.inventory.txt
 
   # Install/run/remove the native package in each target distro (no systemd as PID 1:
   # the broker and API are started by hand; services must report "unsupported").
