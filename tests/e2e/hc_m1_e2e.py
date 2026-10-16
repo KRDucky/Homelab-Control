@@ -81,10 +81,28 @@ with sync_playwright() as p:
 
     nav.get_by_role("link", name="Hardware").click()
     expect(page.get_by_role("heading", name="Storage devices")).to_be_visible(timeout=15000)
-    check("hardware: disk identity confidence shown", page.get_by_text("Medium — serial number").count() >= 1
-          or page.get_by_text("High — WWN").count() >= 1)
+    # Compare the page with what the API reports for THIS host, so the checks hold on bare metal,
+    # containers (host disks, no DMI) and VMs (virtio disks without serials, QEMU SMBIOS) alike:
+    # the UI must show exactly the backend's identity confidence and DMI state, inventing nothing.
+    hw = page.evaluate("async () => (await fetch('/api/v1/hardware', {credentials: 'same-origin'})).json()")
+    conf_text = {"high": "High — WWN", "medium": "Medium — serial number",
+                 "low": "Low — by-id link only", "none": "None — no stable identifier found"}
+    disks = hw["inventory"]["disks"].get("devices") or []
+    levels = {d["identity_confidence"] for d in disks}
+    check(f"hardware: API reports disks ({len(disks)})", len(disks) >= 1)
+    check(f"hardware: each reported identity confidence shown ({sorted(levels)})",
+          all(page.get_by_text(conf_text[lv]).count() >= 1 for lv in levels))
+    check("hardware: no identity confidence shown that the API did not report",
+          all(page.get_by_text(t).count() == 0 for lv, t in conf_text.items() if lv not in levels))
     check("hardware: kernel names labelled volatile", page.get_by_text("changes between boots").count() >= 1)
-    check("hardware: missing DMI explained, not invented", page.get_by_text("No SMBIOS/DMI tables").count() >= 1)
+    sysinfo = hw["inventory"]["system"]
+    no_dmi = any("No SMBIOS/DMI tables" in n for n in (sysinfo.get("notes") or []))
+    if no_dmi:
+        check("hardware: missing DMI explained, not invented", page.get_by_text("No SMBIOS/DMI tables").count() >= 1)
+    else:
+        check(f"hardware: DMI present, model shown ({sysinfo.get('product')!r})",
+              bool(sysinfo.get("product")) and page.get_by_text(sysinfo["product"]).count() >= 1)
+        check("hardware: no 'missing DMI' note when DMI is present", page.get_by_text("No SMBIOS/DMI tables").count() == 0)
     page.screenshot(path=f"{ART}/m1-02-hardware.png", full_page=True)
     axe(page, "hardware")
 
