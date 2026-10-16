@@ -97,6 +97,7 @@ jobs:
           - { image: 'debian:stable', kind: deb, prep: 'apt-get update && apt-get install -y curl' }
           - { image: 'debian:oldstable', kind: deb, prep: 'apt-get update && apt-get install -y curl' }
           - { image: 'ubuntu:24.04', kind: deb, prep: 'apt-get update && apt-get install -y curl' }
+          - { image: 'ubuntu:26.04', kind: deb, prep: 'apt-get update && apt-get install -y curl' }
           - { image: 'ubuntu:22.04', kind: deb, prep: 'apt-get update && apt-get install -y curl' }
           - { image: 'fedora:latest', kind: rpm, prep: 'dnf install -y curl util-linux shadow-utils findutils' }
           - { image: 'opensuse/tumbleweed', kind: rpm, prep: 'zypper -n in curl util-linux shadow findutils' }
@@ -139,6 +140,24 @@ jobs:
             HC_WEBMIN_SRC="$PWD/compat/webmin" \
             HC_SMOKE_SCOPES=system.read,services.read,hardware.read \
             tests/systemd/systemd-smoke.sh "$(ls build/*.deb)"
+
+  # Ubuntu 26.04 LTS under real systemd (newer systemd than the 24.04 runner).
+  # Disposable debootstrapped container with systemd as PID 1, on the throwaway runner VM.
+  systemd-ubuntu-2604:
+    needs: check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: build
+          path: build
+      - name: Package + hardened units under systemd on 26.04 (resolute)
+        run: |
+          sudo apt-get update && sudo apt-get install -y debootstrap
+          sudo dev/disposable/systemd-container.sh resolute "$(ls build/*.deb)" \
+            HC_SMOKE_EXTRA_UNITS=homelab-control-broker.socket HC_SMOKE_EXTRA_CHECKS=/tmp/hc-tests/m1-checks.sh \
+            HC_WEBMIN_SRC=/tmp/hc-webmin HC_SMOKE_SCOPES=system.read,services.read,hardware.read
 
   browser-e2e:
     needs: check

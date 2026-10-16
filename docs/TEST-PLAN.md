@@ -41,4 +41,4 @@ boundary, a few browser end-to-end flows, plus environment tests in disposable s
 | Real systemd | System (systemd PID 1) | `tests/systemd/systemd-smoke.sh` + `m1-checks.sh` | package install, hardened units, CapEff, NoNewPrivs, socket ownership, peer refusal, helper uid, real upstream Webmin detection, broker-down degradation, purge |
 | Packages without systemd | System | `tests/packaging/install-test.sh` | native install/remove, dev socket ownership, "systemd not running" handling |
 | Browser | E2E + axe-core | `tests/e2e/hc_m1_e2e.py` | nav, routing, history/deep links, real data pages, mobile, broker-down nav, CSP, WCAG 2.1 AA (axe) |
-| Cross-distro | CI | `.github/workflows/ci.yml` | Debian stable/oldstable, Ubuntu 22.04/24.04, Fedora, openSUSE Tumbleweed/Leap, Arch install tests; GitHub runner systemd smoke — **not yet executed** |
+| Cross-distro | CI | `.github/workflows/ci.yml` | Debian stable/oldstable, Ubuntu 22.04/24.04/26.04, Fedora, openSUSE Tumbleweed/Leap, Arch install tests; GitHub runner systemd smoke (24.04) and disposable systemd container (26.04) — **not yet executed** |

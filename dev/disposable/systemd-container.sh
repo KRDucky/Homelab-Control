@@ -4,10 +4,14 @@
 # access to archive.ubuntu.com. Used when no hypervisor is available; a VM
 # (dev/vm) or a CI runner is preferred when you have one.
 #
-# Usage: dev/disposable/systemd-container.sh <noble|jammy> <package.deb> [extra smoke env...]
+# Usage: dev/disposable/systemd-container.sh <resolute|noble|jammy> <package.deb> [extra smoke env...]
 set -euo pipefail
-rel=${1:?release (noble|jammy)}; pkg=${2:?package}; shift 2
-[[ "$rel" =~ ^(noble|jammy)$ ]] || { echo "unsupported release $rel"; exit 2; }
+rel=${1:?release (resolute|noble|jammy)}; pkg=${2:?package}; shift 2
+[[ "$rel" =~ ^(resolute|noble|jammy)$ ]] || { echo "unsupported release $rel"; exit 2; }
+# Older debootstrap packages (e.g. on a 24.04 host) predate 26.04; every Ubuntu
+# release since 7.10 uses the same bootstrap script, so fall back to it.
+dbs_script=()
+[ -e "/usr/share/debootstrap/scripts/$rel" ] || dbs_script=(/usr/share/debootstrap/scripts/gutsy)
 root=$(cd "$(dirname "$0")/../.." && pwd)
 rootfs=/srv/hc-rootfs/$rel
 img=hc-$rel-systemd:m1
@@ -16,7 +20,7 @@ if ! docker image inspect "$img" >/dev/null 2>&1; then
     rm -rf "$rootfs"; mkdir -p "$rootfs"
     debootstrap --variant=minbase \
       --include=systemd,systemd-sysv,dbus,adduser,curl,ca-certificates,perl,python3,procps,iproute2,pciutils,usbutils,kmod,udev \
-      "$rel" "$rootfs" http://archive.ubuntu.com/ubuntu
+      "$rel" "$rootfs" http://archive.ubuntu.com/ubuntu "${dbs_script[@]}"
     touch "$rootfs/.done"
   fi
   tar -C "$rootfs" -c . | docker import - "$img" >/dev/null
