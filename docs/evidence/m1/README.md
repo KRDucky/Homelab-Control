@@ -70,7 +70,7 @@ Screenshots: `vm-26.04/screenshots/m1-0{1..5}-*.png`. Metadata: `vm-26.04/enviro
 The earlier run on `f829cbb8` (37/37, 13/13, 25/25, 4/4; commit `8bc5af03`) is superseded by this one;
 its files were overwritten by the rerun.
 
-**CI on `738fa37b`** (run 38866773032): all 16 jobs green, including the new filesystem checks under real
+**CI on `738fa37b`** (run 38866773032): all 15 jobs green, including the new filesystem checks under real
 systemd on Ubuntu 24.04 (runner) and 26.04 (container), and the 9-distro install matrix.
 
 ## 5. Still not verified

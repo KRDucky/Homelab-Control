@@ -6,7 +6,7 @@
 - Status: **M1 closed out, awaiting owner review of PR #4 (`m1-closeout`).** M0 merged (PR #1), M1 merged (PR #3). M2 on hold until explicitly authorized.
 - M1 (verified on da41162a, 2026-10-16): broker + 4 read-only ops; services/hardware/legacy pages. Local sandbox (Ubuntu 24.04 container, not VM): Go 95/95 non-root, Vitest 15/15, live API 15/15, install 14/14, reproducible. CI run 38852873505 all green: install matrix Debian stable/oldstable, Ubuntu 22.04/24.04/26.04, Fedora, openSUSE TW/Leap, Arch; real systemd Ubuntu 24.04 + 26.04 (systemd 259.5); browser e2e; govulncheck (Go 1.26.x).
 - Earlier M1 numbers (d1077e4a) were never committed; withdrawn.
-- Workstation KVM VM, Ubuntu 26.04 / systemd 259.5, product `738fa37b` (2026-10-16): smoke 40/40, rollback 13/13, browser 25/25, axe 0 violations (4 pages), removal 4/4; CI run 38866773032 green (16 jobs). Evidence `docs/evidence/m1/vm-26.04/`.
+- Workstation KVM VM, Ubuntu 26.04 / systemd 259.5, product `738fa37b` (2026-10-16): smoke 40/40, rollback 13/13, browser 25/25, axe 0 violations (4 pages), removal 4/4; CI run 38866773032 green (15 jobs). Evidence `docs/evidence/m1/vm-26.04/`.
 - Fixed from VM run: Overview showed hc-api's sandbox mounts as host (now /proc/1/mounts). Host note: ufw blocks libvirt DHCP on virbr0 unless allowed.
 - Product name: Homelab Control. Repo: `KRDucky/Homelab-Control---Webmin-Fork`.
 - Upstream baseline: Webmin **2.670** (`3a2b2b8671c0669c129f5275b3dd1853106ae02b`) at `compat/webmin/` via `git subtree --squash`; tree verified identical; no fork patches.
