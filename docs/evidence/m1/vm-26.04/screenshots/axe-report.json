@@ -1,0 +1,18 @@
+[
+  {
+    "page": "services",
+    "violations": []
+  },
+  {
+    "page": "hardware",
+    "violations": []
+  },
+  {
+    "page": "legacy",
+    "violations": []
+  },
+  {
+    "page": "overview+degraded-nav",
+    "violations": []
+  }
+]

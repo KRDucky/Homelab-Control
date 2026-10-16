@@ -1,0 +1,5 @@
+PASS  package purged (0)
+PASS  no hc processes (0)
+PASS  no units left (0)
+PASS  nothing listening on 9180 (0)
+final-removal: 4 passed, 0 failed
