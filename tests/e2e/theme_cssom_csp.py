@@ -128,6 +128,9 @@ def main():
                 print(f"{'PASS' if ok else 'FAIL'}  {label}")
                 fails += 0 if ok else 1
             print("info  adoptedStyleSheets:", json.dumps(r["adoptedStyleSheet"]))
+            if os.environ.get("GITHUB_ACTIONS"):  # annotations stay readable through the checks API
+                passed = sum(ok for _, ok in checks)
+                print(f"::notice title=theme CSSOM/CSP probe::{name} {r['version']}: {passed}/{len(checks)} checks passed")
             print("info  violations reported:", json.dumps(
                 [v["directive"] for v in r["styleElement"]["violations"] + r["styleAttribute"]["violations"]]))
     print(f"theme CSSOM/CSP probe: {'OK' if fails == 0 else f'{fails} failed'} ({', '.join(BROWSERS)})")
