@@ -1,0 +1,33 @@
+
+######## environment metadata
+date_utc=2026-10-16T07:12:01Z
+PRETTY_NAME="Ubuntu 26.04.1 LTS"
+VERSION_ID="26.04"
+VERSION_CODENAME=resolute
+kernel=7.0.0-34-generic
+virt=kvm
+systemd=systemd 259 (259.5-0ubuntu3.4)
+cpus=2 mem_kib=4004568
+cgroup_fs=cgroup2fs
+package=Package: homelab-control Version: 0.0.0+git.f829cbb8
+package_sha256=2e2137c3d0adce51f5f3999d0e7ca948bbbb753511728561290a699431062068
+block_devices:
+  sr0  366K rom  QEMU DVD-ROM
+  vda   20G disk 
+
+######## 1. systemd smoke + M1 checks (install, hardening, socket-activated broker, auth, routes, remove+purge)
+systemd smoke + M1 checks          exit=0 systemd-smoke: 37 passed, 0 failed
+
+######## 2. rollback: remove keeps config, reinstall reuses it, purge removes it; Webmin keeps working
+rollback / coexistence             rollback: 13 passed, 0 failed
+
+######## 3. browser e2e + axe (Playwright, Chromium) against the packaged stack
+browser e2e + axe                  exit=0 m1 browser e2e: 25 passed, 0 failed
+
+######## 4. final removal and residue check
+final removal                      final-removal: 4 passed, 0 failed
+
+systemd smoke + M1 checks          exit=0 systemd-smoke: 37 passed, 0 failed
+rollback / coexistence             rollback: 13 passed, 0 failed
+browser e2e + axe                  exit=0 m1 browser e2e: 25 passed, 0 failed
+final removal                      final-removal: 4 passed, 0 failed

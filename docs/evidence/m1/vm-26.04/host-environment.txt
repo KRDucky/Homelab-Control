@@ -1,0 +1,28 @@
+host_kernel=7.2.10-1-cachyos
+host_os=CachyOS
+host_cpu=AMD Ryzen 5 9600X 6-Core Processor
+libvirt=Compiled against library: libvirt 12.8.0 Using library: libvirt 12.8.0 Using API: QEMU 12.8.0 Running hypervisor: QEMU 11.1.2  
+qemu=QEMU emulator version 11.1.2
+virt_install=5.1.0
+vm_name=hc-test-u2604 release=26.04
+== verified cloud image
+release=26.04 codename=resolute
+url=https://cloud-images.ubuntu.com/releases/resolute/release/ubuntu-26.04-server-cloudimg-amd64.img
+sha256=8800651811af9a85465ad1d552add729947bb16488dddb4a9b5305a3d97332b2
+signing_key=D2EB44626FDDC30B513D5BB71A5D6C4C7DB87C81
+serial=
+verified_at=2026-10-16T06:08:23Z
+== domain
+<name>hc-test-u2604</name>
+<memory unit='KiB'>4194304</memory>
+<vcpu placement='static'>2</vcpu>
+<type arch='x86_64' machine='pc-i440fx-11.1'>hvm</type>
+<source file='/var/lib/libvirt/hc-test/hc-test-u2604.qcow2' index='2'/>
+<source file='/var/lib/libvirt/hc-test/hc-test-base-ubuntu-26.04.qcow2'/>
+<source file='/var/lib/libvirt/hc-test/hc-test-u2604-seed.iso' index='1'/>
+<source network='default' portid='da9465dd-52ff-448d-a409-89b36c6afd64' bridge='virbr0'/>
+<model type='virtio'/>
+<source path='/dev/pts/1'/>
+<model name='isa-serial'/>
+<source path='/dev/pts/1'/>
+guest_validate_exit=0
