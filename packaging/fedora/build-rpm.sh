@@ -81,8 +81,12 @@ if [ -d /run/systemd/system ]; then systemctl daemon-reload >/dev/null 2>&1 || :
 %dir %attr(0750,root,homelab-control) /etc/homelab-control
 %config(noreplace) %attr(0640,root,homelab-control) /etc/homelab-control/hc-api.env
 SPEC
+# Reproducible output: build time and file mtimes come from SOURCE_DATE_EPOCH (as for the .deb),
+# and the build host name is fixed, so two builds of the same inputs are byte-identical.
+export SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH:-0}
 rpmbuild --quiet -bb --define "_topdir $top" --define "_source_date_epoch_from_changelog 0" \
-  --define "use_source_date_epoch_as_buildtime 1" "$top/SPECS/homelab-control.spec"
+  --define "use_source_date_epoch_as_buildtime 1" --define "clamp_mtime_to_source_date_epoch 1" \
+  --define "_buildhost reproducible" "$top/SPECS/homelab-control.spec"
 out=$(find "$top/RPMS" -name '*.rpm' | head -1)
 cp "$out" "$root/build/"
 echo "$root/build/$(basename "$out")"

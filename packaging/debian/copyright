@@ -28,8 +28,10 @@ Files: compat/webmin/*
 Copyright: Jamie Cameron and the Webmin contributors
 License: BSD-3-clause
 Comment: Unmodified upstream Webmin reference tree. Not used to build, and not included in,
- this package. Some files state other licences in their own headers (GPL-2+, GPL, LGPL,
- Expat); those apply to those files. See docs/compliance/LICENSE-AUDIT.md (LA-08).
+ this package or its release source archive. BSD-3-clause is Webmin's top-level licence; many
+ files state other licences (GPL-2+, GPL without version, Expat, Apache-2.0, Artistic, Perl
+ terms) and some third-party files state none. Per-file inventory:
+ docs/compliance/WEBMIN-LICENSE-INVENTORY.md (machine-readable in REUSE.toml).
 
 Files: frontend/app/node_modules/@fontsource-variable/archivo/*
 Copyright: 2020 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo)
