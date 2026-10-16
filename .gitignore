@@ -6,3 +6,5 @@ node_modules/
 /tests/e2e/artifacts/
 *.deb
 .dev/
+__pycache__/
+*.pyc
