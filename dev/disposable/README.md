@@ -18,7 +18,7 @@ HC_LEGACY_URL=http://127.0.0.1:10000/ tests/integration/run-hc-e2e.sh
 M0 evidence (Ubuntu 24.04 container, 2026-10-15) is in `docs/evidence/`.
 
 ## 2. Disposable VM (recommended on your workstation)
-See `../vm/README.md` — Vagrant with libvirt or VirtualBox, Debian 12. **Not executed during M0**
+See `../vm/README.md` — libvirt (qemu:///system) harness with the `hc-test` pool, Ubuntu 26.04/24.04 cloud images (replaces the M0 Vagrantfile, which was never executed)
 (no hypervisor was available in the build environment).
 
 ## Storage testing rule

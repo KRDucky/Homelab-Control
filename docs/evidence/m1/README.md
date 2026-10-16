@@ -1,6 +1,7 @@
-# M1 evidence — final commit `da41162a` (2026-10-16)
+# M1 evidence (2026-10-16)
 
-All results below were produced on commit `da41162a4ecd9ba0732abdd04c44fb332ecac3c5`.
+Sections 1–2: commit `da41162a` (M1 merge candidate). Section 4: M1 closeout, final product code
+`738fa37b` on the owner's workstation VM, plus CI run 38866773032 on the same commit.
 
 ## Important: earlier M1 evidence was never committed
 The previous session's M1 report (Go 94/94, systemd 37/37 ×2, browser+axe 22/22, …, collected on
@@ -35,8 +36,43 @@ sandbox (Actions log storage is not reachable from it).
 | browser-e2e | ubuntu-24.04 runner | unprivileged hc-api + Playwright browser e2e |
 | upstream-perl-tests | ubuntu-24.04 runner | Webmin 2.670 `prove -lr t` |
 
-## 3. Not re-run on the final commit
-- `tests/e2e/run-m1-e2e.sh` (browser + axe WCAG scan against the packaged stack in a systemd container):
-  needs Docker Hub, which the sandbox cannot reach, and it is not in CI. **No current axe evidence.**
-- No screenshots were produced in this session.
-- No VM run of any kind (no hypervisor; Vagrant file untested).
+## 3. Superseded gaps
+The gaps listed here on `da41162a` (no axe evidence, no screenshots, no VM run) are closed by section 4.
+
+## 4. Workstation KVM VM — Ubuntu 26.04 (M1 closeout, product code `738fa37b`)
+Disposable libvirt guest `hc-test-u2604` on the owner's CachyOS workstation (AMD Ryzen 5 9600X, KVM,
+QEMU 11.1.2, libvirt 12.8.0), created by `dev/vm/hc-vm.sh` in the `hc-test` pool on the `default` NAT
+network from the GPG-verified Ubuntu 26.04 cloud image (sha256 `8800651811af…32b2`). Guest: Ubuntu
+26.04.1 LTS, kernel 7.0.0-34, **systemd 259.5 as PID 1**, cgroup v2, 2 vCPU / 4 GiB. Run by
+`dev/vm/run-m1-validation.sh` (2026-10-16 07:29 UTC); full logs in `vm-26.04/`.
+
+| Step | Result | Log |
+|---|---|---|
+| systemd smoke + M1 checks: install not enabled; hc-api as `homelab-control`, CapEff 0; broker socket 660 `root:homelab-control`, socket-activated, root with CapEff = CAP_SETUID\|CAP_SETGID, NoNewPrivs, other users refused; login, `__Host-` cookie, CSRF, all M1 routes/scopes; real Webmin 2.670 legacy detection; filesystems match the host's `/proc/1/mounts`; broker-down degradation; remove + purge | **40/40** | `vm-26.04/01-systemd-smoke.log` |
+| `systemd-analyze security` exposure | hc-api **1.6 OK**, broker **1.5 OK** | same |
+| Rollback: remove keeps config and frees port/socket; reinstall reuses accounts, not auto-enabled; purge removes `/etc/homelab-control`; upstream Webmin answers throughout | **13/13** | `vm-26.04/02-rollback.log` |
+| Browser e2e (Playwright 1.63.0, Chromium 153) against the packaged stack: navigation, Services, Hardware vs API, Legacy, mobile, history/deep link, broker-stopped degradation, no CSP violations | **25/25** | `vm-26.04/03-browser-axe.log` |
+| axe-core 4.14.0, WCAG 2.1 A/AA, on services, hardware, legacy, overview+degraded-nav | **0 violations of any impact** | `vm-26.04/screenshots/axe-report.json` |
+| Final removal: purged, no processes, units or listener left | **4/4** | `vm-26.04/04-final-removal.log` |
+
+Screenshots: `vm-26.04/screenshots/m1-0{1..5}-*.png`. Metadata: `vm-26.04/environment.txt`,
+`vm-26.04/host-environment.txt`. No credentials or keys appear in the evidence (checked).
+
+**Found by this run and fixed before the final run:**
+- *Product:* Overview reported hc-api's systemd sandbox as the host — `/` shown read-only and service-only
+  bind mounts listed (seen in the first run's screenshots on `f829cbb8`). Fixed in `738fa37b`: reads
+  `/proc/1/mounts`; the sandbox fallback is labelled and claims no read-only state. Three checks added.
+- *Harness/tests (not product):* qemu-img format parsing; missing `apt-get update` in fresh cloud images;
+  Playwright 1.56 cannot run on Ubuntu 26.04 (≥ 1.61 needed; CI and harness pinned to 1.63.0); Hardware
+  e2e assertions assumed a container and now compare the page with the API; axe can no longer silently skip.
+- *Host:* ufw dropped libvirt DHCP on `virbr0`; the owner changed ufw so guests on `virbr0` get DHCP (exact rules not recorded here; recommended virbr0-only rules are in `dev/vm/README.md`).
+
+The earlier run on `f829cbb8` (37/37, 13/13, 25/25, 4/4; commit `8bc5af03`) is superseded by this one;
+its files were overwritten by the rerun.
+
+**CI on `738fa37b`** (run 38866773032): all 15 jobs green, including the new filesystem checks under real
+systemd on Ubuntu 24.04 (runner) and 26.04 (container), and the 9-distro install matrix.
+
+## 5. Still not verified
+- Ubuntu 22.04 and other distributions under real systemd in a **VM** (CI containers/runner only).
+- Long-running behaviour, upgrades from a previous package version, and multi-host anything.

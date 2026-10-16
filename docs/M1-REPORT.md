@@ -31,3 +31,11 @@ are now visible to authorised users; legacy Webmin 2.670 lacks post-release upst
 **Remaining work / decisions:** re-run the axe/full-stack browser suite (`run-m1-e2e.sh`) on a host with
 Docker Hub access, or add it to CI; VM validation on your hardware; approve ADR 0001/0003/0005/0008; PAM login; move to Webmin 2.680.
 Do not start M2 without approval.
+
+## Closeout (2026-10-16)
+Owner decisions recorded on ADR 0001/0003/0005/0008 and PAM (deferred); none authorizes write operations.
+Webmin 2.680 is not released — baseline kept, unreleased upstream fixes and mitigations in
+`docs/security/WEBMIN-2.670-UPSTREAM-FIXES.md`. Workstation KVM VM (Ubuntu 26.04, systemd 259.5) on
+`738fa37b`: 40/40, 13/13, browser 25/25, axe 0 violations, 4/4 (`docs/evidence/m1/README.md` §4).
+**Product defect found and fixed:** Overview showed hc-api's systemd sandbox mounts as the host's
+(read-only `/`, service-only bind mounts); it now reads the host mount table. M2 blockers: `docs/STATUS.md`.

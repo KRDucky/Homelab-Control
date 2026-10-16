@@ -1,0 +1,186 @@
+Oct 16 06:40:55 hc-test-u2604 systemd[1]: Starting homelab-control-broker.socket - Homelab Control privileged broker socket...
+Oct 16 06:40:55 hc-test-u2604 systemd[1]: Listening on homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 06:40:55 hc-test-u2604 systemd[1]: Started homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 06:40:55 hc-test-u2604 hc-api[2047]: 2026/10/16 06:40:55 hc-api f829cbb8 listening on 127.0.0.1:9180 (tls=false)
+Oct 16 06:40:55 hc-test-u2604 systemd[1]: Started homelab-control-broker.service - Homelab Control privileged broker (typed read-only operations).
+Oct 16 06:40:55 hc-test-u2604 hc-broker[2084]: 2026/10/16 06:40:55 hc-broker f829cbb8 ready (socket-activated=true, peers uid [982 0], 4 ops)
+Oct 16 06:41:05 hc-test-u2604 systemd[1]: Stopping homelab-control-broker.service - Homelab Control privileged broker (typed read-only operations)...
+Oct 16 06:41:05 hc-test-u2604 systemd[1]: homelab-control-broker.service: Deactivated successfully.
+Oct 16 06:41:05 hc-test-u2604 systemd[1]: Stopped homelab-control-broker.service - Homelab Control privileged broker (typed read-only operations).
+Oct 16 06:41:05 hc-test-u2604 systemd[1]: homelab-control-broker.socket: Deactivated successfully.
+Oct 16 06:41:05 hc-test-u2604 systemd[1]: Closed homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 06:41:11 hc-test-u2604 systemd[1]: Starting homelab-control-broker.socket - Homelab Control privileged broker socket...
+Oct 16 06:41:11 hc-test-u2604 systemd[1]: Listening on homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 06:41:11 hc-test-u2604 systemd[1]: Stopping homelab-control.service - Homelab Control API and web UI (unprivileged, read-only)...
+Oct 16 06:41:11 hc-test-u2604 systemd[1]: homelab-control.service: Deactivated successfully.
+Oct 16 06:41:11 hc-test-u2604 systemd[1]: Stopped homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 06:41:11 hc-test-u2604 systemd[1]: homelab-control-broker.socket: Deactivated successfully.
+Oct 16 06:41:11 hc-test-u2604 systemd[1]: Closed homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 06:41:13 hc-test-u2604 systemd[1]: Starting homelab-control-broker.socket - Homelab Control privileged broker socket...
+Oct 16 06:41:13 hc-test-u2604 systemd[1]: Listening on homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 06:41:13 hc-test-u2604 systemd[1]: Started homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 06:41:13 hc-test-u2604 hc-api[3615]: 2026/10/16 06:41:13 hc-api f829cbb8 listening on 127.0.0.1:9180 (tls=false)
+Oct 16 06:41:14 hc-test-u2604 systemd[1]: Stopping homelab-control.service - Homelab Control API and web UI (unprivileged, read-only)...
+Oct 16 06:41:14 hc-test-u2604 systemd[1]: homelab-control.service: Deactivated successfully.
+Oct 16 06:41:14 hc-test-u2604 systemd[1]: Stopped homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 06:41:14 hc-test-u2604 systemd[1]: homelab-control-broker.socket: Deactivated successfully.
+Oct 16 06:41:14 hc-test-u2604 systemd[1]: Closed homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 06:41:42 hc-test-u2604 systemd[1]: Starting homelab-control-broker.socket - Homelab Control privileged broker socket...
+Oct 16 06:41:42 hc-test-u2604 systemd[1]: Listening on homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 06:41:42 hc-test-u2604 systemd[1]: Started homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 06:41:42 hc-test-u2604 hc-api[6258]: 2026/10/16 06:41:42 hc-api f829cbb8 listening on 127.0.0.1:9180 (tls=false)
+Oct 16 06:41:42 hc-test-u2604 systemd[1]: Stopping homelab-control.service - Homelab Control API and web UI (unprivileged, read-only)...
+Oct 16 06:41:42 hc-test-u2604 systemd[1]: homelab-control.service: Deactivated successfully.
+Oct 16 06:41:42 hc-test-u2604 systemd[1]: Stopped homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 06:41:42 hc-test-u2604 systemd[1]: homelab-control-broker.socket: Deactivated successfully.
+Oct 16 06:41:42 hc-test-u2604 systemd[1]: Closed homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 06:56:20 hc-test-u2604 systemd[1]: Starting homelab-control-broker.socket - Homelab Control privileged broker socket...
+Oct 16 06:56:20 hc-test-u2604 systemd[1]: Listening on homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 06:56:20 hc-test-u2604 systemd[1]: Started homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 06:56:20 hc-test-u2604 hc-api[7180]: 2026/10/16 06:56:20 hc-api f829cbb8 listening on 127.0.0.1:9180 (tls=false)
+Oct 16 06:56:20 hc-test-u2604 systemd[1]: Started homelab-control-broker.service - Homelab Control privileged broker (typed read-only operations).
+Oct 16 06:56:20 hc-test-u2604 hc-broker[7217]: 2026/10/16 06:56:20 hc-broker f829cbb8 ready (socket-activated=true, peers uid [982 0], 4 ops)
+Oct 16 06:56:22 hc-test-u2604 systemd[1]: Stopping homelab-control-broker.service - Homelab Control privileged broker (typed read-only operations)...
+Oct 16 06:56:22 hc-test-u2604 systemd[1]: homelab-control-broker.service: Deactivated successfully.
+Oct 16 06:56:22 hc-test-u2604 systemd[1]: Stopped homelab-control-broker.service - Homelab Control privileged broker (typed read-only operations).
+Oct 16 06:56:22 hc-test-u2604 systemd[1]: homelab-control-broker.socket: Deactivated successfully.
+Oct 16 06:56:22 hc-test-u2604 systemd[1]: Closed homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 06:56:29 hc-test-u2604 systemd[1]: Starting homelab-control-broker.socket - Homelab Control privileged broker socket...
+Oct 16 06:56:29 hc-test-u2604 systemd[1]: Listening on homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 06:56:29 hc-test-u2604 systemd[1]: Stopping homelab-control.service - Homelab Control API and web UI (unprivileged, read-only)...
+Oct 16 06:56:29 hc-test-u2604 systemd[1]: homelab-control.service: Deactivated successfully.
+Oct 16 06:56:29 hc-test-u2604 systemd[1]: Stopped homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 06:56:29 hc-test-u2604 systemd[1]: homelab-control-broker.socket: Deactivated successfully.
+Oct 16 06:56:29 hc-test-u2604 systemd[1]: Closed homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 06:56:31 hc-test-u2604 systemd[1]: Starting homelab-control-broker.socket - Homelab Control privileged broker socket...
+Oct 16 06:56:31 hc-test-u2604 systemd[1]: Listening on homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 06:56:31 hc-test-u2604 systemd[1]: Started homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 06:56:31 hc-test-u2604 hc-api[7861]: 2026/10/16 06:56:31 hc-api f829cbb8 listening on 127.0.0.1:9180 (tls=false)
+Oct 16 06:56:32 hc-test-u2604 systemd[1]: Stopping homelab-control.service - Homelab Control API and web UI (unprivileged, read-only)...
+Oct 16 06:56:32 hc-test-u2604 systemd[1]: homelab-control.service: Deactivated successfully.
+Oct 16 06:56:32 hc-test-u2604 systemd[1]: Stopped homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 06:56:32 hc-test-u2604 systemd[1]: homelab-control-broker.socket: Deactivated successfully.
+Oct 16 06:56:32 hc-test-u2604 systemd[1]: Closed homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:07:39 hc-test-u2604 systemd[1]: Starting homelab-control-broker.socket - Homelab Control privileged broker socket...
+Oct 16 07:07:39 hc-test-u2604 systemd[1]: Listening on homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:07:39 hc-test-u2604 systemd[1]: Started homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 07:07:39 hc-test-u2604 hc-api[9470]: 2026/10/16 07:07:39 hc-api f829cbb8 listening on 127.0.0.1:9180 (tls=false)
+Oct 16 07:07:40 hc-test-u2604 systemd[1]: Started homelab-control-broker.service - Homelab Control privileged broker (typed read-only operations).
+Oct 16 07:07:40 hc-test-u2604 hc-broker[9507]: 2026/10/16 07:07:40 hc-broker f829cbb8 ready (socket-activated=true, peers uid [982 0], 4 ops)
+Oct 16 07:07:42 hc-test-u2604 systemd[1]: Stopping homelab-control-broker.service - Homelab Control privileged broker (typed read-only operations)...
+Oct 16 07:07:42 hc-test-u2604 systemd[1]: homelab-control-broker.service: Deactivated successfully.
+Oct 16 07:07:42 hc-test-u2604 systemd[1]: Stopped homelab-control-broker.service - Homelab Control privileged broker (typed read-only operations).
+Oct 16 07:07:42 hc-test-u2604 systemd[1]: homelab-control-broker.socket: Deactivated successfully.
+Oct 16 07:07:42 hc-test-u2604 systemd[1]: Closed homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:07:48 hc-test-u2604 systemd[1]: Starting homelab-control-broker.socket - Homelab Control privileged broker socket...
+Oct 16 07:07:48 hc-test-u2604 systemd[1]: Listening on homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:07:48 hc-test-u2604 systemd[1]: Stopping homelab-control.service - Homelab Control API and web UI (unprivileged, read-only)...
+Oct 16 07:07:49 hc-test-u2604 systemd[1]: homelab-control.service: Deactivated successfully.
+Oct 16 07:07:49 hc-test-u2604 systemd[1]: Stopped homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 07:07:49 hc-test-u2604 systemd[1]: homelab-control-broker.socket: Deactivated successfully.
+Oct 16 07:07:49 hc-test-u2604 systemd[1]: Closed homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:07:51 hc-test-u2604 systemd[1]: Starting homelab-control-broker.socket - Homelab Control privileged broker socket...
+Oct 16 07:07:51 hc-test-u2604 systemd[1]: Listening on homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:07:51 hc-test-u2604 systemd[1]: Started homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 07:07:51 hc-test-u2604 hc-api[10152]: 2026/10/16 07:07:51 hc-api f829cbb8 listening on 127.0.0.1:9180 (tls=false)
+Oct 16 07:07:51 hc-test-u2604 systemd[1]: Stopping homelab-control.service - Homelab Control API and web UI (unprivileged, read-only)...
+Oct 16 07:07:51 hc-test-u2604 systemd[1]: homelab-control.service: Deactivated successfully.
+Oct 16 07:07:51 hc-test-u2604 systemd[1]: Stopped homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 07:07:51 hc-test-u2604 systemd[1]: homelab-control-broker.socket: Deactivated successfully.
+Oct 16 07:07:51 hc-test-u2604 systemd[1]: Closed homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:08:50 hc-test-u2604 systemd[1]: Starting homelab-control-broker.socket - Homelab Control privileged broker socket...
+Oct 16 07:08:50 hc-test-u2604 systemd[1]: Listening on homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:08:50 hc-test-u2604 systemd[1]: Started homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 07:08:50 hc-test-u2604 hc-api[11672]: 2026/10/16 07:08:50 hc-api f829cbb8 listening on 127.0.0.1:9180 (tls=false)
+Oct 16 07:08:50 hc-test-u2604 systemd[1]: Started homelab-control-broker.service - Homelab Control privileged broker (typed read-only operations).
+Oct 16 07:08:50 hc-test-u2604 hc-broker[11759]: 2026/10/16 07:08:50 hc-broker f829cbb8 ready (socket-activated=true, peers uid [982 0], 4 ops)
+Oct 16 07:08:52 hc-test-u2604 systemd[1]: Stopping homelab-control-broker.service - Homelab Control privileged broker (typed read-only operations)...
+Oct 16 07:08:52 hc-test-u2604 systemd[1]: homelab-control-broker.service: Deactivated successfully.
+Oct 16 07:08:52 hc-test-u2604 systemd[1]: Stopped homelab-control-broker.service - Homelab Control privileged broker (typed read-only operations).
+Oct 16 07:08:52 hc-test-u2604 systemd[1]: homelab-control-broker.socket: Deactivated successfully.
+Oct 16 07:08:52 hc-test-u2604 systemd[1]: Closed homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:08:59 hc-test-u2604 systemd[1]: Stopping homelab-control.service - Homelab Control API and web UI (unprivileged, read-only)...
+Oct 16 07:08:59 hc-test-u2604 systemd[1]: homelab-control.service: Deactivated successfully.
+Oct 16 07:08:59 hc-test-u2604 systemd[1]: Stopped homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 07:12:02 hc-test-u2604 systemd[1]: Starting homelab-control-broker.socket - Homelab Control privileged broker socket...
+Oct 16 07:12:02 hc-test-u2604 systemd[1]: Listening on homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:12:02 hc-test-u2604 systemd[1]: Started homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 07:12:02 hc-test-u2604 hc-api[12685]: 2026/10/16 07:12:02 hc-api f829cbb8 listening on 127.0.0.1:9180 (tls=false)
+Oct 16 07:12:02 hc-test-u2604 systemd[1]: Started homelab-control-broker.service - Homelab Control privileged broker (typed read-only operations).
+Oct 16 07:12:02 hc-test-u2604 hc-broker[12722]: 2026/10/16 07:12:02 hc-broker f829cbb8 ready (socket-activated=true, peers uid [982 0], 4 ops)
+Oct 16 07:12:05 hc-test-u2604 systemd[1]: Stopping homelab-control-broker.service - Homelab Control privileged broker (typed read-only operations)...
+Oct 16 07:12:05 hc-test-u2604 systemd[1]: homelab-control-broker.service: Deactivated successfully.
+Oct 16 07:12:05 hc-test-u2604 systemd[1]: Stopped homelab-control-broker.service - Homelab Control privileged broker (typed read-only operations).
+Oct 16 07:12:05 hc-test-u2604 systemd[1]: homelab-control-broker.socket: Deactivated successfully.
+Oct 16 07:12:05 hc-test-u2604 systemd[1]: Closed homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:12:11 hc-test-u2604 systemd[1]: Starting homelab-control-broker.socket - Homelab Control privileged broker socket...
+Oct 16 07:12:11 hc-test-u2604 systemd[1]: Listening on homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:12:11 hc-test-u2604 systemd[1]: Stopping homelab-control.service - Homelab Control API and web UI (unprivileged, read-only)...
+Oct 16 07:12:11 hc-test-u2604 systemd[1]: homelab-control.service: Deactivated successfully.
+Oct 16 07:12:11 hc-test-u2604 systemd[1]: Stopped homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 07:12:11 hc-test-u2604 systemd[1]: homelab-control-broker.socket: Deactivated successfully.
+Oct 16 07:12:11 hc-test-u2604 systemd[1]: Closed homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:12:14 hc-test-u2604 systemd[1]: Starting homelab-control-broker.socket - Homelab Control privileged broker socket...
+Oct 16 07:12:14 hc-test-u2604 systemd[1]: Listening on homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:12:14 hc-test-u2604 systemd[1]: Started homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 07:12:14 hc-test-u2604 hc-api[13368]: 2026/10/16 07:12:14 hc-api f829cbb8 listening on 127.0.0.1:9180 (tls=false)
+Oct 16 07:12:14 hc-test-u2604 systemd[1]: Stopping homelab-control.service - Homelab Control API and web UI (unprivileged, read-only)...
+Oct 16 07:12:14 hc-test-u2604 systemd[1]: homelab-control.service: Deactivated successfully.
+Oct 16 07:12:14 hc-test-u2604 systemd[1]: Stopped homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 07:12:14 hc-test-u2604 systemd[1]: homelab-control-broker.socket: Deactivated successfully.
+Oct 16 07:12:14 hc-test-u2604 systemd[1]: Closed homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:12:23 hc-test-u2604 systemd[1]: Starting homelab-control-broker.socket - Homelab Control privileged broker socket...
+Oct 16 07:12:23 hc-test-u2604 systemd[1]: Listening on homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:12:23 hc-test-u2604 systemd[1]: Started homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 07:12:23 hc-test-u2604 hc-api[14358]: 2026/10/16 07:12:23 hc-api f829cbb8 listening on 127.0.0.1:9180 (tls=false)
+Oct 16 07:12:24 hc-test-u2604 systemd[1]: Started homelab-control-broker.service - Homelab Control privileged broker (typed read-only operations).
+Oct 16 07:12:24 hc-test-u2604 hc-broker[14445]: 2026/10/16 07:12:24 hc-broker f829cbb8 ready (socket-activated=true, peers uid [982 0], 4 ops)
+Oct 16 07:12:26 hc-test-u2604 systemd[1]: Stopping homelab-control-broker.service - Homelab Control privileged broker (typed read-only operations)...
+Oct 16 07:12:26 hc-test-u2604 systemd[1]: homelab-control-broker.service: Deactivated successfully.
+Oct 16 07:12:26 hc-test-u2604 systemd[1]: Stopped homelab-control-broker.service - Homelab Control privileged broker (typed read-only operations).
+Oct 16 07:12:26 hc-test-u2604 systemd[1]: homelab-control-broker.socket: Deactivated successfully.
+Oct 16 07:12:26 hc-test-u2604 systemd[1]: Closed homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:12:32 hc-test-u2604 systemd[1]: Stopping homelab-control.service - Homelab Control API and web UI (unprivileged, read-only)...
+Oct 16 07:12:32 hc-test-u2604 systemd[1]: homelab-control.service: Deactivated successfully.
+Oct 16 07:12:32 hc-test-u2604 systemd[1]: Stopped homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 07:29:24 hc-test-u2604 systemd[1]: Starting homelab-control-broker.socket - Homelab Control privileged broker socket...
+Oct 16 07:29:24 hc-test-u2604 systemd[1]: Listening on homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:29:24 hc-test-u2604 systemd[1]: Started homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 07:29:24 hc-test-u2604 hc-api[15400]: 2026/10/16 07:29:24 hc-api 738fa37b listening on 127.0.0.1:9180 (tls=false)
+Oct 16 07:29:25 hc-test-u2604 systemd[1]: Started homelab-control-broker.service - Homelab Control privileged broker (typed read-only operations).
+Oct 16 07:29:25 hc-test-u2604 hc-broker[15437]: 2026/10/16 07:29:25 hc-broker 738fa37b ready (socket-activated=true, peers uid [982 0], 4 ops)
+Oct 16 07:29:27 hc-test-u2604 systemd[1]: Stopping homelab-control-broker.service - Homelab Control privileged broker (typed read-only operations)...
+Oct 16 07:29:27 hc-test-u2604 systemd[1]: homelab-control-broker.service: Deactivated successfully.
+Oct 16 07:29:27 hc-test-u2604 systemd[1]: Stopped homelab-control-broker.service - Homelab Control privileged broker (typed read-only operations).
+Oct 16 07:29:27 hc-test-u2604 systemd[1]: homelab-control-broker.socket: Deactivated successfully.
+Oct 16 07:29:27 hc-test-u2604 systemd[1]: Closed homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:29:34 hc-test-u2604 systemd[1]: Starting homelab-control-broker.socket - Homelab Control privileged broker socket...
+Oct 16 07:29:34 hc-test-u2604 systemd[1]: Listening on homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:29:34 hc-test-u2604 systemd[1]: Stopping homelab-control.service - Homelab Control API and web UI (unprivileged, read-only)...
+Oct 16 07:29:34 hc-test-u2604 systemd[1]: homelab-control.service: Deactivated successfully.
+Oct 16 07:29:34 hc-test-u2604 systemd[1]: Stopped homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 07:29:34 hc-test-u2604 systemd[1]: homelab-control-broker.socket: Deactivated successfully.
+Oct 16 07:29:34 hc-test-u2604 systemd[1]: Closed homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:29:36 hc-test-u2604 systemd[1]: Starting homelab-control-broker.socket - Homelab Control privileged broker socket...
+Oct 16 07:29:36 hc-test-u2604 systemd[1]: Listening on homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:29:36 hc-test-u2604 systemd[1]: Started homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 07:29:36 hc-test-u2604 hc-api[16088]: 2026/10/16 07:29:36 hc-api 738fa37b listening on 127.0.0.1:9180 (tls=false)
+Oct 16 07:29:37 hc-test-u2604 systemd[1]: Stopping homelab-control.service - Homelab Control API and web UI (unprivileged, read-only)...
+Oct 16 07:29:37 hc-test-u2604 systemd[1]: homelab-control.service: Deactivated successfully.
+Oct 16 07:29:37 hc-test-u2604 systemd[1]: Stopped homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 07:29:37 hc-test-u2604 systemd[1]: homelab-control-broker.socket: Deactivated successfully.
+Oct 16 07:29:37 hc-test-u2604 systemd[1]: Closed homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:29:46 hc-test-u2604 systemd[1]: Starting homelab-control-broker.socket - Homelab Control privileged broker socket...
+Oct 16 07:29:46 hc-test-u2604 systemd[1]: Listening on homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:29:46 hc-test-u2604 systemd[1]: Started homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).
+Oct 16 07:29:46 hc-test-u2604 hc-api[17070]: 2026/10/16 07:29:46 hc-api 738fa37b listening on 127.0.0.1:9180 (tls=false)
+Oct 16 07:29:47 hc-test-u2604 systemd[1]: Started homelab-control-broker.service - Homelab Control privileged broker (typed read-only operations).
+Oct 16 07:29:47 hc-test-u2604 hc-broker[17159]: 2026/10/16 07:29:47 hc-broker 738fa37b ready (socket-activated=true, peers uid [982 0], 4 ops)
+Oct 16 07:29:48 hc-test-u2604 systemd[1]: Stopping homelab-control-broker.service - Homelab Control privileged broker (typed read-only operations)...
+Oct 16 07:29:48 hc-test-u2604 systemd[1]: homelab-control-broker.service: Deactivated successfully.
+Oct 16 07:29:48 hc-test-u2604 systemd[1]: Stopped homelab-control-broker.service - Homelab Control privileged broker (typed read-only operations).
+Oct 16 07:29:48 hc-test-u2604 systemd[1]: homelab-control-broker.socket: Deactivated successfully.
+Oct 16 07:29:48 hc-test-u2604 systemd[1]: Closed homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 16 07:29:55 hc-test-u2604 systemd[1]: Stopping homelab-control.service - Homelab Control API and web UI (unprivileged, read-only)...
+Oct 16 07:29:55 hc-test-u2604 systemd[1]: homelab-control.service: Deactivated successfully.
+Oct 16 07:29:55 hc-test-u2604 systemd[1]: Stopped homelab-control.service - Homelab Control API and web UI (unprivileged, read-only).

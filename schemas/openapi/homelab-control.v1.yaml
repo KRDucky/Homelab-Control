@@ -89,6 +89,11 @@ components:
             - $ref: '#/components/schemas/Meta'
             - type: object
               properties:
+                view:
+                  type: string
+                  enum: [host, service]
+                  description: "host = the host's mount table (/proc/1/mounts); service = only hc-api's sandboxed view was readable, so read_only is never set and note explains."
+                note: { type: string }
                 items:
                   type: array
                   items:
@@ -98,7 +103,7 @@ components:
                       kernel_source: { type: string, description: "Kernel-reported source. /dev/sdX names are volatile and are not a drive identity." }
                       mount_point: { type: string }
                       fs_type: { type: string }
-                      read_only: { type: boolean }
+                      read_only: { type: boolean, description: "Read-only on the host. Always false in the service view, where the sandbox makes every mount look read-only." }
                       probed: { type: boolean }
                       skip_reason: { type: string }
                       total_bytes: { type: integer }

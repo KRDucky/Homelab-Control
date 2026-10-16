@@ -1,0 +1,4 @@
+systemd smoke + M1 checks          exit=0 systemd-smoke: 40 passed, 0 failed
+rollback / coexistence             rollback: 13 passed, 0 failed
+browser e2e + axe                  exit=0 m1 browser e2e: 25 passed, 0 failed
+final removal                      final-removal: 4 passed, 0 failed
