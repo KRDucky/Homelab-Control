@@ -1,0 +1,25 @@
+PASS  health is public (200)
+PASS  overview requires login (401)
+PASS  login without Origin refused (403)
+PASS  login from foreign Origin refused (403)
+PASS  form-encoded login refused (415)
+PASS  wrong password (401)
+PASS  login succeeds (1)
+PASS  overview with session (200)
+PASS  logout without CSRF token (403)
+PASS  unknown API route (404)
+PASS  logout with CSRF token (204)
+PASS  session dead after logout (401)
+PASS  account without system.read gets 403 (403)
+PASS  audit log has no secrets (0)
+PASS  audit log mode 0600 (600)
+--- audit log (redacted by design) ---
+{"time":"2026-10-16T04:58:59.770537963Z","event":"csrf.origin_rejected","remote":"127.0.0.1","outcome":"denied"}
+{"time":"2026-10-16T04:58:59.776534435Z","event":"csrf.origin_rejected","remote":"127.0.0.1","outcome":"denied","detail":"http://evil.example"}
+{"time":"2026-10-16T04:58:59.911065823Z","event":"auth.login","user":"admin","remote":"127.0.0.1","outcome":"failure"}
+{"time":"2026-10-16T04:59:00.044743036Z","event":"auth.login","user":"admin","remote":"127.0.0.1","outcome":"success"}
+{"time":"2026-10-16T04:59:00.316475469Z","event":"csrf.token_rejected","user":"admin","remote":"127.0.0.1","outcome":"denied"}
+{"time":"2026-10-16T04:59:00.330239719Z","event":"auth.logout","user":"admin","remote":"127.0.0.1","outcome":"success"}
+{"time":"2026-10-16T04:59:00.485234725Z","event":"auth.login","user":"auditor","remote":"127.0.0.1","outcome":"success"}
+{"time":"2026-10-16T04:59:00.493169614Z","event":"authz.denied","user":"auditor","remote":"127.0.0.1","outcome":"denied","detail":"system.read"}
+hc-api live checks: 15 passed, 0 failed

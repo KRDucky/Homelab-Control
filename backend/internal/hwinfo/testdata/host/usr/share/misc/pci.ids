@@ -1,0 +1,4 @@
+# fixture subset of pci.ids
+8086  Intel Corporation
+	2922  82801IR/IO/IH (ICH9R/DO/DH) 6 port SATA Controller [AHCI mode]
+C 00  Unclassified device

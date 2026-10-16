@@ -1,0 +1,68 @@
+cd backend && go vet ./...
+cd frontend/app && npm run -s typecheck && npm run -s lint && npm run -s format:check
+Checking formatting...
+All matched files use Prettier code style!
+cd backend && go test -count=1 -cover ./...
+ok  	homelab-control/backend/cmd/hc-api	0.158s	coverage: 20.3% of statements
+	homelab-control/backend/cmd/hc-broker		coverage: 0.0% of statements
+ok  	homelab-control/backend/cmd/hlctl	0.517s	coverage: 56.8% of statements
+ok  	homelab-control/backend/internal/api	3.632s	coverage: 88.0% of statements
+ok  	homelab-control/backend/internal/audit	0.004s	coverage: 84.0% of statements
+ok  	homelab-control/backend/internal/auth	1.088s	coverage: 79.7% of statements
+ok  	homelab-control/backend/internal/broker/ops	0.022s	coverage: 75.9% of statements
+ok  	homelab-control/backend/internal/broker/proto	0.003s	coverage: 81.6% of statements
+ok  	homelab-control/backend/internal/broker/runner	0.217s	coverage: 81.0% of statements
+ok  	homelab-control/backend/internal/broker/server	5.228s	coverage: 77.8% of statements
+?   	homelab-control/backend/internal/broker/types	[no test files]
+	homelab-control/backend/internal/brokerclient		coverage: 0.0% of statements
+ok  	homelab-control/backend/internal/guard	0.016s	coverage: [no statements]
+ok  	homelab-control/backend/internal/hostinfo	0.066s	coverage: 85.9% of statements
+ok  	homelab-control/backend/internal/hwinfo	0.010s	coverage: 89.5% of statements
+?   	homelab-control/backend/internal/version	[no test files]
+	homelab-control/backend/internal/webui		coverage: 0.0% of statements
+cd frontend/app && npm test
+
+> @homelab-control/app@0.1.0-m0 test
+> vitest run
+
+
+ RUN  v5.0.4 /home/claude/hc/frontend/app
+
+ ✓ src/m1.test.tsx (7 tests) 432ms
+ ✓ src/app.test.tsx (8 tests) 323ms
+
+ Test Files  2 passed (2)
+      Tests  15 passed (15)
+   Start at  23:59:34
+   Duration  2.33s (environment 51%, tests 36%, import 11%, transform 2%)
+
+    Isolate  2 workers spawned · ~642ms startup each (spawn + environment, per file)
+             at least ~642ms faster with isolate: false — reuses workers across files instead of one per file
+
+scripts/security-check.sh
+
+== Upstream provenance
+pinned tag:          2.670
+subtree split (git): 3a2b2b8671c0669c129f5275b3dd1853106ae02b
+OK: compat/webmin is byte-identical to upstream 2.670 (tree a8482cc848f28a8e4c806861f237a2094514f533)
+
+== Go static guards (no process execution, all API routes wrapped)
+ok  	homelab-control/backend/internal/guard	0.019s
+
+== go vet
+
+== Go dependency policy (M0: standard library only)
+OK: no third-party Go modules
+
+== govulncheck (Go stdlib/toolchain advisories)
+SKIPPED: govulncheck not installed (CI installs it)
+
+== npm audit (production dependencies)
+found 0 vulnerabilities
+
+== Frontend XSS lint rules
+
+== Committed secrets / private keys
+OK: no private keys outside compat/webmin
+
+== Shell scripts

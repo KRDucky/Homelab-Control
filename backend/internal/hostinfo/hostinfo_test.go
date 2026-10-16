@@ -234,3 +234,19 @@ func TestStatfsTimeoutDoesNotHang(t *testing.T) {
 		t.Fatal("statfs timeout not enforced")
 	}
 }
+
+func TestOverlayRootIsReported(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "self"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mounts := "overlay / overlay rw 0 0\noverlay /var/lib/docker/x/merged overlay rw 0 0\n"
+	if err := os.WriteFile(filepath.Join(dir, "self/mounts"), []byte(mounts), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c := &Collector{Roots: Roots{Proc: dir}, Statfs: func(string) (uint64, uint64, uint64, error) { return 10, 4, 6, nil }}
+	fs := c.filesystems()
+	if len(fs.Items) != 1 || fs.Items[0].MountPoint != "/" || !fs.Items[0].Probed {
+		t.Fatalf("overlay root must be reported, other overlays not: %+v", fs.Items)
+	}
+}

@@ -1,0 +1,13 @@
+# Independent re-verification of M0 at main e5c52c17 (fresh clone), 2026-10-15T10:02:24Z
+tree e5c52c17 == tree 6cc979eb (merge introduced no changes): yes
+OK: compat/webmin is byte-identical to upstream 2.670 (tree a8482cc848f28a8e4c806861f237a2094514f533)
+make lint on fresh clone: FAILED (TS2688 vite/client; node_modules absent) -> M0 defect, fixed in M1 (Makefile: lint/test-frontend depend on deps)
+go test as unprivileged user: 44 passed, 0 failed, 0 skipped (reported: 44/0/0)
+vitest: 8 passed (reported: 8)
+security gate: exit 0 (govulncheck skipped: not installable here)
+repro-check: identical artifacts for e5c52c17
+webmin 2.670 baseline login: 9 passed, 0 failed (reported 9/9)
+hc-api live checks: 15 passed, 0 failed
+browser e2e: 9 passed, 0 failed
+upstream prove: Files=26, Tests=4161, PASS
+systemd (new in M1): see m0-under-systemd.txt — found overlay-root omission (fixed)

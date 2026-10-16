@@ -1,22 +1,79 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ApiError,
-  getOverview,
+  getCapabilities,
   getSession,
   logout,
-  type Overview as OverviewData,
+  type Capabilities,
+  type Capability,
   type SessionInfo,
 } from './api';
 import { Login } from './Login';
-import { Overview } from './Overview';
+import { Hardware } from './pages/Hardware';
+import { Legacy } from './pages/Legacy';
+import { OverviewPage } from './pages/OverviewPage';
+import { Services } from './pages/Services';
+import { linkHandler, navigate, usePath } from './router';
 
 type Phase = 'checking' | 'anonymous' | 'ready';
+
+const statusNote: Partial<Record<Capability['status'], string>> = {
+  degraded: 'Limited',
+  unavailable: 'Unavailable',
+  unsupported: 'Not supported here',
+  forbidden: 'No permission',
+};
+
+function NavItem({ cap, current }: { cap: Capability; current: boolean }) {
+  const usable = cap.status === 'available' || cap.status === 'degraded';
+  const noteId = `nav-note-${cap.id}`;
+  if (!usable) {
+    return (
+      <li className="nav-off">
+        <span className="nav-label" aria-describedby={noteId}>
+          {cap.label}
+        </span>
+        <span id={noteId} className="nav-note">
+          {statusNote[cap.status]}: {cap.reason}
+        </span>
+      </li>
+    );
+  }
+  return (
+    <li>
+      <a
+        href={cap.path}
+        onClick={linkHandler(cap.path)}
+        aria-current={current ? 'page' : undefined}
+        aria-describedby={cap.status === 'degraded' ? noteId : undefined}
+      >
+        {cap.label}
+        {cap.status === 'degraded' && <span className="nav-tag">{statusNote.degraded}</span>}
+      </a>
+      {cap.status === 'degraded' && (
+        <span id={noteId} className="visually-hidden">
+          {cap.reason}
+        </span>
+      )}
+    </li>
+  );
+}
+
+function Unavailable({ cap }: { cap: Capability }) {
+  return (
+    <div className="page">
+      <h1 className="page-title">{cap.label}</h1>
+      <p className="banner" role="status">
+        {statusNote[cap.status]}: {cap.reason}
+      </p>
+    </div>
+  );
+}
 
 export function App() {
   const [phase, setPhase] = useState<Phase>('checking');
   const [session, setSession] = useState<SessionInfo | null>(null);
-  const [data, setData] = useState<OverviewData | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [caps, setCaps] = useState<Capabilities | null>(null);
+  const path = usePath();
 
   useEffect(() => {
     getSession()
@@ -27,31 +84,25 @@ export function App() {
       .catch(() => setPhase('anonymous'));
   }, []);
 
-  const refresh = useCallback(async () => {
-    try {
-      setData(await getOverview());
-      setError(null);
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        setSession(null);
-        setPhase('anonymous');
-      } else if (err instanceof ApiError && err.status === 403) {
-        setError('Your account doesn’t have the system.read permission needed to view this page.');
-      } else {
-        setError('Couldn’t load host data. The server may be restarting.');
-      }
-    }
+  const signedOut = useCallback(() => {
+    setSession(null);
+    setCaps(null);
+    setPhase('anonymous');
   }, []);
 
   useEffect(() => {
     if (phase !== 'ready') return;
-    const first = window.setTimeout(() => void refresh(), 0);
-    const t = window.setInterval(() => void refresh(), 10_000);
+    const load = () =>
+      getCapabilities()
+        .then(setCaps)
+        .catch(() => undefined);
+    const first = window.setTimeout(load, 0);
+    const t = window.setInterval(load, 30_000);
     return () => {
       window.clearTimeout(first);
       window.clearInterval(t);
     };
-  }, [phase, refresh]);
+  }, [phase]);
 
   if (phase === 'checking') return <div className="boot" aria-busy="true" />;
   if (phase === 'anonymous' || !session) {
@@ -67,10 +118,21 @@ export function App() {
 
   async function signOut() {
     if (session) await logout(session.csrf_token).catch(() => undefined);
-    setSession(null);
-    setData(null);
-    setPhase('anonymous');
+    signedOut();
+    navigate('/');
   }
+
+  const capList = caps?.capabilities ?? [];
+  const route = capList.find((c) => c.path === path) ?? capList.find((c) => c.path === '/');
+  const routeUsable = route && (route.status === 'available' || route.status === 'degraded');
+
+  let page = <p className="muted">Loading…</p>;
+  if (route && !routeUsable) page = <Unavailable cap={route} />;
+  else if (route?.id === 'services') page = <Services onUnauthorized={signedOut} />;
+  else if (route?.id === 'hardware') page = <Hardware onUnauthorized={signedOut} />;
+  else if (route?.id === 'legacy')
+    page = <Legacy legacyUrl={session.legacy_url} onUnauthorized={signedOut} />;
+  else if (route?.id === 'overview') page = <OverviewPage onUnauthorized={signedOut} />;
 
   return (
     <div className="shell">
@@ -80,24 +142,20 @@ export function App() {
       <nav className="rail" aria-label="Main">
         <span className="brand-mark small">Homelab Control</span>
         <ul>
-          <li>
-            <a href="/" aria-current="page">
-              Overview
-            </a>
-          </li>
-          {session.legacy_url && (
-            <li>
-              <a href={session.legacy_url} rel="noopener noreferrer">
-                Legacy Webmin
-              </a>
-            </li>
-          )}
+          {capList.map((c) => (
+            <NavItem key={c.id} cap={c} current={route?.id === c.id} />
+          ))}
         </ul>
-        <p className="rail-note">More sections arrive in later milestones. This build is read-only.</p>
+        <p className="rail-note">Read-only build. Nothing here changes your system.</p>
       </nav>
       <div className="workspace">
         <header className="topbar">
           <span className="readonly-badge">Read-only</span>
+          {caps?.broker.status === 'unavailable' && (
+            <span className="helper-off" title={caps.broker.reason}>
+              Privileged helper not running
+            </span>
+          )}
           <span className="who">
             Signed in as <strong>{session.username}</strong>
           </span>
@@ -106,12 +164,12 @@ export function App() {
           </button>
         </header>
         <main id="main" tabIndex={-1}>
-          {error && (
-            <p className="banner" role="alert">
-              {error}
+          {caps?.broker.status === 'unavailable' && path !== '/' && routeUsable && (
+            <p className="banner" role="status">
+              {caps.broker.reason}
             </p>
           )}
-          {data ? <Overview data={data} /> : !error && <p className="muted">Reading host data…</p>}
+          {page}
         </main>
         <footer className="foot">Homelab Control {session.version}</footer>
       </div>

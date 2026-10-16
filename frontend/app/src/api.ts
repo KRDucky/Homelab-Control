@@ -112,3 +112,167 @@ export function logout(csrf: string): Promise<undefined> {
 export function getOverview(): Promise<Overview> {
   return request<Overview>('/api/v1/host/overview');
 }
+
+// ---- M1: capabilities, services, hardware, legacy -------------------------
+
+export type CapabilityStatus = 'available' | 'degraded' | 'unavailable' | 'unsupported' | 'forbidden';
+
+export interface Capability {
+  id: 'overview' | 'services' | 'hardware' | 'legacy';
+  label: string;
+  path: string;
+  scope: string;
+  status: CapabilityStatus;
+  reason?: string;
+}
+
+export interface Capabilities {
+  broker: { status: 'available' | 'unavailable'; version?: string; reason?: string };
+  capabilities: Capability[];
+}
+
+export interface Unit {
+  name: string;
+  type: string;
+  load: string;
+  active: string;
+  sub: string;
+  description: string;
+  unit_file_state?: string;
+  preset?: string;
+}
+
+export interface UnitList {
+  systemd_version?: string;
+  units: Unit[];
+  counts: Record<string, number>;
+  truncated: boolean;
+  source: string;
+}
+
+export interface HwMeta {
+  status: 'ok' | 'partial' | 'unavailable';
+  sources: string[];
+  notes?: string[];
+}
+
+export interface Identifier {
+  kind: 'wwn' | 'serial' | 'by-id';
+  value: string;
+  source: string;
+}
+
+export interface Disk {
+  kernel_name: string;
+  kernel_name_note: string;
+  size_bytes: number;
+  model?: string;
+  vendor?: string;
+  transport: string;
+  rotational?: boolean;
+  removable: boolean;
+  read_only: boolean;
+  virtual: boolean;
+  identifiers: Identifier[];
+  identity_confidence: 'high' | 'medium' | 'low' | 'none';
+  identity?: string;
+}
+
+export interface Hardware {
+  inventory: {
+    system: HwMeta & {
+      vendor?: string;
+      product?: string;
+      version?: string;
+      board_vendor?: string;
+      board_name?: string;
+      bios_vendor?: string;
+      bios_version?: string;
+      bios_date?: string;
+      chassis_type?: string;
+      hypervisor?: string;
+    };
+    pci: HwMeta & {
+      devices: {
+        address: string;
+        class_code: string;
+        class: string;
+        vendor_id: string;
+        device_id: string;
+        vendor_name?: string;
+        device_name?: string;
+        driver?: string;
+        iommu_group?: string;
+      }[];
+    };
+    usb: HwMeta & {
+      devices: {
+        bus_path: string;
+        vendor_id: string;
+        product_id: string;
+        manufacturer?: string;
+        product?: string;
+        speed_mbps?: string;
+      }[];
+    };
+    disks: HwMeta & { devices: Disk[] };
+    sensors: HwMeta & {
+      readings: { chip: string; label: string; kind: 'temperature' | 'fan'; value: number; unit: string }[];
+    };
+  };
+  identity: {
+    status: 'ok' | 'unavailable';
+    reason?: string;
+    data?: {
+      available: boolean;
+      reason?: string;
+      source: string;
+      fields: Record<
+        string,
+        { value?: string; status: 'present' | 'placeholder' | 'missing' | 'unreadable' }
+      >;
+    };
+  };
+}
+
+export interface WebminCheck {
+  id: string;
+  level: 'ok' | 'warn' | 'info';
+  message: string;
+}
+
+export interface Legacy {
+  source: 'broker' | 'unprivileged';
+  reason?: string;
+  status?: {
+    installed: boolean;
+    config_dir: string;
+    version?: string;
+    port?: number;
+    tls?: boolean;
+    bind?: string;
+    listens_on_all_interfaces: boolean;
+    running?: boolean;
+    user_count: number;
+    rpc_capable_users: string[];
+    checks: WebminCheck[];
+    notes?: string[];
+  };
+  fallback?: Overview['legacy_webmin'];
+}
+
+export function getCapabilities(): Promise<Capabilities> {
+  return request<Capabilities>('/api/v1/capabilities');
+}
+
+export function getServices(): Promise<UnitList> {
+  return request<UnitList>('/api/v1/services');
+}
+
+export function getHardware(): Promise<Hardware> {
+  return request<Hardware>('/api/v1/hardware');
+}
+
+export function getLegacy(): Promise<Legacy> {
+  return request<Legacy>('/api/v1/legacy/webmin');
+}

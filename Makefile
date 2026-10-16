@@ -7,16 +7,21 @@ SOURCE_DATE_EPOCH ?= $(shell git log -1 --format=%ct 2>/dev/null || echo 0)
 export SOURCE_DATE_EPOCH
 GO ?= go
 GOFLAGS_BUILD := -trimpath -buildvcs=false
-LDFLAGS := -s -w -buildid= -X homelab-control/backend/internal/api.Version=$(VERSION)
+LDFLAGS := -s -w -buildid= -X homelab-control/backend/internal/version.Version=$(VERSION)
 OUT := build
 
 .PHONY: all deps frontend backend build test test-go test-frontend lint fmt check security \
-        verify-upstream repro-check deb e2e clean
+        verify-upstream repro-check deb rpm systemd-smoke e2e clean
 
 all: build
 
-deps:
+# Installs frontend dependencies only when the lockfile changed (stamp file),
+# so lint/test work on a fresh clone without reinstalling every time.
+deps: frontend/app/node_modules/.hc-stamp
+
+frontend/app/node_modules/.hc-stamp: frontend/app/package-lock.json frontend/app/package.json
 	cd frontend/app && npm ci --ignore-scripts --no-fund
+	touch $@
 
 frontend: deps
 	cd frontend/app && npm run build
@@ -27,19 +32,20 @@ backend:
 	mkdir -p $(OUT)
 	cd backend && CGO_ENABLED=0 $(GO) build $(GOFLAGS_BUILD) -ldflags '$(LDFLAGS)' -o ../$(OUT)/hc-api ./cmd/hc-api
 	cd backend && CGO_ENABLED=0 $(GO) build $(GOFLAGS_BUILD) -ldflags '$(LDFLAGS)' -o ../$(OUT)/hlctl ./cmd/hlctl
+	cd backend && CGO_ENABLED=0 $(GO) build $(GOFLAGS_BUILD) -ldflags '$(LDFLAGS)' -o ../$(OUT)/hc-broker ./cmd/hc-broker
 
 build: frontend backend
-	cd $(OUT) && sha256sum hc-api hlctl > SHA256SUMS && cat SHA256SUMS
+	cd $(OUT) && sha256sum hc-api hc-broker hlctl > SHA256SUMS && cat SHA256SUMS
 
 test: test-go test-frontend
 
 test-go:
 	cd backend && $(GO) test -count=1 -cover ./...
 
-test-frontend:
+test-frontend: deps
 	cd frontend/app && npm test
 
-lint:
+lint: deps
 	@test -z "$$(cd backend && gofmt -l .)" || { echo "gofmt needed:"; cd backend && gofmt -l .; exit 1; }
 	cd backend && $(GO) vet ./...
 	cd frontend/app && npm run -s typecheck && npm run -s lint && npm run -s format:check
@@ -62,6 +68,17 @@ repro-check:
 
 deb: build
 	packaging/debian/build-deb.sh $(VERSION)
+
+rpm: build
+	packaging/fedora/build-rpm.sh $(VERSION)
+
+# Real-systemd package test in a disposable Ubuntu container (root + docker + debootstrap).
+# REL=resolute (26.04) | noble (24.04, default) | jammy (22.04)
+REL ?= noble
+systemd-smoke: deb
+	dev/disposable/systemd-container.sh $(REL) $$(ls -t build/*.deb | head -1) \
+	  HC_SMOKE_EXTRA_UNITS=homelab-control-broker.socket HC_SMOKE_EXTRA_CHECKS=/opt/hc/tests/m1-checks.sh \
+	  HC_WEBMIN_SRC=/opt/hc/webmin HC_SMOKE_SCOPES=system.read,services.read,hardware.read
 
 e2e: build
 	tests/integration/run-hc-e2e.sh

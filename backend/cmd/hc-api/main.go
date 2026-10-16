@@ -22,7 +22,10 @@ import (
 	"homelab-control/backend/internal/api"
 	"homelab-control/backend/internal/audit"
 	"homelab-control/backend/internal/auth"
+	"homelab-control/backend/internal/broker/proto"
+	"homelab-control/backend/internal/brokerclient"
 	"homelab-control/backend/internal/hostinfo"
+	"homelab-control/backend/internal/hwinfo"
 	"homelab-control/backend/internal/webui"
 )
 
@@ -36,6 +39,7 @@ func main() {
 	devHTTP := flag.Bool("dev-insecure-http", false, "allow plain HTTP; only permitted on loopback addresses")
 	origins := flag.String("allowed-origins", "", "comma-separated extra origins allowed for unsafe requests")
 	legacyURL := flag.String("legacy-url", "", "URL of the legacy Webmin UI to link to (optional)")
+	brokerSocket := flag.String("broker-socket", proto.DefaultSocket, "privileged broker socket (empty disables broker features)")
 	allowRoot := flag.Bool("i-understand-running-as-root-is-unsupported", false, "permit running as root (development containers only)")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
@@ -86,7 +90,11 @@ func main() {
 		}
 	}
 	srv := api.New(api.Config{SecureCookies: useTLS || *behindTLSProxy, AllowedOrigins: extra, LegacyURL: *legacyURL},
-		auth.NewStore(uf), al, hostinfo.NewCollector(*legacyURL), webui.FS())
+		auth.NewStore(uf), al, hostinfo.NewCollector(*legacyURL), webui.FS()).
+		WithHardware(hwinfo.New())
+	if *brokerSocket != "" {
+		srv.WithBroker(brokerclient.New(*brokerSocket))
+	}
 	if webui.FS() == nil {
 		log.Print("warning: UI not embedded; serving API only")
 	}

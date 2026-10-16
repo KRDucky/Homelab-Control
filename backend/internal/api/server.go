@@ -25,10 +25,12 @@ import (
 	"homelab-control/backend/internal/audit"
 	"homelab-control/backend/internal/auth"
 	"homelab-control/backend/internal/hostinfo"
+	"homelab-control/backend/internal/hwinfo"
+	"homelab-control/backend/internal/version"
 )
 
-// Version is set at build time via -ldflags.
-var Version = "0.0.0-dev"
+// Version is the build version (see internal/version).
+var Version = version.Version
 
 // Config holds server settings.
 type Config struct {
@@ -53,6 +55,9 @@ type Server struct {
 	loginSem  chan struct{}
 	mux       *http.ServeMux
 	overview  overviewCache
+	broker    Broker
+	hw        *hwinfo.Collector
+	bstate    brokerState
 }
 
 type overviewCache struct {
@@ -90,6 +95,10 @@ func (s *Server) routes() {
 	s.handle("POST /api/v1/auth/logout", sessionOnly, s.handleLogout)
 	s.handle("GET /api/v1/auth/session", sessionOnly, s.handleSession)
 	s.handle("GET /api/v1/host/overview", auth.ScopeSystemRead, s.handleOverview)
+	s.handle("GET /api/v1/capabilities", sessionOnly, s.handleCapabilities)
+	s.handle("GET /api/v1/services", auth.ScopeServicesRead, s.handleServices)
+	s.handle("GET /api/v1/hardware", auth.ScopeHardwareRead, s.handleHardware)
+	s.handle("GET /api/v1/legacy/webmin", auth.ScopeSystemRead, s.handleLegacy)
 	s.mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "unknown API route")
 	})
