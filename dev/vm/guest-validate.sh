@@ -10,6 +10,9 @@ H=/opt/hc; OUT=$H/out
 [ -e /etc/hc-disposable ] || { echo "refusing: /etc/hc-disposable missing (not a harness VM)"; exit 1; }
 rm -rf "$OUT"; mkdir -p "$OUT/screenshots"; chmod 755 "$OUT"
 export DEBIAN_FRONTEND=noninteractive
+# Fresh cloud images ship without package lists (the seed sets package_update: false so boot stays
+# fast); without this, installs of anything not already in the image fail.
+apt-get update > "$OUT/00-apt-update.log" 2>&1 || { echo "apt-get update failed; see $OUT/00-apt-update.log"; exit 1; }
 summary=$OUT/SUMMARY.txt; : > "$summary"
 step() { echo; echo "######## $*"; }
 record() { printf '%-34s %s\n' "$1" "$2" | tee -a "$summary"; }
@@ -77,9 +80,12 @@ record "rollback / coexistence" "$(tail -1 "$OUT/02-rollback.log")"
 rb_fail=$n_fail
 
 step "3. browser e2e + axe (Playwright, Chromium) against the packaged stack"
-{
-  apt-get install -y python3-venv >/dev/null 2>&1
-  python3 -m venv $H/venv && $H/venv/bin/pip install -q playwright==1.56.0
+(
+  set -e
+  # set -e: the first failing prerequisite stops this step with its own error at the end of the log.
+  apt-get install -y python3-venv
+  python3 -m venv $H/venv
+  $H/venv/bin/pip install -q playwright==1.56.0
   if ! $H/venv/bin/python -m playwright install --with-deps chromium; then
     echo "playwright --with-deps not supported on this release; installing Chromium deps from the archive"
     for p in libnss3 libnspr4 libatk1.0-0t64 libatk-bridge2.0-0t64 libcups2t64 libxkbcommon0 libxcomposite1 \
@@ -89,7 +95,7 @@ step "3. browser e2e + axe (Playwright, Chromium) against the packaged stack"
     $H/venv/bin/python -m playwright install chromium
   fi
   ensure_webmin
-  apt-get install -y "$H/pkg.deb" >/dev/null 2>&1
+  apt-get install -y "$H/pkg.deb"
   pw="e2e-$(head -c 9 /dev/urandom | od -An -tx1 | tr -d ' \n')"
   printf '%s\n' "$pw" | hlctl user add --file /etc/homelab-control/users.json --username admin >/dev/null
   chown homelab-control:homelab-control /etc/homelab-control/users.json
@@ -102,7 +108,7 @@ step "3. browser e2e + axe (Playwright, Chromium) against the packaged stack"
   HC_E2E_URL=http://127.0.0.1:9180 HC_E2E_PASSWORD="$pw" HC_E2E_ARTIFACTS="$OUT/screenshots" HC_E2E_REQUIRE_AXE=1 \
   HC_E2E_BROKER_STOP="systemctl stop homelab-control-broker.socket homelab-control-broker.service" \
     $H/venv/bin/python $H/tests/e2e/hc_m1_e2e.py
-} > "$OUT/03-browser-axe.log" 2>&1
+) > "$OUT/03-browser-axe.log" 2>&1
 rc=$?; record "browser e2e + axe" "exit=$rc $(grep -E '[0-9]+ passed, [0-9]+ failed' "$OUT/03-browser-axe.log" | tail -1)"
 $H/venv/bin/python -c 'import playwright, importlib.metadata as m; print("playwright", m.version("playwright"))' >> "$OUT/environment.txt" 2>/dev/null
 grep -oE 'axe-core v?[0-9.]+|axe v[0-9.]+' $H/axe.min.js | head -1 | sed 's/^/axe_core=/' >> "$OUT/environment.txt"
