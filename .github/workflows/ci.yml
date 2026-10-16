@@ -34,6 +34,8 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y shellcheck rpm
           go install golang.org/x/vuln/cmd/govulncheck@latest
+          python3 -m venv /tmp/spdx && /tmp/spdx/bin/pip install -q spdx-tools==0.8.3  # SBOM validation (CI-only tool)
+          echo /tmp/spdx/bin >> "$GITHUB_PATH"
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: Lint (installs frontend deps without scripts)
         run: make lint

@@ -44,6 +44,11 @@ step "Frontend XSS lint rules"
 step "Third-party notices match shipped dependencies"
 python3 -I scripts/gen-third-party-notices.py --check || bad
 
+step "SBOM matches inputs and is valid SPDX 2.3"
+python3 -I scripts/gen-sbom.py --check || bad
+if command -v pyspdxtools >/dev/null 2>&1; then pyspdxtools -i docs/compliance/sbom/homelab-control.spdx.json || bad "pyspdxtools validation"
+else echo "SKIPPED: pyspdxtools not installed (CI installs spdx-tools)"; fi
+
 step "Committed secrets / private keys"
 if git grep -nE -- '-----BEGIN ([A-Z]+ )?PRIVATE KEY-----' -- ':!compat/webmin' ':!**/testdata/**'; then
   echo "private key material committed"; bad
