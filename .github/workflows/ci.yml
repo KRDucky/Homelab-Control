@@ -157,8 +157,8 @@ jobs:
           sudo apt-get update && sudo apt-get install -y debootstrap
           set -o pipefail
           if ! sudo dev/disposable/systemd-container.sh resolute "$(ls build/*.deb)" \
-            HC_SMOKE_EXTRA_UNITS=homelab-control-broker.socket HC_SMOKE_EXTRA_CHECKS=/tmp/hc-tests/m1-checks.sh \
-            HC_WEBMIN_SRC=/tmp/hc-webmin HC_SMOKE_SCOPES=system.read,services.read,hardware.read 2>&1 | tee /tmp/sd.log; then
+            HC_SMOKE_EXTRA_UNITS=homelab-control-broker.socket HC_SMOKE_EXTRA_CHECKS=/opt/hc/tests/m1-checks.sh \
+            HC_WEBMIN_SRC=/opt/hc/webmin HC_SMOKE_SCOPES=system.read,services.read,hardware.read 2>&1 | tee /tmp/sd.log; then
             echo "::error title=systemd-ubuntu-2604::$(grep -E 'FAIL|rror|E: |unsupported|denied|systemd|cgroup|Failed' /tmp/sd.log | tail -n 25 | sed ':a;N;$!ba;s/\n/%0A/g')%0A--- tail ---%0A$(tail -n 15 /tmp/sd.log | sed ':a;N;$!ba;s/\n/%0A/g')"
             exit 1
           fi
