@@ -10,7 +10,7 @@
 | [0006](0006-dependency-and-supply-chain-policy.md) | Dependency and supply-chain policy | Accepted for M0 |
 | [0007](0007-webmin-fork-maintenance.md) | Webmin fork maintenance and upstream sync | Accepted for M0 |
 | [0008](0008-broker-design.md) | Privileged broker design: socket activation, peer auth, closed op registry | **Accepted** 2026-10-16 for the 4 existing read-only M1 ops only |
-| [0009](0009-release-pipeline-and-signing.md) | Release pipeline, corresponding source and signing | Proposed (dry run implemented; publishing not enabled) |
+| [0009](0009-release-pipeline-and-signing.md) | Release pipeline, corresponding source and signing | **Accepted** 2026-10-16 (design); publishing not enabled until prerequisites P1–P10 |
 | [0010](0010-theme-document-format.md) | Theme document format (`.hltheme` single JSON file) | **Accepted in principle** 2026-10-16; implementation not authorized |
 
 Spec 02 also lists ADRs that belong to later milestones and are **not written yet**: plugin isolation

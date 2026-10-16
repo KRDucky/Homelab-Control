@@ -4,8 +4,9 @@
 Companion to `LICENSE-AUDIT.md` (findings LA-xx), `LICENSE-EXCEPTIONS.md` (EX-xx) and
 `RELEASE-PIPELINE.md`. Engineering record, not legal advice.
 
-**Release readiness: NOT READY.** One blocker remains: **LA-13** (publishing and signing are designed but
-not approved or enabled, ADR 0009). LA-02 and LA-03 are decided and implemented. Passing CI or automated
+**Release readiness: NOT READY.** One blocker remains: **LA-13** — the release design is accepted (ADR 0009)
+but publishing is not enabled; its prerequisites P1–P10 are open. LA-02 and LA-03 are decided and
+implemented. Passing CI or automated
 scans does not by itself establish compliance.
 
 ## 1. Release gate checklist
@@ -21,11 +22,12 @@ scans does not by itself establish compliance.
 | G8 | Every file has licence and copyright information | `reuse lint` (REUSE 3.3) in the security gate | **PASS** (automated) |
 | G9 | Package metadata lists every licence in the payload | DEB (DEP-5), RPM `License:`, Arch `license=()` reviewed | **PASS** |
 | G10 | Debian DEP-5 `copyright` in the `.deb`; no lintian copyright/licence tags | `package-inventory.sh` + lintian in CI | **PASS** (automated) — LA-12 |
-| G11 | Complete corresponding source; binaries rebuild from it byte-for-byte | `scripts/release-bundle.sh`, CI `release-dry-run` | **PASS** (dry run) |
-| G12 | Source published with each binary; checksums; signatures; provenance | Publishing workflow (ADR 0009) | **BLOCKED** — LA-13, not approved/enabled |
+| G11 | Complete corresponding source; binaries **and** DEB/RPM/Arch packages rebuild from it byte-for-byte | `scripts/release-bundle.sh` (archive vs Git), CI `release-dry-run` a/b, `release-dry-run-arch` a/b, `release-repro` | **PASS** on GitHub `ubuntu-24.04` runners and Arch containers with the recorded toolchain; not tested for other toolchain versions or distributions (`RELEASE-PIPELINE.md` §2) |
+| G12 | Source published with each binary; checksums; signatures; provenance | Publishing workflow (ADR 0009, accepted design) | **BLOCKED** — LA-13 prerequisites P1–P10 |
 | G13 | Supported Go toolchain; `govulncheck` clean | CI (Go 1.26.x) | **PASS** (automated); exact pins needed before enabling releases |
-| G14 | Contribution policy in force | `CONTRIBUTING.md` (DCO) | **REVIEW REQUIRED** — LA-14 proposed |
+| G14 | Contribution policy in force | `CONTRIBUTING.md` (DCO), approved 2026-10-16 | **PASS** (policy); CI sign-off check is a follow-up |
 | G15 | Manual review of new/changed dependencies since last release | Owner/maintainer | Not started — no release yet |
+| G16 | Upstream Webmin tree accurately labelled and never shipped | `gen-webmin-license-inventory.py --check`, `reuse lint`, `verify-upstream.sh`, payload checks; excluded from source archive | **PASS** (with documented coverage limits) |
 
 ## 2. Payload verification (what actually ships)
 `scripts/package-inventory.sh <package> [inventory-file]` lists the payload with the native tool
@@ -56,10 +58,12 @@ The web UI (React, React DOM, scheduler, Archivo font subsets, MIT design tokens
 | CI/test tools (Playwright, spdx-tools, reuse, lintian, shellcheck, Perl) | No | Mixed | Not required |
 
 ## 4. Remaining work before a first release
-1. **Owner:** approve ADR 0009 (or amend), create the OpenPGP key and hardware token, create the protected
-   `release` environment. Then a separate PR adds the tag-triggered draft-release workflow, pins exact
-   Go/Node/`govulncheck` versions and builds the Arch package from the source archive.
-2. **Owner:** approve `CONTRIBUTING.md` (DCO) and enable private vulnerability reporting.
-3. Separate PR: remove the bundled Archivo font (LA-06 plan, `LICENSE-AUDIT.md` §5.3).
-4. Before any Debian/Ubuntu archive submission: a Debian source package with `debian/changelog` and a
-   repacked upstream tarball (`compat/webmin/` excluded), plus man pages.
+1. **Owner (not delegable):** create the offline OpenPGP primary key and hardware-token signing subkey,
+   publish the fingerprint, create the protected `release` environment (ADR 0009 P4, P5, P7).
+2. **Release-workflow PR:** exact Go/Node/npm pins, pinned `govulncheck`, signed-tag verification,
+   Sigstore attestations, versioned SBOM, draft releases only (P1, P2, P4, P6, P10).
+3. **Dependency PR:** move GitHub Actions off the deprecated Node 20 runtime (P3, ADR 0006 review).
+4. **Follow-ups:** CI DCO sign-off check; private vulnerability reporting and `SECURITY.md`; Archivo font
+   removal (LA-06); Webmin migration phase 1.
+5. Before any Debian/Ubuntu archive submission: a Debian source package with `debian/changelog`, man
+   pages, and a repacked upstream tarball without `compat/webmin/`.

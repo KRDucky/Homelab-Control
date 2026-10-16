@@ -1,6 +1,6 @@
 # ADR-0005: Release and license strategy
 
-**Status:** **Accepted** (2026-10-16, owner) for items 1–4 and 6, after the licence audit (`docs/compliance/LICENSE-AUDIT.md`). Item 5 (release mechanics and signing) is refined in ADR 0009, **proposed**; no release is published until ADR 0009 is approved.
+**Status:** **Accepted** (2026-10-16, owner) for items 1–4 and 6, after the licence audit (`docs/compliance/LICENSE-AUDIT.md`). Item 5 (release mechanics and signing) is refined in ADR 0009 (**accepted** 2026-10-16); no release is published until its prerequisites (§5 there) are met.
 > **Owner decisions recorded 2026-10-16:** LA-02 core is GPL-3.0-or-later; LA-03 MIT for the public SDK, schemas, theme definitions and reusable design tokens, with exact boundaries in `REUSE.toml`; third-party code is never relicensed. Implemented in PR #5 (explicit grant in `NOTICE.md`/`README.md`, SPDX headers, `LICENSES/`, `REUSE.toml`, package metadata, SBOM).
 **Date:** 2026-10-15
 **Deciders:** Project owner (Ian)
