@@ -1,6 +1,6 @@
 # ADR-0002: API authentication, session and CSRF model
 
-**Status:** Accepted for M0 (implemented); PAM integration proposed for M1
+**Status:** Accepted for M0 (implemented). PAM integration **deferred** (owner, 2026-10-16) — see `docs/security/PAM-AUTH-DEFERRED.md`.
 **Date:** 2026-10-15
 **Deciders:** Project owner
 
@@ -68,5 +68,5 @@ removes that cost without moving password checks into the web tier.
 
 ## Action Items
 1. [x] Implement and test the above (M0).
-2. [ ] PAM verification broker op + group→scope mapping (M1).
+2. [ ] PAM verification broker op + group→scope mapping — **deferred past M1**; needs its own ADR (first argument-taking broker op). Acceptance tests: `docs/security/PAM-AUTH-DEFERRED.md`.
 3. [ ] Persisted sessions and per-session revocation UI (M2).

@@ -27,7 +27,7 @@ sdk/  plugins/  themes/   extension SDK, first-party plugins, theme packs (M3; p
 schemas/openapi/          versioned API contract (v1)
 packaging/                common systemd unit, Debian dev package, Fedora/openSUSE/Arch drafts
 tests/                    integration (shell), e2e (Playwright), systemd (real-systemd smoke), packaging (install test), security, vm-fixtures
-dev/                      disposable container script and Vagrant VM
+dev/                      disposable container script and libvirt VM harness (dev/vm)
 docs/                     project spec, ADRs, audit, security, evidence, plans
 scripts/                  verify/sync upstream, security gate, reproducibility, license report
 ```
