@@ -22,6 +22,18 @@ sudo usermod -aG libvirt "$USER"          # log out/in afterwards
 virsh -c qemu:///system pool-info hc-test  # must exist and be active (create it yourself)
 virsh -c qemu:///system net-info default   # must be active
 ```
+### Host firewall
+With **ufw** active (CachyOS default in some setups), guests on `default` get no DHCP lease: ufw's input
+policy drops their requests on `virbr0` (found on the first workstation run, 2026-10-16). Allow only the
+libvirt bridge, and undo with `sudo ufw delete …` using the same arguments:
+```bash
+sudo ufw allow in on virbr0 to any port 67 proto udp comment 'libvirt DHCP'
+sudo ufw allow in on virbr0 to any port 53 comment 'libvirt DNS'
+sudo ufw route allow in on virbr0     # only if `ufw status verbose` shows "deny (routed)"
+sudo ufw route allow out on virbr0
+```
+`hc-vm.sh preflight` prints a note when ufw is active.
+
 `cloud-image-utils` provides `cloud-localds`; `xorriso` or `cdrtools` (`mkisofs`) also work.
 `dpkg` provides `dpkg-deb` for building the `.deb` on Arch.
 

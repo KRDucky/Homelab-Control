@@ -63,6 +63,11 @@ preflight() {
   v net-info "$NET" >/dev/null 2>&1 || die "network '$NET' not found"
   [ "$(v net-info "$NET" | awk '/^Active:/{print $2}')" = yes ] || die "network '$NET' is not active"
   [ -e /dev/kvm ] || die "/dev/kvm missing (no KVM acceleration)"
+  # Host firewalls commonly drop DHCP/DNS from libvirt guests on virbr0 (seen with ufw on CachyOS).
+  if systemctl is-active -q ufw 2>/dev/null; then
+    echo "note: ufw is active; guests on '$NET' need DHCP (udp/67) and DNS (53) allowed on its bridge, and"
+    echo "      routed traffic allowed for outbound access. See dev/vm/README.md 'Host firewall'."
+  fi
   echo "preflight OK: $CONN, pool $POOL ($(v pool-dumpxml "$POOL" | sed -n 's|.*<path>\(.*\)</path>.*|\1|p' | head -1)), network $NET, /dev/kvm"
 }
 
