@@ -119,7 +119,7 @@ jobs:
             rpm) pkg=$(ls artifacts/*.rpm) ;;
             zst) pkg=$(ls artifacts/*.pkg.tar.zst) ;;
           esac
-          tests/packaging/install-test.sh "$pkg"
+          HC_DISTRO="${{ matrix.image }}" tests/packaging/install-test.sh "$pkg"
 
   # Real systemd: the GitHub runner VM boots systemd as PID 1 and is discarded after the job.
   systemd-ubuntu:
