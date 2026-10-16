@@ -157,10 +157,16 @@ jobs:
       - name: Prepare
         run: ${{ matrix.prep }}
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      # Named downloads only: other jobs' artifacts (e.g. release-dry-run's packages) must not be
+      # picked up by the globs below.
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
+          name: build
           path: artifacts
-          merge-multiple: true
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: arch-package
+          path: artifacts
       - name: Install test
         run: |
           touch /etc/hc-disposable
