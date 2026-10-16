@@ -1,6 +1,8 @@
 # ADR-0008: Privileged broker design (M1)
 
-**Status:** Accepted for M1 (refines ADR 0001; owner approval of ADR 0001 still recorded as pending)
+**Status:** Accepted (2026-10-16, owner) **for the four existing read-only, argument-free M1 operations only** (`broker.info`, `legacy.webmin.status`, `hardware.dmi.identity`, `services.systemd.list`). Adding or changing an operation requires a new review.
+> **Owner decision recorded 2026-10-16:** this acceptance is **not** authorization to implement privileged write operations. Any write-capable broker operation needs a separate, explicit owner approval (M2 design: confirmation, locking, audit, rollback).
+
 **Date:** 2026-10-15
 **Deciders:** Project owner; security review of every new operation
 

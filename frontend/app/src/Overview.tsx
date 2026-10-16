@@ -71,6 +71,7 @@ export function Overview({ data }: { data: OverviewData }) {
       </div>
 
       <Section title="Filesystems" meta={filesystems}>
+        {filesystems.note && <p className="muted">{filesystems.note}</p>}
         {filesystems.items.length === 0 ? (
           <p className="empty">No local filesystems were found in the mount table.</p>
         ) : (

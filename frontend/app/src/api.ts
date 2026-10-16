@@ -56,7 +56,7 @@ export interface Overview {
     swap_total_bytes: number;
     swap_free_bytes: number;
   };
-  filesystems: Meta & { items: Filesystem[] };
+  filesystems: Meta & { view: 'host' | 'service'; note?: string; items: Filesystem[] };
   network: Meta & { interfaces: NetInterface[] };
   legacy_webmin: Meta & {
     installed: boolean;

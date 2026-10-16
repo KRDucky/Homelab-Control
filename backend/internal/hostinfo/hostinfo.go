@@ -99,6 +99,13 @@ type Filesystem struct {
 
 type Filesystems struct {
 	Meta
+	// View is "host" when the table came from the host's mount namespace
+	// (/proc/1/mounts), or "service" when only hc-api's own sandboxed view was
+	// readable. In the service view systemd's ProtectSystem/PrivateTmp/
+	// LogsDirectory make mounts look read-only and add bind mounts that do
+	// not exist on the host, so read-only flags are withheld and Note says why.
+	View  string       `json:"view"`
+	Note  string       `json:"note,omitempty"`
 	Items []Filesystem `json:"items"`
 }
 
@@ -501,10 +508,21 @@ func ParseMounts(b []byte) []MountEntry {
 }
 
 func (c *Collector) filesystems() Filesystems {
-	fs := Filesystems{Items: []Filesystem{}}
-	p := filepath.Join(c.Roots.Proc, "self/mounts")
-	fs.Sources = []string{p, "statfs(2)"}
+	fs := Filesystems{Items: []Filesystem{}, View: "host"}
+	// hc-api runs sandboxed (ProtectSystem=strict, PrivateTmp, LogsDirectory):
+	// its own /proc/self/mounts describes the sandbox, not the host. PID 1's
+	// table is the host's (or the container's) real one and is world-readable
+	// unless /proc is mounted with hidepid or ProtectProc is set.
+	p := filepath.Join(c.Roots.Proc, "1/mounts")
 	b, err := readSmall(p)
+	if err != nil {
+		p = filepath.Join(c.Roots.Proc, "self/mounts")
+		fs.View = "service"
+		fs.Note = "The host mount table (/proc/1/mounts) is not readable here, so this is the service's own sandboxed view: " +
+			"read-only flags are not shown because the sandbox makes filesystems look read-only, and some entries may be service-only bind mounts."
+		b, err = readSmall(p)
+	}
+	fs.Sources = []string{p, "statfs(2)"}
 	if err != nil {
 		fs.Errors = append(fs.Errors, err.Error())
 		fs.Status = StatusUnavailable
@@ -523,7 +541,7 @@ func (c *Collector) filesystems() Filesystems {
 			continue // keep the first (lowest) entry for stacked mounts
 		}
 		seen[m.MountPoint] = true
-		item := Filesystem{KernelSource: m.Source, MountPoint: m.MountPoint, FSType: m.FSType, ReadOnly: m.ReadOnly}
+		item := Filesystem{KernelSource: m.Source, MountPoint: m.MountPoint, FSType: m.FSType, ReadOnly: m.ReadOnly && fs.View == "host"}
 		if remote {
 			item.SkipReason = "network filesystem not probed (statfs could block)"
 		} else if c.Statfs != nil {

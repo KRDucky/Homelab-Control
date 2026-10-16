@@ -1,6 +1,6 @@
 # ADR-0005: Release and license strategy
 
-**Status:** Proposed — **owner decision required**
+**Status:** Accepted in principle (2026-10-16, owner) — **conditional**: no release under this split until a completed license-compatibility and attribution audit (upstream `compat/webmin` mixed BSD-3/GPL/LGPL files, npm/Go dependencies, fonts/icons) is recorded and reviewed.
 **Date:** 2026-10-15
 **Deciders:** Project owner (Ian)
 

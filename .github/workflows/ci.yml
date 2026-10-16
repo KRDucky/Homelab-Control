@@ -177,7 +177,7 @@ jobs:
           python-version: '3.12'
       - name: Playwright
         run: |
-          pip install playwright==1.56.0  # version verified locally in M1
+          pip install playwright==1.63.0  # >= 1.61 needed for Ubuntu 26.04; same pin as dev/vm/guest-validate.sh
           python -m playwright install --with-deps chromium
       - name: API security checks + browser e2e (unprivileged)
         run: |
