@@ -22,5 +22,5 @@ direct TLS) so both can run side by side. Migration of Webmin users/config is ou
 migration tool with backup and rollback exists.
 
 ## Release artifacts (from M13; partially from M1)
-Tagged source tarball, SHA256SUMS, SPDX SBOM, NOTICE/LICENSE, signed tags/artifacts, changelog,
+Tagged source tarball, SHA256SUMS, SPDX SBOM, NOTICE/LICENSE, changelog (signed tags/artifacts deferred: ADR 0009 Phase 3),
 rollback/uninstall guide (`docs/dev/ROLLBACK.md`). Built only in CI from tags (ADR 0005/0006).

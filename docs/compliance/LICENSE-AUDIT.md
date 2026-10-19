@@ -8,6 +8,10 @@
 
 ## 1. Result
 
+**Update 2026-10-19:** the owner deferred mandatory signing (hardware tokens, OpenPGP keys). LA-13 now
+targets **Phase 1 unsigned development prereleases** (ADR 0009, revised). It stays **open**: the release
+workflow is not implemented, and mandatory items R4 and R6–R11 remain (§5.5).
+
 **Update 2026-10-16 (owner decisions, §5):** LA-02 and LA-03 are decided and implemented; LA-04, LA-07
 and LA-12 are resolved. **One release blocker remains: LA-13** — the release dry run exists and proves the
 source archive is complete and reproducible, but publishing and signing are designed (ADR 0009) and not
@@ -86,7 +90,7 @@ binary release must not happen until resolved.
 | LA-10 | Development-only npm packages (243 unique) | MIT 184, Apache-2.0 18, MPL-2.0 13 (axe-core, lightningcss), ISC 11, BSD-2 8, BSD-3 3, BlueOak-1.0.0 2, MIT-0 2, CC-BY-4.0 1 (caniuse-lite), CC0-1.0 1 | Lockfile + source map (none reach the bundle) | Not redistributed; MPL-2.0 file-level copyleft and CC-BY attribution apply only if redistributed | Low | Keep out of artifacts (enforced); re-check on every lockfile change (SBOM drift check) | No | No | **PASS** |
 | LA-11 | `frontend/app/tsconfig.tsbuildinfo` committed | Generated build cache | Not ignored, last changed in M1 | None (not shipped) | Info | **Done in this PR:** removed from Git and ignored | No | No | **PASS** |
 | LA-12 | Debian `copyright` file | Missing | `.deb` ships `LICENSE.md`/`NOTICE.md` but no `/usr/share/doc/homelab-control/copyright` (Debian Policy §12.5; DEP-5 format) | Fine for self-distributed `.deb`; required for Debian/Ubuntu archive submission | Low | **Done:** `packaging/debian/copyright` (DEP-5) generated with the notices (drift-checked), installed as `/usr/share/doc/homelab-control/copyright`; parses with python-debian strict mode; lintian 2.117 reports no copyright/licence tags (and reports `no-copyright-file` when it is removed); CI gates on it | No | — | **PASS** |
-| LA-13 | Release process: corresponding source, checksums, SBOM, signatures | Not implemented | ADR 0005 §5 planned; no tagged release pipeline exists. Binaries embed the UI bundle, whose corresponding source is the repo at the same commit | GPL §6 requires corresponding source for distributed binaries | High | **Dry run done:** `scripts/release-bundle.sh` + CI build the complete source archive (incl. npm sources of everything compiled in) and build binaries, DEB, RPM and Arch packages only from it; archive build = Git build (binaries, DEB, RPM); two independent CI runs compared file by file (`release-repro`). RPM/Arch nondeterminism found and fixed. **Design accepted** (ADR 0009). **Open:** prerequisites P1–P10 (toolchain pins, govulncheck pin, Actions runtime, signed tags, protected environment, attestations, offline key, versioned SBOM) | **Yes** | Owner actions: key, token, environment | **BLOCKED** |
+| LA-13 | Release process: corresponding source, checksums, SBOM, release workflow | Partly implemented (dry run); workflow not implemented | ADR 0005 §5; ADR 0009 (revised 2026-10-19). Binaries embed the UI bundle, whose corresponding source is the archive of the same commit | GPL §6 requires corresponding source for distributed binaries | High | **Dry run done:** complete source archive (incl. npm sources); binaries and DEB/RPM/Arch packages built only from it; archive build = Git build; two independent CI runs identical. **Phase 1 (unsigned prereleases) mandatory items open:** R4 versioned SBOM, R6 toolchain pins, R7 `govulncheck` pin, R8 draft-prerelease workflow, R9 unsigned labelling, R10 manual owner publication, R11 first-draft verification. **Deferred (not required):** attestations, OpenPGP/hardware-token signing, signed tags, repository signing | **Yes** (until R4, R6–R11 are done and verified) | Approve workflow PR; publish manually | **BLOCKED** |
 | LA-14 | AI-assisted authorship | Informational | 32 of 37 commits co-authored by Claude | Does not affect third-party license compliance. Copyright in purely machine-generated material varies by jurisdiction | Info | **Approved 2026-10-16:** `CONTRIBUTING.md` (DCO 1.1 human sign-off, AI-assistance disclosure, SPDX rule) and `AUTHORS.md` ("The Homelab Control Authors"). History grandfathered, not rewritten. Follow-ups: CI sign-off check, private vulnerability reporting + `SECURITY.md` | No | Given | **PASS** (policy); enforcement follow-up |
 | LA-15 | `NOTICE.md` statements out of date | Stale text | Said the license split was "pending" and named Authentic as "not vendored in M0" only | Shipped notice was imprecise | Info | **Done in this PR:** updated to the current state and pointed to `THIRD-PARTY-NOTICES.md` | No | No | **PASS** |
 
@@ -123,7 +127,7 @@ Separate PR after approval; the only intended visual change is the typeface.
    (−211 kB of fonts). Close EX-04.
 
 ### 5.4 Final review follow-up (2026-10-16, PR #5 review of `7a151d1e`)
-Owner approvals: ADR 0009 design (GitHub Releases, Sigstore attestations, hardware-backed offline
+Owner approvals (signing part superseded 2026-10-19, §5.5): ADR 0009 design (GitHub Releases, Sigstore attestations, hardware-backed offline
 OpenPGP signatures); DCO policy with grandfathered history; "The Homelab Control Authors"; `schemas/openapi/`
 inside the MIT boundary; `compat/webmin/` excluded from release source archives; single-file JSON
 `.hltheme` with layout preferences kept out of themes. Corrections:
@@ -134,6 +138,17 @@ inside the MIT boundary; `compat/webmin/` excluded from release source archives;
   measured without an `.rpm`. RPM builds were in fact nondeterministic (file mtimes, build host); fixed and
   now compared. Arch builds recorded a random directory; fixed. Exact claims and limits:
   `RELEASE-PIPELINE.md` §2.
+
+### 5.5 Release signing deferred (2026-10-19)
+Owner decision: hardware security tokens, OpenPGP signing keys and mandatory release signing are deferred
+until a future owner decision. Releases are phased (ADR 0009, revised):
+- **Phase 1:** unsigned GitHub development/prereleases, clearly labelled, published manually by the owner.
+- **Phase 2:** optional keyless Sigstore attestations.
+- **Phase 3:** optional maintainer signing.
+
+Reproducible builds, corresponding source, notices, licence metadata, the SPDX SBOM and SHA-256
+checksums stay mandatory. LA-13 is **not** resolved by this decision; it closes for Phase 1 only when
+the workflow exists and a first draft has been verified (ADR 0009 §5.1).
 
 ## 6. Not covered
 - Inspection of binary files (images, embedded fonts) inside `compat/webmin/`, and verification of the
