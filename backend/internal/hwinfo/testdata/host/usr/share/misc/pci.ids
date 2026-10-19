@@ -1,4 +1,10 @@
-# fixture subset of pci.ids
-8086  Intel Corporation
-	2922  82801IR/IO/IH (ICH9R/DO/DH) 6 port SATA Controller [AHCI mode]
-C 00  Unclassified device
+# Synthetic test data in pci.ids format, written for Homelab Control (not an excerpt of the PCI ID
+# Repository). Vendor/device IDs are arbitrary test values; names are invented.
+f0e1  Example Vendor (synthetic)
+	0a01  Example Device Without Driver (synthetic)
+	0a02  Example SATA Controller (synthetic)
+		f0e1 0001  Example Subsystem (synthetic, ignored by the parser)
+f0e2  Second Example Vendor (synthetic)
+	0b01  Unrelated Device (synthetic)
+C 00  Synthetic class section (ends vendor parsing)
+f0e3  Vendor After Class Section (must not be parsed)

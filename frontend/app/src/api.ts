@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Typed client for the Homelab Control v1 API (schemas/openapi/homelab-control.v1.yaml).
 
 export interface SessionInfo {

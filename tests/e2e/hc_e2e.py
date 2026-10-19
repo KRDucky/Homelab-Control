@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """Browser end-to-end test for the M0 shell (Playwright, Chromium).
 
 Driven by tests/integration/run-hc-e2e.sh, which starts a throwaway hc-api.

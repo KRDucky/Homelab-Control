@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package api implements the versioned Homelab Control HTTP API (v1).
 //
 // Security properties enforced here (see docs/adr/0002-api-session-model.md):

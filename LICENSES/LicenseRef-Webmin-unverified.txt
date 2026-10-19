@@ -1,0 +1,12 @@
+Licence not stated (Webmin reference tree, third-party material)
+
+Used only for files under compat/webmin/ (unmodified upstream Webmin, not shipped
+by Homelab Control) that appear to be third-party material (bundled Perl modules,
+icons, small scripts or data sets credited to other authors) but contain no
+licence statement, and whose licence could not be established from the tree
+itself. Webmin's top-level LICENCE is not assumed to cover them.
+
+Their licence is UNKNOWN to Homelab Control. They must not be copied into, or
+distributed with, Homelab Control until their licence has been established from
+the original upstream source. Details per file:
+docs/compliance/WEBMIN-LICENSE-INVENTORY.md.

@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Package + systemd smoke test. Run as root INSIDE a disposable systemd host
 # (systemd as PID 1): a throwaway VM, a CI runner, or a systemd container.
 # Installs the given package, starts the hardened units, checks behaviour,

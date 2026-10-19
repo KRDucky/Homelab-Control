@@ -1,0 +1,143 @@
+# Release license audit
+
+**Date:** 2026-10-16 · **Branch:** `compliance-audit` (from `main` at `b6d1d4d3`) · **Auditor:** Claude (AI), for owner review
+**Scope:** owner directive "Product Independence, UI Architecture, Theme Engine, and License Compliance", §6.
+
+> This is an engineering audit, not legal advice. It records what the files and packages contain and what
+> the licenses involved require. The owner decides license policy; anything marked "owner approval" is not done.
+
+## 1. Result
+
+**Update 2026-10-16 (owner decisions, §5):** LA-02 and LA-03 are decided and implemented; LA-04, LA-07
+and LA-12 are resolved. **One release blocker remains: LA-13** — the release dry run exists and proves the
+source archive is complete and reproducible, but publishing and signing are designed (ADR 0009) and not
+approved or enabled. **Still not release-ready.**
+
+*Original result:* not release-ready; three findings blocked a release (LA-02, LA-03, LA-13). None is a
+conflict between licenses; they were missing decisions and missing release machinery. The notice gap
+found in shipped packages (LA-01) and the incomplete license metadata (LA-05) were fixed in this PR.
+
+| Question (directive §6) | Answer |
+|---|---|
+| 1. Independently authored files | All 270 tracked files outside `compat/` (§3). No copied or adapted upstream code found. |
+| 2. Third-party files in the repo | `compat/webmin/` (44 299 files, reference subtree); a 3-line `pci.ids` excerpt in a test fixture (LA-07; since replaced with synthetic data). |
+| 3. Adapted/copied upstream code | None found outside `compat/` (method §2). |
+| 4. Licenses that apply | Project code: GPL-3.0-or-later (decided 2026-10-16, LA-02); SDK, schemas, theme definitions and design tokens MIT (LA-03). Shipped third-party: MIT (React ×3), OFL-1.1 (Archivo font), BSD-3-Clause (Go stdlib). |
+| 5. Proposed arrangement compatible? | Yes. MIT, OFL-1.1 and BSD-3-Clause are all compatible with distribution inside a GPL-3.0 work; OFL fonts may be bundled with any software. The MIT split for SDK/schemas/themes is compatible and is now applied (LA-03). |
+| 6. Distributable without Webmin? | Yes — packages already contain zero Webmin files (verified, `RELEASE-COMPLIANCE.md` §2); no runtime dependency (`WEBMIN-INDEPENDENCE.md`). |
+| 7. Authentic Theme or other Webmin assets in the frontend? | No. Not in the repo, not imported, not in the bundle; the frontend's CSS, tokens and favicon are original (§3, LA-09). |
+| 8. Notices that must accompany artifacts | `LICENSE.md`, `NOTICE.md` (grant + MIT text for the MIT parts), `THIRD-PARTY-NOTICES.md` (full MIT, OFL-1.1, BSD-3-Clause texts); DEP-5 `copyright` in the `.deb`. Shipped in all formats. |
+| 9. Unclear/missing/restricted/incompatible dependencies | None in shipped components. Dev-only MPL-2.0 / CC-BY-4.0 / BlueOak are not redistributed (LA-10). |
+| 10. Corresponding source and license information available? | Source and lockfiles are public. A release dry run now builds a complete source archive (with the npm sources of everything compiled in) and proves binaries rebuild from it byte-for-byte; publishing it with each binary awaits ADR 0009 (LA-13). |
+
+## 2. Method
+1. **Inventory:** `git ls-files`, classified by path and content; every non-text or asset file opened
+   (favicon SVG, both stylesheets, fixtures); full-repo search outside `compat/` for copyright and SPDX
+   lines, license phrases, and the strings `authentic`, `gray-theme`, `webmin`.
+2. **Provenance:** `git log` authorship of every commit touching files outside `compat/`.
+3. **npm:** `package-lock.json` (lockfileVersion 3) license fields cross-checked against each installed
+   package's `package.json` and `LICENSE` file; production vs development split from the lockfile.
+4. **What actually ships:** production build with a source map; the map's `sources` list gives the exact
+   modules in the bundle; bundle searched for license comments and build-tool runtime code.
+5. **Go:** `backend/go.mod` (no `require`), `go version -m` on the built binaries, Go `LICENSE`.
+6. **Packages:** `.deb` built and listed locally; `.deb`, `.rpm` and Arch payloads listed and checked in
+   CI by `scripts/package-inventory.sh` (new).
+7. **Webmin subtree:** pin verified (`scripts/verify-upstream.sh`); license headers re-scanned
+   (`grep` for GPL/LGPL phrases) and compared with the M0 audit (`docs/audit/WEBMIN-2.670-AUDIT.md` §2).
+8. **SBOM:** `scripts/gen-sbom.py` → SPDX 2.3, validated with `spdx-tools` 0.8.3 including a negative test.
+
+Automated checks are evidence, not a compliance conclusion. Ambiguous items were reviewed by hand and
+are listed as findings.
+
+## 3. Provenance inventory (outside `compat/`, 270 files)
+| Category | Files | Origin | License (current) |
+|---|---|---|---|
+| Go backend, CLI, broker (incl. tests) | 39 | Original | GPL-3.0 (repo) |
+| Frontend app, design tokens, config, lockfile | 28 | Original; lockfile generated by npm | GPL-3.0 (repo) |
+| Packaging (DEB/RPM/Arch, units, configs) | 11 | Original | GPL-3.0 (repo) |
+| Build, CI and maintenance scripts | 12 + 3 new | Original | GPL-3.0 (repo) |
+| Test and dev harnesses | 17 | Original | GPL-3.0 (repo) |
+| Test fixtures (synthetic sysfs/procfs trees) | 65 | Original; one `pci.ids` excerpt (LA-07) | GPL-3.0 (repo) |
+| Schemas and SDK/theme/plugin placeholders | 8 | Original | GPL-3.0 today; MIT proposed (LA-03) |
+| Documentation | 50 | Original | GPL-3.0 (repo) |
+| Test evidence (generated logs, screenshots) | 40 | Generated by our tests; one screenshot shows Webmin's own login page (LA-09) | — |
+
+- **Authorship:** all 37 commits outside `compat/` are by the owner (Ian comings); 32 carry a
+  `Co-Authored-By: Claude` trailer (AI-assisted; LA-14).
+- At audit time no file outside `compat/` carried a copyright or SPDX header (LA-04, since resolved).
+- **Frontend assets:** `public/favicon.svg` (four primitive shapes, original), `src/styles.css`,
+  `design-system/tokens.css` (original token seed). No icon fonts, image sets, or Webmin/Authentic files.
+
+## 4. Findings
+Status: **PASS**, **BLOCKED**, **REVIEW REQUIRED**, **NOT APPLICABLE**. "Blocks release" means a public
+binary release must not happen until resolved.
+
+| ID | Item | License / status | Evidence | Redistribution implication | Severity | Recommended resolution | Blocks release | Owner approval | Status |
+|---|---|---|---|---|---|---|---|---|---|
+| LA-01 | Shipped notices for React, React DOM, scheduler (MIT), Archivo (OFL-1.1), Go stdlib (BSD-3) | Notices were missing | Minified bundle has no license comments; packages shipped only `NOTICE.md` (names, no texts) | MIT/BSD require the copyright and permission notice with copies; OFL requires copyright + license with the fonts | High | **Done in this PR:** generated `THIRD-PARTY-NOTICES.md` (verbatim texts) shipped by all packaging; drift check in the security gate | Was yes | No | **PASS** (deb verified locally; rpm/Arch in CI) |
+| LA-02 | Project license version: "GPL-3.0" vs "GPL-3.0-or-later" | **Decided: GPL-3.0-or-later** (was inconsistent) | `LICENSE.md` is the GPLv3 text with no grant statement; `README.md`/`NOTICE.md` say "GPL-3.0"; all package metadata and ADR 0005 say "GPL-3.0-or-later" | Recipients cannot tell whether later GPL versions are granted; metadata may overstate the grant | High | **Done:** explicit "version 3 or (at your option) any later version" grant in `NOTICE.md` and `README.md`; SPDX headers and `REUSE.toml`; package metadata, SBOM and DEP-5 `copyright` all say GPL-3.0-or-later | No (resolved) | Given 2026-10-16 | **PASS** |
+| LA-03 | MIT for SDK, schemas, design tokens, theme definitions (ADR 0005 §3, directive §5) | **Decided: MIT** within exact boundaries | `sdk/`, `schemas/`, `themes/`, `frontend/design-system/` have no `LICENSE`; they are GPL-3.0 under the repo license | Theme/plugin authors would be bound by the GPL when copying schemas or tokens | Medium | **Done:** boundaries `sdk/`, `schemas/` (incl. OpenAPI), `themes/`, `frontend/design-system/`, `docs/ui/theme.schema.v1.draft.json`, `docs/ui/examples/themes/` in `REUSE.toml` and DEP-5; `LICENSE` (MIT) in each directory; MIT text in shipped `NOTICE.md` (tokens are in the UI bundle). Provenance verified (§5.1) | No (resolved) | Given 2026-10-16 | **PASS** |
+| LA-04 | No SPDX headers; no REUSE `LICENSES/` directory | Missing | Search found no `SPDX-License-Identifier` outside `compat/`; ADR 0005 §4 planned this for M1 | File-level license is only implied by repository location | Low | **Done:** SPDX headers on 86 source files, `LICENSES/` (GPL-3.0-or-later, MIT, LicenseRef-Webmin-upstream), `REUSE.toml` for the rest; `reuse lint` 6.2.0 passes (REUSE 3.3) and runs in the security gate | No | — | **PASS** |
+| LA-05 | Package license metadata | Incomplete | DEB/RPM/Arch declared `GPL-3.0-or-later AND MIT AND OFL-1.1`; Go stdlib (BSD-3) compiled into every binary was omitted | Metadata understated the licenses inside the binaries | Low | **Done in this PR:** `BSD-3-Clause` added to RPM `License:` and Arch `license=()` (GPL version still per LA-02) | No | No | **PASS** |
+| LA-06 | Archivo variable font (`@fontsource-variable/archivo` 5.3.0) | OFL-1.1, no Reserved Font Name | Package `LICENSE`; three `.woff2` subsets embedded in `hc-api` | Compliant with notices (LA-01). Fonts may not be sold standalone; bundling is permitted | Low | **Decided:** prefer system font stacks; removal planned (§5.3), not done in this PR (it is a visible change and needs its own reviewed PR). Notices stay until removal | No | Given 2026-10-16 | **REVIEW REQUIRED** (removal pending) |
+| LA-07 | `backend/internal/hwinfo/testdata/host/usr/share/misc/pci.ids` | Was 3 data lines from the PCI ID Repository (GPL-2.0-or-later OR BSD-3-Clause) | File header "fixture subset of pci.ids"; test-only, not packaged | None for releases | Low | **Done:** replaced with synthetic data in pci.ids format (invented IDs and names) and a new parser test (vendor/device lines, subsystem lines ignored, class section ends parsing), so coverage is greater than before | No | — | **PASS** |
+| LA-08 | `compat/webmin/` reference subtree | **Per-file inventory** (`WEBMIN-LICENSE-INVENTORY.md`, 2026-10-16 follow-up): BSD-3-Clause default per upstream `LICENCE`; GPL-2.0-or-later ×8 (dhcpd ×6, smbhash.pl, webmin-openrc-init); GPL without version ×445 (openslp module, Faenza icons); MIT ×30; BSD-3-Clause third-party (Highlight.js, Quill, YUI); Apache-2.0 ×3; Artistic-2.0 ×2; Perl terms ×35; **835 third-party files with no licence statement** (`LicenseRef-Webmin-unverified`: some bundled Perl modules, gray-theme icons, small scripts, OUI list) | Every file scanned for licence and third-party copyright statements; every hit reviewed; `--check` fails on new unreviewed hits; `reuse lint` passes; `verify-upstream.sh` byte-identical to 2.670 | Not in any package or release source archive (verified). Source-repo distribution keeps every upstream notice unmodified | Low (not shipped) | **Done:** generated REUSE annotations replace the former umbrella `LicenseRef-Webmin-upstream`; unverified files must not be shipped or copied until resolved | No | No | **NOT APPLICABLE** to releases; PASS for source (with documented limits) |
+| LA-09 | Authentic Theme / Webmin UI assets in the new UI | Not present | Not vendored, not a dependency, not in the bundle; only Webmin's own `gray-theme` exists inside `compat/` and is unused. `docs/evidence/screenshots/06-legacy-webmin-login.png` depicts Webmin's login page (M0 evidence, docs only) | None | — | Keep the new UI free of Webmin assets (directive §2.2); screenshot may stay as evidence | No | No | **PASS** |
+| LA-10 | Development-only npm packages (243 unique) | MIT 184, Apache-2.0 18, MPL-2.0 13 (axe-core, lightningcss), ISC 11, BSD-2 8, BSD-3 3, BlueOak-1.0.0 2, MIT-0 2, CC-BY-4.0 1 (caniuse-lite), CC0-1.0 1 | Lockfile + source map (none reach the bundle) | Not redistributed; MPL-2.0 file-level copyleft and CC-BY attribution apply only if redistributed | Low | Keep out of artifacts (enforced); re-check on every lockfile change (SBOM drift check) | No | No | **PASS** |
+| LA-11 | `frontend/app/tsconfig.tsbuildinfo` committed | Generated build cache | Not ignored, last changed in M1 | None (not shipped) | Info | **Done in this PR:** removed from Git and ignored | No | No | **PASS** |
+| LA-12 | Debian `copyright` file | Missing | `.deb` ships `LICENSE.md`/`NOTICE.md` but no `/usr/share/doc/homelab-control/copyright` (Debian Policy §12.5; DEP-5 format) | Fine for self-distributed `.deb`; required for Debian/Ubuntu archive submission | Low | **Done:** `packaging/debian/copyright` (DEP-5) generated with the notices (drift-checked), installed as `/usr/share/doc/homelab-control/copyright`; parses with python-debian strict mode; lintian 2.117 reports no copyright/licence tags (and reports `no-copyright-file` when it is removed); CI gates on it | No | — | **PASS** |
+| LA-13 | Release process: corresponding source, checksums, SBOM, signatures | Not implemented | ADR 0005 §5 planned; no tagged release pipeline exists. Binaries embed the UI bundle, whose corresponding source is the repo at the same commit | GPL §6 requires corresponding source for distributed binaries | High | **Dry run done:** `scripts/release-bundle.sh` + CI build the complete source archive (incl. npm sources of everything compiled in) and build binaries, DEB, RPM and Arch packages only from it; archive build = Git build (binaries, DEB, RPM); two independent CI runs compared file by file (`release-repro`). RPM/Arch nondeterminism found and fixed. **Design accepted** (ADR 0009). **Open:** prerequisites P1–P10 (toolchain pins, govulncheck pin, Actions runtime, signed tags, protected environment, attestations, offline key, versioned SBOM) | **Yes** | Owner actions: key, token, environment | **BLOCKED** |
+| LA-14 | AI-assisted authorship | Informational | 32 of 37 commits co-authored by Claude | Does not affect third-party license compliance. Copyright in purely machine-generated material varies by jurisdiction | Info | **Approved 2026-10-16:** `CONTRIBUTING.md` (DCO 1.1 human sign-off, AI-assistance disclosure, SPDX rule) and `AUTHORS.md` ("The Homelab Control Authors"). History grandfathered, not rewritten. Follow-ups: CI sign-off check, private vulnerability reporting + `SECURITY.md` | No | Given | **PASS** (policy); enforcement follow-up |
+| LA-15 | `NOTICE.md` statements out of date | Stale text | Said the license split was "pending" and named Authentic as "not vendored in M0" only | Shipped notice was imprecise | Info | **Done in this PR:** updated to the current state and pointed to `THIRD-PARTY-NOTICES.md` | No | No | **PASS** |
+
+## 5. Owner decisions of 2026-10-16 and follow-up
+Decisions: LA-02 GPL-3.0-or-later; LA-03 MIT for public SDK, schemas, theme definitions and reusable
+design tokens with exact boundaries; LA-06 prefer system fonts, plan Archivo removal; LA-12 add DEP-5
+copyright; LA-13 design the release pipeline and signing, do not enable; LA-14 propose DCO policy;
+EX-02…EX-06 accepted under their conditions, PCI fixture replaced; Webmin migration phase 1 approved for
+a separate PR; `.hltheme` single JSON accepted in principle (ADR 0010).
+
+### 5.1 Provenance check for relicensing
+- Every commit outside `compat/` (41 at the time of the check) is authored by the owner, Ian comings;
+  36 carry an AI co-author trailer. No third-party contributor holds copyright in the core or in the MIT
+  boundary, so no other rights holder's consent is needed for GPL-3.0-or-later or MIT.
+- The 5 commits touching the MIT boundary are all the owner's. The files contain no third-party code
+  or text (searched for copyright/licence statements; contents reviewed: README placeholders, the
+  OpenAPI contract, `tokens.css`, the theme schema and example themes).
+- Third-party code keeps its licence: `compat/webmin/` is annotated `LicenseRef-Webmin-upstream`
+  (pointing to its own notices) in `REUSE.toml`, and is excluded from the MIT/GPL annotations.
+
+### 5.2 Verification
+`reuse lint` (REUSE 3.3) passes for all 42 204 files it scans; DEP-5 file validated (python-debian
+strict, lintian); `make check`, payload checks and the release dry run pass (see PR #5 for CI runs).
+
+### 5.3 Plan: removing the bundled Archivo font (LA-06)
+Separate PR after approval; the only intended visual change is the typeface.
+1. Set `--hc-font-family` to a system stack (`system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans',
+   'Liberation Sans', sans-serif`). `--hc-font-stretch-display` (62 %) relies on Archivo's width axis;
+   most system fonts lack it, so headings get a size/weight adjustment instead, chosen with screenshots.
+2. Remove the `@fontsource-variable/archivo` import from `main.tsx` and the dependency (lockfile change).
+3. Regenerate `THIRD-PARTY-NOTICES.md`, `packaging/debian/copyright` and the SBOM; drop `OFL-1.1` from
+   RPM/Arch licence fields. CI drift checks enforce all three.
+4. Verify: e2e and axe at the three viewports, before/after screenshots attached to the PR, bundle size
+   (−211 kB of fonts). Close EX-04.
+
+### 5.4 Final review follow-up (2026-10-16, PR #5 review of `7a151d1e`)
+Owner approvals: ADR 0009 design (GitHub Releases, Sigstore attestations, hardware-backed offline
+OpenPGP signatures); DCO policy with grandfathered history; "The Homelab Control Authors"; `schemas/openapi/`
+inside the MIT boundary; `compat/webmin/` excluded from release source archives; single-file JSON
+`.hltheme` with layout preferences kept out of themes. Corrections:
+- **Webmin metadata:** the umbrella `LicenseRef-Webmin-upstream` annotation was replaced by a generated,
+  per-file inventory (`scripts/gen-webmin-license-inventory.py`, `WEBMIN-LICENSE-INVENTORY.md`, REUSE.toml
+  section). Coverage limits are stated there; nothing upstream was modified.
+- **Reproducibility claims corrected:** the earlier "whole bundle bit-identical across two runs" was
+  measured without an `.rpm`. RPM builds were in fact nondeterministic (file mtimes, build host); fixed and
+  now compared. Arch builds recorded a random directory; fixed. Exact claims and limits:
+  `RELEASE-PIPELINE.md` §2.
+
+## 6. Not covered
+- Inspection of binary files (images, embedded fonts) inside `compat/webmin/`, and verification of the
+  licence of the 835 third-party files that state none (`LicenseRef-Webmin-unverified`). Not needed while
+  the subtree stays out of packages and source archives; needed before any such file is ever shipped.
+- Trademark clearance for the name "Homelab Control".
+- Export-control classification.

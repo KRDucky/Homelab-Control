@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # M1 browser e2e against the real stack: package installed in a disposable
 # Ubuntu systemd container (host network so the browser can reach loopback),
 # broker socket-activated, real upstream Webmin from compat/webmin.

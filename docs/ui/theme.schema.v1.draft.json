@@ -1,0 +1,540 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:homelab-control:schema:theme:v1:draft",
+  "title": "Homelab Control theme (v1, DRAFT \u2014 planning artifact, not used by code)",
+  "description": "Declarative, appearance-only theme. Every value is typed and bounded; there is no free-form CSS, markup, URL or script anywhere in the format.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "version",
+    "license",
+    "engine",
+    "appearance",
+    "modes"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "maxLength": 200
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(\\.[a-z0-9-]+){1,4}$",
+      "maxLength": 100,
+      "description": "Reverse-DNS identifier."
+    },
+    "name": {
+      "$ref": "#/$defs/plainText80"
+    },
+    "description": {
+      "$ref": "#/$defs/plainText280"
+    },
+    "author": {
+      "$ref": "#/$defs/plainText80"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "license": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9.+-]{2,40}( (AND|OR) [A-Za-z0-9.+-]{2,40}){0,3}$",
+      "description": "SPDX expression."
+    },
+    "engine": {
+      "type": "string",
+      "pattern": "^[<>=^~0-9. ]{1,40}$",
+      "description": "Semver range of supported theme engines."
+    },
+    "extends": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(\\.[a-z0-9-]+){1,4}$"
+    },
+    "appearance": {
+      "enum": [
+        "dark",
+        "light",
+        "auto"
+      ]
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "motion": {
+          "enum": [
+            "full",
+            "reduced",
+            "none"
+          ]
+        },
+        "contrast": {
+          "enum": [
+            "standard",
+            "high"
+          ]
+        }
+      },
+      "description": "Appearance hints only. They never override the user's own motion or contrast preference. Layout preferences (navigation style, density, dashboards) are user settings, not theme content (ADR 0010)."
+    },
+    "modes": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "dark": {
+          "$ref": "#/$defs/tokenSet"
+        },
+        "light": {
+          "$ref": "#/$defs/tokenSet"
+        },
+        "darkHighContrast": {
+          "$ref": "#/$defs/tokenSet"
+        },
+        "lightHighContrast": {
+          "$ref": "#/$defs/tokenSet"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "appearance": {
+            "const": "auto"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "modes": {
+            "required": [
+              "dark",
+              "light"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "appearance": {
+            "const": "dark"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "modes": {
+            "required": [
+              "dark"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "appearance": {
+            "const": "light"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "modes": {
+            "required": [
+              "light"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "plainText80": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "pattern": "^[^<>\\u0000-\\u001f]*$"
+    },
+    "plainText280": {
+      "type": "string",
+      "maxLength": 280,
+      "pattern": "^[^<>\\u0000-\\u001f]*$"
+    },
+    "color": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$"
+    },
+    "remSize": {
+      "type": "number",
+      "minimum": 0.625,
+      "maximum": 5
+    },
+    "radius": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 24
+    },
+    "duration": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 600
+    },
+    "shadow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "y",
+        "blur",
+        "color"
+      ],
+      "properties": {
+        "y": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 24
+        },
+        "blur": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 48
+        },
+        "spread": {
+          "type": "number",
+          "minimum": -8,
+          "maximum": 8
+        },
+        "color": {
+          "$ref": "#/$defs/color"
+        }
+      }
+    },
+    "tokenSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Any subset; omitted tokens inherit from `extends`, then from the built-in base.",
+      "properties": {
+        "color": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "surface": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "base": {
+                  "$ref": "#/$defs/color"
+                },
+                "raised": {
+                  "$ref": "#/$defs/color"
+                },
+                "sunken": {
+                  "$ref": "#/$defs/color"
+                },
+                "overlay": {
+                  "$ref": "#/$defs/color"
+                }
+              }
+            },
+            "text": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "primary": {
+                  "$ref": "#/$defs/color"
+                },
+                "secondary": {
+                  "$ref": "#/$defs/color"
+                },
+                "disabled": {
+                  "$ref": "#/$defs/color"
+                },
+                "inverse": {
+                  "$ref": "#/$defs/color"
+                },
+                "link": {
+                  "$ref": "#/$defs/color"
+                }
+              }
+            },
+            "border": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "subtle": {
+                  "$ref": "#/$defs/color"
+                },
+                "strong": {
+                  "$ref": "#/$defs/color"
+                }
+              }
+            },
+            "accent": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "base": {
+                  "$ref": "#/$defs/color"
+                },
+                "hover": {
+                  "$ref": "#/$defs/color"
+                },
+                "contrast": {
+                  "$ref": "#/$defs/color"
+                }
+              }
+            },
+            "focus": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "ring": {
+                  "$ref": "#/$defs/color"
+                }
+              }
+            },
+            "status": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "ok": {
+                  "$ref": "#/$defs/color"
+                },
+                "warn": {
+                  "$ref": "#/$defs/color"
+                },
+                "crit": {
+                  "$ref": "#/$defs/color"
+                },
+                "info": {
+                  "$ref": "#/$defs/color"
+                },
+                "unknown": {
+                  "$ref": "#/$defs/color"
+                },
+                "ok-contrast": {
+                  "$ref": "#/$defs/color"
+                },
+                "warn-contrast": {
+                  "$ref": "#/$defs/color"
+                },
+                "crit-contrast": {
+                  "$ref": "#/$defs/color"
+                },
+                "info-contrast": {
+                  "$ref": "#/$defs/color"
+                },
+                "unknown-contrast": {
+                  "$ref": "#/$defs/color"
+                }
+              }
+            },
+            "chart": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "series": {
+                  "type": "array",
+                  "minItems": 6,
+                  "maxItems": 12,
+                  "items": {
+                    "$ref": "#/$defs/color"
+                  }
+                },
+                "grid": {
+                  "$ref": "#/$defs/color"
+                },
+                "axis": {
+                  "$ref": "#/$defs/color"
+                }
+              }
+            },
+            "meter": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "track": {
+                  "$ref": "#/$defs/color"
+                },
+                "fill": {
+                  "$ref": "#/$defs/color"
+                }
+              }
+            }
+          }
+        },
+        "typography": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "family": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "ui": {
+                  "enum": [
+                    "system-sans",
+                    "system-serif",
+                    "humanist-sans",
+                    "system-rounded"
+                  ]
+                },
+                "mono": {
+                  "enum": [
+                    "system-mono"
+                  ]
+                }
+              }
+            },
+            "size": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "xs": {
+                  "$ref": "#/$defs/remSize"
+                },
+                "sm": {
+                  "$ref": "#/$defs/remSize"
+                },
+                "md": {
+                  "$ref": "#/$defs/remSize"
+                },
+                "lg": {
+                  "$ref": "#/$defs/remSize"
+                },
+                "xl": {
+                  "$ref": "#/$defs/remSize"
+                },
+                "display": {
+                  "$ref": "#/$defs/remSize"
+                }
+              }
+            },
+            "weight": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "regular": {
+                  "type": "integer",
+                  "minimum": 300,
+                  "maximum": 800
+                },
+                "strong": {
+                  "type": "integer",
+                  "minimum": 300,
+                  "maximum": 800
+                }
+              }
+            },
+            "lineHeight": {
+              "type": "number",
+              "minimum": 1.1,
+              "maximum": 2.0
+            }
+          }
+        },
+        "space": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "unit": {
+              "type": "number",
+              "minimum": 2,
+              "maximum": 8
+            }
+          }
+        },
+        "shape": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "radius": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "sm": {
+                  "$ref": "#/$defs/radius"
+                },
+                "md": {
+                  "$ref": "#/$defs/radius"
+                },
+                "lg": {
+                  "$ref": "#/$defs/radius"
+                }
+              }
+            },
+            "borderWidth": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 4
+            }
+          }
+        },
+        "elevation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "level1": {
+              "$ref": "#/$defs/shadow"
+            },
+            "level2": {
+              "$ref": "#/$defs/shadow"
+            },
+            "level3": {
+              "$ref": "#/$defs/shadow"
+            }
+          }
+        },
+        "motion": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "duration": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "fast": {
+                  "$ref": "#/$defs/duration"
+                },
+                "normal": {
+                  "$ref": "#/$defs/duration"
+                }
+              }
+            },
+            "easing": {
+              "enum": [
+                "standard",
+                "emphasized",
+                "linear"
+              ]
+            }
+          }
+        },
+        "status": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "indicator": {
+              "enum": [
+                "dot",
+                "pill",
+                "icon-text"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

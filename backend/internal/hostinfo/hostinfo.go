@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package hostinfo collects a read-only host overview from procfs, sysfs and
 // /etc using only unprivileged file reads and statfs(2). It never executes
 // external programs and never writes to the host.

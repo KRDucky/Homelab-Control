@@ -1,4 +1,21 @@
-# Current status — M1 closeout (updated 2026-10-16)
+# Current status — M1 closeout + compliance audit (updated 2026-10-16)
+
+## License compliance and product independence (branch `compliance-audit`, PR #5, awaiting owner merge approval)
+- **Release readiness: not ready.** One blocker: LA-13 — release design **accepted** (ADR 0009: GitHub
+  Releases, Sigstore attestations, offline hardware-backed OpenPGP signatures) but publishing is not
+  enabled; prerequisites P1–P10 are open (toolchain and tool pins, Actions runtime, signed tags,
+  protected environment, attestations, owner key, versioned SBOM).
+- Release **dry run** in CI: complete corresponding-source archive; binaries, DEB, RPM and Arch packages
+  built only from it; archive build = Git build; two independent runs compared file by file. RPM and Arch
+  nondeterminism found and fixed. Not tested with other toolchain versions or distributions.
+- Licences: core **GPL-3.0-or-later**; **MIT** for SDK, schemas (incl. `schemas/openapi/`), theme
+  definitions and design tokens; SPDX headers, `REUSE.toml`, `reuse lint` in CI; DEP-5 `copyright` in the
+  `.deb`. `compat/webmin/` has a generated **per-file licence inventory** (not relicensed; 835 third-party
+  files with no stated licence marked unverified) and is excluded from packages and source archives.
+- Approved policies: `CONTRIBUTING.md` (DCO, AI disclosure; history grandfathered), "The Homelab Control
+  Authors". Follow-ups: CI sign-off check, `SECURITY.md`, Archivo removal (LA-06), Webmin phase 1.
+- UI/theme engine: planning only (`docs/ui/`); `.hltheme` single JSON (ADR 0010); layout preferences
+  separate from themes; CSSOM/CSP probe passes in Chromium, Firefox and WebKit. **Nothing implemented.**
 
 ## Working (read-only), verified — evidence in `docs/evidence/m1/README.md`
 - **hc-api** (unprivileged): sessions/CSRF/RBAC from M0; new scopes `services.read`, `hardware.read`;
@@ -43,11 +60,11 @@ CI run 38866773032 on the same commit: all 15 jobs green.
 5. ~~Validation gap~~ — closed 2026-10-16: hardening and socket activation verified on the workstation
    KVM VM (Ubuntu 26.04).
 Not M2-blocking but release-blocking: release builds must use a supported Go toolchain (govulncheck
-failed on EOL Go 1.24), and ADR 0005's license audit.
+failed on EOL Go 1.24), and the remaining license blocker above (LA-13).
 
 ## Not done / limits
 - Earlier M1 evidence (d1077e4a) was never committed and is withdrawn (see evidence README).
 - Ubuntu 22.04 under real systemd: not verified (CI covers 24.04 runner and 26.04 container; VM covers 26.04).
-- PAM login deferred; upstream pin 2.670; license split accepted in principle, audit pending (ADR 0005).
+- PAM login deferred; upstream pin 2.670; licence decided (ADR 0005: GPL-3.0-or-later core, MIT SDK/schemas/themes/tokens); release publishing pending (ADR 0009).
 - Sessions/throttle in memory; no TLS management; govulncheck runs in CI only (passes on Go 1.26.x).
 - No host modifications or storage writes exist (by design).

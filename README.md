@@ -39,6 +39,9 @@ a separate broker exposing a closed list of typed operations — never a shell o
 legacy UI.
 
 ## License
-New code: GPL-3.0 (`LICENSE.md`), final split pending ([ADR 0005](docs/adr/0005-release-and-license-strategy.md)).
+Homelab Control is licensed under **GPL-3.0-or-later** (`LICENSE.md`). The public SDK, schemas, theme
+definitions and design tokens are **MIT**. Exact file boundaries: `REUSE.toml`; details and third-party
+notices: `NOTICE.md`, `docs/compliance/THIRD-PARTY-NOTICES.md`. `compat/webmin/` keeps Webmin's own licences
+([ADR 0005](docs/adr/0005-release-and-license-strategy.md)). Contributions: `CONTRIBUTING.md`.
 Upstream Webmin: BSD-3-Clause with some GPL/LGPL files, see [`NOTICE.md`](NOTICE.md). Homelab Control is
 not affiliated with or endorsed by the Webmin project.

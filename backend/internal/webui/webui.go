@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package webui embeds the built frontend (frontend/app/dist is copied into
 // ./dist by `make frontend`). When only the placeholder is present the server
 // reports that the UI is not built.

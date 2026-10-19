@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Builds a binary development RPM (Fedora, openSUSE) from ./build. Unsigned.
 # The source-RPM spec for distribution builds remains packaging/fedora/homelab-control.spec (M13).
 set -euo pipefail
@@ -15,7 +20,7 @@ Name:           homelab-control
 Version:        $base
 Release:        $rel
 Summary:        Homelab Control API, web UI and privileged broker (development build)
-License:        GPL-3.0-or-later AND MIT AND OFL-1.1
+License:        GPL-3.0-or-later AND MIT AND OFL-1.1 AND BSD-3-Clause
 URL:            https://github.com/KRDucky/Homelab-Control---Webmin-Fork
 BuildArch:      x86_64
 Requires(pre):  /usr/sbin/useradd, /usr/sbin/groupadd
@@ -38,6 +43,7 @@ install -Dm0644 $root/packaging/common/sysusers.conf %{buildroot}/usr/lib/sysuse
 install -Dm0640 $root/packaging/common/hc-api.env %{buildroot}/etc/homelab-control/hc-api.env
 install -Dm0644 $root/LICENSE.md %{buildroot}/usr/share/licenses/homelab-control/LICENSE.md
 install -Dm0644 $root/NOTICE.md %{buildroot}/usr/share/licenses/homelab-control/NOTICE.md
+install -Dm0644 $root/docs/compliance/THIRD-PARTY-NOTICES.md %{buildroot}/usr/share/licenses/homelab-control/THIRD-PARTY-NOTICES.md
 install -Dm0644 $root/README.md %{buildroot}/usr/share/doc/homelab-control/README.md
 
 %pre
@@ -62,6 +68,7 @@ if [ -d /run/systemd/system ]; then systemctl daemon-reload >/dev/null 2>&1 || :
 %files
 %license /usr/share/licenses/homelab-control/LICENSE.md
 %license /usr/share/licenses/homelab-control/NOTICE.md
+%license /usr/share/licenses/homelab-control/THIRD-PARTY-NOTICES.md
 %doc /usr/share/doc/homelab-control/README.md
 /usr/bin/hc-api
 /usr/bin/hlctl
@@ -74,8 +81,12 @@ if [ -d /run/systemd/system ]; then systemctl daemon-reload >/dev/null 2>&1 || :
 %dir %attr(0750,root,homelab-control) /etc/homelab-control
 %config(noreplace) %attr(0640,root,homelab-control) /etc/homelab-control/hc-api.env
 SPEC
+# Reproducible output: build time and file mtimes come from SOURCE_DATE_EPOCH (as for the .deb),
+# and the build host name is fixed, so two builds of the same inputs are byte-identical.
+export SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH:-0}
 rpmbuild --quiet -bb --define "_topdir $top" --define "_source_date_epoch_from_changelog 0" \
-  --define "use_source_date_epoch_as_buildtime 1" "$top/SPECS/homelab-control.spec"
+  --define "use_source_date_epoch_as_buildtime 1" --define "clamp_mtime_to_source_date_epoch 1" \
+  --define "_buildhost reproducible" "$top/SPECS/homelab-control.spec"
 out=$(find "$top/RPMS" -name '*.rpm' | head -1)
 cp "$out" "$root/build/"
 echo "$root/build/$(basename "$out")"

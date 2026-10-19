@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Command hc-broker is the privileged Homelab Control broker (ADR 0001/0008).
 //
 // It runs as root under systemd socket activation, accepts requests only from

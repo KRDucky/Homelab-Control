@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package brokerclient is hc-api's client for the privileged broker. It only
 // speaks the wire protocol; it contains no privileged code (guard-tested).
 package brokerclient

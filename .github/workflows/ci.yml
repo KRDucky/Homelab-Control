@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 name: ci
 
 on:
@@ -32,8 +36,10 @@ jobs:
           node-version: '22'
       - name: Tools
         run: |
-          sudo apt-get update && sudo apt-get install -y shellcheck rpm
+          sudo apt-get update && sudo apt-get install -y shellcheck rpm lintian
           go install golang.org/x/vuln/cmd/govulncheck@latest
+          python3 -m venv /tmp/spdx && /tmp/spdx/bin/pip install -q spdx-tools==0.8.3 reuse==6.2.0  # SBOM + REUSE validation (CI-only tools)
+          echo /tmp/spdx/bin >> "$GITHUB_PATH"
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: Lint (installs frontend deps without scripts)
         run: make lint
@@ -51,6 +57,14 @@ jobs:
         run: |
           make deb
           packaging/fedora/build-rpm.sh "$(git describe --tags --always)"
+      - name: Release payload compliance (deb, rpm)
+        run: |
+          for p in build/*.deb build/*.rpm; do scripts/package-inventory.sh "$p" "$p.inventory.txt"; done
+          # Debian copyright/licence tags only; other lintian findings are tracked separately (dev package).
+          for p in build/*.deb; do
+            lintian --tag-display-limit 0 "$p" | tee "$p.lintian.txt" || true
+            if grep -iE 'copyright|licen[cs]e|dep-?5' "$p.lintian.txt"; then echo "::error::lintian copyright/licence findings in $p"; exit 1; fi
+          done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: build
@@ -61,6 +75,96 @@ jobs:
             build/SHA256SUMS
             build/*.deb
             build/*.rpm
+            build/*.inventory.txt
+            build/*.lintian.txt
+
+  # LA-13 / owner item 10: assembles the complete release (corresponding-source archive with the npm
+  # sources of everything compiled in, binaries, packages, notices, SBOM, SHA256SUMS), builds binaries
+  # and .deb/.rpm only from that archive and requires them to match a build from git. Runs twice on
+  # independent runners (a, b); release-repro compares the two. Publishes nothing: this workflow has
+  # read-only permissions, and there is no release/tag workflow (ADR 0009 prerequisites).
+  release-dry-run:
+    needs: check
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        run: [a, b]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: '1.26.x'
+          cache: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Tools
+        run: sudo apt-get update && sudo apt-get install -y rpm
+      - name: Release dry run (nothing is published)
+        run: scripts/release-bundle.sh "0.0.0~dryrun.${GITHUB_SHA::8}" dist/release
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-dry-run-${{ matrix.run }}
+          path: dist/release
+          retention-days: 7
+
+  # Arch package built from the matching source archive (packaging files from the archive, binaries
+  # from the archive build), in a fresh Arch container per run.
+  release-dry-run-arch:
+    needs: release-dry-run
+    runs-on: ubuntu-24.04
+    container: archlinux:latest
+    strategy:
+      matrix:
+        run: [a, b]
+    steps:
+      - name: Build tools
+        run: pacman -Syu --noconfirm --needed base-devel
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-dry-run-${{ matrix.run }}
+          path: rel
+      - name: makepkg from the source archive (as unprivileged builder)
+        run: |
+          set -euo pipefail
+          sde=$(sed -n 's/^source_date_epoch=//p' rel/RELEASE-BUILDINFO)
+          ver=$(sed -n 's/^version=//p' rel/RELEASE-BUILDINFO)
+          mkdir -p x && tar -xzf rel/homelab-control-*-source.tar.gz -C x
+          src=$(echo x/homelab-control-*)
+          mkdir -p "$src/build" && tar -xzf rel/homelab-control-*-linux-amd64.tar.gz -C "$src/build" --strip-components=1
+          useradd -m builder && chown -R builder x
+          su builder -c "cd '$src' && SOURCE_DATE_EPOCH=$sde packaging/arch/build-pkg.sh '$ver'"
+          scripts=$src/scripts; "$scripts/package-inventory.sh" "$src"/build/*.pkg.tar.zst >/dev/null
+          mkdir -p out && cp "$src"/build/*.pkg.tar.zst out/ && (cd out && sha256sum -- *.pkg.tar.zst | tee SHA256SUMS)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-dry-run-arch-${{ matrix.run }}
+          path: out
+          retention-days: 7
+
+  # Compares the complete dry-run outputs of the two independent runs (source archive, binaries
+  # tarball, .deb, .rpm, Arch package, SBOM, notices) byte for byte.
+  release-repro:
+    needs: [release-dry-run, release-dry-run-arch]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: release-dry-run-*
+          path: r
+      - name: Compare run a with run b
+        run: |
+          set -euo pipefail
+          for k in release-dry-run release-dry-run-arch; do
+            echo "== $k"; cat "r/$k-a/SHA256SUMS"
+            if ! diff -u "r/$k-a/SHA256SUMS" "r/$k-b/SHA256SUMS"; then
+              echo "::error title=release reproducibility::$k differs between independent runs"; exit 1
+            fi
+          done
+          n=$(cat r/release-dry-run-a/SHA256SUMS r/release-dry-run-arch-a/SHA256SUMS | wc -l)
+          echo "::notice title=release reproducibility::all $n release files identical across two independent runners ($(cut -c1-12 r/release-dry-run-arch-a/SHA256SUMS | tr '\n' ' ')arch)"
 
   arch-package:
     needs: check
@@ -80,10 +184,14 @@ jobs:
           useradd -m builder
           chown -R builder "$GITHUB_WORKSPACE"
           su builder -c "cd '$GITHUB_WORKSPACE' && packaging/arch/build-pkg.sh '${GITHUB_SHA::8}'"
+      - name: Release payload compliance (Arch)
+        run: for p in build/*.pkg.tar.zst; do scripts/package-inventory.sh "$p" "$p.inventory.txt"; done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: arch-package
-          path: build/*.pkg.tar.zst
+          path: |
+            build/*.pkg.tar.zst
+            build/*.inventory.txt
 
   # Install/run/remove the native package in each target distro (no systemd as PID 1:
   # the broker and API are started by hand; services must report "unsupported").
@@ -108,10 +216,16 @@ jobs:
       - name: Prepare
         run: ${{ matrix.prep }}
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      # Named downloads only: other jobs' artifacts (e.g. release-dry-run's packages) must not be
+      # picked up by the globs below.
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
+          name: build
           path: artifacts
-          merge-multiple: true
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: arch-package
+          path: artifacts
       - name: Install test
         run: |
           touch /etc/hc-disposable
@@ -178,8 +292,10 @@ jobs:
       - name: Playwright
         run: |
           pip install playwright==1.63.0  # >= 1.61 needed for Ubuntu 26.04; same pin as dev/vm/guest-validate.sh
-          python -m playwright install --with-deps chromium
+          python -m playwright install --with-deps chromium firefox webkit
       - name: API security checks + browser e2e (unprivileged)
+        env:
+          HC_CSP_BROWSERS: chromium,firefox,webkit
         run: |
           chmod +x build/hc-api build/hlctl
           tests/integration/run-hc-e2e.sh

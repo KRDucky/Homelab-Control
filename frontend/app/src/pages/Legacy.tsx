@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { getLegacy } from '../api';
 import { StateDot } from '../ui';
 import { explain, useData } from '../useData';

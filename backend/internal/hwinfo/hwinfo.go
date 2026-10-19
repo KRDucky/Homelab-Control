@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package hwinfo builds a read-only hardware inventory from world-readable
 // sysfs, /dev/disk/by-id symlinks and the pci.ids database. It never executes
 // programs and never writes.

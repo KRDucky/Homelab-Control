@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: MIT
+
 openapi: 3.1.0
 info:
   title: Homelab Control API
