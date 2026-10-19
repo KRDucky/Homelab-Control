@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 package hwinfo
 
 import (
@@ -28,9 +32,34 @@ func TestPCIWithNames(t *testing.T) {
 		t.Fatalf("%+v", inv.PCI)
 	}
 	d := inv.PCI.Devices[0]
-	if d.Class != "Storage controller" || d.VendorName != "Intel Corporation" || d.Driver != "ahci" || d.IOMMUGroup != "7" ||
-		d.DeviceName != "82801IR/IO/IH (ICH9R/DO/DH) 6 port SATA Controller [AHCI mode]" {
+	if d.Class != "Storage controller" || d.VendorName != "Example Vendor (synthetic)" || d.Driver != "ahci" || d.IOMMUGroup != "7" ||
+		d.DeviceName != "Example SATA Controller (synthetic)" {
 		t.Fatalf("%+v", d)
+	}
+}
+
+// The fixture is synthetic data in pci.ids format (not an excerpt of the PCI ID Repository); this
+// pins the parser rules it exercises: vendor and device lines, subsystem lines ignored, class
+// section ends parsing.
+func TestParsePCIIDsFixture(t *testing.T) {
+	f, err := os.Open("testdata/host/usr/share/misc/pci.ids")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	ids := parsePCIIDs(f)
+	if len(ids.vendors) != 2 || ids.vendors["f0e2"] != "Second Example Vendor (synthetic)" {
+		t.Fatalf("vendors: %v", ids.vendors)
+	}
+	if len(ids.devices) != 3 || ids.devices["f0e10a01"] != "Example Device Without Driver (synthetic)" ||
+		ids.devices["f0e20b01"] != "Unrelated Device (synthetic)" {
+		t.Fatalf("devices: %v", ids.devices)
+	}
+	if _, ok := ids.vendors["f0e3"]; ok {
+		t.Fatal("vendor after the class section was parsed")
+	}
+	if v, d := ids.lookup("f0e1", "0001"); v == "" || d != "" {
+		t.Fatalf("subsystem line parsed as a device: %q %q", v, d)
 	}
 }
 

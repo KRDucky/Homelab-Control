@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # Pull a new upstream Webmin release into compat/webmin (squashed subtree merge).
 # Usage: scripts/sync-upstream.sh <tag>      e.g. scripts/sync-upstream.sh 2.680
 # Run on a dedicated branch; review the diff and docs/upstream/SYNC.md checklist before merging.

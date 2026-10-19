@@ -1,0 +1,287 @@
+# Machine-readable licensing of every file in this repository (REUSE 3.3, https://reuse.software).
+# Files that carry their own SPDX header use it ("closest"); every other file takes the
+# annotation below whose path matches it. Later annotations win over earlier ones.
+# Owner decisions 2026-10-16 (docs/compliance/LICENSE-AUDIT.md LA-02, LA-03):
+#   - Homelab Control core: GPL-3.0-or-later.
+#   - Public SDK, schemas, theme definitions and reusable design tokens: MIT.
+#   - compat/webmin/: upstream Webmin under its own per-file licences (not relicensed); generated
+#     inventory below, evidence in docs/compliance/WEBMIN-LICENSE-INVENTORY.md.
+version = 1
+
+[[annotations]]
+path = "**"
+precedence = "closest"
+SPDX-FileCopyrightText = "2026 The Homelab Control Authors"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+# MIT boundary (LA-03). Exact list; anything not matched here is GPL-3.0-or-later.
+[[annotations]]
+path = [
+  "sdk/**",
+  "schemas/**",
+  "themes/**",
+  "frontend/design-system/**",
+  "docs/ui/theme.schema.v1.draft.json",
+  "docs/ui/examples/themes/**",
+]
+precedence = "closest"
+SPDX-FileCopyrightText = "2026 The Homelab Control Authors"
+SPDX-License-Identifier = "MIT"
+
+# BEGIN generated: compat/webmin licence inventory (scripts/gen-webmin-license-inventory.py)
+# Upstream Webmin (compat/webmin/, never shipped). NOT relicensed: these annotations record what
+# upstream states. Basis and evidence per entry: docs/compliance/WEBMIN-LICENSE-INVENTORY.md.
+# Order matters: the last matching annotation applies.
+
+# basis: default
+[[annotations]]
+path = ["compat/webmin/**"]
+precedence = "override"
+SPDX-FileCopyrightText = ["Jamie Cameron and the Webmin contributors"]
+SPDX-License-Identifier = "BSD-3-Clause"
+
+# basis: file
+[[annotations]]
+path = ["compat/webmin/dhcpd/edit_keys.cgi", "compat/webmin/dhcpd/edit_text.cgi", "compat/webmin/dhcpd/edit_zones.cgi", "compat/webmin/dhcpd/save_keys.cgi", "compat/webmin/dhcpd/save_text.cgi", "compat/webmin/dhcpd/save_zones.cgi"]
+precedence = "override"
+SPDX-FileCopyrightText = ["2005 Johannes Franken <jfranken@jfranken.de>"]
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+# basis: file
+[[annotations]]
+path = ["compat/webmin/webmin-openrc-init"]
+precedence = "override"
+SPDX-FileCopyrightText = ["2024 webmin & mckaygerhard"]
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+# basis: file
+[[annotations]]
+path = ["compat/webmin/samba/smbhash.pl"]
+precedence = "override"
+SPDX-FileCopyrightText = ["2001 Benjamin Kuit <bj@it.uts.edu.au>", "Andrew Tridgell 1997-1998 (Samba)"]
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
+# basis: directory
+[[annotations]]
+path = ["compat/webmin/openslp/**"]
+precedence = "override"
+SPDX-FileCopyrightText = ["2000 Caldera Systems"]
+SPDX-License-Identifier = "LicenseRef-Webmin-GPL-unversioned"
+
+# basis: file
+[[annotations]]
+path = ["compat/webmin/webmin/acme_tiny.py"]
+precedence = "override"
+SPDX-FileCopyrightText = ["Daniel Roesler"]
+SPDX-License-Identifier = "MIT"
+
+# basis: directory
+[[annotations]]
+path = ["compat/webmin/filemin/images/icons/**"]
+precedence = "override"
+SPDX-FileCopyrightText = ["Matthieu James (Faenza icon theme)"]
+SPDX-License-Identifier = "LicenseRef-Webmin-GPL-unversioned"
+
+# basis: file
+[[annotations]]
+path = ["compat/webmin/filemin/unauthenticated/dropdown/fg.menu.js", "compat/webmin/filemin/unauthenticated/dropdown/fg.menu.css"]
+precedence = "override"
+SPDX-FileCopyrightText = ["2008-2009 Filament Group"]
+SPDX-License-Identifier = "MIT OR LicenseRef-Webmin-GPL-unversioned"
+
+# basis: file
+[[annotations]]
+path = ["compat/webmin/bacula-backup/jstree/jquery-3.6.0.min.js", "compat/webmin/filemin/unauthenticated/jquery/jquery.min.js"]
+precedence = "override"
+SPDX-FileCopyrightText = ["OpenJS Foundation and other contributors"]
+SPDX-License-Identifier = "MIT"
+
+# basis: component
+[[annotations]]
+path = ["compat/webmin/filemin/unauthenticated/jquery/jquery-ui.min.js", "compat/webmin/filemin/unauthenticated/jquery/jquery-ui.min.css", "compat/webmin/filemin/unauthenticated/jquery/images/**"]
+precedence = "override"
+SPDX-FileCopyrightText = ["jQuery Foundation and other contributors"]
+SPDX-License-Identifier = "MIT"
+
+# basis: component
+[[annotations]]
+path = ["compat/webmin/bacula-backup/jstree/jstree.min.js", "compat/webmin/bacula-backup/jstree/themes/**"]
+precedence = "override"
+SPDX-FileCopyrightText = ["jsTree contributors (holder not named in the file)"]
+SPDX-License-Identifier = "MIT"
+
+# basis: file
+[[annotations]]
+path = ["compat/webmin/filemin/unauthenticated/js/bootstrap-hover-dropdown.min.js"]
+precedence = "override"
+SPDX-FileCopyrightText = ["Cameron Spear"]
+SPDX-License-Identifier = "MIT"
+
+# basis: file
+[[annotations]]
+path = ["compat/webmin/fdisk/range.js", "compat/webmin/fdisk/slider.js", "compat/webmin/fdisk/timer.js"]
+precedence = "override"
+SPDX-FileCopyrightText = ["2002-2006 Erik Arvidsson (WebFX)"]
+SPDX-License-Identifier = "Apache-2.0"
+
+# basis: component
+[[annotations]]
+path = ["compat/webmin/unauthenticated/js/highlight/highlight.min.js", "compat/webmin/unauthenticated/js/highlight/languages/**"]
+precedence = "override"
+SPDX-FileCopyrightText = ["2006-2022 Highlight.js contributors"]
+SPDX-License-Identifier = "BSD-3-Clause"
+
+# basis: file
+[[annotations]]
+path = ["compat/webmin/unauthenticated/css/highlight/highlight.min.css", "compat/webmin/unauthenticated/css/highlight/highlight-dark.min.css"]
+precedence = "override"
+SPDX-FileCopyrightText = ["Defman21 (GitHub theme)", "Wimer Hazenberg (Monokai theme)"]
+SPDX-License-Identifier = "MIT"
+
+# basis: file
+[[annotations]]
+path = ["compat/webmin/unauthenticated/js/quill.min.js", "compat/webmin/unauthenticated/css/quill.min.css"]
+precedence = "override"
+SPDX-FileCopyrightText = ["2017 Slab", "2014 Jason Chen", "2013 salesforce.com"]
+SPDX-License-Identifier = "BSD-3-Clause"
+
+# basis: component
+[[annotations]]
+path = ["compat/webmin/xterm/xterm.js", "compat/webmin/xterm/xterm.css", "compat/webmin/xterm/xterm-addon-attach.js", "compat/webmin/xterm/xterm-addon-fit.js", "compat/webmin/xterm/xterm-addon-webgl.js"]
+precedence = "override"
+SPDX-FileCopyrightText = ["2017-2026 The xterm.js authors", "2014-2016 SourceLair Private Company", "2012-2013 Christopher Jeffrey"]
+SPDX-License-Identifier = "MIT"
+
+# basis: file
+[[annotations]]
+path = ["compat/webmin/gray-theme/unauthenticated/reset-fonts-base.css", "compat/webmin/gray-theme/unauthenticated/reset-fonts-grids-base.css"]
+precedence = "override"
+SPDX-FileCopyrightText = ["2008 Yahoo! Inc."]
+SPDX-License-Identifier = "BSD-3-Clause"
+
+# basis: none
+[[annotations]]
+path = ["compat/webmin/vendor_perl/**"]
+precedence = "override"
+SPDX-FileCopyrightText = ["respective CPAN module authors"]
+SPDX-License-Identifier = "LicenseRef-Webmin-unverified"
+
+# basis: file
+[[annotations]]
+path = ["compat/webmin/vendor_perl/Convert/TNEF.pm"]
+precedence = "override"
+SPDX-FileCopyrightText = ["1999 Douglas Wilson <dougw@cpan.org>"]
+SPDX-License-Identifier = "Artistic-1.0-Perl OR GPL-1.0-or-later"
+
+# basis: file
+[[annotations]]
+path = ["compat/webmin/vendor_perl/File/BaseDir.pm"]
+precedence = "override"
+SPDX-FileCopyrightText = ["2003-2021 Jaap Karssenberg"]
+SPDX-License-Identifier = "Artistic-1.0-Perl OR GPL-1.0-or-later"
+
+# basis: file
+[[annotations]]
+path = ["compat/webmin/vendor_perl/File/Copy.pm"]
+precedence = "override"
+SPDX-FileCopyrightText = ["1996 Charles Bailey (additions)"]
+SPDX-License-Identifier = "Artistic-1.0-Perl OR GPL-1.0-or-later"
+
+# basis: file
+[[annotations]]
+path = ["compat/webmin/vendor_perl/File/MimeInfo.pm"]
+precedence = "override"
+SPDX-FileCopyrightText = ["2003, 2012 Jaap G Karssenberg"]
+SPDX-License-Identifier = "Artistic-1.0-Perl OR GPL-1.0-or-later"
+
+# basis: file
+[[annotations]]
+path = ["compat/webmin/vendor_perl/File/Path.pm"]
+precedence = "override"
+SPDX-FileCopyrightText = ["Charles Bailey, Tim Bunce, David Landgren, James Keenan and Richard Elberger"]
+SPDX-License-Identifier = "Artistic-1.0-Perl OR GPL-1.0-or-later"
+
+# basis: file
+[[annotations]]
+path = ["compat/webmin/vendor_perl/File/Spec.pm", "compat/webmin/vendor_perl/File/Spec/*.pm"]
+precedence = "override"
+SPDX-FileCopyrightText = ["2004-2014 the Perl 5 Porters"]
+SPDX-License-Identifier = "Artistic-1.0-Perl OR GPL-1.0-or-later"
+
+# basis: file
+[[annotations]]
+path = ["compat/webmin/vendor_perl/JSON/PP.pm", "compat/webmin/vendor_perl/JSON/PP/Boolean.pm"]
+precedence = "override"
+SPDX-FileCopyrightText = ["2007-2016 Makamaka Hannyaharamitu"]
+SPDX-License-Identifier = "Artistic-1.0-Perl OR GPL-1.0-or-later"
+
+# basis: file
+[[annotations]]
+path = ["compat/webmin/vendor_perl/MIME/Body.pm", "compat/webmin/vendor_perl/MIME/Tools.pm"]
+precedence = "override"
+SPDX-FileCopyrightText = ["1998-1999 ZeeGee Software Inc", "2004 Roaring Penguin Software Inc", "2022 Dianne Skoll"]
+SPDX-License-Identifier = "Artistic-1.0-Perl OR GPL-1.0-or-later"
+
+# basis: file
+[[annotations]]
+path = ["compat/webmin/vendor_perl/Net/WebSocket/Server.pm", "compat/webmin/vendor_perl/Net/WebSocket/Server/Connection.pm"]
+precedence = "override"
+SPDX-FileCopyrightText = ["2013 Eric Wastl"]
+SPDX-License-Identifier = "Artistic-2.0"
+
+# basis: component
+[[annotations]]
+path = ["compat/webmin/vendor_perl/Protocol/WebSocket.pm", "compat/webmin/vendor_perl/Protocol/WebSocket/**"]
+precedence = "override"
+SPDX-FileCopyrightText = ["2010-2018 Viacheslav Tykhanovskyi"]
+SPDX-License-Identifier = "Artistic-1.0-Perl OR GPL-1.0-or-later"
+
+# basis: file
+[[annotations]]
+path = ["compat/webmin/vendor_perl/Text/ASCIITable.pm", "compat/webmin/vendor_perl/Text/ASCIITable/Wrap.pm"]
+precedence = "override"
+SPDX-FileCopyrightText = ["2002-2011 Håkon Nessjøen"]
+SPDX-License-Identifier = "Artistic-1.0-Perl OR GPL-1.0-or-later"
+
+# basis: none
+[[annotations]]
+path = ["compat/webmin/vendor_perl/QRCode/Encoder/Matrix.pm", "compat/webmin/vendor_perl/QRCode/Encoder/QRSpec.pm"]
+precedence = "override"
+SPDX-FileCopyrightText = ["QRCode::Encoder authors"]
+SPDX-License-Identifier = "LicenseRef-Webmin-unverified"
+
+# basis: none
+[[annotations]]
+path = ["compat/webmin/gray-theme/**/images/**", "compat/webmin/gray-theme/images/**"]
+precedence = "override"
+SPDX-FileCopyrightText = ["David Vignoni (icons)"]
+SPDX-License-Identifier = "LicenseRef-Webmin-unverified"
+
+# basis: none
+[[annotations]]
+path = ["compat/webmin/gray-theme/pngfix.js", "compat/webmin/gray-theme/unauthenticated/pngfix.js"]
+precedence = "override"
+SPDX-FileCopyrightText = ["Bob Osola (bobosola)"]
+SPDX-License-Identifier = "LicenseRef-Webmin-unverified"
+
+# basis: none
+[[annotations]]
+path = ["compat/webmin/filemin/unauthenticated/js/chmod-calculator.js"]
+precedence = "override"
+SPDX-FileCopyrightText = ["Jeroen Vermeulen (Alphamega Hosting)"]
+SPDX-License-Identifier = "LicenseRef-Webmin-unverified"
+
+# basis: none
+[[annotations]]
+path = ["compat/webmin/dhcpd/mac-vendor.txt"]
+precedence = "override"
+SPDX-FileCopyrightText = ["IEEE Registration Authority (OUI data), presumed"]
+SPDX-License-Identifier = "LicenseRef-Webmin-unverified"
+
+# basis: none
+[[annotations]]
+path = ["compat/webmin/fdisk/winclassic.css"]
+precedence = "override"
+SPDX-FileCopyrightText = ["Erik Arvidsson (WebFX), presumed"]
+SPDX-License-Identifier = "LicenseRef-Webmin-unverified"
+# END generated: compat/webmin licence inventory

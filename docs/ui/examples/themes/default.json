@@ -1,0 +1,54 @@
+{
+  "$schema": "../../theme.schema.v1.draft.json",
+  "schemaVersion": 1,
+  "id": "org.homelab-control.default",
+  "name": "Homelab Default",
+  "description": "Built-in theme: the M1 palette expressed as v1 semantic tokens.",
+  "author": "Homelab Control",
+  "version": "1.0.0",
+  "license": "MIT",
+  "engine": ">=1.0.0 <2.0.0",
+  "appearance": "auto",
+  "defaults": { "motion": "full", "contrast": "standard" },
+  "modes": {
+    "dark": {
+      "color": {
+        "surface": { "base": "#0e1626", "raised": "#16213a", "sunken": "#0a111e", "overlay": "#1c2947" },
+        "text": { "primary": "#e6ecf8", "secondary": "#93a2c3", "disabled": "#5f6e8f", "inverse": "#0e1626", "link": "#a9b4ff" },
+        "border": { "subtle": "#26345a", "strong": "#6476a6" },
+        "accent": { "base": "#7c8cff", "hover": "#95a2ff", "contrast": "#0e1626" },
+        "focus": { "ring": "#b7c0ff" },
+        "status": { "ok": "#3dd68c", "warn": "#f5b946", "crit": "#ff6b6b", "info": "#5cc8ff", "unknown": "#93a2c3" },
+        "chart": { "series": ["#7c8cff", "#3dd68c", "#f5b946", "#ff6b6b", "#5cc8ff", "#d58cff"], "grid": "#22304f", "axis": "#93a2c3" },
+        "meter": { "track": "#22304f", "fill": "#3dd68c" }
+      },
+      "typography": {
+        "family": { "ui": "system-sans", "mono": "system-mono" },
+        "size": { "xs": 0.75, "sm": 0.875, "md": 1, "lg": 1.25, "xl": 1.75, "display": 4 },
+        "weight": { "regular": 400, "strong": 650 },
+        "lineHeight": 1.5
+      },
+      "space": { "unit": 4 },
+      "shape": { "radius": { "sm": 3, "md": 8, "lg": 14 }, "borderWidth": 1 },
+      "elevation": {
+        "level1": { "y": 1, "blur": 2, "color": "#00000066" },
+        "level2": { "y": 4, "blur": 12, "color": "#00000080" },
+        "level3": { "y": 12, "blur": 32, "spread": -4, "color": "#00000099" }
+      },
+      "motion": { "duration": { "fast": 120, "normal": 200 }, "easing": "standard" },
+      "status": { "indicator": "pill" }
+    },
+    "light": {
+      "color": {
+        "surface": { "base": "#eef1f8", "raised": "#ffffff", "sunken": "#e3e8f3", "overlay": "#f6f8fd" },
+        "text": { "primary": "#121a2c", "secondary": "#4f5d7c", "disabled": "#8a96b0", "inverse": "#ffffff", "link": "#3443c4" },
+        "border": { "subtle": "#cfd7ea", "strong": "#717f9f" },
+        "accent": { "base": "#4453d6", "hover": "#3443c4", "contrast": "#ffffff" },
+        "focus": { "ring": "#4453d6" },
+        "status": { "ok": "#13804f", "warn": "#9a6400", "crit": "#c22b2b", "info": "#0b6aa8", "unknown": "#4f5d7c" },
+        "chart": { "series": ["#4453d6", "#13804f", "#9a6400", "#c22b2b", "#0b6aa8", "#8a3fc0"], "grid": "#dfe5f3", "axis": "#4f5d7c" },
+        "meter": { "track": "#dfe5f3", "fill": "#13804f" }
+      }
+    }
+  }
+}

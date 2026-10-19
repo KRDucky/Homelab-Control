@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package server accepts broker connections, authenticates the peer with
 // SO_PEERCRED, enforces framing limits and dispatches to the closed op
 // registry (ADR 0008).

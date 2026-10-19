@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package proto defines the hc-api ↔ hc-broker wire protocol (ADR 0008):
 // one request per Unix-socket connection, each message framed as a 4-byte
 // big-endian length followed by JSON. It contains no privileged code and is

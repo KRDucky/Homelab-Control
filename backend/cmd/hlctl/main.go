@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Command hlctl is the Homelab Control administration CLI.
 //
 // M0 implements local account management only. Theme and plugin commands

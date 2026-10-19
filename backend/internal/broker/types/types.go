@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package types holds broker result types shared by hc-broker and hc-api.
 // It must stay free of privileged code: hc-api imports it.
 package types

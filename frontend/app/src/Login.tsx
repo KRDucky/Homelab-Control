@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import { useState, type FormEvent } from 'react';
 import { ApiError, login, type SessionInfo } from './api';
 

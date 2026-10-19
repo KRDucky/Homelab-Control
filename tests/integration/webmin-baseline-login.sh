@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # ok/bad always return 0, so `cond && ok || bad` cannot run both branches.
 # shellcheck disable=SC2015
 # Baseline startup + login flow test against a running *disposable* upstream

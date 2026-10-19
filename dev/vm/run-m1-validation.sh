@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # One-command M1 validation in a disposable libvirt VM (host side).
 #   dev/vm/run-m1-validation.sh <vm-name> <release> <package.deb>
 #   e.g. dev/vm/run-m1-validation.sh hc-test-u2604 26.04 build/homelab-control_*.deb

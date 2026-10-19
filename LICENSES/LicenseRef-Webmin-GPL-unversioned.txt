@@ -1,0 +1,12 @@
+GPL, version not stated (Webmin reference tree)
+
+Used only for files under compat/webmin/ (unmodified upstream Webmin, not shipped
+by Homelab Control). The file, or the licence/AUTHORS/README file of its
+directory, says it is distributed under the "GNU General Public License" but
+does not state a version or whether later versions apply. Where a directory
+includes a licence text (for example filemin/images/icons/COPYING, which is the
+GPL version 3 text), that text is the best available indication.
+
+The exact statement and its location are recorded per file in
+docs/compliance/WEBMIN-LICENSE-INVENTORY.md. The upstream statement, not this
+summary, is authoritative.

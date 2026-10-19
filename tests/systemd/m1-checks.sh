@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # M1 checks, sourced by systemd-smoke.sh after hc-api is up (uses check/code,
 # HC_SID). Requires the broker socket unit to be started. Optionally installs
 # upstream Webmin from $HC_WEBMIN_SRC into the standard /etc/webmin location
