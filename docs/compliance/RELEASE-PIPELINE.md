@@ -1,10 +1,13 @@
-# Release pipeline and signing (design — not enabled)
+# Release pipeline (design — not enabled)
 
-**Status:** design **accepted** by the owner (ADR 0009, 2026-10-16). **Publishing is not enabled**: the
-prerequisites in ADR 0009 §5 are release blockers (LA-13). The repository has no tag-triggered workflow
-and CI runs with `contents: read`. What exists and runs today is the **dry run** (§2).
+**Status:** phased design **accepted and revised** by the owner (ADR 0009, 2026-10-16; revised 2026-10-19).
+**Phase 1** is the current target: **unsigned** GitHub development/prereleases, created as drafts and
+published only by the owner. Phase 2 (keyless attestations) is optional, and Phase 3 (OpenPGP and hardware-token
+signing) is deferred. **No release workflow exists yet**: the repository has no tag-triggered workflow
+and CI runs with `contents: read`. What exists and runs today is the **dry run** (§2). LA-13 stays open
+until the Phase 1 workflow exists and a first draft has been verified (ADR 0009 §5.1).
 
-## 1. What a release publishes (GitHub Releases)
+## 1. What a Phase 1 prerelease publishes (GitHub Releases, marked prerelease, unsigned)
 | File | Content |
 |---|---|
 | `homelab-control-<v>-source.tar.gz` | Complete corresponding source: repository at the tag (minus `compat/webmin/`, which no binary uses), `vendor-sources/npm/` (published sources of everything compiled into the UI bundle, integrity-checked), `RELEASE-BUILDINFO`, `BUILDING.md` |
@@ -13,8 +16,11 @@ and CI runs with `contents: read`. What exists and runs today is the **dry run**
 | `LICENSE.md`, `NOTICE.md`, `THIRD-PARTY-NOTICES.md` | Licence texts and notices, also as separate assets |
 | `homelab-control-<v>.spdx.json` | SPDX 2.3 SBOM |
 | `RELEASE-BUILDINFO` | Commit, `SOURCE_DATE_EPOCH`, exact Go/Node/npm versions, build commands |
-| `SHA256SUMS`, `SHA256SUMS.asc` | Checksums of every file above; detached OpenPGP signature (§4) |
-| Sigstore attestations | SLSA build provenance for every file (§4), stored by GitHub, verifiable with `gh attestation verify` |
+| `SHA256SUMS` | SHA-256 checksums of every file above |
+| Release notes | Begin with **"UNSIGNED DEVELOPMENT BUILD"**; state that there is no cryptographic signature, that checksums on the same page detect corruption but not tampering by whoever controls the release, and how to verify by rebuilding from the source archive (`BUILDING.md`) |
+
+Not in Phase 1: `SHA256SUMS.asc` (OpenPGP, Phase 3) and Sigstore attestations (Phase 2). Both can be
+added later without changing the files above.
 
 Binaries are published **only together with** the source archive of the same commit, in the same release.
 For as long as binaries are offered, the matching source stays in the same release (GPL-3.0 §6(d)).
@@ -41,64 +47,67 @@ The result is uploaded as 7-day CI artifacts, not as a release.
 | All release files identical across two complete runs | Locally: two runs with separate Go build caches, 9/9 files identical incl. `.rpm` (2026-10-16). CI: `release-repro`, see PR #5 | **Demonstrated** on GitHub's `ubuntu-24.04` runners and one local container — not on other distributions or toolchain versions |
 | Arch package reproducible | `release-repro` compares the two Arch builds | Demonstrated only if `release-repro` is green; same container image and package set required (`.BUILDINFO` lists installed packages) |
 | Reproducible with a *different* Go or Node patch version, or on another distribution | — | **Not demonstrated and not expected**: Go embeds its version; use the toolchain in `RELEASE-BUILDINFO` |
-| Independent third-party rebuild on their own hardware | — | **Not demonstrated** (owner reproduction is part of the signing step, ADR 0009) |
+| Independent third-party rebuild on their own hardware | — | **Not demonstrated** (the first-draft verification, ADR 0009 R11, is the planned first instance) |
 
 Fixed for this: RPM file mtimes and build host were nondeterministic (two builds differed); now
 `clamp_mtime_to_source_date_epoch` and a fixed `_buildhost` make them identical. The Arch build used a
 random temporary directory that `makepkg` records in `.BUILDINFO`; it now uses a fixed path.
 
-## 3. Publishing workflow (to add after approval)
-Trigger: push of a **signed** tag `vX.Y.Z` made by the maintainer. Sketch:
+## 3. Phase 1 release workflow (to add in a separate PR; not written yet)
+Trigger: a version tag `vX.Y.Z-dev.N` / `vX.Y.Z-rc.N` pushed by the owner, or a manual run. Tags are not
+required to be signed in Phase 1. Sketch:
 ```yaml
-on: { push: { tags: ['v*.*.*'] } }
+on:
+  push: { tags: ['v*.*.*-*'] }        # prerelease-style tags only
+  workflow_dispatch:
 permissions: { contents: read }
 jobs:
-  build:            # same steps as release-dry-run, plus the Arch package job
-    permissions: { contents: read, id-token: write, attestations: write }
-    steps: [checkout tag, verify tag signature against docs/security/RELEASE-KEYS.md,
-            pin exact Go/Node versions, scripts/release-bundle.sh "${TAG#v}" dist/release,
-            actions/attest-build-provenance on dist/release/*, upload artifact]
-  publish:
+  build:                              # same steps as release-dry-run (+ Arch job), exact toolchain pins
+    steps: [checkout tag, pin exact Go/Node/npm, scripts/release-bundle.sh "${TAG#v}" dist/release,
+            stamp SBOM with the version, upload artifact]
+  draft:
     needs: build
-    environment: release          # required reviewer: the owner; no secrets stored
-    permissions: { contents: write }
-    steps: [download artifact, create a DRAFT GitHub release with all files]
+    environment: release              # protected (owner = required reviewer) where the plan offers it
+    permissions: { contents: write }  # only this job can write
+    steps: [download artifact, gh release create --draft --prerelease
+            --title "UNSIGNED DEVELOPMENT BUILD <version>" --notes-file <template> dist/release/*]
 ```
-The release stays a **draft** until the maintainer has (a) rebuilt from the source archive locally and
-matched `SHA256SUMS`, and (b) attached `SHA256SUMS.asc` (§4). Only then is it published.
-Everything needed before enabling is listed as prerequisites P1–P10 in ADR 0009 §5 (exact toolchain pins,
-pinned `govulncheck`, Actions runtime upgrade, signed tags, protected environment, attestations, offline
-signing, versioned SBOM). The Arch package is already built from the archive in the dry run.
+Nothing is published automatically: the job creates a **draft prerelease**. The owner reviews it and
+publishes it by hand. If no protected environment is available, the draft → publish step is still
+the approval gate. Before the first public prerelease, the owner (or a CI job) rebuilds from the
+draft's source archive and matches `SHA256SUMS` (ADR 0009 R11). Requirements: ADR 0009 §5.1 (R1–R11).
 
-## 4. Signing strategy
-Two independent layers, so that neither GitHub alone nor one stolen key can produce a trusted release:
+## 4. Phases
+1. **Phase 1, unsigned development/prereleases (current target).** Reproducible builds, the
+   corresponding-source archive, notices, licence metadata, the SPDX SBOM and SHA-256 checksums are all
+   mandatory. Releases are clearly labelled unsigned. Publication is manual, by the owner. No keys or
+   signing secrets exist.
+2. **Phase 2, keyless attestations (optional enhancement).** GitHub artifact attestations (Sigstore
+   build provenance through OIDC, recorded in a public transparency log) for each release file. They
+   show which workflow run on which commit produced each file. Needs `id-token: write` and
+   `attestations: write` in the build job only. Verification:
+   `gh attestation verify <file> --repo KRDucky/Homelab-Control---Webmin-Fork`. No hardware key or
+   manually generated secret is involved.
+3. **Phase 3, maintainer signing (deferred to a future owner decision).** An OpenPGP signature over
+   `SHA256SUMS`, signed tags, and package-repository signing (APT `InRelease`, `rpmsign`, Arch `.sig`).
+   No private keys are created or requested until the owner decides to start this phase. Stable releases
+   and package repositories should wait for that decision.
 
-1. **Build provenance (keyless).** GitHub artifact attestations (Sigstore, OIDC-bound to this repository
-   and workflow, recorded in a public transparency log). Shows *which workflow run on which commit*
-   produced each file. No long-lived key exists to manage or leak.
-2. **Maintainer signature (offline key).** The maintainer signs `SHA256SUMS` with an OpenPGP key after
-   independently reproducing the build. Shows that *the maintainer approved these exact bytes*.
-   Git tags are signed with the same key.
+## 5. Decisions
+- 2026-10-16: GitHub Releases accepted; `compat/webmin/` excluded from the source archive.
+- 2026-10-19: hardware tokens, OpenPGP keys and mandatory signing **deferred**; phased approach
+  (Phase 1 unsigned prereleases, Phase 2 optional attestations, Phase 3 deferred signing).
 
-Distribution-repository signing (APT `Release`/`InRelease`, `rpmsign`, Arch `.sig`) comes only when
-package repositories exist; it would use a separate subkey under the same rules.
+Remaining owner actions for Phase 1: approve the release-workflow PR and the first version number, and
+optionally create the protected `release` environment. No key material is needed.
 
-### Key-management requirements
-- Ed25519 OpenPGP **primary key generated and kept offline** (air-gapped machine or live system), used
-  only to certify subkeys and sign revocations.
-- **Signing subkey on a hardware token** (OpenPGP smartcard/YubiKey) with touch-to-sign; the private key
-  never exists on a networked disk. Expiry ≤ 2 years, extended deliberately.
-- **No release signing key in GitHub secrets or CI.** CI has only the keyless OIDC identity.
-- Encrypted offline backups of the primary key in two physical locations; a **revocation certificate**
-  generated at creation and stored separately.
-- Fingerprint published in `docs/security/RELEASE-KEYS.md`, in the README, in every release note, and on
-  a public keyserver; verification instructions in `BUILDING.md`.
-- **Rotation:** new subkey before expiry, announced in a signed commit. **Compromise:** publish the
-  revocation, re-sign current releases with a new key, document in `SECURITY.md`.
-- Second maintainer (when one exists) holds their own key; releases list who signed.
-
-## 5. Decisions (2026-10-16) and remaining owner actions
-Accepted: GitHub Releases; Sigstore attestations plus hardware-backed OpenPGP maintainer signatures;
-offline primary key with a signing subkey on a hardware token; `compat/webmin/` excluded from the source
-archive. Remaining owner actions (not delegable): create the key and token, publish the fingerprint,
-create the protected `release` environment, approve the release-workflow PR and the first version number.
+## 6. Reference only: maintainer key management (Phase 3, deferred)
+Kept so that a future Phase 3 decision starts from the reviewed 2026-10-16 design. **None of this is a
+current requirement, and no key has been or will be created until the owner decides.**
+- Ed25519 OpenPGP primary key generated and kept offline; signing subkey on a hardware token with
+  touch-to-sign; expiry ≤ 2 years.
+- No release signing key in GitHub secrets or CI.
+- Encrypted offline backups in two physical locations; revocation certificate stored separately.
+- Fingerprint published in `docs/security/RELEASE-KEYS.md`, the README and release notes.
+- Rotation before expiry; on compromise, publish the revocation, re-sign current releases and document
+  in `SECURITY.md`.
