@@ -1,10 +1,16 @@
-# Current status — M1 closeout + compliance audit (updated 2026-10-16)
+# Current status — M1 closeout + compliance (updated 2026-10-19)
 
-## License compliance and product independence (branch `compliance-audit`, PR #5, awaiting owner merge approval)
-- **Release readiness: not ready.** One blocker: LA-13 — release design **accepted** (ADR 0009: GitHub
-  Releases, Sigstore attestations, offline hardware-backed OpenPGP signatures) but publishing is not
-  enabled; prerequisites P1–P10 are open (toolchain and tool pins, Actions runtime, signed tags,
-  protected environment, attestations, owner key, versioned SBOM).
+## License compliance and product independence (PR #5, merged 2026-10-19 as `bc7205e3`; 20/20 checks on `main`)
+- **Release readiness: not ready.** One blocker: LA-13. Owner decision 2026-10-19 (ADR 0009 revised): the
+  target is **Phase 1, unsigned GitHub development/prereleases**, created as drafts and published only by
+  the owner. **Hardware tokens, OpenPGP keys and mandatory signing are deferred** (Phase 3); keyless
+  attestations are optional (Phase 2). Open Phase 1 items:
+  - R4: SBOM stamped with the version;
+  - R6, R7: toolchain and `govulncheck` pins;
+  - R8: draft-prerelease workflow;
+  - R9: unsigned labelling;
+  - R10: manual owner publication;
+  - R11: verification of the first draft.
 - Release **dry run** in CI: complete corresponding-source archive; binaries, DEB, RPM and Arch packages
   built only from it; archive build = Git build; two independent runs compared file by file. RPM and Arch
   nondeterminism found and fixed. Not tested with other toolchain versions or distributions.
