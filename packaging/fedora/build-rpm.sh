@@ -10,9 +10,11 @@ set -euo pipefail
 ver_in=${1:-0.0.0}
 root=$(cd "$(dirname "$0")/../.." && pwd)
 for f in hc-api hc-broker hlctl; do [ -x "$root/build/$f" ] || { echo "missing build/$f (run make build)"; exit 1; }; done
-# RPM Version may not contain '-'; keep the git part in Release.
-base=$(sed -E 's/^v//; s/[-+].*$//' <<<"$ver_in"); [[ "$base" =~ ^[0-9]+(\.[0-9]+)*$ ]] || base=0.1.0
-rel="0.m1.$(sed -E 's/[^A-Za-z0-9]+/_/g' <<<"$ver_in")"
+# RPM Version may not contain '-'; keep the rest in Release (packaging/common/version-map.sh).
+# shellcheck source=packaging/common/version-map.sh
+. "$root/packaging/common/version-map.sh"
+base=$(hc_rpm_version "$ver_in")
+rel=$(hc_rpm_release "$ver_in")
 top=$(mktemp -d); trap 'rm -rf "$top"' EXIT
 mkdir -p "$top"/{BUILD,RPMS,SPECS,SOURCES,BUILDROOT}
 cat > "$top/SPECS/homelab-control.spec" <<SPEC

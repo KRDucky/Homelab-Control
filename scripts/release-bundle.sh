@@ -18,7 +18,8 @@
 #    .deb/.rpm packages. This shows the archive is complete and the build reproducible across
 #    two build directories on the same machine; CI repeats the whole run on two independent
 #    runners and compares the results (release-repro job).
-# 4. Writes SHA256SUMS over all release files. No signing, tagging or upload happens here.
+# 4. Writes SHA256SUMS over all release files and the version-stamped SBOM. No signing, tagging or
+#    upload happens here; .github/workflows/release.yml is the only place a (draft) release is created.
 set -euo pipefail
 ver=${1:?usage: release-bundle.sh <version> [out-dir]}
 root=$(git rev-parse --show-toplevel)
@@ -95,7 +96,9 @@ tar --sort=name --owner=0 --group=0 --numeric-owner --mtime="@$sde" -C "$work/bi
 cp "$src"/build/*.deb "$out/"
 cp "$src"/build/*.rpm "$out/" 2>/dev/null || true
 cp "$src/LICENSE.md" "$src/NOTICE.md" "$src/docs/compliance/THIRD-PARTY-NOTICES.md" "$out/"
-cp "$src/docs/compliance/sbom/homelab-control.spdx.json" "$out/$name.spdx.json"
+# SBOM stamped with this release's version, commit and exact Go toolchain (ADR 0009 R4).
+python3 -I "$root/scripts/release-tool.py" stamp-sbom "$src/docs/compliance/sbom/homelab-control.spdx.json" \
+  "$out/$name.spdx.json" --version "$ver" --commit "$commit" --go "$(go env GOVERSION)"
 printf '%s\n' "$buildinfo" > "$out/RELEASE-BUILDINFO"
 for p in "$out"/*.deb "$out"/*.rpm; do [ -e "$p" ] && "$root/scripts/package-inventory.sh" "$p" >/dev/null; done
 (cd "$out" && sha256sum -- * > "$work/SHA256SUMS") && mv "$work/SHA256SUMS" "$out/SHA256SUMS"

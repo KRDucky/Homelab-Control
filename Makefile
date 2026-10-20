@@ -14,7 +14,7 @@ GOFLAGS_BUILD := -trimpath -buildvcs=false
 LDFLAGS := -s -w -buildid= -X homelab-control/backend/internal/version.Version=$(VERSION)
 OUT := build
 
-.PHONY: all deps frontend backend build test test-go test-frontend lint fmt check security \
+.PHONY: all deps frontend backend build test test-go test-frontend test-release lint fmt check security \
         verify-upstream repro-check deb rpm systemd-smoke e2e clean
 
 all: build
@@ -41,13 +41,18 @@ backend:
 build: frontend backend
 	cd $(OUT) && sha256sum hc-api hc-broker hlctl > SHA256SUMS && cat SHA256SUMS
 
-test: test-go test-frontend
+test: test-go test-frontend test-release
 
 test-go:
 	cd backend && $(GO) test -count=1 -cover ./...
 
 test-frontend: deps
 	cd frontend/app && npm test
+
+# Release tooling and workflow policy (docs/release/RELEASING.md); stdlib + PyYAML, no network.
+test-release:
+	python3 -m unittest discover -s tests/release -t . -v
+	tests/release/version-order-test.sh
 
 lint: deps
 	@test -z "$$(cd backend && gofmt -l .)" || { echo "gofmt needed:"; cd backend && gofmt -l .; exit 1; }
