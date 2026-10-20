@@ -1,11 +1,13 @@
-# Release pipeline (design — not enabled)
+# Release pipeline (Phase 1 implemented; no release published yet)
 
 **Status:** phased design **accepted and revised** by the owner (ADR 0009, 2026-10-16; revised 2026-10-19).
 **Phase 1** is the current target: **unsigned** GitHub development/prereleases, created as drafts and
 published only by the owner. Phase 2 (keyless attestations) is optional, and Phase 3 (OpenPGP and hardware-token
-signing) is deferred. **No release workflow exists yet**: the repository has no tag-triggered workflow
-and CI runs with `contents: read`. What exists and runs today is the **dry run** (§2). LA-13 stays open
-until the Phase 1 workflow exists and a first draft has been verified (ADR 0009 §5.1).
+signing) is deferred. **The Phase 1 workflow is implemented** (2026-10-20, owner-authorized):
+`.github/workflows/release.yml` (manual, draft only) and the reusable `.github/workflows/release-build.yml`,
+which also runs as the CI dry run (§2). **No release or draft has been created yet.** LA-13 stays open
+until a first draft has been produced, published by the owner and verified (ADR 0009 §5.1, R10–R11).
+Owner runbook: `docs/release/RELEASING.md`.
 
 ## 1. What a Phase 1 prerelease publishes (GitHub Releases, marked prerelease, unsigned)
 | File | Content |
@@ -26,8 +28,10 @@ Binaries are published **only together with** the source archive of the same com
 For as long as binaries are offered, the matching source stays in the same release (GPL-3.0 §6(d)).
 
 ## 2. Dry run (implemented, runs in CI on every PR)
-`scripts/release-bundle.sh <version> <out>`, CI jobs `release-dry-run` (runs **a** and **b** on two
-independent runners), `release-dry-run-arch` (a, b) and `release-repro`:
+`scripts/release-bundle.sh <version> <out>` inside the reusable `release-build.yml`, called by CI as
+`release-dry-run` with version `0.0.0-dryrun.<commit>` and the exact release toolchain
+(`packaging/release/toolchain.env`). Jobs `build` (runs **a** and **b** on two independent runners),
+`arch` (a, b) and `verify`:
 1. Writes the source archive from the committed tree and fetches the npm sources, verifying each
    against the lockfile's sha512 integrity.
 2. Extracts the archive into an empty directory and builds binaries, `.deb` and `.rpm` **only from it**.
@@ -35,8 +39,10 @@ independent runners), `release-dry-run-arch` (a, b) and `release-repro`:
 4. Checks package payloads (`scripts/package-inventory.sh`) and writes `SHA256SUMS`.
 5. `release-dry-run-arch`: in a fresh Arch container, extracts the same source archive, takes the binaries
    built from it and runs `packaging/arch/build-pkg.sh` from the archive.
-6. `release-repro`: compares every file of run a with run b (source archive, binaries tarball, `.deb`,
-   `.rpm`, Arch package, SBOM, notices, `RELEASE-BUILDINFO`).
+6. `verify`: compares every file of run a with run b (source archive, binaries tarball, `.deb`,
+   `.rpm`, Arch package, SBOM, notices, `RELEASE-BUILDINFO`); assembles the candidate; runs
+   `scripts/release-tool.py verify` (every mandatory deliverable, fail closed), the negative tests and
+   the version-ordering tests; renders the release notes.
 The result is uploaded as 7-day CI artifacts, not as a release.
 
 ### Reproducibility: what is and is not demonstrated
@@ -53,9 +59,12 @@ Fixed for this: RPM file mtimes and build host were nondeterministic (two builds
 `clamp_mtime_to_source_date_epoch` and a fixed `_buildhost` make them identical. The Arch build used a
 random temporary directory that `makepkg` records in `.BUILDINFO`; it now uses a fixed path.
 
-## 3. Phase 1 release workflow (to add in a separate PR; not written yet)
-Trigger: a version tag `vX.Y.Z-dev.N` / `vX.Y.Z-rc.N` pushed by the owner, or a manual run. Tags are not
-required to be signed in Phase 1. Sketch:
+## 3. Phase 1 release workflow (implemented 2026-10-20)
+Implemented as `.github/workflows/release.yml`; details, failure handling and the owner procedure are in
+`docs/release/RELEASING.md`. It differs from the 2026-10-19 sketch below in one deliberate choice,
+documented there and open to owner change: the trigger is **only a manual run** with the version as
+input (`X.Y.Z-dev.N` / `X.Y.Z-rc.N`), not a pushed tag, so no tag exists before the owner publishes the
+draft; GitHub creates the tag on publication. 2026-10-19 sketch (kept for reference):
 ```yaml
 on:
   push: { tags: ['v*.*.*-*'] }        # prerelease-style tags only
@@ -98,8 +107,11 @@ draft's source archive and matches `SHA256SUMS` (ADR 0009 R11). Requirements: AD
 - 2026-10-19: hardware tokens, OpenPGP keys and mandatory signing **deferred**; phased approach
   (Phase 1 unsigned prereleases, Phase 2 optional attestations, Phase 3 deferred signing).
 
-Remaining owner actions for Phase 1: approve the release-workflow PR and the first version number, and
-optionally create the protected `release` environment. No key material is needed.
+- 2026-10-20: owner authorized implementation of the Phase 1 workflow (draft only, no publication).
+
+Remaining owner actions for Phase 1: review and merge the release-workflow PR; choose the first version
+number and run the workflow; optionally protect the `release` environment; publish the draft by hand
+and verify it (R11). No key material is needed.
 
 ## 6. Reference only: maintainer key management (Phase 3, deferred)
 Kept so that a future Phase 3 decision starts from the reviewed 2026-10-16 design. **None of this is a

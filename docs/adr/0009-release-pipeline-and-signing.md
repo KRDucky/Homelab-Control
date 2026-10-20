@@ -3,8 +3,9 @@
 **Status:** **Accepted, revised 2026-10-19 (owner).** Releases are phased. **Phase 1** (unsigned GitHub
 development/prereleases) is the current target. **Phase 2** (keyless attestations) and **Phase 3**
 (maintainer signing) are optional and deferred. The revision supersedes the 2026-10-16 decision that
-made hardware-backed OpenPGP signatures mandatory. **No release workflow exists yet**, and nothing is
-published automatically.
+made hardware-backed OpenPGP signatures mandatory. The Phase 1 workflow (`.github/workflows/release.yml`,
+implemented 2026-10-20, owner-authorized) only creates **drafts**; nothing is published automatically,
+and no release has been made yet.
 **Date:** 2026-10-16 (accepted), 2026-10-19 (revised)
 **Deciders:** Project owner
 **Refines:** ADR 0005 item 5. **Finding:** LA-13 (`docs/compliance/LICENSE-AUDIT.md`).
@@ -21,7 +22,7 @@ On 2026-10-19 the owner **deferred hardware tokens, OpenPGP keys and mandatory s
 decision, so that development builds can be shared without first setting up key infrastructure.
 
 ## Decision (revised 2026-10-19)
-Full design: `docs/compliance/RELEASE-PIPELINE.md`.
+Full design: `docs/compliance/RELEASE-PIPELINE.md`. Owner runbook: `docs/release/RELEASING.md`.
 
 ### Phase 1: unsigned GitHub development/prereleases (current target)
 1. **What is published:** GitHub Releases, marked as **prerelease**. The title and notes start with
@@ -81,23 +82,24 @@ repositories, should not happen before the owner revisits Phase 3.
   `.asc` files.
 
 ## 5. LA-13 checklist
-**LA-13 is not resolved.** It can be marked resolved only when the Phase 1 workflow is implemented and a
-first draft prerelease has been produced and verified against every mandatory item below.
+**LA-13 is not resolved.** The Phase 1 workflow is implemented (2026-10-20). LA-13 can be marked resolved
+only when a first draft prerelease has been produced by it, published by the owner and verified against
+every mandatory item below (R10, R11).
 
 ### 5.1 Mandatory for a Phase 1 unsigned development prerelease
-| # | Requirement | State (2026-10-19) |
+| # | Requirement | State (2026-10-20) |
 |---|---|---|
 | R1 | **Corresponding source** with every release: source archive of the tagged commit, npm sources, `RELEASE-BUILDINFO`, `BUILDING.md`; `compat/webmin/` excluded | Implemented in the dry run (`scripts/release-bundle.sh`) |
 | R2 | **Same commit, built from the archive**: binaries and DEB/RPM/Arch packages built only from the source archive; archive build = Git build; two independent runs identical | Implemented in CI (`release-dry-run` a/b, `release-dry-run-arch` a/b, `release-repro`) |
 | R3 | **Notices and licence metadata**: `LICENSE.md`, `NOTICE.md`, `THIRD-PARTY-NOTICES.md` in every package and as assets; DEP-5 `copyright`; REUSE-compliant tree | Implemented and checked in CI |
-| R4 | **SPDX SBOM** published with the release, **stamped with the release version** | SBOM implemented; version stamping **open** |
+| R4 | **SPDX SBOM** published with the release, **stamped with the release version** | **Done**: `release-tool.py stamp-sbom` (version, commit, exact Go version, release-specific namespace; deterministic), called by `release-bundle.sh`; `verify` requires the stamp and `pyspdxtools` validity. Verified in the CI dry run (version `0.0.0-dryrun.<commit>`) |
 | R5 | **SHA-256 checksums** (`SHA256SUMS`) for every asset | Implemented in the dry run |
-| R6 | **Exact toolchain pins** in the release workflow: Go patch version (CI uses `1.26.x`), Node.js and npm versions; checked against `RELEASE-BUILDINFO` | **Open** (recorded, not pinned) |
+| R6 | **Exact toolchain pins** in the release workflow: Go patch version (CI uses `1.26.x`), Node.js and npm versions; checked against `RELEASE-BUILDINFO` | **Done**: `packaging/release/toolchain.env` (Go 1.26.9, Node.js 22.23.3, npm 10.9.9) used by `release-build.yml` (release and CI dry run) and `release.yml`'s gate; installed versions checked before building and against `RELEASE-BUILDINFO` after. Verified in the CI dry run |
 | R7 | **Pinned build/check tools**: `govulncheck` and the other CI tools | **Done in CI**: `govulncheck` v1.9.0 (was `@latest`), spdx-tools 0.8.3, reuse 6.2.0, Playwright 1.63.0, Actions pinned by SHA. The release workflow must reuse the same pins |
-| R8 | **Release workflow**: triggered by a version tag or a manual run; read-only permissions except the job that creates the **draft prerelease** (`contents: write`); never auto-publishes | **Open** (not written) |
-| R9 | **Unsigned labelling**: prerelease flag; "UNSIGNED DEVELOPMENT BUILD" in title and notes; verification instructions; no claim of signatures | **Open** (template to write with R8) |
-| R10 | **Manual owner approval**: owner publishes the draft by hand; protected `release` environment used where available | **Open** (process defined; environment optional) |
-| R11 | **Verification of the first draft**: owner (or CI) rebuilds from the published source archive and matches `SHA256SUMS`; inventory checks pass on the published packages | **Open** |
+| R8 | **Release workflow**: triggered by a version tag or a manual run; read-only permissions except the job that creates the **draft prerelease** (`contents: write`); never auto-publishes | **Implemented, partly verified**: `release.yml`, manual run on `main` only; `contents: write` in the `draft` job only; draft-only, never publishes, tags or deletes (policy tests). Its build/verify part runs in CI as the dry run. The `draft` job itself runs only from `main` and has **not run yet**; first run = first draft |
+| R9 | **Unsigned labelling**: prerelease flag; "UNSIGNED DEVELOPMENT BUILD" in title and notes; verification instructions; no claim of signatures | **Implemented**: `--prerelease`; title `UNSIGNED DEVELOPMENT BUILD v…`; notes from `packaging/release/RELEASE-NOTES.template.md` (banner, no-signature statement, provenance links, files, verification, checksums), rendered in every CI dry run. Seen on GitHub only after the first draft |
+| R10 | **Manual owner approval**: owner publishes the draft by hand; protected `release` environment used where available | **Partial**: workflow cannot publish; `draft` job uses environment `release`; procedure in `RELEASING.md` §4. Owner action: optionally protect the environment; publish the first draft by hand |
+| R11 | **Verification of the first draft**: owner (or CI) rebuilds from the published source archive and matches `SHA256SUMS`; inventory checks pass on the published packages | **Open** (needs the first draft; the workflow already re-downloads every uploaded asset and checks it against `SHA256SUMS`) |
 
 ### 5.2 Strongly recommended, not a Phase 1 blocker
 | # | Item | State |
@@ -117,7 +119,7 @@ first draft prerelease has been produced and verified against every mandatory it
 1. [x] Owner accepted the release design (2026-10-16).
 2. [x] Owner deferred hardware tokens, OpenPGP keys and mandatory signing; phased approach adopted
    (2026-10-19).
-3. [ ] PR: Phase 1 release workflow (R4, R6–R9), draft prereleases only.
+3. [x] PR: Phase 1 release workflow (R4, R6–R9), draft prereleases only (owner-authorized 2026-10-20).
 4. [ ] Owner: create the protected `release` environment if the plan offers it (R10, optional).
 5. [ ] First draft prerelease verified (R11); then LA-13 can be closed for Phase 1.
 6. [x] PR: GitHub Actions runtime upgrade (S1) and `govulncheck` pin (R7).
