@@ -8,7 +8,7 @@
 | GNU make, git, bash, coreutils | any recent | |
 | Perl 5 | 5.38 | Only for the legacy Webmin baseline and upstream `prove` suite. |
 | Python 3 + Playwright (optional) | 1.x with Chromium | Browser e2e test only. |
-| shellcheck, govulncheck (optional) | — | Run in CI; skipped locally if missing. |
+| shellcheck 0.9.0, govulncheck v1.9.0 (optional) | — | Run in CI; skipped locally if missing. govulncheck v1.9.0 needs Go ≥ 1.26.0: `go install golang.org/x/vuln/cmd/govulncheck@v1.9.0`. |
 
 On CachyOS/Arch: `sudo pacman -S go nodejs npm make git perl` (all official repos).
 On Debian/Ubuntu the distro Go is often too old — use the official tarball after verifying its checksum.
@@ -82,3 +82,14 @@ or a local TLS reverse proxy with `-behind-tls-proxy -allowed-origins https://yo
 - UI: no inline styles/scripts (CSP), no raw HTML rendering (lint enforces), no fabricated values —
   show "Unknown"/"Unavailable" with the data source.
 - Commits touching `compat/webmin/` must be listed in `compat/PATCHES.md`.
+
+## Continuous integration
+`.github/workflows/ci.yml` runs on every push to `main` and every pull request, and can be started by hand:
+**Actions** tab → workflow **ci** → **Run workflow** → choose the branch → **Run workflow**. A manual run
+takes no inputs and runs exactly the same 20 jobs as push/PR CI: lint, tests, security gate, reproducible build,
+packages and payload checks, install matrix, real-systemd tests, browser e2e, upstream Perl tests, release
+dry run and reproducibility comparison. It needs a branch that contains this trigger (on the default branch
+it appears once merged). The token is read-only and nothing is published.
+
+Actions are official `actions/*` releases pinned by commit SHA (ADR 0006); update them by changing the SHA
+and the tag comment together after reading the release notes.

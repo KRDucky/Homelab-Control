@@ -48,7 +48,7 @@ output) is our own code, not a copy of the tool.
 |---|---|---|
 | Go toolchain | BSD-3-Clause | Compiles the backend |
 | Node.js 22 / npm | MIT / Artistic-2.0 | Frontend build and tests |
-| govulncheck | BSD-3-Clause | Security gate (CI) |
+| govulncheck v1.9.0 | BSD-3-Clause | Security gate (CI) |
 | shellcheck 0.9 | GPL-3.0 | Shell lint (CI) |
 | spdx-tools 0.8.3 | Apache-2.0 | SBOM validation (CI) |
 | reuse 6.2.0 | GPL-3.0-or-later | REUSE licensing lint (CI security gate) |

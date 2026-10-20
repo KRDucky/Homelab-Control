@@ -37,7 +37,14 @@ if command -v govulncheck >/dev/null 2>&1; then
   if ! (cd backend && govulncheck ./...) >"$vout" 2>&1; then
     bad "$(grep -oE 'GO-[0-9]{4}-[0-9]+' "$vout" | sort -u | tr '\n' ' ')"
   fi
-  cat "$vout"; rm -f "$vout"
+  cat "$vout"
+  # Annotation = evidence that the scan ran, with the scanner version (job logs are not always readable).
+  if [ -n "${GITHUB_ACTIONS:-}" ]; then
+    echo "::notice title=govulncheck::$(govulncheck -version 2>&1 | tr '\n' ' ') | $(grep -m1 -E 'No vulnerabilities found|affected by' "$vout" || echo 'result: see log')"
+  fi
+  rm -f "$vout"
+elif [ -n "${GITHUB_ACTIONS:-}" ]; then
+  echo "FAIL: govulncheck must be installed in CI"; bad "govulncheck not installed"
 else echo "SKIPPED: govulncheck not installed (CI installs it)"; fi
 
 step "npm audit (production dependencies)"

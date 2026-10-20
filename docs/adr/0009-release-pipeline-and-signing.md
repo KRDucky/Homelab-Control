@@ -93,7 +93,7 @@ first draft prerelease has been produced and verified against every mandatory it
 | R4 | **SPDX SBOM** published with the release, **stamped with the release version** | SBOM implemented; version stamping **open** |
 | R5 | **SHA-256 checksums** (`SHA256SUMS`) for every asset | Implemented in the dry run |
 | R6 | **Exact toolchain pins** in the release workflow: Go patch version (CI uses `1.26.x`), Node.js and npm versions; checked against `RELEASE-BUILDINFO` | **Open** (recorded, not pinned) |
-| R7 | **Pinned build/check tools**: `govulncheck` (CI installs `@latest`) | **Open** (spdx-tools 0.8.3, reuse 6.2.0, Playwright 1.63.0 are pinned) |
+| R7 | **Pinned build/check tools**: `govulncheck` and the other CI tools | **Done in CI**: `govulncheck` v1.9.0 (was `@latest`), spdx-tools 0.8.3, reuse 6.2.0, Playwright 1.63.0, Actions pinned by SHA. The release workflow must reuse the same pins |
 | R8 | **Release workflow**: triggered by a version tag or a manual run; read-only permissions except the job that creates the **draft prerelease** (`contents: write`); never auto-publishes | **Open** (not written) |
 | R9 | **Unsigned labelling**: prerelease flag; "UNSIGNED DEVELOPMENT BUILD" in title and notes; verification instructions; no claim of signatures | **Open** (template to write with R8) |
 | R10 | **Manual owner approval**: owner publishes the draft by hand; protected `release` environment used where available | **Open** (process defined; environment optional) |
@@ -102,7 +102,7 @@ first draft prerelease has been produced and verified against every mandatory it
 ### 5.2 Strongly recommended, not a Phase 1 blocker
 | # | Item | State |
 |---|---|---|
-| S1 | Move GitHub Actions off the deprecated Node 20 runtime (GitHub warnings on every run) | Open; separate dependency PR (ADR 0006 review) |
+| S1 | Move GitHub Actions off the deprecated Node 20 runtime | **Done**: official `actions/*` node24 releases, SHA-pinned (CI modernization PR) |
 
 ### 5.3 Deferred enhancements (not required for Phase 1)
 | # | Item | Phase |
@@ -120,5 +120,5 @@ first draft prerelease has been produced and verified against every mandatory it
 3. [ ] PR: Phase 1 release workflow (R4, R6–R9), draft prereleases only.
 4. [ ] Owner: create the protected `release` environment if the plan offers it (R10, optional).
 5. [ ] First draft prerelease verified (R11); then LA-13 can be closed for Phase 1.
-6. [ ] PR: GitHub Actions runtime upgrade (S1).
+6. [x] PR: GitHub Actions runtime upgrade (S1) and `govulncheck` pin (R7).
 7. [ ] Future owner decision on Phase 2 and Phase 3.

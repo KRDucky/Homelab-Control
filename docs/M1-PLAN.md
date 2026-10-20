@@ -45,4 +45,5 @@ Suggested order: 1 → 8 → 2 → 3 → 4 → 7 → 5 → 6 → 9/10 in paralle
 2. Approve or amend ADR 0005 (GPL-3.0-or-later core, MIT SDK/schemas/tokens, BSD-3 for upstream fixes).
 3. Confirm the Cockpit track in `UI-CONCEPT.png` is out of scope.
 4. Whether the M1 package should bundle a pruned `compat/webmin` or keep relying on upstream Webmin packages.
+   *(Resolved after M1: distributed artifacts exclude Webmin entirely — owner directive 2026-10-16, PR #5.)*
 5. PAM group name and default scope mapping (proposal: `homelab-admins` → `system.read` in M1).
