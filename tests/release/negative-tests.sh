@@ -11,7 +11,9 @@
 set -euo pipefail
 cand=${1:?candidate dir}; ver=${2:?version}; commit=${3:?commit}; req=${4:-}
 root=$(cd "$(dirname "$0")/../.." && pwd)
-tool="$root/scripts/release-tool.py"; tc="$root/packaging/release/toolchain.env"
+tool="$root/scripts/release-tool.py"
+# HC_RELEASE_TOOLCHAIN: only for local runs whose toolchain differs from the pins (CI never sets it).
+tc=${HC_RELEASE_TOOLCHAIN:-$root/packaging/release/toolchain.env}
 mode=release; [[ "$ver" == 0.0.0-dryrun.* ]] && mode=dry-run
 work=$(mktemp -d); trap 'rm -rf "$work"' EXIT
 fail=0; n=0
@@ -38,7 +40,8 @@ expect_fail "missing Arch package"
 fresh; rm "$work/c/THIRD-PARTY-NOTICES.md"; resum
 expect_fail "missing THIRD-PARTY-NOTICES.md"
 
-fresh; rpm=$(ls "$work/c"/*.rpm); printf '\x00' | dd of="$rpm" bs=1 seek=200 conv=notrunc status=none
+fresh; rpm=$(ls "$work/c"/*.rpm)
+python3 -I -c 'import os,sys; p=sys.argv[1]; f=open(p,"r+b"); f.seek(os.path.getsize(p)//2); b=f.read(1); f.seek(-1,1); f.write(bytes([b[0]^0xFF]))' "$rpm"
 expect_fail "corrupted .rpm (checksum mismatch)"
 
 fresh; echo extra > "$work/c/extra.txt"; resum

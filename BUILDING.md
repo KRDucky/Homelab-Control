@@ -42,6 +42,11 @@ Run the packaging commands with the same `SOURCE_DATE_EPOCH` exported; package t
 cd build && sha256sum hc-api hlctl hc-broker *.deb *.rpm
 # compare with the binaries in homelab-control-<version>-linux-<arch>.tar.gz and the release SHA256SUMS
 ```
+For a prerelease such as `0.1.0-dev.1`, the `.deb` you build is named `homelab-control_0.1.0~dev.1_amd64.deb`
+(Debian version `0.1.0~dev.1`, which sorts before `0.1.0`); the release publishes the same bytes as
+`homelab-control_0.1.0-dev.1_amd64.deb`, because GitHub may rename asset names containing `~`.
+The exact toolchain of every release is pinned in `packaging/release/toolchain.env` and recorded in
+`RELEASE-BUILDINFO`.
 **What has been demonstrated** (CI on every change, and locally): binaries, `.deb` and `.rpm` built from
 the source archive alone are byte-identical to those built from Git at the same commit, and all release
 files are identical across two complete runs on independent GitHub `ubuntu-24.04` runners (the Arch

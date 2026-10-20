@@ -306,7 +306,15 @@ def check_source_archive(d, version):
         errs.append(f"contains compat/webmin/ ({len(webmin)} entries, e.g. {webmin[0]})")
     if any(p.split("/")[1:2] == [".git"] for p in paths):
         errs.append("contains .git")
-    links = [m.name for m in ms if (m.issym() or m.islnk()) and (m.linkname.startswith("/") or ".." in m.linkname.split("/"))]
+    def escapes(m):  # a link whose target resolves outside the archive's top directory
+        if m.issym():
+            if m.linkname.startswith("/"):
+                return True
+            target = os.path.normpath(os.path.join(os.path.dirname(m.name), m.linkname))
+        else:
+            target = os.path.normpath(m.linkname)
+        return not (target + "/").startswith(prefix)
+    links = [f"{m.name} -> {m.linkname}" for m in ms if (m.issym() or m.islnk()) and escapes(m)]
     if links:
         errs.append(f"links pointing outside the tree: {links[:5]}")
     for req in ["RELEASE-BUILDINFO", "BUILDING.md", "LICENSE.md", "NOTICE.md", "REUSE.toml",

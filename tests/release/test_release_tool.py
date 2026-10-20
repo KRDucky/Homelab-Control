@@ -7,6 +7,7 @@
 The same checks run against real release candidates in CI (release-build.yml, verify job, including
 tests/release/negative-tests.sh). Run: python3 -m unittest discover -s tests/release -v
 """
+import contextlib
 import importlib.util
 import io
 import json
@@ -202,15 +203,39 @@ class Verify(unittest.TestCase):
         self.f = Fixture(self.tmp, extra_source=[".git/config"])
         self.assertOnlyFails("source")
 
+    def test_links_must_stay_inside_the_tree(self):
+        n = rt.expected_names(V)["source"]
+        p = f"homelab-control-{V}/"
+        for target, ok in [("../../sda", True), ("/etc/passwd", False), ("../../../../../../etc/passwd", False), ("../../../../../../homelab-control-x/a", False)]:
+            path = os.path.join(self.f.d, n)
+            with tarfile.open(path, "r:gz") as t:
+                members = [(m, t.extractfile(m).read() if m.isfile() else None) for m in t.getmembers()]
+            with tarfile.open(path, "w:gz") as t:
+                for m, data in members:
+                    t.addfile(m, io.BytesIO(data) if data is not None else None)
+                ti = tarfile.TarInfo(p + "backend/testdata/dev/disk/by-id/link")
+                ti.type, ti.linkname = tarfile.SYMTYPE, target
+                t.addfile(ti)
+            self.f.resum()
+            if ok:
+                self.assertOnlyFails()
+            else:
+                self.assertOnlyFails("source")
+            shutil.rmtree(self.tmp)
+            self.tmp = tempfile.mkdtemp()
+            self.f = Fixture(self.tmp)
+
     def test_verify_cli_fails_closed_on_empty_dir(self):
         empty = os.path.join(self.tmp, "empty")
         os.makedirs(empty)
-        self.assertEqual(rt.main(["verify", "--dir", empty, "--version", V, "--commit", C,
-                                  "--toolchain", self.f.toolchain]), 1)
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(rt.main(["verify", "--dir", empty, "--version", V, "--commit", C,
+                                      "--toolchain", self.f.toolchain]), 1)
 
     def test_verify_cli_rejects_bad_version(self):
-        self.assertEqual(rt.main(["verify", "--dir", self.f.d, "--version", "0.1.0", "--commit", C,
-                                  "--toolchain", self.f.toolchain]), 1)
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(rt.main(["verify", "--dir", self.f.d, "--version", "0.1.0", "--commit", C,
+                                      "--toolchain", self.f.toolchain]), 1)
 
 
 class Assemble(unittest.TestCase):

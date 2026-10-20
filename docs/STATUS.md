@@ -1,10 +1,12 @@
-# Current status — M1 closeout + compliance (updated 2026-10-19)
+# Current status — M1 closeout + compliance + release workflow (updated 2026-10-20)
 
 ## Merged work
 - PR #5 (licence compliance, Webmin independence, UI plan): merged 2026-10-19 as `bc7205e3`; 20/20 checks
   on `main`.
 - PR #6 (release signing deferred, phased releases): merged 2026-10-19 as `8b0f017e`; 20/20 checks on
   `main` (run 39210847731).
+- PR #7 (CI modernization: node24 actions pinned by SHA, manual runs, `govulncheck` v1.9.0): merged
+  2026-10-20 as `259cf5bb`; 20/20 checks on `main` (run 39375492889).
 
 ## CI (`.github/workflows/ci.yml`, 20 jobs)
 - **Triggers:** push to `main`, every pull request, and a **manual run** (Actions tab → *ci* →
@@ -18,7 +20,9 @@
   - real systemd on Ubuntu 24.04 and 26.04;
   - browser e2e plus the theme CSP probe (Chromium, Firefox, WebKit);
   - upstream Webmin Perl tests;
-  - release dry run (two runners plus Arch) and reproducibility comparison.
+  - release dry run through the same reusable workflow as the release (`release-build.yml`, exact
+    toolchain pins): two runners plus Arch, reproducibility comparison, fail-closed candidate verification,
+    negative tests, release notes.
 - **Actions:** official `actions/*` releases on the node24 runtime, pinned by commit SHA, read-only token,
   no persisted git credentials, no dependency caches.
 
@@ -26,13 +30,13 @@
 - **Release readiness: not ready.** One blocker: LA-13. Owner decision 2026-10-19 (ADR 0009 revised): the
   target is **Phase 1, unsigned GitHub development/prereleases**, created as drafts and published only by
   the owner. **Hardware tokens, OpenPGP keys and mandatory signing are deferred** (Phase 3); keyless
-  attestations are optional (Phase 2). Open Phase 1 items:
-  - R4: SBOM stamped with the version;
-  - R6: exact toolchain pins in the release workflow (R7, the `govulncheck` pin, is done in CI);
-  - R8: draft-prerelease workflow;
-  - R9: unsigned labelling;
-  - R10: manual owner publication;
-  - R11: verification of the first draft.
+  attestations are optional (Phase 2). Phase 1 items (owner authorized the workflow 2026-10-20):
+  - R4 SBOM stamped with the version: done; R6 exact toolchain pins: done; R7 `govulncheck` pin: done;
+  - R8 draft-prerelease workflow (`release.yml`, manual, draft only) and R9 unsigned labelling:
+    implemented, build/verify path exercised by every CI dry run; the draft job has not run yet;
+  - R10 manual owner publication: process in `docs/release/RELEASING.md`; needs the first draft;
+  - R11 verification of the first published prerelease: open.
+  - **No release or draft exists.**
 - Release **dry run** in CI: complete corresponding-source archive; binaries, DEB, RPM and Arch packages
   built only from it; archive build = Git build; two independent runs compared file by file. RPM and Arch
   nondeterminism found and fixed. Not tested with other toolchain versions or distributions.
@@ -105,12 +109,13 @@ CI run 38866773032 on the same commit: all 15 jobs green.
    and secret handling for broker arguments need their own reviewed design.
 5. ~~Validation gap~~ — closed 2026-10-16: hardening and socket activation verified on the workstation
    KVM VM (Ubuntu 26.04).
-Not M2-blocking but release-blocking: the remaining licence/release blocker above (LA-13). CI already
-builds with a supported Go line (1.26.x), and govulncheck is pinned (v1.9.0).
+Not M2-blocking but release-blocking: the remaining licence/release blocker above (LA-13: first draft,
+owner publication, verification). CI builds with a supported Go line (1.26.x); releases use the exact
+pins in `packaging/release/toolchain.env`; govulncheck is pinned (v1.9.0).
 
 ## Not done / limits
 - Earlier M1 evidence (d1077e4a) was never committed and is withdrawn (see evidence README).
 - Ubuntu 22.04 under real systemd: not verified (CI covers 24.04 runner and 26.04 container; VM covers 26.04).
-- PAM login deferred; upstream pin 2.670; licence decided (ADR 0005: GPL-3.0-or-later core, MIT SDK/schemas/themes/tokens); release publishing pending (ADR 0009).
+- PAM login deferred; upstream pin 2.670; licence decided (ADR 0005: GPL-3.0-or-later core, MIT SDK/schemas/themes/tokens); release workflow implemented (draft only), no release published yet (ADR 0009).
 - Sessions/throttle in memory; no TLS management; govulncheck runs in CI only (v1.9.0 on Go 1.26.x).
 - No host modifications or storage writes exist (by design).
