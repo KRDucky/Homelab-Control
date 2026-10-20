@@ -11,7 +11,10 @@ set -euo pipefail
 ver_in=${1:-0.0.0}
 root=$(cd "$(dirname "$0")/../.." && pwd)
 for f in hc-api hc-broker hlctl; do [ -x "$root/build/$f" ] || { echo "missing build/$f"; exit 1; }; done
-pkgver=$(sed -E 's/^v//; s/[^A-Za-z0-9.]+/./g; s/^([^0-9])/0.\1/' <<<"$ver_in")
+# Version mapping (SemVer prerelease 0.1.0-dev.1 -> 0.1.0dev.1): see the helper.
+# shellcheck source=packaging/common/version-map.sh
+. "$root/packaging/common/version-map.sh"
+pkgver=$(hc_arch_pkgver "$ver_in")
 # Fixed build path: makepkg records startdir/builddir in .BUILDINFO, so a random temp dir would make
 # every package different. The path is private to this script and removed before and after use.
 work=${HC_MAKEPKG_DIR:-/tmp/homelab-control-makepkg}

@@ -9,11 +9,10 @@
 set -euo pipefail
 ver_in=${1:-0.0.0}
 root=$(cd "$(dirname "$0")/../.." && pwd)
-# Debian versions must start with a digit. Anything that is not a dotted
-# release number (e.g. a git hash that happens to start with a digit) becomes
-# 0.0.0+git.<id> so development builds always sort below real releases.
-ver=$(sed -E 's/^v//; s/[^A-Za-z0-9.+~]/+/g' <<<"$ver_in")
-[[ "$ver" =~ ^[0-9]+\.[0-9]+ ]] || ver="0.0.0+git.$ver"
+# Version mapping (SemVer prerelease -> 0.1.0~dev.1, commit ids -> 0.0.0+git.<id>): see the helper.
+# shellcheck source=packaging/common/version-map.sh
+. "$root/packaging/common/version-map.sh"
+ver=$(hc_deb_version "$ver_in")
 arch=$(dpkg --print-architecture)
 stage=$(mktemp -d); chmod 0755 "$stage"; trap 'rm -rf "$stage"' EXIT
 install -Dm0755 "$root/build/hc-api" "$stage/usr/bin/hc-api"
