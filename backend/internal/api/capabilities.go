@@ -159,7 +159,11 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 	if berr != nil || !bi.hasOp("legacy.webmin.status") {
 		legacy.Status, legacy.Reason = CapDegraded, "Without the privileged helper only Webmin's presence and version can be checked."
 	}
-	resp.Capabilities = []Capability{gate(overview), gate(services), gate(hardware), gate(legacy), gate(logs)}
+	auditCap := Capability{ID: "audit", Label: "Audit", Path: "/audit", Scope: auth.ScopeAuditRead, Status: CapAvailable}
+	if s.auditPager == nil {
+		auditCap.Status, auditCap.Reason = CapUnavailable, "Audit history needs the state database, which this server was started without."
+	}
+	resp.Capabilities = []Capability{gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs)}
 	writeJSON(w, http.StatusOK, resp)
 }
 

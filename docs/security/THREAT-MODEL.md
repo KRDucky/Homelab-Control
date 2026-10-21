@@ -85,6 +85,21 @@ Webmin usernames with RPC capability (scope `system.read`), the full systemd uni
 | Denial of service | Huge or numerous log requests | ≤500 lines, 4 KiB per message, 1 MiB total, 15 s op timeout, broker concurrency limit | Implemented, tested |
 | Repudiation / tampering | Audit records edited, reordered, deleted or truncated | SHA-256 hash chain with sequence numbers; checkpoints in journald; `hlctl audit verify`; fail-closed audit for broker results and log reads | Implemented, tested. **Tamper-evident only**: see the limits in `docs/security/AUDIT-LOG.md` (root can rewrite both the file and the journal) |
 
+## M2 PR-1a additions: state database, persistent sessions, audit trail
+
+| Threat | Example | Control | Status |
+|---|---|---|---|
+| Information disclosure / spoofing | State database copied or read: stolen sessions | Only SHA-256(session ID) is stored; the raw cookie never reaches disk (test checks the DB and WAL bytes); file 0600, directory 0700 `homelab-control`; CSRF tokens stored are useless without the cookie | Implemented, tested (unit + real systemd) |
+| Tampering | Symlink or loose permissions planted at the database path, its directory or `-wal`/`-shm` | Refused at start (owner, mode, `O_NOFOLLOW`, regular file) | Implemented, tested |
+| Tampering / availability | Failed or partial schema migration; downgrade to an older binary | Each migration in one transaction; consistent backup (`VACUUM INTO`, 0600) before migrating an existing database; a newer schema is refused; failure stops `hc-api` instead of running half-migrated | Implemented, tested (injected failure, backup, refusal) |
+| Spoofing | Revoking or listing another user's sessions | List and revoke are scoped to the caller's username; unknown and foreign ids are both 404; revoke needs Origin + CSRF | Implemented, tested |
+| Repudiation | API audit edited, reordered or deleted in the database | Same hash chain as the files, journald checkpoints, `hlctl audit verify --db`; a tampered last row starts a new segment instead of being extended | Implemented, tested. Tamper-evident only (`docs/security/AUDIT-LOG.md`) |
+| Elevation of privilege | Vulnerability in the large SQLite dependency reaching root | Only `hc-api` (unprivileged) and `hlctl` link it; `hc-broker` is enforced standard-library only (`scripts/check-go-deps.py`); module versions and hashes pinned and reviewed (ADR 0006 amendment 1); govulncheck in CI | Implemented, enforced in CI |
+| Information disclosure | Audit trail reveals who signed in, from where, and which logs were read | Separate `audit.read` scope, never granted by default or on upgrade (D-7) | Implemented, tested (upgrade test) |
+
+Not changed: login throttling stays in memory (a restart clears it); admin-side management of other
+users' sessions is not implemented (out of PR-1 scope).
+
 ## Residual risks after M1
 1. The legacy Webmin UI at 2.670 still lacks post-2.670 upstream fixes (`docs/upstream/SYNC.md`).
 2. `systemctl` JSON output is not a stable API; parsers are tolerant and tested against systemd 249/255 only.

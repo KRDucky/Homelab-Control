@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 # Homelab Control — reproducible local build.
-# Requirements: Go >= 1.24, Node >= 22 with npm, GNU make, git. See docs/dev/DEVELOPMENT.md.
+# Requirements: Go >= 1.26, Node >= 22 with npm, GNU make, git. See docs/dev/DEVELOPMENT.md.
 
 SHELL := /bin/bash
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 0.0.0-dev)

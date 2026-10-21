@@ -6,19 +6,21 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 # Audit logs: hash chaining, checkpoints and their limits
 
-Status: implemented in M2 PR-1b for both JSON Lines audit logs:
+Status: implemented in M2 PR-1b (chaining, checkpoints) and PR-1a (API trail in SQLite). There are two logs:
 
-- `/var/log/homelab-control/audit.jsonl`: `hc-api`, owned by `homelab-control`, mode 0600;
-- `/var/log/homelab-control-broker/broker-audit.jsonl`: `hc-broker`, owned by root, mode 0600.
-
-The API audit log moves to SQLite in PR-1a (owner decision D-1). The same chaining will apply there.
+- **API audit trail:** table `audit_events` in `/var/lib/homelab-control/state.db` (`hc-api`, owned by
+  `homelab-control`, 0600, `synchronous=FULL`). Shown on the Audit page (scope `audit.read`), exported
+  with `hlctl audit export --db`. Before 0.2 it was `/var/log/homelab-control/audit.jsonl`; that file
+  is kept, no longer written, and still verifies (its records are reported as `legacy`).
+- **Broker log:** `/var/log/homelab-control-broker/broker-audit.jsonl` (`hc-broker`, owned by root,
+  0600). Not shown in the UI; verified with `hlctl audit verify --file`.
 
 **The logs are tamper-evident, not tamper-proof.** Anyone who can write a log file can still change it.
 The design only makes certain changes detectable, and only under the conditions listed below.
 
 ## Record format
 
-Each line is one JSON object:
+Each record (a JSON line, or a table row exported as one) is:
 
 | Field | Meaning |
 |---|---|
@@ -30,8 +32,9 @@ Each line is one JSON object:
 - **Writes:** each record is fsync'ed before the request continues.
 - **Failing closed:** if the broker cannot write a record, it withholds the operation's result and
   returns `unavailable`. If `hc-api` cannot record a service-log read, it returns 503 and no log
-  content. Other API events, such as logins, are still recorded on a best-effort basis; PR-1a revisits
-  this together with the database.
+  content. Other API events, such as logins, are recorded on a best-effort basis so that a full disk
+  does not lock every administrator out; each failed write is reported in hc-api's journal
+  (`audit write failed`).
 - **Opening the log:** the first record of a new segment is an `audit.chain` event. Reopening an intact log continues the chain with an `audit.open` event.
 - **Bad last line:** if the last line is unreadable or fails verification (a crash mid-write, or tampering), the logger starts a new segment. It does not silently continue the chain. Verification reports the break as a warning, and reports the bad line itself as a problem.
 - **Older records:** records written before chaining existed (no `seq`) are counted as `legacy`.
@@ -53,7 +56,8 @@ cp=$(journalctl -u homelab-control-broker.service -o cat | grep 'audit checkpoin
 sudo hlctl audit verify --file /var/log/homelab-control-broker/broker-audit.jsonl --checkpoint "$cp"
 ```
 
-For the API log, use `homelab-control.service` and `/var/log/homelab-control/audit.jsonl`.
+For the API trail, use `homelab-control.service` and `--db /var/lib/homelab-control/state.db` instead of
+`--file`. `hlctl` opens the database read-only, so it can run while `hc-api` is up.
 `--checkpoint` can be repeated. `hlctl audit verify` exits non-zero if any problem is found.
 
 ## What is detected
@@ -70,7 +74,8 @@ For the API log, use `homelab-control.service` and `/var/log/homelab-control/aud
 | Records appended by the attacker | **No** | An appended, correctly chained record looks legitimate |
 | A crash mid-write | Shown as a new segment (warning) with the torn line reported | |
 
-The tests are in `backend/internal/audit/audit_test.go` and `backend/cmd/hlctl/main_test.go`. The
+The tests are in `backend/internal/audit/audit_test.go`, `backend/internal/state/state_test.go` (the
+database trail: edited and deleted rows, a tampered last row) and `backend/cmd/hlctl/main_test.go`. The
 real-systemd checks in `tests/systemd/m1-checks.sh` exercise modification, truncation and live journal
 checkpoints.
 
@@ -94,7 +99,8 @@ checkpoints.
   wrote the record. Nothing is keyed or signed, by design. There are no signing keys (ADR 0009).
 - **Rotation:** none is configured. If an administrator rotates or deletes a log, the next record
   starts a new segment, and checkpoints for the old file no longer match the new one.
-- **Size:** the logs grow without bound until retention is designed (PR-1a for the API log).
+- **Size:** no retention yet; both logs grow until an administrator prunes them (a few hundred bytes
+  per event). Deleting old records breaks the chain at that point, which verification reports.
 - **What is never logged:** passwords, session IDs, CSRF tokens and log content. A
   `services.unit.logs` read records the unit and line count only, never the messages returned. The
   broker records an argument only after it passes validation; anything else is recorded as
