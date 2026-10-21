@@ -481,6 +481,8 @@ def main(argv=None):
             if bad:
                 raise Fail("toolchain does not match packaging/release/toolchain.env: " + "; ".join(bad))
             print("OK: toolchain " + " ".join(want.values()))
+            if os.environ.get("GITHUB_ACTIONS"):  # evidence readable through the checks API
+                print("::notice title=release toolchain::" + " ".join(want.values()) + " (matches packaging/release/toolchain.env)")
         elif args.cmd == "stamp-sbom":
             stamp_sbom(args.src, args.dst, args.version, args.commit, args.go)
         elif args.cmd == "assemble":
