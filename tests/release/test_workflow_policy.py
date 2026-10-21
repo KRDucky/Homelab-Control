@@ -146,6 +146,14 @@ class ReleaseWorkflowPolicy(unittest.TestCase):
                 if m.group(1) == "actions/checkout":
                     self.assertIs(st["with"]["persist-credentials"], False, j)
 
+    def test_ci_and_release_use_the_same_go(self):
+        with open(os.path.join(ROOT, "packaging", "release", "toolchain.env"), encoding="utf-8") as f:
+            pin = re.search(r"^GO_VERSION=(\S+)$", f.read(), re.M).group(1)
+        versions = [st["with"]["go-version"] for _, st in steps(self.ci) if st.get("uses", "").startswith("actions/setup-go")]
+        self.assertTrue(versions)
+        for v in versions:
+            self.assertEqual(str(v), pin, "ci.yml go-version must equal GO_VERSION in toolchain.env (no floating .x)")
+
     def test_build_uses_exact_toolchain(self):
         for j, st in steps(self.build):
             u = st.get("uses", "")

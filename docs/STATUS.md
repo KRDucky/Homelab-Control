@@ -110,12 +110,11 @@ CI run 38866773032 on the same commit: all 15 jobs green.
 5. ~~Validation gap~~ — closed 2026-10-16: hardening and socket activation verified on the workstation
    KVM VM (Ubuntu 26.04).
 Not M2-blocking but release-blocking: the remaining licence/release blocker above (LA-13: first draft,
-owner publication, verification). CI builds with a supported Go line (1.26.x); releases use the exact
-pins in `packaging/release/toolchain.env`; govulncheck is pinned (v1.9.0).
+owner publication, verification). CI and releases build with the same exact Go version (1.26.10, `packaging/release/toolchain.env`); govulncheck is pinned (v1.9.0).
 
 ## Not done / limits
 - Earlier M1 evidence (d1077e4a) was never committed and is withdrawn (see evidence README).
 - Ubuntu 22.04 under real systemd: not verified (CI covers 24.04 runner and 26.04 container; VM covers 26.04).
 - PAM login deferred; upstream pin 2.670; licence decided (ADR 0005: GPL-3.0-or-later core, MIT SDK/schemas/themes/tokens); release workflow implemented (draft only), no release published yet (ADR 0009).
-- Sessions/throttle in memory; no TLS management; govulncheck runs in CI only (v1.9.0 on Go 1.26.x).
+- Sessions/throttle in memory; no TLS management; govulncheck runs in CI only (v1.9.0 on Go 1.26.10).
 - No host modifications or storage writes exist (by design).
