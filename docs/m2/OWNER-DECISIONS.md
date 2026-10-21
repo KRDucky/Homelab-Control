@@ -14,13 +14,13 @@ Already settled, and not asked again:
 
 | ID | Needed before | Status |
 |---|---|---|
-| D-1 | PR-1 | Open |
-| D-6 | PR-1 | Open |
-| D-7 | PR-1 | Open |
+| D-1 | PR-1 | **Approved 2026-10-21 (option A)** |
+| D-6 | PR-1 | **Approved 2026-10-21** |
+| D-7 | PR-1 | **Approved 2026-10-21** |
 | D-2, D-3, D-4, D-5 | PR M2-2 (first write) | Open |
 | D-8, D-9, D-10 | Roadmap shape | Open |
 | D-11 | Before any third-party library or tool adapter (M3+) | Open (policy only) |
-| D-12 | PR M2-5 (drive locator) | Open |
+| D-12 | PR M2-5 (drive locator) | Open (HBA Viewer source to be provided) |
 
 ---
 
@@ -32,6 +32,8 @@ Already settled, and not asked again:
 | A. `modernc.org/sqlite` (pure Go) | `CGO_ENABLED=0` and reproducible builds unchanged; real SQL, WAL, migrations; BSD-3 | Large transitive module set (modernc libc translation); larger binary; dependency review and govulncheck coverage needed |
 | B. `mattn/go-sqlite3` (cgo) | Most used; uses real SQLite C | Requires cgo and a C toolchain per distro; breaks the static, `CGO_ENABLED=0` reproducible build verified in Phase 1 |
 | C. No SQL: stdlib append-only journals (JSONL + fsync) and JSON snapshot files | No dependency | Queries (audit search, jobs, layouts, resource history) re-implemented by hand; this would likely be replaced later, so the work is done twice |
+
+**Owner decision 2026-10-21: option A approved.** CGO-disabled reproducible builds preserved; ADR 0006 amended for the reviewed exception; dependency and transitive modules pinned and audited; licensing, SBOM and scanning requirements kept; secure state storage, transactional migrations and migration backups.
 
 **Recommended: A.**
 - Amend ADR 0006 with a recorded review: licence check, pinned version, `go.sum`, govulncheck, and inclusion in the SBOM and notices generators.
@@ -104,11 +106,14 @@ Already settled, and not asked again:
 
 ## D-6 Persistent sessions
 ADR 0002 schedules "persisted sessions and per-session revocation UI" for M2, but the move from memory to disk changes behaviour.
+- **Owner decision 2026-10-21: approved.** Hashes only; existing idle, absolute and count limits; view and revoke own sessions; fixation protections and per-request checks kept.
 - **Recommended: yes.** Store only SHA-256(session ID) in `state.db`, keeping the existing timeouts; add a session list and revoke-other-sessions in the UI. Throttle state is persisted too.
 - **Alternative:** keep in-memory sessions; restarts log everyone out (availability only).
 - **Impact:** part of PR-1.
 
 ## D-7 Scope catalogue v1
+**Owner decision 2026-10-21: approved**, compatible with existing scopes; logs and audit access are **not** granted automatically to existing accounts.
+
 **Recommended convention** `<module>.<level>`. Levels:
 - `read`: inventory and status.
 - `logs`: may include sensitive content.
@@ -164,11 +169,7 @@ Not needed for M2; recorded so it is not decided ad hoc.
 **Owner direction (2026-10-21):** reuse the existing HBA Viewer concept inside Homelab Control rather than
 building a separate drive-location system.
 
-**Found:** the chassis "Layout" tab of the owner's Linux Storage Manager (`~/Storage-Manager`). No file or
-document named "HBA Viewer" was found in the repository, the Project or the connected folders.
-
-To confirm:
-- (a) Is this the concept meant, or is there another source?
-- (b) Reuse **concept, data model and UI behaviour** with a Go/React re-implementation (recommended), or also port code? The prior art has no licence file. Porting code would need the owner, as author, to contribute it under GPL-3.0-or-later (DCO), and the shell-string command builders would still be excluded.
-
-**Recommended:** (a) confirm, or point to the other source; (b) concept-only reuse.
+**Status:** pending.
+- **Correction:** the owner clarified that the HBA Viewer and the Linux Storage Manager are **distinct projects**. The Storage Manager is not the intended source.
+- **Needed:** the HBA Viewer's location (repository or folder) and the reuse terms: concept-only re-implementation (recommended), or code contributed by the owner under GPL-3.0-or-later.
+- **Blocks:** PR M2-5 (drive locator). Nothing in PR-1.
