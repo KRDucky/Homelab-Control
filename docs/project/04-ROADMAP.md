@@ -19,6 +19,8 @@ Times are rough effort bands for a small team with AI assistance, not delivery g
 | M12 | Backups, monitoring, alerts, automation, multi-host exploration | Verified restore workflows, notification tests, resilience |
 | M13 | Native distro releases and hardening | Debian/Ubuntu, Fedora, openSUSE, Arch package test matrix and signed releases |
 
+> **Proposed revision (2026-10-21, not yet approved):** `docs/m2/M2-ROADMAP.md` §4 proposes a module-oriented order after M2: storage read-only, software center, containers, storage configuration, file sharing, virtualization, hardware and replacement; the theme/plugin SDK moves after the first modules. This table stays authoritative until the owner decides (D-8 in `docs/m2/OWNER-DECISIONS.md`).
+
 ## Priority and dependencies
 M0–M4 establish the foundation. M5 precedes M6–M9 because all disk operations require trustworthy identity. M10 can run in parallel with later storage work once M2–M4 are stable. Release packaging must be exercised from M0, not deferred until M13.
 
