@@ -224,3 +224,41 @@ func TestAuditHasNoResults(t *testing.T) {
 		t.Fatalf("audit lacks actor/peer: %s", f.audit)
 	}
 }
+
+type failWriter struct{}
+
+func (failWriter) Write([]byte) (int, error) { return 0, errors.New("disk full") }
+
+// A result is withheld when its audit record cannot be written.
+func TestAuditFailureWithholdsResult(t *testing.T) {
+	f := start(t)
+	f.srv.Audit = audit.New(failWriter{})
+	out, err := call(t, f, "broker.info")
+	if code(err) != proto.CodeUnavailable || len(out) != 0 {
+		t.Fatalf("want unavailable and no result, got %v %s", err, out)
+	}
+}
+
+// Argument-taking ops record validated arguments only, never raw input.
+func TestOpArgsSummarisedInAudit(t *testing.T) {
+	f := start(t)
+	cl := brokerclient.New(f.sock)
+	actor := proto.Actor{User: "tester", Scopes: []string{"services.logs"}}
+	_ = cl.CallWithArgs(context.Background(), "services.unit.logs", map[string]any{"unit": "ssh.service", "lines": 5}, actor, nil)
+	if !strings.Contains(f.audit.String(), `"detail":"services.unit.logs unit=ssh.service lines=5 `) {
+		t.Fatalf("args not summarised: %s", f.audit)
+	}
+	evil := "$(id)\u001b[31m.service"
+	err := cl.CallWithArgs(context.Background(), "services.unit.logs", map[string]any{"unit": evil, "lines": 5}, actor, nil)
+	if code(err) != proto.CodeBadRequest {
+		t.Fatalf("want bad_request, got %v", err)
+	}
+	if strings.Contains(f.audit.String(), "$(id)") || !strings.Contains(f.audit.String(), "services.unit.logs invalid args") {
+		t.Fatalf("raw args reached the audit log: %s", f.audit)
+	}
+	// Without the scope the broker refuses before running anything.
+	err = cl.CallWithArgs(context.Background(), "services.unit.logs", map[string]any{"unit": "ssh.service", "lines": 5}, proto.Actor{User: "tester", Scopes: []string{"services.read"}}, nil)
+	if code(err) != proto.CodeForbidden {
+		t.Fatalf("want forbidden, got %v", err)
+	}
+}

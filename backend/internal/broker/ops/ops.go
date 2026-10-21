@@ -49,6 +49,9 @@ type Env struct {
 	Runner  *runner.Runner
 	Roots   Roots
 	Version string
+	// JournalGID is the gid of the journal reader group (systemd-journal),
+	// added to journalctl children; 0 when the group does not exist.
+	JournalGID uint32
 }
 
 // Op is one registered operation.
@@ -59,6 +62,9 @@ type Op struct {
 	Timeout     time.Duration
 	Description string
 	Handle      func(ctx context.Context, env *Env, args json.RawMessage) (any, error)
+	// AuditArgs, for ops that take arguments, summarises validated arguments
+	// for the broker audit record ("" if they do not validate). Never secrets.
+	AuditArgs func(args json.RawMessage) string
 }
 
 // Registry returns the compiled-in operation table.
@@ -72,6 +78,9 @@ func Registry() map[string]Op {
 			Description: "Root-only SMBIOS identifiers (system/board/chassis serials, product UUID)", Handle: dmiIdentity},
 		{Name: "services.systemd.list", Scope: "services.read", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second,
 			Description: "systemd units with load/active/sub state and unit-file enablement", Handle: systemdList},
+		{Name: "services.unit.logs", Scope: "services.logs", Privilege: PrivUnprivilegedExec, Timeout: 15 * time.Second,
+			Description: "Recent journal entries of one listed unit (args: unit, lines 1-500)", Handle: unitLogs,
+			AuditArgs: logsAuditArgs},
 	}
 	m := make(map[string]Op, len(ops))
 	for _, o := range ops {
@@ -113,8 +122,10 @@ func brokerInfo(_ context.Context, env *Env, raw json.RawMessage) (any, error) {
 		res.Ops = append(res.Ops, OpInfo{Name: o.Name, Scope: o.Scope, Privilege: o.Privilege, Description: o.Description})
 	}
 	sort.Slice(res.Ops, func(i, j int) bool { return res.Ops[i].Name < res.Ops[j].Name })
-	if env.Runner != nil && env.Runner.Available("systemctl") {
-		res.Exec = append(res.Exec, "systemctl")
+	for _, b := range []string{"systemctl", "journalctl"} {
+		if env.Runner != nil && env.Runner.Available(b) {
+			res.Exec = append(res.Exec, b)
+		}
 	}
 	if fi, err := os.Stat(env.Roots.Path("/run/systemd/system")); err == nil && fi.IsDir() {
 		res.SystemdBooted = true

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"net/http"
 	"slices"
+	"strconv"
 	"sync"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 // Broker abstracts the broker client (tests use a fake).
 type Broker interface {
 	Call(ctx context.Context, op string, actor proto.Actor, out any) error
+	CallWithArgs(ctx context.Context, op string, args any, actor proto.Actor, out any) error
 }
 
 // WithBroker attaches a broker client. A nil broker means "not configured".
@@ -144,11 +146,20 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 	} else if berr != nil || !bi.hasOp("hardware.dmi.identity") {
 		hardware.Status, hardware.Reason = CapDegraded, "Serial numbers and the system UUID need the privileged helper; everything else is shown."
 	}
+	logs := Capability{ID: "service_logs", Label: "Service logs", Path: "/services", Scope: auth.ScopeServicesLogs, Status: CapAvailable}
+	switch {
+	case berr != nil:
+		logs.Status, logs.Reason = CapUnavailable, brokerDownReason
+	case !bi.hasOp("services.unit.logs"):
+		logs.Status, logs.Reason = CapUnavailable, "The running broker does not provide service logs."
+	case !slices.Contains(bi.Exec, "journalctl") || !bi.SystemdBooted:
+		logs.Status, logs.Reason = CapUnsupported, "This host is not running systemd with journald."
+	}
 	legacy := Capability{ID: "legacy", Label: "Legacy Webmin", Path: "/legacy", Scope: auth.ScopeSystemRead, Status: CapAvailable}
 	if berr != nil || !bi.hasOp("legacy.webmin.status") {
 		legacy.Status, legacy.Reason = CapDegraded, "Without the privileged helper only Webmin's presence and version can be checked."
 	}
-	resp.Capabilities = []Capability{gate(overview), gate(services), gate(hardware), gate(legacy)}
+	resp.Capabilities = []Capability{gate(overview), gate(services), gate(hardware), gate(legacy), gate(logs)}
 	writeJSON(w, http.StatusOK, resp)
 }
 
@@ -162,6 +173,10 @@ func brokerError(w http.ResponseWriter, err error) {
 		switch pe.Code {
 		case proto.CodeForbidden:
 			writeError(w, http.StatusForbidden, "forbidden", pe.Message)
+		case proto.CodeBadRequest:
+			writeError(w, http.StatusBadRequest, "bad_request", pe.Message)
+		case proto.CodeNotFound:
+			writeError(w, http.StatusNotFound, "not_found", pe.Message)
 		case proto.CodeUnavailable:
 			writeError(w, http.StatusServiceUnavailable, "unsupported", pe.Message)
 		case proto.CodeTimeout:
@@ -183,6 +198,47 @@ func (s *Server) handleServices(w http.ResponseWriter, r *http.Request, sess *au
 		return
 	}
 	if err := s.broker.Call(r.Context(), "services.systemd.list", actorFor(sess), &res); err != nil {
+		brokerError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, res)
+}
+
+// handleUnitLogs returns recent journal entries of one unit (read-only).
+// The unit name and line count are validated here and again in the broker.
+func (s *Server) handleUnitLogs(w http.ResponseWriter, r *http.Request, sess *auth.Session, _ string) {
+	unit := r.PathValue("unit")
+	lines := 100
+	if v := r.URL.Query().Get("lines"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "bad_request", "lines must be an integer")
+			return
+		}
+		lines = n
+	}
+	if !types.ValidLogsArgs(unit, lines) {
+		writeError(w, http.StatusBadRequest, "bad_request", "unit name is not valid or lines is outside 1-"+strconv.Itoa(types.MaxLogLines))
+		return
+	}
+	if s.broker == nil {
+		brokerError(w, brokerclient.ErrUnavailable)
+		return
+	}
+	var res types.UnitLogs
+	err := s.broker.CallWithArgs(r.Context(), "services.unit.logs", map[string]any{"unit": unit, "lines": lines}, actorFor(sess), &res)
+	outcome := "success"
+	if err != nil {
+		outcome = "failure"
+	}
+	// Who read which unit's logs; never the log content.
+	aerr := s.auditLog("services.logs.read", sess.Username, r, outcome, unit+" lines="+strconv.Itoa(lines))
+	if err == nil && aerr != nil {
+		// Fail closed: log content is only released once the read is audited.
+		writeError(w, http.StatusServiceUnavailable, "audit_unavailable", "The audit log cannot be written, so the logs were withheld.")
+		return
+	}
+	if err != nil {
 		brokerError(w, err)
 		return
 	}

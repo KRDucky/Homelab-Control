@@ -697,3 +697,61 @@ select {
 .inline-check input {
   width: auto;
 }
+
+/* M2 PR-1b: service logs (read-only) */
+button.small {
+  padding: var(--hc-space-1) var(--hc-space-2);
+  font-size: var(--hc-font-size-sm);
+}
+button.ghost[aria-pressed='true'] {
+  border-color: var(--hc-color-signal);
+}
+.toolbar.compact {
+  margin-bottom: 0;
+}
+.logs-panel .panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--hc-space-2);
+  justify-content: space-between;
+  align-items: center;
+}
+.logs-panel h2:focus {
+  outline: none;
+}
+.logs-panel h2:focus-visible {
+  outline: 2px solid var(--hc-color-signal);
+  outline-offset: 2px;
+}
+.logs-wrap {
+  max-height: 60vh;
+  overflow: auto;
+}
+table.logs td {
+  vertical-align: top;
+  font-size: var(--hc-font-size-sm);
+}
+.nowrap {
+  white-space: nowrap;
+}
+.log-msg {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+tr.log-crit td:first-child {
+  box-shadow: inset 3px 0 0 var(--hc-color-crit);
+}
+tr.log-crit td:nth-child(2) {
+  color: var(--hc-color-crit);
+  font-weight: 600;
+}
+tr.log-warn td:first-child {
+  box-shadow: inset 3px 0 0 var(--hc-color-warn);
+}
+tr.log-warn td:nth-child(2) {
+  color: var(--hc-color-warn);
+}
+tr.log-debug td {
+  color: var(--hc-color-muted);
+}

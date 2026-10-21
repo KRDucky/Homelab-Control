@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"homelab-control/backend/internal/api"
+	"homelab-control/backend/internal/audit"
 	"homelab-control/backend/internal/auth"
 	"homelab-control/backend/internal/broker/proto"
 	"homelab-control/backend/internal/brokerclient"
@@ -30,8 +31,10 @@ Usage:
   hlctl user add     --file PATH --username NAME [--scopes system.read]   (password read from stdin)
   hlctl user passwd  --file PATH --username NAME                          (password read from stdin)
   hlctl user disable --file PATH --username NAME
+  hlctl user scopes  --file PATH --username NAME --scopes A,B              (replaces the account's scopes)
   hlctl user list    --file PATH
   hlctl broker info  [--socket PATH]                                       (as root or homelab-control)
+  hlctl audit verify --file PATH [--checkpoint SEQ:HASH]...                (checks the hash chain)
   hlctl version
 `
 
@@ -53,6 +56,9 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	if args[0] == "broker" {
 		return brokerCmd(args[1:], stdout)
+	}
+	if args[0] == "audit" {
+		return auditCmd(args[1:], stdout)
 	}
 	if args[0] != "user" || len(args) < 2 {
 		fmt.Fprint(stdout, usage)
@@ -80,7 +86,7 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 			fmt.Fprintf(stdout, "%s\t%s\t%s\n", u.Username, state, strings.Join(u.Scopes, ","))
 		}
 		return nil
-	case "add", "passwd", "disable":
+	case "add", "passwd", "disable", "scopes":
 	default:
 		return fmt.Errorf("unknown user subcommand %q", sub)
 	}
@@ -106,13 +112,7 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 		if err != nil {
 			return err
 		}
-		var sc []string
-		for _, s := range strings.Split(*scopes, ",") {
-			if s = strings.TrimSpace(s); s != "" {
-				sc = append(sc, s)
-			}
-		}
-		f.Users = append(f.Users, auth.User{Username: *username, PasswordHash: h, Scopes: sc})
+		f.Users = append(f.Users, auth.User{Username: *username, PasswordHash: h, Scopes: splitScopes(*scopes)})
 	case "passwd":
 		if idx < 0 {
 			return fmt.Errorf("no such user %q", *username)
@@ -129,12 +129,34 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 			return fmt.Errorf("no such user %q", *username)
 		}
 		f.Users[idx].Disabled = true
+	case "scopes":
+		// Scopes are only ever granted explicitly (owner decision D-7): an
+		// upgrade never adds new scopes such as services.logs to accounts.
+		if idx < 0 {
+			return fmt.Errorf("no such user %q", *username)
+		}
+		set := false
+		fs.Visit(func(fl *flag.Flag) { set = set || fl.Name == "scopes" })
+		if !set {
+			return errors.New("--scopes is required")
+		}
+		f.Users[idx].Scopes = splitScopes(*scopes)
 	}
 	if err := auth.SaveUsersFile(*file, f); err != nil {
 		return err
 	}
 	fmt.Fprintf(stdout, "updated %s (restart hc-api to apply)\n", *file)
 	return nil
+}
+
+func splitScopes(v string) []string {
+	var sc []string
+	for _, s := range strings.Split(v, ",") {
+		if s = strings.TrimSpace(s); s != "" {
+			sc = append(sc, s)
+		}
+	}
+	return sc
 }
 
 func loadOrNew(path string, allowCreate bool) (*auth.UsersFile, error) {
@@ -193,5 +215,56 @@ func brokerCmd(args []string, stdout io.Writer) error {
 		}
 		fmt.Fprintf(stdout, "  %-24s %-14s %-18s %s\n", o.Name, scope, o.Privilege, o.Description)
 	}
+	return nil
+}
+
+type checkpointFlags []audit.Checkpoint
+
+func (c *checkpointFlags) String() string { return fmt.Sprint(len(*c)) }
+func (c *checkpointFlags) Set(v string) error {
+	cp, err := audit.ParseCheckpoint(v)
+	if err != nil {
+		return err
+	}
+	*c = append(*c, cp)
+	return nil
+}
+
+// auditCmd verifies an audit log's hash chain, optionally against checkpoints
+// copied from the journal ("audit checkpoint ... seq=N hash=H" lines).
+func auditCmd(args []string, stdout io.Writer) error {
+	if len(args) == 0 || args[0] != "verify" {
+		return errors.New("usage: hlctl audit verify --file PATH [--checkpoint SEQ:HASH]...")
+	}
+	fs := flag.NewFlagSet("audit verify", flag.ContinueOnError)
+	file := fs.String("file", "", "audit log (e.g. /var/log/homelab-control-broker/broker-audit.jsonl)")
+	var cps checkpointFlags
+	fs.Var(&cps, "checkpoint", "SEQ:HASH from a journal checkpoint line (repeatable)")
+	if err := fs.Parse(args[1:]); err != nil {
+		return err
+	}
+	if *file == "" {
+		return errors.New("--file is required")
+	}
+	f, err := os.Open(*file)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	rep := audit.Verify(f, cps...)
+	fmt.Fprintf(stdout, "records %d (legacy %d), segments %d, head seq=%d hash=%s\n", rep.Records, rep.Legacy, rep.Segments, rep.HeadSeq, rep.HeadHash)
+	for _, w := range rep.Warnings {
+		fmt.Fprintln(stdout, "WARN ", w)
+	}
+	for _, p := range rep.Problems {
+		fmt.Fprintln(stdout, "FAIL ", p)
+	}
+	if len(cps) == 0 {
+		fmt.Fprintln(stdout, "note: without --checkpoint a truncated tail or a rolled-back file cannot be detected")
+	}
+	if !rep.OK() {
+		return fmt.Errorf("audit log verification failed (%d problems)", len(rep.Problems))
+	}
+	fmt.Fprintln(stdout, "OK: chain verified")
 	return nil
 }

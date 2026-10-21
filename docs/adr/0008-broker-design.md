@@ -81,3 +81,39 @@ Measured privilege needs (Ubuntu 22.04/24.04, systemd 249/255):
 - Harder: each new capability needs an op, a scope, tests and review.
 - Revisit in M2: write-op confirmation tokens, operation locks, persistent job state, and whether D-Bus
   replaces `systemctl` parsing.
+
+## Amendment 1 (2026-10-21, M2 PR-1b): first argument-taking operation
+
+Authorized by the owner as part of M2 PR-1 ("read-only `services.unit.logs` broker operation").
+`services.unit.logs` is the first operation that accepts arguments, so this amendment narrows the
+M1 rule "no args accepted" and replaces it with the following rules. Every future argument-taking
+operation must meet them.
+
+- **Strict typed arguments.** Arguments are strictly decoded into a typed struct (`{unit, lines}`).
+  Unknown fields, wrong types, trailing data and non-objects are rejected.
+- **Validated twice.** Values are checked against a conservative grammar: unit names match
+  `^[A-Za-z0-9][A-Za-z0-9:_.@-]{0,99}\.(service|socket|timer|mount|automount|path|target|swap)$`,
+  and `lines` is 1–500. `hc-api` checks first and returns 400; the broker checks again because it
+  does not trust `hc-api`.
+- **Re-checked against the system.** A unit must also appear in `systemctl list-units` at the time
+  of the call. Free-form names never reach `journalctl`.
+- **Fixed argv.** Only validated values are passed, embedded in `--unit=NAME` and `--lines=N`, never
+  as standalone arguments. The runner's argument checks still apply.
+- **Least privilege for the child.** `journalctl` is the only new allow-listed binary. It runs as
+  `homelab-control` with one supplementary group, `systemd-journal`. `RunWithGroups` refuses gid 0,
+  and the broker's capabilities are unchanged (`CAP_SETUID`, `CAP_SETGID`). As a result, the
+  web-tier user gains read access to the system journal **only through this operation, for listed
+  units, and only for callers with the `services.logs` scope**. `hc-api` itself is not added to the
+  group.
+- **Bounded output.** Messages are capped at 4 KiB each and 1 MiB in total (oldest dropped first).
+  Control characters are stripped, and non-UTF-8 data is replaced.
+- **Audited without content.** The broker audit record carries the validated `unit=` and `lines=`,
+  or `invalid args`; it never contains raw input or log content. A result is released only after
+  its audit record has been written (fail closed). See `docs/security/AUDIT-LOG.md`.
+- **Scope.** The scope is `services.logs`, which follows the D-7 convention `<module>.<level>`. It
+  is not in `DefaultScopes`, so existing accounts do not gain it on upgrade.
+
+The trust assumption above still holds. A compromised `hc-api` can read journal entries of any
+listed unit, up to 500 lines per call. Journals can contain sensitive application output, which is
+why this is a separate scope. The operation remains read-only and does not touch the write-safety
+design that M2 still has to deliver.

@@ -3,9 +3,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useMemo, useState } from 'react';
-import { getServices, type Unit } from '../api';
+import { getServices, type Capability, type Unit } from '../api';
 import { StateDot } from '../ui';
 import { explain, useData } from '../useData';
+import { UnitLogsPanel } from './UnitLogsPanel';
 
 type Filter = 'all' | 'running' | 'failed' | 'inactive';
 
@@ -36,12 +37,20 @@ function tone(u: Unit): 'ok' | 'warn' | 'crit' | 'idle' {
   return 'idle';
 }
 
-export function Services({ onUnauthorized }: { onUnauthorized: () => void }) {
+export function Services({
+  onUnauthorized,
+  logs,
+}: {
+  onUnauthorized: () => void;
+  logs?: Capability | undefined;
+}) {
   const { data, error } = useData(getServices, { intervalMs: 15_000, onUnauthorized });
   const [filter, setFilter] = useState<Filter>('all');
   const [type, setType] = useState('service');
   const [q, setQ] = useState('');
   const [showMissing, setShowMissing] = useState(false);
+  const [logUnit, setLogUnit] = useState<string | null>(null);
+  const logsUsable = logs?.status === 'available' || logs?.status === 'degraded';
 
   const types = useMemo(() => [...new Set((data?.units ?? []).map((u) => u.type))].sort(), [data]);
   const shown = useMemo(() => {
@@ -75,8 +84,8 @@ export function Services({ onUnauthorized }: { onUnauthorized: () => void }) {
         <h1 className="page-title">Services</h1>
         <p className="page-sub">
           {data.units.length} units, {running} active, {failed.length} failed
-          {data.systemd_version ? `. ${data.systemd_version}` : ''}. Read-only: starting, stopping and
-          enabling units is not available yet.
+          {data.systemd_version ? `. ${data.systemd_version}` : ''}. Read-only: you can read a unit’s recent
+          logs; starting, stopping and enabling units is not available yet.
         </p>
       </header>
 
@@ -153,6 +162,11 @@ export function Services({ onUnauthorized }: { onUnauthorized: () => void }) {
                 <th scope="col">State</th>
                 <th scope="col">At boot</th>
                 <th scope="col">Description</th>
+                {logsUsable && (
+                  <th scope="col">
+                    <span className="visually-hidden">Logs</span>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -166,6 +180,21 @@ export function Services({ onUnauthorized }: { onUnauthorized: () => void }) {
                   </td>
                   <td>{u.unit_file_state ?? '—'}</td>
                   <td className="muted">{u.description}</td>
+                  {logsUsable && (
+                    <td>
+                      {u.load !== 'not-found' && (
+                        <button
+                          type="button"
+                          className="ghost small"
+                          aria-label={`Show logs for ${u.name}`}
+                          aria-pressed={logUnit === u.name}
+                          onClick={() => setLogUnit(u.name)}
+                        >
+                          Logs
+                        </button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -179,7 +208,21 @@ export function Services({ onUnauthorized }: { onUnauthorized: () => void }) {
             <code>{data.source}</code>, via the privileged helper.
           </p>
         </details>
+        {logs && !logsUsable && (
+          <p className="footnote" role="note">
+            Service logs: {logs.reason}
+          </p>
+        )}
       </section>
+
+      {logsUsable && logUnit && (
+        <UnitLogsPanel
+          key={logUnit}
+          unit={logUnit}
+          onClose={() => setLogUnit(null)}
+          onUnauthorized={onUnauthorized}
+        />
+      )}
     </div>
   );
 }

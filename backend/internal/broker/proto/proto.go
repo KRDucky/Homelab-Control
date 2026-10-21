@@ -57,6 +57,7 @@ func (e *Error) Error() string { return e.Code + ": " + e.Message }
 const (
 	CodeBadRequest  = "bad_request"
 	CodeUnknownOp   = "unknown_op"
+	CodeNotFound    = "not_found"
 	CodeForbidden   = "forbidden"
 	CodeUnavailable = "unavailable"
 	CodeTimeout     = "timeout"
