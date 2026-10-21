@@ -6,11 +6,13 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"homelab-control/backend/internal/audit"
 	"homelab-control/backend/internal/auth"
 )
 
@@ -46,5 +48,67 @@ func TestUserLifecycle(t *testing.T) {
 	out.Reset()
 	if err := run([]string{"user", "list", "--file", p}, nil, &out); err != nil || !strings.Contains(out.String(), "admin\tdisabled") {
 		t.Fatalf("%v %q", err, out.String())
+	}
+}
+
+func TestUserScopes(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "users.json")
+	var out bytes.Buffer
+	if err := run([]string{"user", "add", "--file", p, "--username", "admin"}, strings.NewReader("a-long-enough-password\n"), &out); err != nil {
+		t.Fatal(err)
+	}
+	if err := run([]string{"user", "scopes", "--file", p, "--username", "admin"}, nil, &out); err == nil {
+		t.Fatal("scopes without --scopes accepted")
+	}
+	if err := run([]string{"user", "scopes", "--file", p, "--username", "admin", "--scopes", "system.read,storage.execute"}, nil, &out); err == nil {
+		t.Fatal("unknown scope accepted")
+	}
+	if err := run([]string{"user", "scopes", "--file", p, "--username", "nobody", "--scopes", "system.read"}, nil, &out); err == nil {
+		t.Fatal("unknown user accepted")
+	}
+	if err := run([]string{"user", "scopes", "--file", p, "--username", "admin", "--scopes", "system.read,services.read,services.logs"}, nil, &out); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	if err := run([]string{"user", "list", "--file", p}, nil, &out); err != nil || !strings.Contains(out.String(), "admin\tenabled\tsystem.read,services.read,services.logs") {
+		t.Fatalf("%v %q", err, out.String())
+	}
+}
+
+func TestAuditVerify(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "a.jsonl")
+	l, err := audit.Open(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 5; i++ {
+		if err := l.Log(audit.Event{Event: "services.unit.logs", Outcome: "ok"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	seq, hash := l.Head()
+	l.Close()
+	cp := fmt.Sprintf("%d:%s", seq, hash)
+	var out bytes.Buffer
+	if err := run([]string{"audit", "verify", "--file", p, "--checkpoint", cp}, nil, &out); err != nil || !strings.Contains(out.String(), "OK: chain verified") {
+		t.Fatalf("%v\n%s", err, out.String())
+	}
+	b, _ := os.ReadFile(p)
+	lines := strings.SplitAfter(strings.TrimSuffix(string(b), "\n"), "\n")
+	if err := os.WriteFile(p, []byte(strings.Join(lines[:len(lines)-1], "")), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	if err := run([]string{"audit", "verify", "--file", p}, nil, &out); err != nil || !strings.Contains(out.String(), "cannot be detected") {
+		t.Fatalf("clean truncation without checkpoint should pass with a note: %v\n%s", err, out.String())
+	}
+	out.Reset()
+	if err := run([]string{"audit", "verify", "--file", p, "--checkpoint", cp}, nil, &out); err == nil || !strings.Contains(out.String(), "truncated") {
+		t.Fatalf("truncation not detected with checkpoint: %v\n%s", err, out.String())
+	}
+	for _, bad := range []string{"x", "0:" + hash, "1:zz"} {
+		if err := run([]string{"audit", "verify", "--file", p, "--checkpoint", bad}, nil, &out); err == nil {
+			t.Errorf("checkpoint %q accepted", bad)
+		}
 	}
 }

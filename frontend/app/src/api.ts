@@ -122,7 +122,7 @@ export function getOverview(): Promise<Overview> {
 export type CapabilityStatus = 'available' | 'degraded' | 'unavailable' | 'unsupported' | 'forbidden';
 
 export interface Capability {
-  id: 'overview' | 'services' | 'hardware' | 'legacy';
+  id: 'overview' | 'services' | 'service_logs' | 'hardware' | 'legacy';
   label: string;
   path: string;
   scope: string;
@@ -152,6 +152,30 @@ export interface UnitList {
   counts: Record<string, number>;
   truncated: boolean;
   source: string;
+}
+
+export interface LogEntry {
+  time?: string;
+  priority?: number;
+  pid?: number;
+  identifier?: string;
+  message: string;
+  truncated?: boolean;
+}
+
+export interface UnitLogs {
+  unit: string;
+  requested: number;
+  entries: LogEntry[];
+  truncated: boolean;
+  skipped?: number;
+  source: string;
+}
+
+export function getUnitLogs(unit: string, lines: number): Promise<UnitLogs> {
+  return request<UnitLogs>(
+    `/api/v1/services/units/${encodeURIComponent(unit)}/logs?lines=${encodeURIComponent(String(lines))}`,
+  );
 }
 
 export interface HwMeta {

@@ -1,4 +1,4 @@
-# Current status — Phase 1 release complete; M2 planning (updated 2026-10-21)
+# Current status — Phase 1 release complete; M2 PR-1 in progress (updated 2026-10-21)
 
 ## Merged work
 - PR #5 (licence compliance, Webmin independence, UI plan): merged 2026-10-19 as `bc7205e3`; 20/20 checks
@@ -12,12 +12,21 @@
 - PR #10 (release closeout; v0.1.0-dev.1 published and verified; LA-13 closed for Phase 1): merged
   2026-10-21 as `31f39778`; main CI run 39570975685 20/20.
 
-## M2 planning (2026-10-21; planning only)
-- `docs/m2/` holds the readiness assessment, roadmap, security acceptance checklist, owner decision
-  register, module architecture (including the Physical Drive Layout Designer) and the capability matrix.
-- **First implementation PR proposed** (`docs/m2/M2-PR1-PROPOSAL.md`): durable state, audit, sessions and
-  service logs. It contains no privileged write and awaits owner authorization plus decisions D-1, D-6 and D-7.
-- **Not authorized:** M2 implementation, privileged writes.
+## M2 PR-1 (authorized 2026-10-21; D-1, D-6, D-7 approved)
+- PR #11 (planning) merged 2026-10-21 as `6e0f6218`. Its last commit (the D-1/D-6/D-7 record and the D-12
+  correction) missed the merge by a minute and is carried in PR-1b.
+- **PR-1b (branch `feature/m2-pr1-state-audit-sessions-logs`, open, awaiting owner review):**
+  - read-only `services.unit.logs` broker op (ADR 0008 Amendment 1), API
+    `GET /api/v1/services/units/{unit}/logs`, scope `services.logs` (not granted by default);
+  - logs panel on Services;
+  - hash-chained broker and API audit logs with journald checkpoints and `hlctl audit verify`
+    (tamper-evident only; `docs/security/AUDIT-LOG.md`);
+  - fail-closed audit for broker results and log reads; `hlctl user scopes`.
+- **PR-1a (next):** SQLite state (modernc.org/sqlite), persistent sessions with revocation, API audit in the
+  database, Audit and Sessions pages, upgrade test from v0.1.0-dev.1.
+- **Still not authorized:** privileged host writes, start/stop/restart, plan/confirm/execute, root command
+  execution, PAM/TOTP, storage configuration, Docker/VM management, theme engine, Webmin migration.
+  D-2…D-5 and D-12 pending.
 
 ## CI (`.github/workflows/ci.yml`, 20 jobs)
 - **Triggers:** push to `main`, every pull request, and a **manual run** (Actions tab → *ci* →
@@ -62,7 +71,7 @@
 ## Working (read-only), verified — evidence in `docs/evidence/m1/README.md`
 - **hc-api** (unprivileged): sessions/CSRF/RBAC from M0; new scopes `services.read`, `hardware.read`;
   `/capabilities`, `/services`, `/hardware`, `/legacy/webmin`.
-- **hc-broker** (root, socket-activated): peer-uid allow-list, strict framing, four read-only argument-free
+- **hc-broker** (root, socket-activated; M2 PR-1b adds a fifth, argument-taking read-only op, `services.unit.logs`): peer-uid allow-list, strict framing, four read-only argument-free
   ops (`broker.info`, `legacy.webmin.status`, `hardware.dmi.identity`, `services.systemd.list`); only
   `internal/broker/runner` executes programs, as `homelab-control`; capabilities limited to CAP_SETUID|CAP_SETGID.
 - **UI**: capability-aware navigation; Services, Hardware, Legacy Webmin pages; degrades when broker is down.

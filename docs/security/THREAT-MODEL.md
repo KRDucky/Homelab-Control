@@ -74,6 +74,17 @@ locking before they may exist.
 Webmin usernames with RPC capability (scope `system.read`), the full systemd unit list (scope
 `services.read`). These are read-only but identifying; grant scopes accordingly.
 
+## M2 PR-1b additions: service logs and hash-chained audit
+
+| Threat | Example | Control | Status |
+|---|---|---|---|
+| Elevation of privilege | Option or argument injection through a unit name (`--output=…`, `$(id)`, `../`) | Grammar validated in `hc-api` and in the broker; the unit must be listed by systemd; values only inside `--unit=`/`--lines=`; strict argument decoding; fuzzed (`FuzzLogsArgs`) | Implemented, tested |
+| Elevation of privilege | journal reader runs with more privilege than needed | `journalctl` as `homelab-control` plus `systemd-journal` only; gid 0 refused; binary allow-listed | Implemented, tested (unit); verified under real systemd in CI |
+| Information disclosure | Journal entries contain secrets printed by services | Separate `services.logs` scope, not granted by default or on upgrade; capped output; the content is never written to audit logs | Implemented, tested |
+| Information disclosure / XSS | Log messages containing HTML or terminal escapes | Control characters stripped server-side; rendered as React text, never as markup (Vitest asserts no element is created) | Implemented, tested |
+| Denial of service | Huge or numerous log requests | ≤500 lines, 4 KiB per message, 1 MiB total, 15 s op timeout, broker concurrency limit | Implemented, tested |
+| Repudiation / tampering | Audit records edited, reordered, deleted or truncated | SHA-256 hash chain with sequence numbers; checkpoints in journald; `hlctl audit verify`; fail-closed audit for broker results and log reads | Implemented, tested. **Tamper-evident only**: see the limits in `docs/security/AUDIT-LOG.md` (root can rewrite both the file and the journal) |
+
 ## Residual risks after M1
 1. The legacy Webmin UI at 2.670 still lacks post-2.670 upstream fixes (`docs/upstream/SYNC.md`).
 2. `systemctl` JSON output is not a stable API; parsers are tolerant and tested against systemd 249/255 only.

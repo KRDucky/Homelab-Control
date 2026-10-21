@@ -101,6 +101,7 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/host/overview", auth.ScopeSystemRead, s.handleOverview)
 	s.handle("GET /api/v1/capabilities", sessionOnly, s.handleCapabilities)
 	s.handle("GET /api/v1/services", auth.ScopeServicesRead, s.handleServices)
+	s.handle("GET /api/v1/services/units/{unit}/logs", auth.ScopeServicesLogs, s.handleUnitLogs)
 	s.handle("GET /api/v1/hardware", auth.ScopeHardwareRead, s.handleHardware)
 	s.handle("GET /api/v1/legacy/webmin", auth.ScopeSystemRead, s.handleLegacy)
 	s.mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
@@ -225,11 +226,11 @@ func remoteIP(r *http.Request) string {
 	return host
 }
 
-func (s *Server) auditLog(event, user string, r *http.Request, outcome, detail string) {
+func (s *Server) auditLog(event, user string, r *http.Request, outcome, detail string) error {
 	if s.audit == nil {
-		return
+		return nil
 	}
-	_ = s.audit.Log(audit.Event{Event: event, User: user, Remote: remoteIP(r), Outcome: outcome, Detail: detail})
+	return s.audit.Log(audit.Event{Event: event, User: user, Remote: remoteIP(r), Outcome: outcome, Detail: detail})
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request, _ *auth.Session, _ string) {

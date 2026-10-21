@@ -85,6 +85,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("audit log: %v", err)
 	}
+	// Checkpoints go to the journal (stderr); see docs/security/AUDIT-LOG.md.
+	al.Checkpoint = func(seq uint64, hash string) {
+		log.Printf("audit checkpoint log=%s seq=%d hash=%s", *auditFile, seq, hash)
+	}
+	al.EmitCheckpoint()
 	defer al.Close()
 
 	var extra []string

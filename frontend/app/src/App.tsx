@@ -127,12 +127,16 @@ export function App() {
   }
 
   const capList = caps?.capabilities ?? [];
+  // Several capabilities can share a page (service logs live on /services);
+  // the navigation shows one entry per page.
+  const pages = capList.filter((c, i) => capList.findIndex((x) => x.path === c.path) === i);
+  const logsCap = capList.find((c) => c.id === 'service_logs');
   const route = capList.find((c) => c.path === path) ?? capList.find((c) => c.path === '/');
   const routeUsable = route && (route.status === 'available' || route.status === 'degraded');
 
   let page = <p className="muted">Loading…</p>;
   if (route && !routeUsable) page = <Unavailable cap={route} />;
-  else if (route?.id === 'services') page = <Services onUnauthorized={signedOut} />;
+  else if (route?.id === 'services') page = <Services onUnauthorized={signedOut} logs={logsCap} />;
   else if (route?.id === 'hardware') page = <Hardware onUnauthorized={signedOut} />;
   else if (route?.id === 'legacy')
     page = <Legacy legacyUrl={session.legacy_url} onUnauthorized={signedOut} />;
@@ -146,7 +150,7 @@ export function App() {
       <nav className="rail" aria-label="Main">
         <span className="brand-mark small">Homelab Control</span>
         <ul>
-          {capList.map((c) => (
+          {pages.map((c) => (
             <NavItem key={c.id} cap={c} current={route?.id === c.id} />
           ))}
         </ul>
