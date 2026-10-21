@@ -73,11 +73,15 @@ requires each to fail verification.
 4. When it succeeds, open the draft linked in the run summary (*Releases* shows drafts to writers).
    Check: title `UNSIGNED DEVELOPMENT BUILD v…`, *Set as a pre-release* ticked, the notes, the commit,
    the 11 files.
+   Check that the draft's tag reads `vX.Y.Z-…`, not `untagged-…` (see §5), and that its target is the
+   commit from the run's preflight notice.
 5. **Publish by hand** (*Edit* → *Publish release*). This creates the tag. Keep *Set as a pre-release*.
 6. **Verify the published release (R11)**: download all files; `sha256sum -c SHA256SUMS`; rebuild from
    the source archive per `BUILDING.md` with the toolchain in `RELEASE-BUILDINFO` and compare the
    binaries; run `scripts/package-inventory.sh` on the three packages. Record the result in
    `docs/STATUS.md`. Only then can LA-13 be closed for Phase 1.
+   Build the `.rpm` on a host without a `homelab-control` group (see `BUILDING.md`). First done for
+   v0.1.0-dev.1 on 2026-10-21 (LA-13 closed).
 
 ## 5. Failures and recovery
 Nothing is ever published by a failed run. What can be left behind, and what to do:
@@ -86,6 +90,7 @@ Nothing is ever published by a failed run. What can be left behind, and what to 
 |---|---|---|
 | Fails in `preflight`, `gate` or `build` | Nothing on GitHub (workflow artifacts only) | Fix the cause, run again with the same version |
 | Version, tag, release or draft already exists | Nothing new | Choose the next version (`-dev.N+1`), or delete the old **draft** yourself if it is unwanted |
+| The draft's tag reads `untagged-…` (first release only: the retitling step did not resend the tag name, fixed afterwards) | A complete draft with the wrong tag | When publishing: *Choose a tag* → type `vX.Y.Z-…` → *Create new tag on publish*; target = the commit from the preflight notice |
 | `draft` fails or is interrupted after creating the draft (upload error, mismatch, cancelled, runner lost) | A **draft** titled `[INCOMPLETE - do not publish] …` | Do **not** publish it. Delete the draft by hand (*Releases* → draft → delete), then run again with the same version, or use a new version. The workflow never deletes it for you |
 | Insufficient permissions (e.g. Actions token read-only by organisation policy) | Nothing, or an INCOMPLETE draft if it failed during upload | Allow `contents: write` for workflows in repository settings, delete any INCOMPLETE draft, run again |
 | Environment approval rejected or timed out | Nothing (draft job did not run) | Run again |
