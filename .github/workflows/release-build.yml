@@ -1,0 +1,221 @@
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+# Builds and verifies a complete release candidate (ADR 0009 Phase 1, docs/release/RELEASING.md).
+# Reusable workflow, called by:
+#   - ci.yml       (mode: dry-run, every PR and push to main; version 0.0.0-dryrun.<commit>)
+#   - release.yml  (mode: release, manual; its draft job is the ONLY place a GitHub release is created)
+# This workflow never publishes, tags or uploads to a release: callers give it read-only permissions.
+#
+#   build (a, b)   release-bundle.sh on two independent runners with the exact toolchain pins: source
+#                  archive, binaries and .deb/.rpm built only from the archive and compared with a git build
+#   arch (a, b)    Arch package built from that source archive in a fresh Arch container
+#   verify         run a == run b byte for byte; assemble the candidate; verify every mandatory
+#                  deliverable (fail closed); negative tests; version ordering; release notes
+#
+# Actions are pinned by commit SHA (same pins as ci.yml; tests/release/test_workflow_policy.py checks).
+name: release-build
+
+on:
+  workflow_call:
+    inputs:
+      mode:
+        description: "dry-run or release"
+        required: true
+        type: string
+      version:
+        description: "release mode: X.Y.Z-dev.N or X.Y.Z-rc.N (validated); ignored in dry-run mode"
+        required: false
+        type: string
+        default: ''
+      commit:
+        description: "full commit SHA to build"
+        required: true
+        type: string
+      ci-run-url:
+        description: "release mode: URL of the successful ci run on main for this commit"
+        required: false
+        type: string
+        default: ''
+      retention-days:
+        required: false
+        type: number
+        default: 7
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build (${{ matrix.run }})
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        run: [a, b]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Resolve version and toolchain pins
+        id: pins
+        env:
+          MODE: ${{ inputs.mode }}
+          VERSION_IN: ${{ inputs.version }}
+          COMMIT: ${{ inputs.commit }}
+        run: |
+          set -euo pipefail
+          [ "$(git rev-parse HEAD)" = "$COMMIT" ] || { echo "::error::checked-out HEAD is not $COMMIT"; exit 1; }
+          case "$MODE" in
+            dry-run) ver="0.0.0-dryrun.${COMMIT::8}" ;;
+            release) ver="$VERSION_IN" ;;
+            *) echo "::error::unknown mode $MODE"; exit 1 ;;
+          esac
+          python3 -I scripts/release-tool.py version "$ver" --mode "$MODE" >/dev/null
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          python3 -I scripts/release-tool.py toolchain packaging/release/toolchain.env >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ steps.pins.outputs.go }}
+          cache: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ steps.pins.outputs.node }}
+          # No dependency cache: release builds come from the lockfile, never from a restored cache.
+          package-manager-cache: false
+      - name: Toolchain must equal the pins (R6)
+        run: python3 -I scripts/release-tool.py check-toolchain packaging/release/toolchain.env
+      - name: Tools
+        run: sudo apt-get update && sudo apt-get install -y rpm
+      - name: Build from the source archive, compare with git (nothing is published)
+        env:
+          VERSION: ${{ steps.pins.outputs.version }}
+        run: scripts/release-bundle.sh "$VERSION" dist/release
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-run-${{ matrix.run }}
+          path: dist/release
+          retention-days: ${{ inputs.retention-days }}
+          if-no-files-found: error
+
+  # Arch package built from the matching source archive (packaging files from the archive, binaries
+  # from the archive build), in a fresh Arch container per run.
+  arch:
+    name: arch (${{ matrix.run }})
+    needs: build
+    runs-on: ubuntu-24.04
+    container: archlinux:latest
+    strategy:
+      matrix:
+        run: [a, b]
+    steps:
+      - name: Build tools
+        run: pacman -Syu --noconfirm --needed base-devel
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-run-${{ matrix.run }}
+          path: rel
+      - name: makepkg from the source archive (as unprivileged builder)
+        run: |
+          set -euo pipefail
+          sde=$(sed -n 's/^source_date_epoch=//p' rel/RELEASE-BUILDINFO)
+          ver=$(sed -n 's/^version=//p' rel/RELEASE-BUILDINFO)
+          mkdir -p x && tar -xzf rel/homelab-control-*-source.tar.gz -C x
+          src=$(echo x/homelab-control-*)
+          mkdir -p "$src/build" && tar -xzf rel/homelab-control-*-linux-amd64.tar.gz -C "$src/build" --strip-components=1
+          useradd -m builder && chown -R builder x
+          su builder -c "cd '$src' && SOURCE_DATE_EPOCH=$sde packaging/arch/build-pkg.sh '$ver'"
+          "$src/scripts/package-inventory.sh" "$src"/build/*.pkg.tar.zst >/dev/null
+          mkdir -p out && cp "$src"/build/*.pkg.tar.zst out/ && (cd out && sha256sum -- *.pkg.tar.zst | tee SHA256SUMS)
+      - name: Prerelease versions sort before the release (pacman vercmp)
+        run: |
+          for t in x/homelab-control-*/tests/release/version-order-test.sh; do "$t" --require arch; done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-arch-${{ matrix.run }}
+          path: out
+          retention-days: ${{ inputs.retention-days }}
+          if-no-files-found: error
+
+  verify:
+    needs: [build, arch]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.commit }}
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-*-[ab]
+          path: r
+      - name: Run a and run b must be identical (reproducibility)
+        run: |
+          set -euo pipefail
+          for k in release-run release-arch; do
+            echo "== $k"; cat "r/$k-a/SHA256SUMS"
+            if ! diff -u "r/$k-a/SHA256SUMS" "r/$k-b/SHA256SUMS"; then
+              echo "::error title=release reproducibility::$k differs between independent runs"; exit 1
+            fi
+          done
+          n=$(cat r/release-run-a/SHA256SUMS r/release-arch-a/SHA256SUMS | wc -l)
+          echo "::notice title=release reproducibility::all $n release files identical across two independent runners ($(cut -c1-12 r/release-arch-a/SHA256SUMS | tr '\n' ' ')arch)"
+      - name: Tools
+        run: |
+          sudo apt-get update && sudo apt-get install -y rpm zstd
+          python3 -m venv /tmp/spdx && /tmp/spdx/bin/pip install -q spdx-tools==0.8.3  # same pin as ci.yml
+          echo /tmp/spdx/bin >> "$GITHUB_PATH"
+      - name: Assemble the candidate (run a + Arch package, asset-safe names, SHA256SUMS)
+        id: cand
+        env:
+          COMMIT: ${{ inputs.commit }}
+        run: |
+          set -euo pipefail
+          ver=$(sed -n 's/^version=//p' r/release-run-a/RELEASE-BUILDINFO)
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          python3 -I scripts/release-tool.py assemble --run r/release-run-a --arch r/release-arch-a --out dist/candidate --version "$ver"
+      - name: Verify every mandatory deliverable (fail closed)
+        env:
+          MODE: ${{ inputs.mode }}
+          VERSION: ${{ steps.cand.outputs.version }}
+          COMMIT: ${{ inputs.commit }}
+        run: |
+          python3 -I scripts/release-tool.py verify --dir dist/candidate --version "$VERSION" --commit "$COMMIT" \
+            --toolchain packaging/release/toolchain.env --mode "$MODE" --require-tools
+      - name: Negative tests (mutated copies of the candidate must fail verification)
+        env:
+          VERSION: ${{ steps.cand.outputs.version }}
+          COMMIT: ${{ inputs.commit }}
+        run: tests/release/negative-tests.sh dist/candidate "$VERSION" "$COMMIT" --require-tools
+      - name: Prerelease versions sort before the release (dpkg, rpm)
+        run: tests/release/version-order-test.sh --require deb,rpm
+      - name: Release notes (UNSIGNED DEVELOPMENT BUILD)
+        env:
+          VERSION: ${{ steps.cand.outputs.version }}
+          COMMIT: ${{ inputs.commit }}
+          CI_RUN_URL: ${{ inputs.ci-run-url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist/notes
+          python3 -I scripts/release-tool.py notes --dir dist/candidate --version "$VERSION" --commit "$COMMIT" \
+            --repo "$REPO_URL" --run-url "$RUN_URL" --ci-run-url "$CI_RUN_URL" \
+            --template packaging/release/RELEASE-NOTES.template.md --out dist/notes/RELEASE-NOTES.md
+          head -n 3 dist/notes/RELEASE-NOTES.md
+          { echo "## Release candidate $VERSION ($COMMIT)"; echo; echo '```'; cat dist/candidate/SHA256SUMS; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=release candidate::$VERSION verified: $(wc -l < dist/candidate/SHA256SUMS) files, SHA256SUMS sha256 $(sha256sum dist/candidate/SHA256SUMS | cut -c1-16)"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-candidate
+          path: dist/candidate
+          retention-days: ${{ inputs.retention-days }}
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-notes
+          path: dist/notes
+          retention-days: ${{ inputs.retention-days }}
+          if-no-files-found: error

@@ -92,4 +92,12 @@ dry run and reproducibility comparison. It needs a branch that contains this tri
 it appears once merged). The token is read-only and nothing is published.
 
 Actions are official `actions/*` releases pinned by commit SHA (ADR 0006); update them by changing the SHA
-and the tag comment together after reading the release notes.
+and the tag comment together after reading the release notes. `release.yml` and `release-build.yml` must use
+the same SHAs (`tests/release/test_workflow_policy.py` fails otherwise).
+
+The release dry run (`release-dry-run`) calls the reusable `.github/workflows/release-build.yml`, the same
+workflow the manual **release** workflow uses, with the exact toolchain in
+`packaging/release/toolchain.env`. Changing a pin there is a reviewed change: the dry run on that PR shows
+whether the new toolchain still reproduces. `make test-release` runs the release tooling unit tests, the
+workflow policy tests (PyYAML needed; skipped locally without it) and the package version-ordering checks.
+Releasing is documented in `docs/release/RELEASING.md`.

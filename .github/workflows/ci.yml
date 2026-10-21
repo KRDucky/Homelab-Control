@@ -57,6 +57,8 @@ jobs:
         run: make test-go
       - name: Frontend tests
         run: make test-frontend
+      - name: Release tooling + workflow policy tests
+        run: make test-release
       - name: Security gate
         run: make security
       - name: Reproducible build check
@@ -86,97 +88,18 @@ jobs:
             build/*.inventory.txt
             build/*.lintian.txt
 
-  # LA-13 / owner item 10: assembles the complete release (corresponding-source archive with the npm
-  # sources of everything compiled in, binaries, packages, notices, SBOM, SHA256SUMS), builds binaries
-  # and .deb/.rpm only from that archive and requires them to match a build from git. Runs twice on
-  # independent runners (a, b); release-repro compares the two. Publishes nothing: this workflow has
-  # read-only permissions, and there is no release/tag workflow (ADR 0009 prerequisites).
+  # LA-13 / ADR 0009: the complete release pipeline as a dry run on every PR and push, with the exact
+  # release toolchain (packaging/release/toolchain.env): corresponding-source archive (with the npm
+  # sources of everything compiled in), binaries and .deb/.rpm built only from that archive and matched
+  # against a git build, the Arch package from the archive, two independent runs compared byte for byte,
+  # then the assembled candidate verified (SBOM, notices, checksums, no Webmin, package payloads) with
+  # negative tests. Same reusable workflow as release.yml; here it is read-only and publishes nothing.
   release-dry-run:
     needs: check
-    runs-on: ubuntu-24.04
-    strategy:
-      matrix:
-        run: [a, b]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: '1.26.x'
-          cache: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: '22'
-          # No dependency cache: builds must come from the lockfile, never from a restored cache
-          # (the release dry run in particular).
-          package-manager-cache: false
-      - name: Tools
-        run: sudo apt-get update && sudo apt-get install -y rpm
-      - name: Release dry run (nothing is published)
-        run: scripts/release-bundle.sh "0.0.0~dryrun.${GITHUB_SHA::8}" dist/release
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: release-dry-run-${{ matrix.run }}
-          path: dist/release
-          retention-days: 7
-
-  # Arch package built from the matching source archive (packaging files from the archive, binaries
-  # from the archive build), in a fresh Arch container per run.
-  release-dry-run-arch:
-    needs: release-dry-run
-    runs-on: ubuntu-24.04
-    container: archlinux:latest
-    strategy:
-      matrix:
-        run: [a, b]
-    steps:
-      - name: Build tools
-        run: pacman -Syu --noconfirm --needed base-devel
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: release-dry-run-${{ matrix.run }}
-          path: rel
-      - name: makepkg from the source archive (as unprivileged builder)
-        run: |
-          set -euo pipefail
-          sde=$(sed -n 's/^source_date_epoch=//p' rel/RELEASE-BUILDINFO)
-          ver=$(sed -n 's/^version=//p' rel/RELEASE-BUILDINFO)
-          mkdir -p x && tar -xzf rel/homelab-control-*-source.tar.gz -C x
-          src=$(echo x/homelab-control-*)
-          mkdir -p "$src/build" && tar -xzf rel/homelab-control-*-linux-amd64.tar.gz -C "$src/build" --strip-components=1
-          useradd -m builder && chown -R builder x
-          su builder -c "cd '$src' && SOURCE_DATE_EPOCH=$sde packaging/arch/build-pkg.sh '$ver'"
-          scripts=$src/scripts; "$scripts/package-inventory.sh" "$src"/build/*.pkg.tar.zst >/dev/null
-          mkdir -p out && cp "$src"/build/*.pkg.tar.zst out/ && (cd out && sha256sum -- *.pkg.tar.zst | tee SHA256SUMS)
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: release-dry-run-arch-${{ matrix.run }}
-          path: out
-          retention-days: 7
-
-  # Compares the complete dry-run outputs of the two independent runs (source archive, binaries
-  # tarball, .deb, .rpm, Arch package, SBOM, notices) byte for byte.
-  release-repro:
-    needs: [release-dry-run, release-dry-run-arch]
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          pattern: release-dry-run-*
-          path: r
-      - name: Compare run a with run b
-        run: |
-          set -euo pipefail
-          for k in release-dry-run release-dry-run-arch; do
-            echo "== $k"; cat "r/$k-a/SHA256SUMS"
-            if ! diff -u "r/$k-a/SHA256SUMS" "r/$k-b/SHA256SUMS"; then
-              echo "::error title=release reproducibility::$k differs between independent runs"; exit 1
-            fi
-          done
-          n=$(cat r/release-dry-run-a/SHA256SUMS r/release-dry-run-arch-a/SHA256SUMS | wc -l)
-          echo "::notice title=release reproducibility::all $n release files identical across two independent runners ($(cut -c1-12 r/release-dry-run-arch-a/SHA256SUMS | tr '\n' ' ')arch)"
+    uses: ./.github/workflows/release-build.yml
+    with:
+      mode: dry-run
+      commit: ${{ github.sha }}
 
   arch-package:
     needs: check

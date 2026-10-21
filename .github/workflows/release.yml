@@ -1,0 +1,223 @@
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+# Phase 1 release workflow (ADR 0009, docs/release/RELEASING.md): prepares an UNSIGNED development
+# prerelease as a GitHub DRAFT for the owner to review and publish by hand.
+#
+#   Manual only (Actions -> release -> Run workflow, branch main, input: version X.Y.Z-dev.N / -rc.N).
+#   It NEVER publishes: the release stays a draft, and GitHub creates the tag vX.Y.Z-... only when the
+#   owner publishes it. No signing keys or secrets; only GITHUB_TOKEN, write access in one job only.
+#
+#   preflight  main only; version valid; tag and published release absent; ci green on main for the commit
+#   gate       make check (lint, Go/frontend tests, security gate incl. govulncheck, REUSE, SBOM, notices)
+#              with the exact release toolchain
+#   build      release-build.yml: two independent builds, Arch packages, byte-for-byte comparison,
+#              candidate verification, negative tests, release notes (read-only)
+#   draft      (contents: write) re-checks the candidate and that no release/draft/tag exists for the
+#              version, creates the draft marked INCOMPLETE, downloads every uploaded asset back and
+#              checks it against SHA256SUMS, then removes the INCOMPLETE marker. Never deletes or
+#              overwrites anything; a failure leaves at most a draft titled INCOMPLETE for the owner.
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Prerelease version without 'v': X.Y.Z-dev.N or X.Y.Z-rc.N (draft only; you publish by hand)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# One release operation at a time; a running one is never cancelled half-way.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read  # to find the ci run for this commit
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      tag: ${{ steps.check.outputs.tag }}
+      commit: ${{ steps.check.outputs.commit }}
+      ci_run_url: ${{ steps.check.outputs.ci_run_url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Version, tag, existing releases, CI status
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          VERSION: ${{ inputs.version }}
+          COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [ "$GITHUB_REF" = refs/heads/main ] || { echo "::error::run this workflow on main"; exit 1; }
+          tag=$(python3 -I scripts/release-tool.py version "$VERSION" --mode release)
+          # The tag must not exist (GitHub creates it when the owner publishes the draft).
+          refs=$(gh api "repos/$REPO/git/matching-refs/tags/$tag" --jq '.[].ref')
+          if grep -qxF "refs/tags/$tag" <<<"$refs"; then echo "::error::tag $tag already exists; choose a new version"; exit 1; fi
+          # No published release for the tag (drafts are checked again with write access in the draft job).
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" "$GITHUB_API_URL/repos/$REPO/releases/tags/$tag")
+          [ "$code" = 404 ] || { echo "::error::release lookup for $tag returned HTTP $code (expected 404 = no release)"; exit 1; }
+          # The full CI matrix (install tests on every distro, systemd, browser e2e) must have passed
+          # on main for exactly this commit.
+          ci=$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$COMMIT&branch=main&event=push&status=success&per_page=1" \
+            --jq '.workflow_runs[0].html_url // ""')
+          [ -n "$ci" ] || { echo "::error::no successful ci run on main for $COMMIT yet; wait for it (or re-run ci) and retry"; exit 1; }
+          { echo "version=$VERSION"; echo "tag=$tag"; echo "commit=$COMMIT"; echo "ci_run_url=$ci"; } >> "$GITHUB_OUTPUT"
+          echo "::notice title=release preflight::$tag from $COMMIT; ci: $ci"
+
+  gate:
+    needs: preflight
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.preflight.outputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Toolchain pins
+        id: pins
+        run: python3 -I scripts/release-tool.py toolchain packaging/release/toolchain.env >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ steps.pins.outputs.go }}
+          cache: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ steps.pins.outputs.node }}
+          package-manager-cache: false
+      - name: Tools (same pins as ci.yml)
+        run: |
+          python3 -I scripts/release-tool.py check-toolchain packaging/release/toolchain.env
+          sudo apt-get update && sudo apt-get install -y shellcheck rpm
+          go install golang.org/x/vuln/cmd/govulncheck@v1.9.0  # pinned (commit e672cbe8); needs Go >= 1.26.0
+          python3 -m venv /tmp/spdx && /tmp/spdx/bin/pip install -q spdx-tools==0.8.3 reuse==6.2.0
+          echo /tmp/spdx/bin >> "$GITHUB_PATH"
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: make check (lint, tests, security and licence gate with the release toolchain)
+        run: make check
+
+  build:
+    needs: [preflight, gate]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/release-build.yml
+    with:
+      mode: release
+      version: ${{ needs.preflight.outputs.version }}
+      commit: ${{ needs.preflight.outputs.commit }}
+      ci-run-url: ${{ needs.preflight.outputs.ci_run_url }}
+      retention-days: 30
+
+  draft:
+    needs: [preflight, build]
+    runs-on: ubuntu-24.04
+    # Protected environment (owner as required reviewer) where the plan offers it; optional (ADR 0009 R10).
+    environment: release
+    permissions:
+      contents: write  # the only job that can write: creates the DRAFT and its assets
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-candidate
+          path: candidate
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-notes
+          path: notes
+      - name: Re-check the candidate before upload
+        run: |
+          set -euo pipefail
+          cd candidate
+          sha256sum -c --strict SHA256SUMS
+          diff <(find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort) <(awk '{print $2}' SHA256SUMS | sort)
+          head -n 1 ../notes/RELEASE-NOTES.md | grep -q '^\*\*UNSIGNED DEVELOPMENT BUILD' \
+            || { echo "::error::release notes do not start with the UNSIGNED banner"; exit 1; }
+      - name: No release, draft or tag may exist for this version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ needs.preflight.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # With write access the list includes drafts. Nothing is ever deleted or overwritten here:
+          # an earlier draft for this version (e.g. from an interrupted run) must be removed by the owner,
+          # or a new version chosen.
+          existing=$(gh api --paginate "repos/$REPO/releases?per_page=100" --jq ".[] | select(.tag_name == \"$TAG\") | .html_url")
+          [ -z "$existing" ] || { echo "::error::a release or draft for $TAG already exists: $existing"; exit 1; }
+          refs=$(gh api "repos/$REPO/git/matching-refs/tags/$TAG" --jq '.[].ref')
+          if grep -qxF "refs/tags/$TAG" <<<"$refs"; then echo "::error::tag $TAG exists"; exit 1; fi
+      - name: Create the draft prerelease (marked INCOMPLETE until verified)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ needs.preflight.outputs.tag }}
+          COMMIT: ${{ needs.preflight.outputs.commit }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" candidate/* --repo "$REPO" --draft --prerelease --target "$COMMIT" \
+            --title "[INCOMPLETE - do not publish] UNSIGNED DEVELOPMENT BUILD $TAG" \
+            --notes-file notes/RELEASE-NOTES.md
+      - name: Verify the uploaded draft against SHA256SUMS
+        id: uploaded
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ needs.preflight.outputs.tag }}
+          COMMIT: ${{ needs.preflight.outputs.commit }}
+        run: |
+          set -euo pipefail
+          rel=$(gh api --paginate "repos/$REPO/releases?per_page=100" --jq "[.[] | select(.tag_name == \"$TAG\")]" | jq -s 'add')
+          [ "$(jq length <<<"$rel")" = 1 ] || { echo "::error::expected exactly one release for $TAG"; exit 1; }
+          id=$(jq -r '.[0].id' <<<"$rel")
+          jq -e '.[0].draft == true and .[0].prerelease == true' <<<"$rel" >/dev/null || { echo "::error::release $id is not a draft prerelease"; exit 1; }
+          [ "$(jq -r '.[0].target_commitish' <<<"$rel")" = "$COMMIT" ] || { echo "::error::draft target is not $COMMIT"; exit 1; }
+          mkdir dl
+          gh api --paginate "repos/$REPO/releases/$id/assets?per_page=100" --jq '.[] | "\(.id) \(.name)"' > assets.txt
+          diff <(awk '{print $2}' assets.txt | sort) <(find candidate -maxdepth 1 -type f -printf '%f\n' | sort) \
+            || { echo "::error::uploaded asset names differ from the candidate"; exit 1; }
+          while read -r aid name; do
+            # curl drops the Authorization header on the redirect to the storage host.
+            curl -sSfL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/octet-stream" \
+              "$GITHUB_API_URL/repos/$REPO/releases/assets/$aid" -o "dl/$name"
+          done < assets.txt
+          (cd dl && sha256sum -c --strict SHA256SUMS) || { echo "::error::downloaded assets do not match SHA256SUMS"; exit 1; }
+          cmp dl/SHA256SUMS candidate/SHA256SUMS
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+          echo "url=$(jq -r '.[0].html_url' <<<"$rel")" >> "$GITHUB_OUTPUT"
+      - name: Mark the verified draft ready for owner review (stays a draft)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ needs.preflight.outputs.tag }}
+          ID: ${{ steps.uploaded.outputs.id }}
+          URL: ${{ steps.uploaded.outputs.url }}
+        run: |
+          set -euo pipefail
+          # Only the title changes; the request carries no draft field, so the release stays a draft.
+          gh api -X PATCH "repos/$REPO/releases/$ID" -f name="UNSIGNED DEVELOPMENT BUILD $TAG" >/dev/null
+          gh api "repos/$REPO/releases/$ID" --jq '.draft' | grep -qx true || { echo "::error::release $ID is no longer a draft"; exit 1; }
+          refs=$(gh api "repos/$REPO/git/matching-refs/tags/$TAG" --jq '.[].ref')
+          if grep -qxF "refs/tags/$TAG" <<<"$refs"; then echo "::error::tag $TAG unexpectedly exists"; exit 1; fi
+          {
+            echo "## Draft prerelease ready for owner review: $TAG"
+            echo
+            echo "Draft (visible only to repository writers): $URL"
+            echo
+            echo "Nothing is published. Review the draft, then publish it by hand (docs/release/RELEASING.md)."
+            echo "Publishing creates the tag $TAG. Then verify it (ADR 0009 R11)."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=draft prerelease::$TAG draft created and verified; NOT published: $URL"
