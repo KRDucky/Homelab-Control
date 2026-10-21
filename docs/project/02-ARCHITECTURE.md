@@ -9,6 +9,26 @@
 6. **Host adapters**: Webmin Perl bridge, systemd/D-Bus, udev/sysfs, UDisks2/libblockdev where available, CLI adapters with strict argument arrays, Docker/Podman/libvirt APIs.
 7. **Privileged executor**: narrow allowlisted operations; per-operation RBAC, target revalidation, locking, timeout, audit, safe cancellation.
 
+## Module principle (owner decision, 2026-10-21)
+- **Modules are independently useful.** Each module works whenever its own host dependencies are available; users are never forced to configure unrelated services, and a missing tool disables only that module.
+- **Coordinated cross-module workflows add convenience without mandatory dependencies.** Examples:
+  - ZFS dataset → SMB/SFTP/WebDAV share;
+  - filesystem → Docker bind mount;
+  - LVM LV → format → persistent mount;
+  - mergerfs + optional SnapRAID;
+  - libvirt VM on an existing pool;
+  - storage → iSCSI target.
+
+  They are offered only when the participating modules are enabled. Each one:
+  - uses explicit ownership boundaries;
+  - validates prerequisites;
+  - shows the planned changes, with dry runs where feasible;
+  - marks destructive steps;
+  - defines recovery for partial failures;
+  - never bypasses a module's own security controls;
+  - never promises automatic rollback for irreversible steps.
+- Design: `docs/m2/MODULE-ARCHITECTURE.md`. This is design authorization only, not implementation.
+
 ## Migration strategy
 - Maintain an upstream Webmin fork with reproducible upstream sync and security patch tracking.
 - Start with new UI and authenticated API facade. Bridge mature Perl modules only through audited endpoints; never expose arbitrary Perl module calls.
