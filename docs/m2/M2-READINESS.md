@@ -119,3 +119,4 @@ Full register: `OWNER-DECISIONS.md`.
 - **Needed for PR-1:** D-1 (persistence engine), D-6 (persistent sessions), D-7 (scope catalogue).
 - **Needed before PR M2-2:** D-2 (write-op model), D-3 (step-up), D-4 (`root-exec`), D-5 (protected units).
 - **Needed for roadmap shape:** D-8 (milestone order), D-9 (host administration in M2), D-10 (built-in modules vs plugins).
+- **Needed for the drive locator:** D-12 (confirm the HBA Viewer source and reuse terms).
