@@ -1,4 +1,4 @@
-# Current status — M1 closeout + compliance + release workflow (updated 2026-10-20)
+# Current status — Phase 1 release complete; M2 planning (updated 2026-10-21)
 
 ## Merged work
 - PR #5 (licence compliance, Webmin independence, UI plan): merged 2026-10-19 as `bc7205e3`; 20/20 checks
@@ -7,6 +7,17 @@
   `main` (run 39210847731).
 - PR #7 (CI modernization: node24 actions pinned by SHA, manual runs, `govulncheck` v1.9.0): merged
   2026-10-20 as `259cf5bb`; 20/20 checks on `main` (run 39375492889).
+- PR #8 (Phase 1 release workflow): merged 2026-10-21 as `296ebd0b`.
+- PR #9 (Go 1.26.10 for GO-2026-6809): merged 2026-10-21 as `ec34b21e`; main CI run 39560364523 20/20.
+- PR #10 (release closeout; v0.1.0-dev.1 published and verified; LA-13 closed for Phase 1): merged
+  2026-10-21 as `31f39778`; main CI run 39570975685 20/20.
+
+## M2 planning (2026-10-21; planning only)
+- `docs/m2/` holds the readiness assessment, roadmap, security acceptance checklist, owner decision
+  register, module architecture (including the Physical Drive Layout Designer) and the capability matrix.
+- **First implementation PR proposed** (`docs/m2/M2-PR1-PROPOSAL.md`): durable state, audit, sessions and
+  service logs. It contains no privileged write and awaits owner authorization plus decisions D-1, D-6 and D-7.
+- **Not authorized:** M2 implementation, privileged writes.
 
 ## CI (`.github/workflows/ci.yml`, 20 jobs)
 - **Triggers:** push to `main`, every pull request, and a **manual run** (Actions tab → *ci* →
