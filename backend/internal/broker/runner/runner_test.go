@@ -116,3 +116,30 @@ func TestMissingKnownBinaryIsNotExist(t *testing.T) {
 		t.Fatalf("want ErrNotExist, got %v", err)
 	}
 }
+
+func TestSupplementaryGroupsNeverRoot(t *testing.T) {
+	r := testRunner(t)
+	if _, err := r.RunWithGroups(context.Background(), []uint32{0}, "echo", "x"); !errors.Is(err, ErrBadArg) {
+		t.Fatalf("group 0 accepted: %v", err)
+	}
+	gid := uint32(os.Getgid())
+	if gid == 0 {
+		gid = 65534
+	}
+	res, err := r.RunWithGroups(context.Background(), []uint32{gid}, "echo", "ok")
+	if err != nil || strings.TrimSpace(string(res.Stdout)) != "ok" {
+		t.Fatalf("%v %q", err, res.Stdout)
+	}
+}
+
+func TestJournalctlIsTheOnlyNewBinary(t *testing.T) {
+	want := map[string]bool{"systemctl": true, "journalctl": true}
+	if len(allowlist) != len(want) {
+		t.Fatalf("allow-list changed (%d entries); new binaries need security review", len(allowlist))
+	}
+	for k := range allowlist {
+		if !want[k] {
+			t.Errorf("unexpected binary %q", k)
+		}
+	}
+}

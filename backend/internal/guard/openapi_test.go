@@ -21,7 +21,8 @@ import (
 // routes that do not exist. (Stdlib-only: the YAML is scanned, not fully parsed.)
 func TestOpenAPIMatchesRoutes(t *testing.T) {
 	scopes := map[string]string{"scopePublic": "", "sessionOnly": "session", "auth.ScopeSystemRead": "system.read",
-		"auth.ScopeServicesRead": "services.read", "auth.ScopeHardwareRead": "hardware.read"}
+		"auth.ScopeServicesRead": "services.read", "auth.ScopeHardwareRead": "hardware.read",
+		"auth.ScopeServicesLogs": "services.logs"}
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "../api/server.go", nil, 0)
 	if err != nil {

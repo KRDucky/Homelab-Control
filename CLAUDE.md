@@ -44,7 +44,7 @@ Then: `docs/adr/README.md`, `docs/audit/SPEC-CONTRADICTIONS.md`, `docs/dev/DEVEL
 - Maintain `docs/project/09-PROJECT-MEMORY.md` as concise verified project state, not as speculative facts.
 
 ## Current milestone
-M1 is complete pending owner review (see `docs/STATUS.md`, `docs/M1-REPORT.md`). Do not start M2 without approval.
+M1 and the Phase 1 release are complete. M2 PR-1 (state, sessions, audit, read-only service logs) is authorized (2026-10-21); everything else in M2, including any privileged write, is not (see `docs/STATUS.md`, `docs/m2/OWNER-DECISIONS.md`).
 
 # Append to root CLAUDE.md — File Services and Proxy Expansion
 

@@ -59,6 +59,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("audit log: %v", err)
 	}
+	// Checkpoints go to the journal (stderr), a store separate from the audit
+	// file; `hlctl audit verify --checkpoint` uses them to detect truncation
+	// or rollback (docs/security/AUDIT-LOG.md).
+	al.Checkpoint = func(seq uint64, hash string) {
+		log.Printf("audit checkpoint log=%s seq=%d hash=%s", *auditFile, seq, hash)
+	}
+	al.EmitCheckpoint()
 	defer al.Close()
 
 	allowed := []uint32{uint32(uid)}
@@ -67,7 +74,15 @@ func main() {
 	} else {
 		allowed = append(allowed, uint32(os.Geteuid()))
 	}
-	srv := server.New(&ops.Env{Runner: rn, Roots: ops.Roots{Root: "/"}, Version: version.Version}, al, allowed...)
+	env := &ops.Env{Runner: rn, Roots: ops.Roots{Root: "/"}, Version: version.Version}
+	// Journal reader group for services.unit.logs (absent on hosts without
+	// persistent journald access control; the op then reports unavailable).
+	if g, err := user.LookupGroup("systemd-journal"); err == nil {
+		if n, err := strconv.ParseUint(g.Gid, 10, 32); err == nil && n != 0 {
+			env.JournalGID = uint32(n)
+		}
+	}
+	srv := server.New(env, al, allowed...)
 	l, activated, err := server.Listener(*socket)
 	if err != nil {
 		log.Fatalf("listen: %v", err)

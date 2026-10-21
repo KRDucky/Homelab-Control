@@ -24,6 +24,9 @@ const (
 	ScopeSystemRead   = "system.read"   // overview, legacy Webmin status
 	ScopeServicesRead = "services.read" // systemd unit list (M1)
 	ScopeHardwareRead = "hardware.read" // hardware inventory incl. DMI serials (M1)
+	// ScopeServicesLogs allows reading service journal entries, which can
+	// contain sensitive data. Not in DefaultScopes: grant it explicitly (D-7).
+	ScopeServicesLogs = "services.logs"
 )
 
 // KnownScopes lists every scope the server understands. Unknown scopes in the
@@ -33,6 +36,7 @@ var KnownScopes = map[string]bool{
 	ScopeSystemRead:   true,
 	ScopeServicesRead: true,
 	ScopeHardwareRead: true,
+	ScopeServicesLogs: true,
 }
 
 // DefaultScopes are granted by `hlctl user add` when --scopes is not given.
