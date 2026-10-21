@@ -96,6 +96,47 @@ A workflow is an ordered list of **module plan steps**. The workflow engine only
 ## 5. Physical Drive Layout Designer (owner requirement, 2026-10-21)
 One shared physical-location model, consumed by every storage module. There is no per-technology designer.
 
+### 5.0 Built from the existing HBA Viewer concept (owner direction, 2026-10-21)
+The owner directed that the existing **HBA Viewer** concept be made reusable inside Homelab Control, instead
+of building a separate drive-location system.
+
+**What was found.** The only matching prior work available to this review is the **chassis "Layout" tab of
+the owner's *Linux Storage Manager*** (`~/Storage-Manager`, Flask + SQLite, reviewed read-only on
+2026-10-21). It contains:
+- `chassis` and `chassis_bays` tables;
+- size presets (towers, NAS, 12/24-bay rackmount);
+- a bay grid with a health border per bay;
+- click to assign or clear a drive from an "unassigned drives" list;
+- bay labels.
+
+The owner should confirm that this is the HBA Viewer meant, or point to the other source (D-12). The
+design below treats it as the base.
+
+**Reused (concept, data model and interaction; re-implemented in Go/React, not copied):**
+- **Data model:** chassis with rows × cols plus bays with label and drive assignment. This becomes `Chassis`/`Cell`/`Assignment` (§5.1), extended rather than replaced.
+- **Presets:** 4/6/8-bay tower, 4/6/8/12-bay NAS, 12/24-bay rackmount, custom. They are offered as starting layouts, then edited freely.
+- **Interactions:** bay grid with a health border; click an empty bay to assign; click an occupied bay to reassign or clear; unassigned-drives list; labels.
+- **Discovery:** the background drive scan with SMART health and temperature, as the source for bay status; this becomes the read-only SMART op in M3.
+
+**One component, shared by every module.** The viewer becomes a single **Hardware → Drives & Bays** view.
+It shows the controller (HBA) → enclosure or chassis → bay → drive path where known, or manual chassis
+grids where not. Every storage module (ZFS, mdadm, LVM, Btrfs, mergerfs, SnapRAID, SMART, replacement
+flows) embeds the same `BayLocation` badge and links into this view. No module draws its own layout.
+
+**Changes required against the prior art** (Homelab Control rules):
+
+| Prior art (Storage Manager) | Homelab Control |
+|---|---|
+| Drives keyed by `device_path` (`/dev/sda`), so a bay follows a kernel name | Keyed by stable identity (WWN > serial > NVMe EUI/NGUID > by-id) with provenance and confidence; never re-associated because a kernel name moved (CLAUDE.md) |
+| Rectangular grid only | Cell kinds incl. empty, disabled and reserved for irregular layouts; several chassis, shelves and enclosures; HDD/SSD/NVMe/tray kinds |
+| No controller or enclosure link | Optional HBA/enclosure/slot association (Stage C), shown only when verified |
+| No mismatch handling | Present / missing / replaced / mismatch states; manual mappings labelled *unverified* |
+| Unauthenticated Flask API, shell-string command builders | Scoped API (`layout.manage`), CSRF; layout edits never touch the host; no command strings anywhere |
+| No export | Export/import with identifiers redacted by default |
+
+The Storage Manager's mergerfs, SnapRAID, SMART and LVM parsers are also useful **reference fixtures**
+for the M3 read-only storage modules. Their command builders produce shell strings and are not reused.
+
 ### 5.1 Data model (layout data is separate from live discovery)
 | Entity | Fields | Notes |
 |---|---|---|

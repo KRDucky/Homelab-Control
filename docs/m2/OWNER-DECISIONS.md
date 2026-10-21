@@ -20,6 +20,7 @@ Already settled, and not asked again:
 | D-2, D-3, D-4, D-5 | PR M2-2 (first write) | Open |
 | D-8, D-9, D-10 | Roadmap shape | Open |
 | D-11 | Before any third-party library or tool adapter (M3+) | Open (policy only) |
+| D-12 | PR M2-5 (drive locator) | Open |
 
 ---
 
@@ -158,3 +159,16 @@ Not needed for M2; recorded so it is not decided ad hoc.
 - the stdlib approach for Docker;
 - `virsh` first for libvirt, re-evaluated at the virtualization milestone;
 - `storcli` optional.
+
+## D-12 Source of the "HBA Viewer" concept and reuse terms
+**Owner direction (2026-10-21):** reuse the existing HBA Viewer concept inside Homelab Control rather than
+building a separate drive-location system.
+
+**Found:** the chassis "Layout" tab of the owner's Linux Storage Manager (`~/Storage-Manager`). No file or
+document named "HBA Viewer" was found in the repository, the Project or the connected folders.
+
+To confirm:
+- (a) Is this the concept meant, or is there another source?
+- (b) Reuse **concept, data model and UI behaviour** with a Go/React re-implementation (recommended), or also port code? The prior art has no licence file. Porting code would need the owner, as author, to contribute it under GPL-3.0-or-later (DCO), and the shell-string command builders would still be excluded.
+
+**Recommended:** (a) confirm, or point to the other source; (b) concept-only reuse.
