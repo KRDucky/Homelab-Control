@@ -80,6 +80,8 @@ requires each to fail verification.
    the source archive per `BUILDING.md` with the toolchain in `RELEASE-BUILDINFO` and compare the
    binaries; run `scripts/package-inventory.sh` on the three packages. Record the result in
    `docs/STATUS.md`. Only then can LA-13 be closed for Phase 1.
+   Build the `.rpm` on a host without a `homelab-control` group (see `BUILDING.md`). First done for
+   v0.1.0-dev.1 on 2026-10-21 (LA-13 closed).
 
 ## 5. Failures and recovery
 Nothing is ever published by a failed run. What can be left behind, and what to do:

@@ -27,16 +27,11 @@
   no persisted git credentials, no dependency caches.
 
 ## License compliance and product independence
-- **Release readiness: not ready.** One blocker: LA-13. Owner decision 2026-10-19 (ADR 0009 revised): the
-  target is **Phase 1, unsigned GitHub development/prereleases**, created as drafts and published only by
-  the owner. **Hardware tokens, OpenPGP keys and mandatory signing are deferred** (Phase 3); keyless
-  attestations are optional (Phase 2). Phase 1 items (owner authorized the workflow 2026-10-20):
-  - R4 SBOM stamped with the version: done; R6 exact toolchain pins: done; R7 `govulncheck` pin: done;
-  - R8 draft-prerelease workflow (`release.yml`, manual, draft only) and R9 unsigned labelling:
-    implemented, build/verify path exercised by every CI dry run; the draft job has not run yet;
-  - R10 manual owner publication: process in `docs/release/RELEASING.md`; needs the first draft;
-  - R11 verification of the first published prerelease: open.
-  - **No release or draft exists.**
+- **Release readiness: Phase 1 complete (2026-10-21).** LA-13 closed for Phase 1. First unsigned development
+  prerelease **v0.1.0-dev.1** (tag → `ec34b21e`, release run 39562079197) published by the owner and verified
+  after publication, including an independent rebuild outside GitHub (binaries and `.deb` byte-identical).
+  Signing (Phase 3) and attestations (Phase 2) remain deferred; no stable releases or package repositories.
+  Procedure: `docs/release/RELEASING.md`.
 - Release **dry run** in CI: complete corresponding-source archive; binaries, DEB, RPM and Arch packages
   built only from it; archive build = Git build; two independent runs compared file by file. RPM and Arch
   nondeterminism found and fixed. Not tested with other toolchain versions or distributions.
@@ -109,8 +104,7 @@ CI run 38866773032 on the same commit: all 15 jobs green.
    and secret handling for broker arguments need their own reviewed design.
 5. ~~Validation gap~~ — closed 2026-10-16: hardening and socket activation verified on the workstation
    KVM VM (Ubuntu 26.04).
-Not M2-blocking but release-blocking: the remaining licence/release blocker above (LA-13: first draft,
-owner publication, verification). CI and releases build with the same exact Go version (1.26.10, `packaging/release/toolchain.env`); govulncheck is pinned (v1.9.0).
+No licence/release blocker remains for Phase 1 prereleases (LA-13 closed 2026-10-21). CI and releases build with the same exact Go version (1.26.10, `packaging/release/toolchain.env`); govulncheck is pinned (v1.9.0).
 
 ## Not done / limits
 - Earlier M1 evidence (d1077e4a) was never committed and is withdrawn (see evidence README).
