@@ -8,7 +8,7 @@ same split from the lockfile.
 ## 1. Redistributed (in binaries and packages)
 | Component | Version | License | How it ships | Verified by |
 |---|---|---|---|---|
-| Go standard library | CI toolchain 1.26.x (`go.mod` minimum 1.24) | BSD-3-Clause | Statically linked into `hc-api`, `hlctl`, `hc-broker` | `go.mod` has no `require`; `go version -m` |
+| Go standard library | CI and release toolchain 1.26.10 (`go.mod` minimum 1.24) | BSD-3-Clause | Statically linked into `hc-api`, `hlctl`, `hc-broker` | `go.mod` has no `require`; `go version -m` |
 | react | 19.3.1 | MIT | JS bundle embedded in `hc-api` | Production source map |
 | react-dom | 19.3.1 | MIT | JS bundle embedded in `hc-api` | Production source map |
 | scheduler | 0.28.0 | MIT | JS bundle embedded in `hc-api` (react-dom dependency) | Production source map |

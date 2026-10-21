@@ -1,15 +1,15 @@
 {
   "SPDXID": "SPDXRef-DOCUMENT",
   "creationInfo": {
-    "comment": "Inputs sha256 8f5f87966b5e2e29cd89ff82ff5e56976fa3e1fbd0e428470cb7dc4e838fe3cf over frontend/app/package-lock.json, backend/go.mod, compat/webmin.lock, scripts/gen-sbom.py. Build toolchain (CI): Go 1.26.x, Node.js 22, npm lockfileVersion 3, Vite 8.3.4, TypeScript 6.0.3. Package-payload inventories are produced per build by scripts/package-inventory.sh.",
-    "created": "2026-10-16T10:23:54Z",
+    "comment": "Inputs sha256 edb50f2a2ed914cb82ccca5c39517a7ea08e90626e5a976a7c1de2282cc88f3a over frontend/app/package-lock.json, backend/go.mod, compat/webmin.lock, scripts/gen-sbom.py. Build toolchain (CI): Go 1.26.10, Node.js 22, npm lockfileVersion 3, Vite 8.3.4, TypeScript 6.0.3. Package-payload inventories are produced per build by scripts/package-inventory.sh.",
+    "created": "2026-10-21T06:44:34Z",
     "creators": [
       "Person: Ian comings",
       "Tool: homelab-control-gen-sbom-1.0"
     ]
   },
   "dataLicense": "CC0-1.0",
-  "documentNamespace": "https://github.com/KRDucky/Homelab-Control---Webmin-Fork/spdx/8f5f87966b5e2e29cd89ff82ff5e56976fa3e1fbd0e428470cb7dc4e838fe3cf",
+  "documentNamespace": "https://github.com/KRDucky/Homelab-Control---Webmin-Fork/spdx/edb50f2a2ed914cb82ccca5c39517a7ea08e90626e5a976a7c1de2282cc88f3a",
   "name": "homelab-control-source-sbom",
   "packages": [
     {
@@ -26,13 +26,13 @@
     },
     {
       "SPDXID": "SPDXRef-Package-go-stdlib",
-      "comment": "Statically linked into all three binaries. go.mod minimum: go 1.24; CI release toolchain: 1.26.x. No third-party Go modules (ADR 0006).",
+      "comment": "Statically linked into all three binaries. go.mod minimum: go 1.24; CI release toolchain: 1.26.10. No third-party Go modules (ADR 0006).",
       "copyrightText": "Copyright 2009 The Go Authors.",
       "downloadLocation": "https://go.dev/dl/",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
-          "referenceLocator": "pkg:golang/stdlib@1.26",
+          "referenceLocator": "pkg:golang/stdlib@1.26.10",
           "referenceType": "purl"
         }
       ],
@@ -40,7 +40,7 @@
       "licenseConcluded": "BSD-3-Clause",
       "licenseDeclared": "BSD-3-Clause",
       "name": "go-stdlib",
-      "versionInfo": "1.26.x"
+      "versionInfo": "1.26.10"
     },
     {
       "SPDXID": "SPDXRef-Package-npm--asamuzakjp-css-color-7.1.5",
