@@ -35,6 +35,7 @@ func TestRegistryIsClosedAndReadOnly(t *testing.T) {
 		"legacy.webmin.status":  PrivRootRead,
 		"hardware.dmi.identity": PrivRootRead,
 		"services.systemd.list": PrivUnprivilegedExec,
+		"services.unit.logs":    PrivUnprivilegedExec,
 	}
 	if len(reg) != len(want) {
 		t.Fatalf("registry has %d ops, want %d — new ops need review and this test updated", len(reg), len(want))

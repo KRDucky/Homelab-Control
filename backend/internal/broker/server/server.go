@@ -83,10 +83,11 @@ func PeerCred(c *net.UnixConn) (*syscall.Ucred, error) {
 	return cred, cerr
 }
 
-func (s *Server) log(e audit.Event) {
+func (s *Server) log(e audit.Event) error {
 	if s.Audit != nil {
-		_ = s.Audit.Log(e)
+		return s.Audit.Log(e)
 	}
+	return nil
 }
 
 func (s *Server) reply(c *net.UnixConn, resp proto.Response) {
@@ -122,6 +123,7 @@ func (s *Server) handle(ctx context.Context, c *net.UnixConn) {
 		return
 	}
 	ev := audit.Event{Event: "broker.op", User: req.Actor.User, Remote: peer, Detail: req.Op}
+	argSummary := ""
 	if req.V != proto.Version {
 		ev.Outcome = "rejected"
 		s.log(ev)
@@ -152,6 +154,9 @@ func (s *Server) handle(ctx context.Context, c *net.UnixConn) {
 		s.reply(c, fail(proto.CodeBusy, "broker is busy"))
 		return
 	}
+	if op.AuditArgs != nil {
+		argSummary = " " + op.AuditArgs(req.Args)
+	}
 	octx, cancel := context.WithTimeout(ctx, op.Timeout)
 	defer cancel()
 	start := time.Now()
@@ -163,8 +168,8 @@ func (s *Server) handle(ctx context.Context, c *net.UnixConn) {
 			pe = &proto.Error{Code: proto.CodeInternal, Message: "operation failed"}
 		}
 		ev.Outcome = pe.Code
-		ev.Detail = fmt.Sprintf("%s %s", req.Op, dur)
-		s.log(ev)
+		ev.Detail = fmt.Sprintf("%s%s %s", req.Op, argSummary, dur)
+		_ = s.log(ev)
 		s.reply(c, proto.Response{Error: pe})
 		return
 	}
@@ -174,8 +179,12 @@ func (s *Server) handle(ctx context.Context, c *net.UnixConn) {
 		return
 	}
 	ev.Outcome = "ok"
-	ev.Detail = fmt.Sprintf("%s %s", req.Op, dur)
-	s.log(ev)
+	ev.Detail = fmt.Sprintf("%s%s %s", req.Op, argSummary, dur)
+	// Fail closed: a result is only released once its audit record is durable.
+	if err := s.log(ev); err != nil {
+		s.reply(c, fail(proto.CodeUnavailable, "the broker audit log cannot be written; the result was withheld"))
+		return
+	}
 	s.reply(c, proto.Response{OK: true, Result: b})
 }
 

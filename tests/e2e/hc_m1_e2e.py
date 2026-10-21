@@ -84,6 +84,25 @@ with sync_playwright() as p:
     page.screenshot(path=f"{ART}/m1-01-services.png", full_page=False)
     axe(page, "services")
 
+    # M2 PR-1b: read-only service logs (account has services.logs).
+    check("nav: one Services entry although service logs share the page",
+          nav.get_by_text("Service logs").count() == 0)
+    page.get_by_label("Search units").fill("homelab-control.service")
+    page.get_by_role("button", name="Show logs for homelab-control.service").click()
+    panel = page.get_by_role("region", name="Logs: homelab-control.service")
+    expect(panel.get_by_text("listening on 127.0.0.1:9180").first).to_be_visible(timeout=15000)
+    check("logs: real journal entries shown for homelab-control.service",
+          panel.get_by_role("row").count() >= 2)
+    check("logs: panel heading receives focus", page.evaluate("document.activeElement?.id") == "h-logs")
+    panel.get_by_label("Entries").select_option("50")
+    expect(panel.get_by_text("most recent")).to_be_visible(timeout=15000)
+    panel.locator(".logs-wrap").scroll_into_view_if_needed()
+    page.screenshot(path=f"{ART}/m2-01-service-logs.png", full_page=True)
+    axe(page, "services+logs")
+    panel.get_by_role("button", name="Close").click()
+    check("logs: panel closes", page.get_by_role("region", name="Logs: homelab-control.service").count() == 0)
+    page.get_by_label("Search units").fill("")
+
     nav.get_by_role("link", name="Hardware").click()
     expect(page.get_by_role("heading", name="Storage devices")).to_be_visible(timeout=15000)
     # Compare the page with what the API reports for THIS host, so the checks hold on bare metal,

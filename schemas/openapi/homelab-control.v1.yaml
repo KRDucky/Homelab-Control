@@ -186,6 +186,27 @@ components:
               description: { type: string, maxLength: 256 }
               unit_file_state: { type: string }
               preset: { type: string }
+    UnitLogs:
+      type: object
+      required: [unit, requested, entries, truncated, source]
+      properties:
+        unit: { type: string }
+        requested: { type: integer }
+        truncated: { type: boolean, description: Older entries were dropped to stay under 1 MiB }
+        skipped: { type: integer, description: Unparseable journal lines }
+        source: { type: string }
+        entries:
+          type: array
+          items:
+            type: object
+            required: [message]
+            properties:
+              time: { type: string, format: date-time }
+              priority: { type: integer, minimum: 0, maximum: 7 }
+              pid: { type: integer }
+              identifier: { type: string, maxLength: 64 }
+              message: { type: string, maxLength: 4096, description: Control characters removed; capped at 4 KiB }
+              truncated: { type: boolean }
     Hardware:
       type: object
       required: [inventory, identity]
@@ -297,9 +318,25 @@ paths:
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/UnitList' } } } }
         '403': { description: Missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '502': { description: Broker failure (details are not exposed), content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '503': { description: Broker unavailable or systemd not running, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '504': { description: Broker operation timed out, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '502': { description: 'Broker failure (details are not exposed)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'Broker unavailable or systemd not running', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '504': { description: 'Broker operation timed out', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /services/units/{unit}/logs:
+    get:
+      summary: Recent journal entries of one listed unit (read-only, via broker op services.unit.logs). Reads are audited; content is not stored.
+      security: [{ session: [] }]
+      x-required-scope: services.logs
+      parameters:
+        - { name: unit, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9:_.@-]{0,99}\.(service|socket|timer|mount|automount|path|target|swap)$' } }
+        - { name: lines, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 500, default: 100 } }
+      responses:
+        '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/UnitLogs' } } } }
+        '400': { description: 'Invalid unit name or line count', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing scope', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: 'The unit is not listed by systemd', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '502': { description: 'Broker failure (details are not exposed)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'Broker unavailable; systemd/journald or the journal reader group missing; or the read could not be audited (audit_unavailable, no content returned)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '504': { description: 'Broker operation timed out', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /hardware:
     get:
       summary: Hardware inventory (read-only). Degrades instead of failing when the broker is down.

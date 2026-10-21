@@ -67,6 +67,49 @@ check "broker audit log written (root 0600)" "600 root" "$(stat -c '%a %U' /var/
 echo "   last broker audit: $(tail -1 /var/log/homelab-control-broker/broker-audit.jsonl)"
 echo "== systemd-analyze security (broker)"; systemd-analyze security --no-pager homelab-control-broker.service 2>/dev/null | tail -1 || true
 
+echo "== M2 PR-1b: service logs (read-only, services.logs scope)"
+check "capability service_logs available" available "$(jget "[c['status'] for c in d['capabilities'] if c['id']=='service_logs'][0]" <<<"$capj")"
+lj=$(get '/api/v1/services/units/homelab-control.service/logs?lines=20')
+check "logs: entries returned for homelab-control.service" 1 "$(jget "1 if d['unit']=='homelab-control.service' and 0 < len(d['entries']) <= 20 else 0" <<<"$lj")"
+echo "   last entry: $(jget "d['entries'][-1]['message'][:120]" <<<"$lj")"
+check "logs: lines above 500 rejected" 400 "$(getc '/api/v1/services/units/homelab-control.service/logs?lines=501')"
+check "logs: option-like unit rejected" 400 "$(getc '/api/v1/services/units/--output=export.service/logs')"
+check "logs: encoded path traversal rejected" 400 "$(getc '/api/v1/services/units/..%2F..%2Fetc%2Fpasswd.service/logs')"
+check "logs: unknown unit is 404" 404 "$(getc '/api/v1/services/units/hc-no-such-unit.service/logs')"
+seen=$(for _ in $(seq 40); do get '/api/v1/services/units/homelab-control.service/logs?lines=500' >/dev/null & ps -o user= -C journalctl 2>/dev/null; done; wait)
+check "journalctl helper never runs as root" 0 "$(grep -c '^root' <<<"$seen" || true)"
+echo "   journalctl users observed: $(sort -u <<<"$seen" | tr '\n' ' ')"
+bal=/var/log/homelab-control-broker/broker-audit.jsonl
+check "broker audited the logs read (unit and lines only)" 1 "$(grep -c '"detail":"services.unit.logs unit=homelab-control.service lines=20 ' "$bal" | awk '{print ($1>0)}')"
+check "log content is not copied into the broker audit log" 0 "$(grep -c 'Started\|Starting' "$bal" || true)"
+check "API audited the logs read" 1 "$(grep -c '"event":"services.logs.read"' /var/log/homelab-control/audit.jsonl | awk '{print ($1>0)}')"
+
+echo "== M2 PR-1b: hash-chained audit logs verify, with journal checkpoints"
+# A clean stop writes a final checkpoint (= the head); the socket restarts the broker on demand.
+systemctl stop homelab-control-broker.service
+cp_line=$(journalctl -u homelab-control-broker.service -o cat --no-pager | grep 'audit checkpoint' | tail -1)
+cp=$(sed -E 's/.* seq=([0-9]+) hash=([0-9a-f]{64}).*/\1:\2/' <<<"$cp_line")
+echo "   journal checkpoint: $cp"
+check "broker audit chain + journal checkpoint verify" 0 "$(hlctl audit verify --file "$bal" --checkpoint "$cp" >/tmp/av.txt 2>&1; echo $?)"
+sed 's/^/   /' /tmp/av.txt
+check "API audit chain verifies" 0 "$(hlctl audit verify --file /var/log/homelab-control/audit.jsonl >/dev/null 2>&1; echo $?)"
+# Tamper on copies (the live logs stay untouched).
+tmpd=$(mktemp -d)
+head -n -1 "$bal" >"$tmpd/trunc.jsonl"
+cpseq=${cp%%:*}
+lastseq=$(tail -1 "$bal" | python3 -c 'import json,sys; print(json.load(sys.stdin)["seq"])')
+check "shutdown checkpoint is the log head" "$lastseq" "$cpseq"
+check "truncation after the checkpoint is detected" 1 "$(hlctl audit verify --file "$tmpd/trunc.jsonl" --checkpoint "$cp" >/dev/null 2>&1; echo $?)"
+check "truncation without a checkpoint is not detectable (documented limit)" 0 "$(hlctl audit verify --file "$tmpd/trunc.jsonl" >/dev/null 2>&1; echo $?)"
+cp "$bal" "$tmpd/reorder.jsonl"; python3 - "$tmpd/reorder.jsonl" <<'PY'
+import sys
+p = sys.argv[1]; l = open(p).read().splitlines(True); l[2], l[3] = l[3], l[2]; open(p, "w").writelines(l)
+PY
+check "reordered records are detected" 1 "$(hlctl audit verify --file "$tmpd/reorder.jsonl" >/dev/null 2>&1; echo $?)"
+sed '2s/"outcome":"[a-z]*"/"outcome":"forged"/' "$bal" >"$tmpd/mod.jsonl"
+check "modified record is detected" 1 "$(hlctl audit verify --file "$tmpd/mod.jsonl" >/dev/null 2>&1; echo $?)"
+rm -rf "$tmpd"
+
 echo "== M1: overview filesystems describe the host, not hc-api's sandbox"
 # hc-api runs with ProtectSystem=strict/PrivateTmp/LogsDirectory; its own mount
 # view is read-only with extra bind mounts. The API must report the host's table.
@@ -83,6 +126,8 @@ capj=$(get /api/v1/capabilities)
 check "services unavailable without broker" unavailable "$(jget "[c['status'] for c in d['capabilities'] if c['id']=='services'][0]" <<<"$capj")"
 check "hardware degraded without broker" degraded "$(jget "[c['status'] for c in d['capabilities'] if c['id']=='hardware'][0]" <<<"$capj")"
 check "services endpoint 503" 503 "$(getc /api/v1/services)"
+check "service logs unavailable without broker" unavailable "$(jget "[c['status'] for c in d['capabilities'] if c['id']=='service_logs'][0]" <<<"$capj")"
+check "logs endpoint 503 without broker" 503 "$(getc '/api/v1/services/units/homelab-control.service/logs')"
 check "legacy falls back to unprivileged detection" unprivileged "$(jget "d['source']" <<<"$(get /api/v1/legacy/webmin)")"
 check "overview still works" 200 "$(getc /api/v1/host/overview)"
 systemctl start homelab-control-broker.socket

@@ -66,6 +66,14 @@ build/hlctl broker info --socket /tmp/hc-broker.sock      # lists the registered
 ```
 Without a broker, Services shows as unavailable and Hardware/Legacy as limited — by design.
 
+Service logs (M2 PR-1b) need the `services.logs` scope, which is never granted by default:
+`build/hlctl user add ... --scopes system.read,services.read,services.logs`. The broker host must
+run systemd with journald and have a `systemd-journal` group. Verify an audit log, with an optional
+journal checkpoint (see `docs/security/AUDIT-LOG.md`):
+```bash
+build/hlctl audit verify --file .dev/audit.jsonl [--checkpoint SEQ:HASH]
+```
+
 Frontend hot reload: run hc-api as above, then `cd frontend/app && npm run dev` and open
 `http://127.0.0.1:5173/` (Vite proxies `/api` to 9180; the Origin check accepts the proxied host).
 
@@ -77,7 +85,9 @@ or a local TLS reverse proxy with `-behind-tls-proxy -allowed-origins https://yo
 - Process execution only in `internal/broker/runner` (guard test enforces); `hc-api`/`hlctl` must never
   link `broker/runner`, `broker/ops` or `broker/server` (import-graph guard test).
 - New broker operations require: a registry entry, a scope, typed args, tests, an update to
-  `TestRegistryIsClosedAndReadOnly`, the OpenAPI file, and security review (ADR 0008).
+  `TestRegistryIsClosedAndReadOnly`, the OpenAPI file, and security review (ADR 0008). Operations
+  that take arguments also follow ADR 0008 Amendment 1 (strict decode, validation in both tiers,
+  `AuditArgs` summary, fuzz test).
 - Every API route must be in `schemas/openapi/homelab-control.v1.yaml` with its scope (contract test).
 - UI: no inline styles/scripts (CSP), no raw HTML rendering (lint enforces), no fabricated values —
   show "Unknown"/"Unavailable" with the data source.

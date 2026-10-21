@@ -66,11 +66,11 @@ See `M2-PR1-PROPOSAL.md`. **No privileged writes.** Decisions: D-1, D-6, D-7.
 | **User-visible** | Storage page: what is on each disk, who owns it, what is mounted where |
 | **Exclusions** | Any write; technology-specific detail views (M3) |
 
-### PR M2-5 (optional, recommended) — Physical drive locator, Stage A (built from the HBA Viewer concept)
+### PR M2-5 (optional, recommended) — Physical drive locator, Stage A (reusing the HBA Viewer concept, D-12)
 | | |
 |---|---|
 | **Objective** | Usable visual drive locator without enterprise hardware |
-| **Scope** | Port of the existing HBA Viewer / Storage Manager layout concept (`MODULE-ARCHITECTURE.md` §5.0) as the shared Hardware → Drives & Bays view: chassis/cell model in `state.db`, presets from the prior art; grid editor (rows/cols, labels, cell kinds, empty/disabled/reserved); assign drives from the M2-4 inventory by stable identity (drag-and-drop **and** keyboard); states present / missing / unassigned / mismatch; bay click → disk detail; export/import with identifiers redacted by default |
+| **Scope** | The existing HBA Viewer concept (`MODULE-ARCHITECTURE.md` §5.0; source pending, D-12) as the shared Hardware → Drives & Bays view: chassis/cell model in `state.db`; grid editor (rows/cols, labels, cell kinds, empty/disabled/reserved); assign drives from the M2-4 inventory by stable identity (drag-and-drop **and** keyboard); states present / missing / unassigned / mismatch; bay click → disk detail; export/import with identifiers redacted by default |
 | **Prerequisites** | PR-1, M2-4; scope `layout.manage` (D-7) |
 | **Security** | No broker writes; import validated (size caps, schema); manual assignments labelled *unverified* |
 | **Tests** | Model/API tests (renumbering a kernel name does not move an assignment; replacement detected), Vitest for grid keyboard use, Playwright + axe |

@@ -5,8 +5,10 @@
 // Package runner is the ONLY place in the code base allowed to execute
 // programs (enforced by internal/guard). It runs allow-listed binaries with
 // argv fixed by the calling operation, a replaced environment, no stdin,
-// size-capped output, a timeout that kills the whole process group, and —
-// in M1 — always as the unprivileged service user, never as root.
+// size-capped output, a timeout that kills the whole process group, and
+// always as the unprivileged service user, never as root. An op may add
+// supplementary groups (e.g. the journal reader group); the uid stays the
+// service user.
 package runner
 
 import (
@@ -25,7 +27,8 @@ import (
 // Binary names the runner may execute, with candidate absolute paths.
 // Adding an entry requires security review (ADR 0008).
 var allowlist = map[string][]string{
-	"systemctl": {"/usr/bin/systemctl", "/bin/systemctl"},
+	"systemctl":  {"/usr/bin/systemctl", "/bin/systemctl"},
+	"journalctl": {"/usr/bin/journalctl", "/bin/journalctl"},
 }
 
 // argRE limits fixed arguments to a conservative character set; arguments
@@ -121,6 +124,17 @@ type Result struct {
 
 // Run executes name with args. ctx should carry the op deadline.
 func (r *Runner) Run(ctx context.Context, name string, args ...string) (Result, error) {
+	return r.RunWithGroups(ctx, nil, name, args...)
+}
+
+// RunWithGroups is Run with additional supplementary groups for the child
+// (still the unprivileged service uid/gid; never root).
+func (r *Runner) RunWithGroups(ctx context.Context, groups []uint32, name string, args ...string) (Result, error) {
+	for _, g := range groups {
+		if g == 0 {
+			return Result{}, fmt.Errorf("group 0: %w", ErrBadArg)
+		}
+	}
 	path, ok := r.paths[name]
 	if !ok {
 		if _, known := allowlist[name]; known {
@@ -153,8 +167,9 @@ func (r *Runner) Run(ctx context.Context, name string, args ...string) (Result, 
 	cmd.Stdout, cmd.Stderr = out, errb
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if os.Geteuid() == 0 {
-		// Never run children as root in M1.
-		cmd.SysProcAttr.Credential = &syscall.Credential{Uid: r.identity.UID, Gid: r.identity.GID, Groups: []uint32{}}
+		// Never run children as root.
+		gs := append([]uint32{}, groups...)
+		cmd.SysProcAttr.Credential = &syscall.Credential{Uid: r.identity.UID, Gid: r.identity.GID, Groups: gs}
 	}
 	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
 	cmd.WaitDelay = 2 * time.Second

@@ -24,6 +24,12 @@ type fakeBroker struct {
 	errs    map[string]error
 	down    bool
 	actors  []proto.Actor
+	args    []any
+}
+
+func (f *fakeBroker) CallWithArgs(ctx context.Context, op string, args any, actor proto.Actor, out any) error {
+	f.args = append(f.args, args)
+	return f.Call(ctx, op, actor, out)
 }
 
 func (f *fakeBroker) Call(_ context.Context, op string, actor proto.Actor, out any) error {
