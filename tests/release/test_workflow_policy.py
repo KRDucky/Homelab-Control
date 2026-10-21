@@ -120,10 +120,12 @@ class ReleaseWorkflowPolicy(unittest.TestCase):
         for text in (self.btext,):
             self.assertNotIn("gh release", text)
             self.assertNotRegex(text, r"git\s+(push|tag)")
-        # The only PATCH changes the title (name) and nothing else.
-        for line in runs.splitlines():
-            if "-X PATCH" in line:
-                self.assertRegex(line, r'-X PATCH "repos/\$REPO/releases/\$ID" -f name="[^"]*" >/dev/null$')
+        # The only PATCH changes the title (name), re-sends the same tag name (a draft PATCH without it
+        # resets the tag to "untagged-..."), and nothing else; the result is checked afterwards.
+        patches = [l for l in runs.splitlines() if "-X PATCH" in l]
+        self.assertEqual(len(patches), 1)
+        self.assertRegex(patches[0], r'-X PATCH "repos/\$REPO/releases/\$ID" -f name="[^"]*" -f tag_name="\$TAG" >/dev/null$')
+        self.assertIn("[.draft, .prerelease, .tag_name]", runs)
 
     def test_no_untrusted_expressions_in_scripts(self):
         # Inputs and event data reach scripts only through env (no template injection).
