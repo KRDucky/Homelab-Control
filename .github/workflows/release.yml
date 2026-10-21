@@ -208,8 +208,12 @@ jobs:
         run: |
           set -euo pipefail
           # Only the title changes; the request carries no draft field, so the release stays a draft.
-          gh api -X PATCH "repos/$REPO/releases/$ID" -f name="UNSIGNED DEVELOPMENT BUILD $TAG" >/dev/null
-          gh api "repos/$REPO/releases/$ID" --jq '.draft' | grep -qx true || { echo "::error::release $ID is no longer a draft"; exit 1; }
+          # tag_name is sent again: a draft PATCH without it reset the tag to "untagged-<hash>" on the
+          # first release (v0.1.0-dev.1, 2026-10-21).
+          gh api -X PATCH "repos/$REPO/releases/$ID" -f name="UNSIGNED DEVELOPMENT BUILD $TAG" -f tag_name="$TAG" >/dev/null
+          state=$(gh api "repos/$REPO/releases/$ID" --jq '[.draft, .prerelease, .tag_name] | @tsv')
+          [ "$state" = "$(printf 'true\ttrue\t%s' "$TAG")" ] \
+            || { echo "::error::release $ID is not a draft prerelease for $TAG after retitling ($state)"; exit 1; }
           refs=$(gh api "repos/$REPO/git/matching-refs/tags/$TAG" --jq '.[].ref')
           if grep -qxF "refs/tags/$TAG" <<<"$refs"; then echo "::error::tag $TAG unexpectedly exists"; exit 1; fi
           {

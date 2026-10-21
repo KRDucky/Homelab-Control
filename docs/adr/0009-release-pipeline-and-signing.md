@@ -82,9 +82,7 @@ repositories, should not happen before the owner revisits Phase 3.
   `.asc` files.
 
 ## 5. LA-13 checklist
-**LA-13 is not resolved.** The Phase 1 workflow is implemented (2026-10-20). LA-13 can be marked resolved
-only when a first draft prerelease has been produced by it, published by the owner and verified against
-every mandatory item below (R10, R11).
+**LA-13 is resolved for Phase 1 (2026-10-21).** The first unsigned development prerelease, v0.1.0-dev.1 (https://github.com/KRDucky/Homelab-Control---Webmin-Fork/releases/tag/v0.1.0-dev.1), tag → `ec34b21e`, release run 39562079197, was produced by the workflow, published by the owner and verified after publication against every mandatory item below. Phase 2 and Phase 3 items (§5.3) remain deferred and are not part of this closure.
 
 ### 5.1 Mandatory for a Phase 1 unsigned development prerelease
 | # | Requirement | State (2026-10-20) |
@@ -96,10 +94,10 @@ every mandatory item below (R10, R11).
 | R5 | **SHA-256 checksums** (`SHA256SUMS`) for every asset | Implemented in the dry run |
 | R6 | **Exact toolchain pins** in the release workflow: Go patch version, Node.js and npm versions; checked against `RELEASE-BUILDINFO` | **Done**: `packaging/release/toolchain.env` (Go 1.26.10 since 2026-10-21 for GO-2026-6809, previously 1.26.9; Node.js 22.23.3, npm 10.9.9; CI uses the same Go version) used by `release-build.yml` (release and CI dry run) and `release.yml`'s gate; installed versions checked before building and against `RELEASE-BUILDINFO` after. Verified in the CI dry run |
 | R7 | **Pinned build/check tools**: `govulncheck` and the other CI tools | **Done in CI**: `govulncheck` v1.9.0 (was `@latest`), spdx-tools 0.8.3, reuse 6.2.0, Playwright 1.63.0, Actions pinned by SHA. The release workflow must reuse the same pins |
-| R8 | **Release workflow**: triggered by a version tag or a manual run; read-only permissions except the job that creates the **draft prerelease** (`contents: write`); never auto-publishes | **Implemented, partly verified**: `release.yml`, manual run on `main` only; `contents: write` in the `draft` job only; draft-only, never publishes, tags or deletes (policy tests). Its build/verify part runs in CI as the dry run. The `draft` job itself runs only from `main` and has **not run yet**; first run = first draft |
-| R9 | **Unsigned labelling**: prerelease flag; "UNSIGNED DEVELOPMENT BUILD" in title and notes; verification instructions; no claim of signatures | **Implemented**: `--prerelease`; title `UNSIGNED DEVELOPMENT BUILD v…`; notes from `packaging/release/RELEASE-NOTES.template.md` (banner, no-signature statement, provenance links, files, verification, checksums), rendered in every CI dry run. Seen on GitHub only after the first draft |
-| R10 | **Manual owner approval**: owner publishes the draft by hand; protected `release` environment used where available | **Partial**: workflow cannot publish; `draft` job uses environment `release`; procedure in `RELEASING.md` §4. Owner action: optionally protect the environment; publish the first draft by hand |
-| R11 | **Verification of the first draft**: owner (or CI) rebuilds from the published source archive and matches `SHA256SUMS`; inventory checks pass on the published packages | **Open** (needs the first draft; the workflow already re-downloads every uploaded asset and checks it against `SHA256SUMS`) |
+| R8 | **Release workflow**: triggered by a version tag or a manual run; read-only permissions except the job that creates the **draft prerelease** (`contents: write`); never auto-publishes | **Complete**: `release.yml` ran on 2026-10-21 (run 39562079197, all 8 jobs green): manual run on `main`, `contents: write` in the `draft` job only, draft prerelease created and its 11 uploaded files re-downloaded and checked against `SHA256SUMS`; nothing published, no tag created. One defect found: the retitling PATCH did not resend `tag_name`, so the draft's tag read `untagged-…`; fixed in the release-closeout PR (tag resent and checked) |
+| R9 | **Unsigned labelling**: prerelease flag; "UNSIGNED DEVELOPMENT BUILD" in title and notes; verification instructions; no claim of signatures | **Complete**: the v0.1.0-dev.1 draft is marked prerelease, titled `UNSIGNED DEVELOPMENT BUILD v0.1.0-dev.1`, and its notes open with the UNSIGNED banner, the no-signature statement, provenance links and verification steps (checked 2026-10-21) |
+| R10 | **Manual owner approval**: owner publishes the draft by hand; protected `release` environment used where available | **Complete**: the workflow left v0.1.0-dev.1 as a draft; the owner set the tag and published it by hand on 2026-10-21 (published 08:07:42Z). The `draft` job ran in environment `release`; whether it is protected was not verifiable from this session (optional per §Decision 5) |
+| R11 | **Verification of the first draft**: owner (or CI) rebuilds from the published source archive and matches `SHA256SUMS`; inventory checks pass on the published packages | **Complete** (2026-10-21): all 11 files downloaded anonymously from the public release; `sha256sum -c SHA256SUMS` OK and identical to the pre-publication draft; `release-tool.py verify --require-tools` OK (SBOM, notices, build info, no Webmin, package inventories); tag `v0.1.0-dev.1` = `ec34b21e`. **Independent rebuild outside GitHub** from the published source archive (Go 1.26.10 built from the go1.26.10 source tag, Node.js 22.23.3, npm 10.9.9, Ubuntu 24.04 container): `hc-api`, `hc-broker`, `hlctl` and the `.deb` byte-identical; the `.rpm` identical when the build host has no `homelab-control` group (see `BUILDING.md`); Arch package not rebuilt outside CI (two-container CI comparison only) |
 
 ### 5.2 Strongly recommended, not a Phase 1 blocker
 | # | Item | State |
@@ -120,7 +118,7 @@ every mandatory item below (R10, R11).
 2. [x] Owner deferred hardware tokens, OpenPGP keys and mandatory signing; phased approach adopted
    (2026-10-19).
 3. [x] PR: Phase 1 release workflow (R4, R6–R9), draft prereleases only (owner-authorized 2026-10-20).
-4. [ ] Owner: create the protected `release` environment if the plan offers it (R10, optional).
-5. [ ] First draft prerelease verified (R11); then LA-13 can be closed for Phase 1.
+4. [~] Owner: protect the `release` environment if the plan offers it (R10, optional; not verified).
+5. [x] First prerelease v0.1.0-dev.1 published by the owner and verified (R11); LA-13 closed for Phase 1 (2026-10-21).
 6. [x] PR: GitHub Actions runtime upgrade (S1) and `govulncheck` pin (R7).
 7. [ ] Future owner decision on Phase 2 and Phase 3.
