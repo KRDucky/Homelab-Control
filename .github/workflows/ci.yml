@@ -57,6 +57,8 @@ jobs:
         run: make build
       - name: Go tests (non-root runner)
         run: make test-go
+      - name: Fuzz broker argument decoding (60 s)
+        run: cd backend && go test -run='^$' -fuzz='^FuzzLogsArgs$' -fuzztime=60s ./internal/broker/ops
       - name: Frontend tests
         run: make test-frontend
       - name: Release tooling + workflow policy tests
