@@ -40,6 +40,34 @@ Docker, Compose, Podman, libvirt/QEMU/KVM, VM inventory, snapshots where support
 ## Backups, monitoring and integrations (optional)
 Restic, Borg, rsync, ZFS send/receive, notifications (email/webhook), Prometheus exporters, UPS shutdown policy, media integrations (Jellyfin/Plex/*arr), scheduled maintenance, metrics history.
 
+## Product scope additions (owner, 2026-10-21)
+These are product-scope requirements, not an implementation authorization. The capability matrix is in `docs/m2/CAPABILITY-MATRIX.md`.
+- **Storage and filesystems:** ZFS, Btrfs, mergerfs, SnapRAID, ext4, XFS, F2FS, mdadm, LVM2.
+  - mergerfs and SnapRAID are separately manageable and combinable.
+  - Existing ext4/XFS disks are adoptable without reformatting.
+  - Disk replacement and SnapRAID recovery are guided, with a feasibility assessment (parity, content files, surviving disks, last successful sync), never automatic.
+- **Containers:** Docker Engine, Compose projects, networks, volumes, images and Buildx, managed as distinct objects.
+- **System:** systemd services, timers, sockets and logs; package search, install and remove. Package updates and repository management are subject to separate scope approval.
+- **Virtualization:** libvirt, QEMU/KVM — VM lifecycle, virtual networks and storage through libvirt APIs, not raw QEMU.
+- **File sharing and connectivity:** SFTP (respecting the existing OpenSSH configuration), SMB/Samba (existing configuration detected first), FTP, FTPS, WebDAV, iSCSI, Thunderbolt (authorization, connectivity and storage/network functions kept distinct). NFS remains in scope from the file-services addon.
+- **Physical Drive Layout Designer:**
+  - user-defined chassis grids (rows/columns, irregular layouts, multiple chassis/shelves/enclosures, HDD/SSD/NVMe/tray/empty/reserved cells);
+  - drag-and-drop assignment by stable drive identity, never `/dev/sdX`, with replacement detection;
+  - integration with every storage module and replacement workflow;
+  - SES/HBA slot discovery and guarded identify LEDs only where the capability is verified;
+  - export/import without unnecessary sensitive metadata.
+
+  Staged A–D in `docs/m2/MODULE-ARCHITECTURE.md` §5.
+- **Architecture requirements:**
+  - independent, discoverable modules with capability detection;
+  - read-only separated from privileged changes;
+  - module-specific scopes and typed broker operations;
+  - adopt existing systems without recreating them;
+  - reversible/disruptive/destructive risk classes;
+  - cross-module device-ownership conflict prevention;
+  - per-distribution adapters;
+  - navigation in which modules can be enabled, disabled and extended independently.
+
 ## User journeys
 1. New drive: identify → partition → format → mount → assign role → verify.
 2. Failing drive: health alert → bay/serial mapping → dependency analysis → technology-specific replacement plan → supervised execution → verify.
