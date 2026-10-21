@@ -47,6 +47,12 @@ For a prerelease such as `0.1.0-dev.1`, the `.deb` you build is named `homelab-c
 `homelab-control_0.1.0-dev.1_amd64.deb`, because GitHub may rename asset names containing `~`.
 The exact toolchain of every release is pinned in `packaging/release/toolchain.env` and recorded in
 `RELEASE-BUILDINFO`.
+
+Build the `.rpm` on a machine where Homelab Control is **not installed**: `rpmbuild` stores the numeric
+group ID of the `homelab-control` group in the package when that group exists on the build host, so the
+bytes then differ (the installed files and ownership by name are the same). Verified 2026-10-21 for
+v0.1.0-dev.1: an independent rebuild outside GitHub gave byte-identical binaries and `.deb`, and an
+identical `.rpm` once the build host had no `homelab-control` group.
 **What has been demonstrated** (CI on every change, and locally): binaries, `.deb` and `.rpm` built from
 the source archive alone are byte-identical to those built from Git at the same commit, and all release
 files are identical across two complete runs on independent GitHub `ubuntu-24.04` runners (the Arch

@@ -5,8 +5,8 @@
 published only by the owner. Phase 2 (keyless attestations) is optional, and Phase 3 (OpenPGP and hardware-token
 signing) is deferred. **The Phase 1 workflow is implemented** (2026-10-20, owner-authorized):
 `.github/workflows/release.yml` (manual, draft only) and the reusable `.github/workflows/release-build.yml`,
-which also runs as the CI dry run (§2). **No release or draft has been created yet.** LA-13 stays open
-until a first draft has been produced, published by the owner and verified (ADR 0009 §5.1, R10–R11).
+which also runs as the CI dry run (§2). **First prerelease:** v0.1.0-dev.1, published by the owner and verified on 2026-10-21; LA-13 closed for
+Phase 1 (ADR 0009 §5.1).
 Owner runbook: `docs/release/RELEASING.md`.
 
 ## 1. What a Phase 1 prerelease publishes (GitHub Releases, marked prerelease, unsigned)

@@ -4,11 +4,7 @@
 Companion to `LICENSE-AUDIT.md` (findings LA-xx), `LICENSE-EXCEPTIONS.md` (EX-xx) and
 `RELEASE-PIPELINE.md`. Engineering record, not legal advice.
 
-**Release readiness: NOT READY.** One blocker remains: **LA-13**. The target is now **Phase 1, unsigned
-development/prereleases** (ADR 0009, revised 2026-10-19). The Phase 1 workflow is implemented
-(2026-10-20; R4, R6 done, R8/R9 implemented); R10 and R11 need the first draft, which has not been
-created. Signing (OpenPGP, hardware tokens) and attestations are **deferred enhancements, not blockers**. LA-02 and LA-03 are decided and implemented. Passing CI or
-automated scans does not by itself establish compliance.
+**Release readiness: Phase 1 READY (2026-10-21).** LA-13 is closed for Phase 1: the first unsigned development prerelease, v0.1.0-dev.1 (https://github.com/KRDucky/Homelab-Control---Webmin-Fork/releases/tag/v0.1.0-dev.1), tag → `ec34b21e`, release run 39562079197, was published by the owner and verified after publication (ADR 0009 §5.1, R1–R11). This covers **unsigned development prereleases only**. Signing (OpenPGP, hardware tokens) and attestations stay **deferred**; stable releases and package repositories wait for the Phase 3 decision. LA-02 and LA-03 are decided and implemented. Passing CI or automated scans does not by itself establish compliance.
 
 ## 1. Release gate checklist
 | # | Gate | How it is checked | Status |
@@ -24,7 +20,7 @@ automated scans does not by itself establish compliance.
 | G9 | Package metadata lists every licence in the payload | DEB (DEP-5), RPM `License:`, Arch `license=()` reviewed | **PASS** |
 | G10 | Debian DEP-5 `copyright` in the `.deb`; no lintian copyright/licence tags | `package-inventory.sh` + lintian in CI | **PASS** (automated) — LA-12 |
 | G11 | Complete corresponding source; binaries **and** DEB/RPM/Arch packages rebuild from it byte-for-byte | `scripts/release-bundle.sh` (archive vs Git), CI `release-dry-run` a/b, `release-dry-run-arch` a/b, `release-repro` | **PASS** on GitHub `ubuntu-24.04` runners and Arch containers with the recorded toolchain; not tested for other toolchain versions or distributions (`RELEASE-PIPELINE.md` §2) |
-| G12 | Source published with each binary; SHA-256 checksums; SBOM; notices; unsigned labelling; manual owner publication | `release.yml` + `release-build.yml`; `scripts/release-tool.py verify` (fail closed) in every CI dry run | **Implemented, not yet exercised for a real release** — LA-13 open until the first draft is published and verified (R10, R11) |
+| G12 | Source published with each binary; SHA-256 checksums; SBOM; notices; unsigned labelling; manual owner publication | `release.yml` + `release-build.yml`; `scripts/release-tool.py verify`; post-publication verification (R11) | **PASS** — v0.1.0-dev.1 published and verified 2026-10-21 |
 | G12a | Signatures and provenance (OpenPGP, signed tags, Sigstore attestations) | Phase 2/3 (ADR 0009 D1–D5) | **DEFERRED** by owner decision 2026-10-19; not required for Phase 1 |
 | G13 | Supported Go toolchain; `govulncheck` clean | CI and release gate, both Go 1.26.10 (same exact pin) | **PASS** (automated); `govulncheck` pinned (v1.9.0, R7); release toolchain pinned exactly (R6: Go 1.26.10, Node.js 22.23.3, npm 10.9.9). 2026-10-21: GO-2026-6809 (fixed in 1.26.10) turned `main` red on 1.26.9 until the pin was raised; the gate worked as intended |
 | G14 | Contribution policy in force | `CONTRIBUTING.md` (DCO), approved 2026-10-16 | **PASS** (policy); CI sign-off check is a follow-up |
@@ -59,16 +55,12 @@ The web UI (React, React DOM, scheduler, Archivo font subsets, MIT design tokens
 | `compat/webmin/` (Webmin 2.670 subtree) | No; also excluded from the release source archive | BSD-3-Clause + per-file exceptions | Upstream notices kept in place |
 | CI/test tools (Playwright, spdx-tools, reuse, lintian, shellcheck, Perl) | No | Mixed | Not required |
 
-## 4. Remaining work before a first (unsigned) development prerelease
-Mandatory (ADR 0009 §5.1):
-1. **Release-workflow PR** (R4, R6, R8, R9): implemented 2026-10-20; awaiting owner review and merge.
-2. **Owner:** choose the first version number and run the workflow (it only creates a draft); optionally
-   protect the `release` environment; publish the draft by hand (R10). See `docs/release/RELEASING.md`.
-3. **Verify the first published prerelease:** rebuild from its source archive and match `SHA256SUMS`; run
-   inventory checks on the packages (R11). Only then is LA-13 closed for Phase 1.
-
-Done: GitHub Actions moved off the deprecated Node 20 runtime (S1); `govulncheck` pinned (R7); SBOM
-version stamping (R4); exact toolchain pins (R6).
+## 4. Phase 1 closure (2026-10-21)
+All mandatory items are done (ADR 0009 §5.1): R1–R3, R5 (dry run), R4, R6, R7 (CI), R8, R9 (first run and
+draft), R10 (owner publication), R11 (post-publication verification incl. an independent rebuild outside
+GitHub). One workflow defect found on the first run (draft tag reset to `untagged-…` by the retitling
+step) was corrected by the owner at publication and fixed in the workflow. Each later release repeats the
+procedure in `docs/release/RELEASING.md`.
 
 Deferred (owner decision 2026-10-19), not required for Phase 1:
 - Sigstore attestations (Phase 2);
