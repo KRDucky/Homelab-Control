@@ -1,6 +1,6 @@
 # ADR-0004: Configuration, state database and secrets storage
 
-**Status:** Proposed (M0 implements only the users file and audit log)
+**Status:** Accepted for non-secret state (2026-10-21, M2 PR-1a; owner decision D-1). Secrets handling remains Proposed.
 **Date:** 2026-10-15
 **Deciders:** Project owner
 
@@ -46,4 +46,4 @@ keyrings (Secret Service) are not available; TPMs are present on some hardware o
 ## Action Items
 1. [x] users.json permission enforcement + atomic writes (M0).
 2. [ ] Broker secret store + metadata API (first consumer: ACME/Cloudflare, M10).
-3. [ ] SQLite driver decision and schema migrations (M2).
+3. [x] SQLite driver decision and schema migrations (M2 PR-1a): `modernc.org/sqlite` (ADR 0006 amendment 1). The state database is `/var/lib/homelab-control/state.db`: 0600, in a 0700 directory owned by `homelab-control`, with symlinks refused. It runs in WAL mode with `synchronous=FULL`. Migrations are forward-only and transactional, each existing database is backed up with `VACUUM INTO` before migrating, and a newer schema is refused. It holds sessions (hashes only) and the API audit trail. It holds no secrets: the CSRF tokens it stores are useless without the matching cookie.

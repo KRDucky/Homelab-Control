@@ -14,6 +14,7 @@ import (
 
 	"homelab-control/backend/internal/audit"
 	"homelab-control/backend/internal/auth"
+	"homelab-control/backend/internal/state"
 )
 
 func TestUserLifecycle(t *testing.T) {
@@ -109,6 +110,37 @@ func TestAuditVerify(t *testing.T) {
 	for _, bad := range []string{"x", "0:" + hash, "1:zz"} {
 		if err := run([]string{"audit", "verify", "--file", p, "--checkpoint", bad}, nil, &out); err == nil {
 			t.Errorf("checkpoint %q accepted", bad)
+		}
+	}
+}
+
+func TestAuditVerifyDatabase(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "s")
+	_ = os.Mkdir(dir, 0o700)
+	p := filepath.Join(dir, "state.db")
+	db, err := state.Open(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l, err := audit.OpenStore(db.Audit())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = l.Log(audit.Event{Event: "auth.login", User: "admin", Outcome: "success"})
+	seq, hash := l.Head()
+	// The service keeps the database open while hlctl reads it.
+	var out bytes.Buffer
+	if err := run([]string{"audit", "verify", "--db", p, "--checkpoint", fmt.Sprintf("%d:%s", seq, hash)}, nil, &out); err != nil || !strings.Contains(out.String(), "OK: chain verified") {
+		t.Fatalf("%v\n%s", err, out.String())
+	}
+	out.Reset()
+	if err := run([]string{"audit", "export", "--db", p}, nil, &out); err != nil || strings.Count(out.String(), "\n") != 2 || !strings.Contains(out.String(), `"event":"auth.login"`) {
+		t.Fatalf("%v\n%s", err, out.String())
+	}
+	db.Close()
+	for _, bad := range [][]string{{"audit", "verify"}, {"audit", "verify", "--db", p, "--file", p}, {"audit", "export", "--file", p}} {
+		if err := run(bad, nil, &out); err == nil {
+			t.Errorf("%v accepted", bad)
 		}
 	}
 }

@@ -82,7 +82,8 @@ echo "   journalctl users observed: $(sort -u <<<"$seen" | tr '\n' ' ')"
 bal=/var/log/homelab-control-broker/broker-audit.jsonl
 check "broker audited the logs read (unit and lines only)" 1 "$(grep -c '"detail":"services.unit.logs unit=homelab-control.service lines=20 ' "$bal" | awk '{print ($1>0)}')"
 check "log content is not copied into the broker audit log" 0 "$(grep -c 'Started\|Starting' "$bal" || true)"
-check "API audited the logs read" 1 "$(grep -c '"event":"services.logs.read"' /var/log/homelab-control/audit.jsonl | awk '{print ($1>0)}')"
+sdb=/var/lib/homelab-control/state.db
+check "API audited the logs read (state database)" 1 "$(hlctl audit export --db "$sdb" | grep -c '"event":"services.logs.read"' | awk '{print ($1>0)}')"
 
 echo "== M2 PR-1b: hash-chained audit logs verify, with journal checkpoints"
 # A clean stop writes a final checkpoint (= the head); the socket restarts the broker on demand.
@@ -92,7 +93,18 @@ cp=$(sed -E 's/.* seq=([0-9]+) hash=([0-9a-f]{64}).*/\1:\2/' <<<"$cp_line")
 echo "   journal checkpoint: $cp"
 check "broker audit chain + journal checkpoint verify" 0 "$(hlctl audit verify --file "$bal" --checkpoint "$cp" >/tmp/av.txt 2>&1; echo $?)"
 sed 's/^/   /' /tmp/av.txt
-check "API audit chain verifies" 0 "$(hlctl audit verify --file /var/log/homelab-control/audit.jsonl >/dev/null 2>&1; echo $?)"
+echo "== M2 PR-1a: state database, persistent sessions, API audit trail"
+check "state database 0600 homelab-control" "600 homelab-control" "$(stat -c '%a %U' "$sdb")"
+check "state directory 0700 homelab-control" "700 homelab-control" "$(stat -c '%a %U' /var/lib/homelab-control)"
+check "session listed as persistent" True "$(jget "d['persistent']" <<<"$(get /api/v1/auth/sessions)")"
+systemctl restart homelab-control.service
+for _ in $(seq 50); do curl -fsS "$api/api/v1/health" >/dev/null 2>&1 && break; sleep 0.2; done
+check "session survives systemctl restart homelab-control" 200 "$(getc /api/v1/auth/session)"
+check "only hashed session ids stored" 0 "$(grep -c "$HC_SID" "$sdb" "$sdb-wal" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')"
+acp=$(journalctl -u homelab-control.service -o cat --no-pager | grep 'audit checkpoint' | tail -1 | sed -E 's/.* seq=([0-9]+) hash=([0-9a-f]{64}).*/\1:\2/')
+check "API audit chain + journal checkpoint verify" 0 "$(hlctl audit verify --db "$sdb" --checkpoint "$acp" >/tmp/av2.txt 2>&1; echo $?)"
+sed 's/^/   /' /tmp/av2.txt
+check "audit endpoint without audit.read is 403" 403 "$(getc /api/v1/audit)"
 # Tamper on copies (the live logs stay untouched).
 tmpd=$(mktemp -d)
 head -n -1 "$bal" >"$tmpd/trunc.jsonl"

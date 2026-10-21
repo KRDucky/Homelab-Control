@@ -31,7 +31,8 @@ ROOT = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=Tr
 OUT = os.path.join(ROOT, "docs", "compliance", "sbom", "homelab-control.spdx.json")
 LOCK = os.path.join(ROOT, "frontend", "app", "package-lock.json")
 REPO = "https://github.com/KRDucky/Homelab-Control---Webmin-Fork"
-INPUTS = ["frontend/app/package-lock.json", "backend/go.mod", "compat/webmin.lock", "scripts/gen-sbom.py"]
+INPUTS = ["frontend/app/package-lock.json", "backend/go.mod", "backend/go.sum", "backend/go-deps-allowlist.json",
+          "compat/webmin.lock", "scripts/gen-sbom.py"]
 
 
 def read(rel):
@@ -86,9 +87,34 @@ def main():
         "copyrightText": "Copyright 2009 The Go Authors.",
         "externalRefs": [{"referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl", "referenceLocator": "pkg:golang/stdlib@" + go_ci.replace(".x", "")}],
         "comment": f"Statically linked into all three binaries. go.mod minimum: go {go_min}; CI release toolchain: {go_ci}. "
-                   "No third-party Go modules (ADR 0006).",
+                   "Third-party Go modules are listed separately (ADR 0006 amendment 1).",
     })
     rels.append({"spdxElementId": product, "relationshipType": "CONTAINS", "relatedSpdxElement": go_id})
+
+    allow = json.loads(read("backend/go-deps-allowlist.json"))["modules"]
+    for m in allow:
+        mid = spdx_id("Package-go-" + m["path"] + "-" + m["version"])
+        p = {
+            "SPDXID": mid, "name": m["path"], "versionInfo": m["version"],
+            "downloadLocation": "https://proxy.golang.org/" + re.sub(r"[A-Z]", lambda c: "!" + c.group(0).lower(), m["path"])
+                                + "/@v/" + m["version"] + ".zip",
+            "filesAnalyzed": False, "licenseDeclared": m["license"],
+            "licenseConcluded": m["license"] if m["linked"] else "NOASSERTION",
+            "copyrightText": "NOASSERTION",
+            "externalRefs": [{"referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl",
+                              "referenceLocator": "pkg:golang/" + m["path"] + "@" + m["version"]}],
+        }
+        # go.sum "h1:" is a hash of the module's file tree (dirhash), not of one file, so it
+        # goes in the comment rather than an SPDX checksum.
+        integrity = f" go.sum {m['h1']}."
+        if m["linked"]:
+            p["comment"] = ("Compiled into hc-api and hlctl (not hc-broker); source in the release source archive under "
+                            "vendor-sources/go/download." + integrity + " " + m["notes"]).strip()
+            rels.append({"spdxElementId": product, "relationshipType": "CONTAINS", "relatedSpdxElement": mid})
+        else:
+            p["comment"] = ("In the Go module graph only; not compiled into any binary." + integrity + " " + m["notes"]).strip()
+            rels.append({"spdxElementId": mid, "relationshipType": "OPTIONAL_DEPENDENCY_OF", "relatedSpdxElement": product})
+        pkgs.append(p)
 
     seen = set()
     for key, meta in sorted(lock["packages"].items()):

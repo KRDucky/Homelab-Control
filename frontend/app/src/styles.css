@@ -755,3 +755,17 @@ tr.log-warn td:nth-child(2) {
 tr.log-debug td {
   color: var(--hc-color-muted);
 }
+
+/* M2 PR-1a: account link, audit rows */
+.topbar-link {
+  font-size: var(--hc-font-size-sm);
+  color: var(--hc-color-text);
+}
+.topbar-link[aria-current='page'] {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.row-warn th,
+.row-warn td {
+  background: color-mix(in srgb, var(--hc-color-warn) 8%, transparent);
+}

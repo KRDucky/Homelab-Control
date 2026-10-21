@@ -60,7 +60,10 @@ class Fixture:
             for rel in ["BUILDING.md", "REUSE.toml", "frontend/app/package-lock.json",
                         "vendor-sources/npm/MANIFEST.txt", "vendor-sources/npm/react-19.3.1.tgz",
                         "packaging/release/toolchain.env", *extra_source]:
-                add(t, p + rel)
+                if isinstance(rel, tuple):
+                    add(t, p + rel[0], rel[1])
+                else:
+                    add(t, p + rel)
         top = f"homelab-control-{version}-linux-amd64/"
         with tarfile.open(os.path.join(self.d, n["binaries"]), "w:gz") as t:
             for b in rt.BINARIES + rt.NOTICES:
@@ -202,6 +205,20 @@ class Verify(unittest.TestCase):
         self.tmp = tempfile.mkdtemp()
         self.f = Fixture(self.tmp, extra_source=[".git/config"])
         self.assertOnlyFails("source")
+
+    def test_go_module_sources_required(self):
+        allow = ("backend/go-deps-allowlist.json",
+                 b'{"modules": [{"path": "github.com/BurntSushi/x", "version": "v1.0.0", "linked": true},'
+                 b' {"path": "example.org/graph-only", "version": "v1.0.0", "linked": false}]}')
+        shutil.rmtree(self.tmp)
+        self.tmp = tempfile.mkdtemp()
+        self.f = Fixture(self.tmp, extra_source=[allow])
+        self.assertOnlyFails("source")
+        shutil.rmtree(self.tmp)
+        self.tmp = tempfile.mkdtemp()
+        # Module paths are case-escaped in the proxy layout (!burnt!sushi).
+        self.f = Fixture(self.tmp, extra_source=[allow, "vendor-sources/go/download/github.com/!burnt!sushi/x/@v/v1.0.0.zip"])
+        self.assertOnlyFails()
 
     def test_links_must_stay_inside_the_tree(self):
         n = rt.expected_names(V)["source"]
