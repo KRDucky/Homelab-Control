@@ -58,7 +58,7 @@ These are product-scope requirements, not an implementation authorization. The c
   - export/import without unnecessary sensitive metadata.
 
   Staged A–D in `docs/m2/MODULE-ARCHITECTURE.md` §5.
-  - Owner direction (2026-10-21): built by making the existing **HBA Viewer** concept (the chassis layout from the owner's Storage Manager, D-12) a single reusable view, not a separate system.
+  - Owner direction (2026-10-21): make the existing **HBA Viewer** concept (a separate owner project; source pending, D-12) a single reusable view instead of a separate drive-location system.
 - **Architecture requirements:**
   - independent, discoverable modules with capability detection;
   - read-only separated from privileged changes;
