@@ -450,6 +450,10 @@
   --hc-font-weight-regular: 400;
   --hc-font-weight-medium: 500;
   --hc-font-weight-strong: 600;
+  --hc-text-scale-90: 90%;
+  --hc-text-scale-100: 100%;
+  --hc-text-scale-112: 112.5%;
+  --hc-text-scale-125: 125%;
   --hc-density-compact-row: 28px;
   --hc-density-compact-control: 28px;
   --hc-density-compact-pad: 4px;
@@ -466,8 +470,10 @@
   --hc-motion-normal: 200ms;
   --hc-motion-slow: 280ms;
   --hc-motion-ease: cubic-bezier(0.2, 0, 0, 1);
-  --font-ui: 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  --font-ui: 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', 'Noto Sans', 'Liberation Sans', sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'SFMono-Regular', 'DejaVu Sans Mono', 'Liberation Mono', Menlo, Consolas, monospace;
+  --font-ui-system: system-ui, -apple-system, 'Segoe UI', 'Noto Sans', 'Liberation Sans', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono-system: ui-monospace, 'SFMono-Regular', 'DejaVu Sans Mono', 'Liberation Mono', Menlo, Consolas, monospace;
 }
 
 /* Type styles */

@@ -9,7 +9,7 @@ Source: `ADR 0010; docs/ui/03 Theme Studio`
 ## Rules
 
 - Preview auto-reverts after 15 s unless kept; Esc reverts immediately.
-- Validation checks structure, value formats, forbidden layout/code keys and key contrast pairs, and says it is not a full accessibility audit.
+- Validation checks structure, value formats, forbidden layout/code keys, typography (only approved families; no font files, `@font-face` or font URLs) and key contrast pairs, and says it is not a full accessibility audit.
 - Theme Studio itself is not designed here.
 
 Props: `ThemeManagerProps` in `reference/index.d.ts`. Preview data is fictional and labelled “Example data”.
