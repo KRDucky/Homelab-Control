@@ -33,8 +33,9 @@ Artifacts: `theme.schema.v1.draft.json` (draft JSON Schema, not wired into code)
 - Prefer the platform over dependencies. New runtime dependencies need an ADR 0006 review.
 
 ## What already exists (M1)
-- `frontend/design-system/tokens.css`: 48 `--hc-*` custom properties (dark defaults plus a light override set); light/dark via
-  `prefers-color-scheme`; reduced motion zeroes `--hc-motion-fast`.
+- `frontend/design-system/tokens.css`: HCIS colour roles for four themes (generated from `hcis/tokens/tokens.json`; Midnight default,
+  Daybreak via `prefers-color-scheme: light`, Graphite via `prefers-contrast: more`, `data-hc-theme` to choose) with the M1 colour
+  names as aliases; M1 type, space and motion values; reduced motion zeroes `--hc-motion-fast`.
 - `frontend/app/src/styles.css` consumes tokens throughout (208 `var(--hc-…)` uses, 0 hard-coded colours).
 - `useData` polling hook; capability-aware navigation; axe-clean pages (`docs/evidence/m1/vm-26.04/`).
 - Spec `docs/project/06-THEME-AND-PLUGIN-SDK.md` (`.hltheme` archives, `hlctl theme …`), which this
