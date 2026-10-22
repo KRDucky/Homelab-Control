@@ -2,13 +2,35 @@
 # SPDX-FileCopyrightText: 2026 The Homelab Control Authors
 #
 # SPDX-License-Identifier: MIT
-"""Generate hcis-tokens.css from tokens.json. Usage: python3 -I gen-css.py [--check]"""
+"""Generate CSS from tokens.json.
+
+- docs/ui/hcis/tokens/hcis-tokens.css: the full reference stylesheet (all token families).
+- frontend/design-system/tokens.css, between the "BEGIN/END generated: HCIS colour roles" markers:
+  the HCIS semantic colours for the shipped app (hex values, one block per theme) and the M1
+  colour names as aliases (migration step 1, docs/ui/hcis/README.md).
+
+Usage: python3 -I gen-css.py [--check]
+"""
 import json
 import pathlib
 import re
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
+APP_TOKENS = HERE.parents[3] / 'frontend' / 'design-system' / 'tokens.css'
+BEGIN = '/* BEGIN generated: HCIS colour roles (docs/ui/hcis/tokens/gen-css.py) */'
+END = '/* END generated: HCIS colour roles */'
+# Selectors per theme. Midnight is the default; Daybreak follows a light OS preference and Graphite
+# a dark one with prefers-contrast: more, unless data-hc-theme names a theme. 'dark' keeps the M1
+# meaning (force the default dark theme).
+APP_THEMES = [
+    ('midnight', 'dark', [":root", ":root[data-hc-theme='midnight']", ":root[data-hc-theme='dark']"], None),
+    ('daybreak', 'light', [":root:not([data-hc-theme])"], '(prefers-color-scheme: light)'),
+    ('graphite', 'dark', [":root:not([data-hc-theme])"], '(prefers-color-scheme: dark) and (prefers-contrast: more)'),
+    ('daybreak', 'light', [":root[data-hc-theme='daybreak']", ":root[data-hc-theme='light']"], None),
+    ('graphite', 'dark', [":root[data-hc-theme='graphite']"], None),
+    ('oled', 'dark', [":root[data-hc-theme='oled']"], None),
+]
 
 
 def render(t):
@@ -46,15 +68,53 @@ def render(t):
     return '\n'.join(out) + '\n'
 
 
+def resolve(tokens, name, theme, first):
+    t = tokens[name]
+    v = t['value'] if isinstance(t['value'], str) else t['value'].get(theme, t['value'][first])
+    m = re.fullmatch(r'\{(.+)\}', v)
+    return resolve(tokens, m.group(1), theme, first) if m else v
+
+
+def render_app(t):
+    first = t['color']['themes'][0]['id']
+    tokens = {x['name']: x for x in t['color']['tokens']}
+    semantic = [n for n, x in tokens.items() if not n.startswith('hc-palette-') and not isinstance(x['value'], str)]
+    aliases = [(n, x['value'][1:-1]) for n, x in tokens.items() if isinstance(x['value'], str) and n.startswith('hc-color-')]
+    out = [BEGIN, '/* HCIS semantic colours (docs/ui/hcis). Edit tokens.json and regenerate; do not edit by hand. */']
+    for theme, scheme, sels, media in APP_THEMES:
+        ind = '  ' if media else ''
+        body = [f'{ind}  color-scheme: {scheme};'] + [f'{ind}  --{n}: {resolve(tokens, n, theme, first)};' for n in semantic]
+        block = f'{ind}' + f',\n{ind}'.join(sels) + ' {\n' + '\n'.join(body) + f'\n{ind}}}'
+        out.append(f'@media {media} {{\n{block}\n}}' if media else block)
+    out.append('/* M1 colour names, kept for existing styles (docs/ui/02 §2.6). New code uses the semantic names. */')
+    out.append(':root {\n' + '\n'.join(f'  --{n}: var(--{a});' for n, a in aliases) + '\n}')
+    out.append(END)
+    return '\n'.join(out)
+
+
+def splice(current, region):
+    a, b = current.index(BEGIN), current.index(END) + len(END)
+    return current[:a] + region + current[b:]
+
+
 def main():
-    css = render(json.loads((HERE / 'tokens.json').read_text()))
+    t = json.loads((HERE / 'tokens.json').read_text())
+    css = render(t)
     target = HERE / 'hcis-tokens.css'
+    app = APP_TOKENS.read_text()
+    app_new = splice(app, render_app(t))
     if '--check' in sys.argv:
+        bad = []
         if target.read_text() != css:
-            sys.exit('hcis-tokens.css is out of date; run gen-css.py')
-        print('OK: hcis-tokens.css matches tokens.json')
+            bad.append('docs/ui/hcis/tokens/hcis-tokens.css')
+        if app != app_new:
+            bad.append('frontend/design-system/tokens.css (HCIS region)')
+        if bad:
+            sys.exit('out of date: ' + ', '.join(bad) + '; run python3 -I docs/ui/hcis/tokens/gen-css.py')
+        print('OK: HCIS CSS matches tokens.json')
     else:
         target.write_text(css)
+        APP_TOKENS.write_text(app_new)
 
 
 if __name__ == '__main__':
