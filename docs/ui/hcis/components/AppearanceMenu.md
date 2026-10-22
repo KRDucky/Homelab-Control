@@ -1,6 +1,6 @@
 # AppearanceMenu
 
-Popover for theme, transparency, density and motion.
+Popover for theme, transparency, density, motion, interface font and text size.
 
 **Status: Proposed (HCIS).** New in the HCIS specification; a reference design, not in the app.
 
@@ -8,7 +8,7 @@ Source: `docs/ui/06 §6.5 AppearancePreferences`
 
 ## When to use
 
-Only theme is appearance content; the other three are layout/accessibility preferences that survive theme switches.
+Only theme is appearance content. Transparency, density, motion, interface font (Inter or System) and text size (90–125%) are layout and accessibility preferences that survive theme switches, so any font or text size works with Midnight, Daybreak, Graphite and OLED.
 
 ## Rules
 
