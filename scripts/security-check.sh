@@ -26,10 +26,8 @@ step "Go static guards (no process execution, all API routes wrapped)"
 step "go vet"
 (cd backend && go vet ./...) || bad
 
-step "Go dependency policy (M0: standard library only)"
-if grep -qE '^require' backend/go.mod; then
-  echo "backend/go.mod declares third-party modules; review ADR 0006 before adding dependencies"; bad
-else echo "OK: no third-party Go modules"; fi
+step "Go dependency policy (ADR 0006 amendment 1: reviewed allow-list only)"
+if python3 -I scripts/check-go-deps.py; then :; else bad; fi
 
 step "govulncheck (Go stdlib/toolchain advisories)"
 if command -v govulncheck >/dev/null 2>&1; then

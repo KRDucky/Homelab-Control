@@ -1,0 +1,85 @@
+{
+  "comment": "Reviewed third-party Go modules (ADR 0006 amendment 1, owner decision D-1, 2026-10-21). scripts/security-check.sh fails if backend/go.mod requires anything not listed here at exactly this version, or if the set of modules linked into the binaries differs from linked=true. Update only with a recorded review.",
+  "modules": [
+    {
+      "path": "modernc.org/sqlite",
+      "version": "v1.60.1",
+      "license": "BSD-3-Clause",
+      "linked": true,
+      "h1": "h1:/blz53O951KWFOso4QQvEs/Fq6cDBKLtMVrYNSeJVKw=",
+      "notes": "Pure-Go SQLite driver (D-1). Bundles SQLite 3.53.4 (public domain) transpiled to Go; third-party notices in its LICENSE-3RD-PARTY.md."
+    },
+    {
+      "path": "modernc.org/libc",
+      "version": "v1.77.1",
+      "license": "BSD-3-Clause",
+      "linked": true,
+      "h1": "h1:Ct8j47QtiZ1Enj2DtFXQtUqrPCAjdCmPjtCuvrYQ0Hs=",
+      "notes": "C runtime for the transpiled SQLite. Contains code derived from musl libc (MIT), Go (BSD-3-Clause), go-netdb (MIT) and nixpkgs (MIT); notices in its LICENSE-3RD-PARTY.md."
+    },
+    {
+      "path": "modernc.org/mathutil",
+      "version": "v1.7.1",
+      "license": "BSD-3-Clause",
+      "linked": true,
+      "h1": "h1:GCZVGXdaN8gTqB1Mf/usp1Y/hSqgI2vAGGP4jZMCxOU=",
+      "notes": ""
+    },
+    {
+      "path": "modernc.org/memory",
+      "version": "v1.12.1",
+      "license": "BSD-3-Clause",
+      "linked": true,
+      "h1": "h1:nFMiWrpStgZczNl6XI9GnIk/rWhYIyHGUaR04pGbp9g=",
+      "notes": "Includes code from mmap-go (BSD-3-Clause) and Go (BSD-3-Clause); LICENSE-MMAP-GO, LICENSE-GO."
+    },
+    {
+      "path": "golang.org/x/sys",
+      "version": "v0.48.0",
+      "license": "BSD-3-Clause",
+      "linked": true,
+      "h1": "h1:bbX/i/6MgT9BVLM9RT1thmxL04yeTAhbEz4SyadbXoo=",
+      "notes": "Go project; PATENTS grant included."
+    },
+    {
+      "path": "github.com/google/uuid",
+      "version": "v1.6.0",
+      "license": "BSD-3-Clause",
+      "linked": true,
+      "h1": "h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=",
+      "notes": ""
+    },
+    {
+      "path": "github.com/dustin/go-humanize",
+      "version": "v1.0.1",
+      "license": "MIT",
+      "linked": true,
+      "h1": "h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=",
+      "notes": ""
+    },
+    {
+      "path": "github.com/remyoudompheng/bigfft",
+      "version": "v0.0.0-20230129092748-24d4a6f8daec",
+      "license": "BSD-3-Clause",
+      "linked": true,
+      "h1": "h1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=",
+      "notes": ""
+    },
+    {
+      "path": "github.com/mattn/go-isatty",
+      "version": "v0.0.24",
+      "license": "MIT",
+      "linked": false,
+      "h1": "h1:tGZZoVgT/KiqK1c8ocVLeDS8BSWMRd47J3Lbz7vsReI=",
+      "notes": "In the module graph only; not compiled into any binary (go list -deps)."
+    },
+    {
+      "path": "github.com/ncruces/go-strftime",
+      "version": "v1.0.0",
+      "license": "MIT",
+      "linked": false,
+      "h1": "h1:HMFp8mLCTPp341M/ZnA4qaf7ZlsbTc+miZjCLOFAw7w=",
+      "notes": "In the module graph only; not compiled into any binary (go list -deps)."
+    }
+  ]
+}

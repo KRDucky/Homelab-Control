@@ -27,6 +27,9 @@ const (
 	// ScopeServicesLogs allows reading service journal entries, which can
 	// contain sensitive data. Not in DefaultScopes: grant it explicitly (D-7).
 	ScopeServicesLogs = "services.logs"
+	// ScopeAuditRead allows reading the API audit trail (who signed in, what
+	// was denied, which logs were read). Not in DefaultScopes (D-7).
+	ScopeAuditRead = "audit.read"
 )
 
 // KnownScopes lists every scope the server understands. Unknown scopes in the
@@ -37,6 +40,7 @@ var KnownScopes = map[string]bool{
 	ScopeServicesRead: true,
 	ScopeHardwareRead: true,
 	ScopeServicesLogs: true,
+	ScopeAuditRead:    true,
 }
 
 // DefaultScopes are granted by `hlctl user add` when --scopes is not given.

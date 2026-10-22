@@ -186,6 +186,47 @@ components:
               description: { type: string, maxLength: 256 }
               unit_file_state: { type: string }
               preset: { type: string }
+    SessionList:
+      type: object
+      required: [persistent, idle_timeout_seconds, max_lifetime_seconds, sessions]
+      properties:
+        persistent: { type: boolean, description: 'false when hc-api runs without the state database (sessions end on restart)' }
+        idle_timeout_seconds: { type: integer }
+        max_lifetime_seconds: { type: integer }
+        sessions:
+          type: array
+          items:
+            type: object
+            required: [id, created, last_seen, current]
+            properties:
+              id: { type: string, description: SHA-256 of the cookie value; cannot be used to sign in }
+              created: { type: string, format: date-time }
+              last_seen: { type: string, format: date-time, description: 'Refreshed at most every 30 s' }
+              remote_ip: { type: string }
+              user_agent: { type: string }
+              current: { type: boolean }
+    AuditPage:
+      type: object
+      required: [events, source]
+      properties:
+        next_before: { type: integer }
+        source: { type: string }
+        events:
+          type: array
+          items:
+            type: object
+            required: [id, seq, time, event, outcome, prev, hash]
+            properties:
+              id: { type: integer }
+              seq: { type: integer }
+              time: { type: string, format: date-time }
+              event: { type: string }
+              user: { type: string }
+              remote: { type: string }
+              outcome: { type: string }
+              detail: { type: string }
+              prev: { type: string }
+              hash: { type: string }
     UnitLogs:
       type: object
       required: [unit, requested, entries, truncated, source]
@@ -294,6 +335,39 @@ paths:
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Session' } } } }
         '401': { description: No session, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /auth/sessions:
+    get:
+      summary: The caller's own sessions (persistent with the state database)
+      security: [{ session: [] }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/SessionList' } } } }
+        '401': { description: No session, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: The state database could not be read, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /auth/sessions/{id}/revoke:
+    post:
+      summary: End one of the caller's own sessions (requires Origin and X-CSRF-Token)
+      security: [{ session: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, pattern: '^[0-9a-f]{64}$' }, description: 'Session id from GET /auth/sessions (SHA-256 of the cookie value)' }
+      responses:
+        '204': { description: 'Revoked; when it was the current session the cookie is cleared' }
+        '400': { description: Malformed id, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Origin or CSRF check failed, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: 'No such session for this user (other users'' sessions are never affected)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /audit:
+    get:
+      summary: API audit trail, newest first (scope audit.read)
+      security: [{ session: [] }]
+      x-required-scope: audit.read
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500, default: 100 } }
+        - { name: before, in: query, schema: { type: integer, minimum: 1 }, description: 'Return records with id below this (paging cursor: next_before)' }
+        - { name: event, in: query, schema: { type: string, pattern: '^[a-z][a-z0-9_.]{0,63}$' }, description: 'Event name prefix, e.g. auth.' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AuditPage' } } } }
+        '400': { description: Invalid query, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: No state database, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /host/overview:
     get:
       summary: Read-only host overview (scope system.read)

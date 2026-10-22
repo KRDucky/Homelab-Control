@@ -12,13 +12,18 @@ import {
   type SessionInfo,
 } from './api';
 import { Login } from './Login';
+import { Audit } from './pages/Audit';
 import { Hardware } from './pages/Hardware';
 import { Legacy } from './pages/Legacy';
 import { OverviewPage } from './pages/OverviewPage';
 import { Services } from './pages/Services';
+import { Sessions } from './pages/Sessions';
 import { linkHandler, navigate, usePath } from './router';
 
 type Phase = 'checking' | 'anonymous' | 'ready';
+
+// The signed-in user's own account pages (always available with a session).
+const ACCOUNT_PATH = '/account/sessions';
 
 const statusNote: Partial<Record<Capability['status'], string>> = {
   degraded: 'Limited',
@@ -131,12 +136,18 @@ export function App() {
   // the navigation shows one entry per page.
   const pages = capList.filter((c, i) => capList.findIndex((x) => x.path === c.path) === i);
   const logsCap = capList.find((c) => c.id === 'service_logs');
-  const route = capList.find((c) => c.path === path) ?? capList.find((c) => c.path === '/');
+  const route =
+    path === ACCOUNT_PATH
+      ? undefined
+      : (capList.find((c) => c.path === path) ?? capList.find((c) => c.path === '/'));
   const routeUsable = route && (route.status === 'available' || route.status === 'degraded');
 
   let page = <p className="muted">Loading…</p>;
-  if (route && !routeUsable) page = <Unavailable cap={route} />;
+  const onAccount = path === ACCOUNT_PATH;
+  if (onAccount) page = <Sessions csrf={session.csrf_token} onUnauthorized={signedOut} />;
+  else if (route && !routeUsable) page = <Unavailable cap={route} />;
   else if (route?.id === 'services') page = <Services onUnauthorized={signedOut} logs={logsCap} />;
+  else if (route?.id === 'audit') page = <Audit onUnauthorized={signedOut} />;
   else if (route?.id === 'hardware') page = <Hardware onUnauthorized={signedOut} />;
   else if (route?.id === 'legacy')
     page = <Legacy legacyUrl={session.legacy_url} onUnauthorized={signedOut} />;
@@ -151,7 +162,7 @@ export function App() {
         <span className="brand-mark small">Homelab Control</span>
         <ul>
           {pages.map((c) => (
-            <NavItem key={c.id} cap={c} current={route?.id === c.id} />
+            <NavItem key={c.id} cap={c} current={!onAccount && route?.id === c.id} />
           ))}
         </ul>
         <p className="rail-note">Read-only build. Nothing here changes your system.</p>
@@ -167,6 +178,14 @@ export function App() {
           <span className="who">
             Signed in as <strong>{session.username}</strong>
           </span>
+          <a
+            className="topbar-link"
+            href={ACCOUNT_PATH}
+            onClick={linkHandler(ACCOUNT_PATH)}
+            aria-current={onAccount ? 'page' : undefined}
+          >
+            Sessions
+          </a>
           <button type="button" className="ghost" onClick={() => void signOut()}>
             Sign out
           </button>
