@@ -5,27 +5,399 @@
  */
 
 /*
- * Homelab Control design tokens (M0 seed of the token system described in
- * docs/project/06-THEME-AND-PLUGIN-SDK.md). Themes will override these custom
- * properties declaratively; components must only consume tokens, never raw values.
+ * Homelab Control design tokens. Colours come from the HCIS design system
+ * (docs/ui/hcis): Midnight by default, Daybreak for a light OS preference, Graphite for
+ * prefers-contrast: more, and data-hc-theme="midnight|daybreak|graphite|oled" to choose one.
+ * Type, space, shape and motion are still the M1 values (HCIS migration steps 2+).
+ * Components must only consume tokens, never raw values.
  */
-:root {
+/* BEGIN generated: HCIS colour roles (docs/ui/hcis/tokens/gen-css.py) */
+/* HCIS semantic colours (docs/ui/hcis). Edit tokens.json and regenerate; do not edit by hand. */
+:root,
+:root[data-hc-theme='midnight'],
+:root[data-hc-theme='dark'] {
   color-scheme: dark;
-  /* palette */
-  --hc-color-ink: #0e1626;
-  --hc-color-panel: #16213a;
-  --hc-color-panel-raised: #1c2947;
-  --hc-color-rule: #26345a;
-  --hc-color-text: #e6ecf8;
-  --hc-color-muted: #93a2c3;
-  --hc-color-signal: #7c8cff;
-  --hc-color-signal-ink: #0e1626;
-  --hc-color-ok: #3dd68c;
-  --hc-color-warn: #f5b946;
-  --hc-color-crit: #ff6b6b;
-  --hc-color-meter-track: #22304f;
-  --hc-color-focus: #b7c0ff;
+  --hc-color-surface-base: #0e1620;
+  --hc-color-surface-sidebar: #111d29;
+  --hc-color-surface-raised: #1b2a38;
+  --hc-color-surface-overlay: #24394b;
+  --hc-color-surface-sunken: #0a1119;
+  --hc-color-surface-hover: #22364a;
+  --hc-color-surface-selected: #1d3a44;
+  --hc-color-input-bg: #0a1119;
+  --hc-color-text-primary: #eef4f8;
+  --hc-color-text-secondary: #a5b8c5;
+  --hc-color-text-disabled: #6f8494;
+  --hc-color-text-inverse: #0e1620;
+  --hc-color-text-link: #7fe3da;
+  --hc-color-border-subtle: #2a3f52;
+  --hc-color-border-strong: #6b8699;
+  --hc-color-accent-base: #4ed4c8;
+  --hc-color-accent-hover: #79e2d8;
+  --hc-color-accent-contrast: #062024;
+  --hc-color-accent-subtle: #173a40;
+  --hc-color-accent-secondary: #567ce5;
+  --hc-color-accent-secondary-text: #9db4f5;
+  --hc-color-focus-ring: #79e2d8;
+  --hc-color-status-ok: #7ee0a1;
+  --hc-color-status-warn: #e5b35a;
+  --hc-color-status-crit: #d26c72;
+  --hc-color-status-info: #8fb0f5;
+  --hc-color-status-unknown: #a5b8c5;
+  --hc-color-status-ok-text: #8ee6ad;
+  --hc-color-status-warn-text: #e5b35a;
+  --hc-color-status-crit-text: #ec9aa0;
+  --hc-color-status-info-text: #9db4f5;
+  --hc-color-status-warn-contrast: #0e1620;
+  --hc-color-status-ok-subtle: #163428;
+  --hc-color-status-warn-subtle: #3a2f17;
+  --hc-color-status-crit-subtle: #3c1f25;
+  --hc-color-status-info-subtle: #1b2a4a;
+  --hc-color-status-contrast: #0e1620;
+  --hc-color-meter-track: #24394b;
+  --hc-color-chart-1: #4ed4c8;
+  --hc-color-chart-2: #567ce5;
+  --hc-color-chart-3: #e5b35a;
+  --hc-color-chart-4: #c58fe6;
+  --hc-color-chart-5: #7ee0a1;
+  --hc-color-chart-6: #e88b6a;
+  --hc-color-chart-grid: #22364a;
+  --hc-color-chart-axis: #a5b8c5;
+  --hc-color-scrim: #05090dcc;
+  --hc-color-glass-surface: #1b2a38d9;
+  --hc-color-glass-surface-elevated: #24394beb;
+  --hc-color-glass-border: #eef4f824;
+  --hc-color-glass-highlight: #eef4f80f;
+  --hc-color-glass-fallback: #16222f;
+  --hc-color-backdrop-tint-1: #4ed4c81a;
+  --hc-color-backdrop-tint-2: #567ce51f;
+  --hc-color-status-notice: #8fb0f5;
+  --hc-color-status-unknown-text: #a5b8c5;
+  --hc-color-scrim-critical: #05090de6;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-hc-theme]) {
+    color-scheme: light;
+    --hc-color-surface-base: #f2f5f8;
+    --hc-color-surface-sidebar: #e8edf2;
+    --hc-color-surface-raised: #ffffff;
+    --hc-color-surface-overlay: #ffffff;
+    --hc-color-surface-sunken: #e9eef3;
+    --hc-color-surface-hover: #e6edf3;
+    --hc-color-surface-selected: #ddf0f0;
+    --hc-color-input-bg: #ffffff;
+    --hc-color-text-primary: #172632;
+    --hc-color-text-secondary: #596a76;
+    --hc-color-text-disabled: #8a98a3;
+    --hc-color-text-inverse: #ffffff;
+    --hc-color-text-link: #13706f;
+    --hc-color-border-subtle: #d5dde4;
+    --hc-color-border-strong: #7f909c;
+    --hc-color-accent-base: #167e82;
+    --hc-color-accent-hover: #116569;
+    --hc-color-accent-contrast: #ffffff;
+    --hc-color-accent-subtle: #dcf1f1;
+    --hc-color-accent-secondary: #4568bd;
+    --hc-color-accent-secondary-text: #3d5eaf;
+    --hc-color-focus-ring: #167e82;
+    --hc-color-status-ok: #2c7a4b;
+    --hc-color-status-warn: #b17a26;
+    --hc-color-status-crit: #b84854;
+    --hc-color-status-info: #4568bd;
+    --hc-color-status-unknown: #596a76;
+    --hc-color-status-ok-text: #246a40;
+    --hc-color-status-warn-text: #7f5612;
+    --hc-color-status-crit-text: #a63c48;
+    --hc-color-status-info-text: #3d5eaf;
+    --hc-color-status-warn-contrast: #0a1218;
+    --hc-color-status-ok-subtle: #e2f2e8;
+    --hc-color-status-warn-subtle: #f8eedb;
+    --hc-color-status-crit-subtle: #f8e3e5;
+    --hc-color-status-info-subtle: #e4eaf8;
+    --hc-color-status-contrast: #ffffff;
+    --hc-color-meter-track: #e6ebf0;
+    --hc-color-chart-1: #167e82;
+    --hc-color-chart-2: #4568bd;
+    --hc-color-chart-3: #b17a26;
+    --hc-color-chart-4: #8a52b8;
+    --hc-color-chart-5: #2c7a4b;
+    --hc-color-chart-6: #c0603d;
+    --hc-color-chart-grid: #e3e9ee;
+    --hc-color-chart-axis: #596a76;
+    --hc-color-scrim: #17263280;
+    --hc-color-glass-surface: #ffffffe6;
+    --hc-color-glass-surface-elevated: #ffffffeb;
+    --hc-color-glass-border: #1726321f;
+    --hc-color-glass-highlight: #ffffff99;
+    --hc-color-glass-fallback: #fbfcfd;
+    --hc-color-backdrop-tint-1: #167e8214;
+    --hc-color-backdrop-tint-2: #4568bd14;
+    --hc-color-status-notice: #4568bd;
+    --hc-color-status-unknown-text: #596a76;
+    --hc-color-scrim-critical: #172632b3;
+  }
+}
+@media (prefers-color-scheme: dark) and (prefers-contrast: more) {
+  :root:not([data-hc-theme]) {
+    color-scheme: dark;
+    --hc-color-surface-base: #080b10;
+    --hc-color-surface-sidebar: #0c1118;
+    --hc-color-surface-raised: #141b24;
+    --hc-color-surface-overlay: #1c2530;
+    --hc-color-surface-sunken: #05070a;
+    --hc-color-surface-hover: #1f2a36;
+    --hc-color-surface-selected: #22303f;
+    --hc-color-input-bg: #05070a;
+    --hc-color-text-primary: #edf2f8;
+    --hc-color-text-secondary: #adb9c9;
+    --hc-color-text-disabled: #7d8899;
+    --hc-color-text-inverse: #080b10;
+    --hc-color-text-link: #9cc2f5;
+    --hc-color-border-subtle: #4a5666;
+    --hc-color-border-strong: #8c9aac;
+    --hc-color-accent-base: #c7d8ee;
+    --hc-color-accent-hover: #e1ebf7;
+    --hc-color-accent-contrast: #080b10;
+    --hc-color-accent-subtle: #253244;
+    --hc-color-accent-secondary: #6fa0eb;
+    --hc-color-accent-secondary-text: #9cc2f5;
+    --hc-color-focus-ring: #f0ca79;
+    --hc-color-status-ok: #8fe3ae;
+    --hc-color-status-warn: #f0ca79;
+    --hc-color-status-crit: #ed8b8b;
+    --hc-color-status-info: #9cc2f5;
+    --hc-color-status-unknown: #adb9c9;
+    --hc-color-status-ok-text: #8fe3ae;
+    --hc-color-status-warn-text: #f0ca79;
+    --hc-color-status-crit-text: #f3a5a5;
+    --hc-color-status-info-text: #9cc2f5;
+    --hc-color-status-warn-contrast: #080b10;
+    --hc-color-status-ok-subtle: #13291d;
+    --hc-color-status-warn-subtle: #2e2510;
+    --hc-color-status-crit-subtle: #331a1c;
+    --hc-color-status-info-subtle: #16243a;
+    --hc-color-status-contrast: #080b10;
+    --hc-color-meter-track: #2a3442;
+    --hc-color-chart-1: #c7d8ee;
+    --hc-color-chart-2: #6fa0eb;
+    --hc-color-chart-3: #f0ca79;
+    --hc-color-chart-4: #d4a6f2;
+    --hc-color-chart-5: #8fe3ae;
+    --hc-color-chart-6: #f2a07f;
+    --hc-color-chart-grid: #1f2a36;
+    --hc-color-chart-axis: #adb9c9;
+    --hc-color-scrim: #000000cc;
+    --hc-color-glass-surface: #141b24f2;
+    --hc-color-glass-surface-elevated: #1c2530fa;
+    --hc-color-glass-border: #8c9aac;
+    --hc-color-glass-highlight: #00000000;
+    --hc-color-glass-fallback: #141b24;
+    --hc-color-backdrop-tint-1: #00000000;
+    --hc-color-backdrop-tint-2: #00000000;
+    --hc-color-status-notice: #9cc2f5;
+    --hc-color-status-unknown-text: #adb9c9;
+    --hc-color-scrim-critical: #000000e6;
+  }
+}
+:root[data-hc-theme='daybreak'],
+:root[data-hc-theme='light'] {
+  color-scheme: light;
+  --hc-color-surface-base: #f2f5f8;
+  --hc-color-surface-sidebar: #e8edf2;
+  --hc-color-surface-raised: #ffffff;
+  --hc-color-surface-overlay: #ffffff;
+  --hc-color-surface-sunken: #e9eef3;
+  --hc-color-surface-hover: #e6edf3;
+  --hc-color-surface-selected: #ddf0f0;
+  --hc-color-input-bg: #ffffff;
+  --hc-color-text-primary: #172632;
+  --hc-color-text-secondary: #596a76;
+  --hc-color-text-disabled: #8a98a3;
+  --hc-color-text-inverse: #ffffff;
+  --hc-color-text-link: #13706f;
+  --hc-color-border-subtle: #d5dde4;
+  --hc-color-border-strong: #7f909c;
+  --hc-color-accent-base: #167e82;
+  --hc-color-accent-hover: #116569;
+  --hc-color-accent-contrast: #ffffff;
+  --hc-color-accent-subtle: #dcf1f1;
+  --hc-color-accent-secondary: #4568bd;
+  --hc-color-accent-secondary-text: #3d5eaf;
+  --hc-color-focus-ring: #167e82;
+  --hc-color-status-ok: #2c7a4b;
+  --hc-color-status-warn: #b17a26;
+  --hc-color-status-crit: #b84854;
+  --hc-color-status-info: #4568bd;
+  --hc-color-status-unknown: #596a76;
+  --hc-color-status-ok-text: #246a40;
+  --hc-color-status-warn-text: #7f5612;
+  --hc-color-status-crit-text: #a63c48;
+  --hc-color-status-info-text: #3d5eaf;
+  --hc-color-status-warn-contrast: #0a1218;
+  --hc-color-status-ok-subtle: #e2f2e8;
+  --hc-color-status-warn-subtle: #f8eedb;
+  --hc-color-status-crit-subtle: #f8e3e5;
+  --hc-color-status-info-subtle: #e4eaf8;
+  --hc-color-status-contrast: #ffffff;
+  --hc-color-meter-track: #e6ebf0;
+  --hc-color-chart-1: #167e82;
+  --hc-color-chart-2: #4568bd;
+  --hc-color-chart-3: #b17a26;
+  --hc-color-chart-4: #8a52b8;
+  --hc-color-chart-5: #2c7a4b;
+  --hc-color-chart-6: #c0603d;
+  --hc-color-chart-grid: #e3e9ee;
+  --hc-color-chart-axis: #596a76;
+  --hc-color-scrim: #17263280;
+  --hc-color-glass-surface: #ffffffe6;
+  --hc-color-glass-surface-elevated: #ffffffeb;
+  --hc-color-glass-border: #1726321f;
+  --hc-color-glass-highlight: #ffffff99;
+  --hc-color-glass-fallback: #fbfcfd;
+  --hc-color-backdrop-tint-1: #167e8214;
+  --hc-color-backdrop-tint-2: #4568bd14;
+  --hc-color-status-notice: #4568bd;
+  --hc-color-status-unknown-text: #596a76;
+  --hc-color-scrim-critical: #172632b3;
+}
+:root[data-hc-theme='graphite'] {
+  color-scheme: dark;
+  --hc-color-surface-base: #080b10;
+  --hc-color-surface-sidebar: #0c1118;
+  --hc-color-surface-raised: #141b24;
+  --hc-color-surface-overlay: #1c2530;
+  --hc-color-surface-sunken: #05070a;
+  --hc-color-surface-hover: #1f2a36;
+  --hc-color-surface-selected: #22303f;
+  --hc-color-input-bg: #05070a;
+  --hc-color-text-primary: #edf2f8;
+  --hc-color-text-secondary: #adb9c9;
+  --hc-color-text-disabled: #7d8899;
+  --hc-color-text-inverse: #080b10;
+  --hc-color-text-link: #9cc2f5;
+  --hc-color-border-subtle: #4a5666;
+  --hc-color-border-strong: #8c9aac;
+  --hc-color-accent-base: #c7d8ee;
+  --hc-color-accent-hover: #e1ebf7;
+  --hc-color-accent-contrast: #080b10;
+  --hc-color-accent-subtle: #253244;
+  --hc-color-accent-secondary: #6fa0eb;
+  --hc-color-accent-secondary-text: #9cc2f5;
+  --hc-color-focus-ring: #f0ca79;
+  --hc-color-status-ok: #8fe3ae;
+  --hc-color-status-warn: #f0ca79;
+  --hc-color-status-crit: #ed8b8b;
+  --hc-color-status-info: #9cc2f5;
+  --hc-color-status-unknown: #adb9c9;
+  --hc-color-status-ok-text: #8fe3ae;
+  --hc-color-status-warn-text: #f0ca79;
+  --hc-color-status-crit-text: #f3a5a5;
+  --hc-color-status-info-text: #9cc2f5;
+  --hc-color-status-warn-contrast: #080b10;
+  --hc-color-status-ok-subtle: #13291d;
+  --hc-color-status-warn-subtle: #2e2510;
+  --hc-color-status-crit-subtle: #331a1c;
+  --hc-color-status-info-subtle: #16243a;
+  --hc-color-status-contrast: #080b10;
+  --hc-color-meter-track: #2a3442;
+  --hc-color-chart-1: #c7d8ee;
+  --hc-color-chart-2: #6fa0eb;
+  --hc-color-chart-3: #f0ca79;
+  --hc-color-chart-4: #d4a6f2;
+  --hc-color-chart-5: #8fe3ae;
+  --hc-color-chart-6: #f2a07f;
+  --hc-color-chart-grid: #1f2a36;
+  --hc-color-chart-axis: #adb9c9;
+  --hc-color-scrim: #000000cc;
+  --hc-color-glass-surface: #141b24f2;
+  --hc-color-glass-surface-elevated: #1c2530fa;
+  --hc-color-glass-border: #8c9aac;
+  --hc-color-glass-highlight: #00000000;
+  --hc-color-glass-fallback: #141b24;
+  --hc-color-backdrop-tint-1: #00000000;
+  --hc-color-backdrop-tint-2: #00000000;
+  --hc-color-status-notice: #9cc2f5;
+  --hc-color-status-unknown-text: #adb9c9;
+  --hc-color-scrim-critical: #000000e6;
+}
+:root[data-hc-theme='oled'] {
+  color-scheme: dark;
+  --hc-color-surface-base: #000000;
+  --hc-color-surface-sidebar: #050507;
+  --hc-color-surface-raised: #0b0b0f;
+  --hc-color-surface-overlay: #131318;
+  --hc-color-surface-sunken: #000000;
+  --hc-color-surface-hover: #17181e;
+  --hc-color-surface-selected: #0e2a2b;
+  --hc-color-input-bg: #000000;
+  --hc-color-text-primary: #eef4f8;
+  --hc-color-text-secondary: #a5b8c5;
+  --hc-color-text-disabled: #6f8494;
+  --hc-color-text-inverse: #0e1620;
+  --hc-color-text-link: #7fe3da;
+  --hc-color-border-subtle: #22232b;
+  --hc-color-border-strong: #62647a;
+  --hc-color-accent-base: #4ed4c8;
+  --hc-color-accent-hover: #79e2d8;
+  --hc-color-accent-contrast: #062024;
+  --hc-color-accent-subtle: #0e2a2b;
+  --hc-color-accent-secondary: #567ce5;
+  --hc-color-accent-secondary-text: #9db4f5;
+  --hc-color-focus-ring: #79e2d8;
+  --hc-color-status-ok: #7ee0a1;
+  --hc-color-status-warn: #e5b35a;
+  --hc-color-status-crit: #d26c72;
+  --hc-color-status-info: #8fb0f5;
+  --hc-color-status-unknown: #a5b8c5;
+  --hc-color-status-ok-text: #8ee6ad;
+  --hc-color-status-warn-text: #e5b35a;
+  --hc-color-status-crit-text: #ec9aa0;
+  --hc-color-status-info-text: #9db4f5;
+  --hc-color-status-warn-contrast: #0e1620;
+  --hc-color-status-ok-subtle: #0d2117;
+  --hc-color-status-warn-subtle: #261d0b;
+  --hc-color-status-crit-subtle: #2a1215;
+  --hc-color-status-info-subtle: #101a33;
+  --hc-color-status-contrast: #0e1620;
+  --hc-color-meter-track: #1a1b22;
+  --hc-color-chart-1: #4ed4c8;
+  --hc-color-chart-2: #567ce5;
+  --hc-color-chart-3: #e5b35a;
+  --hc-color-chart-4: #c58fe6;
+  --hc-color-chart-5: #7ee0a1;
+  --hc-color-chart-6: #e88b6a;
+  --hc-color-chart-grid: #17181e;
+  --hc-color-chart-axis: #a5b8c5;
+  --hc-color-scrim: #000000cc;
+  --hc-color-glass-surface: #0b0b0fe6;
+  --hc-color-glass-surface-elevated: #131318f2;
+  --hc-color-glass-border: #ffffff1a;
+  --hc-color-glass-highlight: #00000000;
+  --hc-color-glass-fallback: #0b0b0f;
+  --hc-color-backdrop-tint-1: #00000000;
+  --hc-color-backdrop-tint-2: #00000000;
+  --hc-color-status-notice: #8fb0f5;
+  --hc-color-status-unknown-text: #a5b8c5;
+  --hc-color-scrim-critical: #000000e6;
+}
+/* M1 colour names, kept for existing styles (docs/ui/02 §2.6). New code uses the semantic names. */
+:root {
+  --hc-color-ink: var(--hc-color-surface-base);
+  --hc-color-panel: var(--hc-color-surface-raised);
+  --hc-color-panel-raised: var(--hc-color-surface-overlay);
+  --hc-color-rule: var(--hc-color-border-subtle);
+  --hc-color-text: var(--hc-color-text-primary);
+  --hc-color-muted: var(--hc-color-text-secondary);
+  --hc-color-signal: var(--hc-color-accent-base);
+  --hc-color-signal-ink: var(--hc-color-accent-contrast);
+  --hc-color-ok: var(--hc-color-status-ok-text);
+  --hc-color-warn: var(--hc-color-status-warn-text);
+  --hc-color-crit: var(--hc-color-status-crit-text);
+  --hc-color-focus: var(--hc-color-focus-ring);
+}
+/* END generated: HCIS colour roles */
 
+:root {
   /* type */
   --hc-font-family: 'Archivo Variable', system-ui, sans-serif;
   --hc-font-stretch-display: 62%;
@@ -50,25 +422,6 @@
   --hc-radius-plate: 14px;
   --hc-focus-ring: 0 0 0 3px var(--hc-color-focus);
   --hc-motion-fast: 120ms;
-}
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-hc-theme='dark']) {
-    color-scheme: light;
-    --hc-color-ink: #eef1f8;
-    --hc-color-panel: #ffffff;
-    --hc-color-panel-raised: #f6f8fd;
-    --hc-color-rule: #cfd7ea;
-    --hc-color-text: #121a2c;
-    --hc-color-muted: #4f5d7c;
-    --hc-color-signal: #4453d6;
-    --hc-color-signal-ink: #ffffff;
-    --hc-color-ok: #13804f;
-    --hc-color-warn: #9a6400;
-    --hc-color-crit: #c22b2b;
-    --hc-color-meter-track: #dfe5f3;
-    --hc-color-focus: #4453d6;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

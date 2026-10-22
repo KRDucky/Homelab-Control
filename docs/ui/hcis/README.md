@@ -1,10 +1,10 @@
 # HCIS — Homelab Control Interface System
 
-> **Status: design direction, not implemented.** HCIS is the owner-approved visual and interaction
+> **Status: design direction; migration step 1 (colours) implemented.** HCIS is the owner-approved visual and interaction
 > direction for the Homelab Control UI (owner directives 2026-10-21; density names and the OLED theme
-> 2026-10-22). Nothing here is wired into `frontend/app`. Adoption happens through separately approved PRs
-> (see "Migration" below). The M1 UI and its tokens in `frontend/design-system/tokens.css` remain the
-> shipped implementation until then.
+> 2026-10-22). Only the colour tokens are wired into `frontend/app`; everything else is adopted through separately approved PRs
+> (see "Migration" below). Colours now come from HCIS; type, spacing, shape, motion and components are
+> still the M1 implementation.
 
 Visual identity: **Adaptive Glass Linux Admin**. That means restrained frosted glass for the shell and
 overlays, opaque surfaces for data, Material-style interaction discipline, Nordic/Arc calm, and dense,
@@ -75,8 +75,13 @@ are listed below.
 
 ## Migration (each step a separate, approved PR)
 
-1. **Tokens as aliases.** Add the HCIS semantic tokens to `frontend/design-system/tokens.css` and point
-   the 12 M1 names at them. Visual change only, no component changes.
+1. **Tokens as aliases.** *Done (branch `feature/hcis-step1-token-aliases`).* `frontend/design-system/tokens.css`
+   carries the HCIS colour roles for all four themes, generated from `tokens/tokens.json` by
+   `tokens/gen-css.py` (`make lint` fails on drift). The 12 M1 names alias them. Midnight is the default,
+   Daybreak follows a light OS preference, Graphite follows `prefers-contrast: more` on a dark preference,
+   and `data-hc-theme="midnight|daybreak|graphite|oled"` on `<html>` chooses one (`dark` still forces the
+   default). There's no theme picker yet. `styles.css` changed in three places only: links use `text-link`,
+   and failed/warning rows use `status-*-subtle` (the old tints fell below 4.5:1 in Daybreak).
 2. **Typography** (after the LA-06 decision): system stack or bundled Inter/JetBrains Mono.
 3. **Shell:** glass header, sidebar/rail/drawer, Appearance menu (theme, transparency, density,
    motion) stored as layout preferences.
