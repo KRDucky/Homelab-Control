@@ -1,0 +1,13 @@
+# HCIS tokens
+
+- `tokens.json`: the source of truth, exported from the HCIS design system artifact. Colour families are flat lists; every colour token has a value per theme (`midnight`, `daybreak`, `graphite`, `oled`). `hc-palette-*` holds the owner-specified raw colours, and semantic `hc-color-*` tokens alias them (`"{hc-palette-teal-300}"`).
+- `hcis-tokens.css`: CSS custom properties generated from `tokens.json`. It is a **reference only** and is not imported by `frontend/app`. Selecting a theme is `data-theme="<id>"` on `<html>` or on any element.
+
+## Mapping to the app and to `.hltheme`
+
+- Names follow the app's convention `--hc-<group>-<role>`. The semantic colour names match the v1 taxonomy in `docs/ui/02-THEME-TOKENS-AND-SCHEMA.md` §2.2 (`color.surface.raised` → `--hc-color-surface-raised`). New roles (glass, input, notice, unknown-text, backdrop tints, critical scrim) are additions to that taxonomy, which is a minor engine change (§2.5).
+- The 12 M1 names in `frontend/design-system/tokens.css` (`--hc-color-ink`, `panel`, `panel-raised`, `rule`, `text`, `muted`, `signal`, `signal-ink`, `ok`, `warn`, `crit`, `focus`) are kept as aliases of the HCIS roles (docs/ui/02 §2.6). Adopting them is the first migration step: today's `styles.css` then renders in HCIS colours without component changes.
+- Theme JSON accepts only `#RRGGBB` / `#RRGGBBAA`. Aliases are resolved to hex when exporting a theme.
+- Density (`compact | standard | spacious`), transparency and motion are **layout preferences** (ADR 0010), set as `data-hc-*` attributes by the shell, never by a theme.
+
+Regenerating: re-export `tokens.json` from the design system, then run `python3 -I gen-css.py` (`--check` verifies the CSS is current).

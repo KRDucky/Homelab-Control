@@ -17,6 +17,7 @@
 | 8 | [08-PERFORMANCE-AND-TESTING.md](08-PERFORMANCE-AND-TESTING.md) | Performance budgets and test strategy |
 | 9 | [09-THEME-SECURITY.md](09-THEME-SECURITY.md) | Theme package security and validation |
 | 10 | [10-PHASED-PLAN.md](10-PHASED-PLAN.md) | Phased implementation and migration |
+| HCIS | [hcis/README.md](hcis/README.md) | **HCIS design system** (owner directive 2026-10-21): visual identity, tokens for four themes, 81-component catalogue, migration steps. Supersedes 01–10 where they differ |
 
 Artifacts: `theme.schema.v1.draft.json` (draft JSON Schema, not wired into code) and
 `examples/themes/*.json` (three representative themes that validate against it).
