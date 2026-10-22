@@ -68,8 +68,8 @@ with sync_playwright() as p:
     page.get_by_role("button", name="Sign in").click()
     nav = page.get_by_role("navigation", name="Main")
     expect(nav.get_by_role("link", name="Services")).to_be_visible(timeout=15000)
-    check("nav: Services, Hardware, Legacy Webmin are links", all(
-        nav.get_by_role("link", name=n).count() == 1 for n in ["Overview", "Services", "Hardware", "Legacy Webmin"]))
+    check("nav: Services, Hardware, Legacy Webmin, Audit are links", all(
+        nav.get_by_role("link", name=n).count() == 1 for n in ["Overview", "Services", "Hardware", "Legacy Webmin", "Audit"]))
 
     nav.get_by_role("link", name="Services").click()
     expect(page.get_by_role("heading", name="Services", level=1)).to_be_visible()
@@ -102,6 +102,25 @@ with sync_playwright() as p:
     panel.get_by_role("button", name="Close").click()
     check("logs: panel closes", page.get_by_role("region", name="Logs: homelab-control.service").count() == 0)
     page.get_by_label("Search units").fill("")
+
+    # M2 PR-1a: Audit page (audit.read) and own sessions.
+    nav.get_by_role("link", name="Audit").click()
+    expect(page.get_by_role("heading", name="Audit", level=1)).to_be_visible(timeout=15000)
+    table = page.get_by_role("table")
+    expect(table.get_by_text("services.logs.read").first).to_be_visible(timeout=15000)
+    check("audit: sign-in recorded", table.get_by_text("auth.login").count() >= 1)
+    check("audit: log read recorded with unit, no content",
+          table.get_by_text("homelab-control.service lines=50").count() >= 1 and table.get_by_text("listening on").count() == 0)
+    page.screenshot(path=f"{ART}/m2-02-audit.png", full_page=False)
+    axe(page, "audit")
+    page.get_by_role("link", name="Sessions").click()
+    expect(page.get_by_role("heading", name="Sessions", level=1)).to_be_visible(timeout=15000)
+    check("sessions: this browser listed", page.get_by_text("this browser").count() == 1)
+    check("sessions: persistent", page.get_by_text("Sessions survive a restart").count() == 1)
+    page.screenshot(path=f"{ART}/m2-03-sessions.png", full_page=False)
+    axe(page, "sessions")
+    nav.get_by_role("link", name="Services").click()
+    expect(page.get_by_role("table")).to_be_visible(timeout=15000)
 
     nav.get_by_role("link", name="Hardware").click()
     expect(page.get_by_role("heading", name="Storage devices")).to_be_visible(timeout=15000)

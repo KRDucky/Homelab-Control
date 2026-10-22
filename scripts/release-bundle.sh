@@ -30,14 +30,26 @@ commit=$(git rev-parse HEAD)
 sde=$(git log -1 --format=%ct HEAD)
 name=homelab-control-$ver
 work=$(mktemp -d)
-cleanup() { git worktree remove --force "$work/wt" >/dev/null 2>&1 || true; chmod -R u+w "$work" 2>/dev/null || true; rm -rf "$work"; }
+cleanup() { chmod -R u+w "$work" 2>/dev/null || true; git worktree remove --force "$work/wt" >/dev/null 2>&1 || true; chmod -R u+w "$work" 2>/dev/null || true; rm -rf "$work"; }
 trap cleanup EXIT
+# go mod download leaves read-only module trees; make them removable.
 mkdir -p "$out"; out=$(cd "$out" && pwd)
 [ -z "$(ls -A "$out")" ] || { echo "refusing: $out is not empty"; exit 1; }
 export SOURCE_DATE_EPOCH=$sde
 
 echo "== 1. corresponding-source archive ($commit)"
 python3 -I scripts/release-npm-sources.py "$work/vendor/vendor-sources/npm"
+# Go module sources (ADR 0006 amendment 1): the module proxy files (.zip/.mod/.info) of every
+# module the build needs, verified against go.sum, so the archive builds offline with
+# GOPROXY=file://... and yields the same binaries as a module-mode build (go.sum hashes in buildinfo).
+gm=$work/gomodcache
+(cd backend && GOMODCACHE=$gm GOFLAGS=-mod=readonly go mod download)
+mkdir -p "$work/vendor/vendor-sources/go"
+cp -r "$gm/cache/download" "$work/vendor/vendor-sources/go/download"
+# Checksum-database tiles vary over time (go.sum is what verifies); a Go toolchain module is not source of ours.
+rm -rf "$work/vendor/vendor-sources/go/download/sumdb" "$work/vendor/vendor-sources/go/download/golang.org/toolchain"
+find "$work/vendor/vendor-sources/go/download" \( -name '*.lock' -o -name '*.partial' -o -name '*.tmp' \) -delete
+chmod -R u+rw,go+r-w "$gm" "$work/vendor/vendor-sources/go"
 buildinfo=$(cat <<INFO
 # Homelab Control release build information (see BUILDING.md)
 version=$ver
@@ -62,7 +74,9 @@ mkdir -p "$work/x"
 tar -xzf "$out/$name-source.tar.gz" -C "$work/x"
 src=$work/x/$name
 [ ! -e "$src/.git" ] || { echo "archive unexpectedly contains .git"; exit 1; }
-(cd "$src" && make -s build VERSION="$ver" SOURCE_DATE_EPOCH="$sde" >/dev/null)
+# Offline: Go modules only from the archive (go.sum still verifies every one).
+(cd "$src" && GOMODCACHE="$work/gomod-archive" GOPROXY="file://$src/vendor-sources/go/download" GOSUMDB=off \
+  GOFLAGS=-mod=readonly GOTOOLCHAIN=local make -s build VERSION="$ver" SOURCE_DATE_EPOCH="$sde" >/dev/null)
 (cd "$src" && packaging/debian/build-deb.sh "$ver" >/dev/null)
 if command -v rpmbuild >/dev/null 2>&1; then (cd "$src" && packaging/fedora/build-rpm.sh "$ver" >/dev/null); else echo "SKIPPED: rpm (rpmbuild not installed)"; fi
 

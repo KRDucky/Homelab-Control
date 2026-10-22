@@ -224,6 +224,25 @@ jobs:
             exit 1
           fi
 
+  # Upgrade from the published v0.1.0-dev.1 .deb to this build (state database, sessions, D-7 scopes).
+  upgrade-ubuntu:
+    needs: check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: build
+          path: build
+      - name: Upgrade v0.1.0-dev.1 -> this build under systemd
+        run: |
+          curl -fsSL -o /tmp/old.deb \
+            https://github.com/KRDucky/Homelab-Control---Webmin-Fork/releases/download/v0.1.0-dev.1/homelab-control_0.1.0-dev.1_amd64.deb
+          sudo touch /etc/hc-disposable
+          sudo tests/packaging/upgrade-test.sh /tmp/old.deb "$(ls build/*.deb)"
+
   browser-e2e:
     needs: check
     runs-on: ubuntu-24.04

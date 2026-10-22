@@ -10,6 +10,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"flag"
@@ -23,6 +24,7 @@ import (
 	"homelab-control/backend/internal/auth"
 	"homelab-control/backend/internal/broker/proto"
 	"homelab-control/backend/internal/brokerclient"
+	"homelab-control/backend/internal/state"
 )
 
 const usage = `hlctl - Homelab Control administration CLI (M0)
@@ -34,7 +36,8 @@ Usage:
   hlctl user scopes  --file PATH --username NAME --scopes A,B              (replaces the account's scopes)
   hlctl user list    --file PATH
   hlctl broker info  [--socket PATH]                                       (as root or homelab-control)
-  hlctl audit verify --file PATH [--checkpoint SEQ:HASH]...                (checks the hash chain)
+  hlctl audit verify (--file PATH | --db PATH) [--checkpoint SEQ:HASH]...
+  hlctl audit export --db PATH                                             (JSON Lines to stdout)
   hlctl version
 `
 
@@ -233,25 +236,45 @@ func (c *checkpointFlags) Set(v string) error {
 // auditCmd verifies an audit log's hash chain, optionally against checkpoints
 // copied from the journal ("audit checkpoint ... seq=N hash=H" lines).
 func auditCmd(args []string, stdout io.Writer) error {
-	if len(args) == 0 || args[0] != "verify" {
-		return errors.New("usage: hlctl audit verify --file PATH [--checkpoint SEQ:HASH]...")
+	const use = "usage: hlctl audit verify (--file PATH | --db PATH) [--checkpoint SEQ:HASH]...\n       hlctl audit export --db PATH"
+	if len(args) == 0 || (args[0] != "verify" && args[0] != "export") {
+		return errors.New(use)
 	}
-	fs := flag.NewFlagSet("audit verify", flag.ContinueOnError)
-	file := fs.String("file", "", "audit log (e.g. /var/log/homelab-control-broker/broker-audit.jsonl)")
+	fs := flag.NewFlagSet("audit "+args[0], flag.ContinueOnError)
+	file := fs.String("file", "", "JSON Lines audit log (e.g. /var/log/homelab-control-broker/broker-audit.jsonl)")
+	dbPath := fs.String("db", "", "hc-api state database (e.g. /var/lib/homelab-control/state.db), opened read-only")
 	var cps checkpointFlags
 	fs.Var(&cps, "checkpoint", "SEQ:HASH from a journal checkpoint line (repeatable)")
 	if err := fs.Parse(args[1:]); err != nil {
 		return err
 	}
-	if *file == "" {
-		return errors.New("--file is required")
+	if (*file == "") == (*dbPath == "") || (args[0] == "export" && *dbPath == "") {
+		return errors.New(use)
 	}
-	f, err := os.Open(*file)
-	if err != nil {
-		return err
+	var r io.Reader
+	if *dbPath != "" {
+		db, err := state.OpenReadOnly(*dbPath)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+		if args[0] == "export" {
+			return db.Audit().Export(stdout)
+		}
+		var buf bytes.Buffer
+		if err := db.Audit().Export(&buf); err != nil {
+			return err
+		}
+		r = &buf
+	} else {
+		f, err := os.Open(*file)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		r = f
 	}
-	defer f.Close()
-	rep := audit.Verify(f, cps...)
+	rep := audit.Verify(r, cps...)
 	fmt.Fprintf(stdout, "records %d (legacy %d), segments %d, head seq=%d hash=%s\n", rep.Records, rep.Legacy, rep.Segments, rep.HeadSeq, rep.HeadHash)
 	for _, w := range rep.Warnings {
 		fmt.Fprintln(stdout, "WARN ", w)

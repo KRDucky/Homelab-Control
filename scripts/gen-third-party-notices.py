@@ -68,6 +68,28 @@ def shipped_npm():
     return out
 
 
+def go_modules():
+    """Third-party Go modules linked into the binaries (reviewed allow-list, ADR 0006
+    amendment 1) with every licence/notice file each module ships."""
+    allow = json.load(open(os.path.join(ROOT, "backend", "go-deps-allowlist.json"), encoding="utf-8"))["modules"]
+    cache = subprocess.run(["go", "env", "GOMODCACHE"], capture_output=True, text=True, check=True,
+                           cwd=os.path.join(ROOT, "backend")).stdout.strip()
+    out = []
+    for m in allow:
+        if not m["linked"]:
+            continue
+        esc = re.sub(r"[A-Z]", lambda c: "!" + c.group(0).lower(), m["path"])
+        d = os.path.join(cache, esc + "@" + m["version"])
+        if not os.path.isdir(d):
+            sys.exit(f"{m['path']} {m['version']} not in the module cache; run `go mod download` in backend/")
+        files = sorted(f for f in os.listdir(d) if f.upper().startswith(("LICENSE", "LICENCE", "COPYING", "NOTICE", "PATENTS"))
+                       and os.path.isfile(os.path.join(d, f)))
+        if not any(f.upper().startswith(("LICENSE", "LICENCE", "COPYING")) for f in files):
+            sys.exit(f"{m['path']}: no licence file; resolve before release")
+        out.append({**m, "files": [(f, open(os.path.join(d, f), encoding="utf-8").read().strip()) for f in files]})
+    return out
+
+
 def go_stdlib():
     goroot = subprocess.run(["go", "env", "GOROOT"], capture_output=True, text=True, check=True).stdout.strip()
     return open(os.path.join(goroot, "LICENSE"), encoding="utf-8").read().strip()
@@ -136,6 +158,21 @@ def render_debian():
                 " web UI embedded in /usr/bin/hc-api."]
         if lic != "Expat" or texts["Expat"] is None:
             texts[lic] = p["text"]
+    for m in go_modules():
+        lic = "BSD-3-clause" if m["license"] == "BSD-3-Clause" else DEB_LICENSE.get(m["license"])
+        if not lic:
+            sys.exit(f"{m['path']}: no Debian licence short name for {m['license']}")
+        name = lic + "~" + m["path"].replace("/", "-")
+        main_text = next(t for f, t in m["files"] if f.upper() in ("LICENSE", "LICENCE", "COPYING"))
+        others = [f for f, _ in m["files"] if f.upper() not in ("LICENSE", "LICENCE", "COPYING")]
+        out += ["", f"Files: vendor-sources/go/download/{m['path']}/*",
+                f"Copyright: {holder(main_text)}", f"License: {name}",
+                f"Comment: Go module {m['path']} {m['version']}, compiled into /usr/bin/hc-api and /usr/bin/hlctl"
+                + " (not hc-broker).",
+                " Source (module zip) in the release source archive under vendor-sources/go/download."
+                + (f" Further notices shipped with the module ({', '.join(others)}) are reproduced in" if others else ""),
+                *([" THIRD-PARTY-NOTICES.md."] if others else [])]
+        texts[name] = re.sub(r"^\s*(MIT License\s*)?(Copyright[^\n]*\n+)+", "", main_text)
     out += ["", "License: GPL-3+",
             " This program is free software: you can redistribute it and/or modify it under the",
             " terms of the GNU General Public License as published by the Free Software Foundation,",
@@ -178,10 +215,16 @@ def render():
         "|---|---|---|---|---|",
         "| Go standard library | toolchain used for the build (see `go version -m <binary>`) | BSD-3-Clause | compiled into all three binaries | https://go.dev/ |",
     ]
+    gomods = go_modules()
+    for m in gomods:
+        lines.append(f"| {m['path']} | {m['version']} | {m['license']} | compiled into `hc-api` and `hlctl` (not `hc-broker`) | https://pkg.go.dev/{m['path']} |")
     for p in npm:
         where = "font files embedded in `hc-api` (web UI)" if "fontsource" in p["name"] else "web UI JavaScript bundle embedded in `hc-api`"
         lines.append(f"| {p['name']} | {p['version']} | {p['license']} | {where} | {p['source']} |")
     lines += ["", "## Go standard library", "", "```text", go_stdlib(), "```"]
+    for m in gomods:
+        for f, text in m["files"]:
+            lines += ["", f"## {m['path']} {m['version']}: {f}", "", "````text", text, "````"]
     # Identical license texts are printed once, listing every component they cover.
     groups = {}
     for p in npm:
