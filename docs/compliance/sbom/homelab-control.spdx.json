@@ -1,15 +1,15 @@
 {
   "SPDXID": "SPDXRef-DOCUMENT",
   "creationInfo": {
-    "comment": "Inputs sha256 edb50f2a2ed914cb82ccca5c39517a7ea08e90626e5a976a7c1de2282cc88f3a over frontend/app/package-lock.json, backend/go.mod, compat/webmin.lock, scripts/gen-sbom.py. Build toolchain (CI): Go 1.26.10, Node.js 22, npm lockfileVersion 3, Vite 8.3.4, TypeScript 6.0.3. Package-payload inventories are produced per build by scripts/package-inventory.sh.",
-    "created": "2026-10-21T06:44:34Z",
+    "comment": "Inputs sha256 9e939ee1a052a8e8991c52008183744dd591eae05f6e9b910ced21df85ab92a9 over frontend/app/package-lock.json, backend/go.mod, backend/go.sum, backend/go-deps-allowlist.json, compat/webmin.lock, scripts/gen-sbom.py. Build toolchain (CI): Go 1.26.10, Node.js 22, npm lockfileVersion 3, Vite 8.3.4, TypeScript 6.0.3. Package-payload inventories are produced per build by scripts/package-inventory.sh.",
+    "created": "2026-10-21T11:06:00Z",
     "creators": [
       "Person: Ian comings",
       "Tool: homelab-control-gen-sbom-1.0"
     ]
   },
   "dataLicense": "CC0-1.0",
-  "documentNamespace": "https://github.com/KRDucky/Homelab-Control---Webmin-Fork/spdx/edb50f2a2ed914cb82ccca5c39517a7ea08e90626e5a976a7c1de2282cc88f3a",
+  "documentNamespace": "https://github.com/KRDucky/Homelab-Control---Webmin-Fork/spdx/9e939ee1a052a8e8991c52008183744dd591eae05f6e9b910ced21df85ab92a9",
   "name": "homelab-control-source-sbom",
   "packages": [
     {
@@ -26,7 +26,7 @@
     },
     {
       "SPDXID": "SPDXRef-Package-go-stdlib",
-      "comment": "Statically linked into all three binaries. go.mod minimum: go 1.24; CI release toolchain: 1.26.10. No third-party Go modules (ADR 0006).",
+      "comment": "Statically linked into all three binaries. go.mod minimum: go 1.26.0; CI release toolchain: 1.26.10. Third-party Go modules are listed separately (ADR 0006 amendment 1).",
       "copyrightText": "Copyright 2009 The Go Authors.",
       "downloadLocation": "https://go.dev/dl/",
       "externalRefs": [
@@ -41,6 +41,186 @@
       "licenseDeclared": "BSD-3-Clause",
       "name": "go-stdlib",
       "versionInfo": "1.26.10"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-go-modernc.org-sqlite-v1.60.1",
+      "comment": "Compiled into hc-api and hlctl (not hc-broker); source in the release source archive under vendor-sources/go/download. go.sum h1:/blz53O951KWFOso4QQvEs/Fq6cDBKLtMVrYNSeJVKw=. Pure-Go SQLite driver (D-1). Bundles SQLite 3.53.4 (public domain) transpiled to Go; third-party notices in its LICENSE-3RD-PARTY.md.",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "https://proxy.golang.org/modernc.org/sqlite/@v/v1.60.1.zip",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:golang/modernc.org/sqlite@v1.60.1",
+          "referenceType": "purl"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseConcluded": "BSD-3-Clause",
+      "licenseDeclared": "BSD-3-Clause",
+      "name": "modernc.org/sqlite",
+      "versionInfo": "v1.60.1"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-go-modernc.org-libc-v1.77.1",
+      "comment": "Compiled into hc-api and hlctl (not hc-broker); source in the release source archive under vendor-sources/go/download. go.sum h1:Ct8j47QtiZ1Enj2DtFXQtUqrPCAjdCmPjtCuvrYQ0Hs=. C runtime for the transpiled SQLite. Contains code derived from musl libc (MIT), Go (BSD-3-Clause), go-netdb (MIT) and nixpkgs (MIT); notices in its LICENSE-3RD-PARTY.md.",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "https://proxy.golang.org/modernc.org/libc/@v/v1.77.1.zip",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:golang/modernc.org/libc@v1.77.1",
+          "referenceType": "purl"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseConcluded": "BSD-3-Clause",
+      "licenseDeclared": "BSD-3-Clause",
+      "name": "modernc.org/libc",
+      "versionInfo": "v1.77.1"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-go-modernc.org-mathutil-v1.7.1",
+      "comment": "Compiled into hc-api and hlctl (not hc-broker); source in the release source archive under vendor-sources/go/download. go.sum h1:GCZVGXdaN8gTqB1Mf/usp1Y/hSqgI2vAGGP4jZMCxOU=.",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "https://proxy.golang.org/modernc.org/mathutil/@v/v1.7.1.zip",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:golang/modernc.org/mathutil@v1.7.1",
+          "referenceType": "purl"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseConcluded": "BSD-3-Clause",
+      "licenseDeclared": "BSD-3-Clause",
+      "name": "modernc.org/mathutil",
+      "versionInfo": "v1.7.1"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-go-modernc.org-memory-v1.12.1",
+      "comment": "Compiled into hc-api and hlctl (not hc-broker); source in the release source archive under vendor-sources/go/download. go.sum h1:nFMiWrpStgZczNl6XI9GnIk/rWhYIyHGUaR04pGbp9g=. Includes code from mmap-go (BSD-3-Clause) and Go (BSD-3-Clause); LICENSE-MMAP-GO, LICENSE-GO.",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "https://proxy.golang.org/modernc.org/memory/@v/v1.12.1.zip",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:golang/modernc.org/memory@v1.12.1",
+          "referenceType": "purl"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseConcluded": "BSD-3-Clause",
+      "licenseDeclared": "BSD-3-Clause",
+      "name": "modernc.org/memory",
+      "versionInfo": "v1.12.1"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-go-golang.org-x-sys-v0.48.0",
+      "comment": "Compiled into hc-api and hlctl (not hc-broker); source in the release source archive under vendor-sources/go/download. go.sum h1:bbX/i/6MgT9BVLM9RT1thmxL04yeTAhbEz4SyadbXoo=. Go project; PATENTS grant included.",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "https://proxy.golang.org/golang.org/x/sys/@v/v0.48.0.zip",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:golang/golang.org/x/sys@v0.48.0",
+          "referenceType": "purl"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseConcluded": "BSD-3-Clause",
+      "licenseDeclared": "BSD-3-Clause",
+      "name": "golang.org/x/sys",
+      "versionInfo": "v0.48.0"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-go-github.com-google-uuid-v1.6.0",
+      "comment": "Compiled into hc-api and hlctl (not hc-broker); source in the release source archive under vendor-sources/go/download. go.sum h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=.",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "https://proxy.golang.org/github.com/google/uuid/@v/v1.6.0.zip",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:golang/github.com/google/uuid@v1.6.0",
+          "referenceType": "purl"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseConcluded": "BSD-3-Clause",
+      "licenseDeclared": "BSD-3-Clause",
+      "name": "github.com/google/uuid",
+      "versionInfo": "v1.6.0"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-go-github.com-dustin-go-humanize-v1.0.1",
+      "comment": "Compiled into hc-api and hlctl (not hc-broker); source in the release source archive under vendor-sources/go/download. go.sum h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=.",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "https://proxy.golang.org/github.com/dustin/go-humanize/@v/v1.0.1.zip",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:golang/github.com/dustin/go-humanize@v1.0.1",
+          "referenceType": "purl"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "name": "github.com/dustin/go-humanize",
+      "versionInfo": "v1.0.1"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-go-github.com-remyoudompheng-bigfft-v0.0.0-20230129092748-24d4a6f8daec",
+      "comment": "Compiled into hc-api and hlctl (not hc-broker); source in the release source archive under vendor-sources/go/download. go.sum h1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=.",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "https://proxy.golang.org/github.com/remyoudompheng/bigfft/@v/v0.0.0-20230129092748-24d4a6f8daec.zip",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:golang/github.com/remyoudompheng/bigfft@v0.0.0-20230129092748-24d4a6f8daec",
+          "referenceType": "purl"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseConcluded": "BSD-3-Clause",
+      "licenseDeclared": "BSD-3-Clause",
+      "name": "github.com/remyoudompheng/bigfft",
+      "versionInfo": "v0.0.0-20230129092748-24d4a6f8daec"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-go-github.com-mattn-go-isatty-v0.0.24",
+      "comment": "In the Go module graph only; not compiled into any binary. go.sum h1:tGZZoVgT/KiqK1c8ocVLeDS8BSWMRd47J3Lbz7vsReI=. In the module graph only; not compiled into any binary (go list -deps).",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "https://proxy.golang.org/github.com/mattn/go-isatty/@v/v0.0.24.zip",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:golang/github.com/mattn/go-isatty@v0.0.24",
+          "referenceType": "purl"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "name": "github.com/mattn/go-isatty",
+      "versionInfo": "v0.0.24"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-go-github.com-ncruces-go-strftime-v1.0.0",
+      "comment": "In the Go module graph only; not compiled into any binary. go.sum h1:HMFp8mLCTPp341M/ZnA4qaf7ZlsbTc+miZjCLOFAw7w=. In the module graph only; not compiled into any binary (go list -deps).",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "https://proxy.golang.org/github.com/ncruces/go-strftime/@v/v1.0.0.zip",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:golang/github.com/ncruces/go-strftime@v1.0.0",
+          "referenceType": "purl"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "name": "github.com/ncruces/go-strftime",
+      "versionInfo": "v1.0.0"
     },
     {
       "SPDXID": "SPDXRef-Package-npm--asamuzakjp-css-color-7.1.5",
@@ -5992,6 +6172,56 @@
       "relatedSpdxElement": "SPDXRef-Package-go-stdlib",
       "relationshipType": "CONTAINS",
       "spdxElementId": "SPDXRef-Package-homelab-control"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-go-modernc.org-sqlite-v1.60.1",
+      "relationshipType": "CONTAINS",
+      "spdxElementId": "SPDXRef-Package-homelab-control"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-go-modernc.org-libc-v1.77.1",
+      "relationshipType": "CONTAINS",
+      "spdxElementId": "SPDXRef-Package-homelab-control"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-go-modernc.org-mathutil-v1.7.1",
+      "relationshipType": "CONTAINS",
+      "spdxElementId": "SPDXRef-Package-homelab-control"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-go-modernc.org-memory-v1.12.1",
+      "relationshipType": "CONTAINS",
+      "spdxElementId": "SPDXRef-Package-homelab-control"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-go-golang.org-x-sys-v0.48.0",
+      "relationshipType": "CONTAINS",
+      "spdxElementId": "SPDXRef-Package-homelab-control"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-go-github.com-google-uuid-v1.6.0",
+      "relationshipType": "CONTAINS",
+      "spdxElementId": "SPDXRef-Package-homelab-control"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-go-github.com-dustin-go-humanize-v1.0.1",
+      "relationshipType": "CONTAINS",
+      "spdxElementId": "SPDXRef-Package-homelab-control"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-go-github.com-remyoudompheng-bigfft-v0.0.0-20230129092748-24d4a6f8daec",
+      "relationshipType": "CONTAINS",
+      "spdxElementId": "SPDXRef-Package-homelab-control"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-homelab-control",
+      "relationshipType": "OPTIONAL_DEPENDENCY_OF",
+      "spdxElementId": "SPDXRef-Package-go-github.com-mattn-go-isatty-v0.0.24"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-homelab-control",
+      "relationshipType": "OPTIONAL_DEPENDENCY_OF",
+      "spdxElementId": "SPDXRef-Package-go-github.com-ncruces-go-strftime-v1.0.0"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",

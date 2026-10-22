@@ -44,12 +44,14 @@ printf '%s\n' "$pw" | hlctl user add --file /etc/homelab-control/users.json --us
 chown homelab-control:homelab-control /etc/homelab-control/users.json
 install -d -m 0755 /run/homelab-control
 install -d -m 0700 -o homelab-control -g homelab-control /var/log/homelab-control
+# What StateDirectory= does under systemd (this test runs without systemd as PID 1).
+install -d -m 0700 -o homelab-control -g homelab-control /var/lib/homelab-control
 /usr/lib/homelab-control/hc-broker -audit-log /tmp/broker-audit.jsonl >/tmp/broker.log 2>&1 &
 bpid=$!
 for _ in $(seq 50); do [ -S /run/homelab-control/broker.sock ] && break; sleep 0.1; done
 check "dev socket owner/mode" "660 root:homelab-control" "$(stat -c '%a %U:%G' /run/homelab-control/broker.sock)"
 runuser -u homelab-control -- hc-api -listen 127.0.0.1:9180 -dev-insecure-http \
-  -users-file /etc/homelab-control/users.json -audit-log /var/log/homelab-control/audit.jsonl >/tmp/api.log 2>&1 &
+  -users-file /etc/homelab-control/users.json -state-db /var/lib/homelab-control/state.db >/tmp/api.log 2>&1 &
 apid=$!
 trap 'kill $apid $bpid 2>/dev/null || true; on_exit' EXIT
 for _ in $(seq 50); do curl -fsS http://127.0.0.1:9180/api/v1/health >/dev/null 2>&1 && break; sleep 0.1; done
@@ -63,7 +65,10 @@ check "services reported unsupported without systemd" 1 "$(grep -c '"id":"servic
 check "hardware endpoint" 200 "$(code -b "$jar" $b/api/v1/hardware)"
 check "legacy endpoint via broker" 1 "$( (curl -s -b "$jar" $b/api/v1/legacy/webmin || true) | grep -c '"source":"broker"' || true)"
 check "broker audit written" 1 "$([ -s /tmp/broker-audit.jsonl ] && echo 1 || echo 0)"
+check "sessions endpoint (persistent)" 1 "$( (curl -s -b "$jar" $b/api/v1/auth/sessions || true) | grep -c '"persistent":true' || true)"
+check "state database private to the service user" "600 homelab-control" "$(stat -c '%a %U' /var/lib/homelab-control/state.db)"
 kill $apid $bpid 2>/dev/null || true; wait 2>/dev/null || true
+check "API audit chain in the state database verifies" 0 "$(hlctl audit verify --db /var/lib/homelab-control/state.db >/dev/null 2>&1; echo $?)"
 remove
 check "package removed" 0 "$([ -e /usr/bin/hc-api ] && echo 1 || echo 0)"
 echo "install-test: $n_pass passed, $n_fail failed"

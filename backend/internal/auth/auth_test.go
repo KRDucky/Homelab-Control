@@ -130,15 +130,16 @@ func TestSessionLifecycle(t *testing.T) {
 	m := NewSessionManager()
 	now := time.Unix(1_700_000_000, 0)
 	m.now = func() time.Time { return now }
-	id, s, err := m.Create(User{Username: "admin", Scopes: []string{ScopeSystemRead}}, "127.0.0.1")
+	id, s, err := m.Create(User{Username: "admin", Scopes: []string{ScopeSystemRead}}, "127.0.0.1", "test-agent")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(id) < 40 || s.CSRFToken == "" || s.CSRFToken == id {
 		t.Fatal("weak or reused tokens")
 	}
-	for k := range m.sessions {
-		if k == id {
+	all, _ := m.store.ListUser("admin")
+	for _, x := range all {
+		if x.Key == id || x.Key != KeyFor(id) {
 			t.Fatal("raw session ID stored server-side")
 		}
 	}
@@ -149,7 +150,7 @@ func TestSessionLifecycle(t *testing.T) {
 	if _, ok := m.Get(id); ok {
 		t.Fatal("idle session not expired")
 	}
-	id, _, _ = m.Create(User{Username: "admin"}, "127.0.0.1")
+	id, _, _ = m.Create(User{Username: "admin"}, "127.0.0.1", "test-agent")
 	for i := 0; i < 50; i++ { // keep alive but exceed max lifetime
 		now = now.Add(20 * time.Minute)
 		m.Get(id)
@@ -157,7 +158,7 @@ func TestSessionLifecycle(t *testing.T) {
 	if _, ok := m.Get(id); ok {
 		t.Fatal("absolute lifetime not enforced")
 	}
-	id, _, _ = m.Create(User{Username: "admin"}, "127.0.0.1")
+	id, _, _ = m.Create(User{Username: "admin"}, "127.0.0.1", "test-agent")
 	m.DestroyUser("admin")
 	if _, ok := m.Get(id); ok {
 		t.Fatal("DestroyUser left a session")
@@ -171,12 +172,12 @@ func TestSessionCap(t *testing.T) {
 	m := NewSessionManager()
 	m.MaxSessions = 3
 	for i := 0; i < 10; i++ {
-		if _, _, err := m.Create(User{Username: "u"}, "ip"); err != nil {
+		if _, _, err := m.Create(User{Username: "u"}, "ip", ""); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if len(m.sessions) != 3 {
-		t.Fatalf("session table not bounded: %d", len(m.sessions))
+	if n, _ := m.store.Count(); n != 3 {
+		t.Fatalf("session table not bounded: %d", n)
 	}
 }
 

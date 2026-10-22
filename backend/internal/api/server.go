@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -62,6 +63,9 @@ type Server struct {
 	broker    Broker
 	hw        *hwinfo.Collector
 	bstate    brokerState
+
+	persistentSessions bool
+	auditPager         AuditPager
 }
 
 type overviewCache struct {
@@ -98,6 +102,9 @@ func (s *Server) routes() {
 	s.handle("POST /api/v1/auth/login", scopePublic, s.handleLogin)
 	s.handle("POST /api/v1/auth/logout", sessionOnly, s.handleLogout)
 	s.handle("GET /api/v1/auth/session", sessionOnly, s.handleSession)
+	s.handle("GET /api/v1/auth/sessions", sessionOnly, s.handleListSessions)
+	s.handle("POST /api/v1/auth/sessions/{id}/revoke", sessionOnly, s.handleRevokeSession)
+	s.handle("GET /api/v1/audit", auth.ScopeAuditRead, s.handleAudit)
 	s.handle("GET /api/v1/host/overview", auth.ScopeSystemRead, s.handleOverview)
 	s.handle("GET /api/v1/capabilities", sessionOnly, s.handleCapabilities)
 	s.handle("GET /api/v1/services", auth.ScopeServicesRead, s.handleServices)
@@ -230,7 +237,11 @@ func (s *Server) auditLog(event, user string, r *http.Request, outcome, detail s
 	if s.audit == nil {
 		return nil
 	}
-	return s.audit.Log(audit.Event{Event: event, User: user, Remote: remoteIP(r), Outcome: outcome, Detail: detail})
+	err := s.audit.Log(audit.Event{Event: event, User: user, Remote: remoteIP(r), Outcome: outcome, Detail: detail})
+	if err != nil {
+		log.Printf("audit write failed (event %s): %v", event, err)
+	}
+	return err
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request, _ *auth.Session, _ string) {
@@ -295,7 +306,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request, _ *auth.Ses
 	if old, err := r.Cookie(s.cookieName()); err == nil {
 		s.sessions.Destroy(old.Value)
 	}
-	sid, sess, err := s.sessions.Create(u, ip)
+	sid, sess, err := s.sessions.Create(u, ip, r.UserAgent())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal", "could not create session")
 		return

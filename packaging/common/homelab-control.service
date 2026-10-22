@@ -9,7 +9,7 @@ Type=simple
 User=homelab-control
 Group=homelab-control
 EnvironmentFile=/etc/homelab-control/hc-api.env
-ExecStart=/usr/bin/hc-api -users-file /etc/homelab-control/users.json -audit-log /var/log/homelab-control/audit.jsonl $HC_API_ARGS
+ExecStart=/usr/bin/hc-api -users-file /etc/homelab-control/users.json -state-db /var/lib/homelab-control/state.db $HC_API_ARGS
 Restart=on-failure
 RestartSec=2s
 
@@ -37,6 +37,10 @@ SystemCallArchitectures=native
 SystemCallFilter=@system-service
 SystemCallFilter=~@privileged @resources
 UMask=0077
+# State database (sessions, API audit trail); 0700 homelab-control (M2 PR-1a).
+StateDirectory=homelab-control
+StateDirectoryMode=0700
+# Kept for the pre-0.2 API audit log (audit.jsonl), which is no longer written.
 LogsDirectory=homelab-control
 LogsDirectoryMode=0700
 

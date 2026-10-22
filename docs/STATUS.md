@@ -1,4 +1,4 @@
-# Current status — Phase 1 release complete; M2 PR-1 in progress (updated 2026-10-21)
+# Current status — Phase 1 release complete; M2 PR-1 implemented, awaiting review (updated 2026-10-21)
 
 ## Merged work
 - PR #5 (licence compliance, Webmin independence, UI plan): merged 2026-10-19 as `bc7205e3`; 20/20 checks
@@ -22,8 +22,23 @@
   - hash-chained broker and API audit logs with journald checkpoints and `hlctl audit verify`
     (tamper-evident only; `docs/security/AUDIT-LOG.md`);
   - fail-closed audit for broker results and log reads; `hlctl user scopes`.
-- **PR-1a (next):** SQLite state (modernc.org/sqlite), persistent sessions with revocation, API audit in the
-  database, Audit and Sessions pages, upgrade test from v0.1.0-dev.1.
+- **PR-1b CI:** run on `2a5e699a`, 20/20 green, including real systemd on 24.04 and 26.04.
+- **PR-1a (branch `feature/m2-pr1a-state-sessions-audit`, stacked on PR-1b, open, awaiting owner review):**
+  - **State database:** `/var/lib/homelab-control/state.db`, using `modernc.org/sqlite` v1.60.1
+    (ADR 0006 amendment 1; reviewed allow-list `backend/go-deps-allowlist.json`; `hc-broker` stays
+    stdlib-only).
+  - **Migrations:** transactional, with a backup before migrating and downgrade refusal.
+  - **Persistent sessions (D-6):** hashes only, with own-session list and revoke.
+  - **API audit:** hash-chained in the database; `hlctl audit verify --db` and `hlctl audit export --db`.
+  - **New scope `audit.read`:** not granted by default (D-7).
+  - **UI:** new Audit and Sessions pages.
+  - **Release:** the source archive carries the Go module zips (`vendor-sources/go/download`) and builds
+    offline from them.
+  - **CI:** new `upgrade-ubuntu` job (v0.1.0-dev.1 → build).
+- **Known limits:**
+  - login throttling is still in memory;
+  - no audit retention or rotation;
+  - no admin management of other users' sessions.
 - **Still not authorized:** privileged host writes, start/stop/restart, plan/confirm/execute, root command
   execution, PAM/TOTP, storage configuration, Docker/VM management, theme engine, Webmin migration.
   D-2…D-5 and D-12 pending.

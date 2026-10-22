@@ -24,7 +24,7 @@ trap cleanup EXIT
 printf '%s\n' "$pw" | "$bin/hlctl" user add --file "$state/users.json" --username admin >/dev/null
 printf 'noscope-password-123\n' | "$bin/hlctl" user add --file "$state/users.json" --username auditor --scopes "" >/dev/null
 "$bin/hc-api" -listen "127.0.0.1:$port" -dev-insecure-http -users-file "$state/users.json" \
-  -audit-log "$state/audit.jsonl" ${HC_LEGACY_URL:+-legacy-url "$HC_LEGACY_URL"} >"$state/server.log" 2>&1 &
+  -state-db "$state/state.db" ${HC_LEGACY_URL:+-legacy-url "$HC_LEGACY_URL"} >"$state/server.log" 2>&1 &
 pid=$!
 for _ in $(seq 50); do curl -fsS "$base/api/v1/health" >/dev/null 2>&1 && break; sleep 0.1; done
 
@@ -49,9 +49,11 @@ check "session dead after logout"        401 "$(code -b "$jar" "$base/api/v1/hos
 rm -f "$jar"
 curl -s -o /dev/null -c "$jar" -H "Origin: $base" -H 'Content-Type: application/json' -d '{"username":"auditor","password":"noscope-password-123"}' "$base/api/v1/auth/login"
 check "account without system.read gets 403" 403 "$(code -b "$jar" "$base/api/v1/host/overview")"
-check "audit log has no secrets"         0 "$(grep -c -e "$pw" -e "$csrf" "$state/audit.jsonl" || true)"
-check "audit log mode 0600"              600 "$(stat -c %a "$state/audit.jsonl")"
-echo "--- audit log (redacted by design) ---"; cat "$state/audit.jsonl"
+"$bin/hlctl" audit export --db "$state/state.db" >"$state/audit.jsonl"
+check "audit trail has no secrets"       0 "$(grep -c -e "$pw" -e "$csrf" "$state/audit.jsonl" || true)"
+check "state database mode 0600"         600 "$(stat -c %a "$state/state.db")"
+check "audit chain verifies"             0 "$("$bin/hlctl" audit verify --db "$state/state.db" >/dev/null 2>&1; echo $?)"
+echo "--- audit trail (redacted by design) ---"; cat "$state/audit.jsonl"
 echo "hc-api live checks: $n_pass passed, $n_fail failed"
 
 if python3 -c 'import playwright' 2>/dev/null; then

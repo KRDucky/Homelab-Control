@@ -3,7 +3,7 @@
 ## Requirements
 | Tool | Version used in M0 | Notes |
 |---|---|---|
-| Go | 1.24.7 (local), 1.26.10 (CI and releases, exact pin in `packaging/release/toolchain.env`) | `go.mod` requires ≥ 1.24 (stdlib `crypto/pbkdf2`). No third-party modules. Release/CI builds must use a *supported* Go line so stdlib security fixes apply; govulncheck in CI fails otherwise. |
+| Go | 1.26.10 (CI and releases, exact pin in `packaging/release/toolchain.env`; older local toolchains fetch it with `GOTOOLCHAIN=go1.26.10`) | `go.mod` requires ≥ 1.26.0 (`modernc.org/sqlite`). Third-party modules only from the reviewed allow-list `backend/go-deps-allowlist.json` (ADR 0006 amendment 1); `hc-broker` stays standard-library only. Release/CI builds must use a *supported* Go line so stdlib security fixes apply; govulncheck in CI fails otherwise. |
 | Node.js / npm | 22.22.0 / 10.9.4 | jsdom (dev-only) warns it prefers Node ≥ 22.22.2; tests pass on 22.22.0. |
 | GNU make, git, bash, coreutils | any recent | |
 | Perl 5 | 5.38 | Only for the legacy Webmin baseline and upstream `prove` suite. |
@@ -53,7 +53,7 @@ make build
 mkdir -p .dev && chmod 700 .dev
 read -rs PW && printf '%s\n' "$PW" | build/hlctl user add --file .dev/users.json --username admin; unset PW
 build/hc-api -dev-insecure-http -listen 127.0.0.1:9180 \
-  -users-file .dev/users.json -audit-log .dev/audit.jsonl \
+  -users-file .dev/users.json -state-db .dev/state.db \
   -legacy-url https://127.0.0.1:10000/       # optional link to upstream Webmin
 # open http://127.0.0.1:9180/
 ```
@@ -66,12 +66,19 @@ build/hlctl broker info --socket /tmp/hc-broker.sock      # lists the registered
 ```
 Without a broker, Services shows as unavailable and Hardware/Legacy as limited — by design.
 
+The state database (`-state-db`, M2 PR-1a) holds persistent sessions (SHA-256 of the cookie only) and
+the API audit trail; its directory must be 0700 and owned by the user running `hc-api` (`.dev` above).
+`-state-db=""` falls back to in-memory sessions and the `-audit-log` JSONL file. The Audit page needs
+the `audit.read` scope; like `services.logs` it is never granted by default.
+
 Service logs (M2 PR-1b) need the `services.logs` scope, which is never granted by default:
 `build/hlctl user add ... --scopes system.read,services.read,services.logs`. The broker host must
 run systemd with journald and have a `systemd-journal` group. Verify an audit log, with an optional
 journal checkpoint (see `docs/security/AUDIT-LOG.md`):
 ```bash
-build/hlctl audit verify --file .dev/audit.jsonl [--checkpoint SEQ:HASH]
+build/hlctl audit verify --db .dev/state.db [--checkpoint SEQ:HASH]     # API audit trail
+build/hlctl audit verify --file .dev/broker-audit.jsonl                   # broker log
+build/hlctl audit export --db .dev/state.db                               # JSON Lines
 ```
 
 Frontend hot reload: run hc-api as above, then `cd frontend/app && npm run dev` and open
