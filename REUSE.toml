@@ -23,6 +23,7 @@ path = [
   "frontend/design-system/**",
   "docs/ui/theme.schema.v1.draft.json",
   "docs/ui/examples/themes/**",
+  "docs/ui/hcis/tokens/**",
 ]
 precedence = "closest"
 SPDX-FileCopyrightText = "2026 The Homelab Control Authors"
