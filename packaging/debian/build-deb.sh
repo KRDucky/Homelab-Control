@@ -61,6 +61,7 @@ if [ "$1" = configure ]; then
   chgrp homelab-control /etc/homelab-control /etc/homelab-control/hc-api.env
   chmod 0750 /etc/homelab-control
   install -d -m 0700 -o homelab-control -g homelab-control /var/log/homelab-control
+  install -d -m 0700 -o homelab-control -g homelab-control /var/lib/homelab-control
   if [ -d /run/systemd/system ]; then systemctl daemon-reload || true; fi
   echo "homelab-control installed but NOT enabled. Create an account with:"
   echo "  sudo hlctl user add --file /etc/homelab-control/users.json --username admin"
@@ -83,7 +84,7 @@ set -e
 if [ "$1" = purge ]; then
   rm -f /etc/homelab-control/users.json
   rmdir /etc/homelab-control 2>/dev/null || true
-  echo "Audit logs kept in /var/log/homelab-control and /var/log/homelab-control-broker (remove manually if no longer needed)."
+  echo "State and audit data kept in /var/lib/homelab-control, /var/log/homelab-control and /var/log/homelab-control-broker (remove manually if no longer needed)."
 fi
 if [ -d /run/systemd/system ]; then systemctl daemon-reload || true; fi
 PRM

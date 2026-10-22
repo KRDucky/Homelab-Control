@@ -30,13 +30,15 @@ import (
 	"homelab-control/backend/internal/brokerclient"
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
+	"homelab-control/backend/internal/state"
 	"homelab-control/backend/internal/webui"
 )
 
 func main() {
 	listen := flag.String("listen", "127.0.0.1:9180", "listen address")
 	usersFile := flag.String("users-file", "/etc/homelab-control/users.json", "local account store (mode 0600)")
-	auditFile := flag.String("audit-log", "/var/log/homelab-control/audit.jsonl", "audit log path (JSON Lines)")
+	auditFile := flag.String("audit-log", "/var/log/homelab-control/audit.jsonl", "audit log path (JSON Lines); only used with -state-db=\"\"")
+	stateDB := flag.String("state-db", "/var/lib/homelab-control/state.db", "state database (sessions, audit trail); empty = in-memory sessions and the -audit-log file")
 	tlsCert := flag.String("tls-cert", "", "TLS certificate (PEM)")
 	tlsKey := flag.String("tls-key", "", "TLS private key (PEM)")
 	behindTLSProxy := flag.Bool("behind-tls-proxy", false, "TLS is terminated by a trusted reverse proxy on this host; sets Secure cookies")
@@ -81,13 +83,38 @@ func main() {
 	if len(uf.Users) == 0 {
 		log.Fatal("users file contains no accounts")
 	}
-	al, err := audit.Open(*auditFile)
+	var (
+		al     *audit.Logger
+		db     *state.DB
+		logRef string
+	)
+	if *stateDB != "" {
+		db, err = state.Open(*stateDB)
+		if err != nil {
+			log.Fatalf("state database: %v", err)
+		}
+		defer db.Close()
+		if db.Backup != "" {
+			log.Printf("state database migrated to schema %d; previous copy kept at %s", state.SchemaVersion(), db.Backup)
+		}
+		flag.Visit(func(f *flag.Flag) {
+			if f.Name == "audit-log" {
+				log.Printf("note: -audit-log is ignored; the audit trail is in %s", *stateDB)
+			}
+		})
+		al, err = audit.OpenStore(db.Audit())
+		logRef = db.Path()
+	} else {
+		log.Print("warning: no state database: sessions end on restart; audit goes to " + *auditFile)
+		al, err = audit.Open(*auditFile)
+		logRef = *auditFile
+	}
 	if err != nil {
 		log.Fatalf("audit log: %v", err)
 	}
 	// Checkpoints go to the journal (stderr); see docs/security/AUDIT-LOG.md.
 	al.Checkpoint = func(seq uint64, hash string) {
-		log.Printf("audit checkpoint log=%s seq=%d hash=%s", *auditFile, seq, hash)
+		log.Printf("audit checkpoint log=%s seq=%d hash=%s", logRef, seq, hash)
 	}
 	al.EmitCheckpoint()
 	defer al.Close()
@@ -101,6 +128,9 @@ func main() {
 	srv := api.New(api.Config{SecureCookies: useTLS || *behindTLSProxy, AllowedOrigins: extra, LegacyURL: *legacyURL},
 		auth.NewStore(uf), al, hostinfo.NewCollector(*legacyURL), webui.FS()).
 		WithHardware(hwinfo.New())
+	if db != nil {
+		srv.WithSessionStore(db.Sessions()).WithAuditPager(db.Audit())
+	}
 	if *brokerSocket != "" {
 		srv.WithBroker(brokerclient.New(*brokerSocket))
 	}

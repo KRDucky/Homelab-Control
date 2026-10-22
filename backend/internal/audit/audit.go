@@ -63,6 +63,7 @@ type Logger struct {
 	mu   sync.Mutex
 	w    io.Writer
 	f    *os.File
+	st   Store
 	seq  uint64
 	head string
 	// Checkpoint, if set, is called with the chain head after opening and
@@ -147,6 +148,40 @@ func lastLine(f *os.File, size int64) ([]byte, error) {
 	return buf, nil
 }
 
+// Store is a durable, ordered record store (the hc-api state database).
+// Append must be durable when it returns.
+type Store interface {
+	Last() (*Event, error) // the last record, or nil when empty
+	Append(e Event) error
+}
+
+// OpenStore continues (or starts) the chain held in a Store. As with Open, a
+// last record that does not verify starts a new segment instead of extending
+// a chain that may have been tampered with.
+func OpenStore(st Store) (*Logger, error) {
+	l := &Logger{st: st, CheckpointEvery: 100, head: ZeroHash}
+	last, err := st.Last()
+	if err != nil {
+		return nil, err
+	}
+	detail := "new chain"
+	if last != nil {
+		if last.Seq > 0 && last.Hash != "" && digest(*last) == last.Hash {
+			l.seq, l.head = last.Seq, last.Hash
+		} else {
+			detail = "new chain; the previous last record does not verify (crash or tampering)"
+		}
+	}
+	if l.seq == 0 {
+		if err := l.Log(Event{Event: "audit.chain", Outcome: "ok", Detail: detail}); err != nil {
+			return nil, err
+		}
+	} else if err := l.Log(Event{Event: "audit.open", Outcome: "ok", Detail: "audit log opened"}); err != nil {
+		return nil, err
+	}
+	return l, nil
+}
+
 // New wraps an arbitrary writer (tests); the chain starts at sequence 1.
 func New(w io.Writer) *Logger { return &Logger{w: w, head: ZeroHash} }
 
@@ -188,11 +223,13 @@ func (l *Logger) Log(e Event) error {
 	}
 	e.Seq, e.Prev = l.seq+1, l.head
 	e.Hash = digest(e)
-	b, err := json.Marshal(e)
-	if err != nil {
+	if l.st != nil {
+		if err := l.st.Append(e); err != nil {
+			return err
+		}
+	} else if b, err := json.Marshal(e); err != nil {
 		return err
-	}
-	if _, err := l.w.Write(append(b, '\n')); err != nil {
+	} else if _, err := l.w.Write(append(b, '\n')); err != nil {
 		return err
 	}
 	if l.f != nil {

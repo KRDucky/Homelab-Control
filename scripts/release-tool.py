@@ -324,6 +324,15 @@ def check_source_archive(d, version):
             errs.append(f"missing {req}")
     if not any(p.startswith(prefix + "vendor-sources/npm/") and p.endswith(".tgz") for p in paths):
         errs.append("no npm source tarballs under vendor-sources/npm/")
+    # Go module sources (ADR 0006 amendment 1): every linked module's zip must be in the archive.
+    if prefix + "backend/go-deps-allowlist.json" in paths:
+        with tarfile.open(os.path.join(d, names["source"]), "r:gz") as t:
+            allow = json.loads(t.extractfile(prefix + "backend/go-deps-allowlist.json").read())["modules"]
+        for m in (m for m in allow if m.get("linked")):
+            esc = re.sub(r"[A-Z]", lambda c: "!" + c.group(0).lower(), m["path"])
+            z = f"{prefix}vendor-sources/go/download/{esc}/@v/{m['version']}.zip"
+            if z not in paths:
+                errs.append(f"Go module source missing: {m['path']} {m['version']} (vendor-sources/go/download)")
     if errs:
         raise Fail("; ".join(errs))
     # The archive's copies must be the published ones.

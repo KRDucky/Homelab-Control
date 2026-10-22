@@ -33,7 +33,7 @@ docker exec -e PW="$pw" "$name" bash -euc '
   touch /etc/hc-disposable
   dpkg -i /opt/hc/pkg.deb >/dev/null
   printf "%s\n" "$PW" | hlctl user add --file /etc/homelab-control/users.json --username admin \
-    --scopes system.read,services.read,services.logs,hardware.read >/dev/null
+    --scopes system.read,services.read,services.logs,hardware.read,audit.read >/dev/null
   chown homelab-control:homelab-control /etc/homelab-control/users.json
   # Browser test over loopback without a TLS proxy: dev mode (loopback only).
   sed -i "s|^HC_API_ARGS=.*|HC_API_ARGS=-listen 127.0.0.1:9180 -dev-insecure-http -legacy-url http://127.0.0.1:10000/|" /etc/homelab-control/hc-api.env

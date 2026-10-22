@@ -122,7 +122,7 @@ export function getOverview(): Promise<Overview> {
 export type CapabilityStatus = 'available' | 'degraded' | 'unavailable' | 'unsupported' | 'forbidden';
 
 export interface Capability {
-  id: 'overview' | 'services' | 'service_logs' | 'hardware' | 'legacy';
+  id: 'overview' | 'services' | 'service_logs' | 'hardware' | 'legacy' | 'audit';
   label: string;
   path: string;
   scope: string;
@@ -303,4 +303,61 @@ export function getHardware(): Promise<Hardware> {
 
 export function getLegacy(): Promise<Legacy> {
   return request<Legacy>('/api/v1/legacy/webmin');
+}
+
+// ---- M2 PR-1a: sessions and audit -----------------------------------------
+
+export interface SessionEntry {
+  id: string;
+  created: string;
+  last_seen: string;
+  remote_ip?: string;
+  user_agent?: string;
+  current: boolean;
+}
+
+export interface SessionList {
+  persistent: boolean;
+  idle_timeout_seconds: number;
+  max_lifetime_seconds: number;
+  sessions: SessionEntry[];
+}
+
+export function getSessions(): Promise<SessionList> {
+  return request<SessionList>('/api/v1/auth/sessions');
+}
+
+export function revokeSession(id: string, csrf: string): Promise<undefined> {
+  return request<undefined>(`/api/v1/auth/sessions/${encodeURIComponent(id)}/revoke`, {
+    method: 'POST',
+    headers: { 'X-CSRF-Token': csrf },
+  });
+}
+
+export interface AuditEvent {
+  id: number;
+  seq: number;
+  time: string;
+  event: string;
+  user?: string;
+  remote?: string;
+  outcome: string;
+  detail?: string;
+  prev: string;
+  hash: string;
+}
+
+export interface AuditPage {
+  events: AuditEvent[];
+  next_before?: number;
+  source: string;
+}
+
+export function getAudit(opts: { before?: number; limit?: number; event?: string } = {}): Promise<AuditPage> {
+  const q = new URLSearchParams();
+  if (opts.limit) q.set('limit', String(opts.limit));
+  if (opts.before) q.set('before', String(opts.before));
+  if (opts.event) q.set('event', opts.event);
+  const qs = q.toString();
+  return request<AuditPage>(`/api/v1/audit${qs ? `?${qs}` : ''}`);
 }

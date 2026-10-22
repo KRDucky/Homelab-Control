@@ -8,6 +8,9 @@ of the binaries and packages in that release. It contains:
 - `vendor-sources/npm/`: the published npm tarballs of every package compiled into the web UI bundle
   that `hc-api` embeds (React, React DOM, scheduler, Archivo font), each checked against the sha512
   integrity in `frontend/app/package-lock.json` (`MANIFEST.txt`);
+- `vendor-sources/go/download/`: from 0.2 on, the Go module files (`.zip`, `.mod`, `.info`) of every
+  third-party Go module the binaries are built from (the reviewed list in `backend/go-deps-allowlist.json`;
+  ADR 0006 amendment 1), in Go module proxy layout. `backend/go.sum` verifies each one;
 - `RELEASE-BUILDINFO`: version, commit, `SOURCE_DATE_EPOCH` and the exact Go, Node.js and npm versions
   used for the published binaries.
 
@@ -28,6 +31,8 @@ It omits only `compat/webmin/`, the upstream Webmin reference tree, which no bin
 tar -xzf homelab-control-<version>-source.tar.gz
 cd homelab-control-<version>
 grep -E '^(go|node|npm|build_command)=' RELEASE-BUILDINFO
+# Go modules come from the archive, offline (0.2 and later); go.sum still checks every module:
+export GOPROXY="file://$PWD/vendor-sources/go/download" GOFLAGS=-mod=readonly GOSUMDB=off GOTOOLCHAIN=local
 make build VERSION=<version> SOURCE_DATE_EPOCH=<source_date_epoch from RELEASE-BUILDINFO>
 packaging/debian/build-deb.sh <version>      # optional: .deb
 packaging/fedora/build-rpm.sh <version>      # optional: .rpm
