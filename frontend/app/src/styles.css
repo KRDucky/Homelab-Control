@@ -23,7 +23,7 @@ body {
 }
 
 a {
-  color: var(--hc-color-signal);
+  color: var(--hc-color-text-link);
   text-underline-offset: 3px;
 }
 
@@ -579,7 +579,7 @@ select {
 }
 .row-crit th,
 .row-crit td {
-  background: color-mix(in srgb, var(--hc-color-crit) 10%, transparent);
+  background: var(--hc-color-status-crit-subtle);
 }
 .panel-alert {
   border-color: var(--hc-color-crit);
@@ -767,5 +767,5 @@ tr.log-debug td {
 }
 .row-warn th,
 .row-warn td {
-  background: color-mix(in srgb, var(--hc-color-warn) 8%, transparent);
+  background: var(--hc-color-status-warn-subtle);
 }

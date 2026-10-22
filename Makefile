@@ -55,6 +55,7 @@ test-release:
 	tests/release/version-order-test.sh
 
 lint: deps
+	python3 -I docs/ui/hcis/tokens/gen-css.py --check
 	@test -z "$$(cd backend && gofmt -l .)" || { echo "gofmt needed:"; cd backend && gofmt -l .; exit 1; }
 	cd backend && $(GO) vet ./...
 	cd frontend/app && npm run -s typecheck && npm run -s lint && npm run -s format:check
