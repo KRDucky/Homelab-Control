@@ -6,7 +6,7 @@ of the binaries and packages in that release. It contains:
 - the repository at the release commit (`git archive`), including build scripts, packaging, tests and
   documentation;
 - `vendor-sources/npm/`: the published npm tarballs of every package compiled into the web UI bundle
-  that `hc-api` embeds (React, React DOM, scheduler, Archivo font), each checked against the sha512
+  that `hc-api` embeds (React, React DOM, scheduler, Inter and JetBrains Mono fonts), each checked against the sha512
   integrity in `frontend/app/package-lock.json` (`MANIFEST.txt`);
 - `vendor-sources/go/download/`: from 0.2 on, the Go module files (`.zip`, `.mod`, `.info`) of every
   third-party Go module the binaries are built from (the reviewed list in `backend/go-deps-allowlist.json`;

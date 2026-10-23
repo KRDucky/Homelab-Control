@@ -28,8 +28,9 @@ Artifacts: `theme.schema.v1.draft.json` (draft JSON Schema, not wired into code)
 - The strict CSP stays (`default-src 'self'`, no `unsafe-inline`/`unsafe-eval`). Themes are applied by
   setting validated CSS custom properties through the CSSOM, which CSP permits; never by injecting
   `<style>` or `style=` markup.
-- No Webmin, Authentic, Unraid, TrueNAS or other product assets (directive §2, §5). System fonts and
-  original SVG only, unless the owner keeps Archivo (LICENSE-AUDIT LA-06).
+- No Webmin, Authentic, Unraid, TrueNAS or other product assets (directive §2, §5). Fonts follow the HCIS
+  font licensing policy (bundled Inter and JetBrains Mono, OFL-1.1, with system fallbacks; LICENSE-AUDIT
+  LA-06); icons are original SVG.
 - Prefer the platform over dependencies. New runtime dependencies need an ADR 0006 review.
 
 ## What already exists (M1)

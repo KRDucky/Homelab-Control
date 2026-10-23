@@ -1,8 +1,8 @@
 # HCIS fonts: licence records
 
-> **Records only.** No font files are in this folder or in `frontend/app`, and nothing here is
-> installed or loaded. Bundling Inter and JetBrains Mono is migration step 2, a separately approved PR.
-> The app still uses Archivo (LA-06) until then.
+> **Bundled since migration step 2 (2026-10-23).** The app imports both fonts from npm
+> (`frontend/app/package.json`, `src/main.tsx`). No font files are kept in this folder; this file is the
+> licence record.
 
 Owner font licensing policy (2026-10-22) is in `../BRAND-BOOK.md` › Typography › Font licensing policy.
 This file records the fonts checked against it.
@@ -22,12 +22,22 @@ The design-system artifact uses the Latin variable subsets (`*-latin-wght-normal
 - **Required:** the licence text and copyright notice accompany every copy.
 - **Naming:** a modified version must not use a Reserved Font Name. Neither font declares one; a modified build should still be renamed.
 
-## When step 2 bundles them
+## How they ship (step 2)
 
-- Add the licence texts (`LICENSES/OFL-1.1.txt`, REUSE annotations for the `.woff2` files) and third-party
-  notices, as was done for Archivo (LA-01, LA-06), and record the decision in `LICENSE-AUDIT.md`.
-- Serve the files from the app itself. Never use an external font CDN.
-- Keep the system stacks (`ui-system`, `mono-system`) as the fallback and as the **System** font preference.
+| Package | Font version | Files bundled | Size |
+|---|---|---|---|
+| `@fontsource-variable/inter` 5.3.0 (`wght.css`) | Inter 4.001 | 7 variable `.woff2` subsets (latin, latin-ext, cyrillic, cyrillic-ext, greek, greek-ext, vietnamese), weights 100–900 | 218.5 kB |
+| `@fontsource-variable/jetbrains-mono` 5.3.0 (`wght.css`) | JetBrains Mono 2.211 | 6 variable `.woff2` subsets (latin, latin-ext, cyrillic, cyrillic-ext, greek, vietnamese), weights 100–800 | 86.2 kB |
+
+- Every file's name table states the copyright above; no Reserved Font Name. Fontsource subsets the
+  upstream fonts (from the Google Fonts sources), which the OFL permits.
+- Vite emits the files into the UI bundle and `hc-api` serves them from its own origin (CSP `font-src 'self'`).
+  Each subset has a `unicode-range`, so browsers fetch only what the page's text needs. No font CDN.
+- The licence text and copyright ship in `docs/compliance/THIRD-PARTY-NOTICES.md` (installed by every
+  package) and the DEP-5 `copyright`, generated from the installed packages by
+  `scripts/gen-third-party-notices.py`; the SBOM lists both packages. `LICENSE-AUDIT.md` LA-06, EX-04 and
+  ADR 0006 amendment 2 record the review. The font files are not in the repository, so no REUSE entry is needed.
+- The system stacks (`ui-system`, `mono-system`) stay as the fallback and as the future **System** font preference.
 
 ## Adding another font
 

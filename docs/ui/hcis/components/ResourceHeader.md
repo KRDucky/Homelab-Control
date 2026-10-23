@@ -12,6 +12,6 @@ One per page, above the tabs. The name uses the `display` style.
 
 ## Current implementation vs HCIS
 
-App: the “faceplate” with rack-ear mounting holes, a 62%-width Archivo hostname and a gradient. HCIS keeps the idea of one bold element but drops the gradient and ornament.
+App: the “faceplate” with rack-ear mounting holes, a bold hostname (Archivo until step 2, now Inter) and a gradient. HCIS keeps the idea of one bold element but drops the gradient and ornament.
 
 Props: `ResourceHeaderProps` in `reference/index.d.ts`. Preview data is labelled “Example data”.

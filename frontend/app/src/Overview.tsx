@@ -93,7 +93,7 @@ export function Overview({ data }: { data: OverviewData }) {
                 {filesystems.items.map((f) => (
                   <tr key={f.mount_point}>
                     <th scope="row">
-                      {f.mount_point}
+                      <span className="mono">{f.mount_point}</span>
                       {f.read_only && <span className="tag">read-only</span>}
                     </th>
                     <td>{f.fs_type}</td>
