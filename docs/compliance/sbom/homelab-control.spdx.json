@@ -1,15 +1,15 @@
 {
   "SPDXID": "SPDXRef-DOCUMENT",
   "creationInfo": {
-    "comment": "Inputs sha256 9e939ee1a052a8e8991c52008183744dd591eae05f6e9b910ced21df85ab92a9 over frontend/app/package-lock.json, backend/go.mod, backend/go.sum, backend/go-deps-allowlist.json, compat/webmin.lock, scripts/gen-sbom.py. Build toolchain (CI): Go 1.26.10, Node.js 22, npm lockfileVersion 3, Vite 8.3.4, TypeScript 6.0.3. Package-payload inventories are produced per build by scripts/package-inventory.sh.",
-    "created": "2026-10-21T11:06:00Z",
+    "comment": "Inputs sha256 295449fc711cd020848113a2f69c1809231a9f8e8ab38c127639a2f5c92817c8 over frontend/app/package-lock.json, backend/go.mod, backend/go.sum, backend/go-deps-allowlist.json, compat/webmin.lock, scripts/gen-sbom.py. Build toolchain (CI): Go 1.26.10, Node.js 22, npm lockfileVersion 3, Vite 8.3.4, TypeScript 6.0.3. Package-payload inventories are produced per build by scripts/package-inventory.sh.",
+    "created": "2026-10-23T06:47:23Z",
     "creators": [
       "Person: Ian comings",
       "Tool: homelab-control-gen-sbom-1.0"
     ]
   },
   "dataLicense": "CC0-1.0",
-  "documentNamespace": "https://github.com/KRDucky/Homelab-Control---Webmin-Fork/spdx/9e939ee1a052a8e8991c52008183744dd591eae05f6e9b910ced21df85ab92a9",
+  "documentNamespace": "https://github.com/KRDucky/Homelab-Control---Webmin-Fork/spdx/295449fc711cd020848113a2f69c1809231a9f8e8ab38c127639a2f5c92817c8",
   "name": "homelab-control-source-sbom",
   "packages": [
     {
@@ -1159,27 +1159,51 @@
       "versionInfo": "1.16.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-npm--fontsource-variable-archivo-5.3.0",
+      "SPDXID": "SPDXRef-Package-npm--fontsource-variable-inter-5.3.0",
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "1e880af0525e96b0f5a3b4e566590856d1e0736d1b3b93d945613b9947944dd30dd39e5a9739d057aff4d09d342017aef054001f8b37cd6f5424dbca1315dffa"
+          "checksumValue": "3aea4be3cbdae093687dbf7bc3a358785f52ed6fe41cd28cd04afc0de9b99ea8b88de38bad5243a04f2d644a673099ad92f35b0751083cfc0771d905e9bd6850"
         }
       ],
       "comment": "Compiled into the web UI bundle embedded in hc-api; notice in THIRD-PARTY-NOTICES.md.",
       "copyrightText": "NOASSERTION",
-      "downloadLocation": "https://registry.npmjs.org/@fontsource-variable/archivo/-/archivo-5.3.0.tgz",
+      "downloadLocation": "https://registry.npmjs.org/@fontsource-variable/inter/-/inter-5.3.0.tgz",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
-          "referenceLocator": "pkg:npm/%40fontsource-variable/archivo@5.3.0",
+          "referenceLocator": "pkg:npm/%40fontsource-variable/inter@5.3.0",
           "referenceType": "purl"
         }
       ],
       "filesAnalyzed": false,
       "licenseConcluded": "OFL-1.1",
       "licenseDeclared": "OFL-1.1",
-      "name": "@fontsource-variable/archivo",
+      "name": "@fontsource-variable/inter",
+      "versionInfo": "5.3.0"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-npm--fontsource-variable-jetbrains-mono-5.3.0",
+      "checksums": [
+        {
+          "algorithm": "SHA512",
+          "checksumValue": "177db1a52d8db06628422d800d290a4e0a498fba336a3b0680327cc284e7aa398807e7710c8a889a3978a57655104c6ef14159da7761997d7c1014bf85dcf72f"
+        }
+      ],
+      "comment": "Compiled into the web UI bundle embedded in hc-api; notice in THIRD-PARTY-NOTICES.md.",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "https://registry.npmjs.org/@fontsource-variable/jetbrains-mono/-/jetbrains-mono-5.3.0.tgz",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:npm/%40fontsource-variable/jetbrains-mono@5.3.0",
+          "referenceType": "purl"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseConcluded": "OFL-1.1",
+      "licenseDeclared": "OFL-1.1",
+      "name": "@fontsource-variable/jetbrains-mono",
       "versionInfo": "5.3.0"
     },
     {
@@ -6419,7 +6443,12 @@
       "spdxElementId": "SPDXRef-Package-npm--exodus-bytes-1.16.0"
     },
     {
-      "relatedSpdxElement": "SPDXRef-Package-npm--fontsource-variable-archivo-5.3.0",
+      "relatedSpdxElement": "SPDXRef-Package-npm--fontsource-variable-inter-5.3.0",
+      "relationshipType": "CONTAINS",
+      "spdxElementId": "SPDXRef-Package-homelab-control"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-npm--fontsource-variable-jetbrains-mono-5.3.0",
       "relationshipType": "CONTAINS",
       "spdxElementId": "SPDXRef-Package-homelab-control"
     },

@@ -39,7 +39,7 @@ inventory, and lintian's output for the `.deb`, with the build artifacts.
 | `.rpm` | CI, step "Release payload compliance (deb, rpm)" | **PASS** |
 | Arch `.pkg.tar.zst` | CI, step "Release payload compliance (Arch)" | **PASS** |
 
-The web UI (React, React DOM, scheduler, Archivo font subsets, MIT design tokens) is embedded in
+The web UI (React, React DOM, scheduler, Inter and JetBrains Mono font subsets, MIT design tokens) is embedded in
 `hc-api`; its contents were confirmed from the production source map (LICENSE-AUDIT §2 step 4).
 
 ## 3. Distributed vs development-only
@@ -49,7 +49,7 @@ The web UI (React, React DOM, scheduler, Archivo font subsets, MIT design tokens
 | Homelab Control design tokens (compiled into the UI bundle) | Yes | MIT | MIT text in `NOTICE.md` |
 | Go standard library (compiled into binaries) | Yes | BSD-3-Clause | `THIRD-PARTY-NOTICES.md` |
 | react 19.3.1, react-dom 19.3.1, scheduler 0.28.0 | Yes (in UI bundle) | MIT | `THIRD-PARTY-NOTICES.md` |
-| @fontsource-variable/archivo 5.3.0 (3 woff2 subsets) | Yes (in UI bundle; removal planned, LA-06) | OFL-1.1 | `THIRD-PARTY-NOTICES.md` |
+| @fontsource-variable/inter 5.3.0 (7 woff2 subsets), @fontsource-variable/jetbrains-mono 5.3.0 (6 woff2 subsets) | Yes (in UI bundle; LA-06) | OFL-1.1 | `THIRD-PARTY-NOTICES.md` |
 | SDK, schemas, theme definitions | No (source only) | MIT | `LICENSE` in each directory |
 | 243 dev-only npm packages (Vite, TypeScript, axe-core, …) | No | Mixed (see `DEPENDENCY-LICENSES.md`) | Not required |
 | `compat/webmin/` (Webmin 2.670 subtree) | No; also excluded from the release source archive | BSD-3-Clause + per-file exceptions | Upstream notices kept in place |
@@ -70,7 +70,7 @@ Deferred (owner decision 2026-10-19), not required for Phase 1:
 Other follow-ups:
 - CI DCO sign-off check;
 - private vulnerability reporting and `SECURITY.md`;
-- Archivo font removal (LA-06);
+- ~~Archivo font removal (LA-06)~~ superseded: replaced by Inter and JetBrains Mono (HCIS step 2, 2026-10-23);
 - Webmin migration phase 1.
 
 Before any Debian/Ubuntu archive submission: a Debian source package with `debian/changelog`, man pages,

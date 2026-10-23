@@ -397,11 +397,21 @@
 }
 /* END generated: HCIS colour roles */
 
+/* BEGIN generated: HCIS typography (docs/ui/hcis/tokens/gen-css.py) */
+/* HCIS font families (docs/ui/hcis). Independent of the colour theme. Inter and JetBrains Mono
+ * are bundled (OFL-1.1, main.tsx); every stack ends in system fonts. Edit tokens.json and regenerate. */
 :root {
-  /* type */
-  --hc-font-family: 'Archivo Variable', system-ui, sans-serif;
-  --hc-font-stretch-display: 62%;
-  --hc-font-stretch-body: 100%;
+  --hc-font-ui: 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', 'Noto Sans', 'Liberation Sans', sans-serif;
+  --hc-font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'SFMono-Regular', 'DejaVu Sans Mono', 'Liberation Mono', Menlo, Consolas, monospace;
+  --hc-font-ui-system: system-ui, -apple-system, 'Segoe UI', 'Noto Sans', 'Liberation Sans', 'Helvetica Neue', Arial, sans-serif;
+  --hc-font-mono-system: ui-monospace, 'SFMono-Regular', 'DejaVu Sans Mono', 'Liberation Mono', Menlo, Consolas, monospace;
+  /* M1 name, kept for existing styles. New code uses --hc-font-ui / --hc-font-mono. */
+  --hc-font-family: var(--hc-font-ui);
+}
+/* END generated: HCIS typography */
+
+:root {
+  /* type sizes (M1 scale, unchanged) */
   --hc-font-size-xs: 0.75rem;
   --hc-font-size-sm: 0.875rem;
   --hc-font-size-md: 1rem;

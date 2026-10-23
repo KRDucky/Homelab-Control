@@ -79,7 +79,7 @@
   `.deb`. `compat/webmin/` has a generated **per-file licence inventory** (not relicensed; 835 third-party
   files with no stated licence marked unverified) and is excluded from packages and source archives.
 - Approved policies: `CONTRIBUTING.md` (DCO, AI disclosure; history grandfathered), "The Homelab Control
-  Authors". Follow-ups: CI sign-off check, `SECURITY.md`, Archivo removal (LA-06), Webmin phase 1.
+  Authors". Follow-ups: CI sign-off check, `SECURITY.md`, Webmin phase 1. (Archivo removal, LA-06, was superseded by HCIS step 2: bundled Inter and JetBrains Mono.)
 - UI/theme engine: planning only (`docs/ui/`); `.hltheme` single JSON (ADR 0010); layout preferences
   separate from themes; CSSOM/CSP probe passes in Chromium, Firefox and WebKit. **Nothing implemented.**
 

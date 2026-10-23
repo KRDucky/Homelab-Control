@@ -33,10 +33,16 @@ Comment: Unmodified upstream Webmin reference tree. Not used to build, and not i
  terms) and some third-party files state none. Per-file inventory:
  docs/compliance/WEBMIN-LICENSE-INVENTORY.md (machine-readable in REUSE.toml).
 
-Files: frontend/app/node_modules/@fontsource-variable/archivo/*
-Copyright: 2020 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo)
+Files: frontend/app/node_modules/@fontsource-variable/inter/*
+Copyright: 2016 The Inter Project Authors (https://github.com/rsms/inter)
 License: OFL-1.1
-Comment: @fontsource-variable/archivo 5.3.0 (https://github.com/fontsource/font-files.git). Font files compiled into the
+Comment: @fontsource-variable/inter 5.3.0 (https://github.com/fontsource/font-files.git). Font files compiled into the
+ web UI embedded in /usr/bin/hc-api.
+
+Files: frontend/app/node_modules/@fontsource-variable/jetbrains-mono/*
+Copyright: 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)
+License: OFL-1.1
+Comment: @fontsource-variable/jetbrains-mono 5.3.0 (https://github.com/fontsource/font-files.git). Font files compiled into the
  web UI embedded in /usr/bin/hc-api.
 
 Files: frontend/app/node_modules/react/*
@@ -141,7 +147,7 @@ License: Expat
  SOFTWARE.
 
 License: OFL-1.1
- Copyright 2020 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo) Archivo-Italic[wdth,wght].ttf: Copyright 2020 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo)
+ Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono) JetBrainsMono-Italic[wght].ttf: Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)
  .
  This Font Software is licensed under the SIL Open Font License, Version 1.1.
  This license is copied below, and is also available with a FAQ at:

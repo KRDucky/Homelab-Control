@@ -8,6 +8,9 @@
 - frontend/design-system/tokens.css, between the "BEGIN/END generated: HCIS colour roles" markers:
   the HCIS semantic colours for the shipped app (hex values, one block per theme) and the M1
   colour names as aliases (migration step 1, docs/ui/hcis/README.md).
+- frontend/design-system/tokens.css, between the "BEGIN/END generated: HCIS typography" markers:
+  the four font-family stacks as --hc-font-<family> and the M1 name --hc-font-family as an alias of
+  --hc-font-ui (migration step 2). Typography is the same in every theme.
 
 Usage: python3 -I gen-css.py [--check]
 """
@@ -20,6 +23,8 @@ HERE = pathlib.Path(__file__).resolve().parent
 APP_TOKENS = HERE.parents[3] / 'frontend' / 'design-system' / 'tokens.css'
 BEGIN = '/* BEGIN generated: HCIS colour roles (docs/ui/hcis/tokens/gen-css.py) */'
 END = '/* END generated: HCIS colour roles */'
+TYPE_BEGIN = '/* BEGIN generated: HCIS typography (docs/ui/hcis/tokens/gen-css.py) */'
+TYPE_END = '/* END generated: HCIS typography */'
 # Selectors per theme. Midnight is the default; Daybreak follows a light OS preference and Graphite
 # a dark one with prefers-contrast: more, unless data-hc-theme names a theme. 'dark' keeps the M1
 # meaning (force the default dark theme).
@@ -92,8 +97,19 @@ def render_app(t):
     return '\n'.join(out)
 
 
-def splice(current, region):
-    a, b = current.index(BEGIN), current.index(END) + len(END)
+def render_app_type(t):
+    fams = t['type']['families']
+    lines = [f'  --hc-font-{k}: {v};' for k, v in fams.items()]
+    lines.append('  /* M1 name, kept for existing styles. New code uses --hc-font-ui / --hc-font-mono. */')
+    lines.append('  --hc-font-family: var(--hc-font-ui);')
+    return '\n'.join([TYPE_BEGIN,
+                      '/* HCIS font families (docs/ui/hcis). Independent of the colour theme. Inter and JetBrains Mono',
+                      ' * are bundled (OFL-1.1, main.tsx); every stack ends in system fonts. Edit tokens.json and regenerate. */',
+                      ':root {', *lines, '}', TYPE_END])
+
+
+def splice(current, region, begin=BEGIN, end=END):
+    a, b = current.index(begin), current.index(end) + len(end)
     return current[:a] + region + current[b:]
 
 
@@ -102,13 +118,13 @@ def main():
     css = render(t)
     target = HERE / 'hcis-tokens.css'
     app = APP_TOKENS.read_text()
-    app_new = splice(app, render_app(t))
+    app_new = splice(splice(app, render_app(t)), render_app_type(t), TYPE_BEGIN, TYPE_END)
     if '--check' in sys.argv:
         bad = []
         if target.read_text() != css:
             bad.append('docs/ui/hcis/tokens/hcis-tokens.css')
         if app != app_new:
-            bad.append('frontend/design-system/tokens.css (HCIS region)')
+            bad.append('frontend/design-system/tokens.css (HCIS regions)')
         if bad:
             sys.exit('out of date: ' + ', '.join(bad) + '; run python3 -I docs/ui/hcis/tokens/gen-css.py')
         print('OK: HCIS CSS matches tokens.json')
