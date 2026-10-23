@@ -12,7 +12,8 @@ same split from the lockfile.
 | react | 19.3.1 | MIT | JS bundle embedded in `hc-api` | Production source map |
 | react-dom | 19.3.1 | MIT | JS bundle embedded in `hc-api` | Production source map |
 | scheduler | 0.28.0 | MIT | JS bundle embedded in `hc-api` (react-dom dependency) | Production source map |
-| @fontsource-variable/archivo | 5.3.0 | OFL-1.1 (no Reserved Font Name) | Three `.woff2` subsets + CSS embedded in `hc-api` | Production build output |
+| @fontsource-variable/inter | 5.3.0 (Inter 4.001) | OFL-1.1 (no Reserved Font Name) | Seven variable `.woff2` subsets + CSS embedded in `hc-api` | Production build output |
+| @fontsource-variable/jetbrains-mono | 5.3.0 (JetBrains Mono 2.211) | OFL-1.1 (no Reserved Font Name) | Six variable `.woff2` subsets + CSS embedded in `hc-api` | Production build output |
 
 Nothing else reaches the bundle: the source map lists only these packages plus our own `src/` files, the
 bundle contains no Vite runtime (module-preload polyfill disabled in `vite.config.ts`), and the Go module

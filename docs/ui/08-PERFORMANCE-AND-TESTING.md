@@ -10,6 +10,12 @@
 React 19 + React DOM account for most of the JS. Switching to system fonts (LICENSE-AUDIT LA-06) would
 remove ~211 kB of font downloads.
 
+**Update 2026-10-23 (HCIS step 2):** Archivo was replaced by Inter (7 subsets, 218.5 kB) and JetBrains Mono
+(6 subsets, 86.2 kB): 304.7 kB embedded in `hc-api`. Each subset has a `unicode-range`, so a browser
+downloads only the subsets the page's text needs; Latin-only pages fetch Inter Latin (48.3 kB) and
+JetBrains Mono Latin (40.4 kB), 88.7 kB against Archivo Latin's 90.1 kB. JS 259.8 kB (78.9 kB gzip), CSS
+30.3 kB (5.5 kB gzip).
+
 ## 8.2 Budgets (CI-enforced once the build step measures them)
 | Metric | Budget | Notes |
 |---|---|---|
