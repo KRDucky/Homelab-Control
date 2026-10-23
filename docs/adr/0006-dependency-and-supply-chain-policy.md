@@ -15,7 +15,7 @@ silent third-party repositories.
   `scripts/security-check.sh` fails if `go.mod` gains requirements without this ADR being updated.
 - **npm:** exact versions in `package.json`, committed `package-lock.json`, installs with
   `npm ci --ignore-scripts` (no install-time scripts). Production dependencies are kept minimal
-  (React, React DOM, font). `npm audit --omit=dev --audit-level=high` gates CI.
+  (React, React DOM, fonts). `npm audit --omit=dev --audit-level=high` gates CI.
 - **Reproducible builds:** `-trimpath -buildvcs=false -buildid=`, `CGO_ENABLED=0`, `SOURCE_DATE_EPOCH`
   from the commit; `scripts/repro-check.sh` builds twice from clean worktrees and compares hashes.
 - **Upstream Webmin:** imported only from tagged releases via `git subtree --squash`; tree hash pinned in
@@ -53,3 +53,24 @@ Slower to adopt libraries; much smaller audit surface. Revisit when the broker n
 `scripts/gen-sbom.py` and `scripts/gen-third-party-notices.py` list each module and its licence and notice files. `scripts/release-tool.py verify` fails if a module's source is missing from the release source archive.
 
 **Changing the list:** adding or upgrading a module repeats this review and updates the allow-list in the same PR. Dependabot-style automatic bumps are not accepted.
+
+## Amendment 2 (2026-10-23): UI font packages (HCIS migration step 2)
+
+**Decision (owner, HCIS step 2 authorization 2026-10-23):** the web UI bundles Inter and JetBrains Mono
+from `@fontsource-variable/inter` and `@fontsource-variable/jetbrains-mono`, replacing
+`@fontsource-variable/archivo`. The owner's font licensing policy (2026-10-22,
+`docs/ui/hcis/BRAND-BOOK.md` › Typography) governs which fonts may be bundled.
+
+**Review recorded on 2026-10-23:**
+
+| Item | Result |
+|---|---|
+| Need | HCIS typography: Inter for the interface, JetBrains Mono for logs, code, paths and identifiers. System stacks stay as fallbacks. |
+| Versions | Both `5.3.0` (published 2026-07-19), exact in `package.json`; lockfile `integrity` sha512. Fonts inside: Inter 4.001, JetBrains Mono 2.211 (name table `version`), from the Google Fonts sources (`metadata.json`). |
+| Contents | CSS with `@font-face` rules and `.woff2` files only. No JavaScript, no `dependencies`, no install scripts (and installs run with `--ignore-scripts`). Only `wght.css` is imported, so the opsz and italic files are not bundled. |
+| Licences | OFL-1.1 for both: package `LICENSE` and every bundled file's name-table copyright checked. No Reserved Font Name is declared. Bundling with GPL-3.0-or-later software and redistribution in packages are permitted; selling the fonts alone is not. |
+| Notices | `THIRD-PARTY-NOTICES.md`, DEP-5 `copyright` and the SBOM are regenerated from the installed packages; CI drift checks enforce them. |
+| Network | Self-hosted: Vite emits the files into the bundle and `hc-api` serves them from its own origin (CSP `font-src 'self'`). No font CDN. |
+| Vulnerabilities | `npm audit --omit=dev --audit-level=high`: 0 vulnerabilities (2026-10-23). |
+
+Adding or replacing a font repeats this review and the policy checks in the same PR.

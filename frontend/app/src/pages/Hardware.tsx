@@ -34,10 +34,10 @@ function Identity({ id }: { id: HardwareData['identity'] }) {
           <div key={k}>
             <dt>{label}</dt>
             <dd>
-              {f?.status === 'present' && f.value}
+              {f?.status === 'present' && <span className="mono">{f.value}</span>}
               {f?.status === 'placeholder' && (
                 <>
-                  <span className="muted">{f.value}</span>{' '}
+                  <span className="muted mono">{f.value}</span>{' '}
                   <span className="tag">vendor placeholder, not unique</span>
                 </>
               )}

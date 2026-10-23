@@ -114,7 +114,7 @@ Typography is **independent of colour themes**. Font family and text size are us
 - Use `mono` for anything a person might copy or compare character by character: paths, unit names, WWN/serial/EUI, UIDs, image tags, commands. Never use it for prose.
 - All numbers use tabular figures, so columns and live values don't jitter.
 - Keep component dimensions in tokens (spacing, control height), not in font metrics, so swapping Inter for a system font changes letterforms, not layout.
-- Archivo, the current app's font, is legacy styling. It is replaced in migration step 2.
+- Archivo, the M1 app's font, was replaced by Inter and JetBrains Mono in migration step 2 (2026-10-23).
 
 ### Font licensing policy (owner-approved)
 
@@ -322,7 +322,7 @@ The target is WCAG 2.2 AA. That means:
 | Visual style | Flat panels, gradient “faceplate” | Adaptive Glass: glass shell and overlays, opaque data surfaces |
 | Themes | Dark + light via `prefers-color-scheme` | Midnight, Daybreak, Graphite, OLED; reduced transparency |
 | Accent | Periwinkle `#7C8CFF` / `#4453D6` | Teal `#4ED4C8` / `#167E82`, blue secondary |
-| Type | Archivo Variable (legacy) | Inter + JetBrains Mono |
+| Type | Inter + JetBrains Mono (step 2, 2026-10-23); M1 type scale | Inter + JetBrains Mono, HCIS type styles |
 | Spacing / density | 0.25–2rem, one density | 4px grid, three densities |
 | Radius | 3 / 8 / 14px | 4 / 6 / 8 / 12px |
 | Components | `Section`, `Sources`, `StateDot`, `Meter` + CSS patterns | 81 components and showcases |
@@ -334,6 +334,6 @@ Adopt HCIS incrementally, through separately approved PRs. This design system do
 ## Not synced
 
 - Not carried over from `frontend/design-system/tokens.css`: `--hc-font-stretch-*` (Archivo-only). Motion is now tokenized as `hc-motion-*`.
-- Archivo is not included. It is legacy styling, still loaded by the app from `@fontsource-variable/archivo`.
+- Archivo is not included. The app replaced it with Inter and JetBrains Mono in migration step 2.
 - Components were not built from source. `Section`, `StateDot` and `Meter` are hand-ported from `ui.tsx` and `Meter.tsx`; everything else is a hand-written reference.
 - The planned example themes in `docs/ui/examples/themes/` are not imported as files. Graphite covers high contrast, and the OLED theme uses `oled.json`'s surface, border and meter values.

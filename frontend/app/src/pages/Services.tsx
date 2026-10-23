@@ -95,7 +95,7 @@ export function Services({
           <ul className="failed-list">
             {failed.map((u) => (
               <li key={u.name}>
-                <strong>{u.name}</strong> <span className="muted">{u.description}</span>
+                <strong className="mono">{u.name}</strong> <span className="muted">{u.description}</span>
               </li>
             ))}
           </ul>
@@ -172,7 +172,9 @@ export function Services({
             <tbody>
               {shown.map((u) => (
                 <tr key={u.name} className={u.active === 'failed' ? 'row-crit' : undefined}>
-                  <th scope="row">{u.name}</th>
+                  <th scope="row">
+                    <span className="mono">{u.name}</span>
+                  </th>
                   <td>
                     <StateDot tone={tone(u)} />
                     {u.active} <span className="muted">({u.sub})</span>

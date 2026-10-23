@@ -71,6 +71,6 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 ## Third-party components in release artifacts
 
 The binaries and packages contain the Go standard library (BSD-3-Clause), React, React DOM and scheduler
-(MIT) and the Archivo variable font (SIL OFL 1.1). Their full copyright notices and licence texts are in
+(MIT) and the Inter and JetBrains Mono variable fonts (SIL OFL 1.1). Their full copyright notices and licence texts are in
 `THIRD-PARTY-NOTICES.md`, which every package installs next to this file. Development-only tooling is not
 redistributed (`docs/compliance/DEPENDENCY-LICENSES.md`).
