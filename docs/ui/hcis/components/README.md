@@ -28,15 +28,15 @@ Status: **Production** (in the app), **Production markup** (app markup/CSS, comp
 
 | Component | Status | Summary |
 |---|---|---|
-| [AppShell](AppShell.md) | Production markup, proposed component | The application frame: glass global header, glass sidebar, workspace, adapting to its own width. |
-| [AppearanceMenu](AppearanceMenu.md) | Proposed (HCIS) | Popover for theme, transparency, density and motion. |
+| [AppShell](AppShell.md) | Production | The application frame: glass global header, glass sidebar, workspace, adapting to its own width. |
+| [AppearanceMenu](AppearanceMenu.md) | Production | Popover for theme, density, interface font, text size, surfaces (transparency) and motion. |
 | [Breadcrumbs](Breadcrumbs.md) | Planned | The path from host to the current resource. |
 | [CommandPalette](CommandPalette.md) | Planned | Keyboard-driven search over pages, resources and permitted actions. |
-| [GlobalHeader](GlobalHeader.md) | Proposed (HCIS) | Identity, active host, health status, workspace, global search, background jobs, notifications, appearance and account. |
-| [NavigationRail](NavigationRail.md) | Proposed (HCIS) | The collapsed, icon-only form of the sidebar (56px). |
+| [GlobalHeader](GlobalHeader.md) | Production (partial) | Identity, active host, health status, workspace, global search, background jobs, notifications, appearance and account. |
+| [NavigationRail](NavigationRail.md) | Production | The collapsed, icon-only form of the sidebar (60px). |
 | [ResourceHeader](ResourceHeader.md) | Production markup, proposed component | The header of a resource page: kind, name, status, key facts and actions. |
 | [ResourceTree](ResourceTree.md) | Proposed (HCIS) | A keyboard-navigable tree of resources (WAI-ARIA tree). |
-| [Sidebar](Sidebar.md) | Production markup, proposed component | Grouped, capability-aware primary navigation on glass. |
+| [Sidebar](Sidebar.md) | Production (ungrouped) | Grouped, capability-aware primary navigation on glass. |
 | [Tabs](Tabs.md) | Planned | Tabs for resource detail views. |
 | [WorkspaceSwitcher](WorkspaceSwitcher.md) | Proposed (HCIS) | Switch between saved workspaces (layouts, columns, landing page). |
 

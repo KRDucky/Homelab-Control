@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, getUnitLogs, type LogEntry, type UnitLogs } from '../api';
 import { explain } from '../useData';
+import { TableRegion } from '../ui';
 
 const lineChoices = [50, 100, 200, 500];
 
@@ -123,7 +124,7 @@ function LogTable({ data }: { data: UnitLogs }) {
       <p className="result-count" aria-live="polite">
         {data.entries.length} most recent {data.entries.length === 1 ? 'entry' : 'entries'}, oldest first
       </p>
-      <div className="table-wrap logs-wrap">
+      <TableRegion label={`Logs for ${data.unit}`} className="logs-wrap">
         <table className="logs">
           <thead>
             <tr>
@@ -139,7 +140,7 @@ function LogTable({ data }: { data: UnitLogs }) {
             ))}
           </tbody>
         </table>
-      </div>
+      </TableRegion>
       {data.truncated && (
         <p className="footnote">Older entries were left out to keep this response under 1 MiB.</p>
       )}

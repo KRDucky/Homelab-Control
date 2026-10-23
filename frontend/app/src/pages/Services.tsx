@@ -4,7 +4,7 @@
 
 import { useMemo, useState } from 'react';
 import { getServices, type Capability, type Unit } from '../api';
-import { StateDot } from '../ui';
+import { StateDot, TableRegion } from '../ui';
 import { explain, useData } from '../useData';
 import { UnitLogsPanel } from './UnitLogsPanel';
 
@@ -154,7 +154,7 @@ export function Services({
         <p className="result-count" aria-live="polite">
           Showing {shown.length} of {data.units.length}
         </p>
-        <div className="table-wrap">
+        <TableRegion label="Units">
           <table>
             <thead>
               <tr>
@@ -201,7 +201,7 @@ export function Services({
               ))}
             </tbody>
           </table>
-        </div>
+        </TableRegion>
         {shown.length === 0 && <p className="empty">No units match these filters.</p>}
         {data.truncated && <p className="footnote">The list was truncated at 5,000 units.</p>}
         <details className="sources">

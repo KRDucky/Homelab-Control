@@ -11,6 +11,8 @@
 - frontend/design-system/tokens.css, between the "BEGIN/END generated: HCIS typography" markers:
   the four font-family stacks as --hc-font-<family> and the M1 name --hc-font-family as an alias of
   --hc-font-ui (migration step 2). Typography is the same in every theme.
+- frontend/design-system/tokens.css, between the "BEGIN/END generated: HCIS layout" markers: glass,
+  density and motion tokens (migration step 3). The colour region also carries the themed shadows.
 
 Usage: python3 -I gen-css.py [--check]
 """
@@ -25,6 +27,10 @@ BEGIN = '/* BEGIN generated: HCIS colour roles (docs/ui/hcis/tokens/gen-css.py) 
 END = '/* END generated: HCIS colour roles */'
 TYPE_BEGIN = '/* BEGIN generated: HCIS typography (docs/ui/hcis/tokens/gen-css.py) */'
 TYPE_END = '/* END generated: HCIS typography */'
+LAYOUT_BEGIN = '/* BEGIN generated: HCIS layout (docs/ui/hcis/tokens/gen-css.py) */'
+LAYOUT_END = '/* END generated: HCIS layout */'
+# Defined by hand in tokens.css (M1 names with the same values); not generated twice.
+APP_HAND_WRITTEN = {'hc-focus-ring', 'hc-motion-fast'}
 # Selectors per theme. Midnight is the default; Daybreak follows a light OS preference and Graphite
 # a dark one with prefers-contrast: more, unless data-hc-theme names a theme. 'dark' keeps the M1
 # meaning (force the default dark theme).
@@ -85,10 +91,12 @@ def render_app(t):
     tokens = {x['name']: x for x in t['color']['tokens']}
     semantic = [n for n, x in tokens.items() if not n.startswith('hc-palette-') and not isinstance(x['value'], str)]
     aliases = [(n, x['value'][1:-1]) for n, x in tokens.items() if isinstance(x['value'], str) and n.startswith('hc-color-')]
-    out = [BEGIN, '/* HCIS semantic colours (docs/ui/hcis). Edit tokens.json and regenerate; do not edit by hand. */']
+    shadows = [x for x in t['shadow']['tokens'] if x['name'] not in APP_HAND_WRITTEN]
+    out = [BEGIN, '/* HCIS semantic colours and shadows (docs/ui/hcis). Edit tokens.json and regenerate; do not edit by hand. */']
     for theme, scheme, sels, media in APP_THEMES:
         ind = '  ' if media else ''
         body = [f'{ind}  color-scheme: {scheme};'] + [f'{ind}  --{n}: {resolve(tokens, n, theme, first)};' for n in semantic]
+        body += [f'{ind}  --{x["name"]}: {x["value"].get(theme, x["value"][first])};' for x in shadows]
         block = f'{ind}' + f',\n{ind}'.join(sels) + ' {\n' + '\n'.join(body) + f'\n{ind}}}'
         out.append(f'@media {media} {{\n{block}\n}}' if media else block)
     out.append('/* M1 colour names, kept for existing styles (docs/ui/02 §2.6). New code uses the semantic names. */')
@@ -108,6 +116,16 @@ def render_app_type(t):
                       ':root {', *lines, '}', TYPE_END])
 
 
+def render_app_layout(t):
+    lines = []
+    for fam in ['glass', 'density', 'duration']:
+        lines += [f'  --{k["name"]}: {k["value"]};' for k in t[fam]['tokens'] if k['name'] not in APP_HAND_WRITTEN]
+    return '\n'.join([LAYOUT_BEGIN,
+                      '/* HCIS glass, density and motion tokens. Density, transparency and motion are user preferences',
+                      ' * (data-hc-* on <html>, frontend/app/src/shell.css), never theme content (ADR 0010). */',
+                      ':root {', *lines, '}', LAYOUT_END])
+
+
 def splice(current, region, begin=BEGIN, end=END):
     a, b = current.index(begin), current.index(end) + len(end)
     return current[:a] + region + current[b:]
@@ -119,6 +137,7 @@ def main():
     target = HERE / 'hcis-tokens.css'
     app = APP_TOKENS.read_text()
     app_new = splice(splice(app, render_app(t)), render_app_type(t), TYPE_BEGIN, TYPE_END)
+    app_new = splice(app_new, render_app_layout(t), LAYOUT_BEGIN, LAYOUT_END)
     if '--check' in sys.argv:
         bad = []
         if target.read_text() != css:

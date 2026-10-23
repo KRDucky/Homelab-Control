@@ -4,13 +4,15 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Browser end-to-end test for the M0 shell (Playwright, Chromium).
+"""Browser end-to-end test for the app shell (Playwright, Chromium): sign-in, overview, the HCIS
+responsive shell and appearance preferences.
 
 Driven by tests/integration/run-hc-e2e.sh, which starts a throwaway hc-api.
 Env: HC_E2E_URL, HC_E2E_PASSWORD, HC_E2E_ARTIFACTS (screenshot dir, optional),
      HC_LEGACY_URL (optional; screenshots the legacy Webmin login page).
 """
 import os
+import re
 import sys
 
 from playwright.sync_api import expect, sync_playwright
@@ -80,6 +82,74 @@ with sync_playwright() as p:
     lp.goto(URL)
     expect(lp.locator("h1.faceplate-host")).to_be_visible(timeout=10000)
     lp.screenshot(path=f"{ART}/05-overview-light.png")
+
+    # HCIS shell (step 3): appearance preferences are independent of the theme and persist.
+    layout_js = """() => { const r = (s) => { const b = document.querySelector(s).getBoundingClientRect();
+        return [Math.round(b.x), Math.round(b.width)]; };
+      return {nav: r('#main-nav'), main: r('main'), sidebar: document.querySelector('.shell').dataset.sidebar,
+              links: [...document.querySelectorAll('#main-nav a')].map(a => a.textContent)}; }"""
+    attrs_js = "() => Object.fromEntries([...document.documentElement.attributes].map(a => [a.name, a.value]))"
+    before = page.evaluate(layout_js)
+    appearance = page.get_by_role("button", name="Appearance")
+    appearance.focus()
+    page.keyboard.press("Enter")
+    menu = page.get_by_role("dialog", name="Appearance")
+    expect(menu).to_be_visible()
+    check("appearance: Enter opens the menu with focus on the current theme",
+          page.evaluate("document.activeElement.type === 'radio' && document.activeElement.checked"))
+    menu.get_by_role("group", name="Theme").get_by_role("radio", name=re.compile("^Graphite")).check()
+    page.wait_for_timeout(100)
+    check("appearance: theme applies without changing layout or navigation",
+          page.evaluate(attrs_js).get("data-hc-theme") == "graphite" and page.evaluate(layout_js) == before)
+    menu.get_by_role("group", name="Density").get_by_role("radio", name="Compact").check()
+    menu.get_by_role("group", name="Text size").get_by_role("radio", name="112%").check()
+    page.keyboard.press("Escape")
+    expect(menu).to_be_hidden()
+    check("appearance: Escape closes the menu and returns focus to its button",
+          page.evaluate("document.activeElement.getAttribute('aria-haspopup')") == "dialog")
+    page.reload()
+    expect(heading).to_be_visible(timeout=10000)
+    a = page.evaluate(attrs_js)
+    check("appearance: preferences persist after reload",
+          a.get("data-hc-theme") == "graphite" and a.get("data-hc-density") == "compact"
+          and a.get("data-hc-text-scale") == "112")
+    check("appearance: no inline style attributes", page.locator("[style]").count() == 0)
+    page.screenshot(path=f"{ART}/06-shell-graphite-compact.png")
+    page.get_by_role("button", name="Collapse sidebar").click()
+    check("sidebar: collapses to the icon rail", page.evaluate(layout_js)["sidebar"] == "rail")
+    page.reload()
+    expect(heading).to_be_visible(timeout=10000)
+    check("sidebar: collapsed state persists", page.evaluate(layout_js)["sidebar"] == "rail")
+    page.get_by_role("button", name="Expand sidebar").click()
+    page.get_by_role("button", name="Appearance").click()
+    page.get_by_role("button", name="Reset to defaults").click()
+    page.keyboard.press("Escape")
+    check("appearance: reset restores the System theme",
+          "data-hc-theme" not in page.evaluate(attrs_js) and page.evaluate(layout_js)["sidebar"] == "expanded")
+
+    # Responsive shell: no page-level horizontal scroll at any size; drawer on phones.
+    for w, h, mode in [(390, 844, "drawer"), (768, 1024, "rail"), (1024, 768, "rail"),
+                       (1366, 768, "expanded"), (2560, 1080, "expanded")]:
+        rc = browser.new_context(viewport={"width": w, "height": h}, storage_state=ctx.storage_state())
+        rp = rc.new_page()
+        rp.goto(URL)
+        expect(rp.locator("h1.faceplate-host")).to_be_visible(timeout=10000)
+        check(f"responsive {w}px: {mode} navigation, no horizontal page scroll",
+              rp.evaluate("document.querySelector('.shell').dataset.sidebar") == mode
+              and not rp.evaluate("document.documentElement.scrollWidth > window.innerWidth + 1"))
+        if mode == "drawer":
+            opener = rp.get_by_role("button", name="Open navigation")
+            opener.click()
+            nav = rp.get_by_role("navigation", name="Main")
+            expect(nav.get_by_role("link", name="Overview")).to_be_visible()
+            check("drawer: focus moves into the navigation",
+                  rp.evaluate("document.getElementById('main-nav').contains(document.activeElement)"))
+            rp.screenshot(path=f"{ART}/07-drawer-mobile.png")
+            rp.keyboard.press("Escape")
+            check("drawer: Escape closes it and returns focus to the menu button",
+                  rp.evaluate("!document.querySelector('.shell').dataset.drawer")
+                  and rp.evaluate("document.activeElement.getAttribute('aria-controls')") == "main-nav")
+        rc.close()
 
     page.get_by_role("button", name="Sign out").click()
     expect(page.get_by_label("Username")).to_be_visible()

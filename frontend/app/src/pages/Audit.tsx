@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, getAudit, type AuditEvent } from '../api';
 import { explain } from '../useData';
+import { TableRegion } from '../ui';
 
 const filters = [
   { id: '', label: 'All events' },
@@ -97,7 +98,7 @@ export function Audit({ onUnauthorized }: { onUnauthorized: () => void }) {
         <p className="result-count" aria-live="polite">
           {events.length} {events.length === 1 ? 'event' : 'events'} shown
         </p>
-        <div className="table-wrap">
+        <TableRegion label="Audit events">
           <table className="logs">
             <thead>
               <tr>
@@ -124,7 +125,7 @@ export function Audit({ onUnauthorized }: { onUnauthorized: () => void }) {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableRegion>
         {!loading && events.length === 0 && !error && <p className="empty">No events match.</p>}
         {next !== undefined && (
           <button type="button" className="ghost" onClick={() => void load(next)} disabled={loading}>
