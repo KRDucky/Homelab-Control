@@ -83,7 +83,7 @@ button {
   cursor: pointer;
   border: 1px solid transparent;
   border-radius: var(--hc-radius-md);
-  padding: var(--hc-space-2) var(--hc-space-4);
+  padding: var(--hc-ctl-py) var(--hc-space-4);
   background: var(--hc-color-signal);
   color: var(--hc-color-signal-ink);
   transition: filter var(--hc-motion-fast);
@@ -104,7 +104,7 @@ button.ghost {
 input {
   font: inherit;
   width: 100%;
-  padding: var(--hc-space-2) var(--hc-space-3);
+  padding: var(--hc-ctl-py) var(--hc-space-3);
   border-radius: var(--hc-radius-md);
   border: 1px solid var(--hc-color-rule);
   background: var(--hc-color-ink);
@@ -150,62 +150,9 @@ input {
   font-size: var(--hc-font-size-sm);
 }
 
-/* Shell ----------------------------------------------------------------- */
+/* Shell: layout, header, sidebar and preferences live in shell.css (HCIS step 3) */
 .boot {
   min-height: 100vh;
-}
-.shell {
-  display: grid;
-  grid-template-columns: 14rem 1fr;
-  min-height: 100vh;
-}
-.rail {
-  border-right: 1px solid var(--hc-color-rule);
-  padding: var(--hc-space-6) 0;
-  background: var(--hc-color-panel);
-}
-.rail ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.rail li a {
-  display: block;
-  padding: var(--hc-space-2) var(--hc-space-4);
-  color: var(--hc-color-text);
-  text-decoration: none;
-  border-left: 3px solid transparent;
-}
-.rail li a[aria-current='page'] {
-  border-left-color: var(--hc-color-signal);
-  background: var(--hc-color-panel-raised);
-  font-weight: 650;
-}
-.rail-note {
-  padding: var(--hc-space-6) var(--hc-space-4) 0;
-  font-size: var(--hc-font-size-xs);
-  color: var(--hc-color-muted);
-}
-.workspace {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-.topbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--hc-space-4);
-  padding: var(--hc-space-3) var(--hc-space-6);
-  border-bottom: 1px solid var(--hc-color-rule);
-}
-.topbar .who {
-  margin-left: auto;
-  font-size: var(--hc-font-size-sm);
-  color: var(--hc-color-muted);
-}
-.topbar .who strong {
-  color: var(--hc-color-text);
 }
 .readonly-badge {
   font-size: var(--hc-font-size-xs);
@@ -214,16 +161,7 @@ input {
   border-radius: var(--hc-radius-sm);
   border: 1px solid var(--hc-color-ok);
   color: var(--hc-color-ok);
-}
-main {
-  padding: var(--hc-space-6);
-  flex: 1;
-  outline: none;
-}
-.foot {
-  padding: var(--hc-space-3) var(--hc-space-6);
-  font-size: var(--hc-font-size-xs);
-  color: var(--hc-color-muted);
+  white-space: nowrap;
 }
 .banner {
   padding: var(--hc-space-3) var(--hc-space-4);
@@ -288,16 +226,16 @@ main {
 /* Panels ---------------------------------------------------------------- */
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
-  gap: var(--hc-space-6);
-  margin-bottom: var(--hc-space-6);
+  grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr));
+  gap: var(--hc-stack-gap);
+  margin-bottom: var(--hc-stack-gap);
 }
 .panel {
   background: var(--hc-color-panel);
   border: 1px solid var(--hc-color-rule);
   border-radius: var(--hc-radius-md);
-  padding: var(--hc-space-4) var(--hc-space-6);
-  margin-bottom: var(--hc-space-6);
+  padding: var(--hc-panel-py) var(--hc-panel-px);
+  margin-bottom: var(--hc-stack-gap);
 }
 .grid .panel {
   margin-bottom: 0;
@@ -407,7 +345,7 @@ table {
 th,
 td {
   text-align: left;
-  padding: var(--hc-space-2) var(--hc-space-3) var(--hc-space-2) 0;
+  padding: var(--hc-cell-py) var(--hc-cell-px) var(--hc-cell-py) 0;
   border-bottom: 1px solid var(--hc-color-rule);
   vertical-align: middle;
 }
@@ -448,23 +386,6 @@ tbody th {
 
 /* Small screens --------------------------------------------------------- */
 @media (max-width: 48rem) {
-  .shell {
-    grid-template-columns: 1fr;
-  }
-  .rail {
-    border-right: 0;
-    border-bottom: 1px solid var(--hc-color-rule);
-    padding: var(--hc-space-4) 0 var(--hc-space-2);
-  }
-  .rail ul {
-    display: flex;
-  }
-  .rail-note {
-    display: none;
-  }
-  main {
-    padding: var(--hc-space-4);
-  }
   .faceplate {
     padding: var(--hc-space-4) var(--hc-space-6);
   }
@@ -502,7 +423,7 @@ tbody th {
 }
 .facts {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(14rem, 100%), 1fr));
   gap: var(--hc-space-3) var(--hc-space-6);
   margin: 0;
 }
@@ -654,26 +575,6 @@ select {
 .check-ok .check-level {
   color: var(--hc-color-ok);
 }
-.nav-tag {
-  margin-left: var(--hc-space-2);
-  font-size: var(--hc-font-size-xs);
-  color: var(--hc-color-warn);
-}
-.nav-off {
-  padding: var(--hc-space-2) var(--hc-space-4);
-  border-left: 3px solid transparent;
-}
-.nav-off .nav-label {
-  display: block;
-  color: var(--hc-color-muted);
-}
-.nav-note {
-  display: block;
-  font-size: var(--hc-font-size-xs);
-  color: var(--hc-color-muted);
-  line-height: 1.35;
-  margin-top: 2px;
-}
 .helper-off {
   font-size: var(--hc-font-size-xs);
   font-weight: 650;
@@ -681,14 +582,9 @@ select {
   border-radius: var(--hc-radius-sm);
   border: 1px solid var(--hc-color-warn);
   color: var(--hc-color-warn);
+  white-space: nowrap;
 }
 @media (max-width: 48rem) {
-  .rail ul {
-    flex-wrap: wrap;
-  }
-  .nav-off .nav-note {
-    display: none;
-  }
   .check {
     grid-template-columns: auto 1fr;
   }
@@ -765,15 +661,7 @@ tr.log-debug td {
   color: var(--hc-color-muted);
 }
 
-/* M2 PR-1a: account link, audit rows */
-.topbar-link {
-  font-size: var(--hc-font-size-sm);
-  color: var(--hc-color-text);
-}
-.topbar-link[aria-current='page'] {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
+/* M2 PR-1a: audit rows */
 .row-warn th,
 .row-warn td {
   background: var(--hc-color-status-warn-subtle);

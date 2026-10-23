@@ -2,9 +2,9 @@
 
 Identity, active host, health status, workspace, global search, background jobs, notifications, appearance and account.
 
-**Status: Proposed (HCIS).** New in the HCIS specification; a reference design, not in the app.
+**Status: Production (partial)** (HCIS step 3): identity, read-only and helper status, Appearance and account (Sessions, Sign out). Active host, health chip, workspace, global search, jobs and notifications are still to come.
 
-Source: `docs/ui/06 §6.1`
+Source: `frontend/app/src/Shell.tsx`; `docs/ui/06 §6.1`
 
 ## When to use
 
