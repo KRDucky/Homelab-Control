@@ -14,7 +14,7 @@ Cards for anything that writes to the host also say **Implementation: awaiting a
 The UI serves homelab administrators, from beginners who need plain language and guard rails to experts who want density, keyboard control and fast scanning.
 
 1. **Responsive by default.** Layout follows the container, not the device (`AppShell`, `DataTable`, `DriveBayGrid` use container queries).
-2. **Customizable without breaking usability.** Workspaces, density, navigation order and visible columns are user preferences, never theme content.
+2. **Customizable without breaking usability.** Workspaces, density, navigation order, visible columns, font family and text size are user preferences, never theme content.
 3. **Desktop polish, data first.** Use quiet surfaces and hairline borders, with one accent for the next action. Don't use giant decorative cards or large empty whitespace.
 4. **Status is a word.** Every state has text and an icon shape. Colour only reinforces it.
 5. **Safety is visible.** Every operation shows its risk class, a preview, an explicit confirmation and the observed result.
@@ -37,7 +37,7 @@ Inspiration comes from KDE Plasma (customization), GNOME/Libadwaita (consistent 
 
 ## Themes
 
-There are four official themes. They share one semantic token set and one component system. Themes change **appearance only** (ADR 0010): never layout, density, navigation, workspaces, behaviour, permissions or safety controls.
+There are four official themes. They share one semantic token set and one component system. Themes change **appearance only** (ADR 0010): never layout, density, navigation, workspaces, behaviour, permissions or safety controls. Themes are colour themes: typography is chosen separately (see Typography), so every font and text size works in every theme.
 
 | Theme | Character | Glass |
 |---|---|---|
@@ -74,8 +74,30 @@ Glass is a layer, not a style for everything.
 
 ## Typography
 
-- **Inter** (`ui`) is for navigation, tables, controls, labels and all general UI. **JetBrains Mono** (`mono`) is for logs, terminals, commands, paths, identifiers, configuration and code. Both are self-hosted variable woff2 files under `fonts/` (OFL). Nothing downloads at runtime, and system fallbacks are in the stacks.
-- **Hierarchy:**
+Typography is **independent of colour themes**. Font family and text size are user preferences, like density, so a user can pick a font or enlarge text and stay in Midnight, Daybreak, Graphite or OLED.
+
+### Font families
+
+| Token | Preferred face | Stack (CSS) | Use for |
+|---|---|---|---|
+| `--font-ui` (`ui`) | **Inter** (variable, self-hosted) | `'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', 'Noto Sans', 'Liberation Sans', sans-serif` | Navigation, tables, controls, labels, all general UI |
+| `--font-mono` (`mono`) | **JetBrains Mono** (variable, self-hosted) | `'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'SFMono-Regular', 'DejaVu Sans Mono', 'Liberation Mono', Menlo, Consolas, monospace` | Logs, terminals, commands, paths, identifiers, configuration, code |
+| `--font-ui-system` (`ui-system`) | The OS's own UI font | `system-ui, -apple-system, 'Segoe UI', 'Noto Sans', 'Liberation Sans', 'Helvetica Neue', Arial, sans-serif` | The **System** font preference, and the fallback when bundled fonts can't be shipped |
+| `--font-mono-system` (`mono-system`) | The OS's monospace font | `ui-monospace, 'SFMono-Regular', 'DejaVu Sans Mono', 'Liberation Mono', Menlo, Consolas, monospace` | Monospace partner of `ui-system` |
+
+- Inter and JetBrains Mono are the preferred faces for their appearance, readability and established open-source licensing. Other compatible fonts may be offered later as alternatives or through themes, under the licensing policy below.
+- Components use only `var(--font-ui)` and `var(--font-mono)`, never a font name. The **Interface font** preference (`data-hc-font="system"` on the shell) remaps both to the system stacks, so nothing else changes.
+- Every stack ends in system fonts. If a bundled file is missing or blocked, text still renders with a similar face and the same layout.
+
+### Text size
+
+- **Text size** is an accessibility preference: `hc-text-scale-90`, `-100` (default), `-112` and `-125`. It sets the root font size, and every type token is in rem, so all text scales together.
+- Browser zoom and OS font-size settings still apply on top. Layouts must stay usable at 125% and at 200% browser zoom, and text reflows at 320 CSS px (WCAG 1.4.4, 1.4.10).
+- Text size never changes with the theme, and the theme never changes it.
+
+### Hierarchy and usage
+
+- **Styles:**
   - `title-1` (24/32) page titles
   - `title-2` (18/24) section headings and dialog titles
   - `title-3` (15/22) panel headings
@@ -89,8 +111,40 @@ Glass is a layer, not a style for everything.
   - `mono` technical data
   - `mono-small` log entries
   - `terminal` terminal output
-- All numbers use tabular figures. Sizes are in rem so the browser font size applies. Text reflows at 320 CSS px and at 200% zoom.
-- Archivo, the current app's font, is **legacy styling to migrate later** in a separate PR. It isn't rewritten here.
+- Use `mono` for anything a person might copy or compare character by character: paths, unit names, WWN/serial/EUI, UIDs, image tags, commands. Never use it for prose.
+- All numbers use tabular figures, so columns and live values don't jitter.
+- Keep component dimensions in tokens (spacing, control height), not in font metrics, so swapping Inter for a system font changes letterforms, not layout.
+- Archivo, the current app's font, is legacy styling. It is replaced in migration step 2.
+
+### Font licensing policy (owner-approved)
+
+Bundled or custom fonts must use one of these licence types:
+
+1. **Open source / free software:** licences that permit use, redistribution and modification, such as SIL OFL 1.1.
+2. **Public domain / CC0:** fonts genuinely dedicated to the public domain or released under equivalent unrestricted terms.
+3. **Royalty-free:** only with verified terms that explicitly permit commercial use, self-hosting, redistribution inside applications, and inclusion in distributable software packages.
+
+Being a free download, or being described as "royalty-free", is not enough to bundle a font.
+
+Before bundling any font:
+
+- Verify its source, copyright holder and exact licence text.
+- Confirm that it may be bundled and redistributed with GPL-licensed software (Homelab Control is GPL-3.0-or-later).
+- Note any conditions on modification or redistribution.
+- Keep the required licence notice and attribution with the font files and in the app's third-party notices.
+- Respect naming restrictions on derivative works (OFL Reserved Font Names).
+- Reject fonts whose terms forbid software redistribution or require recurring payments.
+- If the rights can't be verified, use the system stacks instead.
+- Never load fonts from an external CDN. Fonts ship with the app or come from the OS.
+
+The preferred fonts as verified (records in `fonts/README.md`):
+
+| Font | Licence | Copyright | Reserved Font Name | Source checked |
+|---|---|---|---|---|
+| Inter (variable) | SIL OFL 1.1 | The Inter Project Authors | None declared | `@fontsource-variable/inter` 5.3.0 `LICENSE`, upstream github.com/rsms/inter |
+| JetBrains Mono (variable) | SIL OFL 1.1 | The JetBrains Mono Project Authors | None declared | `@fontsource-variable/jetbrains-mono` 5.3.0 `LICENSE`, upstream github.com/JetBrains/JetBrainsMono |
+
+OFL fonts may be bundled with GPL software. They may not be sold on their own, and the licence text must travel with them.
 
 ## Spacing, density, radius and elevation
 
@@ -182,7 +236,7 @@ An information icon beside theme import and custom-theme selection shows this te
 
 > All custom themes must follow HCIS requirements for responsive layouts, accessibility, readable contrast, component consistency, and security. Themes may customize appearance but cannot alter functionality, permissions, safety controls, or application layout.
 
-**View theme requirements** lists the twelve requirements:
+**View theme requirements** lists the thirteen requirements:
 
 1. Preserve responsive behaviour.
 2. Meet HCIS accessibility requirements.
@@ -196,6 +250,7 @@ An information icon beside theme import and custom-theme selection shows this te
 10. Never change behaviour or authorization.
 11. Use validated `.hltheme` JSON.
 12. Contain no JavaScript or unrestricted CSS.
+13. Use only approved typography tokens: a theme may choose `ui`/`mono` from the approved families (`inter` or `system`; `jetbrains-mono` or `system`). It may never ship font files, `@font-face` rules or font URLs, or bypass the licensing, security or accessibility rules.
 
 Built-in themes meet the same requirements.
 
@@ -230,7 +285,7 @@ The target is WCAG 2.2 AA. That means:
 ## Using the components
 
 - Load `tokens.css`, the fonts, `components/bundle.css`, React 18+ and `components/bundle.js`. That exposes `window.HCIS.<Component>`. Wrap the app in an element with class `hc`.
-- Switch themes with `data-theme="midnight" | "daybreak" | "graphite" | "oled"` on `<html>`, or on any element to scope a preview. Set `data-hc-density`, `data-hc-transparency` and `data-hc-motion` on the shell.
+- Switch themes with `data-theme="midnight" | "daybreak" | "graphite" | "oled"` on `<html>`, or on any element to scope a preview. Set `data-hc-density`, `data-hc-transparency`, `data-hc-motion` and `data-hc-font` on the shell. Text size sets the root font size.
 - Props are documented in `components/index.d.ts`.
 - **Catalogue names → HCIS components:**
 
@@ -256,7 +311,7 @@ The target is WCAG 2.2 AA. That means:
 
 - **Token names** follow the app's `--hc-*` convention and the v1 taxonomy in docs/ui/02. The new glass, input, notice and unknown roles are additions for the `.hltheme` schema. Adding tokens is a minor engine change (§2.5).
 - **M1 aliases:** `--hc-color-ink`, `panel`, `panel-raised`, `rule`, `text`, `muted`, `signal`, `signal-ink`, `ok`, `warn`, `crit` and `focus` alias the HCIS roles, so today's `styles.css` renders in HCIS colours unchanged.
-- **Fonts:** themes can only pick a font enum, never a URL. Inter and JetBrains Mono ship with the engine.
+- **Fonts:** themes can only pick an approved font enum, never a URL or file (`typography.family.ui|mono`; the validator rejects anything else). Inter and JetBrains Mono ship with the engine once migration step 2 lands, under the font licensing policy. Font choice and text size are user preferences stored with layout preferences, not in themes.
 - **Density names:** HCIS uses `compact | standard | spacious` (owner decision 2026-10-22). docs/ui/06 §6.5 currently says `compact | comfortable | spacious`, so its middle value (`comfortable`) becomes `standard` in a separately approved update.
 - **Theme safety:** themes contain no executable code and are applied as allow-listed custom properties through the CSSOM. They are kept separate from layout and workspace preferences.
 
