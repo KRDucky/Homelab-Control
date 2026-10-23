@@ -4,7 +4,7 @@
 
 import { getHardware, type Disk, type Hardware as HardwareData } from '../api';
 import { formatBytes } from '../format';
-import { Section } from '../ui';
+import { Section, TableRegion } from '../ui';
 import { explain, useData } from '../useData';
 
 const confidenceText: Record<Disk['identity_confidence'], string> = {
@@ -104,7 +104,7 @@ export function Hardware({ onUnauthorized }: { onUnauthorized: () => void }) {
 
       <Section title="Storage devices" meta={disks} id="disks">
         {disks.devices.length > 0 && (
-          <div className="table-wrap">
+          <TableRegion label="Storage devices">
             <table>
               <thead>
                 <tr>
@@ -141,7 +141,7 @@ export function Hardware({ onUnauthorized }: { onUnauthorized: () => void }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableRegion>
         )}
         <p className="footnote">
           Physical bay locations are not mapped yet. Identity comes from the drive's WWN or serial number,
@@ -151,7 +151,7 @@ export function Hardware({ onUnauthorized }: { onUnauthorized: () => void }) {
 
       <Section title="PCI devices" meta={pci} id="pci">
         {pci.devices.length > 0 && (
-          <div className="table-wrap">
+          <TableRegion label="PCI devices">
             <table>
               <thead>
                 <tr>
@@ -175,7 +175,7 @@ export function Hardware({ onUnauthorized }: { onUnauthorized: () => void }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableRegion>
         )}
       </Section>
 

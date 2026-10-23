@@ -19,6 +19,6 @@ Supply `caption`, `columns`, `rows`, `rowKey`. `selectable` + `bulkActions` for 
 
 ## Current implementation vs HCIS
 
-App: plain table. HCIS: sticky header, sort, selection, bulk bar, stacked narrow layout.
+App: plain table in a `TableRegion` (`ui.tsx`): when the table scrolls (narrow screens, long logs) the wrapper becomes a labelled, keyboard-focusable region (HCIS step 3). HCIS: sticky header, sort, selection, bulk bar, stacked narrow layout (step 4).
 
 Props: `DataTableProps` in `reference/index.d.ts`. Preview data is fictional and labelled “Example data”.

@@ -12,7 +12,7 @@
  * Components must only consume tokens, never raw values.
  */
 /* BEGIN generated: HCIS colour roles (docs/ui/hcis/tokens/gen-css.py) */
-/* HCIS semantic colours (docs/ui/hcis). Edit tokens.json and regenerate; do not edit by hand. */
+/* HCIS semantic colours and shadows (docs/ui/hcis). Edit tokens.json and regenerate; do not edit by hand. */
 :root,
 :root[data-hc-theme='midnight'],
 :root[data-hc-theme='dark'] {
@@ -74,6 +74,11 @@
   --hc-color-status-notice: #8fb0f5;
   --hc-color-status-unknown-text: #a5b8c5;
   --hc-color-scrim-critical: #05090de6;
+  --hc-shadow-1: 0 1px 2px #0000004d;
+  --hc-shadow-2: 0 4px 12px #00000059, 0 1px 2px #00000040;
+  --hc-shadow-3: 0 16px 40px #00000080, 0 2px 6px #00000059;
+  --hc-shadow-4: 0 0 0 1px #d26c72, 0 24px 56px #000000a6;
+  --hc-shadow-glass: inset 0 1px 0 #eef4f80f, 0 8px 24px #0000004d;
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-hc-theme]) {
@@ -135,6 +140,11 @@
     --hc-color-status-notice: #4568bd;
     --hc-color-status-unknown-text: #596a76;
     --hc-color-scrim-critical: #172632b3;
+    --hc-shadow-1: 0 1px 2px #1726321a;
+    --hc-shadow-2: 0 4px 12px #1726321f, 0 1px 2px #17263214;
+    --hc-shadow-3: 0 16px 40px #17263233, 0 2px 6px #1726321a;
+    --hc-shadow-4: 0 0 0 1px #b84854, 0 24px 56px #17263240;
+    --hc-shadow-glass: inset 0 1px 0 #ffffff99, 0 8px 24px #1726321a;
   }
 }
 @media (prefers-color-scheme: dark) and (prefers-contrast: more) {
@@ -197,6 +207,11 @@
     --hc-color-status-notice: #9cc2f5;
     --hc-color-status-unknown-text: #adb9c9;
     --hc-color-scrim-critical: #000000e6;
+    --hc-shadow-1: none;
+    --hc-shadow-2: none;
+    --hc-shadow-3: 0 0 0 1px #8c9aac;
+    --hc-shadow-4: 0 0 0 2px #ed8b8b;
+    --hc-shadow-glass: none;
   }
 }
 :root[data-hc-theme='daybreak'],
@@ -259,6 +274,11 @@
   --hc-color-status-notice: #4568bd;
   --hc-color-status-unknown-text: #596a76;
   --hc-color-scrim-critical: #172632b3;
+  --hc-shadow-1: 0 1px 2px #1726321a;
+  --hc-shadow-2: 0 4px 12px #1726321f, 0 1px 2px #17263214;
+  --hc-shadow-3: 0 16px 40px #17263233, 0 2px 6px #1726321a;
+  --hc-shadow-4: 0 0 0 1px #b84854, 0 24px 56px #17263240;
+  --hc-shadow-glass: inset 0 1px 0 #ffffff99, 0 8px 24px #1726321a;
 }
 :root[data-hc-theme='graphite'] {
   color-scheme: dark;
@@ -319,6 +339,11 @@
   --hc-color-status-notice: #9cc2f5;
   --hc-color-status-unknown-text: #adb9c9;
   --hc-color-scrim-critical: #000000e6;
+  --hc-shadow-1: none;
+  --hc-shadow-2: none;
+  --hc-shadow-3: 0 0 0 1px #8c9aac;
+  --hc-shadow-4: 0 0 0 2px #ed8b8b;
+  --hc-shadow-glass: none;
 }
 :root[data-hc-theme='oled'] {
   color-scheme: dark;
@@ -379,6 +404,11 @@
   --hc-color-status-notice: #8fb0f5;
   --hc-color-status-unknown-text: #a5b8c5;
   --hc-color-scrim-critical: #000000e6;
+  --hc-shadow-1: none;
+  --hc-shadow-2: 0 0 0 1px #22232b;
+  --hc-shadow-3: 0 0 0 1px #62647a;
+  --hc-shadow-4: 0 0 0 2px #d26c72;
+  --hc-shadow-glass: none;
 }
 /* M1 colour names, kept for existing styles (docs/ui/02 §2.6). New code uses the semantic names. */
 :root {
@@ -409,6 +439,28 @@
   --hc-font-family: var(--hc-font-ui);
 }
 /* END generated: HCIS typography */
+
+/* BEGIN generated: HCIS layout (docs/ui/hcis/tokens/gen-css.py) */
+/* HCIS glass, density and motion tokens. Density, transparency and motion are user preferences
+ * (data-hc-* on <html>, frontend/app/src/shell.css), never theme content (ADR 0010). */
+:root {
+  --hc-glass-blur: 16px;
+  --hc-glass-blur-strong: 24px;
+  --hc-glass-saturate: 140%;
+  --hc-density-compact-row: 28px;
+  --hc-density-compact-control: 28px;
+  --hc-density-compact-pad: 4px;
+  --hc-density-standard-row: 36px;
+  --hc-density-standard-control: 32px;
+  --hc-density-standard-pad: 8px;
+  --hc-density-spacious-row: 44px;
+  --hc-density-spacious-control: 40px;
+  --hc-density-spacious-pad: 12px;
+  --hc-motion-normal: 200ms;
+  --hc-motion-slow: 280ms;
+  --hc-motion-ease: cubic-bezier(0.2, 0, 0, 1);
+}
+/* END generated: HCIS layout */
 
 :root {
   /* type sizes (M1 scale, unchanged) */

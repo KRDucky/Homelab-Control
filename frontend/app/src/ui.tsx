@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 export interface SectionMeta {
   status: 'ok' | 'partial' | 'unavailable';
@@ -73,4 +73,44 @@ export function Section({
 /** Small state indicator; the text carries the meaning, colour only reinforces it. */
 export function StateDot({ tone }: { tone: 'ok' | 'warn' | 'crit' | 'idle' }) {
   return <span className={`dot dot-${tone}`} aria-hidden="true" />;
+}
+
+/**
+ * Wrapper for a table that may scroll (narrow screens, long logs). When it does scroll it becomes a
+ * labelled, focusable region, so keyboard users can scroll it with the arrow keys (WCAG 2.1.1).
+ */
+export function TableRegion({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [scrolls, setScrolls] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () =>
+      setScrolls(el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1);
+    check();
+    if (typeof ResizeObserver !== 'function') return;
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    if (el.firstElementChild) ro.observe(el.firstElementChild);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <div
+      ref={ref}
+      className={className ? `table-wrap ${className}` : 'table-wrap'}
+      role={scrolls ? 'region' : undefined}
+      aria-label={scrolls ? label : undefined}
+      tabIndex={scrolls ? 0 : undefined}
+    >
+      {children}
+    </div>
+  );
 }

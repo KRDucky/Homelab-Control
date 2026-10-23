@@ -2,9 +2,9 @@
 
 Grouped, capability-aware primary navigation on glass.
 
-**Status: Production markup, proposed component.** The app renders this today as markup + `styles.css` classes; HCIS packages it as a reusable component. Not yet a component in the app.
+**Status: Production (ungrouped)** (HCIS step 3). The app has five modules, so there are no groups yet; grouping and configurable order come with more modules.
 
-Source: `frontend/app/src/App.tsx (NavItem, .rail)`
+Source: `frontend/app/src/Shell.tsx (NavItem, .sidebar)`
 
 ## When to use
 
