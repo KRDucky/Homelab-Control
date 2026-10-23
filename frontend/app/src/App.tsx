@@ -18,54 +18,13 @@ import { Legacy } from './pages/Legacy';
 import { OverviewPage } from './pages/OverviewPage';
 import { Services } from './pages/Services';
 import { Sessions } from './pages/Sessions';
-import { linkHandler, navigate, usePath } from './router';
+import { navigate, usePath } from './router';
+import { Shell, statusNote } from './Shell';
 
 type Phase = 'checking' | 'anonymous' | 'ready';
 
 // The signed-in user's own account pages (always available with a session).
 const ACCOUNT_PATH = '/account/sessions';
-
-const statusNote: Partial<Record<Capability['status'], string>> = {
-  degraded: 'Limited',
-  unavailable: 'Unavailable',
-  unsupported: 'Not supported here',
-  forbidden: 'No permission',
-};
-
-function NavItem({ cap, current }: { cap: Capability; current: boolean }) {
-  const usable = cap.status === 'available' || cap.status === 'degraded';
-  const noteId = `nav-note-${cap.id}`;
-  if (!usable) {
-    return (
-      <li className="nav-off">
-        <span className="nav-label" aria-describedby={noteId}>
-          {cap.label}
-        </span>
-        <span id={noteId} className="nav-note">
-          {statusNote[cap.status]}: {cap.reason}
-        </span>
-      </li>
-    );
-  }
-  return (
-    <li>
-      <a
-        href={cap.path}
-        onClick={linkHandler(cap.path)}
-        aria-current={current ? 'page' : undefined}
-        aria-describedby={cap.status === 'degraded' ? noteId : undefined}
-      >
-        {cap.label}
-        {cap.status === 'degraded' && <span className="nav-tag">{statusNote.degraded}</span>}
-      </a>
-      {cap.status === 'degraded' && (
-        <span id={noteId} className="visually-hidden">
-          {cap.reason}
-        </span>
-      )}
-    </li>
-  );
-}
 
 function Unavailable({ cap }: { cap: Capability }) {
   return (
@@ -154,52 +113,22 @@ export function App() {
   else if (route?.id === 'overview') page = <OverviewPage onUnauthorized={signedOut} />;
 
   return (
-    <div className="shell">
-      <a className="skip" href="#main">
-        Skip to content
-      </a>
-      <nav className="rail" aria-label="Main">
-        <span className="brand-mark small">Homelab Control</span>
-        <ul>
-          {pages.map((c) => (
-            <NavItem key={c.id} cap={c} current={!onAccount && route?.id === c.id} />
-          ))}
-        </ul>
-        <p className="rail-note">Read-only build. Nothing here changes your system.</p>
-      </nav>
-      <div className="workspace">
-        <header className="topbar">
-          <span className="readonly-badge">Read-only</span>
-          {caps?.broker.status === 'unavailable' && (
-            <span className="helper-off" title={caps.broker.reason}>
-              Privileged helper not running
-            </span>
-          )}
-          <span className="who">
-            Signed in as <strong>{session.username}</strong>
-          </span>
-          <a
-            className="topbar-link"
-            href={ACCOUNT_PATH}
-            onClick={linkHandler(ACCOUNT_PATH)}
-            aria-current={onAccount ? 'page' : undefined}
-          >
-            Sessions
-          </a>
-          <button type="button" className="ghost" onClick={() => void signOut()}>
-            Sign out
-          </button>
-        </header>
-        <main id="main" tabIndex={-1}>
-          {caps?.broker.status === 'unavailable' && path !== '/' && routeUsable && (
-            <p className="banner" role="status">
-              {caps.broker.reason}
-            </p>
-          )}
-          {page}
-        </main>
-        <footer className="foot">Homelab Control {session.version}</footer>
-      </div>
-    </div>
+    <Shell
+      pages={pages}
+      currentId={route?.id}
+      username={session.username}
+      accountPath={ACCOUNT_PATH}
+      onAccount={onAccount}
+      helperReason={caps?.broker.status === 'unavailable' ? caps.broker.reason : undefined}
+      onSignOut={() => void signOut()}
+      version={session.version}
+    >
+      {caps?.broker.status === 'unavailable' && path !== '/' && routeUsable && (
+        <p className="banner" role="status">
+          {caps.broker.reason}
+        </p>
+      )}
+      {page}
+    </Shell>
   );
 }

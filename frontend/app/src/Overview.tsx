@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { Overview as OverviewData } from './api';
-import { Section } from './ui';
+import { Section, TableRegion } from './ui';
 import { formatBytes, formatUptime } from './format';
 import { Meter } from './Meter';
 
@@ -79,7 +79,7 @@ export function Overview({ data }: { data: OverviewData }) {
         {filesystems.items.length === 0 ? (
           <p className="empty">No local filesystems were found in the mount table.</p>
         ) : (
-          <div className="table-wrap">
+          <TableRegion label="Filesystems">
             <table>
               <thead>
                 <tr>
@@ -116,7 +116,7 @@ export function Overview({ data }: { data: OverviewData }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableRegion>
         )}
         <p className="footnote">
           Kernel source names such as /dev/sda1 can change between boots. Disk identity by serial and WWN
@@ -125,7 +125,7 @@ export function Overview({ data }: { data: OverviewData }) {
       </Section>
 
       <Section title="Network interfaces" meta={network}>
-        <div className="table-wrap">
+        <TableRegion label="Network interfaces">
           <table>
             <thead>
               <tr>
@@ -161,7 +161,7 @@ export function Overview({ data }: { data: OverviewData }) {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableRegion>
       </Section>
 
       <Section title="Legacy Webmin" meta={legacy}>

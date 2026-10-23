@@ -2,12 +2,12 @@
 
 The collapsed, icon-only form of the sidebar (56px).
 
-**Status: Proposed (HCIS).** New in the HCIS specification; a reference design, not in the app.
+**Status: Production** (HCIS step 3), as a mode of the sidebar in `frontend/app/src/Shell.tsx`.
 
-Source: none in the repository.
+Source: `frontend/app/src/Shell.tsx`, `shell.css`
 
 ## When to use
 
-Used automatically by AppShell between 720 and 1100px, or by choice. Each icon has a title and accessible name.
+Used automatically by AppShell between 720 and 1100px, or by choice (Collapse sidebar, remembered). Each icon keeps its label as the accessible name; the label (and, for unavailable modules, the reason) shows as a tooltip on hover and keyboard focus. Unavailable modules are focusable in the rail so the reason can be read.
 
 Props: `NavigationRailProps` in `reference/index.d.ts`. Preview data is fictional and labelled “Example data”.

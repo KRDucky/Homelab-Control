@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { ApiError, getSessions, revokeSession, type SessionEntry } from '../api';
 import { explain, useData } from '../useData';
+import { TableRegion } from '../ui';
 
 function when(t: string): string {
   const d = new Date(t);
@@ -77,7 +78,7 @@ export function Sessions({ csrf, onUnauthorized }: { csrf: string; onUnauthorize
         <h2 id="h-sessions" className="visually-hidden">
           Your sessions
         </h2>
-        <div className="table-wrap">
+        <TableRegion label="Your sessions">
           <table>
             <thead>
               <tr>
@@ -119,7 +120,7 @@ export function Sessions({ csrf, onUnauthorized }: { csrf: string; onUnauthorize
               ))}
             </tbody>
           </table>
-        </div>
+        </TableRegion>
         {others.length === 0 && <p className="empty">No other sessions.</p>}
         <p className="footnote">
           Last activity is updated at most every 30 seconds. Session cookies are never stored; the server

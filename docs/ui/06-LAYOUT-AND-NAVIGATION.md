@@ -49,5 +49,5 @@ export interface AppearancePreferences {
   motion: 'auto' | 'full' | 'reduced' | 'none'; // auto follows prefers-reduced-motion
 }
 ```
-Both are stored per user in the settings store (M2; until then per browser only) and validated against
+Both are stored per user in the settings store (M2; until then per browser only — implemented that way in HCIS step 3, `frontend/app/src/preferences.ts`) and validated against
 their own schemas. Density maps to fixed spacing multipliers chosen by the engine, not by themes.

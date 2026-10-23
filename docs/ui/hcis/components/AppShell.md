@@ -2,9 +2,9 @@
 
 The application frame: glass global header, glass sidebar, workspace, adapting to its own width.
 
-**Status: Production markup, proposed component.** The app renders this today as markup + `styles.css` classes; HCIS packages it as a reusable component. Not yet a component in the app.
+**Status: Production** (HCIS step 3). `frontend/app/src/Shell.tsx` + `shell.css`.
 
-Source: `frontend/app/src/App.tsx (.shell, .rail, .topbar)`
+Source: `frontend/app/src/Shell.tsx`, `shell.css`
 
 ## When to use
 
@@ -18,6 +18,6 @@ Wrap every signed-in page. Navigation comes from capabilities (`unavailable` wit
 
 ## Current implementation vs HCIS
 
-App: fixed 14rem rail + topbar. HCIS: container-query shell, glass surfaces, host selector, health chip, workspaces, jobs, notifications, appearance.
+App (step 3): glass header and sidebar with solid fallbacks; expanded sidebar ≥1100px (user can collapse it to the rail), icon rail 720–1100px, drawer <720px (menu button; Escape or the scrim closes it; the rest of the page is `inert` while it is open and focus returns to the button); Appearance menu; content capped at 120rem on ultrawide screens. Breakpoints use viewport media queries (the shell is always full width). Not yet built: host selector, health chip, command palette, workspaces, jobs and notifications.
 
 Props: `AppShellProps` in `reference/index.d.ts`. Preview data is fictional and labelled “Example data”.
