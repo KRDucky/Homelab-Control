@@ -1000,3 +1000,6 @@ a.hc-card:hover, button.hc-card:hover { border-color: var(--hc-color-border-stro
 .hc-modlist li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--hc-space-1) var(--hc-space-3); padding: var(--hc-space-2) 0; border-bottom: 1px solid var(--hc-color-border-subtle); }
 .hc-modlist li:last-child { border-bottom: 0; }
 .hc-bay-num { white-space: nowrap; }
+
+/* Typography preference (independent of colour themes): data-hc-font on the shell */
+[data-hc-font='system'] { --font-ui: var(--font-ui-system); --font-mono: var(--font-mono-system); }

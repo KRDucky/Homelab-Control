@@ -94,7 +94,7 @@ export interface IconProps { name: IconName; size?: 'sm' | 'md'; label?: string 
 
 /* ---- HCIS v2 additions ---- */
 export type RiskClass = 'read-only' | 'reversible' | 'disruptive' | 'destructive';
-export interface AppearancePrefs { theme: 'midnight' | 'daybreak' | 'graphite' | 'oled' | string; transparency: 'full' | 'reduced'; density: Density; motion: 'full' | 'reduced' | 'none' }
+export interface AppearancePrefs { theme: 'midnight' | 'daybreak' | 'graphite' | 'oled' | string; transparency: 'full' | 'reduced'; density: Density; motion: 'full' | 'reduced' | 'none'; font?: 'inter' | 'system'; textScale?: '90' | '100' | '112' | '125' }
 export interface Workspace { id: string; label: string; icon?: IconName }
 export interface LiveIndicatorProps { state: 'live' | 'refreshing' | 'stale' | 'paused' | 'disconnected'; updated?: string; onRetry?: () => void }
 export interface StatusIndicatorProps { state: 'ok' | 'warn' | 'crit' | 'info' | 'notice' | 'unknown'; label: string; detail?: string }

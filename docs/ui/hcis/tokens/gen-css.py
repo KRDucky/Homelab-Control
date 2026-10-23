@@ -53,7 +53,7 @@ def render(t):
         lines = [f'  --{k["name"]}: {val(k, th)};' for k in t['color']['tokens'] + t['shadow']['tokens']]
         out.append(sel + ' {\n' + '\n'.join(lines) + '\n}\n')
     root = []
-    for fam in ['spacing', 'radius', 'fontSize', 'fontWeight', 'density', 'glass', 'duration']:
+    for fam in ['spacing', 'radius', 'fontSize', 'fontWeight', 'textScale', 'density', 'glass', 'duration']:
         root += [f'  --{k["name"]}: {k["value"]};' for k in t[fam]['tokens']]
     for k, v in t['type']['families'].items():
         root.append(f'  --font-{k}: {v};')

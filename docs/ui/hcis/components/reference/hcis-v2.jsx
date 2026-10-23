@@ -635,6 +635,9 @@ function Sidebar({ nav = NAV, current, onNavigate, counts = {}, unavailable = {}
   );
 }
 function NavigationRail(props) { return <Sidebar {...props} rail />; }
+const FONTS = [{ id: 'inter', label: 'Inter' }, { id: 'system', label: 'System' }];
+const TEXT_SCALES = [{ id: '90', label: '90%' }, { id: '100', label: '100%' }, { id: '112', label: '112%' }, { id: '125', label: '125%' }];
+const SCALE_VALUE = { '90': '90%', '100': '100%', '112': '112.5%', '125': '125%' };
 const THEMES = [{ id: 'midnight', label: 'Midnight', description: 'Dark, frosted glass (default)' }, { id: 'daybreak', label: 'Daybreak', description: 'Light, Nordic' }, { id: 'graphite', label: 'Graphite', description: 'High-contrast dark' }, { id: 'oled', label: 'OLED', description: 'True black for OLED panels' }];
 function AppearanceMenu({ prefs, onChange, align = 'end' }) {
   const [open, setOpen] = useState(false); const ref = useRef(null); const id = useId();
@@ -649,7 +652,9 @@ function AppearanceMenu({ prefs, onChange, align = 'end' }) {
           <div className="hc-row hc-popover-row"><Switch label="Transparency" checked={prefs.transparency !== 'reduced'} onChange={(v) => set('transparency', v ? 'full' : 'reduced')} /></div>
           <SegmentedControl legend="Density" value={prefs.density} onChange={(v) => set('density', v)} options={[{ id: 'spacious', label: 'Spacious' }, { id: 'standard', label: 'Standard' }, { id: 'compact', label: 'Compact' }]} />
           <SegmentedControl legend="Motion" value={prefs.motion} onChange={(v) => set('motion', v)} options={[{ id: 'full', label: 'Full' }, { id: 'reduced', label: 'Reduced' }, { id: 'none', label: 'None' }]} />
-          <p className="hc-help" style={{ margin: 0 }}>Theme changes colours only. Density, transparency and motion are your layout preferences and stay when you switch themes.</p>
+          <SegmentedControl legend="Interface font" value={prefs.font || 'inter'} onChange={(v) => set('font', v)} options={FONTS} />
+          <SegmentedControl legend="Text size" value={prefs.textScale || '100'} onChange={(v) => set('textScale', v)} options={TEXT_SCALES} />
+          <p className="hc-help" style={{ margin: 0 }}>Theme changes colours only. Font, text size, density, transparency and motion are your preferences and stay when you switch themes.</p>
         </div>
       )}
     </div>
@@ -698,12 +703,13 @@ function AppShell({ children, current, onNavigate, hosts = ['pve-node-01'], dens
   const [drawer, setDrawer] = useState(false);
   const [host, setHost] = useState(hosts[0]);
   const [ws, setWs] = useState(workspaces && workspaces[0].id);
-  const [prefs, setPrefs] = useState(Object.assign({ theme: document.documentElement.getAttribute('data-theme') || 'midnight', transparency: 'full', density: density || 'standard', motion: 'full' }, initialPrefs));
+  const [prefs, setPrefs] = useState(Object.assign({ theme: document.documentElement.getAttribute('data-theme') || 'midnight', transparency: 'full', density: density || 'standard', motion: 'full', font: 'inter', textScale: '100' }, initialPrefs));
   useEffect(() => { if (density) setPrefs((p) => Object.assign({}, p, { density })); }, [density]);
   useEffect(() => { if (applyThemeTo === 'document') document.documentElement.setAttribute('data-theme', prefs.theme); }, [prefs.theme]);
+  useEffect(() => { if (applyThemeTo === 'document') document.documentElement.style.fontSize = SCALE_VALUE[prefs.textScale] || '100%'; }, [prefs.textScale]);
   useEffect(() => { if (!drawer) return; const f = (e) => e.key === 'Escape' && setDrawer(false); window.addEventListener('keydown', f); return () => window.removeEventListener('keydown', f); }, [drawer]);
   return (
-    <div className="hc hc-cq" data-hc-density={prefs.density} data-hc-transparency={prefs.transparency} data-hc-motion={prefs.motion}>
+    <div className="hc hc-cq" data-hc-density={prefs.density} data-hc-transparency={prefs.transparency} data-hc-motion={prefs.motion} data-hc-font={prefs.font}>
       <div className="hc-shell" data-collapsed={collapsed} data-drawer={drawer}>
         <a className="hc-skip" href="#hc-main">Skip to content</a>
         <GlobalHeader hosts={hosts} host={host} onHost={setHost} collapsed={collapsed} onToggleSidebar={() => setCollapsed(!collapsed)} onMenu={() => setDrawer(true)}
@@ -1134,7 +1140,9 @@ function ResourceExplorer({ tree, resources, levels, links }) {
 
 /* ---------- Showcase: Theme Manager ---------- */
 const THEME_TIP = 'All custom themes must follow HCIS requirements for responsive layouts, accessibility, readable contrast, component consistency, and security. Themes may customize appearance but cannot alter functionality, permissions, safety controls, or application layout.';
-const THEME_REQS = ['Preserve responsive behavior.', 'Meet applicable HCIS accessibility requirements.', 'Maintain readable contrast.', 'Preserve component usability.', 'Support keyboard navigation and focus visibility.', 'Respect reduced-motion settings.', 'Provide usable fallback surfaces if transparency or blur is unavailable.', 'Preserve safety warnings and destructive-operation visibility.', 'Remain compatible with density and layout preferences.', 'Avoid changing application behavior or authorization.', 'Use validated .hltheme JSON values.', 'Avoid arbitrary JavaScript or unrestricted CSS injection.'];
+const THEME_REQS = ['Preserve responsive behavior.', 'Meet applicable HCIS accessibility requirements.', 'Maintain readable contrast.', 'Preserve component usability.', 'Support keyboard navigation and focus visibility.', 'Respect reduced-motion settings.', 'Provide usable fallback surfaces if transparency or blur is unavailable.', 'Preserve safety warnings and destructive-operation visibility.', 'Remain compatible with density and layout preferences.', 'Avoid changing application behavior or authorization.', 'Use validated .hltheme JSON values.', 'Avoid arbitrary JavaScript or unrestricted CSS injection.', 'Use only approved typography tokens: fonts the engine ships under a verified licence, never font files or URLs.'];
+const APPROVED_FONTS = { ui: ['inter', 'system'], mono: ['jetbrains-mono', 'system'] };
+const FONT_KEYS = ['src', 'url', 'fontface', 'font-face', 'fontfile', 'fontfiles', 'fontsrc'];
 const FORBIDDEN_KEYS = ['layout', 'navigation', 'density', 'dashboard', 'script', 'css', 'javascript', 'permissions', 'rbac', '__proto__', 'constructor', 'prototype'];
 function lum(h) { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((x) => (x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }
 function contrast(a, b) { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
@@ -1151,6 +1159,16 @@ function validateHltheme(text) {
     if (typeof v === 'string' && /(url\(|var\(|expression|<|javascript:)/i.test(v)) errors.push(`${path}${k}: functions, URLs and markup are not allowed`);
     scan(v, path + k + '.'); }); };
   scan(j, '');
+  const fontScan = (o, path) => { if (o && typeof o === 'object') Object.keys(o).forEach((k) => {
+    if (FONT_KEYS.includes(k.toLowerCase())) errors.push(`${path}${k}: themes cannot ship or load fonts; choose an approved family token`);
+    fontScan(o[k], path + k + '.'); }); };
+  fontScan(j, '');
+  const typo = [['typography', j.typography], ...Object.entries(j.modes || {}).map(([m, set]) => [`modes.${m}.typography`, set && set.typography])];
+  typo.forEach(([path, t]) => { const f = t && t.family; if (!f) return;
+    Object.entries(f).forEach(([role, v]) => {
+      if (!APPROVED_FONTS[role]) errors.push(`${path}.family.${role}: unknown family role (ui or mono)`);
+      else if (!APPROVED_FONTS[role].includes(v)) errors.push(`${path}.family.${role}: "${v}" is not an approved font (${APPROVED_FONTS[role].join(', ')})`);
+    }); });
   Object.entries(j.modes || {}).forEach(([m, set]) => {
     const c = set && set.color; if (!c || !c.surface || !c.text) { errors.push(`modes.${m}.color: surface and text are required`); return; }
     const pairs = [['text.primary', 'surface.base', 4.5], ['text.secondary', 'surface.base', 4.5], ['text.primary', 'surface.raised', 4.5], ['focus.ring', 'surface.base', 3]];
@@ -1160,7 +1178,7 @@ function validateHltheme(text) {
   });
   return { errors, warnings, theme: j };
 }
-const SAMPLE_BAD = '{\n  "schemaVersion": 1,\n  "id": "com.example.neon",\n  "name": "Neon Nights",\n  "layout": { "sidebar": "right" },\n  "modes": { "dark": { "color": {\n    "surface": { "base": "#05010a", "raised": "#120a1f" },\n    "text": { "primary": "#ff2bd6", "secondary": "#5b2a6e" },\n    "focus": { "ring": "#1a0f2b" },\n    "accent": { "base": "rgb(0,255,200)" }\n  } } }\n}';
+const SAMPLE_BAD = '{\n  "schemaVersion": 1,\n  "id": "com.example.neon",\n  "name": "Neon Nights",\n  "layout": { "sidebar": "right" },\n  "typography": { "family": { "ui": "neon-display" }, "src": "https://fonts.example.com/neon.woff2" },\n  "modes": { "dark": { "color": {\n    "surface": { "base": "#05010a", "raised": "#120a1f" },\n    "text": { "primary": "#ff2bd6", "secondary": "#5b2a6e" },\n    "focus": { "ring": "#1a0f2b" },\n    "accent": { "base": "rgb(0,255,200)" }\n  } } }\n}';
 function ThemeManager({ installed, current: initial = 'midnight', onApply }) {
   const [current, setCurrent] = useState(initial); const [preview, setPreview] = useState(null); const [left, setLeft] = useState(0);
   const [reqs, setReqs] = useState(false); const [imp, setImp] = useState(false); const [text, setText] = useState(SAMPLE_BAD); const [result, setResult] = useState(null);
