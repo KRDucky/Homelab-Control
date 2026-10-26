@@ -1,3 +1,5 @@
+> **Current frontend continuation (2026-10-25):** DataTable, StatusPill/StatusIndicator, live states, CommandPalette and browser-local Theme Studio are implemented in the current change. See [implementation handoff](../../11-IMPLEMENTED-UI-AND-TDK.md). Other planned module showcases remain designs until their backend milestones supply data. The historical catalogue statuses below are not claims that those modules are implemented.
+
 # HCIS component catalogue
 
 Status: **Production** (in the app), **Production markup** (app markup/CSS, componentized here), **Planned** (in `docs/ui/` 01–10, not built), **Proposed (HCIS)** (new reference design). “Awaiting authorization” marks anything that writes to the host (M2+). Interactive previews live in the HCIS design system artifact (link in `../README.md`).

@@ -1,15 +1,7 @@
-# ThemeManager
+# ThemeManager / Theme Studio
 
-Appearance → Themes: installed themes, safe timed preview, .hltheme import with validation, metadata, requirements and the mandatory tooltip.
+**Status: implemented in the current UI continuation (2026-10-25).** Appearance → Themes & Theme Studio; source `frontend/app/src/pages/ThemeStudio.tsx`.
 
-**Status: Proposed (HCIS).** New in the HCIS specification; a reference design, not in the app.
+Browser-local themes, validated import/export, metadata, isolated component preview, editing and saved-version recovery. A 15-second application trial auto-reverts unless kept; Escape reverts immediately. Input grammar and key contrast checks block unsafe activation without claiming a full accessibility audit. Colours are independent from typography, density, motion and layout preferences.
 
-Source: `ADR 0010; docs/ui/03 Theme Studio`
-
-## Rules
-
-- Preview auto-reverts after 15 s unless kept; Esc reverts immediately.
-- Validation checks structure, value formats, forbidden layout/code keys, typography (only approved families; no font files, `@font-face` or font URLs) and key contrast pairs, and says it is not a full accessibility audit.
-- Theme Studio itself is not designed here.
-
-Props: `ThemeManagerProps` in `reference/index.d.ts`. Preview data is fictional and labelled “Example data”.
+Runtime format: `schemas/theme/v1.json`. User tooling: `sdk/theme/README.md`. Server-wide storage, server RBAC and server theme audit are future work. See `../../03-THEME-STUDIO.md` and `../../11-IMPLEMENTED-UI-AND-TDK.md`.

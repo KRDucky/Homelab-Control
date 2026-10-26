@@ -1,3 +1,5 @@
+> **Implementation update (2026-10-25):** shared frontend components, navigation-only palette, browser-local themes/Studio and TDK are implemented in the current change. Runtime themes contain colours only; fonts, density, type scale and motion remain independent preferences. Historical comparison tables and proposed theme font enums below are superseded by [implementation handoff](../11-IMPLEMENTED-UI-AND-TDK.md) and `schemas/theme/v1.json` for current behavior.
+
 HCIS, the Homelab Control Interface System, is the approved design direction for Homelab Control. Its visual identity is **Adaptive Glass Linux Admin**: a desktop-quality Linux administration application that runs in the browser. It combines restrained frosted glass, Material-style interaction discipline, Nordic/Arc calm and dense, readable technical data. The repository is the source of truth for what exists today; HCIS defines where the interface is going.
 
 Every component card states one of four statuses:

@@ -21,6 +21,10 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+html {
+  font-size: 100%;
+}
+
 a {
   color: var(--hc-color-text-link);
   text-underline-offset: 3px;
@@ -65,7 +69,7 @@ code {
 /* Brand ----------------------------------------------------------------- */
 .brand-mark {
   margin: 0;
-  font-weight: 700;
+  font-weight: var(--hc-font-weight-strong);
   font-size: var(--hc-font-size-xl);
   letter-spacing: -0.01em;
   line-height: 1;
@@ -79,10 +83,10 @@ code {
 /* Buttons & inputs ------------------------------------------------------ */
 button {
   font: inherit;
-  font-weight: 650;
+  font-weight: var(--hc-font-weight-strong);
   cursor: pointer;
   border: 1px solid transparent;
-  border-radius: var(--hc-radius-md);
+  border-radius: var(--hc-radius-sm);
   padding: var(--hc-ctl-py) var(--hc-space-4);
   background: var(--hc-color-signal);
   color: var(--hc-color-signal-ink);
@@ -156,7 +160,7 @@ input {
 }
 .readonly-badge {
   font-size: var(--hc-font-size-xs);
-  font-weight: 650;
+  font-weight: var(--hc-font-weight-strong);
   padding: 2px var(--hc-space-2);
   border-radius: var(--hc-radius-sm);
   border: 1px solid var(--hc-color-ok);
@@ -201,7 +205,7 @@ input {
 .faceplate-host {
   margin: 0 0 var(--hc-space-4);
   font-size: var(--hc-font-size-display);
-  font-weight: 700;
+  font-weight: var(--hc-font-weight-strong);
   line-height: 0.95;
   letter-spacing: -0.02em;
   overflow-wrap: anywhere;
@@ -248,11 +252,11 @@ input {
 .panel-head h2 {
   margin: 0 0 var(--hc-space-3);
   font-size: var(--hc-font-size-lg);
-  font-weight: 700;
+  font-weight: var(--hc-font-weight-strong);
 }
 .status {
   font-size: var(--hc-font-size-xs);
-  font-weight: 650;
+  font-weight: var(--hc-font-weight-strong);
 }
 .status-partial {
   color: var(--hc-color-warn);
@@ -354,7 +358,7 @@ thead th {
   font-weight: 600;
 }
 tbody th {
-  font-weight: 650;
+  font-weight: var(--hc-font-weight-strong);
   overflow-wrap: anywhere;
 }
 .kernel-src,
@@ -409,7 +413,7 @@ tbody th {
 .page-title {
   margin: 0;
   font-size: var(--hc-font-size-xl);
-  font-weight: 700;
+  font-weight: var(--hc-font-weight-strong);
   letter-spacing: -0.01em;
 }
 .page-sub {
@@ -474,7 +478,7 @@ tbody th {
 .segmented label.on {
   background: var(--hc-color-signal);
   color: var(--hc-color-signal-ink);
-  font-weight: 650;
+  font-weight: var(--hc-font-weight-strong);
 }
 .segmented input {
   position: absolute;
@@ -537,7 +541,7 @@ select {
 }
 .conf {
   font-size: var(--hc-font-size-xs);
-  font-weight: 650;
+  font-weight: var(--hc-font-weight-strong);
   white-space: nowrap;
 }
 .conf-high {
@@ -567,7 +571,7 @@ select {
 }
 .check-level {
   font-size: var(--hc-font-size-xs);
-  font-weight: 700;
+  font-weight: var(--hc-font-weight-strong);
 }
 .check-warn .check-level {
   color: var(--hc-color-warn);
@@ -577,7 +581,7 @@ select {
 }
 .helper-off {
   font-size: var(--hc-font-size-xs);
-  font-weight: 650;
+  font-weight: var(--hc-font-weight-strong);
   padding: 2px var(--hc-space-2);
   border-radius: var(--hc-radius-sm);
   border: 1px solid var(--hc-color-warn);

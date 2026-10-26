@@ -4,6 +4,10 @@
 
 // Paths from the original HCIS icon set (docs/ui/hcis/icons: 20px grid, 1.5px stroke, currentColor).
 const PATHS = {
+  check: 'M4 10l4 4 8-8',
+  warning: 'M10 2 1 18h18L10 2zM10 7v5M10 15v.01',
+  critical: 'M6 2h8l4 4v8l-4 4H6l-4-4V6zM10 6v6M10 15v.01',
+  info: 'M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16zM10 9v5M10 6v.01',
   overview: 'M3 3h6v6H3zM11 3h6v4h-6zM11 9h6v8h-6zM3 11h6v6H3z',
   system: 'M6 6h8v8H6zM8 2v3M12 2v3M8 15v3M12 15v3M2 8h3M2 12h3M15 8h3M15 12h3',
   hardware: 'M3 5h14v10H3zM6 15v2M14 15v2M6 8h5M6 11h3M14 8.5v.01',

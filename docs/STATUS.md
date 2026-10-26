@@ -5,6 +5,10 @@ first-parent history; dates are UTC, from the merge-commit timestamps. "CI n/n" 
 GitHub Actions check runs that succeeded out of those run on the PR's head commit, read from GitHub on
 2026-10-25 (it is not a statement about later commits).
 
+## UI foundation continuation (2026-10-25, current change)
+
+The owner authorized completing the remaining frontend and adding a user Theme Development Kit. This change implements shared responsive tables/states, navigation-only palette, browser-local theme import/export and Theme Studio, and the MIT TDK. [Implementation handoff](ui/11-IMPLEMENTED-UI-AND-TDK.md) records the supported contract. This is frontend authorization; no host-operation permission or server settings store is added.
+
 ## Merged work
 - PR #5 (licence compliance, Webmin independence, UI plan): merged 2026-10-19 as `bc7205e3`; 20/20 checks
   on `main`.
@@ -69,7 +73,7 @@ GitHub Actions check runs that succeeded out of those run on the PR's head commi
   - no audit retention or rotation;
   - no admin management of other users' sessions.
 - **Still not authorized:** privileged host writes, start/stop/restart, plan/confirm/execute, root command
-  execution, PAM/TOTP, storage configuration, Docker/VM management, theme engine, Webmin migration.
+  execution, PAM/TOTP, storage configuration, Docker/VM management, Webmin migration. Browser-local themes are authorized in the UI continuation above.
   D-2…D-5 and D-8…D-12 are open (`docs/m2/OWNER-DECISIONS.md`).
 
 ## HCIS UI migration (merged steps 1–3; each step is a separate, approved PR)
@@ -83,9 +87,9 @@ GitHub Actions check runs that succeeded out of those run on the PR's head commi
   for theme, density, interface font, text size, surfaces and motion; scrolling tables as labelled,
   focusable regions. Preferences are stored per browser (`localStorage`) until the server settings store
   (`docs/ui/10-PHASED-PLAN.md`, phase U5).
-- **Not implemented:** shared components (step 4 onward), the HCIS type scale, radii and page components
-  (still the M1 implementation), the theme engine, `.hltheme` import, Theme Studio, a server-side settings
-  store, command palette, workspaces and dashboard widgets.
+- **Implemented in the current frontend change:** shared DataTable with responsive cards, status/live states, navigation-only command palette, browser-local `.hltheme` import/export and Theme Studio, and TDK. See the UI handoff above.
+- **Still future:** server settings store, resource search, workspaces, dashboard widgets, jobs/notifications and module views requiring backend support.
+
 
 ## CI (`.github/workflows/ci.yml`)
 - **Triggers:** push to `main`, every pull request, and a **manual run** (Actions tab → *ci* →
@@ -128,10 +132,8 @@ GitHub Actions check runs that succeeded out of those run on the PR's head commi
   files with no stated licence marked unverified) and is excluded from packages and source archives.
 - Approved policies: `CONTRIBUTING.md` (DCO, AI disclosure; history grandfathered), "The Homelab Control
   Authors". Follow-ups: CI sign-off check, `SECURITY.md`, Webmin phase 1. (Archivo removal, LA-06, was superseded by HCIS step 2: bundled Inter and JetBrains Mono.)
-- Theme engine, `.hltheme` import and Theme Studio: planning only (`docs/ui/`); `.hltheme` single JSON
-  (ADR 0010); layout preferences separate from themes; CSSOM/CSP probe passes in Chromium, Firefox and
-  WebKit. **Not implemented.** `main` has only the fixed built-in HCIS themes and per-browser appearance
-  preferences (HCIS section above).
+- Browser-local theme import/export, Studio and TDK are implemented in the current change. Themes are colours only, with a fixed built-in base; preferences remain separate. Server-wide persistence remains future work.
+
 
 ## Working (read-only), verified — M1 evidence in `docs/evidence/m1/README.md`; M2 PR-1 and HCIS records in `docs/project/09-PROJECT-MEMORY.md`
 - **hc-api** (unprivileged): sessions/CSRF/RBAC from M0; scopes `services.read`, `hardware.read` (M1) and
@@ -171,8 +173,7 @@ GitHub Actions check runs that succeeded out of those run on the PR's head commi
   (`docs/m2/OWNER-DECISIONS.md`).
 - **2026-10-21/22 (HCIS):** HCIS adopted as the UI design direction; density names, the OLED theme and the
   font licensing policy decided 2026-10-22. Migration step 1 approved 2026-10-22; steps 2 and 3 authorized
-  2026-10-23 (`docs/ui/hcis/README.md`, project memory). Step 4 (shared components) onward needs separate
-  approval.
+  2026-10-23 (`docs/ui/hcis/README.md`, project memory). The owner authorized the remaining frontend and TDK on 2026-10-25 (UI continuation above).
 
 **None of this authorizes privileged write operations.** M2 beyond PR-1 remains on hold.
 

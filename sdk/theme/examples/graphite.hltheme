@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "example.graphite",
+  "name": "Graphite starter",
+  "version": "1.0.0",
+  "license": "MIT",
+  "base": "graphite",
+  "colors": {}
+}

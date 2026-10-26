@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { Icon } from './icons';
+
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 export interface SectionMeta {
@@ -47,18 +49,24 @@ export function Section({
   meta,
   children,
   id,
+  live,
 }: {
   title: string;
   meta: SectionMeta;
   children: ReactNode;
   id?: string;
+  live?: { state: LiveState; updated?: string; onRetry?: () => void };
 }) {
   const hid = `h-${id ?? title.replace(/\W+/g, '-').toLowerCase()}`;
   const unavailableNotes = meta.status === 'unavailable' ? (meta.notes ?? []) : [];
   return (
-    <section className="panel" aria-labelledby={hid}>
+    <section
+      className={`panel${live?.state === 'stale' || live?.state === 'disconnected' ? ' hc-stale' : ''}`}
+      aria-labelledby={hid}
+    >
       <header className="panel-head">
         <h2 id={hid}>{title}</h2>
+        {live && <LiveIndicator {...live} />}
         {meta.status !== 'ok' && (
           <span className={`status status-${meta.status}`}>{statusText[meta.status]}</span>
         )}
@@ -112,5 +120,73 @@ export function TableRegion({
     >
       {children}
     </div>
+  );
+}
+
+export type StatusTone = 'ok' | 'warn' | 'crit' | 'info' | 'notice' | 'unknown';
+const statusIcons = {
+  ok: 'check',
+  warn: 'warning',
+  crit: 'critical',
+  info: 'info',
+  notice: 'info',
+  unknown: 'unknown',
+} as const;
+export function StatusPill({ tone, label }: { tone: StatusTone; label: string }) {
+  return (
+    <span className={`hc-status-pill hc-status-${tone}`}>
+      <Icon name={statusIcons[tone]} />
+      {label}
+    </span>
+  );
+}
+export function StatusIndicator({ tone, label }: { tone: StatusTone; label: string }) {
+  return (
+    <span className={`hc-status-indicator hc-status-${tone}`}>
+      <Icon name={statusIcons[tone]} />
+      {label}
+    </span>
+  );
+}
+export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
+  return (
+    <div className="empty" role="status">
+      <strong>{title}</strong>
+      {children && <p>{children}</p>}
+    </div>
+  );
+}
+export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  return (
+    <div className="banner" role="alert">
+      <p>{message}</p>
+      {onRetry && (
+        <button type="button" className="ghost" onClick={onRetry}>
+          Try again
+        </button>
+      )}
+    </div>
+  );
+}
+export type LiveState = 'live' | 'refreshing' | 'stale' | 'paused' | 'disconnected';
+export function LiveIndicator({
+  state,
+  updated,
+  onRetry,
+}: {
+  state: LiveState;
+  updated?: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <span className="live-indicator">
+      <span role="status">{state.charAt(0).toUpperCase() + state.slice(1)}</span>
+      {updated && <time dateTime={updated}>Updated {new Date(updated).toLocaleTimeString()}</time>}
+      {onRetry && (state === 'stale' || state === 'disconnected') && (
+        <button type="button" className="ghost small" onClick={onRetry}>
+          Retry
+        </button>
+      )}
+    </span>
   );
 }

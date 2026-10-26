@@ -2,7 +2,7 @@
 
 Icon + word state for dense rows: Healthy, Warning, Critical, Notice, Unknown.
 
-**Status: Proposed (HCIS).** New in the HCIS specification; a reference design, not in the app.
+**Status: implemented in the current UI continuation (2026-10-25), `frontend/app/src/ui.tsx`.**
 
 Source: none in the repository.
 

@@ -54,3 +54,7 @@ Read `docs/addons/01-FILE-SERVICES-ARCHITECTURE.md` through `docs/addons/09-PROJ
 
 ## UI design system (HCIS)
 HCIS (Homelab Control Interface System, “Adaptive Glass Linux Admin”) is the owner-approved design direction for all UI work. Before building or changing any UI, read `docs/ui/hcis/README.md`, then `docs/ui/hcis/BRAND-BOOK.md` and the relevant `docs/ui/hcis/components/<Name>.md`. Use the semantic tokens in `docs/ui/hcis/tokens/`; treat `docs/ui/hcis/components/reference/` as reference code to port, not to import. Planned/Proposed components are designs, not shipped features. Adopting HCIS in `frontend/app` happens in separately approved PRs; the open decisions (fonts vs LA-06, density names in docs/ui/06, token-schema additions) are listed in `docs/ui/hcis/README.md`.
+
+## UI continuation authorization (2026-10-25)
+
+The owner authorized completing the remaining frontend (HCIS shared components, navigation palette, browser-local theme import/export and Theme Studio) so Claude Opus can focus on backend/module work, and requested a user Theme Development Kit. Current implementation/handoff: `docs/ui/11-IMPLEMENTED-UI-AND-TDK.md`. TDK: `sdk/theme/README.md`. Runtime schema: `schemas/theme/v1.json` (the older draft is historical). This scope adds no privileged host operation, API permission or server settings store. Future backend milestones keep their own existing authorization gates.
