@@ -1,6 +1,6 @@
 # Current status — Phase 1 release complete; M2 PR-1 and HCIS steps 1–3 merged (updated 2026-10-25)
 
-Reconciled against `main` at `1553908b` (merge of PR #21). "Merged" means a merge commit in `main`'s
+Reconciled against `main` at `531dedb6` (merge of PR #22). "Merged" means a merge commit in `main`'s
 first-parent history; dates are UTC, from the merge-commit timestamps. "CI n/n" is the number of
 GitHub Actions check runs that succeeded out of those run on the PR's head commit, read from GitHub on
 2026-10-25 (it is not a statement about later commits).
@@ -35,6 +35,8 @@ GitHub Actions check runs that succeeded out of those run on the PR's head commi
   21/21 on head `d76ad33d`.
 - PR #21 (this file reconciled with M2 PR-1 and HCIS steps 1-3; documentation only): merged 2026-10-26 as
   `1553908b`; CI 21/21 on head `fc0e39f8`.
+- PR #22 (CI results and PRs #20-#21 recorded here; documentation only): merged 2026-10-26 as `531dedb6`; CI
+  21/21 on head `36cfe527`.
 
 ## M2 PR-1 (authorized 2026-10-21; D-1, D-6, D-7 approved): merged, read-only
 - PR #11 (planning) merged 2026-10-21 as `6e0f6218`. Its last commit (the D-1/D-6/D-7 record and the D-12
@@ -102,7 +104,7 @@ GitHub Actions check runs that succeeded out of those run on the PR's head commi
   - release dry run through the same reusable workflow as the release (`release-build.yml`, exact
     toolchain pins): two runners plus Arch, reproducibility comparison, fail-closed candidate verification,
     negative tests, release notes.
-- **Job count:** 21 check runs on every PR head from #13 to #21, all green. PR #12 had 20; the difference is
+- **Job count:** 21 check runs on every PR head from #13 to #22, all green. PR #12 had 20; the difference is
   the `upgrade-ubuntu` job added by #13 (compared by check-run name).
 - **Actions:** official `actions/*` releases on the node24 runtime, pinned by commit SHA, read-only token,
   no persisted git credentials, no dependency caches.
