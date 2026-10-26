@@ -301,5 +301,8 @@ describe('document title', () => {
     expect(document.title).toBe('Hardware · Homelab Control');
     fireEvent.click(screen.getByRole('link', { name: 'Sessions' }));
     expect(document.title).toBe('Sessions · Homelab Control');
+    fireEvent.click(screen.getByRole('button', { name: /^Sign out$/ }));
+    await screen.findByLabelText('Username');
+    expect(document.title).toBe('Sign in · Homelab Control');
   });
 });

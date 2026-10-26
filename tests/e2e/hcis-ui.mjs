@@ -18,6 +18,7 @@ const units = Array.from({ length: 230 }, (_, i) => ({ name: `example-${String(i
 await context.route('**/api/**', (route) => {
   const path = new URL(route.request().url()).pathname;
   let body = {}, status = 200;
+  if (path.endsWith('/auth/logout')) return route.fulfill({ status: 204 });
   if (path.endsWith('/auth/session')) body = { username: 'example-browser-fixture', csrf_token: 'test-only', scopes: ['system.read', 'services.read'], version: 'example' };
   else if (path.endsWith('/capabilities')) body = { broker: { status: 'available' }, capabilities: [{ id: 'services', label: 'Services', path: '/services', status: 'available' }, { id: 'audit', label: 'Audit', path: '/audit', status: 'forbidden', reason: 'Example: permission not granted' }] };
   else if (path.endsWith('/services')) body = { units, source: 'Example data — browser-test fixture', truncated: false };
@@ -74,10 +75,13 @@ try {
   await audit('studio at the default text size');
   check('disclosure headings meet the 24px target size', await page.evaluate(() => [...document.querySelectorAll('summary')].every((s) => s.getBoundingClientRect().height >= 23.5)));
   check('document title names the page', (await page.title()).startsWith('Themes & Theme Studio'));
+  await page.evaluate(() => document.documentElement.setAttribute('data-hc-text-scale', '90'));
+  check('disclosure targets stay at least 24px at 90% text', await page.locator('summary').evaluateAll((nodes) => nodes.length > 0 && nodes.every((n) => n.getBoundingClientRect().height >= 24)));
+  await page.evaluate(() => document.documentElement.setAttribute('data-hc-text-scale', '100'));
   await page.setViewportSize({ width: 390, height: 900 });
-  // Container-query layout settles a frame or two after the resize; wait for it instead of sampling once.
-  const captionsWide = () => [...document.querySelectorAll('.hc-data-table caption')].every((c) => c.getBoundingClientRect().width > 150);
-  check('table captions keep their width when a table becomes cards', await page.waitForFunction(captionsWide, null, { timeout: 3000 }).then(() => true, () => false));
+  // Container-query layout can finish after the viewport resize resolves.
+  await page.waitForFunction(() => { const captions = [...document.querySelectorAll('.hc-data-table caption')]; return captions.length > 0 && captions.every((c) => c.getBoundingClientRect().width > 150); });
+  check('table captions keep their width when a table becomes cards', await page.evaluate(() => [...document.querySelectorAll('.hc-data-table caption')].every((c) => c.getBoundingClientRect().width > 150)));
   if ((process.env.HC_BROWSER ?? 'chromium') === 'chromium') {
     await page.emulateMedia({ forcedColors: 'active' });
     await page.keyboard.press('Tab');
@@ -103,6 +107,9 @@ try {
       await goto(`${url}/appearance/themes`);
     }
   }
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await page.getByLabel('Username').waitFor();
+  check('sign-out resets the document title to Sign in', (await page.title()) === 'Sign in · Homelab Control');
   check(`no browser exceptions: ${JSON.stringify(errors)}`, errors.length === 0);
 } finally {
   writeFileSync(`${artifacts}/report.json`, JSON.stringify({ browser: browser.version(), checks, errors }, null, 2));

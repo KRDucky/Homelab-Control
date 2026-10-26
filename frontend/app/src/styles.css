@@ -52,7 +52,7 @@ a {
 
 /* WCAG 2.2 target size (2.5.8): disclosure headings are at least 24px tall at any text size. */
 summary {
-  min-block-size: 1.5rem;
+  min-block-size: max(24px, 1.5rem);
   cursor: pointer;
 }
 
