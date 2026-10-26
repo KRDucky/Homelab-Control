@@ -119,3 +119,19 @@ it('studio rejects invalid JSON and keeps unvalidated drafts isolated', () => {
   expect(activeTheme()).toBeNull();
   expect(document.documentElement.style.getPropertyValue('--hc-color-text-primary')).toBe('');
 });
+it('studio commits a complete hex colour as it is typed, without waiting for blur', () => {
+  render(<ThemeStudio />);
+  fireEvent.click(screen.getByText('accent colours'));
+  const field = screen.getByLabelText('accent-base hex colour') as HTMLInputElement;
+  fireEvent.change(field, { target: { value: '#22' } });
+  expect(field.getAttribute('aria-invalid')).toBe('true');
+  expect(screen.getByRole('button', { name: 'Undo' }).hasAttribute('disabled')).toBe(true);
+  fireEvent.change(field, { target: { value: '#2288aa' } });
+  expect(field.value).toBe('#2288aa');
+  expect(field.getAttribute('aria-invalid')).toBe('false');
+  // The edit is in the history immediately, and the same field instance keeps its text.
+  expect(screen.getByRole('button', { name: 'Undo' }).hasAttribute('disabled')).toBe(false);
+  expect(screen.getByLabelText('accent-base hex colour')).toBe(field);
+  fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+  expect((screen.getByLabelText('accent-base hex colour') as HTMLInputElement).value).not.toBe('#2288aa');
+});

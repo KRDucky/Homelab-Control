@@ -31,9 +31,29 @@ a {
 }
 
 :focus-visible {
-  outline: none;
+  /* A transparent outline is invisible normally but is painted in a system colour in forced-colors
+     (Windows high contrast) mode, where box-shadow is removed. */
+  outline: 2px solid transparent;
+  outline-offset: 2px;
   box-shadow: var(--hc-focus-ring);
   border-radius: var(--hc-radius-sm);
+}
+@media (forced-colors: active) {
+  :focus-visible {
+    outline-color: Highlight;
+    box-shadow: none;
+  }
+  .segmented label:has(input:focus-visible) {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+    box-shadow: none;
+  }
+}
+
+/* WCAG 2.2 target size (2.5.8): disclosure headings are at least 24px tall at any text size. */
+summary {
+  min-block-size: 1.5rem;
+  cursor: pointer;
 }
 
 code {

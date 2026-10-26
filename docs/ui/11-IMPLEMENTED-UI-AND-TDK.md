@@ -2,7 +2,9 @@
 
 Owner direction, 2026-10-25: implement the remaining UI so backend/module work can proceed, and provide a Theme Development Kit for users. This work extends merged HCIS Steps 1–3 (PR #19 merge `16650cb6`). It authorizes frontend work; it does not expand host-operation permissions.
 
-## Delivered in this change
+> Final design review and defect fixes: [12-FINAL-DESIGN-REVIEW-AND-HANDOFF.md](12-FINAL-DESIGN-REVIEW-AND-HANDOFF.md).
+
+## Delivered in PR #24
 
 | Area | Implementation |
 |---|---|

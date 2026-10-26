@@ -119,6 +119,7 @@ export function App() {
     <Shell
       pages={pages}
       currentId={route?.id}
+      title={onThemes ? 'Themes & Theme Studio' : onAccount ? 'Sessions' : (route?.label ?? '')}
       username={session.username}
       accountPath={ACCOUNT_PATH}
       onAccount={onAccount}
