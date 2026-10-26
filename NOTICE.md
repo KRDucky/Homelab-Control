@@ -70,7 +70,9 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ## Third-party components in release artifacts
 
-The binaries and packages contain the Go standard library (BSD-3-Clause), React, React DOM and scheduler
-(MIT) and the Inter and JetBrains Mono variable fonts (SIL OFL 1.1). Their full copyright notices and licence texts are in
-`THIRD-PARTY-NOTICES.md`, which every package installs next to this file. Development-only tooling is not
-redistributed (`docs/compliance/DEPENDENCY-LICENSES.md`).
+The binaries and packages contain the Go standard library (BSD-3-Clause); the pure-Go SQLite driver
+`modernc.org/sqlite` (BSD-3-Clause, Copyright (c) 2017 The Sqlite Authors), compiled into `hc-api` and `hlctl`
+but not `hc-broker`, together with the other Go modules linked into those two binaries (BSD-3-Clause and MIT);
+React, React DOM and scheduler (MIT); and the Inter and JetBrains Mono variable fonts (SIL OFL 1.1). Their full
+copyright notices and licence texts are in `THIRD-PARTY-NOTICES.md`, which every package installs next to this
+file. Development-only tooling is not redistributed (`docs/compliance/DEPENDENCY-LICENSES.md`).
