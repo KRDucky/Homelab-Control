@@ -4,7 +4,8 @@
 
 import { getHardware, type Disk, type Hardware as HardwareData } from '../api';
 import { formatBytes } from '../format';
-import { Section, TableRegion } from '../ui';
+import { DataTable } from '../DataTable';
+import { Section } from '../ui';
 import { explain, useData } from '../useData';
 
 const confidenceText: Record<Disk['identity_confidence'], string> = {
@@ -53,7 +54,7 @@ function Identity({ id }: { id: HardwareData['identity'] }) {
 }
 
 export function Hardware({ onUnauthorized }: { onUnauthorized: () => void }) {
-  const { data, error } = useData(getHardware, { onUnauthorized });
+  const { data, error, live } = useData(getHardware, { onUnauthorized });
   if (error && !data) {
     return (
       <div className="page">
@@ -82,7 +83,7 @@ export function Hardware({ onUnauthorized }: { onUnauthorized: () => void }) {
         <p className="page-sub">Read-only inventory. Nothing here changes your hardware.</p>
       </header>
 
-      <Section title="This machine" meta={system} id="machine">
+      <Section title="This machine" live={live} meta={system} id="machine">
         {sys.length > 0 && (
           <dl className="facts">
             {sys.map(([k, v]) => (
@@ -102,46 +103,56 @@ export function Hardware({ onUnauthorized }: { onUnauthorized: () => void }) {
         )}
       </Section>
 
-      <Section title="Storage devices" meta={disks} id="disks">
+      <Section title="Storage devices" live={live} meta={disks} id="disks">
         {disks.devices.length > 0 && (
-          <TableRegion label="Storage devices">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Device</th>
-                  <th scope="col">Size</th>
-                  <th scope="col">Type</th>
-                  <th scope="col">Identity</th>
-                  <th scope="col">Confidence</th>
-                </tr>
-              </thead>
-              <tbody>
-                {disks.devices.map((d) => (
-                  <tr key={d.kernel_name}>
-                    <th scope="row">
-                      {d.model ?? 'Unknown model'}
-                      <div className="cell-note" title={d.kernel_name_note}>
-                        currently {d.kernel_name} (changes between boots)
-                      </div>
-                    </th>
-                    <td>{formatBytes(d.size_bytes)}</td>
-                    <td>
-                      {d.transport}
-                      {d.rotational === true && <span className="tag">HDD</span>}
-                      {d.rotational === false && !d.virtual && <span className="tag">SSD</span>}
-                      {d.removable && <span className="tag">removable</span>}
-                    </td>
-                    <td className="kernel-src">{d.identity ?? 'None'}</td>
-                    <td>
-                      <span className={`conf conf-${d.identity_confidence}`}>
-                        {confidenceText[d.identity_confidence]}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TableRegion>
+          <DataTable
+            caption="Storage devices"
+            rows={disks.devices}
+            rowKey={(d) => d.identity ?? d.kernel_name}
+            columns={[
+              {
+                id: 'device',
+                label: 'Device',
+                sortValue: (d) => d.model ?? '',
+                render: (d) => (
+                  <>
+                    {d.model ?? 'Unknown model'}
+                    <div className="cell-note" title={d.kernel_name_note}>
+                      currently {d.kernel_name} (changes between boots)
+                    </div>
+                  </>
+                ),
+              },
+              {
+                id: 'size',
+                label: 'Size',
+                sortValue: (d) => d.size_bytes ?? 0,
+                render: (d) => formatBytes(d.size_bytes),
+              },
+              {
+                id: 'type',
+                label: 'Type',
+                render: (d) => (
+                  <>
+                    {d.transport}
+                    {d.rotational === true && <span className="tag">HDD</span>}
+                    {d.rotational === false && !d.virtual && <span className="tag">SSD</span>}
+                    {d.removable && <span className="tag">removable</span>}
+                  </>
+                ),
+              },
+              { id: 'identity', label: 'Identity', render: (d) => <code>{d.identity ?? 'None'}</code> },
+              {
+                id: 'confidence',
+                label: 'Confidence',
+                render: (d) => (
+                  <span className={`conf conf-${d.identity_confidence}`}>
+                    {confidenceText[d.identity_confidence]}
+                  </span>
+                ),
+              },
+            ]}
+          />
         )}
         <p className="footnote">
           Physical bay locations are not mapped yet. Identity comes from the drive's WWN or serial number,
@@ -149,38 +160,47 @@ export function Hardware({ onUnauthorized }: { onUnauthorized: () => void }) {
         </p>
       </Section>
 
-      <Section title="PCI devices" meta={pci} id="pci">
+      <Section title="PCI devices" live={live} meta={pci} id="pci">
         {pci.devices.length > 0 && (
-          <TableRegion label="PCI devices">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Address</th>
-                  <th scope="col">Class</th>
-                  <th scope="col">Device</th>
-                  <th scope="col">Driver</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pci.devices.map((d) => (
-                  <tr key={d.address}>
-                    <th scope="row">{d.address}</th>
-                    <td>{d.class || d.class_code}</td>
-                    <td>
-                      {d.device_name ?? `Device ${d.vendor_id}:${d.device_id}`}
-                      {d.vendor_name && <div className="cell-note">{d.vendor_name}</div>}
-                    </td>
-                    <td>{d.driver ?? <span className="muted">none bound</span>}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TableRegion>
+          <DataTable
+            caption="PCI devices"
+            rows={pci.devices}
+            rowKey={(d) => d.address}
+            columns={[
+              {
+                id: 'address',
+                label: 'Address',
+                sortValue: (d) => d.address,
+                render: (d) => <code>{d.address}</code>,
+              },
+              {
+                id: 'class',
+                label: 'Class',
+                sortValue: (d) => d.class || d.class_code,
+                render: (d) => d.class || d.class_code,
+              },
+              {
+                id: 'device',
+                label: 'Device',
+                render: (d) => (
+                  <>
+                    {d.device_name ?? `Device ${d.vendor_id}:${d.device_id}`}
+                    {d.vendor_name && <div className="cell-note">{d.vendor_name}</div>}
+                  </>
+                ),
+              },
+              {
+                id: 'driver',
+                label: 'Driver',
+                render: (d) => d.driver ?? <span className="muted">none bound</span>,
+              },
+            ]}
+          />
         )}
       </Section>
 
       <div className="grid">
-        <Section title="USB devices" meta={usb} id="usb">
+        <Section title="USB devices" live={live} meta={usb} id="usb">
           {usb.devices.length > 0 && (
             <ul className="plain-list">
               {usb.devices.map((d) => (
@@ -192,7 +212,7 @@ export function Hardware({ onUnauthorized }: { onUnauthorized: () => void }) {
             </ul>
           )}
         </Section>
-        <Section title="Sensors" meta={sensors} id="sensors">
+        <Section title="Sensors" live={live} meta={sensors} id="sensors">
           {sensors.readings.length > 0 && (
             <ul className="plain-list">
               {sensors.readings.map((s) => (

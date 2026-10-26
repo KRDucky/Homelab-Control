@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "example.daybreak",
+  "name": "Daybreak starter",
+  "version": "1.0.0",
+  "license": "MIT",
+  "base": "daybreak",
+  "colors": {}
+}

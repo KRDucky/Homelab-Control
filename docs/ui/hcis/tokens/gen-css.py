@@ -108,6 +108,9 @@ def render_app(t):
 def render_app_type(t):
     fams = t['type']['families']
     lines = [f'  --hc-font-{k}: {v};' for k, v in fams.items()]
+    for family in ['fontSize', 'fontWeight', 'radius']:
+        lines += [f'  --{x["name"]}: {x["value"]};' for x in t[family]['tokens']]
+    lines += ['  --hc-radius-plate: var(--hc-radius-xl);', '  --hc-line-height: 1.428571;']
     lines.append('  /* M1 name, kept for existing styles. New code uses --hc-font-ui / --hc-font-mono. */')
     lines.append('  --hc-font-family: var(--hc-font-ui);')
     return '\n'.join([TYPE_BEGIN,

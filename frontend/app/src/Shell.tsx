@@ -4,6 +4,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import type { Capability } from './api';
+import { CommandPalette } from './CommandPalette';
 import { AppearanceMenu } from './AppearanceMenu';
 import { Icon, NAV_ICONS } from './icons';
 import { usePreferences } from './preferences';
@@ -183,6 +184,7 @@ export function Shell({
           )}
         </span>
         <span className="topbar-spacer" />
+        <CommandPalette pages={pages} accountPath={accountPath} />
         <AppearanceMenu prefs={prefs} onChange={update} onReset={reset} />
         <span className="topbar-account">
           <span className="who">

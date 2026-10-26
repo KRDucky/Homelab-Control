@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import { activeTheme, applyTheme } from './theme';
+
 import { useCallback, useEffect, useState } from 'react';
 
 /*
@@ -104,6 +106,7 @@ export function applyPreferences(p: Preferences, root: HTMLElement = document.do
   root.setAttribute('data-hc-text-scale', p.textScale);
   root.setAttribute('data-hc-transparency', p.transparency);
   root.setAttribute('data-hc-motion', p.motion);
+  applyTheme(activeTheme(), root);
 }
 
 /** Current preferences, a setter that persists and applies them, and a reset. Syncs across tabs. */
@@ -118,8 +121,15 @@ export function usePreferences() {
     const onStorage = (e: StorageEvent) => {
       if (e.key === STORAGE_KEY) setPrefs(parsePreferences(e.newValue));
     };
+    const onThemes = () => applyPreferences(loadPreferences());
+    window.addEventListener('hc-themes-change', onThemes);
+    window.addEventListener('storage', onThemes);
     window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('storage', onThemes);
+      window.removeEventListener('hc-themes-change', onThemes);
+    };
   }, []);
 
   const update = useCallback(<K extends keyof Preferences>(key: K, value: Preferences[K]) => {
