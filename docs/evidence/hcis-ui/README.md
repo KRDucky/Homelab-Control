@@ -11,3 +11,9 @@ Base: main `5a444a9a` (later main changes during this session were documentation
 - After the matrix, the shared validator gained additional text-on-hover/status and non-text border contrast pairs; all built-in bases and all 49 frontend tests still pass. This validation-only change does not change rendered palette values.
 
 Reproduce with the existing Python Playwright dependency using `tests/integration/run-hc-e2e.sh`; the harness now invokes `tests/e2e/hcis_ui.py` against its temporary built hc-api. The JS matrix can also run standalone with `HC_E2E_URL`, `HC_PLAYWRIGHT_MODULE`, `HC_BROWSER` and optional `HC_CHROMIUM`.
+
+## WebKit follow-up, 2026-10-26
+
+The first PR #24 CI run passed 20/21 jobs. Chromium and Firefox passed the full matrix; WebKit passed every layout/axe check but its final exception assertion caught mocked capability requests canceled by immediate document reloads. The harness now waits for the actual capability navigation result before replacing a document and logs browser exception details. No exception filter, CSP relaxation or production behavior change was added.
+
+WebKit was reproduced locally using Ubuntu libicu74/libflite1 unpacked into temporary directories (no Arch system package changes). With the navigation synchronization fix it passes all 76 checks with zero exceptions; see `webkit.json`. Updated CI must still pass before merge. The owner waived DCO sign-off specifically for PR #24 and authorized merge after all CI jobs pass.
