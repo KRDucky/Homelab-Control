@@ -70,6 +70,19 @@ try {
   await page.getByRole('button', { name: 'Validate and apply JSON' }).click();
   check('hostile import explains duplicate keys', await page.getByText('Duplicate key: schemaVersion.').isVisible());
   await page.getByRole('button', { name: 'Form editor' }).click();
+  // Regressions found in the final design review: these hold at the default text size, not only at 125%.
+  await audit('studio at the default text size');
+  check('disclosure headings meet the 24px target size', await page.evaluate(() => [...document.querySelectorAll('summary')].every((s) => s.getBoundingClientRect().height >= 23.5)));
+  check('document title names the page', (await page.title()).startsWith('Themes & Theme Studio'));
+  await page.setViewportSize({ width: 390, height: 900 });
+  check('table captions keep their width when a table becomes cards', await page.evaluate(() => [...document.querySelectorAll('.hc-data-table caption')].every((c) => c.getBoundingClientRect().width > 150)));
+  if ((process.env.HC_BROWSER ?? 'chromium') === 'chromium') {
+    await page.emulateMedia({ forcedColors: 'active' });
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Tab');
+    check('keyboard focus is outlined in forced-colors mode', await page.evaluate(() => { const s = getComputedStyle(document.activeElement); return document.activeElement !== document.body && s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) > 0; }));
+    await page.emulateMedia({ forcedColors: 'none' });
+  }
   for (const theme of ['midnight', 'daybreak', 'graphite', 'oled']) {
     for (const width of [390, 560, 768, 1100, 1920, 3440]) {
       await page.setViewportSize({ width, height: 1000 });

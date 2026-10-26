@@ -24,7 +24,13 @@
 }
 .hc-data-table td,
 .hc-data-table th {
-  overflow-wrap: anywhere;
+  /* In the table layout a row header (the resource identifier: unit, mount point, interface) is not
+     broken, so a long description column cannot squeeze a name such as example-000.service onto two
+     lines. The labelled scroll region handles an exceptionally long identifier. */
+  overflow-wrap: break-word;
+}
+.hc-data-table tbody th {
+  white-space: nowrap;
 }
 .hc-status-pill,
 .hc-status-indicator {
@@ -221,6 +227,15 @@
   .hc-data-table,
   .hc-data-table tbody {
     display: block;
+  }
+  /* The table is a block here; a table-caption box would shrink-wrap into a narrow anonymous cell. */
+  .hc-data-table caption {
+    display: block;
+  }
+  .hc-data-table td,
+  .hc-data-table th,
+  .hc-data-table tbody th {
+    overflow-wrap: anywhere;
   }
   .hc-data-table thead {
     position: absolute;

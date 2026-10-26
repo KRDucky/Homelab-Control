@@ -97,9 +97,8 @@ are listed below.
    density, motion). Tables scroll inside `TableRegion`, which becomes a focusable, labelled region
    when it scrolls (fixes axe `scrollable-region-focusable`). Not in step 3: command palette, host
    selector, health chip, workspaces, jobs/notifications, stacked table cards, `.hltheme` import and
-   Theme Studio.
-4. **Shared components** — implemented in the current change (see handoff), including DataTable, status and live states. Historical step scope: (incl. DataTable with stacked cards on phones), one family at a time (DataTable, StatusPill/StatusIndicator, Section live
-   states, …), each with Vitest and axe coverage as for M1.
+   Theme Studio (stacked cards, import and Studio were delivered later in step 4; the rest need backend contracts).
+4. **Shared components** — implemented in the current change (see handoff), including DataTable, status and live states. Delivered one family at a time (DataTable with stacked cards on phones, StatusPill/StatusIndicator, LiveIndicator, EmptyState/ErrorState, CommandPalette, ThemeManager), each with Vitest and axe coverage as for M1. Remaining catalogue designs (host selector, health chip, workspaces, jobs/notifications, module showcases) wait for their backend contracts.
 5. **Module views** follow their milestones. Write-capable views wait for M2+ authorization.
 
 Theme import/export, browser-local Studio and TDK: see `../11-IMPLEMENTED-UI-AND-TDK.md`.

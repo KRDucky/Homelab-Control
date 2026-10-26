@@ -5,9 +5,11 @@ first-parent history; dates are UTC, from the merge-commit timestamps. "CI n/n" 
 GitHub Actions check runs that succeeded out of those run on the PR's head commit, read from GitHub on
 2026-10-25 (it is not a statement about later commits).
 
-## UI foundation continuation (2026-10-25, current change)
+## UI foundation continuation (2026-10-25, merged in PR #24)
 
-The owner authorized completing the remaining frontend and adding a user Theme Development Kit. This change implements shared responsive tables/states, navigation-only palette, browser-local theme import/export and Theme Studio, and the MIT TDK. [Implementation handoff](ui/11-IMPLEMENTED-UI-AND-TDK.md) records the supported contract. This is frontend authorization; no host-operation permission or server settings store is added.
+The owner authorized completing the remaining frontend and adding a user Theme Development Kit. PR #24 implements shared responsive tables/states, navigation-only palette, browser-local theme import/export and Theme Studio, and the MIT TDK. [Implementation handoff](ui/11-IMPLEMENTED-UI-AND-TDK.md) records the supported contract. This is frontend authorization; no host-operation permission or server settings store is added.
+
+**Final design review (2026-10-26):** design accepted; seven defects (DT-1 to DT-7) fixed on branch `review/hcis-final`, not merged until the owner approves. See [docs/ui/12](ui/12-FINAL-DESIGN-REVIEW-AND-HANDOFF.md) for what was and was not verified (Chromium locally; no real broker data, screen reader or Windows High Contrast device).
 
 ## Merged work
 - PR #5 (licence compliance, Webmin independence, UI plan): merged 2026-10-19 as `bc7205e3`; 20/20 checks
@@ -41,6 +43,9 @@ The owner authorized completing the remaining frontend and adding a user Theme D
   `1553908b`; CI 21/21 on head `fc0e39f8`.
 - PR #22 (CI results and PRs #20-#21 recorded here; documentation only): merged 2026-10-26 as `531dedb6`; CI
   21/21 on head `36cfe527`.
+- PR #23 (CI job count and status; documentation only): merged 2026-10-26 as `5a444a9a`.
+- PR #24 (HCIS frontend foundation and Theme Development Kit): merged 2026-10-26 as `f6af207c`; the merge
+  commit records CI 21/21 on head `71b93cad`, with DCO sign-off waived by the owner for that PR.
 
 ## M2 PR-1 (authorized 2026-10-21; D-1, D-6, D-7 approved): merged, read-only
 - PR #11 (planning) merged 2026-10-21 as `6e0f6218`. Its last commit (the D-1/D-6/D-7 record and the D-12
@@ -87,7 +92,7 @@ The owner authorized completing the remaining frontend and adding a user Theme D
   for theme, density, interface font, text size, surfaces and motion; scrolling tables as labelled,
   focusable regions. Preferences are stored per browser (`localStorage`) until the server settings store
   (`docs/ui/10-PHASED-PLAN.md`, phase U5).
-- **Implemented in the current frontend change:** shared DataTable with responsive cards, status/live states, navigation-only command palette, browser-local `.hltheme` import/export and Theme Studio, and TDK. See the UI handoff above.
+- **Implemented in PR #24:** shared DataTable with responsive cards, status/live states, navigation-only command palette, browser-local `.hltheme` import/export and Theme Studio, and TDK. See the UI handoff above.
 - **Still future:** server settings store, resource search, workspaces, dashboard widgets, jobs/notifications and module views requiring backend support.
 
 

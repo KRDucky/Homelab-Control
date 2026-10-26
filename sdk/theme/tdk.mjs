@@ -7,7 +7,8 @@ const [command, ...args] = process.argv.slice(2);
 function readTheme(path) {
   if (!path) throw new Error('Supply a .hltheme file.');
   if (statSync(path).size > 65536) throw new Error('Theme exceeds 64 KiB.');
-  return parseTheme(readFileSync(path, 'utf8'));
+  // Editors such as Windows Notepad add a UTF-8 byte order mark; browsers drop it when importing, so the CLI does too.
+  return parseTheme(readFileSync(path, 'utf8').replace(/^\uFEFF/, ''));
 }
 function write(path, theme) {
   if (!path) throw new Error('Supply an output path.');

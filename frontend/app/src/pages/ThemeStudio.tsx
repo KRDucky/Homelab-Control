@@ -35,6 +35,12 @@ function ColorValue({
   onCommit: (v: string) => void;
 }) {
   const [text, setText] = useState(value);
+  const [seen, setSeen] = useState(value);
+  // Follow edits made elsewhere (colour picker, undo, reset, import) without remounting the field.
+  if (value !== seen) {
+    setSeen(value);
+    setText(value);
+  }
   const valid = /^#[\da-f]{6}([\da-f]{2})?$/i.test(text);
   return (
     <input
@@ -44,11 +50,15 @@ function ColorValue({
       maxLength={9}
       aria-invalid={!valid}
       onChange={(e) => {
-        setText(e.target.value);
+        const next = e.target.value;
+        setText(next);
+        // Commit as soon as the value is a complete colour, so Save, Preview and validation never lag
+        // behind what is typed (a blur-only commit re-flowed the page between mouse-down and click).
+        if (/^#[\da-f]{6}([\da-f]{2})?$/i.test(next) && next.toLowerCase() !== value.toLowerCase())
+          onCommit(next);
       }}
       onBlur={() => {
-        if (valid) onCommit(text);
-        else setText(value);
+        if (!valid) setText(value);
       }}
     />
   );
@@ -523,7 +533,6 @@ export function ThemeStudio() {
                         <div className="color-control" key={key}>
                           <label htmlFor={`color-${key}`}>{key}</label>
                           <ColorValue
-                            key={`${key}-${colors[key]}`}
                             value={colors[key] ?? '#000000'}
                             name={key}
                             onCommit={(value) =>
