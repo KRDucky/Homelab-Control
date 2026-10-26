@@ -23,6 +23,10 @@ PRs: M2-2a framework, M2-2b operations, API and UI); **not merged until owner re
 - **Still not authorized:** enable/disable, mask/unmask, unit-file editing, daemon-reload, other unit
   types, host shutdown or reboot, arbitrary commands, storage, Docker, packages, users and groups,
   third-party modules.
+- **Verified on `970341e6` (local and disposable systemd containers, no VM):** `make check`; Go tests as
+  non-root; Vitest 63; Playwright on Chromium and WebKit; M2-2 real-systemd scenario 86/86 on Ubuntu
+  26.04.1 (systemd 259.9) and on Fedora 43 (systemd 258.11), including token and step-up expiry. Results
+  and gaps (E2 VM/browser run, Firefox, CI): `docs/m2/M2-2-ACCEPTANCE.md`, evidence `docs/evidence/m2/`.
 - **CI:** results are recorded in the PRs; nothing here is claimed before the run on the final head.
 
 ## UI foundation continuation (2026-10-25, merged in PR #24)
