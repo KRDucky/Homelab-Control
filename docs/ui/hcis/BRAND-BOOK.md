@@ -52,7 +52,7 @@ How colour is built:
 
 - **Raw palette** (`hc-palette-*`) holds the owner-specified values. Components never use it.
 - **Semantic tokens** (`hc-color-*`) alias the palette per theme and fill the gaps: success, info, notice, unknown, selected, hover, disabled, borders, focus, input grounds, charts and glass.
-- Theme JSON (`.hltheme`) maps one-to-one onto the semantic names (docs/ui/02 §2.2: `color.surface.raised` → `--hc-color-surface-raised`). All values are `#RRGGBB` or `#RRGGBBAA`, the only form the schema accepts.
+- Theme JSON (`.hltheme`, runtime v1, `schemas/theme/v1.json`) maps one-to-one onto the semantic colour names, flattened without the prefix (`surface-raised` → `--hc-color-surface-raised`). All values are `#RRGGBB` or `#RRGGBBAA`, the only form the schema accepts.
 
 Contrast rules (checked for all four themes):
 
@@ -252,7 +252,7 @@ An information icon beside theme import and custom-theme selection shows this te
 10. Never change behaviour or authorization.
 11. Use validated `.hltheme` JSON.
 12. Contain no JavaScript or unrestricted CSS.
-13. Use only approved typography tokens: a theme may choose `ui`/`mono` from the approved families (`inter` or `system`; `jetbrains-mono` or `system`). It may never ship font files, `@font-face` rules or font URLs, or bypass the licensing, security or accessibility rules.
+13. Use only approved typography tokens. Fonts are the user's **Interface font** preference (Inter/JetBrains Mono or system stacks), never part of a theme. A theme cannot ship font files, `@font-face` rules or font URLs, and the runtime v1 schema has no typography fields. Nothing may bypass the licensing, security or accessibility rules.
 
 Built-in themes meet the same requirements.
 
@@ -311,10 +311,10 @@ The target is WCAG 2.2 AA. That means:
 
 ## Compatibility with Homelab Control
 
-- **Token names** follow the app's `--hc-*` convention and the v1 taxonomy in docs/ui/02. The new glass, input, notice and unknown roles are additions for the `.hltheme` schema. Adding tokens is a minor engine change (§2.5).
+- **Token names** follow the app's `--hc-*` convention and the v1 taxonomy in docs/ui/02. The glass, input, notice and unknown roles are part of the 57-role runtime v1 schema (resolved). Adding a role later is a minor engine change (§2.5).
 - **M1 aliases:** `--hc-color-ink`, `panel`, `panel-raised`, `rule`, `text`, `muted`, `signal`, `signal-ink`, `ok`, `warn`, `crit` and `focus` alias the HCIS roles, so today's `styles.css` renders in HCIS colours unchanged.
-- **Fonts:** themes can only pick an approved font enum, never a URL or file (`typography.family.ui|mono`; the validator rejects anything else). Inter and JetBrains Mono ship with the engine once migration step 2 lands, under the font licensing policy. Font choice and text size are user preferences stored with layout preferences, not in themes.
-- **Density names:** HCIS uses `compact | standard | spacious` (owner decision 2026-10-22). docs/ui/06 §6.5 currently says `compact | comfortable | spacious`, so its middle value (`comfortable`) becomes `standard` in a separately approved update.
+- **Fonts (resolved):** themes carry no font field at all; the validator rejects unknown keys. Inter and JetBrains Mono are bundled under the font licensing policy (HCIS step 2). Font choice and text size are per-browser user preferences (`hc.preferences.v1`), not in themes. The earlier `typography.family.ui|mono` draft enum was not adopted.
+- **Density names:** `compact | standard | spacious` (owner decision 2026-10-22). Resolved: docs/ui/06 and docs/ui/01 use the same names and the app stores them as `data-hc-density`.
 - **Theme safety:** themes contain no executable code and are applied as allow-listed custom properties through the CSSOM. They are kept separate from layout and workspace preferences.
 
 ## Current implementation vs HCIS
@@ -338,4 +338,4 @@ Adopt HCIS incrementally, through separately approved PRs. This design system do
 - Not carried over from `frontend/design-system/tokens.css`: `--hc-font-stretch-*` (Archivo-only). Motion is now tokenized as `hc-motion-*`.
 - Archivo is not included. The app replaced it with Inter and JetBrains Mono in migration step 2.
 - Components were not built from source. `Section`, `StateDot` and `Meter` are hand-ported from `ui.tsx` and `Meter.tsx`; everything else is a hand-written reference.
-- The planned example themes in `docs/ui/examples/themes/` are not imported as files. Graphite covers high contrast, and the OLED theme uses `oled.json`'s surface, border and meter values.
+- The planned example themes in `docs/ui/examples/themes/` are historical and not imported. Graphite covers high contrast, and the OLED theme uses `oled.json`'s surface, border and meter values. Current starters are `sdk/theme/examples/`.

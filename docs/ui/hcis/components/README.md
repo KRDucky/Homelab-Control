@@ -16,7 +16,7 @@ Status: **Production** (in the app), **Production markup** (app markup/CSS, comp
 | [SafePermissionsManager](SafePermissionsManager.md) | Proposed (HCIS) · awaiting authorization | Docker Permissions Manager: choose bind-mounted directories, owner by name/UID, group by name/GID, recursion, separate directory and file modes, then a dry-run with counts and warnings. |
 | [ServiceDetail](ServiceDetail.md) | Proposed (HCIS) · awaiting authorization | systemd service page with the Diagnose & Resolve assistant: status, failure category, exit code, restart count, evidence, dependencies, recovery steps, verification. |
 | [StorageOverview](StorageOverview.md) | Proposed (HCIS) | Storage landing page: total capacity, pools across technologies, disk health, and relationships to consumers. |
-| [ThemeManager](ThemeManager.md) | Proposed (HCIS) | Appearance → Themes: installed themes, safe timed preview, .hltheme import with validation, metadata, requirements and the mandatory tooltip. |
+| [ThemeManager](ThemeManager.md) | Implemented (browser-local) | Appearance → Themes: installed themes, safe timed preview, .hltheme import with validation, metadata, requirements and the mandatory tooltip. |
 
 ## Production
 
@@ -33,7 +33,7 @@ Status: **Production** (in the app), **Production markup** (app markup/CSS, comp
 | [AppShell](AppShell.md) | Production | The application frame: glass global header, glass sidebar, workspace, adapting to its own width. |
 | [AppearanceMenu](AppearanceMenu.md) | Production | Popover for theme, density, interface font, text size, surfaces (transparency) and motion. |
 | [Breadcrumbs](Breadcrumbs.md) | Planned | The path from host to the current resource. |
-| [CommandPalette](CommandPalette.md) | Planned | Keyboard-driven search over pages, resources and permitted actions. |
+| [CommandPalette](CommandPalette.md) | Implemented (navigation only) | Keyboard-driven search over pages, resources and permitted actions. |
 | [GlobalHeader](GlobalHeader.md) | Production (partial) | Identity, active host, health status, workspace, global search, background jobs, notifications, appearance and account. |
 | [NavigationRail](NavigationRail.md) | Production | The collapsed, icon-only form of the sidebar (60px). |
 | [ResourceHeader](ResourceHeader.md) | Production markup, proposed component | The header of a resource page: kind, name, status, key facts and actions. |
@@ -47,18 +47,18 @@ Status: **Production** (in the app), **Production markup** (app markup/CSS, comp
 | Component | Status | Summary |
 |---|---|---|
 | [CapacityBar](CapacityBar.md) | Proposed (HCIS) | A stacked usage bar with legend values and free space. |
-| [DataTable](DataTable.md) | Production markup, proposed component | The dense, sortable, selectable table for every resource list. In containers narrower than 560px each row becomes a labelled card. |
+| [DataTable](DataTable.md) | Implemented | The dense, sortable, selectable table for every resource list. In containers narrower than 560px each row becomes a labelled card. |
 | [DependencyGraph](DependencyGraph.md) | Proposed (HCIS) | Columns of related resources with drawn links (host → drive → pool → dataset → mount → container). |
 | [DetailPanel](DetailPanel.md) | Proposed (HCIS) | A side panel for the selected resource. `floating` makes it a glass inspector. |
 | [FilterBar](FilterBar.md) | Proposed (HCIS) | Search, facet selects, removable filter chips and a live result count above a table. |
 | [HealthSummary](HealthSummary.md) | Proposed (HCIS) | Overall health: headline state, counts for Critical, Warning, Notice, Healthy and Unknown, scan control. |
 | [KeyValueList](KeyValueList.md) | Production markup, proposed component | Label/value pairs in a responsive grid or two-column rows. |
-| [LiveIndicator](LiveIndicator.md) | Proposed (HCIS) | Reactive state of a data source: Live, Refreshing, Stale, Paused, Disconnected. |
+| [LiveIndicator](LiveIndicator.md) | Implemented | Reactive state of a data source: Live, Refreshing, Stale, Paused, Disconnected. |
 | [MetricChart](MetricChart.md) | Planned | A line chart for time series with a hover readout and a table view. |
 | [MetricTile](MetricTile.md) | Proposed (HCIS) | A compact KPI: label, value, unit, optional trend and status word. |
 | [ResourceCard](ResourceCard.md) | Proposed (HCIS) | A card summarising one resource with a status, a headline metric and optional content. |
-| [StatusIndicator](StatusIndicator.md) | Proposed (HCIS) | Icon + word state for dense rows: Healthy, Warning, Critical, Notice, Unknown. |
-| [StatusPill](StatusPill.md) | Planned | A tinted label with an icon that names a state. |
+| [StatusIndicator](StatusIndicator.md) | Implemented | Icon + word state for dense rows: Healthy, Warning, Critical, Notice, Unknown. |
+| [StatusPill](StatusPill.md) | Implemented | A tinted label with an icon that names a state. |
 | [TimeSeriesChart](TimeSeriesChart.md) | Planned | MetricChart plus an always-visible text summary (now, range, peak) for each series. |
 
 ## Input
@@ -92,8 +92,8 @@ Status: **Production** (in the app), **Production markup** (app markup/CSS, comp
 | [CheckList](CheckList.md) | Production markup, proposed component | A list of findings, each with a level word, a message and an optional action. |
 | [ConfirmDialog](ConfirmDialog.md) | Proposed (HCIS) · awaiting authorization | The explicit authorization step (the spec's ConfirmationDialog / RiskConfirmation). |
 | [Dialog](Dialog.md) | Planned | A modal built on the native dialog element. |
-| [EmptyState](EmptyState.md) | Proposed (HCIS) | What to show when a list is legitimately empty, with the next useful action. |
-| [ErrorState](ErrorState.md) | Proposed (HCIS) | A failed load: what failed, that nothing changed, technical detail and Try again. |
+| [EmptyState](EmptyState.md) | Implemented | What to show when a list is legitimately empty, with the next useful action. |
+| [ErrorState](ErrorState.md) | Implemented | A failed load: what failed, that nothing changed, technical detail and Try again. |
 | [JobProgress](JobProgress.md) | Planned · awaiting authorization | Progress of one background job, its steps, the observed result and audit reference. |
 | [LoadingState](LoadingState.md) | Proposed (HCIS) | Skeleton rows with aria-busy while data loads. |
 | [ProgressBar](ProgressBar.md) | Planned | A thin determinate or indeterminate progress bar. |

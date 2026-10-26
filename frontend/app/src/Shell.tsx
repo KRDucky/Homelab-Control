@@ -99,6 +99,7 @@ function NavItem({
 export function Shell({
   pages,
   currentId,
+  title,
   username,
   accountPath,
   onAccount,
@@ -109,6 +110,8 @@ export function Shell({
 }: {
   pages: Capability[];
   currentId: string | undefined;
+  /** Name of the page being shown; becomes the document title so each page is distinguishable. */
+  title: string;
   username: string;
   accountPath: string;
   onAccount: boolean;
@@ -118,6 +121,9 @@ export function Shell({
   children: ReactNode;
 }) {
   const { prefs, update, reset } = usePreferences();
+  useEffect(() => {
+    document.title = title ? `${title} · Homelab Control` : 'Homelab Control';
+  }, [title]);
   const narrow = useMedia(NARROW);
   const wide = useMedia(WIDE);
   const [drawer, setDrawer] = useState(false);

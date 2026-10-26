@@ -287,3 +287,18 @@ describe('scrollable tables', () => {
     expect(region.getAttribute('tabindex')).toBe('0');
   });
 });
+
+describe('document title', () => {
+  it('names the page being shown', async () => {
+    viewport(1440);
+    mock();
+    render(<App />);
+    const nav = await screen.findByRole('navigation', { name: 'Main' });
+    await within(nav).findByRole('link', { name: /Overview/ });
+    expect(document.title).toBe('Overview · Homelab Control');
+    fireEvent.click(within(nav).getByRole('link', { name: /Hardware/ }));
+    expect(document.title).toBe('Hardware · Homelab Control');
+    fireEvent.click(screen.getByRole('link', { name: 'Sessions' }));
+    expect(document.title).toBe('Sessions · Homelab Control');
+  });
+});

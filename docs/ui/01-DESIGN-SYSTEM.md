@@ -33,7 +33,7 @@ suffices). Custom widgets follow the WAI-ARIA Authoring Practices patterns for k
 ```ts
 // Status is semantic; components never take raw colours.
 export type Tone = 'neutral' | 'accent' | 'ok' | 'warn' | 'crit' | 'info' | 'unknown';
-export type Density = 'compact' | 'comfortable' | 'spacious';
+export type Density = 'compact' | 'standard' | 'spacious';
 
 export interface ButtonProps {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
