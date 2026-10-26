@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:homelab-control:schema:theme:v1:draft",
   "title": "Homelab Control theme (v1, DRAFT \u2014 planning artifact, not used by code)",
-  "description": "Declarative, appearance-only theme. Every value is typed and bounded; there is no free-form CSS, markup, URL or script anywhere in the format.",
+  "description": "HISTORICAL PLANNING DRAFT. Runtime themes use schemas/theme/v1.json; this draft is not a supported import. Declarative, appearance-only theme. Every value is typed and bounded; there is no free-form CSS, markup, URL or script anywhere in the format.",
   "type": "object",
   "additionalProperties": false,
   "required": [

@@ -8,7 +8,7 @@
  * Homelab Control design tokens. Colours come from the HCIS design system
  * (docs/ui/hcis): Midnight by default, Daybreak for a light OS preference, Graphite for
  * prefers-contrast: more, and data-hc-theme="midnight|daybreak|graphite|oled" to choose one.
- * Type, space, shape and motion are still the M1 values (HCIS migration steps 2+).
+ * Type and shape use HCIS values; layout and accessibility preferences stay independent.
  * Components must only consume tokens, never raw values.
  */
 /* BEGIN generated: HCIS colour roles (docs/ui/hcis/tokens/gen-css.py) */
@@ -435,6 +435,22 @@
   --hc-font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'SFMono-Regular', 'DejaVu Sans Mono', 'Liberation Mono', Menlo, Consolas, monospace;
   --hc-font-ui-system: system-ui, -apple-system, 'Segoe UI', 'Noto Sans', 'Liberation Sans', 'Helvetica Neue', Arial, sans-serif;
   --hc-font-mono-system: ui-monospace, 'SFMono-Regular', 'DejaVu Sans Mono', 'Liberation Mono', Menlo, Consolas, monospace;
+  --hc-font-size-xs: 0.75rem;
+  --hc-font-size-sm: 0.8125rem;
+  --hc-font-size-md: 0.875rem;
+  --hc-font-size-lg: 1.125rem;
+  --hc-font-size-xl: 1.5rem;
+  --hc-font-size-display: 2rem;
+  --hc-font-weight-regular: 400;
+  --hc-font-weight-medium: 500;
+  --hc-font-weight-strong: 600;
+  --hc-radius-sm: 4px;
+  --hc-radius-md: 6px;
+  --hc-radius-lg: 8px;
+  --hc-radius-xl: 12px;
+  --hc-radius-round: 9999px;
+  --hc-radius-plate: var(--hc-radius-xl);
+  --hc-line-height: 1.428571;
   /* M1 name, kept for existing styles. New code uses --hc-font-ui / --hc-font-mono. */
   --hc-font-family: var(--hc-font-ui);
 }
@@ -463,15 +479,6 @@
 /* END generated: HCIS layout */
 
 :root {
-  /* type sizes (M1 scale, unchanged) */
-  --hc-font-size-xs: 0.75rem;
-  --hc-font-size-sm: 0.875rem;
-  --hc-font-size-md: 1rem;
-  --hc-font-size-lg: 1.25rem;
-  --hc-font-size-xl: 1.75rem;
-  --hc-font-size-display: clamp(2.75rem, 7vw, 4.75rem);
-  --hc-line-height: 1.5;
-
   /* space, shape, motion */
   --hc-space-1: 0.25rem;
   --hc-space-2: 0.5rem;
@@ -479,9 +486,6 @@
   --hc-space-4: 1rem;
   --hc-space-6: 1.5rem;
   --hc-space-8: 2rem;
-  --hc-radius-sm: 3px;
-  --hc-radius-md: 8px;
-  --hc-radius-plate: 14px;
   --hc-focus-ring: 0 0 0 3px var(--hc-color-focus);
   --hc-motion-fast: 120ms;
 }

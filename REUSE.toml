@@ -18,6 +18,8 @@ SPDX-License-Identifier = "GPL-3.0-or-later"
 [[annotations]]
 path = [
   "sdk/**",
+  "frontend/app/src/theme.ts",
+  "frontend/app/src/theme-palettes.json",
   "schemas/**",
   "themes/**",
   "frontend/design-system/**",

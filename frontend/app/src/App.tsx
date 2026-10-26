@@ -11,6 +11,7 @@ import {
   type Capability,
   type SessionInfo,
 } from './api';
+import { ThemeStudio } from './pages/ThemeStudio';
 import { Login } from './Login';
 import { Audit } from './pages/Audit';
 import { Hardware } from './pages/Hardware';
@@ -96,14 +97,16 @@ export function App() {
   const pages = capList.filter((c, i) => capList.findIndex((x) => x.path === c.path) === i);
   const logsCap = capList.find((c) => c.id === 'service_logs');
   const route =
-    path === ACCOUNT_PATH
+    path === ACCOUNT_PATH || path === '/appearance/themes'
       ? undefined
       : (capList.find((c) => c.path === path) ?? capList.find((c) => c.path === '/'));
   const routeUsable = route && (route.status === 'available' || route.status === 'degraded');
 
   let page = <p className="muted">Loading…</p>;
   const onAccount = path === ACCOUNT_PATH;
-  if (onAccount) page = <Sessions csrf={session.csrf_token} onUnauthorized={signedOut} />;
+  const onThemes = path === '/appearance/themes';
+  if (onThemes) page = <ThemeStudio />;
+  else if (onAccount) page = <Sessions csrf={session.csrf_token} onUnauthorized={signedOut} />;
   else if (route && !routeUsable) page = <Unavailable cap={route} />;
   else if (route?.id === 'services') page = <Services onUnauthorized={signedOut} logs={logsCap} />;
   else if (route?.id === 'audit') page = <Audit onUnauthorized={signedOut} />;

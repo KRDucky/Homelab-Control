@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, getAudit, type AuditEvent } from '../api';
 import { explain } from '../useData';
-import { TableRegion } from '../ui';
+import { DataTable } from '../DataTable';
 
 const filters = [
   { id: '', label: 'All events' },
@@ -98,35 +98,25 @@ export function Audit({ onUnauthorized }: { onUnauthorized: () => void }) {
         <p className="result-count" aria-live="polite">
           {events.length} {events.length === 1 ? 'event' : 'events'} shown
         </p>
-        <TableRegion label="Audit events">
-          <table className="logs">
-            <thead>
-              <tr>
-                <th scope="col">Time</th>
-                <th scope="col">Event</th>
-                <th scope="col">Outcome</th>
-                <th scope="col">User</th>
-                <th scope="col">Address</th>
-                <th scope="col">Detail</th>
-              </tr>
-            </thead>
-            <tbody>
-              {events.map((e) => (
-                <tr key={e.id} className={tone(e.outcome)}>
-                  <td className="nowrap">{new Date(e.time).toLocaleString()}</td>
-                  <td className="nowrap">
-                    <code>{e.event}</code>
-                  </td>
-                  <td>{e.outcome}</td>
-                  <td>{e.user || '—'}</td>
-                  <td>{e.remote || '—'}</td>
-                  <td className="log-msg">{e.detail || ''}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TableRegion>
-        {!loading && events.length === 0 && !error && <p className="empty">No events match.</p>}
+        <DataTable
+          caption="Audit events"
+          rows={events}
+          rowKey={(e) => String(e.id)}
+          rowTone={(e) =>
+            tone(e.outcome) === 'row-crit' ? 'crit' : tone(e.outcome) === 'row-warn' ? 'warn' : undefined
+          }
+          emptyState={
+            loading ? 'Reading audit events…' : error ? 'Audit records unavailable.' : 'No events match.'
+          }
+          columns={[
+            { id: 'time', label: 'Time', render: (e) => new Date(e.time).toLocaleString() },
+            { id: 'event', label: 'Event', render: (e) => <code>{e.event}</code> },
+            { id: 'outcome', label: 'Outcome', render: (e) => e.outcome },
+            { id: 'user', label: 'User', render: (e) => e.user || '—' },
+            { id: 'remote', label: 'Address', render: (e) => <code>{e.remote || '—'}</code> },
+            { id: 'detail', label: 'Detail', render: (e) => e.detail || '' },
+          ]}
+        />
         {next !== undefined && (
           <button type="button" className="ghost" onClick={() => void load(next)} disabled={loading}>
             Show older events

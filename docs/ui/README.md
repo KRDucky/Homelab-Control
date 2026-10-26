@@ -41,3 +41,5 @@ Artifacts: `theme.schema.v1.draft.json` (draft JSON Schema, not wired into code)
 - `useData` polling hook; capability-aware navigation; axe-clean pages (`docs/evidence/m1/vm-26.04/`).
 - Spec `docs/project/06-THEME-AND-PLUGIN-SDK.md` (`.hltheme` archives, `hlctl theme …`), which this
   plan refines.
+
+Implemented frontend and backend handoff: [11 — UI foundation and TDK](11-IMPLEMENTED-UI-AND-TDK.md). User theme authoring: [TDK guide](../../sdk/theme/README.md).

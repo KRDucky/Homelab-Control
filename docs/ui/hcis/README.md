@@ -1,11 +1,7 @@
 # HCIS — Homelab Control Interface System
 
-> **Status: design direction; migration steps 1 (colours), 2 (font families) and 3 (shell and appearance)
-> implemented.** HCIS is the owner-approved visual and interaction direction for the Homelab Control UI
-> (owner directives 2026-10-21; density names, the OLED theme and the font licensing policy 2026-10-22;
-> steps 2 and 3 authorized 2026-10-23). `frontend/app` takes its colours, font families, shell, glass,
-> density and motion tokens from HCIS; shared components follow in step 4 (see "Migration" below). The
-> type scale, radii and page components are still the M1 implementation.
+> **Status:** Steps 1–3 merged in PR #19. The owner authorized the remaining frontend and TDK on 2026-10-25. Shared tables/states, navigation-only palette, browser-local theme import/export, Theme Studio and TDK are implemented in the current change. [Implementation handoff](../11-IMPLEMENTED-UI-AND-TDK.md) defines what exists and what module/backend work remains.
+
 
 Visual identity: **Adaptive Glass Linux Admin**. That means restrained frosted glass for the shell and
 overlays, opaque surfaces for data, Material-style interaction discipline, Nordic/Arc calm, and dense,
@@ -61,24 +57,15 @@ and `07-ACCESSIBILITY-AND-MOTION.md` (WCAG 2.2 AA, reduced motion, plus reduced 
 differ, these files record the owner's newer decision. The differences still to reconcile in those docs
 are listed below.
 
-## Open decisions and differences to reconcile
+## Reconciled design decisions (2026-10-25)
 
-- **Fonts (resolved 2026-10-23).** The owner's font licensing policy (2026-10-22, `BRAND-BOOK.md` ›
-  Typography) superseded LA-06's system-stack preference. Step 2 bundled Inter and JetBrains Mono
-  (OFL-1.1) and updated LA-06, EX-04, the notices and ADR 0006 (amendment 2). Records: `fonts/README.md`.
-- **Theme font enum.** `02-THEME-TOKENS-AND-SCHEMA.md` lists `system-sans`, `system-serif`, `system-mono`,
-  `humanist-sans` for `typography.family`; HCIS (theme requirement 13) uses `inter | system` for `ui` and
-  `jetbrains-mono | system` for `mono`. To reconcile when the theme engine is built.
-- **Density names.** HCIS uses `compact | standard | spacious` (owner, 2026-10-22).
-  `06-LAYOUT-AND-NAVIGATION.md` §6.5 still says `compact | comfortable | spacious`.
-- **Token taxonomy additions.** Glass, input, notice and unknown roles are new in the `.hltheme` schema
-  (`02` §2.2, `theme.schema.v1.draft.json`).
-- **Themes.** HCIS ships Midnight, Daybreak, Graphite (high contrast) and OLED (surfaces from
-  `examples/themes/oled.json`). The `examples/themes/` files still describe the earlier palettes.
-- **Icon licence.** The icons fall under the repository default (GPL-3.0-or-later) unless the owner
-  adds them to the MIT boundary with the tokens.
+- Fonts are separate preferences, using the already bundled/licensed Inter and JetBrains Mono or system stacks. Runtime themes carry no font or typography fields.
+- Density is `compact | standard | spacious`; shell thresholds stay 720px/1100px. Cards adapt below 560px container width.
+- Runtime theme schema: `schemas/theme/v1.json`, 57 semantic colours and a fixed built-in base. The earlier draft and example files under `docs/ui/examples/themes/` are historical planning artifacts; current starter themes are under `sdk/theme/examples/`.
+- TDK and its shared parser/validator are MIT, within the approved SDK boundary. No font/icon dependency is added. The original icon set retains the repository GPL license.
+- Server persistence, resource search, jobs/notification data, workspaces and privileged actions remain with their backend milestones. See the implementation handoff rather than treating previews as production modules.
 
-## Migration (each step a separate, approved PR)
+## Migration history
 
 1. **Tokens as aliases.** *Done (branch `feature/hcis-step1-token-aliases`).* `frontend/design-system/tokens.css`
    carries the HCIS colour roles for all four themes, generated from `tokens/tokens.json` by
@@ -111,6 +98,8 @@ are listed below.
    when it scrolls (fixes axe `scrollable-region-focusable`). Not in step 3: command palette, host
    selector, health chip, workspaces, jobs/notifications, stacked table cards, `.hltheme` import and
    Theme Studio.
-4. **Shared components** (incl. DataTable with stacked cards on phones), one family at a time (DataTable, StatusPill/StatusIndicator, Section live
+4. **Shared components** — implemented in the current change (see handoff), including DataTable, status and live states. Historical step scope: (incl. DataTable with stacked cards on phones), one family at a time (DataTable, StatusPill/StatusIndicator, Section live
    states, …), each with Vitest and axe coverage as for M1.
 5. **Module views** follow their milestones. Write-capable views wait for M2+ authorization.
+
+Theme import/export, browser-local Studio and TDK: see `../11-IMPLEMENTED-UI-AND-TDK.md`.

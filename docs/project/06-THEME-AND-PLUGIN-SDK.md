@@ -1,3 +1,5 @@
+> **Theme implementation update (2026-10-25):** the supported TDK is `sdk/theme/`, the runtime schema is `schemas/theme/v1.json`, and `.hltheme` is one JSON document. The archive/manifest example below is historical planning, superseded by ADR 0010 and `docs/ui/11-IMPLEMENTED-UI-AND-TDK.md`. Plugin plans below remain separate.
+
 # Theme and Plugin SDK Specification
 
 ## Themes
