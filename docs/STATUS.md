@@ -1,8 +1,9 @@
 # Current status — Phase 1 release complete; M2 PR-1 and HCIS steps 1–3 merged (updated 2026-10-25)
 
-Reconciled against `main` at `16650cb6` (merge of PR #19). "Merged" means a merge commit in `main`'s
-first-parent history; dates are UTC, from the merge-commit timestamps. CI results are quoted only where
-`docs/project/09-PROJECT-MEMORY.md` already records them.
+Reconciled against `main` at `1553908b` (merge of PR #21). "Merged" means a merge commit in `main`'s
+first-parent history; dates are UTC, from the merge-commit timestamps. "CI n/n" is the number of
+GitHub Actions check runs that succeeded out of those run on the PR's head commit, read from GitHub on
+2026-10-25 (it is not a statement about later commits).
 
 ## Merged work
 - PR #5 (licence compliance, Webmin independence, UI plan): merged 2026-10-19 as `bc7205e3`; 20/20 checks
@@ -15,19 +16,25 @@ first-parent history; dates are UTC, from the merge-commit timestamps. CI result
 - PR #9 (Go 1.26.10 for GO-2026-6809): merged 2026-10-21 as `ec34b21e`; main CI run 39560364523 20/20.
 - PR #10 (release closeout; v0.1.0-dev.1 published and verified; LA-13 closed for Phase 1): merged
   2026-10-21 as `31f39778`; main CI run 39570975685 20/20.
-- PR #12 (M2 PR-1b: read-only service logs, hash-chained audit): merged 2026-10-21 as `04358bbf`.
+- PR #12 (M2 PR-1b: read-only service logs, hash-chained audit): merged 2026-10-21 as `04358bbf`; CI 20/20
+  on head `2a5e699a`.
 - PR #13 (M2 PR-1a: SQLite state, persistent sessions, audit trail, Audit and Sessions pages): merged
-  2026-10-22 as `c012f299`.
+  2026-10-22 as `c012f299`; CI 21/21 on head `2dd78997`.
 - PR #14 (HCIS design system; documents, a `REUSE.toml` licence annotation and a `CLAUDE.md` pointer, no
-  application code): merged 2026-10-22 as `880309a4`.
-- PR #15 (HCIS step 1, colour tokens): merged 2026-10-22 as `505f3709`.
+  application code): merged 2026-10-22 as `880309a4`; CI 21/21 on head `911cf736`.
+- PR #15 (HCIS step 1, colour tokens): merged 2026-10-22 as `505f3709`; CI 21/21 on head `030f02bc`.
 - PR #16 (HCIS font licensing policy; documentation only): merged 2026-10-23 as `870a69c5`; CI 21/21 on
   head `bec10e68`.
 - PR #17 (HCIS step 2, bundled Inter and JetBrains Mono): merged 2026-10-23 as `e5ec4165`; CI 21/21 on
   head `738217a5`.
 - PR #18 (README presents Homelab Control as an independent product; documentation only): merged
-  2026-10-23 as `4bbef83a`.
-- PR #19 (HCIS step 3, responsive shell and appearance preferences): merged 2026-10-23 as `16650cb6`.
+  2026-10-23 as `4bbef83a`; CI 21/21 on head `23e23073`.
+- PR #19 (HCIS step 3, responsive shell and appearance preferences): merged 2026-10-23 as `16650cb6`; CI
+  21/21 on head `8b71139a`.
+- PR #20 (`NOTICE.md` lists `modernc.org/sqlite`; documentation only): merged 2026-10-26 as `f1b919bc`; CI
+  21/21 on head `d76ad33d`.
+- PR #21 (this file reconciled with M2 PR-1 and HCIS steps 1-3; documentation only): merged 2026-10-26 as
+  `1553908b`; CI 21/21 on head `fc0e39f8`.
 
 ## M2 PR-1 (authorized 2026-10-21; D-1, D-6, D-7 approved): merged, read-only
 - PR #11 (planning) merged 2026-10-21 as `6e0f6218`. Its last commit (the D-1/D-6/D-7 record and the D-12
@@ -95,8 +102,8 @@ first-parent history; dates are UTC, from the merge-commit timestamps. CI result
   - release dry run through the same reusable workflow as the release (`release-build.yml`, exact
     toolchain pins): two runners plus Arch, reproducibility comparison, fail-closed candidate verification,
     negative tests, release notes.
-- **Job count:** 20 green at PR-1b and 21 green on the PR #16 and #17 heads, as recorded in project memory;
-  not re-derived here.
+- **Job count:** 21 check runs on every PR head from #13 to #21, all green. PR #12 had 20; the difference is
+  the `upgrade-ubuntu` job added by #13 (compared by check-run name).
 - **Actions:** official `actions/*` releases on the node24 runtime, pinned by commit SHA, read-only token,
   no persisted git credentials, no dependency caches.
 
