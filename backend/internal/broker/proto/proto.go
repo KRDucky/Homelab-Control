@@ -31,10 +31,21 @@ const (
 )
 
 // Actor identifies the end user on whose behalf hc-api calls the broker.
+//
+// The broker cannot authenticate the end user itself: it authenticates hc-api
+// by peer uid and trusts the actor hc-api asserts (ADR 0008, ADR 0011 "limits").
+// Session and StepUpAt let plan tokens be bound to one browser session and let
+// the broker require a recent step-up for disruptive operations.
 type Actor struct {
 	User      string   `json:"user"`
 	Scopes    []string `json:"scopes"`
 	RequestID string   `json:"request_id,omitempty"`
+	// Session is the session key (SHA-256 hex of the session ID, which is not
+	// itself secret); never the session cookie value.
+	Session string `json:"session,omitempty"`
+	// StepUpAt is the Unix time of the session's last successful password
+	// re-entry (D-3); 0 when there is none.
+	StepUpAt int64 `json:"step_up_at,omitempty"`
 }
 
 // Request is a single broker call.
@@ -63,6 +74,11 @@ const (
 	CodeTimeout     = "timeout"
 	CodeBusy        = "busy"
 	CodeInternal    = "internal"
+	// Write-operation codes (ADR 0011).
+	CodeConflict       = "conflict"         // target changed since the plan
+	CodeInvalidToken   = "invalid_token"    // plan token unknown, expired, used or not bound to this request
+	CodeStepUpRequired = "step_up_required" // disruptive op without a recent password re-entry
+	CodePolicyDenied   = "policy_denied"    // protected unit or unsafe dependency (D-5)
 )
 
 // Response is the broker's reply.

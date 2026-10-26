@@ -38,7 +38,7 @@ func (s *Server) WithHardware(h *hwinfo.Collector) *Server { s.hw = h; return s 
 func actorFor(sess *auth.Session) proto.Actor {
 	b := make([]byte, 8)
 	_, _ = rand.Read(b)
-	return proto.Actor{User: sess.Username, Scopes: sess.Scopes, RequestID: hex.EncodeToString(b)}
+	return proto.Actor{User: sess.Username, Scopes: sess.Scopes, RequestID: hex.EncodeToString(b), Session: sess.Key}
 }
 
 // brokerState caches broker.info for a few seconds.
@@ -55,6 +55,8 @@ type brokerInfo struct {
 	Exec    []string       `json:"exec_available"`
 	// SystemdBooted is false when systemd is not PID 1 (sd_booted()).
 	SystemdBooted bool `json:"systemd_booted"`
+	// WritesAvailable is false when the broker's operation journal is down.
+	WritesAvailable bool `json:"writes_available"`
 }
 
 func (s *Server) brokerInfo(ctx context.Context, sess *auth.Session) (*brokerInfo, error) {

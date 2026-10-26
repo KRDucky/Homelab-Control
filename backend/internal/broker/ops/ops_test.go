@@ -28,33 +28,58 @@ func write(t *testing.T, root, rel, content string, mode os.FileMode) {
 	}
 }
 
-func TestRegistryIsClosedAndReadOnly(t *testing.T) {
+// TestRegistryIsClosed is the W1 registry snapshot: the exact set of ops,
+// their privilege class, scope and — for write ops — phase, risk classes,
+// lock domain and root templates. Changing it requires security review.
+func TestRegistryIsClosed(t *testing.T) {
 	reg := Registry()
-	want := map[string]Privilege{
-		"broker.info":           PrivNone,
-		"legacy.webmin.status":  PrivRootRead,
-		"hardware.dmi.identity": PrivRootRead,
-		"services.systemd.list": PrivUnprivilegedExec,
-		"services.unit.logs":    PrivUnprivilegedExec,
+	type want struct {
+		priv  Privilege
+		scope string
+		write string // "" | "plan" | "apply"
 	}
-	if len(reg) != len(want) {
-		t.Fatalf("registry has %d ops, want %d — new ops need review and this test updated", len(reg), len(want))
+	snapshot := map[string]want{
+		"broker.info":           {PrivNone, "", ""},
+		"legacy.webmin.status":  {PrivRootRead, "system.read", ""},
+		"hardware.dmi.identity": {PrivRootRead, "hardware.read", ""},
+		"services.systemd.list": {PrivUnprivilegedExec, "services.read", ""},
+		"services.unit.logs":    {PrivUnprivilegedExec, "services.logs", ""},
 	}
-	for name, priv := range want {
+	if len(reg) != len(snapshot) {
+		t.Fatalf("registry has %d ops, want %d — new ops need review and this test updated", len(reg), len(snapshot))
+	}
+	for name, w := range snapshot {
 		op, ok := reg[name]
-		if !ok || op.Privilege != priv {
-			t.Errorf("%s: got %+v", name, op.Privilege)
+		if !ok || op.Privilege != w.priv || op.Scope != w.scope {
+			t.Errorf("%s: got %+v / %q", name, op.Privilege, op.Scope)
+			continue
 		}
 		if op.Timeout <= 0 || op.Description == "" {
 			t.Errorf("%s: missing timeout/description", name)
 		}
-		if name != "broker.info" && op.Scope == "" {
-			t.Errorf("%s must require a scope", name)
+		phase := ""
+		if op.Write != nil {
+			phase = op.Write.Phase
+			if op.Write.LockDomain != "service:<unit id>" || len(op.Write.Risks) == 0 || op.AuditArgs == nil {
+				t.Errorf("%s: incomplete write spec %+v", name, op.Write)
+			}
 		}
-		for _, banned := range []string{"exec", "shell", "command", "file", "rpc", "eval", "write"} {
-			if strings.Contains(strings.Split(name, ".")[len(strings.Split(name, "."))-1], banned) {
+		if phase != w.write {
+			t.Errorf("%s: write phase %q, want %q", name, phase, w.write)
+		}
+		for _, banned := range []string{"exec", "shell", "command", "file", "rpc", "eval", "write", "run"} {
+			parts := strings.Split(name, ".")
+			if strings.Contains(parts[len(parts)-1], banned) {
 				t.Errorf("op name %s suggests a generic capability", name)
 			}
+		}
+	}
+	// Only root-exec write ops may hold root templates (none are registered yet: M2-2b).
+	for name, op := range reg {
+		root := op.Privilege == PrivRootExec
+		hasTpl := op.Write != nil && len(op.Write.Templates) > 0
+		if root != hasTpl {
+			t.Errorf("%s: root-exec privilege and templates disagree", name)
 		}
 	}
 }

@@ -82,6 +82,7 @@ func (s *Server) handleRevokeSession(w http.ResponseWriter, r *http.Request, ses
 		writeError(w, http.StatusNotFound, "not_found", "no such session")
 		return
 	}
+	s.stepups.Clear(key)
 	s.auditLog("auth.session.revoke", sess.Username, r, "success", key[:12])
 	if key == sess.Key {
 		http.SetCookie(w, &http.Cookie{Name: s.cookieName(), Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: s.cfg.SecureCookies, SameSite: http.SameSiteStrictMode})

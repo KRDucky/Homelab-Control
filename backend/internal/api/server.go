@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -66,6 +67,7 @@ type Server struct {
 
 	persistentSessions bool
 	auditPager         AuditPager
+	stepups            *auth.StepUps
 }
 
 type overviewCache struct {
@@ -79,6 +81,7 @@ func New(cfg Config, users *auth.Store, audit *audit.Logger, collector *hostinfo
 	s := &Server{
 		cfg: cfg, users: users, sessions: auth.NewSessionManager(), throttle: auth.NewThrottle(),
 		audit: audit, collector: collector, ui: ui, loginSem: make(chan struct{}, 4), mux: http.NewServeMux(),
+		stepups: auth.NewStepUps(),
 	}
 	s.routes()
 	return s
@@ -109,6 +112,7 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/capabilities", sessionOnly, s.handleCapabilities)
 	s.handle("GET /api/v1/services", auth.ScopeServicesRead, s.handleServices)
 	s.handle("GET /api/v1/services/units/{unit}/logs", auth.ScopeServicesLogs, s.handleUnitLogs)
+	s.handle("POST /api/v1/auth/step-up", sessionOnly, s.handleStepUp)
 	s.handle("GET /api/v1/hardware", auth.ScopeHardwareRead, s.handleHardware)
 	s.handle("GET /api/v1/legacy/webmin", auth.ScopeSystemRead, s.handleLegacy)
 	s.mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
@@ -147,11 +151,17 @@ func (s *Server) handle(pattern, scope string, h ctxHandler) {
 			return
 		}
 		// Re-check the account on every request so disabling a user takes effect.
-		if u, ok := s.users.Lookup(sess.Username); !ok || u.Disabled {
+		u, ok := s.users.Lookup(sess.Username)
+		if !ok || u.Disabled {
 			s.sessions.Destroy(c.Value)
+			s.stepups.ClearUser(sess.Username)
 			writeError(w, http.StatusUnauthorized, "unauthenticated", "account unavailable")
 			return
 		}
+		// Effective scopes: those granted at login AND still granted to the
+		// account now. Removing a scope (e.g. services.operate) therefore takes
+		// effect on persisted sessions too; adding one needs a new login.
+		sess.Scopes = slices.DeleteFunc(sess.Scopes, func(sc string) bool { return !slices.Contains(u.Scopes, sc) })
 		if unsafe && !auth.CheckCSRF(sess, r.Header.Get("X-CSRF-Token")) {
 			s.auditLog("csrf.token_rejected", sess.Username, r, "denied", "")
 			writeError(w, http.StatusForbidden, "csrf_rejected", "missing or invalid CSRF token")
@@ -259,10 +269,17 @@ type sessionResponse struct {
 	CSRFToken string   `json:"csrf_token"`
 	Version   string   `json:"version"`
 	LegacyURL string   `json:"legacy_url,omitempty"`
+	// StepUpUntil is when the session's password re-entry (D-3) lapses.
+	StepUpUntil *time.Time `json:"step_up_until,omitempty"`
 }
 
 func (s *Server) sessionBody(sess *auth.Session) sessionResponse {
-	return sessionResponse{Username: sess.Username, Scopes: sess.Scopes, CSRFToken: sess.CSRFToken, Version: Version, LegacyURL: s.cfg.LegacyURL}
+	r := sessionResponse{Username: sess.Username, Scopes: sess.Scopes, CSRFToken: sess.CSRFToken, Version: Version, LegacyURL: s.cfg.LegacyURL}
+	if at, ok := s.stepups.At(sess.Key, sess.Username); ok {
+		u := at.Add(auth.StepUpWindow).UTC()
+		r.StepUpUntil = &u
+	}
+	return r
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request, _ *auth.Session, _ string) {
@@ -318,6 +335,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request, _ *auth.Ses
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request, sess *auth.Session, sid string) {
 	s.sessions.Destroy(sid)
+	s.stepups.Clear(sess.Key)
 	http.SetCookie(w, &http.Cookie{Name: s.cookieName(), Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: s.cfg.SecureCookies, SameSite: http.SameSiteStrictMode})
 	s.auditLog("auth.logout", sess.Username, r, "success", "")
 	w.WriteHeader(http.StatusNoContent)

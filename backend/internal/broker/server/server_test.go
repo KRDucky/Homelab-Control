@@ -20,6 +20,8 @@ import (
 	"homelab-control/backend/internal/audit"
 	"homelab-control/backend/internal/broker/ops"
 	"homelab-control/backend/internal/broker/proto"
+	"homelab-control/backend/internal/broker/runner"
+	"homelab-control/backend/internal/broker/types"
 	"homelab-control/backend/internal/brokerclient"
 )
 
@@ -260,5 +262,48 @@ func TestOpArgsSummarisedInAudit(t *testing.T) {
 	err = cl.CallWithArgs(context.Background(), "services.unit.logs", map[string]any{"unit": "ssh.service", "lines": 5}, proto.Actor{User: "tester", Scopes: []string{"services.read"}}, nil)
 	if code(err) != proto.CodeForbidden {
 		t.Fatalf("want forbidden, got %v", err)
+	}
+}
+
+// TestRootExecHandleOnlyForRootExecOps proves W9 at runtime: the root-exec
+// handle reaches an op only when the op is registered as root-exec, even if
+// someone puts a handle into the shared Env.
+func TestRootExecHandleOnlyForRootExecOps(t *testing.T) {
+	f := start(t)
+	f.srv.RootExec = new(runner.Runner).RootExec()
+	f.srv.Env.RootExec = new(runner.Runner).RootExec() // must be ignored
+	seen := map[string]bool{}
+	var actor proto.Actor
+	probe := func(name string) func(context.Context, *ops.Env, json.RawMessage) (any, error) {
+		return func(_ context.Context, env *ops.Env, _ json.RawMessage) (any, error) {
+			seen[name] = env.RootExec != nil
+			actor = env.Actor
+			return map[string]bool{"ok": true}, nil
+		}
+	}
+	f.srv.registry = map[string]ops.Op{
+		"t.none":      {Name: "t.none", Privilege: types.PrivNone, Timeout: time.Second, Handle: probe("t.none")},
+		"t.rootread":  {Name: "t.rootread", Privilege: types.PrivRootRead, Timeout: time.Second, Handle: probe("t.rootread")},
+		"t.unpriv":    {Name: "t.unpriv", Privilege: types.PrivUnprivilegedExec, Timeout: time.Second, Handle: probe("t.unpriv")},
+		"t.rootexec":  {Name: "t.rootexec", Privilege: types.PrivRootExec, Timeout: time.Second, Handle: probe("t.rootexec")},
+		"t.rootexec2": {Name: "t.rootexec2", Scope: "services.operate", Privilege: types.PrivRootExec, Timeout: time.Second, Handle: probe("t.rootexec2")},
+	}
+	for _, op := range []string{"t.none", "t.rootread", "t.unpriv", "t.rootexec"} {
+		if _, err := call(t, f, op); err != nil {
+			t.Fatalf("%s: %v", op, err)
+		}
+	}
+	if seen["t.none"] || seen["t.rootread"] || seen["t.unpriv"] || !seen["t.rootexec"] {
+		t.Fatalf("root handle exposure: %v", seen)
+	}
+	if actor.User != "tester" {
+		t.Fatalf("actor not passed per call: %+v", actor)
+	}
+	// The broker re-checks the write scope itself.
+	if _, err := call(t, f, "t.rootexec2", "services.read", "services.logs"); code(err) != proto.CodeForbidden {
+		t.Fatalf("root-exec op without services.operate: %v", err)
+	}
+	if seen["t.rootexec2"] {
+		t.Fatal("handler ran without scope")
 	}
 }

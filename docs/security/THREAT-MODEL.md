@@ -100,6 +100,36 @@ Webmin usernames with RPC capability (scope `system.read`), the full systemd uni
 Not changed: login throttling stays in memory (a restart clears it); admin-side management of other
 users' sessions is not implemented (out of PR-1 scope).
 
+## M2-2 additions: service start/stop/restart (ADR 0011, ADR 0008 Amendment 2)
+
+New capability: the first privileged writes. New root child processes (`systemctl` start/stop/restart
+only). New assets: the plan-token key (broker memory), the operation journal
+(`/var/log/homelab-control-broker/operations.jsonl`, root 0600), step-up state (hc-api memory).
+
+| Threat | Example | Control | Status |
+|---|---|---|---|
+| Elevation of privilege | Web-tier compromise runs an arbitrary command as root | No generic exec op; three fixed root argv templates in the runner; template ID + validated `.service` target after `--` are the only inputs; root handle reaches `services.unit.apply` only; guard test confines it to reviewed files | Implemented, tested (unit, guard, real systemd) |
+| Elevation of privilege | Option or argument injection through the unit or action (`-x`, `--now`, `;`, `$()`, newline, NUL, templates, escapes) | Grammar in hc-api, broker and runner (three independent checks); action enum; strict JSON decode; fuzz test of the write-argument decoder | Implemented, tested |
+| Spoofing / replay | A confirmed operation replayed, or a token reused for another unit, action, user or session | Broker-minted HMAC-SHA256 tokens (per-boot key in broker memory), 120 s, single use, bound to op, action, canonical target, actor, session, state digest and risk; restart invalidates all | Implemented, tested (unit + real systemd) |
+| Tampering (TOCTOU) | Unit replaced, aliased, edited or its dependents changed between review and execution | Revalidation under the target lock: unit digest (identity, aliases, unit file, state, invocation, PID, safety properties, dependencies) and digest of the affected-unit set must match the token, else `conflict` | Implemented, tested (unit + real systemd out-of-band restart) |
+| Denial of service / lock-out | Stopping SSH, the network, D-Bus, Homelab Control itself, storage, or rebooting through a dependency | Built-in protected-unit policy in the broker; names, aliases, unit file, template base; transitive dependency walk (≤96 related units) for stop propagation, pulled-in starts, conflicts, `*Action=` and shutdown triggers; RefuseManual*; refused when it cannot be verified | Implemented, tested (unit tables, real systemd incl. alias to the SSH unit and a two-hop chain) |
+| Spoofing | Stolen session or unattended browser stops services | Step-up: password re-entry, 5 min, per session and user, throttled with logins, cleared on logout/revocation/disable; confirmation dialog never replaces it | Implemented, tested |
+| Tampering (policy inputs) | A compromised hc-api signals, or reads/writes the output pipe of, an unprivileged `systemctl show` child (same uid) to hide a protected dependent | Apply revalidates and verifies the outcome with the read-only **root** `systemctl.show` template; plan-time reads may be tampered with but are re-checked at apply; repeated properties refused | Implemented, tested (path selection, template snapshot); found in the M2-2 security review |
+| Repudiation | Who did what, and did it happen | API audit before execution (fail closed) and after; broker journal intent (fsync) before execution and observed outcome after; interrupted operations recorded at restart with the observed state; hash chains verified by `hlctl audit verify` | Implemented, tested (incl. broker killed mid-operation under real systemd) |
+| Information disclosure | Tokens or passwords in logs | Passwords never leave hc-api; journal stores the token ID only; real-systemd test greps journal and broker audit for `hcp1.` and the password | Implemented, tested |
+| Tampering (integrity of results) | UI reports success that did not happen | The broker reads the state back and classifies the **observed** result (`succeeded`/`failed`/`uncertain`); a unit that fails after systemd accepted the job is `failed`; no rollback claims; recovery guidance on failure | Implemented, tested (failing disposable unit) |
+| Denial of service | Concurrent or slow operations; hung `systemctl` | One lock per unit (`busy`), `--job-mode=fail`, 30 s child timeout killing the group, bounded settle wait, 55 s op timeout, broker concurrency limit | Implemented, tested |
+
+**Limitation (ADR 0011):** a compromised `hc-api` can still plan and apply anything the broker's policy
+allows, for any user name, and can claim a step-up; tokens bind requests but do not authenticate the end
+user to the broker. The protected-unit policy and the narrow op set carry that risk.
+
+**Not covered in M2-2 (see ADR 0011, Known limitations):** operating on units outside `.service`;
+enable/disable, mask, unit-file changes and daemon-reload (not implemented); services that are harmful
+to stop but not on the built-in list (the operator decides with `services.operate`, never granted by
+default); mutual exclusion between operations on *related* units; a protected dependent activated in
+the moment between revalidation and execution.
+
 ## Residual risks after M1
 1. The legacy Webmin UI at 2.670 still lacks post-2.670 upstream fixes (`docs/upstream/SYNC.md`).
 2. `systemctl` JSON output is not a stable API; parsers are tolerant and tested against systemd 249/255 only.

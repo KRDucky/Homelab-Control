@@ -6,7 +6,9 @@
 //
 // It runs as root under systemd socket activation, accepts requests only from
 // the homelab-control service user (and root), and executes a closed list of
-// read-only, typed operations. It has no generic command, file or RPC operation.
+// typed operations: read-only ones, and (M2-2) systemd service start/stop/
+// restart through the plan → confirm → execute framework (ADR 0011). It has
+// no generic command, file or RPC operation.
 package main
 
 import (
@@ -25,6 +27,7 @@ import (
 	"homelab-control/backend/internal/broker/proto"
 	"homelab-control/backend/internal/broker/runner"
 	"homelab-control/backend/internal/broker/server"
+	"homelab-control/backend/internal/broker/writes"
 	"homelab-control/backend/internal/version"
 )
 
@@ -32,6 +35,7 @@ func main() {
 	socket := flag.String("socket", proto.DefaultSocket, "socket path when not socket-activated")
 	serviceUser := flag.String("service-user", "homelab-control", "account allowed to call the broker and used for child processes")
 	auditFile := flag.String("audit-log", "/var/log/homelab-control-broker/broker-audit.jsonl", "broker audit log")
+	opsFile := flag.String("operations-journal", "/var/log/homelab-control-broker/operations.jsonl", "broker operation journal (write operations)")
 	devNonRoot := flag.Bool("dev-non-root", false, "development only: run without root (root-only ops report unreadable data)")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
@@ -82,7 +86,32 @@ func main() {
 			env.JournalGID = uint32(n)
 		}
 	}
+	// Operation journal (ADR 0011). If it cannot be opened, write operations
+	// are disabled (fail closed); read-only operations keep working.
+	if jl, err := audit.Open(*opsFile); err != nil {
+		log.Printf("operation journal %s unavailable, write operations disabled: %v", *opsFile, err)
+	} else {
+		jl.Checkpoint = func(seq uint64, hash string) {
+			log.Printf("audit checkpoint log=%s seq=%d hash=%s", *opsFile, seq, hash)
+		}
+		jl.EmitCheckpoint()
+		defer jl.Close()
+		fw, err := writes.New(jl, *opsFile)
+		if err != nil {
+			log.Fatalf("write framework: %v", err)
+		}
+		env.Writes = fw
+		// Intents without an outcome mean the broker stopped mid-operation:
+		// record them as interrupted with the unit's current state. Never retried.
+		if n, err := fw.Recover(nil); err != nil {
+			log.Printf("operation journal recovery failed, write operations disabled: %v", err)
+			env.Writes = nil
+		} else if n > 0 {
+			log.Printf("recorded %d interrupted operation(s) from before the last broker stop", n)
+		}
+	}
 	srv := server.New(env, al, allowed...)
+	srv.RootExec = rn.RootExec()
 	l, activated, err := server.Listener(*socket)
 	if err != nil {
 		log.Fatalf("listen: %v", err)
