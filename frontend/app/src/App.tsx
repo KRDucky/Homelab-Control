@@ -53,6 +53,10 @@ export function App() {
       .catch(() => setPhase('anonymous'));
   }, []);
 
+  useEffect(() => {
+    if (phase === 'anonymous') document.title = 'Sign in · Homelab Control';
+  }, [phase]);
+
   const signedOut = useCallback(() => {
     setSession(null);
     setCaps(null);
