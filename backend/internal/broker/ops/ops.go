@@ -58,6 +58,8 @@ type Env struct {
 	// Writes is the plan/apply framework (tokens, locks, journal); nil when
 	// the operation journal could not be opened (write ops then refuse).
 	Writes *writes.Framework
+	// Units overrides the systemd controller (tests); nil = systemctl.
+	Units UnitController
 	// RootExec is the root-exec handle. The server sets it in the per-call copy of
 	// Env ONLY for ops whose Privilege is PrivRootExec; it is nil otherwise.
 	RootExec *runner.Root
@@ -103,6 +105,19 @@ func Registry() map[string]Op {
 		{Name: "services.unit.logs", Scope: "services.logs", Privilege: PrivUnprivilegedExec, Timeout: 15 * time.Second,
 			Description: "Recent journal entries of one listed unit (args: unit, lines 1-500)", Handle: unitLogs,
 			AuditArgs: logsAuditArgs},
+		// M2-2 (ADR 0011; D-2…D-5). Plan is read-only (unprivileged systemctl
+		// show) and mints the token; apply is the only root-exec op.
+		{Name: "services.unit.plan", Scope: "services.operate", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second,
+			Description: "Review start/stop/restart of one .service unit: policy check, observed state, risk class and a single-use plan token (args: unit, action)",
+			Handle:      unitPlan, AuditArgs: writeAuditArgs,
+			Write: &WriteSpec{Phase: "plan", Risks: []string{RiskReversible, RiskDisruptive}, LockDomain: "service:<unit id>"}},
+		{Name: "services.unit.apply", Scope: "services.operate", Privilege: PrivRootExec, Timeout: 55 * time.Second,
+			Description: "Execute a reviewed start/stop/restart with its plan token; journaled, verified by reading the state back (args: unit, action, token)",
+			Handle:      unitApply, AuditArgs: writeAuditArgs,
+			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskReversible, RiskDisruptive}, LockDomain: "service:<unit id>",
+				Templates: []runner.RootTemplate{runner.RootSystemctlStart, runner.RootSystemctlStop, runner.RootSystemctlRestart, runner.RootSystemctlShow}}},
+		{Name: "operations.journal.list", Scope: "audit.read", Privilege: PrivRootRead, Timeout: 5 * time.Second,
+			Description: "The 100 most recent privileged operations from the broker journal, including interrupted ones", Handle: journalList},
 	}
 	m := make(map[string]Op, len(ops))
 	for _, o := range ops {

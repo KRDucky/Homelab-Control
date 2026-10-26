@@ -103,7 +103,11 @@ func main() {
 		env.Writes = fw
 		// Intents without an outcome mean the broker stopped mid-operation:
 		// record them as interrupted with the unit's current state. Never retried.
-		if n, err := fw.Recover(nil); err != nil {
+		// The state of interrupted units is read with the read-only root
+		// template, like apply's own reads (never by a child that shares hc-api's uid).
+		ienv := *env
+		ienv.RootExec = rn.RootExec()
+		if n, err := fw.Recover(ops.InspectUnit(&ienv)); err != nil {
 			log.Printf("operation journal recovery failed, write operations disabled: %v", err)
 			env.Writes = nil
 		} else if n > 0 {

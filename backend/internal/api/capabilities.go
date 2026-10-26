@@ -21,6 +21,7 @@ import (
 	"homelab-control/backend/internal/brokerclient"
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
+	"homelab-control/backend/internal/servicepolicy"
 )
 
 // Broker abstracts the broker client (tests use a fake).
@@ -197,6 +198,20 @@ func brokerError(w http.ResponseWriter, err error) {
 	}
 }
 
+// servicesResponse is the unit list plus, for the UI, which .service units
+// the built-in policy protects and whether start/stop/restart is available.
+// The protection labels only drive the UI; the broker enforces the policy.
+type servicesResponse struct {
+	types.UnitList
+	Protected map[string]servicepolicy.Protection `json:"protected"`
+	Operate   operateStatus                       `json:"operate"`
+}
+
+type operateStatus struct {
+	Available bool   `json:"available"`
+	Reason    string `json:"reason,omitempty"`
+}
+
 func (s *Server) handleServices(w http.ResponseWriter, r *http.Request, sess *auth.Session, _ string) {
 	var res types.UnitList
 	if s.broker == nil {
@@ -207,7 +222,27 @@ func (s *Server) handleServices(w http.ResponseWriter, r *http.Request, sess *au
 		brokerError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, res)
+	out := servicesResponse{UnitList: res, Protected: map[string]servicepolicy.Protection{}}
+	for _, u := range res.Units {
+		if u.Type == "service" {
+			if p := servicepolicy.NameProtection(u.Name); p.Protected {
+				out.Protected[u.Name] = p
+			}
+		}
+	}
+	switch bi, err := s.brokerInfo(r.Context(), sess); {
+	case !sess.HasScope(auth.ScopeServicesOperate):
+		out.Operate.Reason = "Your account does not have the services.operate permission."
+	case err != nil || bi == nil:
+		out.Operate.Reason = brokerDownReason
+	case !bi.hasOp("services.unit.apply"):
+		out.Operate.Reason = "The privileged helper does not support service operations."
+	case !bi.WritesAvailable:
+		out.Operate.Reason = "The privileged helper's operation journal is unavailable, so service operations are disabled."
+	default:
+		out.Operate.Available = true
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 // handleUnitLogs returns recent journal entries of one unit (read-only).

@@ -8,8 +8,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"homelab-control/backend/internal/broker/runner"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -39,11 +41,14 @@ func TestRegistryIsClosed(t *testing.T) {
 		write string // "" | "plan" | "apply"
 	}
 	snapshot := map[string]want{
-		"broker.info":           {PrivNone, "", ""},
-		"legacy.webmin.status":  {PrivRootRead, "system.read", ""},
-		"hardware.dmi.identity": {PrivRootRead, "hardware.read", ""},
-		"services.systemd.list": {PrivUnprivilegedExec, "services.read", ""},
-		"services.unit.logs":    {PrivUnprivilegedExec, "services.logs", ""},
+		"broker.info":             {PrivNone, "", ""},
+		"legacy.webmin.status":    {PrivRootRead, "system.read", ""},
+		"hardware.dmi.identity":   {PrivRootRead, "hardware.read", ""},
+		"services.systemd.list":   {PrivUnprivilegedExec, "services.read", ""},
+		"services.unit.logs":      {PrivUnprivilegedExec, "services.logs", ""},
+		"services.unit.plan":      {PrivUnprivilegedExec, "services.operate", "plan"},
+		"services.unit.apply":     {PrivRootExec, "services.operate", "apply"},
+		"operations.journal.list": {PrivRootRead, "audit.read", ""},
 	}
 	if len(reg) != len(snapshot) {
 		t.Fatalf("registry has %d ops, want %d — new ops need review and this test updated", len(reg), len(snapshot))
@@ -74,13 +79,17 @@ func TestRegistryIsClosed(t *testing.T) {
 			}
 		}
 	}
-	// Only root-exec write ops may hold root templates (none are registered yet: M2-2b).
+	// Only services.unit.apply may hold root templates, and exactly these.
 	for name, op := range reg {
 		root := op.Privilege == PrivRootExec
 		hasTpl := op.Write != nil && len(op.Write.Templates) > 0
 		if root != hasTpl {
 			t.Errorf("%s: root-exec privilege and templates disagree", name)
 		}
+	}
+	got := reg["services.unit.apply"].Write.Templates
+	if len(got) != 4 || got[0] != "systemctl.start" || got[1] != "systemctl.stop" || got[2] != "systemctl.restart" || got[3] != "systemctl.show" {
+		t.Errorf("apply templates: %v", got)
 	}
 }
 
@@ -289,5 +298,16 @@ func TestBrokerInfoReportsSystemdBoot(t *testing.T) {
 	res, _ = brokerInfo(context.Background(), &Env{Roots: Roots{Root: root}}, nil)
 	if !res.(infoResult).SystemdBooted {
 		t.Fatal("systemd boot not detected")
+	}
+}
+
+// The property list parsed here is exactly the one the runner queries.
+func TestShowPropertiesMatchRunner(t *testing.T) {
+	want := append(append(append([]string{}, scalarProps...), depProps...), actionProps...)
+	got := runner.SystemctlShowProperties()
+	slices.Sort(want)
+	slices.Sort(got)
+	if !slices.Equal(want, got) {
+		t.Fatalf("parser %v\nrunner %v", want, got)
 	}
 }

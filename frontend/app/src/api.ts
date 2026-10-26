@@ -10,6 +10,8 @@ export interface SessionInfo {
   csrf_token: string;
   version: string;
   legacy_url?: string;
+  /** When this session's password re-entry (D-3) lapses. */
+  step_up_until?: string;
 }
 
 export interface Meta {
@@ -146,12 +148,23 @@ export interface Unit {
   preset?: string;
 }
 
+export interface Protection {
+  protected: boolean;
+  category?: string;
+  reason?: string;
+  matched?: string;
+}
+
 export interface UnitList {
   systemd_version?: string;
   units: Unit[];
   counts: Record<string, number>;
   truncated: boolean;
   source: string;
+  /** .service units the built-in policy protects (labels only; the broker enforces it). */
+  protected?: Record<string, Protection>;
+  /** Whether start/stop/restart can be offered to this account. */
+  operate?: { available: boolean; reason?: string };
 }
 
 export interface LogEntry {
@@ -360,4 +373,107 @@ export function getAudit(opts: { before?: number; limit?: number; event?: string
   if (opts.event) q.set('event', opts.event);
   const qs = q.toString();
   return request<AuditPage>(`/api/v1/audit${qs ? `?${qs}` : ''}`);
+}
+
+// ---- M2-2: service start/stop/restart (plan → confirm → execute) -------------
+
+export type ServiceAction = 'start' | 'stop' | 'restart';
+export type RiskClass = 'reversible' | 'disruptive' | 'destructive';
+
+export interface UnitObserved {
+  id: string;
+  names?: string[];
+  description?: string;
+  load_state: string;
+  active_state: string;
+  sub_state: string;
+  result?: string;
+  unit_file_state?: string;
+  main_pid?: number;
+  exec_main_status?: number;
+  invocation_id?: string;
+  type?: string;
+  state_since?: string;
+}
+
+export interface ServicePlan {
+  unit: string;
+  requested: string;
+  action: ServiceAction;
+  risk: RiskClass;
+  step_up_required: boolean;
+  token: string;
+  expires_at: string;
+  observed: UnitObserved;
+  effect: string;
+  consequences: string[];
+  also_affected?: string[];
+  /** Other, currently inactive units a start pulls in. */
+  also_started?: string[];
+}
+
+export interface ServiceOutcome {
+  operation_id: string;
+  unit: string;
+  action: ServiceAction;
+  outcome: 'succeeded' | 'failed' | 'uncertain';
+  message: string;
+  exit_code?: number;
+  observed?: UnitObserved;
+  recovery?: string[];
+  started_at: string;
+  finished_at: string;
+}
+
+/** Same grammar as the server (servicepolicy.ValidUnit): only these units get controls. */
+const operableUnitRE = /^[A-Za-z0-9][A-Za-z0-9:_.@-]{0,99}\.service$/;
+export function isOperableName(name: string): boolean {
+  return operableUnitRE.test(name) && !name.includes('@.service') && !name.includes('..');
+}
+
+function postJSON<T>(path: string, csrf: string, body: unknown): Promise<T> {
+  return request<T>(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+    body: JSON.stringify(body),
+  });
+}
+
+export function planServiceAction(unit: string, action: ServiceAction, csrf: string): Promise<ServicePlan> {
+  return postJSON<ServicePlan>(`/api/v1/services/units/${encodeURIComponent(unit)}/plan`, csrf, { action });
+}
+
+export function applyServiceAction(
+  unit: string,
+  action: ServiceAction,
+  token: string,
+  csrf: string,
+): Promise<ServiceOutcome> {
+  return postJSON<ServiceOutcome>(`/api/v1/services/units/${encodeURIComponent(unit)}/apply`, csrf, {
+    action,
+    token,
+  });
+}
+
+export function stepUp(password: string, csrf: string): Promise<{ step_up_until: string }> {
+  return postJSON<{ step_up_until: string }>('/api/v1/auth/step-up', csrf, { password });
+}
+
+export interface OperationRecord {
+  id: string;
+  op: string;
+  action: string;
+  unit: string;
+  actor: string;
+  request_id?: string;
+  risk: string;
+  outcome: 'succeeded' | 'failed' | 'uncertain' | 'interrupted' | 'pending';
+  message?: string;
+  started_at: string;
+  finished_at?: string;
+  observed?: UnitObserved;
+}
+
+export function getOperations(): Promise<{ operations: OperationRecord[]; source: string }> {
+  return request<{ operations: OperationRecord[]; source: string }>('/api/v1/operations');
 }

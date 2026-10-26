@@ -24,7 +24,7 @@ if ! docker image inspect "$img" >/dev/null 2>&1; then
   if [ ! -f "$rootfs/.done" ]; then
     rm -rf "$rootfs"; mkdir -p "$rootfs"
     debootstrap --variant=minbase \
-      --include=systemd,systemd-sysv,dbus,adduser,curl,ca-certificates,perl,python3,procps,iproute2,pciutils,usbutils,kmod,udev \
+      --include=systemd,systemd-sysv,dbus,adduser,curl,ca-certificates,perl,python3,procps,iproute2,pciutils,usbutils,kmod,udev,openssh-server \
       "$rel" "$rootfs" http://archive.ubuntu.com/ubuntu "${dbs_script[@]}"
     touch "$rootfs/.done"
   fi

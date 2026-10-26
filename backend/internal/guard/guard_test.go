@@ -209,10 +209,12 @@ func TestUnprivilegedBinariesDoNotLinkPrivilegedCode(t *testing.T) {
 // rootExecFiles are the only non-test files that may reference the root-exec
 // handle or root templates (ADR 0008 Amendment 2). Adding one requires review.
 var rootExecFiles = map[string]bool{
-	"internal/broker/runner/runner.go": true, // defines the templates and the handle
-	"internal/broker/ops/ops.go":       true, // registry lists apply's templates (W1)
-	"internal/broker/server/server.go": true, // passes the handle to root-exec ops only
-	"cmd/hc-broker/main.go":            true, // creates the single handle
+	"internal/broker/runner/runner.go":      true, // defines the templates and the handle
+	"internal/broker/ops/svcctl.go":         true, // the systemctl controller (Act)
+	"internal/broker/ops/services_write.go": true, // apply refuses without a handle
+	"internal/broker/ops/ops.go":            true, // registry lists apply's templates (W1)
+	"internal/broker/server/server.go":      true, // passes the handle to root-exec ops only
+	"cmd/hc-broker/main.go":                 true, // creates the single handle
 }
 
 var rootExecNames = map[string]bool{

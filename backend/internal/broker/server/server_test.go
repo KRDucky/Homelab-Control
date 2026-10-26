@@ -307,3 +307,23 @@ func TestRootExecHandleOnlyForRootExecOps(t *testing.T) {
 		t.Fatal("handler ran without scope")
 	}
 }
+
+// TestWriteOpsRefusedWithoutScopeEndToEnd goes through the real registry.
+func TestWriteOpsRefusedWithoutScopeEndToEnd(t *testing.T) {
+	f := start(t)
+	for _, op := range []string{"services.unit.plan", "services.unit.apply"} {
+		var out json.RawMessage
+		err := brokerclient.New(f.sock).CallWithArgs(context.Background(), op,
+			map[string]string{"unit": "demo.service", "action": "stop", "token": "x"},
+			proto.Actor{User: "tester", Session: "s", Scopes: []string{"services.read", "services.logs", "audit.read"}}, &out)
+		if code(err) != proto.CodeForbidden {
+			t.Errorf("%s without services.operate: %v", op, err)
+		}
+	}
+	if _, err := call(t, f, "operations.journal.list", "services.operate"); code(err) != proto.CodeForbidden {
+		t.Errorf("journal without audit.read: %v", err)
+	}
+	if !strings.Contains(f.audit.String(), `"outcome":"forbidden"`) {
+		t.Fatal("refusals not audited")
+	}
+}
