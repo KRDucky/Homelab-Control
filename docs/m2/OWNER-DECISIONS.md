@@ -17,7 +17,7 @@ Already settled, and not asked again:
 | D-1 | PR-1 | **Approved 2026-10-21 (option A)** |
 | D-6 | PR-1 | **Approved 2026-10-21** |
 | D-7 | PR-1 | **Approved 2026-10-21** |
-| D-2, D-3, D-4, D-5 | PR M2-2 (first write) | Open |
+| D-2, D-3, D-4, D-5 | PR M2-2 (first write) | **Approved 2026-10-23 (option A each)** |
 | D-8, D-9, D-10 | Roadmap shape | Open |
 | D-11 | Before any third-party library or tool adapter (M3+) | Open (policy only) |
 | D-12 | PR M2-5 (drive locator) | Open (HBA Viewer source to be provided) |
@@ -75,6 +75,11 @@ Already settled, and not asked again:
 
 **Recommended: A**, recorded as ADR 0011 before PR M2-2.
 
+**Owner decision 2026-10-23: option A approved.** Tokens minted and verified inside the broker,
+120 s, single use, bound to operation, canonical target, actor, session and observed state; target
+lock, revalidation, durable intent before execution, outcome after. The threat-model limitation (a
+compromised API can still request operations the broker's policy allows) is documented in ADR 0011.
+
 **Roadmap impact:** PR M2-2 implements the generic plan/apply framework once; later write ops reuse it.
 
 ## D-3 Step-up authentication for disruptive operations
@@ -86,6 +91,10 @@ Already settled, and not asked again:
 
 **Recommended:** A in PR M2-2. B as a follow-up PR, in M2 if wanted.
 
+**Owner decision 2026-10-23: option A approved.** Password re-entry, 5 minutes, bound to the session
+and actor, existing throttling preserved, never sent to the broker or logged, cleared on revocation
+or expiry. Required for stop and restart, and for start when dependencies make it disruptive.
+
 ## D-4 How the broker runs root-level service commands
 | Option | Pros | Cons |
 |---|---|---|
@@ -95,6 +104,9 @@ Already settled, and not asked again:
 
 **Recommended: A.** It amends ADR 0008 (closed registry; argv templates reviewed per op). B can be revisited if parsing `systemctl` becomes a problem.
 
+**Owner decision 2026-10-23: option A approved** (`root-exec`; ADR 0008 Amendment 2). Fixed
+`systemctl` argv with the validated unit as a separate argument; no generic root execution API.
+
 ## D-5 Protected-unit policy for service operations
 | Option | Pros | Cons |
 |---|---|---|
@@ -103,6 +115,9 @@ Already settled, and not asked again:
 | C. No policy, confirmation only | Simplest | Lockout risk |
 
 **Recommended:** A now; B later with its own review.
+
+**Owner decision 2026-10-23: option A approved.** Built-in, broker-enforced, no user-editable
+overrides in M2-2; aliases, templates, alternate names and dependencies must not bypass it.
 
 ## D-6 Persistent sessions
 ADR 0002 schedules "persisted sessions and per-session revocation UI" for M2, but the move from memory to disk changes behaviour.

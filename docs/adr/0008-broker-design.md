@@ -1,6 +1,6 @@
 # ADR-0008: Privileged broker design (M1)
 
-**Status:** Accepted (2026-10-16, owner) **for the four existing read-only, argument-free M1 operations only** (`broker.info`, `legacy.webmin.status`, `hardware.dmi.identity`, `services.systemd.list`). Adding or changing an operation requires a new review.
+**Status:** Accepted (2026-10-16, owner) **for the four existing read-only, argument-free M1 operations only**; Amendment 1 (2026-10-21, `services.unit.logs`) and Amendment 2 (2026-10-23, `root-exec`, owner decision D-4) extend it (`broker.info`, `legacy.webmin.status`, `hardware.dmi.identity`, `services.systemd.list`). Adding or changing an operation requires a new review.
 > **Owner decision recorded 2026-10-16:** this acceptance is **not** authorization to implement privileged write operations. Any write-capable broker operation needs a separate, explicit owner approval (M2 design: confirmation, locking, audit, rollback).
 
 **Date:** 2026-10-15
@@ -117,3 +117,44 @@ The trust assumption above still holds. A compromised `hc-api` can read journal 
 listed unit, up to 500 lines per call. Journals can contain sensitive application output, which is
 why this is a separate scope. The operation remains read-only and does not touch the write-safety
 design that M2 still has to deliver.
+
+## Amendment 2 (2026-10-23, M2-2): the `root-exec` runner class
+
+Authorized by the owner on 2026-10-23 (decision D-4, option A) together with ADR 0011. It narrows
+the M1 rule "no root child processes" to the following, and only for operations that went through
+the ADR 0011 plan/apply review.
+
+- **Closed template table.** `internal/broker/runner` holds a fixed table of root argv templates.
+  M2-2 has exactly four:
+  - `systemctl.start`, `systemctl.stop`, `systemctl.restart`: each
+    `systemctl --no-ask-password --job-mode=fail <verb> -- <unit>`, exactly one `.service` unit.
+    `--job-mode=fail` makes systemd refuse instead of replacing a job queued on the unit by someone
+    else.
+  - `systemctl.show` (read-only): `systemctl show --no-pager --property=<fixed list> -- <units>`, 1–32
+    units of any type. Used by `services.unit.apply` to revalidate and to verify the outcome, and at
+    broker start to describe interrupted operations. Running it as root keeps those facts out of
+    reach of a compromised `hc-api`: unprivileged children run as the same uid as `hc-api`, which
+    could signal them or open their output pipe through `/proc`.
+  The caller passes a template ID and targets; it cannot pass a binary, flags or other arguments.
+- **Target validated in the runner too.** The runner's own validator (independent of
+  `servicepolicy`) accepts only `.service` names without a leading `-`, escapes, separators,
+  whitespace or template bases, and the target always follows `--`.
+- **Same execution rules as other children.** Allow-listed absolute binary, root-owned and not
+  group/world-writable, re-checked at use; environment replaced (`PATH`, `LC_ALL=C.UTF-8`,
+  `SYSTEMD_COLORS=0`, `SYSTEMD_PAGER=`); stdin `/dev/null`; own process group, killed on timeout
+  (30 s); stdout and stderr capped. No shell.
+- **Handle confined to root-exec ops.** The server keeps the root handle outside the shared
+  environment and passes it, in a per-call copy, only to operations registered with privilege
+  `root-exec`. In M2-2 that is `services.unit.apply` alone. A guard test fails if any other
+  non-test file references the handle or the templates; a runtime test proves that a read-only op
+  never receives it even if one is put into the shared environment.
+- **No new capabilities.** The broker unit keeps `CapabilityBoundingSet=CAP_SETUID CAP_SETGID`.
+  The root child talks to systemd over its private socket as uid 0; it gains nothing beyond what the
+  broker already had. Verified under real systemd (see `docs/m2/M2-2-ACCEPTANCE.md`).
+- **Snapshot tests.** `TestRootTemplatesAreClosed` (exact template set and argv) and
+  `TestRegistryIsClosed` (exact op set, privileges, scopes, risk classes, lock domains, templates)
+  must be changed, and reviewed, for any addition.
+
+The trust assumption above is restated for writes in ADR 0011: a compromised `hc-api` can request
+any operation the broker's policy allows. The narrow template table, the protected-unit and
+dependency policy, plan tokens, locks and the journal bound what that means.

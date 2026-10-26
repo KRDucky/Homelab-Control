@@ -46,8 +46,13 @@ type Event struct {
 	Remote  string    `json:"remote,omitempty"`
 	Outcome string    `json:"outcome"`
 	Detail  string    `json:"detail,omitempty"`
-	Prev    string    `json:"prev,omitempty"`
-	Hash    string    `json:"hash,omitempty"`
+	// Data is optional structured detail (compact JSON, at most MaxData
+	// bytes), used by the broker operation journal. It is covered by the
+	// hash; when empty it is omitted, so older chains verify unchanged. The
+	// SQLite store does not hold it and refuses events that carry it.
+	Data json.RawMessage `json:"data,omitempty"`
+	Prev string          `json:"prev,omitempty"`
+	Hash string          `json:"hash,omitempty"`
 }
 
 // digest is the hash of everything except Hash itself.
@@ -207,9 +212,21 @@ func sanitize(s string) string {
 	return s
 }
 
+// MaxData bounds Event.Data.
+const MaxData = 8 << 10
+
+// ErrBadData is returned for Data that is not compact, valid JSON within MaxData.
+var ErrBadData = errors.New("audit data must be compact JSON of at most 8 KiB")
+
 // Log writes an event, durably (fsync) when backed by a file. Errors are
 // returned so callers can fail closed when auditing is mandatory.
 func (l *Logger) Log(e Event) error {
+	if len(e.Data) > 0 {
+		var c bytes.Buffer
+		if len(e.Data) > MaxData || json.Compact(&c, e.Data) != nil || c.Len() != len(e.Data) {
+			return ErrBadData
+		}
+	}
 	if e.Time.IsZero() {
 		e.Time = time.Now().UTC()
 	}
@@ -223,6 +240,20 @@ func (l *Logger) Log(e Event) error {
 	}
 	e.Seq, e.Prev = l.seq+1, l.head
 	e.Hash = digest(e)
+	// A failed or partial write (for example ENOSPC) must not leave a
+	// fragment that the next record is appended to: cut the file back to its
+	// size before this record. The record then counts as not written.
+	before := int64(-1)
+	if l.f != nil {
+		if fi, err := l.f.Stat(); err == nil {
+			before = fi.Size()
+		}
+	}
+	undo := func() {
+		if before >= 0 {
+			_ = l.f.Truncate(before)
+		}
+	}
 	if l.st != nil {
 		if err := l.st.Append(e); err != nil {
 			return err
@@ -230,10 +261,12 @@ func (l *Logger) Log(e Event) error {
 	} else if b, err := json.Marshal(e); err != nil {
 		return err
 	} else if _, err := l.w.Write(append(b, '\n')); err != nil {
+		undo()
 		return err
 	}
 	if l.f != nil {
 		if err := l.f.Sync(); err != nil {
+			undo()
 			return err
 		}
 	}

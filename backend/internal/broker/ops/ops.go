@@ -5,7 +5,9 @@
 // Package ops is the closed registry of broker operations (ADR 0008).
 //
 // Rules for every operation (review checklist):
-//   - read-only in M1; no caller-supplied paths, commands or patterns;
+//   - read-only unless registered as a write op (Write != nil; ADR 0011) with
+//     plan/apply, a risk class, a lock domain and reviewed root templates;
+//   - no caller-supplied paths, commands or patterns;
 //   - typed, strictly decoded args (M1 ops take none);
 //   - fixed file paths opened with O_NOFOLLOW and size caps, or a fixed argv
 //     through internal/broker/runner (children run unprivileged);
@@ -28,6 +30,7 @@ import (
 
 	"homelab-control/backend/internal/broker/proto"
 	"homelab-control/backend/internal/broker/runner"
+	"homelab-control/backend/internal/broker/writes"
 )
 
 // Roots lets tests point file-reading ops at a fixture tree. Root is "/" in
@@ -52,6 +55,25 @@ type Env struct {
 	// JournalGID is the gid of the journal reader group (systemd-journal),
 	// added to journalctl children; 0 when the group does not exist.
 	JournalGID uint32
+	// Writes is the plan/apply framework (tokens, locks, journal); nil when
+	// the operation journal could not be opened (write ops then refuse).
+	Writes *writes.Framework
+	// Units overrides the systemd controller (tests); nil = systemctl.
+	Units UnitController
+	// RootExec is the root-exec handle. The server sets it in the per-call copy of
+	// Env ONLY for ops whose Privilege is PrivRootExec; it is nil otherwise.
+	RootExec *runner.Root
+	// Actor is the caller as asserted by hc-api (per-call copy).
+	Actor proto.Actor
+}
+
+// WriteSpec documents a write op for review and the registry snapshot test
+// (M2-SECURITY-ACCEPTANCE W1).
+type WriteSpec struct {
+	Phase      string   // "plan" or "apply"
+	Risks      []string // risk classes the op can return
+	LockDomain string   // lock key pattern
+	Templates  []runner.RootTemplate
 }
 
 // Op is one registered operation.
@@ -65,6 +87,8 @@ type Op struct {
 	// AuditArgs, for ops that take arguments, summarises validated arguments
 	// for the broker audit record ("" if they do not validate). Never secrets.
 	AuditArgs func(args json.RawMessage) string
+	// Write is set for write ops only.
+	Write *WriteSpec
 }
 
 // Registry returns the compiled-in operation table.
@@ -81,6 +105,19 @@ func Registry() map[string]Op {
 		{Name: "services.unit.logs", Scope: "services.logs", Privilege: PrivUnprivilegedExec, Timeout: 15 * time.Second,
 			Description: "Recent journal entries of one listed unit (args: unit, lines 1-500)", Handle: unitLogs,
 			AuditArgs: logsAuditArgs},
+		// M2-2 (ADR 0011; D-2…D-5). Plan is read-only (unprivileged systemctl
+		// show) and mints the token; apply is the only root-exec op.
+		{Name: "services.unit.plan", Scope: "services.operate", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second,
+			Description: "Review start/stop/restart of one .service unit: policy check, observed state, risk class and a single-use plan token (args: unit, action)",
+			Handle:      unitPlan, AuditArgs: writeAuditArgs,
+			Write: &WriteSpec{Phase: "plan", Risks: []string{RiskReversible, RiskDisruptive}, LockDomain: "service:<unit id>"}},
+		{Name: "services.unit.apply", Scope: "services.operate", Privilege: PrivRootExec, Timeout: 55 * time.Second,
+			Description: "Execute a reviewed start/stop/restart with its plan token; journaled, verified by reading the state back (args: unit, action, token)",
+			Handle:      unitApply, AuditArgs: writeAuditArgs,
+			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskReversible, RiskDisruptive}, LockDomain: "service:<unit id>",
+				Templates: []runner.RootTemplate{runner.RootSystemctlStart, runner.RootSystemctlStop, runner.RootSystemctlRestart, runner.RootSystemctlShow}}},
+		{Name: "operations.journal.list", Scope: "audit.read", Privilege: PrivRootRead, Timeout: 5 * time.Second,
+			Description: "The 100 most recent privileged operations from the broker journal, including interrupted ones", Handle: journalList},
 	}
 	m := make(map[string]Op, len(ops))
 	for _, o := range ops {
@@ -111,6 +148,8 @@ type infoResult struct {
 	// SystemdBooted mirrors sd_booted(): /run/systemd/system exists only when
 	// systemd is PID 1. systemctl may be installed on hosts that do not run it.
 	SystemdBooted bool `json:"systemd_booted"`
+	// WritesAvailable is false when the operation journal could not be opened.
+	WritesAvailable bool `json:"writes_available"`
 }
 
 func brokerInfo(_ context.Context, env *Env, raw json.RawMessage) (any, error) {
@@ -122,6 +161,7 @@ func brokerInfo(_ context.Context, env *Env, raw json.RawMessage) (any, error) {
 		res.Ops = append(res.Ops, OpInfo{Name: o.Name, Scope: o.Scope, Privilege: o.Privilege, Description: o.Description})
 	}
 	sort.Slice(res.Ops, func(i, j int) bool { return res.Ops[i].Name < res.Ops[j].Name })
+	res.WritesAvailable = env.Writes != nil
 	for _, b := range []string{"systemctl", "journalctl"} {
 		if env.Runner != nil && env.Runner.Available(b) {
 			res.Exec = append(res.Exec, b)

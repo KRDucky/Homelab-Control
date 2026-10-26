@@ -1,0 +1,25 @@
+fuzz: elapsed: 0s, gathering baseline coverage: 0/8 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 8/8 completed, now fuzzing with 2 workers
+fuzz: elapsed: 3s, execs: 57602 (19188/sec), new interesting: 119 (total: 127)
+fuzz: elapsed: 6s, execs: 107369 (16599/sec), new interesting: 143 (total: 151)
+fuzz: elapsed: 9s, execs: 107369 (0/sec), new interesting: 143 (total: 151)
+fuzz: elapsed: 12s, execs: 107369 (0/sec), new interesting: 143 (total: 151)
+fuzz: elapsed: 15s, execs: 107369 (0/sec), new interesting: 143 (total: 151)
+fuzz: elapsed: 18s, execs: 343709 (78763/sec), new interesting: 155 (total: 163)
+fuzz: elapsed: 21s, execs: 396661 (17655/sec), new interesting: 176 (total: 184)
+fuzz: elapsed: 24s, execs: 450464 (17934/sec), new interesting: 200 (total: 208)
+fuzz: elapsed: 27s, execs: 499923 (16483/sec), new interesting: 206 (total: 214)
+fuzz: elapsed: 30s, execs: 544440 (14840/sec), new interesting: 210 (total: 218)
+fuzz: elapsed: 33s, execs: 581752 (12436/sec), new interesting: 212 (total: 220)
+fuzz: elapsed: 36s, execs: 594861 (4371/sec), new interesting: 213 (total: 221)
+fuzz: elapsed: 39s, execs: 594861 (0/sec), new interesting: 213 (total: 221)
+fuzz: elapsed: 42s, execs: 594861 (0/sec), new interesting: 213 (total: 221)
+fuzz: elapsed: 45s, execs: 594861 (0/sec), new interesting: 213 (total: 221)
+fuzz: elapsed: 48s, execs: 594861 (0/sec), new interesting: 213 (total: 221)
+fuzz: elapsed: 51s, execs: 594861 (0/sec), new interesting: 213 (total: 221)
+fuzz: elapsed: 54s, execs: 594861 (0/sec), new interesting: 213 (total: 221)
+fuzz: elapsed: 57s, execs: 594861 (0/sec), new interesting: 213 (total: 221)
+fuzz: elapsed: 1m0s, execs: 594861 (0/sec), new interesting: 213 (total: 221)
+fuzz: elapsed: 1m1s, execs: 594861 (0/sec), new interesting: 213 (total: 221)
+PASS
+ok  	homelab-control/backend/internal/broker/ops	61.026s

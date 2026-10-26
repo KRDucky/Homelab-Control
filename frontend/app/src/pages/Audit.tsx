@@ -6,13 +6,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, getAudit, type AuditEvent } from '../api';
 import { explain } from '../useData';
 import { DataTable } from '../DataTable';
+import { OperationsJournal } from './OperationsJournal';
 
 const filters = [
   { id: '', label: 'All events' },
   { id: 'auth.', label: 'Sign-ins and sessions' },
   { id: 'authz.', label: 'Permission denials' },
   { id: 'csrf.', label: 'Rejected requests' },
-  { id: 'services.', label: 'Service logs read' },
+  { id: 'services.', label: 'Service logs and operations' },
   { id: 'audit.', label: 'Audit log events' },
 ];
 
@@ -66,11 +67,12 @@ export function Audit({ onUnauthorized }: { onUnauthorized: () => void }) {
       <header className="page-head">
         <h1 className="page-title">Audit</h1>
         <p className="page-sub">
-          Sign-ins, sign-outs, permission denials, rejected requests and log reads recorded by Homelab
-          Control, newest first. Records are hash-chained so that edits, deletions and reordering can be
-          detected.
+          Sign-ins, sign-outs, permission denials, rejected requests, log reads and service operations
+          recorded by Homelab Control, newest first. Records are hash-chained so that edits, deletions and
+          reordering can be detected.
         </p>
       </header>
+      <OperationsJournal onUnauthorized={onUnauthorized} />
       <section className="panel" aria-labelledby="h-audit" aria-busy={loading}>
         <h2 id="h-audit" className="visually-hidden">
           Audit events

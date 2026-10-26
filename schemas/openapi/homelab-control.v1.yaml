@@ -35,10 +35,11 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
+        step_up_until: { type: string, format: date-time, description: 'When the password re-entry of this session (D-3) lapses; absent when there is none' }
     Meta:
       type: object
       required: [status, sources]
@@ -186,6 +187,94 @@ components:
               description: { type: string, maxLength: 256 }
               unit_file_state: { type: string }
               preset: { type: string }
+        protected:
+          type: object
+          description: .service units the built-in policy (D-5) protects, keyed by unit name. Labels for the UI only; the broker enforces the policy.
+          additionalProperties: { $ref: '#/components/schemas/Protection' }
+        operate:
+          type: object
+          required: [available]
+          properties:
+            available: { type: boolean, description: 'Whether start/stop/restart can be offered to this caller' }
+            reason: { type: string }
+    Protection:
+      type: object
+      required: [protected]
+      properties:
+        protected: { type: boolean }
+        category: { type: string, enum: [self, remote, ipc, systemd, console, session, network, firewall, remoteaccess, display, storage, security, power, identity] }
+        reason: { type: string }
+        matched: { type: string }
+    UnitObserved:
+      type: object
+      required: [id, load_state, active_state, sub_state]
+      properties:
+        id: { type: string }
+        names: { type: array, items: { type: string } }
+        description: { type: string }
+        load_state: { type: string }
+        active_state: { type: string }
+        sub_state: { type: string }
+        result: { type: string }
+        unit_file_state: { type: string }
+        main_pid: { type: integer }
+        exec_main_status: { type: integer }
+        invocation_id: { type: string }
+        type: { type: string }
+        state_since: { type: string }
+    ServicePlan:
+      type: object
+      required: [unit, requested, action, risk, step_up_required, token, expires_at, observed, effect, consequences]
+      properties:
+        unit: { type: string, description: Canonical unit ID (aliases are resolved by the broker) }
+        requested: { type: string }
+        action: { type: string, enum: [start, stop, restart] }
+        risk: { type: string, enum: [reversible, disruptive] }
+        step_up_required: { type: boolean }
+        token: { type: string, description: 'Single-use plan token, valid 120 s, bound to this session, user, action, unit and the observed state. Not a credential on its own.' }
+        expires_at: { type: string, format: date-time }
+        observed: { $ref: '#/components/schemas/UnitObserved' }
+        effect: { type: string }
+        consequences: { type: array, items: { type: string } }
+        also_affected: { type: array, items: { type: string }, description: 'Running units systemd stops or restarts together with this one (found by a bounded, transitive walk of the dependency graph), or that a start stops because of Conflicts=' }
+        also_started: { type: array, items: { type: string }, description: Other currently inactive units that a start pulls in (transitively) }
+    ServiceOutcome:
+      type: object
+      required: [operation_id, unit, action, outcome, message, started_at, finished_at]
+      properties:
+        operation_id: { type: string }
+        unit: { type: string }
+        action: { type: string, enum: [start, stop, restart] }
+        outcome: { type: string, enum: [succeeded, failed, uncertain], description: 'succeeded/failed are verified by reading the unit state back; uncertain means it could not be verified' }
+        message: { type: string }
+        exit_code: { type: integer }
+        observed: { $ref: '#/components/schemas/UnitObserved' }
+        recovery: { type: array, items: { type: string }, description: Recovery guidance when the outcome is not succeeded. No rollback is performed. }
+        started_at: { type: string, format: date-time }
+        finished_at: { type: string, format: date-time }
+    OperationList:
+      type: object
+      required: [operations, source]
+      properties:
+        source: { type: string }
+        operations:
+          type: array
+          items:
+            type: object
+            required: [id, op, action, unit, actor, risk, outcome, started_at]
+            properties:
+              id: { type: string }
+              op: { type: string }
+              action: { type: string }
+              unit: { type: string }
+              actor: { type: string }
+              request_id: { type: string }
+              risk: { type: string }
+              outcome: { type: string, enum: [succeeded, failed, uncertain, interrupted, pending] }
+              message: { type: string }
+              started_at: { type: string, format: date-time }
+              finished_at: { type: string, format: date-time }
+              observed: { $ref: '#/components/schemas/UnitObserved' }
     SessionList:
       type: object
       required: [persistent, idle_timeout_seconds, max_lifetime_seconds, sessions]
@@ -411,6 +500,60 @@ paths:
         '502': { description: 'Broker failure (details are not exposed)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: 'Broker unavailable; systemd/journald or the journal reader group missing; or the read could not be audited (audit_unavailable, no content returned)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '504': { description: 'Broker operation timed out', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /services/units/{unit}/plan:
+    post:
+      summary: 'Review start, stop or restart of one .service unit (broker op services.unit.plan): policy check, observed state, risk class and a single-use plan token. Nothing is changed.'
+      security: [{ session: [] }]
+      x-required-scope: services.operate
+      parameters:
+        - { name: unit, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9:_.@-]{0,99}\.service$' } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, additionalProperties: false, required: [action], properties: { action: { type: string, enum: [start, stop, restart] } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ServicePlan' } } } }
+        '400': { description: Invalid unit, action or body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing scope, CSRF/Origin rejected, or policy_denied (protected unit, alias or dependency; RefuseManualStart/Stop)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: systemd does not know the unit, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: 'busy: another operation on the unit is in progress', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'Broker or systemd unavailable, operation journal unavailable, or the review could not be audited (no token issued)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /services/units/{unit}/apply:
+    post:
+      summary: 'Execute a reviewed operation with its plan token (broker op services.unit.apply). Stop and restart need a password re-entry within 5 minutes (step_up_required). The result is verified by reading the unit state back; there is no rollback.'
+      security: [{ session: [] }]
+      x-required-scope: services.operate
+      parameters:
+        - { name: unit, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9:_.@-]{0,99}\.service$' } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, additionalProperties: false, required: [action, token], properties: { action: { type: string, enum: [start, stop, restart] }, token: { type: string, maxLength: 2048 } } } } }
+      responses:
+        '200': { description: 'Executed; the outcome (succeeded, failed or uncertain) is the observed one', content: { application/json: { schema: { $ref: '#/components/schemas/ServiceOutcome' } } } }
+        '400': { description: Invalid unit, action, token or body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing scope, CSRF/Origin rejected, step_up_required, or policy_denied', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: 'plan_invalid (expired, used or not bound to this request), conflict (the unit changed since the review; nothing done) or busy', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '502': { description: 'outcome_unknown: the broker returned no result (connection lost or timed out); the operation may or may not have run', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'Broker unavailable, the journal could not be written (nothing executed) or the request could not be audited (nothing executed)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /auth/step-up:
+    post:
+      summary: 'Re-enter the password of the signed-in user (D-3). Valid 5 minutes for this session only; failures count toward login throttling. The password never reaches the broker or the audit log.'
+      security: [{ session: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, additionalProperties: false, required: [password], properties: { password: { type: string, maxLength: 1024 } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, required: [step_up_until], properties: { step_up_until: { type: string, format: date-time } } } } } }
+        '403': { description: 'invalid_credentials, or CSRF/Origin rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '429': { description: Throttled, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /operations:
+    get:
+      summary: 'The 100 most recent privileged operations from the broker operation journal (op operations.journal.list), newest first, including interrupted ones'
+      security: [{ session: [] }]
+      x-required-scope: audit.read
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/OperationList' } } } }
+        '403': { description: Missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Broker or operation journal unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /hardware:
     get:
       summary: Hardware inventory (read-only). Degrades instead of failing when the broker is down.

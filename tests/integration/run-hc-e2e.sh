@@ -49,6 +49,14 @@ check "session dead after logout"        401 "$(code -b "$jar" "$base/api/v1/hos
 rm -f "$jar"
 curl -s -o /dev/null -c "$jar" -H "Origin: $base" -H 'Content-Type: application/json' -d '{"username":"auditor","password":"noscope-password-123"}' "$base/api/v1/auth/login"
 check "account without system.read gets 403" 403 "$(code -b "$jar" "$base/api/v1/host/overview")"
+acsrf=$(curl -s -b "$jar" "$base/api/v1/auth/session" | sed -n 's/.*"csrf_token":"\([^"]*\)".*/\1/p')
+# M2-2 write routes: scope, CSRF and Origin are enforced before anything reaches the broker.
+check "service plan without services.operate" 403 "$(code -b "$jar" -H "Origin: $base" -H "X-CSRF-Token: $acsrf" -H 'Content-Type: application/json' -d '{"action":"start"}' "$base/api/v1/services/units/demo.service/plan")"
+check "service apply without services.operate" 403 "$(code -b "$jar" -H "Origin: $base" -H "X-CSRF-Token: $acsrf" -H 'Content-Type: application/json' -d '{"action":"stop","token":"x"}' "$base/api/v1/services/units/demo.service/apply")"
+check "step-up without CSRF token"       403 "$(code -b "$jar" -H "Origin: $base" -H 'Content-Type: application/json' -d '{"password":"noscope-password-123"}' "$base/api/v1/auth/step-up")"
+check "step-up from foreign Origin"      403 "$(code -b "$jar" -H 'Origin: http://evil.example' -H "X-CSRF-Token: $acsrf" -H 'Content-Type: application/json' -d '{"password":"noscope-password-123"}' "$base/api/v1/auth/step-up")"
+check "step-up with wrong password"      403 "$(code -b "$jar" -H "Origin: $base" -H "X-CSRF-Token: $acsrf" -H 'Content-Type: application/json' -d '{"password":"wrong"}' "$base/api/v1/auth/step-up")"
+check "step-up with the right password"  200 "$(code -b "$jar" -H "Origin: $base" -H "X-CSRF-Token: $acsrf" -H 'Content-Type: application/json' -d '{"password":"noscope-password-123"}' "$base/api/v1/auth/step-up")"
 "$bin/hlctl" audit export --db "$state/state.db" >"$state/audit.jsonl"
 check "audit trail has no secrets"       0 "$(grep -c -e "$pw" -e "$csrf" "$state/audit.jsonl" || true)"
 check "state database mode 0600"         600 "$(stat -c %a "$state/state.db")"

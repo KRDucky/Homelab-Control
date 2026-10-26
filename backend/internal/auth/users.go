@@ -30,17 +30,22 @@ const (
 	// ScopeAuditRead allows reading the API audit trail (who signed in, what
 	// was denied, which logs were read). Not in DefaultScopes (D-7).
 	ScopeAuditRead = "audit.read"
+	// ScopeServicesOperate allows start/stop/restart of systemd services
+	// through plan → confirm → execute (M2-2, ADR 0011). Not in DefaultScopes:
+	// grant it explicitly.
+	ScopeServicesOperate = "services.operate"
 )
 
 // KnownScopes lists every scope the server understands. Unknown scopes in the
 // users file are rejected at load time so typos cannot silently grant nothing
 // (or, in later milestones, the wrong thing). All M1 scopes are read-only.
 var KnownScopes = map[string]bool{
-	ScopeSystemRead:   true,
-	ScopeServicesRead: true,
-	ScopeHardwareRead: true,
-	ScopeServicesLogs: true,
-	ScopeAuditRead:    true,
+	ScopeSystemRead:      true,
+	ScopeServicesRead:    true,
+	ScopeHardwareRead:    true,
+	ScopeServicesLogs:    true,
+	ScopeAuditRead:       true,
+	ScopeServicesOperate: true,
 }
 
 // DefaultScopes are granted by `hlctl user add` when --scopes is not given.

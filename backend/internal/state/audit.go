@@ -57,6 +57,9 @@ func (a *AuditStore) Last() (*audit.Event, error) {
 
 // Append inserts a record (committed with synchronous=FULL before returning).
 func (a *AuditStore) Append(e audit.Event) error {
+	if len(e.Data) > 0 {
+		return errors.New("the API audit store does not keep structured data")
+	}
 	_, err := a.db.sql.Exec(`INSERT INTO audit_events(seq, time, event, user, remote, outcome, detail, prev, hash) VALUES (?,?,?,?,?,?,?,?,?)`,
 		int64(e.Seq), e.Time.UTC().Format(time.RFC3339Nano), e.Event, e.User, e.Remote, e.Outcome, e.Detail, e.Prev, e.Hash)
 	return err

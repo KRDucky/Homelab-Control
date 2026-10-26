@@ -14,6 +14,13 @@ Status: implemented in M2 PR-1b (chaining, checkpoints) and PR-1a (API trail in 
   is kept, no longer written, and still verifies (its records are reported as `legacy`).
 - **Broker log:** `/var/log/homelab-control-broker/broker-audit.jsonl` (`hc-broker`, owned by root,
   0600). Not shown in the UI; verified with `hlctl audit verify --file`.
+- **Operation journal (M2-2, ADR 0011):** `/var/log/homelab-control-broker/operations.jsonl`
+  (`hc-broker`, root, 0600). The authoritative record of privileged operations: `op.intent` (written
+  and fsync'ed before anything runs), `op.outcome` (observed result) and `op.interrupted` (recorded at
+  broker start for an intent without an outcome; never retried). Records carry a structured `data`
+  field (compact JSON, ≤ 8 KiB) covered by the hash; it holds the plan-token **ID**, never the token.
+  Shown on the Audit page under *Privileged operations* (scope `audit.read`); verified with
+  `hlctl audit verify --file`. If the journal cannot be opened, the broker disables write operations.
 
 **The logs are tamper-evident, not tamper-proof.** Anyone who can write a log file can still change it.
 The design only makes certain changes detectable, and only under the conditions listed below.
