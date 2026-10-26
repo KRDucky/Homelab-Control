@@ -1,105 +1,25 @@
-# 2. Theme token taxonomy and versioned schema (planning)
+# 2. Runtime theme format and tokens
 
-## 2.1 Principles
-- **Semantic, not literal.** Components consume `color.surface.raised`, never "dark blue". A theme maps
-  semantic roles to values; components never see raw values (already true of `styles.css` today).
-- **Appearance only.** A theme changes how things look. Layout preferences (navigation style, density,
-  dashboards and widget placement, refresh rates) are per-user settings defined in
-  `06-LAYOUT-AND-NAVIGATION.md` §6.5 and `04-DASHBOARD-WIDGETS.md`; function (what is shown, who may do
-  what) is never themeable. A theme that contains layout keys is rejected (ADR 0010).
-- **Typed and bounded values.** Every token has a type with a strict grammar and range (§2.4). There is
-  no "free CSS string" token. This is what makes imported themes safe to apply (`09-THEME-SECURITY.md`).
-- **Small runtime.** Applying a theme sets at most ~120 CSS custom properties on `:root` through the
-  CSSOM; no stylesheet rebuild, no CSS-in-JS runtime.
+The implemented v1 contract supersedes the earlier planning draft. The owner authorized the remaining frontend and TDK on 2026-10-25. See [implementation handoff](11-IMPLEMENTED-UI-AND-TDK.md), [runtime schema](../../schemas/theme/v1.json) and [TDK author guide](../../sdk/theme/README.md).
 
-## 2.2 Token taxonomy (v1)
-Dotted path → CSS custom property `--hc-<path with dots as dashes>` (e.g. `color.surface.raised` →
-`--hc-color-surface-raised`).
+A `.hltheme` is one UTF-8 JSON document, at most 64 KiB:
 
-| Group | Tokens | Type |
-|---|---|---|
-| `color.surface` | `base`, `raised`, `sunken`, `overlay` | color |
-| `color.text` | `primary`, `secondary`, `disabled`, `inverse`, `link` | color |
-| `color.border` | `subtle`, `strong` | color |
-| `color.accent` | `base`, `hover`, `contrast` (text on accent) | color |
-| `color.focus` | `ring` | color |
-| `color.status` | `ok`, `warn`, `crit`, `info`, `unknown` (+ `-contrast` text colours) | color |
-| `color.chart` | `series` (6–12 colours, ordered), `grid`, `axis` | color[] / color |
-| `color.meter` | `track`, `fill` | color |
-| `typography` | `family.ui`, `family.mono` | font stack **enum** |
-| | `size.xs … size.xl`, `size.display` | number, rem 0.625–5 |
-| | `weight.regular`, `weight.strong` | integer 300–800 |
-| | `lineHeight` | number 1.1–2.0 |
-| `space` | `unit` (base step; others are multiples) | number, px 2–8 |
-| `shape` | `radius.sm`, `radius.md`, `radius.lg`, `borderWidth` | number, px 0–24 / 0–4 |
-| `elevation` | `level1`, `level2`, `level3` | shadow **object** `{y, blur, spread, color}` |
-| `motion` | `duration.fast`, `duration.normal`, `easing` | duration (ms) 0–600; easing **enum** |
-| `status` | `indicator` (`dot` \| `pill` \| `icon-text`) | enum |
-
-Font stacks are an enumeration such as `system-sans`, `system-serif`, `system-mono`, `humanist-sans`,
-each mapping to a fixed, built-in `font-family` list of locally installed fonts. Themes cannot name
-arbitrary fonts and cannot load fonts from URLs.
-
-## 2.3 Theme document (v1)
 ```json
 {
   "schemaVersion": 1,
-  "id": "org.homelab-control.default",
-  "name": "Homelab Default",
+  "id": "local.ocean",
+  "name": "Ocean",
   "version": "1.0.0",
   "license": "MIT",
-  "engine": ">=1.0.0 <2.0.0",
-  "appearance": "auto",
-  "modes": { "dark": { "...": "TokenSet" }, "light": { "...": "TokenSet" } },
-  "defaults": { "motion": "full", "contrast": "standard" }
+  "base": "midnight",
+  "colors": { "accent-base": "#4ED4C8" }
 }
 ```
-- `appearance`: `dark` or `light` (one mode required) or `auto` (both required; follows
-  `prefers-color-scheme` unless the user picks one).
-- `extends` (optional): id of an installed theme; omitted tokens inherit from it, then from the built-in
-  base. Resolution is shallow and acyclic (max depth 3).
-- High-contrast variants are separate modes `darkHighContrast` / `lightHighContrast`, chosen when the user
-  or `prefers-contrast: more` asks for them; if a theme lacks them, the built-in high-contrast set is used.
-- Unknown top-level keys and unknown token paths are **errors**, not ignored (typo and smuggling defence).
 
-## 2.4 Value grammar (enforced by the schema and again by the runtime validator)
-| Type | Accepted | Rejected |
-|---|---|---|
-| color | `#RRGGBB` or `#RRGGBBAA` | names, `rgb()`, `var()`, `url()`, anything else |
-| length | JSON **number**; the unit is fixed by the token (`rem` for type sizes, `px` for space/shape) and the range is per token | strings, `calc()`, `%`, negative, out of range |
-| duration | integer milliseconds 0–600 | strings, `infinite` |
-| easing | `standard` \| `emphasized` \| `linear` (mapped to fixed curves) | arbitrary `cubic-bezier()` |
-| shadow | `{ "y": 0–24, "blur": 0–48, "spread": -8–8, "color": color }` | strings |
-| enum | listed values only | anything else |
-| text | `name`, `description`: plain text, ≤ 80 / 280 chars, rendered as text nodes only | markup |
+`base` is `midnight | daybreak | graphite | oled`; omitted colours inherit from that built-in palette. No remote resolution or installed-theme inheritance exists. `colors` allow-lists the 57 semantic HCIS roles from `hcis/tokens/tokens.json`, excluding raw palette tokens and the 12 M1 aliases. `surface-raised` maps to `--hc-color-surface-raised`, for example. The TDK lists all roles with `node sdk/theme/tdk.mjs tokens`.
 
-## 2.5 Versioning and migration
-- `schemaVersion` (integer) versions the *format*; `version` (semver) versions the *theme*; `engine` is a
-  semver range of Homelab Control theme engines the theme supports.
-- The engine ships migrators `v1→v2…`; an older theme is migrated in memory on load and can be re-exported
-  in the new format. A theme newer than the engine is rejected with a clear message.
-- Adding a token is a minor engine change (themes without it inherit the base); renaming or removing one
-  needs a schema version bump plus a migrator.
+Values are `#RRGGBB` or `#RRGGBBAA`. Data surfaces and glass fallback must be opaque. Contrast is calculated after resolution/compositing; failing key pairs block activation. Schema validation alone cannot check contrast or duplicate keys; use the shared validator.
 
-## 2.6 Mapping from today's tokens (migration)
-| M1 property | v1 token |
-|---|---|
-| `--hc-color-ink` | `color.surface.base` |
-| `--hc-color-panel` / `--hc-color-panel-raised` | `color.surface.raised` / `color.surface.overlay` |
-| `--hc-color-rule` | `color.border.subtle` |
-| `--hc-color-text` / `--hc-color-muted` | `color.text.primary` / `color.text.secondary` |
-| `--hc-color-signal` / `--hc-color-signal-ink` | `color.accent.base` / `color.accent.contrast` |
-| `--hc-color-ok` / `warn` / `crit` | `color.status.ok` / `warn` / `crit` |
-| `--hc-color-meter-track` | `color.meter.track` |
-| `--hc-color-focus` | `color.focus.ring` |
-| `--hc-font-*`, `--hc-space-*`, `--hc-radius-*`, `--hc-motion-fast` | `typography.*`, `space.unit` multiples, `shape.radius.*`, `motion.duration.fast` |
+Themes do not carry typography, fonts, type sizes, density, spacing, navigation, layout, motion settings or behavior. These remain application preferences and component tokens. The earlier draft allowed some of these fields; it was never a runtime format. Importing that draft now fails with a clear unsupported-key error rather than silently changing meaning.
 
-During migration the old names stay as aliases (`--hc-color-ink: var(--hc-color-surface-base)`) so
-components can move one at a time.
-
-## 2.7 Artifacts
-- Draft schema: [`theme.schema.v1.draft.json`](theme.schema.v1.draft.json) (JSON Schema 2020-12).
-- Examples (validate against the draft): [`examples/themes/default.json`](examples/themes/default.json)
-  (auto, dark + light), [`examples/themes/oled.json`](examples/themes/oled.json) (dark only, extends
-  default), [`examples/themes/high-contrast.json`](examples/themes/high-contrast.json).
-- Contrast is not expressible in JSON Schema; the validator computes WCAG 2.2 ratios (§`03`, §`09`).
+`schemaVersion` versions the format; `version` versions the author's document. Unknown fields and newer versions are rejected. Breaking changes require a new schema and an explicit migration. No published legacy runtime theme format requires a migration today. The schema, examples and TDK are MIT licensed.

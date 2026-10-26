@@ -2,7 +2,7 @@
 
 A tinted label with an icon that names a state.
 
-**Status: Planned.** Listed in the repository's planning docs but not implemented in the app yet.
+**Status: implemented in the current UI continuation (2026-10-25), `frontend/app/src/ui.tsx`.**
 
 Source: `docs/ui/01-DESIGN-SYSTEM.md §1.4 (StatusPillProps)`
 

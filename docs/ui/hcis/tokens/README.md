@@ -13,3 +13,5 @@
 - Typography is independent of themes. `type.families` holds four stacks: `ui` and `mono` (Inter, JetBrains Mono, then system fonts) and `ui-system` and `mono-system` (system fonts only). The **Interface font** preference (`data-hc-font="system"`) remaps `--font-ui`/`--font-mono` to the system stacks. `textScale` (`hc-text-scale-90 | 100 | 112 | 125`) is the **Text size** preference: it sets the root font size, and all type sizes are rem. A `.hltheme` may only name approved families (`typography.family.ui|mono`), never font files or URLs.
 
 Regenerating: re-export `tokens.json` from the design system, then run `python3 -I gen-css.py`. It rewrites `hcis-tokens.css` and the generated region of `frontend/design-system/tokens.css`; `--check` verifies both.
+
+2026-10-25 frontend continuation: the generated typography region now includes HCIS font sizes, weights and radii. Runtime `.hltheme` files use the 57 semantic colour roles only (`schemas/theme/v1.json`); typography, motion, density and layout remain independent application preferences. The prior draft font enums are historical, not runtime theme content.

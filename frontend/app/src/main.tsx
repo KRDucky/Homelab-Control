@@ -11,6 +11,7 @@ import '@fontsource-variable/jetbrains-mono/wght.css';
 import '../../design-system/tokens.css';
 import './styles.css';
 import './shell.css';
+import './components.css';
 import { App } from './App';
 import { applyPreferences, loadPreferences } from './preferences';
 

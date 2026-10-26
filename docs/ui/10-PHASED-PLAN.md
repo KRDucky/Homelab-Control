@@ -1,7 +1,6 @@
 # 10. Phased implementation and migration strategy (planning)
 
-Nothing in this plan is implemented or authorised. Each phase needs owner approval and fits within
-milestone gates (M2 remains on hold). Every phase keeps the M1 UI working; there is no big-bang rewrite.
+The owner authorized remaining frontend implementation and the TDK on 2026-10-25. HCIS Steps 1–3 were already merged in PR #19; shared tables/states, navigation-only palette, browser-local themes/Studio and TDK are implemented in the current change. [UI handoff](11-IMPLEMENTED-UI-AND-TDK.md) records the actual boundary. The historical U0–U8 decomposition below is a roadmap, not a statement that its entire scope has shipped. Browser-local Studio does not depend on U5; server persistence, plugin widgets, SSE and backend host operations remain future work.
 
 | Phase | Scope | Exit criteria | Depends on |
 |---|---|---|---|

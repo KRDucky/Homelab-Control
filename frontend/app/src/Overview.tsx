@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { Overview as OverviewData } from './api';
-import { Section, TableRegion } from './ui';
+import { DataTable } from './DataTable';
+import { Section } from './ui';
 import { formatBytes, formatUptime } from './format';
 import { Meter } from './Meter';
 
@@ -79,44 +80,46 @@ export function Overview({ data }: { data: OverviewData }) {
         {filesystems.items.length === 0 ? (
           <p className="empty">No local filesystems were found in the mount table.</p>
         ) : (
-          <TableRegion label="Filesystems">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Mount point</th>
-                  <th scope="col">Type</th>
-                  <th scope="col">Kernel source</th>
-                  <th scope="col">Usage</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filesystems.items.map((f) => (
-                  <tr key={f.mount_point}>
-                    <th scope="row">
-                      <span className="mono">{f.mount_point}</span>
-                      {f.read_only && <span className="tag">read-only</span>}
-                    </th>
-                    <td>{f.fs_type}</td>
-                    <td className="kernel-src" title="Kernel device names can change between boots">
-                      {f.kernel_source}
-                    </td>
-                    <td className="usage-cell">
-                      {f.probed ? (
-                        <Meter
-                          label={`${f.mount_point} usage`}
-                          used={f.used_bytes}
-                          total={dfTotal(f)}
-                          detail={`${formatBytes(f.avail_bytes)} free of ${formatBytes(f.total_bytes)}`}
-                        />
-                      ) : (
-                        <span className="muted">{f.skip_reason ?? 'Not checked'}</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TableRegion>
+          <DataTable
+            caption="Filesystems"
+            rows={filesystems.items}
+            rowKey={(f) => f.mount_point}
+            columns={[
+              {
+                id: 'mount',
+                label: 'Mount point',
+                render: (f) => (
+                  <>
+                    <code>{f.mount_point}</code>
+                    {f.read_only && <span className="tag">read-only</span>}
+                  </>
+                ),
+              },
+              { id: 'type', label: 'Type', render: (f) => f.fs_type },
+              {
+                id: 'source',
+                label: 'Kernel source',
+                render: (f) => (
+                  <code title="Kernel device names can change between boots">{f.kernel_source}</code>
+                ),
+              },
+              {
+                id: 'usage',
+                label: 'Usage',
+                render: (f) =>
+                  f.probed ? (
+                    <Meter
+                      label={`${f.mount_point} usage`}
+                      used={f.used_bytes}
+                      total={dfTotal(f)}
+                      detail={`${formatBytes(f.avail_bytes)} free of ${formatBytes(f.total_bytes)}`}
+                    />
+                  ) : (
+                    <span className="muted">{f.skip_reason ?? 'Not checked'}</span>
+                  ),
+              },
+            ]}
+          />
         )}
         <p className="footnote">
           Kernel source names such as /dev/sda1 can change between boots. Disk identity by serial and WWN
@@ -125,43 +128,32 @@ export function Overview({ data }: { data: OverviewData }) {
       </Section>
 
       <Section title="Network interfaces" meta={network}>
-        <TableRegion label="Network interfaces">
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">Interface</th>
-                <th scope="col">State</th>
-                <th scope="col">Addresses</th>
-                <th scope="col">Link</th>
-                <th scope="col">Received</th>
-                <th scope="col">Sent</th>
-              </tr>
-            </thead>
-            <tbody>
-              {network.interfaces.map((n) => (
-                <tr key={n.name}>
-                  <th scope="row">
-                    {n.name}
-                    {!n.physical && <span className="tag">virtual</span>}
-                  </th>
-                  <td>
-                    <span
-                      className={`dot dot-${n.oper_state === 'up' ? 'up' : 'other'}`}
-                      aria-hidden="true"
-                    />
-                    {n.oper_state ?? 'unknown'}
-                  </td>
-                  <td className="addr">
-                    {n.addresses && n.addresses.length > 0 ? n.addresses.join(', ') : '—'}
-                  </td>
-                  <td>{n.speed_mbps ? `${n.speed_mbps} Mb/s` : '—'}</td>
-                  <td>{formatBytes(n.rx_bytes)}</td>
-                  <td>{formatBytes(n.tx_bytes)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TableRegion>
+        <DataTable
+          caption="Network interfaces"
+          rows={network.interfaces}
+          rowKey={(n) => n.name}
+          columns={[
+            {
+              id: 'name',
+              label: 'Interface',
+              render: (n) => (
+                <>
+                  <code>{n.name}</code>
+                  {!n.physical && <span className="tag">virtual</span>}
+                </>
+              ),
+            },
+            { id: 'state', label: 'State', render: (n) => n.oper_state ?? 'unknown' },
+            {
+              id: 'addresses',
+              label: 'Addresses',
+              render: (n) => <code>{n.addresses?.join(', ') || '—'}</code>,
+            },
+            { id: 'link', label: 'Link', render: (n) => (n.speed_mbps ? `${n.speed_mbps} Mb/s` : '—') },
+            { id: 'received', label: 'Received', render: (n) => formatBytes(n.rx_bytes) },
+            { id: 'sent', label: 'Sent', render: (n) => formatBytes(n.tx_bytes) },
+          ]}
+        />
       </Section>
 
       <Section title="Legacy Webmin" meta={legacy}>

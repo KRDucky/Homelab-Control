@@ -138,3 +138,7 @@ Third-party components in release artifacts and their notices:
 [`docs/compliance/THIRD-PARTY-NOTICES.md`](docs/compliance/THIRD-PARTY-NOTICES.md) (installed with every
 package). Provenance and attribution: [`NOTICE.md`](NOTICE.md). Compliance record:
 [`docs/compliance/LICENSE-AUDIT.md`](docs/compliance/LICENSE-AUDIT.md).
+
+### Create your own theme
+
+The [Theme Development Kit (TDK)](sdk/theme/README.md) provides a dependency-free validator, CLI, schema and four starters. Create and preview themes in **Appearance → Themes & Theme Studio**, then export a single `.hltheme` file. Theme preferences stay in your browser; themes change colours without changing layout or permissions.

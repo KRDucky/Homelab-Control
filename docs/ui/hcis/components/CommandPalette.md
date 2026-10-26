@@ -1,17 +1,7 @@
 # CommandPalette
 
-Keyboard-driven search over pages, resources and permitted actions.
+**Status: implemented in the current UI continuation (2026-10-25).** Source: `frontend/app/src/CommandPalette.tsx`.
 
-**Status: Planned.** Listed in the repository's planning docs but not implemented in the app yet.
+Header Search pages or Ctrl/Cmd+K opens a native modal with combobox/listbox navigation. Arrow keys move the active result, Enter navigates, Escape closes; focus returns on dismissal and moves to main after navigation. The initial focus is the search input.
 
-Source: `docs/ui/06-LAYOUT-AND-NAVIGATION.md §6.3`
-
-## When to use
-
-Open with Ctrl/Cmd+K or the header search. Operations show “Opens a preview” and launch the normal plan/confirm flow.
-
-## Rules
-
-- ARIA combobox + listbox; arrow keys and Enter.
-
-Props: `CommandPaletteProps` in `reference/index.d.ts`. Preview data is labelled “Example data”.
+Only available/degraded capability pages, own Sessions and browser-local Theme Studio are indexed. No root command, mutation or resource-search endpoint is implied. Future resource/operation search must use its reviewed backend contracts and normal plan/confirm flow. See `../../11-IMPLEMENTED-UI-AND-TDK.md`.

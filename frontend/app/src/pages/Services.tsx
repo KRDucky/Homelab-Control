@@ -4,7 +4,8 @@
 
 import { useMemo, useState } from 'react';
 import { getServices, type Capability, type Unit } from '../api';
-import { StateDot, TableRegion } from '../ui';
+import { LiveIndicator, StatusIndicator } from '../ui';
+import { DataTable } from '../DataTable';
 import { explain, useData } from '../useData';
 import { UnitLogsPanel } from './UnitLogsPanel';
 
@@ -44,7 +45,7 @@ export function Services({
   onUnauthorized: () => void;
   logs?: Capability | undefined;
 }) {
-  const { data, error } = useData(getServices, { intervalMs: 15_000, onUnauthorized });
+  const { data, error, live } = useData(getServices, { intervalMs: 15_000, onUnauthorized });
   const [filter, setFilter] = useState<Filter>('all');
   const [type, setType] = useState('service');
   const [q, setQ] = useState('');
@@ -89,6 +90,12 @@ export function Services({
         </p>
       </header>
 
+      <LiveIndicator {...live} />
+      {error && (
+        <p className="banner" role="alert">
+          {explain(error)} Showing the last successful reading.
+        </p>
+      )}
       {failed.length > 0 && (
         <section className="panel panel-alert" aria-labelledby="h-failed">
           <h2 id="h-failed">Failed units</h2>
@@ -154,37 +161,48 @@ export function Services({
         <p className="result-count" aria-live="polite">
           Showing {shown.length} of {data.units.length}
         </p>
-        <TableRegion label="Units">
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">Unit</th>
-                <th scope="col">State</th>
-                <th scope="col">At boot</th>
-                <th scope="col">Description</th>
-                {logsUsable && (
-                  <th scope="col">
-                    <span className="visually-hidden">Logs</span>
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map((u) => (
-                <tr key={u.name} className={u.active === 'failed' ? 'row-crit' : undefined}>
-                  <th scope="row">
-                    <span className="mono">{u.name}</span>
-                  </th>
-                  <td>
-                    <StateDot tone={tone(u)} />
-                    {u.active} <span className="muted">({u.sub})</span>
-                    {u.load !== 'loaded' && <span className="tag">{u.load}</span>}
-                  </td>
-                  <td>{u.unit_file_state ?? '—'}</td>
-                  <td className="muted">{u.description}</td>
-                  {logsUsable && (
-                    <td>
-                      {u.load !== 'not-found' && (
+        <DataTable
+          caption="Units"
+          rows={shown}
+          rowKey={(u) => u.name}
+          rowTone={(u) => (u.active === 'failed' ? 'crit' : undefined)}
+          emptyState="No units match these filters."
+          columns={[
+            { id: 'name', label: 'Unit', sortValue: (u) => u.name, render: (u) => <code>{u.name}</code> },
+            {
+              id: 'state',
+              label: 'State',
+              sortValue: (u) => u.active,
+              render: (u) => (
+                <>
+                  <StatusIndicator
+                    tone={tone(u) === 'idle' ? 'unknown' : (tone(u) as 'ok' | 'warn' | 'crit')}
+                    label={u.active}
+                  />{' '}
+                  <span className="muted">({u.sub})</span>
+                  {u.load !== 'loaded' && <span className="tag">{u.load}</span>}
+                </>
+              ),
+            },
+            {
+              id: 'boot',
+              label: 'At boot',
+              sortValue: (u) => u.unit_file_state ?? '',
+              render: (u) => u.unit_file_state ?? '—',
+            },
+            {
+              id: 'description',
+              label: 'Description',
+              sortValue: (u) => u.description,
+              render: (u) => u.description,
+            },
+            ...(logsUsable
+              ? [
+                  {
+                    id: 'logs',
+                    label: 'Logs',
+                    render: (u: Unit) =>
+                      u.load !== 'not-found' && (
                         <button
                           type="button"
                           className="ghost small"
@@ -194,15 +212,12 @@ export function Services({
                         >
                           Logs
                         </button>
-                      )}
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TableRegion>
-        {shown.length === 0 && <p className="empty">No units match these filters.</p>}
+                      ),
+                  },
+                ]
+              : []),
+          ]}
+        />
         {data.truncated && <p className="footnote">The list was truncated at 5,000 units.</p>}
         <details className="sources">
           <summary>Where this data comes from</summary>

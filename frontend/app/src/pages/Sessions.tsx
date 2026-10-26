@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { ApiError, getSessions, revokeSession, type SessionEntry } from '../api';
 import { explain, useData } from '../useData';
-import { TableRegion } from '../ui';
+import { DataTable } from '../DataTable';
 
 function when(t: string): string {
   const d = new Date(t);
@@ -78,49 +78,45 @@ export function Sessions({ csrf, onUnauthorized }: { csrf: string; onUnauthorize
         <h2 id="h-sessions" className="visually-hidden">
           Your sessions
         </h2>
-        <TableRegion label="Your sessions">
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">Browser</th>
-                <th scope="col">Address</th>
-                <th scope="col">Signed in</th>
-                <th scope="col">Last active</th>
-                <th scope="col">
-                  <span className="visually-hidden">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.sessions.map((s) => (
-                <tr key={s.id}>
-                  <th scope="row">
-                    {s.user_agent || 'Unknown browser'}
-                    {s.current && <span className="tag">this browser</span>}
-                  </th>
-                  <td>{s.remote_ip || '—'}</td>
-                  <td className="nowrap">{when(s.created)}</td>
-                  <td className="nowrap">{when(s.last_seen)}</td>
-                  <td className="nowrap">
-                    <button
-                      type="button"
-                      className="ghost small"
-                      disabled={busy !== null}
-                      aria-label={
-                        s.current
-                          ? 'Sign out this browser'
-                          : `End session from ${s.remote_ip || 'unknown address'}`
-                      }
-                      onClick={() => void revoke(s)}
-                    >
-                      {s.current ? 'Sign out' : 'End session'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TableRegion>
+        <DataTable
+          caption="Your sessions"
+          rows={data.sessions}
+          rowKey={(s) => s.id}
+          columns={[
+            {
+              id: 'browser',
+              label: 'Browser',
+              render: (s) => (
+                <>
+                  {s.user_agent || 'Unknown browser'}
+                  {s.current && <span className="tag">this browser</span>}
+                </>
+              ),
+            },
+            { id: 'address', label: 'Address', render: (s) => <code>{s.remote_ip || '—'}</code> },
+            { id: 'created', label: 'Signed in', render: (s) => when(s.created) },
+            { id: 'seen', label: 'Last active', render: (s) => when(s.last_seen) },
+            {
+              id: 'actions',
+              label: 'Actions',
+              render: (s) => (
+                <button
+                  type="button"
+                  className="ghost small"
+                  disabled={busy !== null}
+                  aria-label={
+                    s.current
+                      ? 'Sign out this browser'
+                      : `End session from ${s.remote_ip || 'unknown address'}`
+                  }
+                  onClick={() => void revoke(s)}
+                >
+                  {s.current ? 'Sign out' : 'End session'}
+                </button>
+              ),
+            },
+          ]}
+        />
         {others.length === 0 && <p className="empty">No other sessions.</p>}
         <p className="footnote">
           Last activity is updated at most every 30 seconds. Session cookies are never stored; the server

@@ -48,6 +48,7 @@ test-go:
 
 test-frontend: deps
 	cd frontend/app && npm test
+	node --test sdk/theme/tdk.test.mjs
 
 # Release tooling and workflow policy (docs/release/RELEASING.md); stdlib + PyYAML, no network.
 test-release:
@@ -55,6 +56,7 @@ test-release:
 	tests/release/version-order-test.sh
 
 lint: deps
+	node scripts/build-theme-sdk.mjs --check
 	python3 -I docs/ui/hcis/tokens/gen-css.py --check
 	@test -z "$$(cd backend && gofmt -l .)" || { echo "gofmt needed:"; cd backend && gofmt -l .; exit 1; }
 	cd backend && $(GO) vet ./...

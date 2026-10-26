@@ -1,24 +1,9 @@
 # DataTable
 
-The dense, sortable, selectable table for every resource list. In containers narrower than 560px each row becomes a labelled card.
+**Status: implemented in the current UI continuation (2026-10-25).** Source: `frontend/app/src/DataTable.tsx`.
 
-**Status: Production markup, proposed component.** The app renders this today as markup + `styles.css` classes; HCIS packages it as a reusable component. Not yet a component in the app.
+Typed columns provide `id`, `label`, `render`, optional `sortValue` and `rowHeader`. Supply caption, rows and a stable rowKey. Native table/row semantics and headers persist in labelled cards below 560px container width. Desktop has sticky sortable headers; narrow cards have a visible sort selector so hidden headers never hide focused controls.
 
-Source: `frontend/app/src/pages/Services.tsx; docs/ui/01 §1.4 DataTableProps`
+Default pagination is 100 rows, bounded to 500, replacing the earlier proposed virtualizer dependency. Sorting is numeric for numbers and natural text for strings, and only exists when a column supplies `sortValue`. Audit keeps server order. Selection uses stable keys, survives refreshed objects, and passes currently present selected keys to bulk-action slots. Selection never grants an operation permission.
 
-## When to use
-
-Supply `caption`, `columns`, `rows`, `rowKey`. `selectable` + `bulkActions` for multi-row operations, `rowTone` to tint failed rows, `onRowClick` + `activeKey` to drive a DetailPanel. Pair with `FilterBar`.
-
-## Rules
-
-- Sorting is the spec's SortableColumn: every column sorts unless `sortable: false`; headers carry aria-sort.
-- Selection survives live refreshes: keys that still exist stay selected.
-- Never glass. Tables sit on opaque `surface-raised`.
-- Virtualize lists over ~500 rows (docs/ui/01).
-
-## Current implementation vs HCIS
-
-App: plain table in a `TableRegion` (`ui.tsx`): when the table scrolls (narrow screens, long logs) the wrapper becomes a labelled, keyboard-focusable region (HCIS step 3). HCIS: sticky header, sort, selection, bulk bar, stacked narrow layout (step 4).
-
-Props: `DataTableProps` in `reference/index.d.ts`. Preview data is fictional and labelled “Example data”.
+Existing Overview, Services, Hardware, Audit and Sessions use the shared component. Tables remain opaque. The dedicated log view retains its own scroll region. See `../../11-IMPLEMENTED-UI-AND-TDK.md`.

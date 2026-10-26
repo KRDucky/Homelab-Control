@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "example.oled",
+  "name": "Oled starter",
+  "version": "1.0.0",
+  "license": "MIT",
+  "base": "oled",
+  "colors": {}
+}

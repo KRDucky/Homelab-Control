@@ -4,6 +4,8 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { Icon } from './icons';
+import { navigate } from './router';
+import { activeTheme, activateTheme } from './theme';
 import type { Preferences } from './preferences';
 
 type Option<V extends string> = { id: V; label: string; hint?: string };
@@ -154,9 +156,23 @@ export function AppearanceMenu({
             name={`${n}-theme`}
             value={prefs.theme}
             options={themeOptions}
-            onChange={(v) => onChange('theme', v)}
+            onChange={(v) => {
+              activateTheme(null);
+              onChange('theme', v);
+            }}
             stacked
           />
+          {activeTheme() && <p className="appearance-help">Custom theme: {activeTheme()?.name}</p>}
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => {
+              close();
+              navigate('/appearance/themes');
+            }}
+          >
+            Themes & Theme Studio
+          </button>
           <Choice
             legend="Density"
             name={`${n}-density`}
@@ -197,7 +213,14 @@ export function AppearanceMenu({
             preferences that stay when you switch themes. Saved in this browser.
           </p>
           <div className="appearance-actions">
-            <button type="button" className="ghost small" onClick={onReset}>
+            <button
+              type="button"
+              className="ghost small"
+              onClick={() => {
+                activateTheme(null);
+                onReset();
+              }}
+            >
               Reset to defaults
             </button>
             <button type="button" className="ghost small" onClick={close}>
