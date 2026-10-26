@@ -29,3 +29,8 @@ test('malicious inputs fail closed in the SDK runtime and CLI',()=>{
 test('all base palettes and shipped starter themes pass',()=>{
  for(const base of BASES){assert.deepEqual(themeIssues(newTheme(base)),[]);execFileSync(process.execPath,[cli.pathname,'validate',new URL(`./examples/${base}.hltheme`,import.meta.url).pathname]);}
 });
+test('a UTF-8 byte order mark is ignored, as in the app importer',()=>{
+ const file=join(dir,'bom.hltheme');
+ writeFileSync(file,'\uFEFF'+JSON.stringify(newTheme('midnight')));
+ assert.equal(run('validate',file).status,0);
+});

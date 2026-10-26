@@ -17,3 +17,7 @@ Reproduce with the existing Python Playwright dependency using `tests/integratio
 The first PR #24 CI run passed 20/21 jobs. Chromium and Firefox passed the full matrix; WebKit passed every layout/axe check but its final exception assertion caught mocked capability requests canceled by immediate document reloads. The harness now waits for the actual capability navigation result before replacing a document and logs browser exception details. No exception filter, CSP relaxation or production behavior change was added.
 
 WebKit was reproduced locally using Ubuntu libicu74/libflite1 unpacked into temporary directories (no Arch system package changes). With the navigation synchronization fix it passes all 76 checks with zero exceptions; see `webkit.json`. Updated CI must still pass before merge. The owner waived DCO sign-off specifically for PR #24 and authorized merge after all CI jobs pass.
+
+## Final design review, 2026-10-26
+
+Reviewed on `f6af207c` with a Chromium-only local pass (four themes, phone to ultrawide, preference combinations, Theme Studio, TDK). Seven defects were fixed on `review/hcis-final` and covered by new checks in `tests/e2e/hcis-ui.mjs` and Vitest/TDK tests; a negative control confirmed the new e2e checks fail without the CSS fixes. Not covered locally: Firefox and WebKit (CI), real broker data, a real screen reader, Windows High Contrast hardware. See `docs/ui/12-FINAL-DESIGN-REVIEW-AND-HANDOFF.md`.
