@@ -13,7 +13,7 @@ const page = await context.newPage();
 await context.addInitScript(() => { window.__hcCsp = []; document.addEventListener('securitypolicyviolation', (event) => window.__hcCsp.push(event.violatedDirective)); });
 page.setDefaultTimeout(12000);
 const errors = [];
-page.on('pageerror', (e) => errors.push(e.message));
+page.on('pageerror', (e) => { errors.push(e.message); console.error(`Browser exception (${process.env.HC_BROWSER ?? 'chromium'}): ${e.message}`); });
 const units = Array.from({ length: 230 }, (_, i) => ({ name: `example-${String(i).padStart(3, '0')}.service`, description: 'Example data — browser-test fixture', active: i % 3 ? 'active' : 'failed', sub: i % 3 ? 'running' : 'failed', load: 'loaded', type: 'service', unit_file_state: 'enabled' }));
 await context.route('**/api/**', (route) => {
   const path = new URL(route.request().url()).pathname;
@@ -25,6 +25,11 @@ await context.route('**/api/**', (route) => {
   return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 });
 const axe = readFileSync('frontend/app/node_modules/axe-core/axe.min.js', 'utf8');
+// Studio can render before the deferred capabilities request finishes. Wait for its
+// actual navigation result before replacing the document; WebKit reports an
+// intercepted request aborted by reload as an access-control page error.
+async function settleCapabilities() { await page.locator('#main-nav a[href="/services"]').waitFor({ state: 'attached' }); }
+async function goto(path) { await page.goto(path); await settleCapabilities(); }
 const checks = [];
 function check(name, ok) { assert.ok(ok, name); checks.push(name); console.log(`PASS ${name}`); }
 async function noOverflow(name) { check(name, await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)); }
@@ -34,7 +39,7 @@ async function audit(name) {
   check(`axe ${name}: ${JSON.stringify(violations)}`, violations.length === 0);
 }
 try {
-  await page.goto(`${url}/services`);
+  await goto(`${url}/services`);
   await page.getByRole('table', { name: 'Units' }).waitFor();
   const response = await context.request.get(url);
   check('production CSP keeps unsafe-inline disabled', !response.headers()['content-security-policy']?.includes("'unsafe-inline'"));
@@ -70,19 +75,20 @@ try {
       await page.setViewportSize({ width, height: 1000 });
       await page.evaluate((theme) => { localStorage.removeItem('hc.theme.active.v1'); localStorage.setItem('hc.preferences.v1', JSON.stringify({ schemaVersion: 1, theme, textScale: '125', font: 'system' })); }, theme);
       await page.reload();
+      await settleCapabilities();
       await page.getByRole('heading', { name: 'Themes & Theme Studio' }).waitFor();
       await noOverflow(`${theme}/${width}: Studio fits at 125% text`);
       if (width === 390 || width === 1100) await audit(`${theme}/${width} studio`);
       if (theme === 'midnight' && width === 390) await page.screenshot({ path: `${artifacts}/studio-phone.png`, fullPage: true });
       if (theme === 'midnight' && width === 1920) await page.screenshot({ path: `${artifacts}/studio-desktop.png`, fullPage: true });
-      await page.goto(`${url}/services`);
+      await goto(`${url}/services`);
       await page.getByRole('table', { name: 'Units' }).waitFor();
       await noOverflow(`${theme}/${width}: Services fits at 125% text`);
       if (width === 390 || width === 1100) await audit(`${theme}/${width} services`);
-      await page.goto(`${url}/appearance/themes`);
+      await goto(`${url}/appearance/themes`);
     }
   }
-  check('no browser exceptions', errors.length === 0);
+  check(`no browser exceptions: ${JSON.stringify(errors)}`, errors.length === 0);
 } finally {
   writeFileSync(`${artifacts}/report.json`, JSON.stringify({ browser: browser.version(), checks, errors }, null, 2));
   await browser.close();
