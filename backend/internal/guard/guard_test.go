@@ -205,3 +205,67 @@ func TestUnprivilegedBinariesDoNotLinkPrivilegedCode(t *testing.T) {
 		}
 	}
 }
+
+// rootExecFiles are the only non-test files that may reference the root-exec
+// handle or root templates (ADR 0008 Amendment 2). Adding one requires review.
+var rootExecFiles = map[string]bool{
+	"internal/broker/runner/runner.go": true, // defines the templates and the handle
+	"internal/broker/ops/ops.go":       true, // registry lists apply's templates (W1)
+	"internal/broker/server/server.go": true, // passes the handle to root-exec ops only
+	"cmd/hc-broker/main.go":            true, // creates the single handle
+}
+
+var rootExecNames = map[string]bool{
+	"RootExec": true, "RootArgv": true, "rootTemplates": true, "RootSystemctlStart": true,
+	"RootSystemctlStop": true, "RootSystemctlRestart": true, "RootTemplate": true,
+}
+
+func TestRootExecConfined(t *testing.T) {
+	root, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := token.NewFileSet()
+	found := map[string]bool{}
+	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() && (d.Name() == "testdata" || d.Name() == "node_modules") {
+			return filepath.SkipDir
+		}
+		if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		rel, _ := filepath.Rel(root, path)
+		f, err := parser.ParseFile(fset, path, nil, 0)
+		if err != nil {
+			return err
+		}
+		ast.Inspect(f, func(n ast.Node) bool {
+			var name string
+			switch x := n.(type) {
+			case *ast.SelectorExpr:
+				name = x.Sel.Name
+			case *ast.Ident:
+				name = x.Name
+			}
+			if rootExecNames[name] {
+				found[rel] = true
+				if !rootExecFiles[rel] {
+					t.Errorf("%s references %s; root execution is confined to reviewed files (ADR 0008 Amendment 2)", fset.Position(n.Pos()), name)
+				}
+			}
+			return true
+		})
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for f := range rootExecFiles {
+		if !found[f] {
+			t.Errorf("%s is listed as a root-exec file but no longer references it; shrink the list", f)
+		}
+	}
+}

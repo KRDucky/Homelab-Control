@@ -19,6 +19,17 @@ const (
 	PrivNone             Privilege = "none"
 	PrivRootRead         Privilege = "root-read"
 	PrivUnprivilegedExec Privilege = "unprivileged-exec"
+	// PrivRootExec ops may run one of the fixed root argv templates of
+	// internal/broker/runner (ADR 0008 Amendment 2, D-4). Only write ops
+	// that went through plan/apply review carry it.
+	PrivRootExec Privilege = "root-exec"
+)
+
+// Risk classes of write operations (ADR 0011).
+const (
+	RiskReversible  = "reversible"
+	RiskDisruptive  = "disruptive"
+	RiskDestructive = "destructive"
 )
 
 // OpInfo is the public description of an op.

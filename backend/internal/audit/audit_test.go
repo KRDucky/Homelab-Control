@@ -7,6 +7,7 @@ package audit
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -197,5 +198,30 @@ func TestCheckpointCallbackAndParse(t *testing.T) {
 		if _, err := ParseCheckpoint(bad); err == nil {
 			t.Errorf("accepted %q", bad)
 		}
+	}
+}
+
+func TestStructuredDataIsChainedAndValidated(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "ops.jsonl")
+	l, err := Open(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := l.Log(Event{Event: "op.intent", Outcome: "intent", Data: json.RawMessage(`{"op_id":"1","msg":"<a>"}`)}); err != nil {
+		t.Fatal(err)
+	}
+	for _, bad := range []string{`{"a":`, `{ "a": 1 }`, "[" + strings.Repeat(`"x",`, MaxData) + `"x"]`} {
+		if err := l.Log(Event{Event: "op.intent", Data: json.RawMessage(bad)}); !errors.Is(err, ErrBadData) {
+			t.Errorf("data %.20q accepted: %v", bad, err)
+		}
+	}
+	l.Close()
+	raw, _ := os.ReadFile(p)
+	if rep := Verify(bytes.NewReader(raw)); !rep.OK() {
+		t.Fatalf("verify: %+v", rep.Problems)
+	}
+	tampered := strings.Replace(string(raw), `"op_id":"1"`, `"op_id":"2"`, 1)
+	if rep := Verify(strings.NewReader(tampered)); rep.OK() {
+		t.Fatal("tampered data not detected")
 	}
 }

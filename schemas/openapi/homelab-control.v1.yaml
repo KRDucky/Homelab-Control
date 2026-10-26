@@ -35,10 +35,11 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
+        step_up_until: { type: string, format: date-time, description: 'When the password re-entry of this session (D-3) lapses; absent when there is none' }
     Meta:
       type: object
       required: [status, sources]
@@ -411,6 +412,17 @@ paths:
         '502': { description: 'Broker failure (details are not exposed)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: 'Broker unavailable; systemd/journald or the journal reader group missing; or the read could not be audited (audit_unavailable, no content returned)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '504': { description: 'Broker operation timed out', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /auth/step-up:
+    post:
+      summary: 'Re-enter the password of the signed-in user (D-3). Valid 5 minutes for this session only; failures count toward login throttling. The password never reaches the broker or the audit log.'
+      security: [{ session: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, additionalProperties: false, required: [password], properties: { password: { type: string, maxLength: 1024 } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, required: [step_up_until], properties: { step_up_until: { type: string, format: date-time } } } } } }
+        '403': { description: 'invalid_credentials, or CSRF/Origin rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '429': { description: Throttled, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /hardware:
     get:
       summary: Hardware inventory (read-only). Degrades instead of failing when the broker is down.

@@ -6,9 +6,15 @@
 // programs (enforced by internal/guard). It runs allow-listed binaries with
 // argv fixed by the calling operation, a replaced environment, no stdin,
 // size-capped output, a timeout that kills the whole process group, and
-// always as the unprivileged service user, never as root. An op may add
-// supplementary groups (e.g. the journal reader group); the uid stays the
-// service user.
+// as the unprivileged service user. An op may add supplementary groups (e.g.
+// the journal reader group); the uid stays the service user.
+//
+// One exception exists (ADR 0008 Amendment 2, owner decision D-4): the
+// root-exec class. A Root handle runs one of a closed set of argv templates
+// that are fixed in this file (RootTemplate); the caller supplies only the
+// template ID and a target that the template's own validator accepts. There
+// is no way to pass a binary, flags or free-form arguments to a root child.
+// The broker hands a Root handle only to ops registered as root-exec.
 package runner
 
 import (
@@ -20,6 +26,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -32,8 +39,87 @@ var allowlist = map[string][]string{
 }
 
 // argRE limits fixed arguments to a conservative character set; arguments
-// are compile-time constants in ops, this is a second line of defence.
-var argRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9=,._:@/+-]*$|^--?[A-Za-z0-9][A-Za-z0-9=,._:@/+-]*$`)
+// are compile-time constants in ops, this is a second line of defence. A bare
+// "--" (end of options, before unit names) is allowed.
+var argRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9=,._:@/+-]*$|^--?[A-Za-z0-9][A-Za-z0-9=,._:@/+-]*$|^--$`)
+
+// RootTemplate identifies one fixed root argv template. Adding a template
+// requires security review (ADR 0008 Amendment 2) and the registry snapshot
+// test in this package to be updated.
+type RootTemplate string
+
+// The root templates approved for M2-2: systemd service start/stop/restart,
+// and the read-only state query that services.unit.apply uses to revalidate
+// and to verify the outcome (so that its decision does not rest on a child
+// process running as the same uid as hc-api, which hc-api could tamper with).
+const (
+	RootSystemctlStart   RootTemplate = "systemctl.start"
+	RootSystemctlStop    RootTemplate = "systemctl.stop"
+	RootSystemctlRestart RootTemplate = "systemctl.restart"
+	RootSystemctlShow    RootTemplate = "systemctl.show"
+)
+
+type rootTemplate struct {
+	binary     string   // allow-list key
+	argv       []string // fixed arguments; the validated targets follow "--"
+	valid      func(target string) bool
+	maxTargets int
+}
+
+// systemctlShowProperties is the fixed property list of every `systemctl
+// show` the broker runs (root or unprivileged): identity, state, safety
+// properties, dependencies and the *Action= properties.
+var systemctlShowProperties = []string{
+	"Id", "Names", "Description", "LoadState", "ActiveState", "SubState", "Result",
+	"UnitFileState", "FragmentPath", "MainPID", "ExecMainStatus", "InvocationID", "Type",
+	"StateChangeTimestamp", "RefuseManualStart", "RefuseManualStop", "CanStart", "CanStop",
+	"OnFailureJobMode", "OnSuccessJobMode", "StopWhenUnneeded",
+	"Requires", "Requisite", "Wants", "BindsTo", "Upholds", "PartOf",
+	"Conflicts", "ConflictedBy", "RequiredBy", "RequisiteOf", "BoundBy",
+	"ConsistsOf", "PropagatesStopTo", "OnFailure", "OnSuccess",
+	"FailureAction", "SuccessAction", "StartLimitAction", "JobTimeoutAction",
+}
+
+// SystemctlShowProperties returns a copy of the fixed property list.
+func SystemctlShowProperties() []string { return append([]string{}, systemctlShowProperties...) }
+
+// SystemctlShowArgs is the argv (without the binary) of the state query for
+// units; the unprivileged path uses the same argv as the root template.
+func SystemctlShowArgs(units ...string) []string {
+	a := []string{"show", "--no-pager"}
+	for _, p := range systemctlShowProperties {
+		a = append(a, "--property="+p)
+	}
+	return append(append(a, "--"), units...)
+}
+
+// serviceUnitRE mirrors servicepolicy.UnitRE (kept here, independently, as the
+// runner's own last line of defence): a .service unit, no leading '-', no
+// escapes, separators or whitespace.
+var serviceUnitRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9:_.@-]{0,99}\.service$`)
+
+func validServiceUnit(t string) bool {
+	return serviceUnitRE.MatchString(t) && !strings.Contains(t, "@.service") && !strings.Contains(t, "..")
+}
+
+// rootTemplates is the closed table of root children. --no-ask-password: never
+// wait for an agent; --job-mode=fail: fail instead of replacing another queued
+// job on the unit (a concurrent change made elsewhere is not overridden).
+var rootTemplates = map[RootTemplate]rootTemplate{
+	RootSystemctlStart:   {"systemctl", []string{"--no-ask-password", "--job-mode=fail", "start", "--"}, validServiceUnit, 1},
+	RootSystemctlStop:    {"systemctl", []string{"--no-ask-password", "--job-mode=fail", "stop", "--"}, validServiceUnit, 1},
+	RootSystemctlRestart: {"systemctl", []string{"--no-ask-password", "--job-mode=fail", "restart", "--"}, validServiceUnit, 1},
+	// Read-only: SystemctlShowArgs (ending in "--"), then up to 32 units.
+	RootSystemctlShow: {"systemctl", SystemctlShowArgs(), validQueryUnit, 32},
+}
+
+// queryUnitRE is the runner's own grammar for state-query targets: any unit
+// type, no leading '-', no escapes, separators or whitespace.
+var queryUnitRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9:_.@-]{0,99}\.(service|socket|timer|mount|automount|path|target|swap|slice|scope|device)$`)
+
+func validQueryUnit(t string) bool {
+	return queryUnitRE.MatchString(t) && !strings.Contains(t, "..") && !strings.Contains(t, "@.")
+}
 
 // Identity is the uid/gid children run as.
 type Identity struct {
@@ -150,6 +236,12 @@ func (r *Runner) RunWithGroups(ctx context.Context, groups []uint32, name string
 	if err := checkBinary(path, r.skipOwnerCheck); err != nil { // re-check at use time
 		return Result{}, err
 	}
+	return r.exec(ctx, path, args, &syscall.Credential{Uid: r.identity.UID, Gid: r.identity.GID, Groups: append([]uint32{}, groups...)})
+}
+
+// exec runs path with args. cred is the child identity when the broker runs
+// as root; nil means "run as root" and is only passed by Root.Run.
+func (r *Runner) exec(ctx context.Context, path string, args []string, cred *syscall.Credential) (Result, error) {
 	cmd := exec.CommandContext(ctx, path, args...)
 	cmd.Env = []string{
 		"PATH=/usr/sbin:/usr/bin:/sbin:/bin",
@@ -166,10 +258,8 @@ func (r *Runner) RunWithGroups(ctx context.Context, groups []uint32, name string
 	errb := &capped{limit: r.maxStderr}
 	cmd.Stdout, cmd.Stderr = out, errb
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	if os.Geteuid() == 0 {
-		// Never run children as root.
-		gs := append([]uint32{}, groups...)
-		cmd.SysProcAttr.Credential = &syscall.Credential{Uid: r.identity.UID, Gid: r.identity.GID, Groups: gs}
+	if os.Geteuid() == 0 && cred != nil {
+		cmd.SysProcAttr.Credential = cred
 	}
 	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
 	cmd.WaitDelay = 2 * time.Second
@@ -192,4 +282,57 @@ func (r *Runner) RunWithGroups(ctx context.Context, groups []uint32, name string
 		return res, err
 	}
 	return res, nil
+}
+
+// Root runs the fixed root argv templates (root-exec class). The broker
+// creates exactly one and passes it only to ops registered as root-exec.
+type Root struct {
+	r *Runner
+}
+
+// RootExec returns the root-exec handle of this runner.
+func (r *Runner) RootExec() *Root { return &Root{r: r} }
+
+// ErrUnknownTemplate is returned for a template ID that is not in the table.
+var ErrUnknownTemplate = errors.New("root template not registered")
+
+// RootArgv returns the exact argv (without the binary) a template produces
+// for targets, or an error. Exposed for tests and audit records.
+func RootArgv(t RootTemplate, targets ...string) ([]string, error) {
+	tpl, ok := rootTemplates[t]
+	if !ok {
+		return nil, fmt.Errorf("%q: %w", t, ErrUnknownTemplate)
+	}
+	if len(targets) == 0 || len(targets) > tpl.maxTargets {
+		return nil, fmt.Errorf("%d targets: %w", len(targets), ErrBadArg)
+	}
+	for _, target := range targets {
+		if !tpl.valid(target) {
+			return nil, fmt.Errorf("target %q: %w", target, ErrBadArg)
+		}
+	}
+	return append(append([]string{}, tpl.argv...), targets...), nil
+}
+
+// Run executes template t on target as root. The binary is the template's
+// allow-listed path, re-checked (root-owned, not group/world-writable) at use
+// time; the environment is replaced; stdin is /dev/null; output is capped and
+// the process group is killed when ctx expires.
+func (x *Root) Run(ctx context.Context, t RootTemplate, targets ...string) (Result, error) {
+	if x == nil || x.r == nil {
+		return Result{}, ErrNotAllowed
+	}
+	argv, err := RootArgv(t, targets...)
+	if err != nil {
+		return Result{}, err
+	}
+	name := rootTemplates[t].binary
+	path, ok := x.r.paths[name]
+	if !ok {
+		return Result{}, fmt.Errorf("%s: %w", name, os.ErrNotExist)
+	}
+	if err := checkBinary(path, x.r.skipOwnerCheck); err != nil {
+		return Result{}, err
+	}
+	return x.r.exec(ctx, path, argv, nil)
 }

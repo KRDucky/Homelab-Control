@@ -92,9 +92,11 @@ or a local TLS reverse proxy with `-behind-tls-proxy -allowed-origins https://yo
 - Process execution only in `internal/broker/runner` (guard test enforces); `hc-api`/`hlctl` must never
   link `broker/runner`, `broker/ops` or `broker/server` (import-graph guard test).
 - New broker operations require: a registry entry, a scope, typed args, tests, an update to
-  `TestRegistryIsClosedAndReadOnly`, the OpenAPI file, and security review (ADR 0008). Operations
+  `TestRegistryIsClosed`, the OpenAPI file, and security review (ADR 0008). Operations
   that take arguments also follow ADR 0008 Amendment 1 (strict decode, validation in both tiers,
-  `AuditArgs` summary, fuzz test).
+  `AuditArgs` summary, fuzz test). Write operations follow ADR 0011 and ADR 0008 Amendment 2
+  (plan/apply pair, plan tokens, locks, journal, `root-exec` templates); the step-by-step checklist
+  is [`BROKER-WRITE-OPERATIONS.md`](BROKER-WRITE-OPERATIONS.md).
 - Every API route must be in `schemas/openapi/homelab-control.v1.yaml` with its scope (contract test).
 - UI: no inline styles/scripts (CSP), no raw HTML rendering (lint enforces), no fabricated values —
   show "Unknown"/"Unavailable" with the data source.

@@ -23,12 +23,18 @@ import (
 	"homelab-control/backend/internal/audit"
 	"homelab-control/backend/internal/broker/ops"
 	"homelab-control/backend/internal/broker/proto"
+	"homelab-control/backend/internal/broker/runner"
+	"homelab-control/backend/internal/broker/types"
 )
 
 // Server is the broker.
 type Server struct {
 	AllowedUIDs []uint32
 	Env         *ops.Env
+	// RootExec is the root-exec handle. It is never stored in Env; handle()
+	// passes it, in a per-call copy of Env, only to ops registered as
+	// PrivRootExec (ADR 0008 Amendment 2).
+	RootExec    *runner.Root
 	Audit       *audit.Logger
 	MaxInFlight int
 	registry    map[string]ops.Op
@@ -160,7 +166,15 @@ func (s *Server) handle(ctx context.Context, c *net.UnixConn) {
 	octx, cancel := context.WithTimeout(ctx, op.Timeout)
 	defer cancel()
 	start := time.Now()
-	res, err := s.run(octx, op, req.Args)
+	// Per-call environment: the actor, and the root handle only for root-exec
+	// ops. Any root handle in the shared Env is discarded.
+	callEnv := *s.Env
+	callEnv.Actor = req.Actor
+	callEnv.RootExec = nil
+	if op.Privilege == types.PrivRootExec {
+		callEnv.RootExec = s.RootExec
+	}
+	res, err := s.run(octx, op, &callEnv, req.Args)
 	dur := time.Since(start).Round(time.Millisecond)
 	if err != nil {
 		var pe *proto.Error
@@ -182,6 +196,12 @@ func (s *Server) handle(ctx context.Context, c *net.UnixConn) {
 	ev.Detail = fmt.Sprintf("%s%s %s", req.Op, argSummary, dur)
 	// Fail closed: a result is only released once its audit record is durable.
 	if err := s.log(ev); err != nil {
+		if op.Privilege == types.PrivRootExec {
+			// The action already ran (its intent and outcome are in the
+			// operation journal); do not imply that nothing happened.
+			s.reply(c, fail(proto.CodeUnavailable, "the operation was executed, but the broker audit log cannot be written; the result was withheld. Check the unit state and the operation journal"))
+			return
+		}
 		s.reply(c, fail(proto.CodeUnavailable, "the broker audit log cannot be written; the result was withheld"))
 		return
 	}
@@ -190,13 +210,13 @@ func (s *Server) handle(ctx context.Context, c *net.UnixConn) {
 
 // run invokes the handler, converting panics into internal errors so one bad
 // op cannot take the broker down.
-func (s *Server) run(ctx context.Context, op ops.Op, args json.RawMessage) (res any, err error) {
+func (s *Server) run(ctx context.Context, op ops.Op, env *ops.Env, args json.RawMessage) (res any, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = &proto.Error{Code: proto.CodeInternal, Message: "operation panicked"}
 		}
 	}()
-	return op.Handle(ctx, s.Env, args)
+	return op.Handle(ctx, env, args)
 }
 
 // Listener returns the systemd-activated socket (LISTEN_FDS) if present,
