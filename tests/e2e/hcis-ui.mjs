@@ -75,7 +75,9 @@ try {
   check('disclosure headings meet the 24px target size', await page.evaluate(() => [...document.querySelectorAll('summary')].every((s) => s.getBoundingClientRect().height >= 23.5)));
   check('document title names the page', (await page.title()).startsWith('Themes & Theme Studio'));
   await page.setViewportSize({ width: 390, height: 900 });
-  check('table captions keep their width when a table becomes cards', await page.evaluate(() => [...document.querySelectorAll('.hc-data-table caption')].every((c) => c.getBoundingClientRect().width > 150)));
+  // Container-query layout settles a frame or two after the resize; wait for it instead of sampling once.
+  const captionsWide = () => [...document.querySelectorAll('.hc-data-table caption')].every((c) => c.getBoundingClientRect().width > 150);
+  check('table captions keep their width when a table becomes cards', await page.waitForFunction(captionsWide, null, { timeout: 3000 }).then(() => true, () => false));
   if ((process.env.HC_BROWSER ?? 'chromium') === 'chromium') {
     await page.emulateMedia({ forcedColors: 'active' });
     await page.keyboard.press('Tab');

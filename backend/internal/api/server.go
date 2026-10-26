@@ -113,6 +113,9 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/services", auth.ScopeServicesRead, s.handleServices)
 	s.handle("GET /api/v1/services/units/{unit}/logs", auth.ScopeServicesLogs, s.handleUnitLogs)
 	s.handle("POST /api/v1/auth/step-up", sessionOnly, s.handleStepUp)
+	s.handle("POST /api/v1/services/units/{unit}/plan", auth.ScopeServicesOperate, s.handleUnitPlan)
+	s.handle("POST /api/v1/services/units/{unit}/apply", auth.ScopeServicesOperate, s.handleUnitApply)
+	s.handle("GET /api/v1/operations", auth.ScopeAuditRead, s.handleOperations)
 	s.handle("GET /api/v1/hardware", auth.ScopeHardwareRead, s.handleHardware)
 	s.handle("GET /api/v1/legacy/webmin", auth.ScopeSystemRead, s.handleLegacy)
 	s.mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {

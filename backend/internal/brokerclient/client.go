@@ -25,6 +25,13 @@ type Client struct {
 	Timeout time.Duration
 }
 
+// opTimeouts are longer client deadlines for ops that wait on systemd jobs.
+// They exceed the broker's own op timeout so the broker's answer (including
+// an "uncertain" outcome) is received rather than cut off.
+var opTimeouts = map[string]time.Duration{
+	"services.unit.apply": 75 * time.Second,
+}
+
 // New returns a client for the given socket path.
 func New(socket string) *Client { return &Client{Socket: socket, Timeout: 15 * time.Second} }
 
@@ -47,7 +54,11 @@ func (c *Client) CallWithArgs(ctx context.Context, op string, args any, actor pr
 		}
 		raw = b
 	}
-	ctx, cancel := context.WithTimeout(ctx, c.Timeout)
+	timeout := c.Timeout
+	if t, ok := opTimeouts[op]; ok && t > timeout {
+		timeout = t
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	var d net.Dialer
 	conn, err := d.DialContext(ctx, "unix", c.Socket)

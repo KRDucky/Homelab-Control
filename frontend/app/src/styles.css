@@ -690,3 +690,152 @@ tr.log-debug td {
 .row-warn td {
   background: var(--hc-color-status-warn-subtle);
 }
+
+/* M2-2 service operations: preview → confirm → result (HCIS privileged-operation
+   flow). Opaque overlay surface; colour reinforces words, never replaces them. */
+.actions-cell {
+  white-space: nowrap;
+}
+.row-actions {
+  display: inline-flex;
+  gap: var(--hc-space-1);
+}
+.modal-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: var(--hc-space-4);
+  background: var(--hc-color-scrim);
+}
+.modal {
+  width: min(38rem, 100%);
+  max-height: calc(100dvh - 2 * var(--hc-space-4));
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--hc-color-surface-overlay);
+  color: var(--hc-color-text-primary);
+  border: 1px solid var(--hc-color-border-strong);
+  border-radius: var(--hc-radius-md);
+  box-shadow: 0 1rem 3rem var(--hc-color-scrim);
+}
+.modal-head,
+.modal-body,
+.modal-foot {
+  padding: var(--hc-space-4);
+}
+.modal-head {
+  border-bottom: 1px solid var(--hc-color-border-subtle);
+}
+.modal-head h2 {
+  margin: 0;
+  font-size: var(--hc-font-size-lg);
+  overflow-wrap: anywhere;
+}
+.modal-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--hc-space-2);
+  border-top: 1px solid var(--hc-color-border-subtle);
+}
+.modal-body .kv {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--hc-space-1) var(--hc-space-3);
+  margin: var(--hc-space-3) 0;
+}
+.modal-body .kv dt {
+  color: var(--hc-color-text-secondary);
+}
+.modal-body .kv dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.preview-bar {
+  margin: 0;
+  padding: var(--hc-space-2) var(--hc-space-3);
+  border-radius: var(--hc-radius-sm);
+  background: var(--hc-color-status-info-subtle);
+  color: var(--hc-color-status-info-text);
+  font-weight: 600;
+}
+.consequences,
+.also ul,
+.recovery ul {
+  padding-left: var(--hc-space-6);
+}
+.risk-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--hc-space-1);
+  padding: 0 var(--hc-space-2);
+  border: 1px solid currentColor;
+  border-radius: var(--hc-radius-sm);
+  font-size: var(--hc-font-size-sm);
+  font-weight: 650;
+}
+.risk-reversible {
+  color: var(--hc-color-status-info-text);
+  background: var(--hc-color-status-info-subtle);
+}
+.risk-disruptive {
+  color: var(--hc-color-status-warn-text);
+  background: var(--hc-color-status-warn-subtle);
+}
+.risk-destructive {
+  color: var(--hc-color-status-crit-text);
+  background: var(--hc-color-status-crit-subtle);
+  border-width: 2px;
+}
+button.warn-action {
+  background: var(--hc-color-status-warn);
+  color: var(--hc-color-status-warn-contrast);
+}
+.modal .field {
+  margin-top: var(--hc-space-3);
+}
+.modal .field label {
+  display: block;
+  margin-bottom: var(--hc-space-1);
+}
+.field-error {
+  color: var(--hc-color-status-crit-text);
+  margin: var(--hc-space-2) 0 0;
+}
+.progress-note {
+  font-weight: 600;
+}
+.op-result {
+  padding: var(--hc-space-3);
+  border-radius: var(--hc-radius-sm);
+  border-left: 4px solid currentColor;
+}
+.op-succeeded {
+  color: var(--hc-color-status-ok-text);
+  background: var(--hc-color-status-ok-subtle);
+}
+.op-failed {
+  color: var(--hc-color-status-crit-text);
+  background: var(--hc-color-status-crit-subtle);
+}
+.op-uncertain {
+  color: var(--hc-color-status-warn-text);
+  background: var(--hc-color-status-warn-subtle);
+}
+@media (max-width: 40rem) {
+  .modal-scrim {
+    padding: 0;
+    place-items: end stretch;
+  }
+  .modal {
+    width: 100%;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+  .modal-foot button {
+    flex: 1 1 auto;
+  }
+}

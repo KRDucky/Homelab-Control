@@ -3,10 +3,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useMemo, useState } from 'react';
-import { getServices, type Capability, type Unit } from '../api';
+import { getServices, isOperableName, type Capability, type ServiceAction, type Unit } from '../api';
 import { LiveIndicator, StatusIndicator } from '../ui';
 import { DataTable } from '../DataTable';
 import { explain, useData } from '../useData';
+import { ServiceActionDialog } from './ServiceActionDialog';
 import { UnitLogsPanel } from './UnitLogsPanel';
 
 type Filter = 'all' | 'running' | 'failed' | 'inactive';
@@ -38,14 +39,42 @@ function tone(u: Unit): 'ok' | 'warn' | 'crit' | 'idle' {
   return 'idle';
 }
 
+/** Focus a unit's name in the table: stable across list refreshes, unlike its buttons. */
+function focusUnit(unit: string) {
+  for (const el of document.querySelectorAll<HTMLElement>('[data-unit]')) {
+    if (el.dataset.unit === unit) {
+      el.focus();
+      return;
+    }
+  }
+  document.getElementById('main')?.focus();
+}
+
+/** Which verbs to offer for a unit's current state (the broker decides what is allowed). */
+function actionsFor(u: Unit): ServiceAction[] {
+  if (u.active === 'active' || u.active === 'reloading') return ['restart', 'stop'];
+  if (u.active === 'activating' || u.active === 'deactivating') return [];
+  return ['start'];
+}
+
+const actionLabel: Record<ServiceAction, string> = { start: 'Start', stop: 'Stop', restart: 'Restart' };
+
 export function Services({
   onUnauthorized,
   logs,
+  csrf = '',
+  stepUpUntil = null,
+  auditAvailable = false,
 }: {
   onUnauthorized: () => void;
   logs?: Capability | undefined;
+  csrf?: string;
+  stepUpUntil?: string | null;
+  auditAvailable?: boolean;
 }) {
-  const { data, error, live } = useData(getServices, { intervalMs: 15_000, onUnauthorized });
+  const { data, error, live, reload } = useData(getServices, { intervalMs: 15_000, onUnauthorized });
+  const [op, setOp] = useState<{ unit: string; action: ServiceAction } | null>(null);
+  const [stepUp, setStepUp] = useState<string | null>(stepUpUntil);
   const [filter, setFilter] = useState<Filter>('all');
   const [type, setType] = useState('service');
   const [q, setQ] = useState('');
@@ -79,14 +108,53 @@ export function Services({
 
   const failed = data.units.filter((u) => u.active === 'failed');
   const running = data.units.filter((u) => u.active === 'active').length;
+  const operate = data.operate?.available === true && csrf !== '';
+  const protectedMap = data.protected ?? {};
+  const protectedGroups = new Map<string, { reason: string; units: string[] }>();
+  for (const [name, p] of Object.entries(protectedMap)) {
+    const key = p.category ?? 'other';
+    const g = protectedGroups.get(key) ?? { reason: p.reason ?? '', units: [] };
+    g.units.push(name);
+    protectedGroups.set(key, g);
+  }
+  function actionCell(u: Unit) {
+    if (u.type !== 'service' || u.load !== 'loaded' || !isOperableName(u.name)) return null;
+    const p = protectedMap[u.name];
+    if (p?.protected) {
+      return (
+        <span className="tag" aria-describedby="protected-units">
+          Protected<span className="visually-hidden">: {p.reason}</span>
+        </span>
+      );
+    }
+    return (
+      <span className="row-actions">
+        {actionsFor(u).map((a) => (
+          <button
+            key={a}
+            type="button"
+            className="ghost small"
+            aria-label={`${actionLabel[a]} ${u.name}`}
+            aria-haspopup="dialog"
+            onClick={() => setOp({ unit: u.name, action: a })}
+          >
+            {actionLabel[a]}
+          </button>
+        ))}
+      </span>
+    );
+  }
   return (
     <div className="page">
       <header className="page-head">
         <h1 className="page-title">Services</h1>
         <p className="page-sub">
           {data.units.length} units, {running} active, {failed.length} failed
-          {data.systemd_version ? `. ${data.systemd_version}` : ''}. Read-only: you can read a unit’s recent
-          logs; starting, stopping and enabling units is not available yet.
+          {data.systemd_version ? `. ${data.systemd_version}` : ''}.{' '}
+          {operate
+            ? 'You can start, stop and restart .service units that are not protected. Every operation is reviewed first, stop and restart ask for your password, and the result shown is the state systemd reports afterwards.'
+            : `Read-only: you can read a unit’s recent logs. ${data.operate?.reason ?? 'Starting, stopping and restarting units is not available.'}`}{' '}
+          Enabling and disabling units at boot is not available yet.
         </p>
       </header>
 
@@ -168,7 +236,17 @@ export function Services({
           rowTone={(u) => (u.active === 'failed' ? 'crit' : undefined)}
           emptyState="No units match these filters."
           columns={[
-            { id: 'name', label: 'Unit', sortValue: (u) => u.name, render: (u) => <code>{u.name}</code> },
+            {
+              id: 'name',
+              label: 'Unit',
+              rowHeader: true,
+              sortValue: (u) => u.name,
+              render: (u) => (
+                <code data-unit={u.name} tabIndex={-1}>
+                  {u.name}
+                </code>
+              ),
+            },
             {
               id: 'state',
               label: 'State',
@@ -216,6 +294,7 @@ export function Services({
                   },
                 ]
               : []),
+            ...(operate ? [{ id: 'actions', label: 'Actions', render: (u: Unit) => actionCell(u) }] : []),
           ]}
         />
         {data.truncated && <p className="footnote">The list was truncated at 5,000 units.</p>}
@@ -230,7 +309,47 @@ export function Services({
             Service logs: {logs.reason}
           </p>
         )}
+        {operate && protectedGroups.size > 0 && (
+          <details className="sources" id="protected-units">
+            <summary>Why some units can’t be started, stopped or restarted here</summary>
+            <p>
+              A fixed, built-in policy protects units whose interruption could lock you out, end sessions, or
+              affect storage or the host itself. The privileged helper enforces it, including for aliases and
+              dependencies. Manage these units on the host if you need to.
+            </p>
+            <ul>
+              {[...protectedGroups.entries()].map(([cat, g]) => (
+                <li key={cat}>
+                  {g.reason}{' '}
+                  <span className="muted">
+                    ({g.units.slice(0, 8).join(', ')}
+                    {g.units.length > 8 ? `, and ${g.units.length - 8} more` : ''})
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
       </section>
+
+      {op && (
+        <ServiceActionDialog
+          key={`${op.unit}/${op.action}`}
+          unit={op.unit}
+          action={op.action}
+          csrf={csrf}
+          stepUpUntil={stepUp}
+          onStepUp={setStepUp}
+          auditAvailable={auditAvailable}
+          onUnauthorized={onUnauthorized}
+          onShowLogs={logsUsable ? setLogUnit : undefined}
+          returnFocus={() => focusUnit(op.unit)}
+          onClose={(changed) => {
+            setOp(null);
+            if (changed) reload();
+          }}
+        />
+      )}
 
       {logsUsable && logUnit && (
         <UnitLogsPanel

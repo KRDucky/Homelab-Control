@@ -96,6 +96,10 @@ export function App() {
   // the navigation shows one entry per page.
   const pages = capList.filter((c, i) => capList.findIndex((x) => x.path === c.path) === i);
   const logsCap = capList.find((c) => c.id === 'service_logs');
+  const auditCap = capList.find((c) => c.id === 'audit');
+  // Accounts with services.operate can change the host (service start/stop/
+  // restart); everyone else has a read-only interface.
+  const canOperate = (session.scopes ?? []).includes('services.operate');
   const route =
     path === ACCOUNT_PATH || path === '/appearance/themes'
       ? undefined
@@ -108,7 +112,16 @@ export function App() {
   if (onThemes) page = <ThemeStudio />;
   else if (onAccount) page = <Sessions csrf={session.csrf_token} onUnauthorized={signedOut} />;
   else if (route && !routeUsable) page = <Unavailable cap={route} />;
-  else if (route?.id === 'services') page = <Services onUnauthorized={signedOut} logs={logsCap} />;
+  else if (route?.id === 'services')
+    page = (
+      <Services
+        onUnauthorized={signedOut}
+        logs={logsCap}
+        csrf={session.csrf_token}
+        stepUpUntil={session.step_up_until ?? null}
+        auditAvailable={auditCap?.status === 'available'}
+      />
+    );
   else if (route?.id === 'audit') page = <Audit onUnauthorized={signedOut} />;
   else if (route?.id === 'hardware') page = <Hardware onUnauthorized={signedOut} />;
   else if (route?.id === 'legacy')
@@ -125,6 +138,7 @@ export function App() {
       onAccount={onAccount}
       helperReason={caps?.broker.status === 'unavailable' ? caps.broker.reason : undefined}
       onSignOut={() => void signOut()}
+      canOperate={canOperate}
       version={session.version}
     >
       {caps?.broker.status === 'unavailable' && path !== '/' && routeUsable && (

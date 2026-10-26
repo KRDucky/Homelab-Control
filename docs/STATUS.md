@@ -1,9 +1,29 @@
-# Current status — Phase 1 release complete; M2 PR-1 and HCIS steps 1–3 merged (updated 2026-10-25)
+# Current status — M2-2 (service start/stop/restart) in review; Phase 1 release, M2 PR-1 and HCIS merged (updated 2026-10-26)
 
 Reconciled against `main` at `531dedb6` (merge of PR #22). "Merged" means a merge commit in `main`'s
 first-parent history; dates are UTC, from the merge-commit timestamps. "CI n/n" is the number of
 GitHub Actions check runs that succeeded out of those run on the PR's head commit, read from GitHub on
 2026-10-25 (it is not a statement about later commits).
+
+## M2-2: controlled systemd service management (authorized 2026-10-23; in review, not merged)
+
+The owner authorized M2-2 and approved D-2 (broker-issued plan → confirm → execute), D-3 (password
+step-up), D-4 (`root-exec` runner class) and D-5 (built-in protected-unit policy), option A each
+(`docs/m2/OWNER-DECISIONS.md`). Implemented on `feature/m2-systemd-service-operations` (two stacked
+PRs: M2-2a framework, M2-2b operations, API and UI); **not merged until owner review**.
+
+- **What exists on the branch:** start, stop and restart of loaded `.service` units from the Services
+  page, scope `services.operate` (never granted by default); broker plan tokens (HMAC-SHA256, 120 s,
+  single use, bound to op, action, canonical unit, actor, session and observed state); per-unit locks;
+  revalidation; a hash-chained, fsync'ed operation journal with interrupted-operation recovery; step-up
+  re-authentication for disruptive operations (5 min, per session); a fixed protected-unit policy
+  applied to aliases, unit files, template bases and, transitively, dependencies; outcomes verified by
+  reading the unit state back. Design: ADR 0011 and ADR 0008 Amendment 2. Results:
+  `docs/m2/M2-2-ACCEPTANCE.md`. User guide: `docs/user/SERVICE-MANAGEMENT.md`.
+- **Still not authorized:** enable/disable, mask/unmask, unit-file editing, daemon-reload, other unit
+  types, host shutdown or reboot, arbitrary commands, storage, Docker, packages, users and groups,
+  third-party modules.
+- **CI:** results are recorded in the PRs; nothing here is claimed before the run on the final head.
 
 ## UI foundation continuation (2026-10-25, merged in PR #24)
 
@@ -77,9 +97,10 @@ The owner authorized completing the remaining frontend and adding a user Theme D
   - login throttling is still in memory;
   - no audit retention or rotation;
   - no admin management of other users' sessions.
-- **Still not authorized:** privileged host writes, start/stop/restart, plan/confirm/execute, root command
-  execution, PAM/TOTP, storage configuration, Docker/VM management, Webmin migration. Browser-local themes are authorized in the UI continuation above.
-  D-2…D-5 and D-8…D-12 are open (`docs/m2/OWNER-DECISIONS.md`).
+- **Authorization at the time of PR-1:** no privileged host writes. Since 2026-10-23 M2-2 (service
+  start/stop/restart, plan/confirm/execute, `root-exec`) is authorized; see the M2-2 section above.
+  PAM/TOTP, storage configuration, Docker/VM management and Webmin migration remain unauthorized.
+  D-8…D-12 are open (`docs/m2/OWNER-DECISIONS.md`).
 
 ## HCIS UI migration (merged steps 1–3; each step is a separate, approved PR)
 - **Design documents:** the HCIS design system (PR #14) and the font licensing policy (PR #16) changed no
@@ -180,7 +201,9 @@ The owner authorized completing the remaining frontend and adding a user Theme D
   font licensing policy decided 2026-10-22. Migration step 1 approved 2026-10-22; steps 2 and 3 authorized
   2026-10-23 (`docs/ui/hcis/README.md`, project memory). The owner authorized the remaining frontend and TDK on 2026-10-25 (UI continuation above).
 
-**None of this authorizes privileged write operations.** M2 beyond PR-1 remains on hold.
+- **2026-10-23 (M2-2):** M2-2 authorized; D-2, D-3, D-4 and D-5 approved (option A each). ADR 0011
+  accepted; ADR 0008 Amendment 2 (`root-exec`). Only service start/stop/restart; everything else in M2
+  still needs its own authorization.
 
 ## Verified on the owner's workstation VM (2026-10-16, product code `738fa37b`)
 Ubuntu 26.04.1 KVM guest, systemd 259.5 (`dev/vm/`, evidence `docs/evidence/m1/vm-26.04/`):
@@ -194,7 +217,12 @@ CI run 38866773032 on the same commit: all 15 jobs green.
 - Upstream Webmin 2.680 not released; ~25 unreleased upstream security fixes since 2.670 — see
   `docs/security/WEBMIN-2.670-UPSTREAM-FIXES.md` (mitigations: RPC off, loopback bind, trusted admins).
 
-## Security items that block M2 (must be designed and approved before any write operation)
+## Security items that blocked M2 writes (status after M2-2)
+Items 1, 3 and 4 are addressed for service start/stop/restart by ADR 0011 (plan tokens, revalidation,
+locks, step-up, strict arguments); item 2 by the operation journal. The residual limitation of item 1
+(a compromised `hc-api` can request any operation the broker's policy allows) is accepted and
+documented in ADR 0011. The original list is kept below for reference.
+
 1. **Broker trust:** a compromised hc-api can call every registered broker op. Safe today only because all
    five are read-only (four take no arguments; `services.unit.logs` takes validated ones). Write ops need per-operation plan/confirmation tokens bound to the
    user and target, target revalidation in the broker, exclusive locks and timeouts (ADR 0001/0008 follow-up).

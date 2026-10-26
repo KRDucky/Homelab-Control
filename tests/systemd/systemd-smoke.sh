@@ -56,10 +56,11 @@ ov=$(curl -s -H "Cookie: __Host-hc_session=$sid" http://127.0.0.1:9180/api/v1/ho
 check "overview under hardening returns hostname" 1 "$(grep -q '"hostname":"' <<<"$ov" && echo 1 || echo 0)"
 check "overview: filesystems readable (ProtectHome/PrivateDevices)" 1 "$(grep -q '"mount_point":"/"' <<<"$ov" && echo 1 || echo 0)"
 check "overview: network section ok" 1 "$(grep -q '"network":{"status":"ok"' <<<"$ov" && echo 1 || echo 0)"
-if [ -n "${HC_SMOKE_EXTRA_CHECKS:-}" ]; then
+# Space-separated list of check scripts, sourced in order (they see $sid and $pw).
+for extra in ${HC_SMOKE_EXTRA_CHECKS:-}; do
   # shellcheck disable=SC1090
-  HC_SID=$sid source "$HC_SMOKE_EXTRA_CHECKS"
-fi
+  HC_SID=$sid source "$extra"
+done
 echo "== journal (last lines)"; journalctl -u homelab-control.service --no-pager -n 5 -o cat || true
 echo "== systemd-analyze security"; systemd-analyze security --no-pager homelab-control.service 2>/dev/null | tail -1 || true
 for u in ${HC_SMOKE_EXTRA_UNITS:-}; do systemd-analyze security --no-pager "$u" 2>/dev/null | tail -1 || true; done

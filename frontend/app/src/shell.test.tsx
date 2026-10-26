@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { App } from './App';
 import {
   applyPreferences,
@@ -295,7 +295,8 @@ describe('document title', () => {
     render(<App />);
     const nav = await screen.findByRole('navigation', { name: 'Main' });
     await within(nav).findByRole('link', { name: /Overview/ });
-    expect(document.title).toBe('Overview · Homelab Control');
+    // The title follows the capability list, which can land after the first nav render.
+    await waitFor(() => expect(document.title).toBe('Overview · Homelab Control'));
     fireEvent.click(within(nav).getByRole('link', { name: /Hardware/ }));
     expect(document.title).toBe('Hardware · Homelab Control');
     fireEvent.click(screen.getByRole('link', { name: 'Sessions' }));
