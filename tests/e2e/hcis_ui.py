@@ -11,5 +11,6 @@ root = Path(__file__).resolve().parents[2]
 driver = Path(playwright.__file__).parent / 'driver'
 for engine in os.environ.get('HC_CSP_BROWSERS', 'chromium').split(','):
     env = dict(os.environ, HC_BROWSER=engine.strip(), HC_PLAYWRIGHT_MODULE=str(driver / 'package' / 'index.mjs'))
-    env['HC_E2E_ARTIFACTS'] = str(root / 'work' / 'hcis-ui-e2e' / engine.strip())
-    subprocess.run([str(driver / 'node'), str(root / 'tests/e2e/hcis-ui.mjs')], cwd=root, env=env, check=True)
+    for script, out in (('hcis-ui.mjs', 'hcis-ui-e2e'), ('service-ops-ui.mjs', 'service-ops-e2e')):
+        env['HC_E2E_ARTIFACTS'] = str(root / 'work' / out / engine.strip())
+        subprocess.run([str(driver / 'node'), str(root / 'tests/e2e' / script)], cwd=root, env=env, check=True)

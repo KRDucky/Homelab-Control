@@ -1,0 +1,320 @@
+PASS  health is public (200)
+PASS  overview requires login (401)
+PASS  login without Origin refused (403)
+PASS  login from foreign Origin refused (403)
+PASS  form-encoded login refused (415)
+PASS  wrong password (401)
+PASS  login succeeds (1)
+PASS  overview with session (200)
+PASS  logout without CSRF token (403)
+PASS  unknown API route (404)
+PASS  logout with CSRF token (204)
+PASS  session dead after logout (401)
+PASS  account without system.read gets 403 (403)
+PASS  service plan without services.operate (403)
+PASS  service apply without services.operate (403)
+PASS  step-up without CSRF token (403)
+PASS  step-up from foreign Origin (403)
+PASS  step-up with wrong password (403)
+PASS  step-up with the right password (200)
+PASS  audit trail has no secrets (0)
+PASS  state database mode 0600 (600)
+PASS  audit chain verifies (0)
+--- audit trail (redacted by design) ---
+{"seq":1,"time":"2026-10-26T07:37:53.222695484Z","event":"audit.chain","outcome":"ok","detail":"new chain","prev":"0000000000000000000000000000000000000000000000000000000000000000","hash":"777288c5f5de1caa0967090f7c41463194fba367b8eabb72d1a5ba372316115a"}
+{"seq":2,"time":"2026-10-26T07:37:53.306508256Z","event":"csrf.origin_rejected","remote":"127.0.0.1","outcome":"denied","prev":"777288c5f5de1caa0967090f7c41463194fba367b8eabb72d1a5ba372316115a","hash":"3bfcfb653e14944d726d64c742da866187370541089b4696b9eb24c8ef514fbf"}
+{"seq":3,"time":"2026-10-26T07:37:53.31451585Z","event":"csrf.origin_rejected","remote":"127.0.0.1","outcome":"denied","detail":"http://evil.example","prev":"3bfcfb653e14944d726d64c742da866187370541089b4696b9eb24c8ef514fbf","hash":"88ccd073aca1f9605d1e76b85125a5d69c3ea6553c4e19d48ef8fc15de448331"}
+{"seq":4,"time":"2026-10-26T07:37:53.458837495Z","event":"auth.login","user":"admin","remote":"127.0.0.1","outcome":"failure","prev":"88ccd073aca1f9605d1e76b85125a5d69c3ea6553c4e19d48ef8fc15de448331","hash":"db2a95ab07d06f754ebe652bd874a5231ed0cec30b99e5e1bb874c52dc907451"}
+{"seq":5,"time":"2026-10-26T07:37:53.590469086Z","event":"auth.login","user":"admin","remote":"127.0.0.1","outcome":"success","prev":"db2a95ab07d06f754ebe652bd874a5231ed0cec30b99e5e1bb874c52dc907451","hash":"45c99eb06da7d654a86606b03e9aa099e1e487ff61a4283a112b82d096fa9398"}
+{"seq":6,"time":"2026-10-26T07:37:53.863787477Z","event":"csrf.token_rejected","user":"admin","remote":"127.0.0.1","outcome":"denied","prev":"45c99eb06da7d654a86606b03e9aa099e1e487ff61a4283a112b82d096fa9398","hash":"325657e8e81a24914500cb78378f00595dbb9bbde56fda2077f8ee2efe33da60"}
+{"seq":7,"time":"2026-10-26T07:37:53.879992257Z","event":"auth.logout","user":"admin","remote":"127.0.0.1","outcome":"success","prev":"325657e8e81a24914500cb78378f00595dbb9bbde56fda2077f8ee2efe33da60","hash":"4bff1cb311336dbd1d198983c1014e23580d828eb4d42f9e0ee2177d9800fdbb"}
+{"seq":8,"time":"2026-10-26T07:37:54.017228586Z","event":"auth.login","user":"auditor","remote":"127.0.0.1","outcome":"success","prev":"4bff1cb311336dbd1d198983c1014e23580d828eb4d42f9e0ee2177d9800fdbb","hash":"659fc026b76b7d419bd4df9d06a6d91e3b9f6f5740a53674cff908bb058360d6"}
+{"seq":9,"time":"2026-10-26T07:37:54.026311523Z","event":"authz.denied","user":"auditor","remote":"127.0.0.1","outcome":"denied","detail":"system.read","prev":"659fc026b76b7d419bd4df9d06a6d91e3b9f6f5740a53674cff908bb058360d6","hash":"4ac296354b8ca2fcba0fceff80a103e46514687e33cc6bc93c5f6ea8c0b11949"}
+{"seq":10,"time":"2026-10-26T07:37:54.040087419Z","event":"authz.denied","user":"auditor","remote":"127.0.0.1","outcome":"denied","detail":"services.operate","prev":"4ac296354b8ca2fcba0fceff80a103e46514687e33cc6bc93c5f6ea8c0b11949","hash":"f65d141bd269cd18dfdbeec5e0641c1775d6775079c4024809a71435a03e6d47"}
+{"seq":11,"time":"2026-10-26T07:37:54.048646481Z","event":"authz.denied","user":"auditor","remote":"127.0.0.1","outcome":"denied","detail":"services.operate","prev":"f65d141bd269cd18dfdbeec5e0641c1775d6775079c4024809a71435a03e6d47","hash":"8c7d72491da3ebcdbac65c960016de3d391c96e21a22fc36d2244645a1d707d1"}
+{"seq":12,"time":"2026-10-26T07:37:54.057291781Z","event":"csrf.token_rejected","user":"auditor","remote":"127.0.0.1","outcome":"denied","prev":"8c7d72491da3ebcdbac65c960016de3d391c96e21a22fc36d2244645a1d707d1","hash":"18125baa6beaf8b705a2ca9d813dbbb81c76be04b6f929548746313bf0e1f17b"}
+{"seq":13,"time":"2026-10-26T07:37:54.064418625Z","event":"csrf.origin_rejected","remote":"127.0.0.1","outcome":"denied","detail":"http://evil.example","prev":"18125baa6beaf8b705a2ca9d813dbbb81c76be04b6f929548746313bf0e1f17b","hash":"b41784dce0000cc17ed52c495a75274fd00f5514b7e527750277b69d998fe40e"}
+{"seq":14,"time":"2026-10-26T07:37:54.196457606Z","event":"auth.step_up","user":"auditor","remote":"127.0.0.1","outcome":"failure","prev":"b41784dce0000cc17ed52c495a75274fd00f5514b7e527750277b69d998fe40e","hash":"05504f0e989487530fa8a08969b6bd9e3c09bfee6c5ddd0c3e8ff77f211e348d"}
+{"seq":15,"time":"2026-10-26T07:37:54.326812577Z","event":"auth.step_up","user":"auditor","remote":"127.0.0.1","outcome":"success","prev":"05504f0e989487530fa8a08969b6bd9e3c09bfee6c5ddd0c3e8ff77f211e348d","hash":"8524fc5da49ea54111921a9c5406346de50405033f534a4ffeb235ba8e096f2b"}
+hc-api live checks: 22 passed, 0 failed
+PASS  keyboard: first Tab focuses the username field
+PASS  wrong password shows a specific, non-revealing error
+PASS  overview shows the real hostname (vm)
+PASS  session cookie is HttpOnly + SameSite=Strict
+PASS  no element uses inline style attributes
+PASS  mobile layout has no horizontal page scroll
+PASS  appearance: Enter opens the menu with focus on the current theme
+PASS  appearance: theme applies without changing layout or navigation
+PASS  appearance: Escape closes the menu and returns focus to its button
+PASS  appearance: preferences persist after reload
+PASS  appearance: no inline style attributes
+PASS  sidebar: collapses to the icon rail
+PASS  sidebar: collapsed state persists
+PASS  appearance: reset restores the System theme
+PASS  responsive 390px: drawer navigation, no horizontal page scroll
+PASS  drawer: focus moves into the navigation
+PASS  drawer: Escape closes it and returns focus to the menu button
+PASS  responsive 768px: rail navigation, no horizontal page scroll
+PASS  responsive 1024px: rail navigation, no horizontal page scroll
+PASS  responsive 1366px: expanded navigation, no horizontal page scroll
+PASS  responsive 2560px: expanded navigation, no horizontal page scroll
+PASS  sign out returns to the login form
+PASS  no CSP violations in the console
+browser e2e: 23 passed, 0 failed
+== chromium 153.0.8010.12
+PASS  CSP header present, no 'unsafe-inline'
+PASS  CSSOM custom property applied
+PASS  CSSOM custom property: no CSP violation
+PASS  custom property removal restores theme
+PASS  CSSOM element style applied without violation
+PASS  <style> element blocked (control)
+PASS  <style> element reported (control)
+PASS  style attribute blocked (control)
+PASS  style attribute reported (control)
+info  adoptedStyleSheets: {"applied": true, "violations": 0}
+info  violations reported: ["style-src-elem", "style-src-attr"]
+== webkit 26.6
+PASS  CSP header present, no 'unsafe-inline'
+PASS  CSSOM custom property applied
+PASS  CSSOM custom property: no CSP violation
+PASS  custom property removal restores theme
+PASS  CSSOM element style applied without violation
+PASS  <style> element blocked (control)
+PASS  <style> element reported (control)
+PASS  style attribute blocked (control)
+PASS  style attribute reported (control)
+info  adoptedStyleSheets: {"applied": true, "violations": 0}
+info  violations reported: ["style-src-elem", "style-src-attr"]
+theme CSSOM/CSP probe: OK (chromium, webkit)
+PASS production CSP keeps unsafe-inline disabled
+PASS pagination bounds live service rows
+PASS pagination advances
+PASS palette filters permitted pages
+PASS palette navigates
+PASS browser-local save
+PASS no CSP errors while applying custom theme
+PASS confirmed activation persists
+PASS Escape reverts trial
+PASS timed preview automatically reverts
+PASS hostile import explains duplicate keys
+PASS axe studio at the default text size: []
+PASS disclosure headings meet the 24px target size
+PASS document title names the page
+PASS table captions keep their width when a table becomes cards
+PASS keyboard focus is outlined in forced-colors mode
+PASS midnight/390: Studio fits at 125% text
+PASS axe midnight/390 studio: []
+PASS midnight/390: Services fits at 125% text
+PASS axe midnight/390 services: []
+PASS midnight/560: Studio fits at 125% text
+PASS midnight/560: Services fits at 125% text
+PASS midnight/768: Studio fits at 125% text
+PASS midnight/768: Services fits at 125% text
+PASS midnight/1100: Studio fits at 125% text
+PASS axe midnight/1100 studio: []
+PASS midnight/1100: Services fits at 125% text
+PASS axe midnight/1100 services: []
+PASS midnight/1920: Studio fits at 125% text
+PASS midnight/1920: Services fits at 125% text
+PASS midnight/3440: Studio fits at 125% text
+PASS midnight/3440: Services fits at 125% text
+PASS daybreak/390: Studio fits at 125% text
+PASS axe daybreak/390 studio: []
+PASS daybreak/390: Services fits at 125% text
+PASS axe daybreak/390 services: []
+PASS daybreak/560: Studio fits at 125% text
+PASS daybreak/560: Services fits at 125% text
+PASS daybreak/768: Studio fits at 125% text
+PASS daybreak/768: Services fits at 125% text
+PASS daybreak/1100: Studio fits at 125% text
+PASS axe daybreak/1100 studio: []
+PASS daybreak/1100: Services fits at 125% text
+PASS axe daybreak/1100 services: []
+PASS daybreak/1920: Studio fits at 125% text
+PASS daybreak/1920: Services fits at 125% text
+PASS daybreak/3440: Studio fits at 125% text
+PASS daybreak/3440: Services fits at 125% text
+PASS graphite/390: Studio fits at 125% text
+PASS axe graphite/390 studio: []
+PASS graphite/390: Services fits at 125% text
+PASS axe graphite/390 services: []
+PASS graphite/560: Studio fits at 125% text
+PASS graphite/560: Services fits at 125% text
+PASS graphite/768: Studio fits at 125% text
+PASS graphite/768: Services fits at 125% text
+PASS graphite/1100: Studio fits at 125% text
+PASS axe graphite/1100 studio: []
+PASS graphite/1100: Services fits at 125% text
+PASS axe graphite/1100 services: []
+PASS graphite/1920: Studio fits at 125% text
+PASS graphite/1920: Services fits at 125% text
+PASS graphite/3440: Studio fits at 125% text
+PASS graphite/3440: Services fits at 125% text
+PASS oled/390: Studio fits at 125% text
+PASS axe oled/390 studio: []
+PASS oled/390: Services fits at 125% text
+PASS axe oled/390 services: []
+PASS oled/560: Studio fits at 125% text
+PASS oled/560: Services fits at 125% text
+PASS oled/768: Studio fits at 125% text
+PASS oled/768: Services fits at 125% text
+PASS oled/1100: Studio fits at 125% text
+PASS axe oled/1100 studio: []
+PASS oled/1100: Services fits at 125% text
+PASS axe oled/1100 services: []
+PASS oled/1920: Studio fits at 125% text
+PASS oled/1920: Services fits at 125% text
+PASS oled/3440: Studio fits at 125% text
+PASS oled/3440: Services fits at 125% text
+PASS no browser exceptions: []
+PASS protected unit has no controls
+PASS protected unit is labelled with its reason
+PASS stopped unit offers start only
+PASS focus starts on Close, never on the action
+PASS disruptive risk is shown as a word
+PASS units stopped with it are listed
+PASS password field reachable by keyboard
+PASS confirm button reachable by keyboard
+PASS wrong password: nothing executed
+PASS wrong password: focus back in the password field
+PASS step-up precedes execution
+PASS result shows the observed state
+PASS result links to the audit record
+PASS focus on Close after the result
+PASS focus returns to the unit after closing
+PASS step-up is remembered for the session
+PASS Escape in preview executes nothing
+PASS midnight/390: dialog fits the viewport at 125% text
+PASS axe midnight/390 service operation preview: []
+PASS midnight/1100: dialog fits the viewport at 125% text
+PASS axe midnight/1100 service operation preview: []
+PASS daybreak/390: dialog fits the viewport at 125% text
+PASS axe daybreak/390 service operation preview: []
+PASS daybreak/1100: dialog fits the viewport at 125% text
+PASS axe daybreak/1100 service operation preview: []
+PASS graphite/390: dialog fits the viewport at 125% text
+PASS axe graphite/390 service operation preview: []
+PASS graphite/1100: dialog fits the viewport at 125% text
+PASS axe graphite/1100 service operation preview: []
+PASS oled/390: dialog fits the viewport at 125% text
+PASS axe oled/390 service operation preview: []
+PASS oled/1100: dialog fits the viewport at 125% text
+PASS axe oled/1100 service operation preview: []
+PASS no CSP violations
+PASS no browser exceptions: []
+PASS production CSP keeps unsafe-inline disabled
+PASS pagination bounds live service rows
+PASS pagination advances
+PASS palette filters permitted pages
+PASS palette navigates
+PASS browser-local save
+PASS no CSP errors while applying custom theme
+PASS confirmed activation persists
+PASS Escape reverts trial
+PASS timed preview automatically reverts
+PASS hostile import explains duplicate keys
+PASS axe studio at the default text size: []
+PASS disclosure headings meet the 24px target size
+PASS document title names the page
+PASS table captions keep their width when a table becomes cards
+PASS midnight/390: Studio fits at 125% text
+PASS axe midnight/390 studio: []
+PASS midnight/390: Services fits at 125% text
+PASS axe midnight/390 services: []
+PASS midnight/560: Studio fits at 125% text
+PASS midnight/560: Services fits at 125% text
+PASS midnight/768: Studio fits at 125% text
+PASS midnight/768: Services fits at 125% text
+PASS midnight/1100: Studio fits at 125% text
+PASS axe midnight/1100 studio: []
+PASS midnight/1100: Services fits at 125% text
+PASS axe midnight/1100 services: []
+PASS midnight/1920: Studio fits at 125% text
+PASS midnight/1920: Services fits at 125% text
+PASS midnight/3440: Studio fits at 125% text
+PASS midnight/3440: Services fits at 125% text
+PASS daybreak/390: Studio fits at 125% text
+PASS axe daybreak/390 studio: []
+PASS daybreak/390: Services fits at 125% text
+PASS axe daybreak/390 services: []
+PASS daybreak/560: Studio fits at 125% text
+PASS daybreak/560: Services fits at 125% text
+PASS daybreak/768: Studio fits at 125% text
+PASS daybreak/768: Services fits at 125% text
+PASS daybreak/1100: Studio fits at 125% text
+PASS axe daybreak/1100 studio: []
+PASS daybreak/1100: Services fits at 125% text
+PASS axe daybreak/1100 services: []
+PASS daybreak/1920: Studio fits at 125% text
+PASS daybreak/1920: Services fits at 125% text
+PASS daybreak/3440: Studio fits at 125% text
+PASS daybreak/3440: Services fits at 125% text
+PASS graphite/390: Studio fits at 125% text
+PASS axe graphite/390 studio: []
+PASS graphite/390: Services fits at 125% text
+PASS axe graphite/390 services: []
+PASS graphite/560: Studio fits at 125% text
+PASS graphite/560: Services fits at 125% text
+PASS graphite/768: Studio fits at 125% text
+PASS graphite/768: Services fits at 125% text
+PASS graphite/1100: Studio fits at 125% text
+PASS axe graphite/1100 studio: []
+PASS graphite/1100: Services fits at 125% text
+PASS axe graphite/1100 services: []
+PASS graphite/1920: Studio fits at 125% text
+PASS graphite/1920: Services fits at 125% text
+PASS graphite/3440: Studio fits at 125% text
+PASS graphite/3440: Services fits at 125% text
+PASS oled/390: Studio fits at 125% text
+PASS axe oled/390 studio: []
+PASS oled/390: Services fits at 125% text
+PASS axe oled/390 services: []
+PASS oled/560: Studio fits at 125% text
+PASS oled/560: Services fits at 125% text
+PASS oled/768: Studio fits at 125% text
+PASS oled/768: Services fits at 125% text
+PASS oled/1100: Studio fits at 125% text
+PASS axe oled/1100 studio: []
+PASS oled/1100: Services fits at 125% text
+PASS axe oled/1100 services: []
+PASS oled/1920: Studio fits at 125% text
+PASS oled/1920: Services fits at 125% text
+PASS oled/3440: Studio fits at 125% text
+PASS oled/3440: Services fits at 125% text
+PASS no browser exceptions: []
+PASS protected unit has no controls
+PASS protected unit is labelled with its reason
+PASS stopped unit offers start only
+PASS focus starts on Close, never on the action
+PASS disruptive risk is shown as a word
+PASS units stopped with it are listed
+PASS password field reachable by keyboard
+PASS confirm button reachable by keyboard
+PASS wrong password: nothing executed
+PASS wrong password: focus back in the password field
+PASS step-up precedes execution
+PASS result shows the observed state
+PASS result links to the audit record
+PASS focus on Close after the result
+PASS focus returns to the unit after closing
+PASS step-up is remembered for the session
+PASS Escape in preview executes nothing
+PASS midnight/390: dialog fits the viewport at 125% text
+PASS axe midnight/390 service operation preview: []
+PASS midnight/1100: dialog fits the viewport at 125% text
+PASS axe midnight/1100 service operation preview: []
+PASS daybreak/390: dialog fits the viewport at 125% text
+PASS axe daybreak/390 service operation preview: []
+PASS daybreak/1100: dialog fits the viewport at 125% text
+PASS axe daybreak/1100 service operation preview: []
+PASS graphite/390: dialog fits the viewport at 125% text
+PASS axe graphite/390 service operation preview: []
+PASS graphite/1100: dialog fits the viewport at 125% text
+PASS axe graphite/1100 service operation preview: []
+PASS oled/390: dialog fits the viewport at 125% text
+PASS axe oled/390 service operation preview: []
+PASS oled/1100: dialog fits the viewport at 125% text
+PASS axe oled/1100 service operation preview: []
+PASS no CSP violations
+PASS no browser exceptions: []
+e2e rc=0

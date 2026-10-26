@@ -106,6 +106,7 @@ export function Shell({
   helperReason,
   onSignOut,
   version,
+  canOperate = false,
   children,
 }: {
   pages: Capability[];
@@ -118,6 +119,8 @@ export function Shell({
   helperReason: string | undefined;
   onSignOut: () => void;
   version: string;
+  /** The account holds services.operate, so the interface is not read-only. */
+  canOperate?: boolean;
   children: ReactNode;
 }) {
   const { prefs, update, reset } = usePreferences();
@@ -182,7 +185,7 @@ export function Shell({
         </button>
         <span className="brand-mark small">Homelab Control</span>
         <span className="topbar-status">
-          <span className="readonly-badge">Read-only</span>
+          {!canOperate && <span className="readonly-badge">Read-only</span>}
           {helperReason && (
             <span className="helper-off" title={helperReason}>
               Privileged helper not running
@@ -235,7 +238,11 @@ export function Shell({
           ))}
         </ul>
         <div className="sidebar-foot">
-          <p className="rail-note">Read-only build. Nothing here changes your system.</p>
+          <p className="rail-note">
+            {canOperate
+              ? 'You can start, stop and restart services. Each change is reviewed, confirmed and audited; everything else is read-only.'
+              : 'Read-only for your account. Nothing here changes your system.'}
+          </p>
           <button
             type="button"
             className="ghost icon-btn sidebar-toggle"

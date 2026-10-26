@@ -1,6 +1,6 @@
 # M2 security acceptance checklist
 
-**Date:** 2026-10-21 · **Status:** proposed. It becomes binding once the owner approves D-2…D-5 (`OWNER-DECISIONS.md`).
+**Date:** 2026-10-21 · **Status:** **binding** since the owner approved D-2…D-5 on 2026-10-23 (`OWNER-DECISIONS.md`). Results for the first write op (M2-2): [`M2-2-ACCEPTANCE.md`](M2-2-ACCEPTANCE.md).
 
 Every item is a test or a reviewable artefact. **A privileged write operation may be merged only when every item in §1–§3 passes**, with evidence linked in the PR. §4 applies to every later write op.
 

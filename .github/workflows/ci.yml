@@ -59,6 +59,8 @@ jobs:
         run: make test-go
       - name: Fuzz broker argument decoding (60 s)
         run: cd backend && go test -run='^$' -fuzz='^FuzzLogsArgs$' -fuzztime=60s ./internal/broker/ops
+      - name: Fuzz write-operation argument decoding (60 s)
+        run: cd backend && go test -run='^$' -fuzz='^FuzzWriteArgs$' -fuzztime=60s ./internal/broker/ops
       - name: Frontend tests
         run: make test-frontend
       - name: Release tooling + workflow policy tests
@@ -195,7 +197,7 @@ jobs:
         run: |
           sudo touch /etc/hc-disposable
           sudo env HC_SMOKE_EXTRA_UNITS=homelab-control-broker.socket \
-            HC_SMOKE_EXTRA_CHECKS="$PWD/tests/systemd/m1-checks.sh" \
+            HC_SMOKE_EXTRA_CHECKS="$PWD/tests/systemd/m1-checks.sh $PWD/tests/systemd/m2-service-ops.sh" \
             HC_WEBMIN_SRC="$PWD/compat/webmin" \
             HC_SMOKE_SCOPES=system.read,services.read,services.logs,hardware.read \
             tests/systemd/systemd-smoke.sh "$(ls build/*.deb)"
@@ -218,7 +220,7 @@ jobs:
           sudo apt-get update && sudo apt-get install -y debootstrap
           set -o pipefail
           if ! sudo dev/disposable/systemd-container.sh resolute "$(ls build/*.deb)" \
-            HC_SMOKE_EXTRA_UNITS=homelab-control-broker.socket HC_SMOKE_EXTRA_CHECKS=/opt/hc/tests/m1-checks.sh \
+            HC_SMOKE_EXTRA_UNITS=homelab-control-broker.socket "HC_SMOKE_EXTRA_CHECKS=/opt/hc/tests/m1-checks.sh /opt/hc/tests/m2-service-ops.sh" \
             HC_WEBMIN_SRC=/opt/hc/webmin HC_SMOKE_SCOPES=system.read,services.read,services.logs,hardware.read 2>&1 | tee /tmp/sd.log; then
             echo "::error title=systemd-ubuntu-2604::$(grep -E 'FAIL|rror|E: |unsupported|denied|systemd|cgroup|Failed' /tmp/sd.log | tail -n 25 | sed ':a;N;$!ba;s/\n/%0A/g')%0A--- tail ---%0A$(tail -n 15 /tmp/sd.log | sed ':a;N;$!ba;s/\n/%0A/g')"
             exit 1

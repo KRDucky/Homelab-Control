@@ -1,5 +1,5 @@
 [Unit]
-Description=Homelab Control privileged broker (typed read-only operations)
+Description=Homelab Control privileged broker (closed set of typed operations)
 Documentation=file:///usr/share/doc/homelab-control/README.md
 Requires=homelab-control-broker.socket
 After=homelab-control-broker.socket

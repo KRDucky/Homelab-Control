@@ -97,10 +97,15 @@ Tests: `make check`. Building from a release source archive: [`BUILDING.md`](BUI
 ## Security model
 `hc-api` runs as an unprivileged user and cannot spawn processes (enforced by tests). It checks the
 session, scope, Origin and CSRF token on every request. Privileged data comes only from `hc-broker`,
-which accepts a closed list of five typed read-only operations, authenticates its caller by peer
-UID, and runs the programs it needs through a single reviewed runner under a dedicated service
-account. There is no endpoint that runs arbitrary commands or arbitrary root code. Future write
-operations will each need their own reviewed broker operation, preview, confirmation and audit entry.
+which accepts a closed list of typed operations, authenticates its caller by peer UID, and runs
+the programs it needs through a single reviewed runner, normally under a dedicated service account.
+The only privileged writes are systemd service start, stop and restart (scope `services.operate`,
+never granted by default): each is previewed, confirmed with a single-use broker-issued plan token,
+re-checked against a built-in protected-unit policy, requires a password re-entry when disruptive,
+journaled before and after it runs, and reported with the state systemd shows afterwards
+([ADR 0011](docs/adr/0011-write-operation-authorization.md),
+[user guide](docs/user/SERVICE-MANAGEMENT.md)). There is no endpoint that runs arbitrary commands or
+arbitrary root code.
 Threat model: [`docs/security/THREAT-MODEL.md`](docs/security/THREAT-MODEL.md).
 
 ## Webmin: reference only

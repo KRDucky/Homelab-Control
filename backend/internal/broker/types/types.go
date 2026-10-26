@@ -19,6 +19,17 @@ const (
 	PrivNone             Privilege = "none"
 	PrivRootRead         Privilege = "root-read"
 	PrivUnprivilegedExec Privilege = "unprivileged-exec"
+	// PrivRootExec ops may run one of the fixed root argv templates of
+	// internal/broker/runner (ADR 0008 Amendment 2, D-4). Only write ops
+	// that went through plan/apply review carry it.
+	PrivRootExec Privilege = "root-exec"
+)
+
+// Risk classes of write operations (ADR 0011).
+const (
+	RiskReversible  = "reversible"
+	RiskDisruptive  = "disruptive"
+	RiskDestructive = "destructive"
 )
 
 // OpInfo is the public description of an op.
@@ -118,4 +129,88 @@ const MaxLogLines = 500
 // ValidLogsArgs reports whether unit and lines are acceptable.
 func ValidLogsArgs(unit string, lines int) bool {
 	return LogsUnitRE.MatchString(unit) && lines >= 1 && lines <= MaxLogLines
+}
+
+// UnitObserved is the allow-listed, observed state of one service unit as
+// systemd reports it (systemctl show), read by the broker.
+type UnitObserved struct {
+	ID             string   `json:"id"`
+	Names          []string `json:"names,omitempty"`
+	Description    string   `json:"description,omitempty"`
+	LoadState      string   `json:"load_state"`
+	ActiveState    string   `json:"active_state"`
+	SubState       string   `json:"sub_state"`
+	Result         string   `json:"result,omitempty"`
+	UnitFileState  string   `json:"unit_file_state,omitempty"`
+	MainPID        int      `json:"main_pid,omitempty"`
+	ExecMainStatus int      `json:"exec_main_status,omitempty"`
+	InvocationID   string   `json:"invocation_id,omitempty"`
+	Type           string   `json:"type,omitempty"`
+	StateSince     string   `json:"state_since,omitempty"`
+}
+
+// ServicePlan is the result of services.unit.plan: what would happen, the
+// risk class and a short-lived, single-use plan token (ADR 0011).
+type ServicePlan struct {
+	Unit           string       `json:"unit"`      // canonical unit ID
+	Requested      string       `json:"requested"` // name as requested (may be an alias)
+	Action         string       `json:"action"`
+	Risk           string       `json:"risk"`
+	StepUpRequired bool         `json:"step_up_required"`
+	Token          string       `json:"token"`
+	ExpiresAt      time.Time    `json:"expires_at"`
+	Observed       UnitObserved `json:"observed"`
+	Effect         string       `json:"effect"`
+	Consequences   []string     `json:"consequences"`
+	// AlsoAffected: other units systemd stops or restarts with it (if running).
+	AlsoAffected []string `json:"also_affected,omitempty"`
+	// AlsoStarted: other, currently inactive units a start pulls in.
+	AlsoStarted []string `json:"also_started,omitempty"`
+}
+
+// Operation outcomes. "succeeded" and "failed" are verified by reading the
+// unit state back; "uncertain" means the result could not be verified.
+const (
+	OutcomeSucceeded   = "succeeded"
+	OutcomeFailed      = "failed"
+	OutcomeUncertain   = "uncertain"
+	OutcomeInterrupted = "interrupted"
+	OutcomePending     = "pending" // intent recorded, no outcome yet
+)
+
+// ServiceOutcome is the result of services.unit.apply.
+type ServiceOutcome struct {
+	OperationID string        `json:"operation_id"`
+	Unit        string        `json:"unit"`
+	Action      string        `json:"action"`
+	Outcome     string        `json:"outcome"`
+	Message     string        `json:"message"`
+	ExitCode    *int          `json:"exit_code,omitempty"`
+	Observed    *UnitObserved `json:"observed,omitempty"`
+	Recovery    []string      `json:"recovery,omitempty"`
+	StartedAt   time.Time     `json:"started_at"`
+	FinishedAt  time.Time     `json:"finished_at"`
+}
+
+// OperationRecord is one entry of the broker operation journal as listed by
+// operations.journal.list. It never contains plan tokens or secrets.
+type OperationRecord struct {
+	ID         string        `json:"id"`
+	Op         string        `json:"op"`
+	Action     string        `json:"action"`
+	Unit       string        `json:"unit"`
+	Actor      string        `json:"actor"`
+	RequestID  string        `json:"request_id,omitempty"`
+	Risk       string        `json:"risk"`
+	Outcome    string        `json:"outcome"`
+	Message    string        `json:"message,omitempty"`
+	StartedAt  time.Time     `json:"started_at"`
+	FinishedAt *time.Time    `json:"finished_at,omitempty"`
+	Observed   *UnitObserved `json:"observed,omitempty"`
+}
+
+// OperationList is the result of operations.journal.list.
+type OperationList struct {
+	Operations []OperationRecord `json:"operations"`
+	Source     string            `json:"source"`
 }
