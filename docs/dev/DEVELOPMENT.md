@@ -103,9 +103,10 @@ or a local TLS reverse proxy with `-behind-tls-proxy -allowed-origins https://yo
 ## Continuous integration
 `.github/workflows/ci.yml` runs on every push to `main` and every pull request, and can be started by hand:
 **Actions** tab → workflow **ci** → **Run workflow** → choose the branch → **Run workflow**. A manual run
-takes no inputs and runs exactly the same 20 jobs as push/PR CI: lint, tests, security gate, reproducible build,
-packages and payload checks, install matrix, real-systemd tests, browser e2e, upstream Perl tests, release
-dry run and reproducibility comparison. It needs a branch that contains this trigger (on the default branch
+takes no inputs and runs exactly the same jobs as push/PR CI (21 check runs when this was written): lint, tests,
+security gate, reproducible build, packages and payload checks, install matrix, real-systemd tests, the upgrade
+test from the published package, browser e2e, upstream Perl tests, release dry run and reproducibility
+comparison. It needs a branch that contains this trigger (on the default branch
 it appears once merged). The token is read-only and nothing is published.
 
 Actions are official `actions/*` releases pinned by commit SHA (ADR 0006); update them by changing the SHA
