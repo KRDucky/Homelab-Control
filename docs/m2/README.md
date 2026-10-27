@@ -1,7 +1,10 @@
 # M2 planning (2026-10-21)
 
 Readiness review, security plan and roadmap for M2, with the owner's product-scope decisions of
-2026-10-21. **M2 PR-1 is authorized (2026-10-21); everything else, including privileged writes, is not.**
+2026-10-21. **Authorization status (2026-10-27):** M2 PR-1 (authorized 2026-10-21) and M2-2, service start/stop/restart
+(authorized 2026-10-23, merged 2026-10-26), are authorized and merged. M2-3 and later, and every other privileged
+write, are not authorized. The documents below are dated planning snapshots; current status is in
+[`../STATUS.md`](../STATUS.md).
 
 | Document | Content |
 |---|---|
@@ -15,4 +18,7 @@ Readiness review, security plan and roadmap for M2, with the owner's product-sco
 
 **Summary:**
 - **PR-1 authorized 2026-10-21** (D-1, D-6, D-7 approved). It is read-only: durable state, audit, sessions and service logs.
-- **The first privileged write (PR M2-2)** needs D-2…D-5, ADR 0011 and the checklist in `M2-SECURITY-ACCEPTANCE.md`.
+- **The first privileged write (PR M2-2)** was authorized on 2026-10-23 (D-2…D-5 approved, ADR 0011 accepted) and merged on
+  2026-10-26 (PR #28). Results and open items, including the outstanding workstation-VM validation (E2, deferred by the
+  owner): [`M2-2-ACCEPTANCE.md`](M2-2-ACCEPTANCE.md). Every later write op needs its own authorization and the checklist in
+  `M2-SECURITY-ACCEPTANCE.md`.
