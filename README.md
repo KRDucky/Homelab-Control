@@ -5,8 +5,8 @@ NAS machines. It is built from its own components:
 
 - **`hc-api`**: an unprivileged Go web service with local accounts, persistent sessions, role-scoped
   access, CSRF and Origin checks, and a versioned OpenAPI contract. It embeds the web UI.
-- **`hc-broker`**: a small, separate privileged Go broker. It exposes a closed list of typed,
-  read-only operations. It has no shell, no generic command execution and no pass-through to any other
+- **`hc-broker`**: a small, separate privileged Go broker. It exposes a closed list of typed
+  operations: read-only, except for starting, stopping and restarting systemd `.service` units. It has no shell, no generic command execution and no pass-through to any other
   system ([ADR 0001](docs/adr/0001-privilege-boundary.md), [ADR 0008](docs/adr/0008-broker-design.md)).
 - **A React/TypeScript web UI** that talks only to the `hc-api` API.
 - **`hlctl`**: a command-line tool for local user management and audit-log verification.
@@ -22,8 +22,14 @@ began from a Webmin source tree and keeps that tree in this repository for refer
 
 ## Current status
 
-Homelab Control is early-stage software. **Everything that exists today is read-only: nothing in
-this software changes your system.**
+Homelab Control is early-stage software. **Its privileged broker has one write operation: starting,
+stopping and restarting systemd `.service` units, available only to accounts granted the
+`services.operate` scope (never granted by default). Every other broker operation is read-only.**
+Homelab Control also keeps its own state database, audit logs and operation journal, and starting or
+stopping a service has whatever effects that service has on the host. Validation of the
+service-operations path on the owner's workstation VM through a browser (acceptance item E2) is
+outstanding and, by owner decision, required before `services.operate` is enabled in a real deployment
+([results](docs/m2/M2-2-ACCEPTANCE.md)).
 
 ### Published release
 The only published release is the **unsigned development prerelease
@@ -37,9 +43,10 @@ It was built before the "merged to `main`" items below.
 | Area | What exists | Notes |
 |---|---|---|
 | Authentication | Local accounts (`hlctl user ...`), PBKDF2-SHA256 password hashing, `__Host-` session cookie, CSRF token and Origin checks on every request | No PAM, no MFA/TOTP ([`docs/security/PAM-AUTH-DEFERRED.md`](docs/security/PAM-AUTH-DEFERRED.md)) |
-| Authorization | Server-side scopes on every route: `system.read`, `services.read`, `hardware.read` by default; `services.logs` and `audit.read` only when granted explicitly | |
+| Authorization | Server-side scopes on every route: `system.read`, `services.read`, `hardware.read` by default; `services.logs`, `audit.read` and `services.operate` only when granted explicitly | |
 | Host overview | CPU, memory, uptime, host filesystems and network from unprivileged reads | |
-| Services | systemd unit list through the broker | Read-only: no start, stop or restart |
+| Services | systemd unit list through the broker | Read-only list |
+| Service operations | Start, stop and restart of `.service` units: preview, single-use plan token, protected-unit policy, password re-entry for disruptive actions, operation journal, state read back afterwards ([user guide](docs/user/SERVICE-MANAGEMENT.md)) | Merged to `main` 2026-10-26 (PR #28), after the prerelease; needs `services.operate`. Validation on the owner's workstation VM through a browser (E2) is outstanding ([`docs/m2/M2-2-ACCEPTANCE.md`](docs/m2/M2-2-ACCEPTANCE.md)). No enable/disable, masking or unit-file editing |
 | Service logs | Recent journal entries for one unit | Merged to `main` after the prerelease; needs `services.logs` |
 | Hardware | DMI identity and drive inventory with stable identifiers and confidence labels | Read-only inventory; no bay map, SMART or storage management |
 | Persistent state | SQLite state database for sessions and the audit trail | Merged to `main` after the prerelease |
@@ -50,14 +57,16 @@ It was built before the "merged to `main`" items below.
 
 ### Not implemented
 None of the following exists yet. Documents in `docs/` describe plans and designs, not shipped features.
-- Any privileged write: no changes to services, packages, users, networking, files or storage, and no
-  plan/confirm/execute workflow. Every broker operation is read-only.
+- Any privileged write other than starting, stopping and restarting systemd `.service` units: no
+  enable/disable, masking or unit-file editing, and no management of packages, users, networking, files or
+  storage. Every other broker operation is read-only.
 - Disk, partition, filesystem, ZFS, mdraid, Btrfs, mergerfs, SnapRAID or LVM management; SMART data;
   drive-bay mapping; drive replacement.
 - Software Center and package management; reverse proxy, ACME/TLS and DDNS management; Tailscale;
   cooling and UPS control; file sharing; containers and virtual machines; backups; alerts.
-- The theme engine, Theme Studio, the plugin system and a usable SDK. `sdk/`, `plugins/` and
-  `themes/` are placeholders.
+- A plugin system, first-party plugins, server-wide theme installation and persistence, and theme packs.
+  `plugins/` and `themes/` are placeholders. (A browser-local Theme Studio and the Theme Development Kit in
+  `sdk/theme/` are implemented: see "Create your own theme" below.)
 - PAM or MFA login, remote or multi-host management, and an admin view of other users' sessions.
 
 ### Verification
@@ -88,7 +97,7 @@ Tests: `make check`. Building from a release source archive: [`BUILDING.md`](BUI
 | `backend/` | Go module: `hc-api` (API server), `hc-broker` (privileged broker), `hlctl` (CLI) |
 | `frontend/` | React/TypeScript UI (`app/`) and design tokens (`design-system/`) |
 | `schemas/` | OpenAPI contract and JSON schemas |
-| `sdk/`, `plugins/`, `themes/` | Placeholders for the planned extension SDK, plugins and themes |
+| `sdk/`, `plugins/`, `themes/` | `sdk/theme/` is the Theme Development Kit (MIT); `plugins/` and `themes/` are placeholders for planned plugins and theme packs |
 | `packaging/` | systemd units, Debian, Fedora/openSUSE and Arch packaging, release pins |
 | `tests/`, `dev/` | Integration, end-to-end, security and packaging tests; disposable container and VM setup |
 | `docs/` | Specifications, ADRs, threat model, compliance records, plans and test evidence |
@@ -104,7 +113,9 @@ never granted by default): each is previewed, confirmed with a single-use broker
 re-checked against a built-in protected-unit policy, requires a password re-entry when disruptive,
 journaled before and after it runs, and reported with the state systemd shows afterwards
 ([ADR 0011](docs/adr/0011-write-operation-authorization.md),
-[user guide](docs/user/SERVICE-MANAGEMENT.md)). There is no endpoint that runs arbitrary commands or
+[user guide](docs/user/SERVICE-MANAGEMENT.md)). Validation on the owner's workstation VM through a browser
+(acceptance item E2) is outstanding and required before `services.operate` is enabled in a real
+deployment ([results](docs/m2/M2-2-ACCEPTANCE.md)). There is no endpoint that runs arbitrary commands or
 arbitrary root code.
 Threat model: [`docs/security/THREAT-MODEL.md`](docs/security/THREAT-MODEL.md).
 

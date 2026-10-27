@@ -8,7 +8,7 @@ Milestone names refer to the proposed sequence in `M2-ROADMAP.md` §4 (owner dec
 Privilege column:
 - **U** = unprivileged in `hc-api`;
 - **BR** = broker read op;
-- **BW** = broker write op (plan/apply, ADR 0011 proposed).
+- **BW** = broker write op (plan/apply, ADR 0011, accepted 2026-10-23; first used by M2-2 service start/stop/restart).
 
 Package names vary by release and must be resolved at runtime (spec 06). Entries marked *verify* were
 not confirmed for every family during this review.

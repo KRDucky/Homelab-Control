@@ -1,3 +1,11 @@
+> **HISTORICAL — MILESTONE AND AUTHORIZATION STATEMENTS SUPERSEDED (banner added 2026-10-27).** This is the
+> session prompt of 2026-10-15 for finishing M1 verification. Its statements about the current milestone and
+> about what is authorized (for example "Do not start M2" and "No write operations") are obsolete: current
+> milestone and authorization are in `CLAUDE.md` ("Current milestone") and `docs/STATUS.md`. This banner does not
+> withdraw the prompt's other safeguards (evidence handling, leaving `compat/webmin` pristine, disposable hosts
+> for testing, honest reporting); where they still apply they are governed by the current `CLAUDE.md` and the
+> ADRs. The text below is preserved unchanged for history.
+
 # Next session prompt — Homelab Control (finish M1 verification)
 
 You are continuing **Homelab Control**, a Webmin fork. Read `CLAUDE.md`, `docs/STATUS.md`,

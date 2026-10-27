@@ -1,6 +1,7 @@
 # M2-2 evidence (service start/stop/restart)
 
-Collected 2026-10-26 on product code **`970341e6`** (`v0.1.0-dev.1-41-g970341e6`); results are summarised in
+Collected 2026-10-26 on product code **`970341e6`** (`v0.1.0-dev.1-41-g970341e6`). The PR #28 head (`987ba011`) and the merge commit (`a3447efa`) differ from it
+by four frontend/test files and documentation, and these logs were not regenerated on them. Results are summarised in
 [`docs/m2/M2-2-ACCEPTANCE.md`](../../m2/M2-2-ACCEPTANCE.md). Logs were written outside the repository first
 and copied here unchanged. They contain no passwords, cookies or plan tokens (the harness greps for them).
 
@@ -30,7 +31,10 @@ and procps added. Only disposable `hc-test-*` units, and one disposable protecte
 planned only, never executed.
 
 ## Not covered here
-- The owner's KVM VM, through the browser (E2).
-- CI runs (recorded in the PRs).
+- The owner's KVM VM, through the browser (E2): **outstanding**; deferred by the owner on 2026-10-27, not
+  waived, not passed; required before `services.operate` is enabled in a real deployment.
+- VM evidence for E4 (`systemd-analyze security`): only the container check is here.
+- GitHub CI: overall results and run annotations are recorded in `docs/m2/M2-2-ACCEPTANCE.md`; individual job
+  conclusions and logs were not seen, and the 121 s / 5 min expiry checks are not configured in CI.
 - Firefox, run locally.
 - Debian, openSUSE and Arch under real systemd.
