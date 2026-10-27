@@ -35,7 +35,7 @@ Each module is a Go package pair plus a UI package, registered in one module reg
 | Manifest | `id` (e.g. `storage.zfs`), title, version, category (Storage, Containers, Virtualization, Sharing, System), required host capabilities, optional capabilities, scopes it defines, routes, nav entry |
 | Capability probe | Unprivileged where possible (binary presence through the broker's allow-list resolver, sysfs, kernel modules, sockets); result `available` / `missing: <component>` / `unsupported: <reason>` with the distro-native package suggestion |
 | Read API | `GET /api/v1/<module>/…`, scope `<module>.read`; data labelled with source and confidence |
-| Broker ops | Namespaced `<module>.<object>.<verb>`; read ops first; write ops follow the plan/apply framework (ADR 0011, proposed) |
+| Broker ops | Namespaced `<module>.<object>.<verb>`; read ops first; write ops follow the plan/apply framework (ADR 0011, accepted 2026-10-23) |
 | Resource types | Contribution to the shared resource graph (spec 02): nodes and typed edges with provenance and confidence |
 | Lock domains | Declared per op; storage ops lock **device identities** (§3), not module-local names |
 | UI | Route set and nav entry shown only when the module is enabled and its probe says available; otherwise a single "not available — why / how to install" card |

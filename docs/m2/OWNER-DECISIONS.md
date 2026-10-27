@@ -188,3 +188,17 @@ building a separate drive-location system.
 - **Correction:** the owner clarified that the HBA Viewer and the Linux Storage Manager are **distinct projects**. The Storage Manager is not the intended source.
 - **Needed:** the HBA Viewer's location (repository or folder) and the reuse terms: concept-only re-implementation (recommended), or code contributed by the owner under GPL-3.0-or-later.
 - **Blocks:** PR M2-5 (drive locator). Nothing in PR-1.
+
+---
+
+## Post-merge record: M2-2 acceptance item E2 (2026-10-27)
+**Source:** the owner's message titled "HomeControl — Documentation Reconciliation Decisions", sent 2026-10-27 at
+00:38 America/Chicago (05:38:54 UTC), in Claude Code session https://claude.ai/code/session_01PcnJ5uXahpyCLU3FrjHqki.
+
+**Decision, in the owner's words:** "E2: Deferred, not waived. Workstation-VM browser validation remains an open
+acceptance item and is required before enabling `services.operate` in a real deployment. Do not describe E2 as
+passed."
+
+**Scope note (not part of the owner's text):** the decision names E2 only. It does not cover E4 or any other acceptance
+criterion, and it was given after PR #28 merged (2026-10-26), so it does not retroactively satisfy the merge condition
+in `M2-SECURITY-ACCEPTANCE.md`. Current status of the criterion: `M2-2-ACCEPTANCE.md`.
