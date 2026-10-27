@@ -29,7 +29,7 @@ build/CI ↔ release artifacts · upstream Webmin ↔ fork.
 | Tampering | CSRF on state-changing routes | Exact Origin match + per-session token + SameSite=Strict + JSON-only bodies | Implemented, tested |
 | Tampering | Clickjacking | `frame-ancestors 'none'`, `X-Frame-Options: DENY` | Implemented, tested |
 | Tampering | Log forging via username | Control characters stripped, JSON encoding | Implemented, tested |
-| Repudiation | Admin denies action | Audit log of auth/authz events (0600); write actions audited from M2 | Partial (no writes exist yet) |
+| Repudiation | Admin denies action | Audit log of auth/authz events (0600); write actions audited from M2 | Implemented for the M2-2 service operations (API audit plus the broker's hash-chained operation journal; see the M2-2 section); VM validation (E2) outstanding; no other write ops exist |
 | Information disclosure | Unauthenticated host data | Every route except `/health` requires a session; `/health` returns no host data | Implemented, tested |
 | Information disclosure | Secrets in logs | No secrets reach the audit writer; test asserts password/CSRF/cookie absent | Implemented, tested |
 | Information disclosure | Users file readable | Server refuses group/other-readable or symlinked users file | Implemented, tested |
@@ -68,7 +68,7 @@ New trust boundary: `hc-api` (uid homelab-control) ↔ `hc-broker` (root) over
 **Explicit assumption:** a compromised `hc-api` can invoke any registered op with any claimed scope
 (the broker cannot verify end-user sessions). M1 keeps that safe because every op is read-only,
 argument-free and returns bounded, non-secret data. Write ops (M2+) need broker-side confirmation and
-locking before they may exist.
+locking before they may exist. (M2-2 added them for service start/stop/restart: see the M2-2 section below.)
 
 **Sensitive data newly exposed to authorised users:** SMBIOS serials/UUID (scope `hardware.read`),
 Webmin usernames with RPC capability (scope `system.read`), the full systemd unit list (scope

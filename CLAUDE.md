@@ -33,7 +33,7 @@ Then: `docs/adr/README.md`, `docs/audit/SPEC-CONTRADICTIONS.md`, `docs/dev/DEVEL
 
 ## Repository-specific rules (from M0)
 - `compat/webmin/` is a pristine `git subtree --squash` of upstream; any change there must be listed in `compat/PATCHES.md`. Sync with `scripts/sync-upstream.sh`, verify with `scripts/verify-upstream.sh`.
-- Only `backend/internal/broker/runner` may execute programs; `hc-api`/`hlctl` must not link broker internals; every API route goes through `Server.handle` and is documented in OpenAPI with its scope — `backend/internal/guard` tests enforce all of this. Privileged work happens only in broker ops (ADR 0001, ADR 0008); new ops need review and must stay read-only until M2 designs write safety.
+- Only `backend/internal/broker/runner` may execute programs; `hc-api`/`hlctl` must not link broker internals; every API route goes through `Server.handle` and is documented in OpenAPI with its scope — `backend/internal/guard` tests enforce all of this. Privileged work happens only in broker ops (ADR 0001, ADR 0008); new ops need review and must stay read-only unless the owner has authorized that specific write and it follows the accepted write-operation framework (ADR 0011: broker-issued plan → confirm → execute, step-up, protected-unit policy, operation journal). So far only systemd service start/stop/restart (M2-2) is authorized; every further write keeps its own authorization gate and needs an ADR 0011 review.
 - Go: standard library only unless ADR 0006 is updated. npm: exact versions, `npm ci --ignore-scripts`.
 - Run `make check` before committing; run Go tests as a non-root user.
 
@@ -44,7 +44,7 @@ Then: `docs/adr/README.md`, `docs/audit/SPEC-CONTRADICTIONS.md`, `docs/dev/DEVEL
 - Maintain `docs/project/09-PROJECT-MEMORY.md` as concise verified project state, not as speculative facts.
 
 ## Current milestone
-M1 and the Phase 1 release are complete. M2 PR-1 (state, sessions, audit, read-only service logs) is authorized (2026-10-21); everything else in M2, including any privileged write, is not (see `docs/STATUS.md`, `docs/m2/OWNER-DECISIONS.md`).
+M1 and the Phase 1 release are complete. M2 PR-1 (state, sessions, audit, read-only service logs) was authorized 2026-10-21. M2-2 (systemd service start, stop and restart: plan → confirm → execute, step-up, `root-exec`, protected-unit policy; ADR 0011) was authorized 2026-10-23 and merged 2026-10-26 (PR #28, merge commit `a3447efa`). M2-3 and later milestones, and every other privileged write (enable/disable, mask, unit-file edits, daemon-reload, packages, storage, containers, users and groups), are **not** authorized; each needs its own owner authorization and an ADR 0011 review. Acceptance item E2 (workstation-VM browser validation of M2-2) is outstanding: deferred by the owner, not waived, and required before `services.operate` is enabled in a real deployment; E4's VM evidence is also outstanding (see `docs/STATUS.md`, `docs/m2/OWNER-DECISIONS.md`, `docs/m2/M2-2-ACCEPTANCE.md`).
 
 # Append to root CLAUDE.md — File Services and Proxy Expansion
 

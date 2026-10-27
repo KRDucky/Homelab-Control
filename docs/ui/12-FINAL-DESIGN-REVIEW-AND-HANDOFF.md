@@ -2,6 +2,17 @@
 
 Date: 2026-10-26. Reviewed: `main` at `f6af207c` (PR #24, "HCIS frontend foundation and Theme Development Kit"). Fixes from this review are on the branch `review/hcis-final` and are not merged until the owner approves them.
 
+> **Dated clarification, 2026-10-27 (the review text is otherwise unchanged).** Two statements below were out of date,
+> for different reasons:
+> - "M2 beyond PR-1 is not authorized" and "new broker operations … stay read-only until M2 write safety is
+>   designed and authorized" were already out of date when this review was written on 2026-10-26: M2-2
+>   (systemd service start/stop/restart) had been authorized on 2026-10-23, with ADR 0011 accepted the same day, and it
+>   was merged on 2026-10-26 (PR #28).
+> - The fixes on `review/hcis-final` were merged after this text was written, in PR #25 (follow-up in PR #26) on 2026-10-26.
+>
+> Current rule: M2-3 and later milestones, and every other privileged write, are not authorized; each needs its own owner
+> authorization and an ADR 0011 review. See `CLAUDE.md` and `docs/STATUS.md`.
+
 ## 1. Verdict
 
 **The design is accepted: the frontend foundation faithfully realizes HCIS and is ready for backend and module development.** Seven defects were found and fixed on the review branch (section 4). None needs a redesign. The one open item is administrative: merge the review branch after CI passes on all three browser engines.
