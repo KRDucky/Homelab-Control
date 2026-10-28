@@ -31,10 +31,15 @@ check "other local users cannot reach the broker" 1 "$(grep -ci 'unavailable\|de
 if [ -n "${HC_WEBMIN_SRC:-}" ] && [ ! -e /etc/webmin ]; then
   echo "== installing upstream Webmin from $HC_WEBMIN_SRC into /etc/webmin (disposable host)"
   [ -x /usr/local/bin/perl ] || ln -s /usr/bin/perl /usr/local/bin/perl
-  ( cd "$HC_WEBMIN_SRC" && config_dir=/etc/webmin var_dir=/var/webmin perl=/usr/bin/perl port=10000 \
+  # Test-environment fix, not a product change: under sudo TERM=unknown, and Webmin probes
+  # `systemctl list-units` with stdout and stderr on /dev/null. systemd 259 then starts a pager;
+  # a strict less (Fedora) exits on TERM=unknown, systemctl dies of SIGPIPE (141), Webmin falls
+  # back to SysV and never installs webmin.service. Disable the pager for the fixture only.
+  ( cd "$HC_WEBMIN_SRC" && SYSTEMD_PAGER=cat TERM=dumb \
+      config_dir=/etc/webmin var_dir=/var/webmin perl=/usr/bin/perl port=10000 \
       login=admin password="webmin-smoke-$RANDOM-pw" ssl=0 atboot=0 nostart=1 nouninstall=1 \
       nopostinstall=1 noperlpath=1 autoos=1 autothird=1 ./setup.sh >/tmp/webmin-setup.log 2>&1 )
-  /etc/webmin/start >/dev/null 2>&1 || true
+  SYSTEMD_PAGER=cat TERM=dumb /etc/webmin/start >/dev/null 2>&1 || true
   sleep 2
 fi
 
