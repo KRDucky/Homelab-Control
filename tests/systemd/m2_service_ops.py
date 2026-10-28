@@ -9,12 +9,15 @@ Runs INSIDE a disposable systemd host (container or VM) after the package is
 installed and hc-api/hc-broker are running (tests/systemd/m2-service-ops.sh).
 It only ever starts, stops or restarts the disposable hc-test-* units it
 creates; protected units (ssh, the broker, dbus) are only *planned* to prove
-refusal and are verified to be untouched.
+refusal and are verified to be untouched. Cleanup never stops the alias
+fixture (H3): it removes the symlink, then stops only units whose resolved
+Id is a regular file this test wrote under /etc/systemd/system/.
 
 Environment: HC_PW (admin password), HC_SID (session cookie),
 HC_M2_LONG=1 to also wait for plan-token (120 s) and step-up (5 min) expiry.
 """
 
+import atexit
 import json
 import os
 import subprocess
@@ -26,9 +29,11 @@ import urllib.request
 
 BASE = "http://127.0.0.1:9180"
 ORIGIN = "https://127.0.0.1:9180"
-SID = os.environ["HC_SID"]
-PW = os.environ["HC_PW"]
+SID = os.environ.get("HC_SID", "")
+PW = os.environ.get("HC_PW", "")
 LONG = os.environ.get("HC_M2_LONG") == "1"
+_H3_MAY_STOP = os.path.join(os.path.dirname(os.path.abspath(__file__)), "h3_may_stop.sh")
+_cleaned = False
 
 passed = failed = 0
 
@@ -49,6 +54,95 @@ def sh(*args):
 
 def is_active(unit):
     return sh("systemctl", "is-active", unit)
+
+
+def _parse_show(text):
+    props = {}
+    for line in text.splitlines():
+        if "=" in line:
+            k, v = line.split("=", 1)
+            props[k] = v
+    return props
+
+
+def unit_show(name):
+    return _parse_show(sh("systemctl", "show", "-p", "Id", "-p", "Names",
+                          "-p", "FragmentPath", "-p", "LoadState", name))
+
+
+def path_kind(path):
+    if os.path.islink(path):
+        return "symlink"
+    if os.path.isfile(path):
+        return "regular"
+    if not os.path.lexists(path):
+        return "missing"
+    return "other"
+
+
+def ssh_snapshot():
+    snap = {
+        "unit": SSH_UNIT,
+        "ActiveState": sh("systemctl", "show", "-p", "ActiveState", "--value", SSH_UNIT),
+        "MainPID": sh("systemctl", "show", "-p", "MainPID", "--value", SSH_UNIT),
+    }
+    sock = SSH_UNIT[:-8] + ".socket" if SSH_UNIT.endswith(".service") else ""
+    if sock and sh("systemctl", "show", "-p", "LoadState", "--value", sock) == "loaded":
+        snap["socket"] = sock
+        snap["SocketActiveState"] = sh("systemctl", "show", "-p", "ActiveState", "--value", sock)
+        snap["SocketMainPID"] = sh("systemctl", "show", "-p", "MainPID", "--value", sock)
+    return snap
+
+
+def may_stop(name, props, *, owned, created):
+    """Return (ok, detail). Never stop aliases or host-access units."""
+    env = os.environ.copy()
+    env.update({
+        "H3_NAME": name,
+        "H3_ID": props.get("Id") or "",
+        "H3_NAMES": props.get("Names") or "",
+        "H3_FRAGMENT": props.get("FragmentPath") or "",
+        "H3_OWNED": " ".join(owned),
+        "H3_CREATED": " ".join(created),
+        "H3_PATHKIND": path_kind(f"/etc/systemd/system/{name}"),
+    })
+    r = subprocess.run(["/bin/sh", _H3_MAY_STOP], env=env, capture_output=True, text=True)
+    detail = (r.stdout or r.stderr or "").strip() or f"cleanup refused to stop {name}"
+    return r.returncode == 0, detail
+
+
+def cleanup(snap):
+    """Remove the alias first; stop only units this test created. H3."""
+    global _cleaned, failed
+    if _cleaned:
+        return
+    _cleaned = True
+    alias = "/etc/systemd/system/hc-test-innocent.service"
+    if os.path.lexists(alias):
+        os.remove(alias)
+    subprocess.run(["systemctl", "daemon-reload"], capture_output=True)
+    owned = list(CHAINS) + list(UNITS) + list(CREATED)
+    for name in owned:
+        ok, detail = may_stop(name, unit_show(name), owned=owned, created=CREATED)
+        if not ok:
+            print(f"FAIL  {detail}")
+            failed += 1
+        else:
+            subprocess.run(["systemctl", "stop", "--", name], capture_output=True)
+        path = f"/etc/systemd/system/{name}"
+        if os.path.lexists(path):
+            os.remove(path)
+    subprocess.run(["systemctl", "daemon-reload"], capture_output=True)
+    subprocess.run(["systemctl", "reset-failed"], capture_output=True)
+    after = ssh_snapshot()
+    if snap.get("unit") in CREATED:
+        print("SKIP  SSH invariant (stand-in unit created by this run)")
+        return
+    check("SSH ActiveState unchanged after cleanup", snap.get("ActiveState"), after.get("ActiveState"))
+    check("SSH MainPID unchanged after cleanup", snap.get("MainPID"), after.get("MainPID"))
+    if "SocketMainPID" in snap:
+        check("SSH socket MainPID unchanged after cleanup",
+              snap.get("SocketMainPID"), after.get("SocketMainPID"))
 
 
 def call(method, path, body=None, csrf=None):
@@ -166,7 +260,12 @@ def apply(unit, action, token, csrf):
 
 def main():
     global SID
+    if not SID or not PW:
+        print("HC_SID and HC_PW are required", file=sys.stderr)
+        return 2
     setup()
+    snap = ssh_snapshot()
+    atexit.register(cleanup, snap)
     # 0. The default account has no services.operate: refused, no controls.
     st, sess = call("GET", "/api/v1/auth/session")
     scopes = sess.get("scopes") or []
@@ -394,13 +493,7 @@ def main():
     else:
         print("SKIP  token/step-up expiry waits (set HC_M2_LONG=1)")
 
-    # Clean up the disposable units.
-    for name in list(CHAINS) + list(UNITS) + ["hc-test-innocent.service"] + CREATED:
-        subprocess.run(["systemctl", "stop", name], capture_output=True)
-        if os.path.lexists(f"/etc/systemd/system/{name}"):
-            os.remove(f"/etc/systemd/system/{name}")
-    subprocess.run(["systemctl", "daemon-reload"])
-    subprocess.run(["systemctl", "reset-failed"])
+    cleanup(snap)
     print(f"m2-service-ops: {passed} passed, {failed} failed")
     return 1 if failed else 0
 
