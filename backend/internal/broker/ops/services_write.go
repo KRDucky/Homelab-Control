@@ -712,7 +712,12 @@ func classify(action servicepolicy.Action, res runner.Result, runErr error, obs 
 	case errors.Is(runErr, runner.ErrTimeout):
 		outcome, msg = OutcomeUncertain, "systemctl did not finish within "+actTimeout.String()+"; systemd may still be processing the job."
 	case runErr != nil:
-		outcome, msg = OutcomeFailed, "systemctl could not be run: "+runErr.Error()
+		msg = "systemctl could not be run"
+		var ex *runner.ExecError
+		if errors.As(runErr, &ex) && ex.Class != "" {
+			msg += " (" + ex.Class + ")"
+		}
+		outcome = OutcomeFailed
 	case res.ExitCode != 0:
 		outcome, msg = OutcomeFailed, fmt.Sprintf("systemctl exited with status %d: %s", res.ExitCode, clean(res.Stderr, 300))
 	}

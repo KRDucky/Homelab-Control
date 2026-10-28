@@ -257,10 +257,10 @@ func (r *Runner) exec(ctx context.Context, path string, args []string, cred *sys
 	out := &capped{limit: r.maxStdout}
 	errb := &capped{limit: r.maxStderr}
 	cmd.Stdout, cmd.Stderr = out, errb
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	if os.Geteuid() == 0 && cred != nil {
-		cmd.SysProcAttr.Credential = cred
-	}
+	cmd.SysProcAttr = childSysProcAttr(cred)
+	// kill(-pid) targets the child's process group. After Setsid the
+	// session id and pgid both equal the child's pid (setsid(2)), so this
+	// is the same W9 contract as Setpgid: true.
 	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
 	cmd.WaitDelay = 2 * time.Second
 	start := time.Now()
@@ -279,9 +279,92 @@ func (r *Runner) exec(ctx context.Context, path string, args []string, cred *sys
 		if errors.As(err, &ee) {
 			return res, nil // non-zero exit is reported via ExitCode
 		}
-		return res, err
+		return res, &ExecError{Class: errnoClass(err), err: err}
 	}
 	return res, nil
+}
+
+// childSysProcAttr is the SysProcAttr of every child (unprivileged and root-exec).
+//
+// Setsid, not Setpgid: after fork the child is not a session or process-group
+// leader, so setsid() succeeds and makes sid = pgid = pid. Go's
+// forkAndExecInChild (go 1.26, syscall/exec_linux.go) calls setsid before
+// Credential and execve; it calls setpgid only when Setpgid is set, and
+// setpgid on a session leader is EPERM, so Setpgid must stay false.
+// SELinux init_t denies process:setpgid and allows this setsid path (P2).
+func childSysProcAttr(cred *syscall.Credential) *syscall.SysProcAttr {
+	attr := &syscall.SysProcAttr{Setsid: true}
+	if os.Geteuid() == 0 && cred != nil {
+		attr.Credential = cred
+	}
+	return attr
+}
+
+// ExecError is a failed fork/exec (not a child exit). Class is a closed errno
+// name. Error() never includes a path, argv, token, or environment.
+type ExecError struct {
+	Class string
+	err   error
+}
+
+func (e *ExecError) Error() string {
+	if e == nil {
+		return "exec"
+	}
+	if e.Class == "" {
+		return "exec"
+	}
+	return "exec " + e.Class
+}
+
+func (e *ExecError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.err
+}
+
+var errnoNames = map[syscall.Errno]string{
+	syscall.EACCES: "EACCES",
+	syscall.EPERM:  "EPERM",
+	syscall.ENOENT: "ENOENT",
+	syscall.EAGAIN: "EAGAIN",
+	syscall.ENOMEM: "ENOMEM",
+	syscall.ENOSYS: "ENOSYS",
+	syscall.EINVAL: "EINVAL",
+	syscall.EIO:    "EIO",
+	syscall.EINTR:  "EINTR",
+	syscall.ENFILE: "ENFILE",
+	syscall.EMFILE: "EMFILE",
+	syscall.EFAULT: "EFAULT",
+	syscall.ENOSPC: "ENOSPC",
+}
+
+func errnoClass(err error) string {
+	var errno syscall.Errno
+	if errors.As(err, &errno) {
+		if n, ok := errnoNames[errno]; ok {
+			return n
+		}
+		return "errno"
+	}
+	return "exec"
+}
+
+// ClassFromMessage returns a closed errno class if msg ends with " (CLASS)".
+func ClassFromMessage(msg string) string {
+	for _, n := range errnoNames {
+		if strings.HasSuffix(msg, " ("+n+")") {
+			return n
+		}
+	}
+	if strings.HasSuffix(msg, " (errno)") {
+		return "errno"
+	}
+	if strings.HasSuffix(msg, " (exec)") {
+		return "exec"
+	}
+	return ""
 }
 
 // Root runs the fixed root argv templates (root-exec class). The broker

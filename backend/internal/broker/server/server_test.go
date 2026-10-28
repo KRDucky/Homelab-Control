@@ -265,6 +265,29 @@ func TestOpArgsSummarisedInAudit(t *testing.T) {
 	}
 }
 
+func TestAuditRecordsExecErrnoClass(t *testing.T) {
+	f := start(t)
+	saved := f.srv.registry["broker.info"]
+	f.srv.registry["broker.info"] = ops.Op{
+		Name: "broker.info", Timeout: time.Second,
+		Handle: func(context.Context, *ops.Env, json.RawMessage) (any, error) {
+			return nil, &proto.Error{Code: proto.CodeInternal, Message: "systemctl could not be run (EACCES)"}
+		},
+	}
+	t.Cleanup(func() { f.srv.registry["broker.info"] = saved })
+	_, err := call(t, f, "broker.info")
+	if code(err) != proto.CodeInternal {
+		t.Fatalf("%v", err)
+	}
+	got := f.audit.String()
+	if !strings.Contains(got, `"outcome":"internal"`) || !strings.Contains(got, "errno=EACCES") {
+		t.Fatalf("audit missing errno class: %s", got)
+	}
+	if strings.Contains(got, "/usr/bin") || strings.Contains(got, "permission denied") || strings.Contains(got, "TOKEN") {
+		t.Fatalf("audit leaked: %s", got)
+	}
+}
+
 // TestRootExecHandleOnlyForRootExecOps proves W9 at runtime: the root-exec
 // handle reaches an op only when the op is registered as root-exec, even if
 // someone puts a handle into the shared Env.
