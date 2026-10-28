@@ -286,6 +286,25 @@ func TestSystemdListWithoutSystemctl(t *testing.T) {
 	}
 }
 
+func TestRunErrIncludesErrnoClass(t *testing.T) {
+	err := runErr(&runner.ExecError{Class: "EACCES"})
+	var pe *proto.Error
+	if !errors.As(err, &pe) || pe.Code != proto.CodeInternal || pe.Message != "systemctl could not be run (EACCES)" {
+		t.Fatalf("%v", err)
+	}
+	if strings.Contains(pe.Message, "/") || strings.Contains(pe.Message, "permission denied") {
+		t.Fatalf("leaked: %s", pe.Message)
+	}
+	jerr := journalErr(&runner.ExecError{Class: "EACCES"})
+	if !errors.As(jerr, &pe) || pe.Message != "journalctl could not be run (EACCES)" {
+		t.Fatalf("%v", jerr)
+	}
+	plain := runErr(errors.New("some other failure"))
+	if !errors.As(plain, &pe) || pe.Message != "systemctl could not be run" {
+		t.Fatalf("%v", plain)
+	}
+}
+
 func TestBrokerInfoReportsSystemdBoot(t *testing.T) {
 	root := t.TempDir()
 	res, _ := brokerInfo(context.Background(), &Env{Roots: Roots{Root: root}}, nil)

@@ -8,7 +8,11 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
+	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -255,4 +259,110 @@ func TestRootRunTimeoutKillsGroup(t *testing.T) {
 	if time.Since(start) > 3*time.Second {
 		t.Fatal("root child not bounded by context")
 	}
+}
+
+func TestChildSysProcAttrUsesSetsidNotSetpgid(t *testing.T) {
+	a := childSysProcAttr(&syscall.Credential{Uid: 1, Gid: 1})
+	if !a.Setsid || a.Setpgid || a.Pgid != 0 {
+		t.Fatalf("want Setsid only, got %+v", a)
+	}
+	if os.Geteuid() == 0 {
+		if a.Credential == nil || a.Credential.Uid != 1 || a.Credential.Gid != 1 {
+			t.Fatalf("root should apply credential: %+v", a.Credential)
+		}
+	} else if a.Credential != nil {
+		t.Fatal("non-root must not set Credential")
+	}
+	rootExec := childSysProcAttr(nil)
+	if !rootExec.Setsid || rootExec.Setpgid || rootExec.Credential != nil {
+		t.Fatalf("root-exec attr: %+v", rootExec)
+	}
+}
+
+func TestExecErrorClassOmitsPath(t *testing.T) {
+	pe := &os.PathError{Op: "fork/exec", Path: "/usr/bin/systemctl", Err: syscall.EACCES}
+	got := errnoClass(pe)
+	if got != "EACCES" {
+		t.Fatalf("class %q", got)
+	}
+	err := &ExecError{Class: got, err: pe}
+	s := err.Error()
+	if s != "exec EACCES" || strings.Contains(s, "/") || strings.Contains(s, "systemctl") {
+		t.Fatalf("leaked: %q", s)
+	}
+	if errnoClass(syscall.Errno(9999)) != "errno" || errnoClass(errors.New("x")) != "exec" {
+		t.Fatal("unknown classes")
+	}
+	if ClassFromMessage("systemctl could not be run (EACCES)") != "EACCES" {
+		t.Fatal("ClassFromMessage")
+	}
+	if ClassFromMessage("systemctl could not be run") != "" || ClassFromMessage("x (notanerrno)") != "" {
+		t.Fatal("ClassFromMessage accepted a non-class")
+	}
+}
+
+func TestConcurrentRuns(t *testing.T) {
+	r := testRunner(t)
+	var wg sync.WaitGroup
+	errs := make(chan error, 8)
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			res, err := r.Run(context.Background(), "echo", "ok")
+			if err != nil {
+				errs <- err
+				return
+			}
+			if strings.TrimSpace(string(res.Stdout)) != "ok" {
+				errs <- errors.New("bad stdout")
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Fatal(err)
+	}
+}
+
+func TestTimeoutKillsGrandchildInGroup(t *testing.T) {
+	if _, err := exec.LookPath("sh"); err != nil {
+		t.Skip("sh not available")
+	}
+	dir := t.TempDir()
+	pidfile := filepath.Join(dir, "child.pid")
+	helper := filepath.Join(dir, "hold")
+	body := "#!/bin/sh\nsleep 60 &\necho $! >'" + pidfile + "'\nwait\n"
+	if err := os.WriteFile(helper, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	r := testRunner(t)
+	r.skipOwnerCheck = true
+	r.paths["hold"] = helper
+	ctx, cancel := context.WithTimeout(context.Background(), 400*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, err := r.Run(ctx, "hold")
+	if !errors.Is(err, ErrTimeout) || time.Since(start) > 5*time.Second {
+		t.Fatalf("timeout not enforced: %v after %v", err, time.Since(start))
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		b, rerr := os.ReadFile(pidfile)
+		if rerr != nil {
+			time.Sleep(20 * time.Millisecond)
+			continue
+		}
+		pid := strings.TrimSpace(string(b))
+		if pid == "" {
+			time.Sleep(20 * time.Millisecond)
+			continue
+		}
+		if _, err := os.Stat("/proc/" + pid); err == nil {
+			t.Fatalf("grandchild %s still alive", pid)
+		}
+		return
+	}
+	t.Log("pidfile not observed; group kill covered by TestTimeoutKillsProcessGroup")
 }
