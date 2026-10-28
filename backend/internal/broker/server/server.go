@@ -183,6 +183,9 @@ func (s *Server) handle(ctx context.Context, c *net.UnixConn) {
 		}
 		ev.Outcome = pe.Code
 		ev.Detail = fmt.Sprintf("%s%s %s", req.Op, argSummary, dur)
+		if c := runner.ClassFromMessage(pe.Message); c != "" {
+			ev.Detail += " errno=" + c
+		}
 		_ = s.log(ev)
 		s.reply(c, proto.Response{Error: pe})
 		return
