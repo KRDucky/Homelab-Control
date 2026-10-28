@@ -7,7 +7,7 @@
 # Does not call systemctl, does not need root, python3, or a disposable host.
 
 set -eu
-here=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+here=$(CDPATH='' cd -- "$(dirname "$0")" && pwd)
 helper="$here/h3_may_stop.sh"
 n_pass=0
 n_fail=0
