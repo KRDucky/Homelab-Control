@@ -642,6 +642,17 @@ func TestFailureReporting(t *testing.T) {
 	}
 }
 
+func TestClassifyExecErrorHasErrnoClassNotPath(t *testing.T) {
+	err := &runner.ExecError{Class: "EACCES"}
+	outcome, msg := classify(servicepolicy.Start, runner.Result{}, err, &UnitProps{ActiveState: "inactive"}, nil)
+	if outcome != OutcomeFailed || !strings.Contains(msg, "(EACCES)") {
+		t.Fatalf("%s %q", outcome, msg)
+	}
+	if strings.Contains(msg, "/usr/bin") || strings.Contains(msg, "permission denied") {
+		t.Fatalf("leaked: %q", msg)
+	}
+}
+
 func TestUnreadableStateAfterActIsUncertain(t *testing.T) {
 	w := newWriteEnv(t, svc("demo.service", "inactive"))
 	p, _ := w.plan(t, "demo.service", "start")
