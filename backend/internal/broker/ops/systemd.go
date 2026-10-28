@@ -99,7 +99,12 @@ func runErr(err error) error {
 	case errors.Is(err, runner.ErrTooLarge):
 		return &proto.Error{Code: proto.CodeInternal, Message: "systemctl output exceeded the size limit"}
 	default:
-		return &proto.Error{Code: proto.CodeInternal, Message: "systemctl could not be run"}
+		msg := "systemctl could not be run"
+		var ex *runner.ExecError
+		if errors.As(err, &ex) && ex.Class != "" {
+			msg += " (" + ex.Class + ")"
+		}
+		return &proto.Error{Code: proto.CodeInternal, Message: msg}
 	}
 }
 
