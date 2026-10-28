@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -326,9 +327,42 @@ func TestConcurrentRuns(t *testing.T) {
 	}
 }
 
+// procStat is the part of /proc/<pid>/stat this file needs; ok is false once
+// the process has been reaped.
+type procStat struct {
+	state           string
+	ppid, pgrp, sid int
+	start           string // starttime in clock ticks; detects PID reuse
+}
+
+func readProcStat(pid int) (procStat, bool) {
+	b, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/stat")
+	if err != nil {
+		return procStat{}, false
+	}
+	// comm (field 2) may contain spaces; the fields after it start at ") ".
+	s := string(b)
+	f := strings.Fields(s[strings.LastIndexByte(s, ')')+1:])
+	if len(f) < 20 {
+		return procStat{}, false
+	}
+	ppid, _ := strconv.Atoi(f[1])
+	pgrp, _ := strconv.Atoi(f[2])
+	sid, _ := strconv.Atoi(f[3])
+	return procStat{state: f[0], ppid: ppid, pgrp: pgrp, sid: sid, start: f[19]}, true
+}
+
+// TestTimeoutKillsGrandchildInGroup checks that cancelling a run kills a
+// process the child left behind in its session and process group. The killed
+// grandchild is reparented to init or a subreaper and stays in /proc as a
+// zombie until that process reaps it, so a zombie counts as killed.
 func TestTimeoutKillsGrandchildInGroup(t *testing.T) {
 	if _, err := exec.LookPath("sh"); err != nil {
 		t.Skip("sh not available")
+	}
+	self, ok := readProcStat(os.Getpid())
+	if !ok {
+		t.Skip("procfs not available")
 	}
 	dir := t.TempDir()
 	pidfile := filepath.Join(dir, "child.pid")
@@ -340,29 +374,60 @@ func TestTimeoutKillsGrandchildInGroup(t *testing.T) {
 	r := testRunner(t)
 	r.skipOwnerCheck = true
 	r.paths["hold"] = helper
-	ctx, cancel := context.WithTimeout(context.Background(), 400*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		_, err := r.Run(ctx, "hold")
+		done <- err
+	}()
+
+	// Cancel only once the grandchild is known, so setup can never pass silently.
+	pid := 0
+	for deadline := time.Now().Add(5 * time.Second); pid == 0; {
+		select {
+		case err := <-done:
+			t.Fatalf("helper exited before reporting its grandchild: %v", err)
+		default:
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("grandchild pid not reported within 5s")
+		}
+		if b, err := os.ReadFile(pidfile); err == nil && strings.HasSuffix(string(b), "\n") {
+			if pid, err = strconv.Atoi(strings.TrimSpace(string(b))); err != nil {
+				t.Fatalf("bad pidfile %q", b)
+			}
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	before, ok := readProcStat(pid)
+	if !ok || before.state == "Z" {
+		t.Fatalf("grandchild %d not running before cancel: %+v", pid, before)
+	}
+	// Setsid: the child leads a new session and group, and the grandchild is in both.
+	if before.pgrp != before.ppid || before.sid != before.ppid || before.sid == self.sid || before.pgrp == self.pgrp {
+		t.Fatalf("grandchild %d not in the child's own session and group: %+v (test %+v)", pid, before, self)
+	}
+
 	start := time.Now()
-	_, err := r.Run(ctx, "hold")
-	if !errors.Is(err, ErrTimeout) || time.Since(start) > 5*time.Second {
-		t.Fatalf("timeout not enforced: %v after %v", err, time.Since(start))
+	cancel()
+	select {
+	case err := <-done:
+		if !errors.Is(err, ErrTimeout) {
+			t.Fatalf("cancelled run returned %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("run did not return within 5s of cancel")
 	}
-	deadline := time.Now().Add(3 * time.Second)
-	for time.Now().Before(deadline) {
-		b, rerr := os.ReadFile(pidfile)
-		if rerr != nil {
-			time.Sleep(20 * time.Millisecond)
-			continue
+	for deadline := time.Now().Add(5 * time.Second); ; {
+		st, ok := readProcStat(pid)
+		if !ok || st.start != before.start || st.state == "Z" || st.state == "X" {
+			return // reaped, PID reused, or dead and awaiting its reaper
 		}
-		pid := strings.TrimSpace(string(b))
-		if pid == "" {
-			time.Sleep(20 * time.Millisecond)
-			continue
+		if time.Now().After(deadline) {
+			t.Fatalf("grandchild %d still alive %v after cancel: %+v", pid, time.Since(start), st)
 		}
-		if _, err := os.Stat("/proc/" + pid); err == nil {
-			t.Fatalf("grandchild %s still alive", pid)
-		}
-		return
+		time.Sleep(10 * time.Millisecond)
 	}
-	t.Log("pidfile not observed; group kill covered by TestTimeoutKillsProcessGroup")
 }
