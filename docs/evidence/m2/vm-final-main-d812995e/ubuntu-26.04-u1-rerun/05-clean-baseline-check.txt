@@ -1,0 +1,23 @@
+# idle + clean-baseline check — 2026-10-28T11:17:41Z
+not running: apt
+not running: apt-get
+not running: dpkg
+pgrep: pattern that searches for process name longer than 15 characters will result in zero matches
+Try `pgrep -f' option to match against the complete command line.
+not running: unattended-upgrade
+RUNNING: unattended-upgrade (python)
+no apt/dpkg locks held
+dpkg-query: no packages found matching homelab-control
+  ls: cannot access '/etc/homelab-control': No such file or directory
+  ls: cannot access '/var/lib/homelab-control': No such file or directory
+  ls: cannot access '/var/log/homelab-control-broker': No such file or directory
+  ls: cannot access '/opt/hc': No such file or directory
+  ls: cannot access '/etc/webmin': No such file or directory
+  ls: cannot access '/var/webmin': No such file or directory
+no hc-test-* units
+marker=present
+PRETTY_NAME="Ubuntu 26.04.1 LTS"
+7.0.0-42-generic
+systemd 259 (259.9-0ubuntu0.1)
+openssh-server	1:10.2p1-2ubuntu3.8
+sudo	1.9.17p2-1ubuntu3.2

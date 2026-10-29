@@ -1,0 +1,19 @@
+# browser setup — hc-test-m2-u2604-rerun — 2026-10-28T11:24:07Z
+moved-aside: var-lib-homelab-control var-log-api-homelab-control var-log-homelab-control-broker
+leftover_pkg_state:
+hc-test units before: 0
+install_rc=0
+homelab-control	0.1.0+dev.1+52+gd812995e
+HC_API_ARGS=-listen 127.0.0.1:9180 -dev-insecure-http
+updated /etc/homelab-control/users.json (restart hc-api to apply)
+Created symlink '/etc/systemd/system/multi-user.target.wants/hc-test-dummy.service' → '/etc/systemd/system/hc-test-dummy.service'.
+Created symlink '/etc/systemd/system/multi-user.target.wants/hc-test-fail.service' → '/etc/systemd/system/hc-test-fail.service'.
+== identity resolution
+PASS hc-test-dummy.service: Id=hc-test-dummy.service Names=[hc-test-dummy.service] Fragment=/etc/systemd/system/hc-test-dummy.service (regular file) Active=inactive
+PASS hc-test-fail.service: Id=hc-test-fail.service Names=[hc-test-fail.service] Fragment=/etc/systemd/system/hc-test-fail.service (regular file) Active=inactive
+PASS homelab-control.service: Id=homelab-control.service Names=[homelab-control.service] Fragment=/usr/lib/systemd/system/homelab-control.service (regular file) Active=active
+ssh.service Names: ssh.service sshd.service; MainPID=903
+sshd.service Names: ssh.service sshd.service; MainPID=903
+== listener
+LISTEN 0      4096   127.0.0.1:9180 0.0.0.0:* users:(("hc-api",pid=4790,fd=9))
+guest mark 2026-10-28 11:24:11

@@ -1,0 +1,41 @@
+<volume type='file'>
+  <name>hc-test-m2-u2604-rerun.qcow2</name>
+  <key>/var/lib/libvirt/hc-test/hc-test-m2-u2604-rerun.qcow2</key>
+  <capacity unit='bytes'>21474836480</capacity>
+  <allocation unit='bytes'>3627102208</allocation>
+  <physical unit='bytes'>3627286528</physical>
+  <target>
+    <path>/var/lib/libvirt/hc-test/hc-test-m2-u2604-rerun.qcow2</path>
+    <format type='qcow2'/>
+    <permissions>
+      <mode>0600</mode>
+      <owner>947</owner>
+      <group>947</group>
+    </permissions>
+    <timestamps>
+      <atime>1793160948.682345582</atime>
+      <mtime>1793182683.114087361</mtime>
+      <ctime>1793182683.114087361</ctime>
+      <btime>0</btime>
+    </timestamps>
+    <compat>1.1</compat>
+    <clusterSize unit='B'>65536</clusterSize>
+    <features/>
+  </target>
+  <backingStore>
+    <path>/var/lib/libvirt/hc-test/hc-test-base-ubuntu-26.04.qcow2</path>
+    <format type='qcow2'/>
+    <permissions>
+      <mode>0600</mode>
+      <owner>947</owner>
+      <group>947</group>
+    </permissions>
+    <timestamps>
+      <atime>1792130903.939549696</atime>
+      <mtime>1792130904.322544346</mtime>
+      <ctime>1792130911.124303121</ctime>
+      <btime>0</btime>
+    </timestamps>
+  </backingStore>
+</volume>
+

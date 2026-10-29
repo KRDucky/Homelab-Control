@@ -1,0 +1,15 @@
+VERSION_ID=44
+PRETTY_NAME="Fedora Linux 44 (Cloud Edition)"
+kernel=6.19.10-300.fc44.x86_64
+virt=kvm
+systemd 259 (259.5-1.fc44)
+selinux=Enforcing policy=selinux-policy-targeted-43.3-1.fc44.noarch
+package=homelab-control-0.1.0-0.m1.v0_1_0_dev_1_52_gd812995e.x86_64 sha256=9e65a979e97fd0d6256c83a9eb180d35bb889db317616148eae0ec35afa3b5da
+marker=present
+perl-interpreter-5.42.3-525.fc44.x86_64
+curl-8.18.0-4.fc44.x86_64
+python3-3.14.3-2.fc44.x86_64
+procps-ng-4.0.6-1.fc44.x86_64
+iproute-6.17.0-2.fc44.x86_64
+sudo-1.9.17-7.p2.fc44.x86_64
+less-691-2.fc44.x86_64

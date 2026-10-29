@@ -1,0 +1,17 @@
+## workstation run, uid 1000, 2026-10-28T10:19:56Z
+PASS  alias of sshd.service is refused
+PASS  alias of ssh.service is refused
+PASS  owned hc-test-dummy.service is allowed
+PASS  owned homelab-control-hctest.service is allowed
+PASS  real sshd.service is refused
+PASS  real ssh.service is refused
+PASS  CREATED stand-in ssh.service is allowed
+PASS  owned unit also named sshd is refused
+PASS  dbus.service is refused
+PASS  systemd-journald.service is refused
+PASS  product broker unit is refused
+PASS  symlink unit file is refused
+PASS  Id mismatch (alias) is refused
+PASS  empty Id is refused
+test_h3_cleanup: 14 passed, 0 failed
+exit=0

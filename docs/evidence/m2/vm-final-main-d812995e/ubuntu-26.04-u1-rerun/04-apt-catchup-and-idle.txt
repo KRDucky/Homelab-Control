@@ -1,0 +1,26 @@
+# apt-daily-upgrade catch-up result — 2026-10-28T11:17:24Z
+Oct 28 11:17:06 hc-test-m2-u2604-rerun systemd[1]: Starting apt-daily-upgrade.service - Daily apt upgrade and clean activities...
+Oct 28 11:17:06 hc-test-m2-u2604-rerun systemd[1]: apt-daily-upgrade.service: Deactivated successfully.
+Oct 28 11:17:06 hc-test-m2-u2604-rerun systemd[1]: Finished apt-daily-upgrade.service - Daily apt upgrade and clean activities.
+Oct 28 11:17:06 hc-test-m2-u2604-rerun systemd[1]: apt-daily-upgrade.service: Consumed 687ms CPU time over 733ms wall clock time, 117.1M memory peak.
+== unattended-upgrades log (this run)
+2026-10-28 11:17:06,551 INFO Starting unattended upgrades script
+2026-10-28 11:17:06,551 INFO Allowed origins are: o=Ubuntu,a=resolute, o=Ubuntu,a=resolute-security, o=UbuntuESMApps,a=resolute-apps-security, o=UbuntuESM,a=resolute-infra-security
+2026-10-28 11:17:06,551 INFO Initial blacklist: 
+2026-10-28 11:17:06,551 INFO Initial whitelist (not strict): 
+2026-10-28 11:17:06,884 INFO No packages found that can be upgraded unattended and no pending auto-removals
+== dpkg.log since 11:15
+no package changes
+== ssh
+ActiveState=active
+MainPID=903
+no ssh stops this boot
+== timers
+NEXT                        LEFT LAST                         PASSED UNIT                    ACTIVATES
+Wed 2026-10-28 20:56:07 UTC   9h Wed 2026-10-28 04:15:57 UTC       - apt-daily.timer         apt-daily.service
+Thu 2026-10-29 06:55:57 UTC  19h Wed 2026-10-28 11:17:06 UTC 18s ago apt-daily-upgrade.timer apt-daily-upgrade.service
+
+2 timers listed.
+2598 bash -c echo "# apt-daily-upgrade catch-up result — $(date -u +%FT%TZ)"; sudo journalctl -b -u apt-daily-upgrade.service --no-pager | tail -5; echo "== unattended-upgrades log (this run)"; sudo tail -n 8 /var/log/unattended-upgrades/unattended-upgrades.log; echo "== dpkg.log since 11:15"; awk "\$1\" \"\$2 >= \"2026-10-28 11:15\"" /var/log/dpkg.log | grep -E " (install|upgrade|remove) " || echo "no package changes"; echo "== ssh"; systemctl show -p ActiveState,MainPID ssh.service; sudo journalctl -b -u ssh.service -u ssh.socket --no-pager | grep -E "Stopp|Deactivated|signal" || echo "no ssh stops this boot"; echo "== timers"; systemctl list-timers apt-daily.timer apt-daily-upgrade.timer --all --no-pager; pgrep -a -f "apt-get|dpkg|unattended-upgrade$" || echo "package manager idle"; test -e /var/run/reboot-required && echo "reboot-required: YES" || echo "reboot-required: no"; timedatectl show -p NTPSynchronized
+reboot-required: no
+NTPSynchronized=yes

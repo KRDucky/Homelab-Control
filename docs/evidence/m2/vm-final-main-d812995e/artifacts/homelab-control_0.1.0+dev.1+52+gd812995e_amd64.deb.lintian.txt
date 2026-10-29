@@ -1,0 +1,10 @@
+E: homelab-control: no-changelog usr/share/doc/homelab-control/changelog.gz (native package)
+E: homelab-control: statically-linked-binary [usr/bin/hc-api]
+E: homelab-control: statically-linked-binary [usr/bin/hlctl]
+E: homelab-control: statically-linked-binary [usr/lib/homelab-control/hc-broker]
+W: homelab-control: maintainer-script-calls-systemctl [prerm:4]
+W: homelab-control: maintainer-script-calls-systemctl [prerm:5]
+W: homelab-control: maintainer-script-needs-depends-on-adduser adduser (does not satisfy adduser) [postinst:7]
+W: homelab-control: no-manual-page [usr/bin/hc-api]
+W: homelab-control: no-manual-page [usr/bin/hlctl]
+W: homelab-control: non-standard-file-perm 0640 != 0644 [etc/homelab-control/hc-api.env]

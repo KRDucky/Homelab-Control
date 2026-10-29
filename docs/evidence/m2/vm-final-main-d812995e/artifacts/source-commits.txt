@@ -1,0 +1,18 @@
+files changed by d812995e: 0
+d812995e3f9e0a5ca3c12f34991c035b01e121e5 Ian comings <iancomings@gmail.com> chore(compliance): record DCO certification for PRs #30 and #32
+9172034efeda87a91deae26d806e8c331fba742e Ian comings <iancomings@gmail.com> test(systemd): fail-closed cleanup so aliases cannot stop SSH (#30)
+f5fcc5b00c4cce74d62c6ee45e2434091de83d47 Ian comings <iancomings@gmail.com> test(runner): count a zombie grandchild as killed; fail on setup errors (#32)
+3618fea65b4c13abfc816bcaa32e0f43fad8b7c1 Ian comings <iancomings@gmail.com> fix(broker): setsid for child process groups; errno-class diagnostics (#31)
+ backend/internal/broker/ops/ops_test.go            |  19 +++
+ backend/internal/broker/ops/services_write.go      |   7 +-
+ backend/internal/broker/ops/services_write_test.go |  11 ++
+ backend/internal/broker/ops/systemd.go             |   7 +-
+ backend/internal/broker/runner/runner.go           |  93 ++++++++++-
+ backend/internal/broker/runner/runner_test.go      | 175 +++++++++++++++++++++
+ backend/internal/broker/server/server.go           |   3 +
+ backend/internal/broker/server/server_test.go      |  23 +++
+ tests/systemd/h3_may_stop.sh                       |  78 +++++++++
+ tests/systemd/m1-checks.sh                         |   9 +-
+ tests/systemd/m2_service_ops.py                    | 113 +++++++++++--
+ tests/systemd/test_h3_cleanup.sh                   | 103 ++++++++++++
+ 12 files changed, 622 insertions(+), 19 deletions(-)

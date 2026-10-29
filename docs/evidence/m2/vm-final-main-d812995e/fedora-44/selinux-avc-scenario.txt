@@ -1,0 +1,13 @@
+# AVC denials during scenario (since 10:30:53 UTC) — full lines
+Oct 28 10:30:53.788000 hc-test-m2-f44-rerun audit[1663]: AVC avc:  denied  { write } for  pid=1663 comm="groupadd" path="pipe:[14099]" dev="pipefs" ino=14099 scontext=unconfined_u:unconfined_r:groupadd_t:s0-s0:c0.c1023 tcontext=system_u:system_r:sshd_session_t:s0-s0:c0.c1023 tclass=fifo_file permissive=0
+Oct 28 10:30:53.788000 hc-test-m2-f44-rerun audit[1663]: AVC avc:  denied  { write } for  pid=1663 comm="groupadd" path="pipe:[14100]" dev="pipefs" ino=14100 scontext=unconfined_u:unconfined_r:groupadd_t:s0-s0:c0.c1023 tcontext=system_u:system_r:sshd_session_t:s0-s0:c0.c1023 tclass=fifo_file permissive=0
+Oct 28 10:30:53.816000 hc-test-m2-f44-rerun audit[1665]: AVC avc:  denied  { write } for  pid=1665 comm="useradd" path="pipe:[14099]" dev="pipefs" ino=14099 scontext=unconfined_u:unconfined_r:useradd_t:s0-s0:c0.c1023 tcontext=system_u:system_r:sshd_session_t:s0-s0:c0.c1023 tclass=fifo_file permissive=0
+Oct 28 10:30:53.816000 hc-test-m2-f44-rerun audit[1665]: AVC avc:  denied  { write } for  pid=1665 comm="useradd" path="pipe:[14100]" dev="pipefs" ino=14100 scontext=unconfined_u:unconfined_r:useradd_t:s0-s0:c0.c1023 tcontext=system_u:system_r:sshd_session_t:s0-s0:c0.c1023 tclass=fifo_file permissive=0
+== ausearch
+== broker/api domains during scenario not running now (package purged)
+package homelab-control is not installed
+
+## Classification
+4 denials, all {write} on the non-interactive SSH session's stdout/stderr pipes (tcontext sshd_session_t, fifo_file), by groupadd_t/useradd_t while the RPM scriptlet created the homelab-control system user/group during first install.
+Identical to the original CI #87 Fedora run (rerun-20261028/fedora-44, 04:22:01, same 4 lines); the PR #31 validation reported 0 because that attempt reused an existing user (rpm -e keeps it).
+Not hc-api/hc-broker, not runtime, no functional effect (user and group were created; the scenario passed). No denials from hc-api, hc-broker or their children.

@@ -1,0 +1,59 @@
+2026-10-29 05:00:03.419718+00:00
+dominfo hc-test-m2-u2604-rerun
+Id:             1
+Name:           hc-test-m2-u2604-rerun
+UUID:           30b2ff8b-1982-4af2-bbe6-cb9157b40eab
+OS Type:        hvm
+State:          running
+CPU(s):         2
+CPU time:       15.2s
+Max memory:     4194304 KiB
+Used memory:    4194304 KiB
+Persistent:     yes
+Autostart:      disable
+Autostart Once: disable
+Managed save:   no
+Security model: none
+Security DOI:   0
+
+
+domblklist hc-test-m2-u2604-rerun --details
+ Type   Device   Target   Source
+------------------------------------------------------------------------------------
+ file   disk     vda      /var/lib/libvirt/hc-test/hc-test-m2-u2604-rerun.qcow2
+ file   cdrom    hda      /var/lib/libvirt/hc-test/hc-test-m2-u2604-rerun-seed.iso
+
+
+domiflist hc-test-m2-u2604-rerun
+ Interface   Type      Source    Model    MAC
+-------------------------------------------------------------
+ vnet0       network   default   virtio   52:54:00:7f:1c:97
+
+
+snapshot-list hc-test-m2-u2604-rerun --parent
+ Name                              Creation Time               State     Parent
+----------------------------------------------------------------------------------------------------------
+ post-ssh-stop-failure-20261028    2026-10-28 05:28:33 -0500   running   pre-m2
+ pre-final-main-20261028           2026-10-28 05:20:07 -0500   running   pre-m2
+ pre-final-main-updated-20261028   2026-10-28 06:17:43 -0500   shutoff   pre-m2
+ pre-m2                            2026-10-27 23:17:08 -0500   running   
+ pre-u1-browser-resume-20261028    2026-10-28 23:57:44 -0500   running   pre-final-main-updated-20261028
+
+
+pool-info hc-test
+Name:           hc-test
+UUID:           a0b77261-caa8-4591-9f4f-07297dd198e4
+State:          running
+Persistent:     yes
+Autostart:      yes
+Capacity:       1.79 TiB
+Allocation:     951.55 GiB
+Available:      877.46 GiB
+
+
+vol-info hc-test-m2-u2604-rerun.qcow2 --pool hc-test
+Name:           hc-test-m2-u2604-rerun.qcow2
+Type:           file
+Capacity:       20.00 GiB
+Allocation:     14.83 GiB
+

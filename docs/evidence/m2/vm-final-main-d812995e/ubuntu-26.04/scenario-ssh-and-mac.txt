@@ -1,0 +1,60 @@
+# SSH/host-service events since 2026-10-28 10:22:44 UTC
+Oct 28 10:24:42 hc-test-m2-u2604-rerun systemd[1]: Stopping ssh.service - OpenBSD Secure Shell server...
+Oct 28 10:24:42 hc-test-m2-u2604-rerun sshd[14668]: Received signal 15; terminating.
+Oct 28 10:24:42 hc-test-m2-u2604-rerun systemd[1]: ssh.service: Deactivated successfully.
+Oct 28 10:24:42 hc-test-m2-u2604-rerun systemd[1]: Stopped ssh.service - OpenBSD Secure Shell server.
+Oct 28 10:24:54 hc-test-m2-u2604-rerun systemd[1]: Stopping ssh.service - OpenBSD Secure Shell server...
+Oct 28 10:24:54 hc-test-m2-u2604-rerun sshd[14958]: Received signal 15; terminating.
+Oct 28 10:24:54 hc-test-m2-u2604-rerun systemd[1]: ssh.service: Deactivated successfully.
+Oct 28 10:24:54 hc-test-m2-u2604-rerun systemd[1]: Stopped ssh.service - OpenBSD Secure Shell server.
+Oct 28 10:24:54 hc-test-m2-u2604-rerun systemd[1]: ssh.socket: Deactivated successfully.
+Oct 28 10:28:08 hc-test-m2-u2604-rerun systemd[1]: Started ssh.service - OpenBSD Secure Shell server.
+# MAC denials since t0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=13528 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=13533 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      1 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=13674 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=14112 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=14117 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      1 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=14250 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=14835 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=14840 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      1 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=15176 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=15452 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=15457 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      1 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=21514 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=21660 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=21665 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      1 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=21798 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=22485 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=22490 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      1 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=22634 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=23293 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=4191 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=4196 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      1 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=4328 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=8672 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=8677 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=13528 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=13533 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      1 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=13674 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=14112 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=14117 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      1 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=14250 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=14835 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=14840 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=15452 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=15457 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      1 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=21514 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=21660 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=21665 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      1 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=21798 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=22485 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=22490 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      1 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=22634 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=23293 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=4191 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=4196 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      1 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=4328 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=8672 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=8677 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+count=81

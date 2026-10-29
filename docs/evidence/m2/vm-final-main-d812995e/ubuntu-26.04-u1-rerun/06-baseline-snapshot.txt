@@ -1,0 +1,37 @@
+# finalize hc-test-m2-u2604-rerun — 2026-10-28T11:17:41Z
+uuid=30b2ff8b-1982-4af2-bbe6-cb9157b40eab (verified)
+Domain 'hc-test-m2-u2604-rerun' unmarked as autostarted
+
+Autostart:      disable
+Autostart Once: disable
+Domain 'hc-test-m2-u2604-rerun' is being shutdown
+
+domstate after graceful shutdown: shut off (waited ~4s)
+Domain snapshot pre-final-main-updated-20261028 created
+snapshot pre-final-main-updated-20261028 created (domain shut off: disk-only, cold-boot state)
+Name:           pre-final-main-updated-20261028
+Domain:         hc-test-m2-u2604-rerun
+Current:        yes
+State:          shutoff
+Location:       internal
+Parent:         pre-m2
+Children:       0
+Descendants:    0
+Metadata:       yes
+
+  <state>shutoff</state>
+  <memory snapshot='no'/>
+    <disk name='vda' snapshot='internal'/>
+    <disk name='hda' snapshot='no'/>
+    <memory unit='KiB'>4194304</memory>
+pre-m2
+  |
+  +- post-ssh-stop-failure-20261028
+  +- pre-final-main-20261028
+  +- pre-final-main-updated-20261028
+    
+
+State:          shut off
+Persistent:     yes
+Autostart:      disable
+Autostart Once: disable

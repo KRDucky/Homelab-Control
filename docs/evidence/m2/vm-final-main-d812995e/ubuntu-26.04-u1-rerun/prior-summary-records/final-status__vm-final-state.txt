@@ -1,0 +1,54 @@
+# Final VM state — independently queried from libvirt 2026-10-28T10:57:06Z on cachyos-um890
+
+Guest                        UUID                                   State      Autostart  Persistent  Snapshots
+hc-test-m2-u2604-rerun       30b2ff8b-1982-4af2-bbe6-cb9157b40eab   shut-off   disable    yes         3
+hc-test-m2-f44-rerun         680a5cf9-7e36-48be-8cc7-e63775acb2ce   shut-off   disable    yes         5
+hc-test-m2-arch-20261028     c00e00f3-453d-4e8d-a977-a71f2c6b3ab8   shut-off   disable    yes         5
+
+## running domains (all)
+
+(end; empty = none running)
+## autostart-enabled domains (all)
+
+(end; empty = none)
+
+## hc-test-m2-u2604-rerun snapshots
+ Name                             Creation Time               State     Parent
+--------------------------------------------------------------------------------
+ post-ssh-stop-failure-20261028   2026-10-28 05:28:33 -0500   running   pre-m2
+ pre-final-main-20261028          2026-10-28 05:20:07 -0500   running   pre-m2
+ pre-m2                           2026-10-27 23:17:08 -0500   running   
+
+## hc-test-m2-f44-rerun snapshots
+ Name                      Creation Time               State     Parent
+-------------------------------------------------------------------------
+ m2-final-validated        2026-10-28 05:43:40 -0500   shutoff   pre-m2
+ post-fix-validation       2026-10-28 02:08:46 -0500   running   pre-m2
+ post-p2-failure           2026-10-27 23:48:10 -0500   running   pre-m2
+ pre-final-main-20261028   2026-10-28 05:20:11 -0500   running   pre-m2
+ pre-m2                    2026-10-27 23:21:14 -0500   running   
+
+## hc-test-m2-arch-20261028 snapshots
+ Name                      Creation Time               State     Parent
+-------------------------------------------------------------------------
+ m2-final-validated        2026-10-28 05:56:33 -0500   shutoff   pre-hc
+ post-browser-e2           2026-10-28 01:49:07 -0500   running   pre-hc
+ pre-final-main-20261028   2026-10-28 05:20:28 -0500   running   pre-hc
+ pre-hc                    2026-10-28 00:07:03 -0500   running   pre-m2
+ pre-m2                    2026-10-28 00:04:57 -0500   running   
+
+## storage (pool hc-test)
+ Name                                      Path                                                               Type   Capacity     Allocation
+----------------------------------------------------------------------------------------------------------------------------------------------
+ hc-test-base-arch-20261015.611680.qcow2   /var/lib/libvirt/hc-test/hc-test-base-arch-20261015.611680.qcow2   file   2.00 GiB     549.97 MiB
+ hc-test-base-fedora-44.qcow2              /var/lib/libvirt/hc-test/hc-test-base-fedora-44.qcow2              file   5.00 GiB     556.69 MiB
+ hc-test-base-ubuntu-26.04.qcow2           /var/lib/libvirt/hc-test/hc-test-base-ubuntu-26.04.qcow2           file   3.50 GiB     825.04 MiB
+ hc-test-m2-arch-20261028-seed.iso         /var/lib/libvirt/hc-test/hc-test-m2-arch-20261028-seed.iso         file   366.00 KiB   368.00 KiB
+ hc-test-m2-arch-20261028.qcow2            /var/lib/libvirt/hc-test/hc-test-m2-arch-20261028.qcow2            file   20.00 GiB    7.09 GiB
+ hc-test-m2-f44-rerun-seed.iso             /var/lib/libvirt/hc-test/hc-test-m2-f44-rerun-seed.iso             file   366.00 KiB   368.00 KiB
+ hc-test-m2-f44-rerun.qcow2                /var/lib/libvirt/hc-test/hc-test-m2-f44-rerun.qcow2                file   20.00 GiB    10.11 GiB
+ hc-test-m2-u2604-rerun-seed.iso           /var/lib/libvirt/hc-test/hc-test-m2-u2604-rerun-seed.iso           file   366.00 KiB   368.00 KiB
+ hc-test-m2-u2604-rerun.qcow2              /var/lib/libvirt/hc-test/hc-test-m2-u2604-rerun.qcow2              file   20.00 GiB    11.64 GiB
+
+Allocation:     947.71 GiB
+Available:      881.30 GiB
