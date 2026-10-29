@@ -1,0 +1,58 @@
+== DEB control
+Package: homelab-control
+Version: 0.1.0+dev.1+52+gd812995e
+Architecture: amd64
+== RPM header
+homelab-control 0.1.0-0.m1.v0_1_0_dev_1_52_gd812995e x86_64
+== Arch .PKGINFO
+pkgname = homelab-control
+pkgver = 0.d812995e-1
+arch = x86_64
+== deb binaries
+deb/usr/lib/homelab-control/hc-broker a34f460450901650db2513fc5a7608800d15f89f4c20fbdeeb00dd9ab125c048
+deb/usr/bin/hc-api 26342f99d0e628ad24b8c50c6abdf95a2ee97956240d4854724eb9c42127bef0
+deb/usr/bin/hlctl eb0c70455e4635ca333eed44847c105f76f6622b440dd765bdc032e3cc4aa72d
+deb/usr/lib/homelab-control/hc-broker: go1.26.10
+ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, stripped
+childSysProcAttr symbols: 1
+errno class symbol: 1
+deb/usr/lib/systemd/system/homelab-control-broker.service
+deb/usr/lib/systemd/system/homelab-control-broker.socket
+deb/usr/lib/systemd/system/homelab-control.service
+== rpm binaries
+rpm/usr/lib/homelab-control/hc-broker 6bbda42b5d090e7ced56cca6c748b01f76566ec3db10c58bdcc17f9804f9cfe7
+rpm/usr/bin/hc-api 29798f7b85b4ce44fe6dcc2fd8022657839d3cc52d85cc74ba9b885ccc4662c1
+rpm/usr/bin/hlctl bab1e171bb9dfeac81dc269135306e4d266707b680defcaea461a651b749f093
+rpm/usr/lib/homelab-control/hc-broker: go1.26.10
+ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, stripped
+childSysProcAttr symbols: 1
+errno class symbol: 1
+rpm/usr/lib/systemd/system/homelab-control-broker.service
+rpm/usr/lib/systemd/system/homelab-control-broker.socket
+rpm/usr/lib/systemd/system/homelab-control.service
+== arch binaries
+arch/usr/lib/homelab-control/hc-broker a34f460450901650db2513fc5a7608800d15f89f4c20fbdeeb00dd9ab125c048
+arch/usr/bin/hc-api 26342f99d0e628ad24b8c50c6abdf95a2ee97956240d4854724eb9c42127bef0
+arch/usr/bin/hlctl eb0c70455e4635ca333eed44847c105f76f6622b440dd765bdc032e3cc4aa72d
+arch/usr/lib/homelab-control/hc-broker: go1.26.10
+ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, stripped
+childSysProcAttr symbols: 1
+errno class symbol: 1
+arch/usr/lib/systemd/system/homelab-control-broker.service
+arch/usr/lib/systemd/system/homelab-control-broker.socket
+arch/usr/lib/systemd/system/homelab-control.service
+== build/hc-broker
+a34f460450901650db2513fc5a7608800d15f89f4c20fbdeeb00dd9ab125c048  -
+== embedded version strings (grep -a -o d812995e-bearing strings)
+deb/usr/lib/homelab-control/hc-broker: v0.1.0-dev.1-52-gd812995e 
+deb/usr/bin/hc-api: v0.1.0-dev.1-52-gd812995e 
+deb/usr/bin/hlctl: v0.1.0-dev.1-52-gd812995e 
+rpm/usr/lib/homelab-control/hc-broker: v0.1.0-dev.1-52-gd812995e 
+rpm/usr/bin/hc-api: v0.1.0-dev.1-52-gd812995e 
+rpm/usr/bin/hlctl: v0.1.0-dev.1-52-gd812995e 
+arch/usr/lib/homelab-control/hc-broker: v0.1.0-dev.1-52-gd812995e 
+arch/usr/bin/hc-api: v0.1.0-dev.1-52-gd812995e 
+arch/usr/bin/hlctl: v0.1.0-dev.1-52-gd812995e 
+== hlctl version (deb binary, run unprivileged)
+v0.1.0-dev.1-52-gd812995e
+v0.1.0-dev.1-52-gd812995e

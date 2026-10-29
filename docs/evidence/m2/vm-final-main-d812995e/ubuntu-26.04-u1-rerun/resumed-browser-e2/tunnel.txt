@@ -1,0 +1,1 @@
+2026-10-29T04:58:21Z: workstation 127.0.0.1:19180 -> guest loopback 127.0.0.1:9180; guest network port refused; SSH authenticated

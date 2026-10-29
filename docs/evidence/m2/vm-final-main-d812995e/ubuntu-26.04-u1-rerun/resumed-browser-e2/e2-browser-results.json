@@ -1,0 +1,226 @@
+[
+  {
+    "step": "B1",
+    "title": "Read-only account",
+    "result": "Pass",
+    "time_utc": "2026-10-29T04:58:47Z",
+    "ui": "page-sub='348 units, 155 active, 0 failed. systemd 259 (259.9-0ubuntu0.1). Read-only: you can read a unit\u2019s recent logs. Your account does not have the services.operate permission. Enabling and disabling units at boot is not available yet.'; action buttons=0",
+    "observer": null,
+    "screenshot": "screens/B01-read-only.png",
+    "note": ""
+  },
+  {
+    "step": "B2",
+    "title": "Existing session stays restricted after scope update",
+    "result": "Pass",
+    "time_utc": "2026-10-29T04:58:51Z",
+    "ui": "old session still signed in; page-sub='348 units, 155 active, 0 failed. systemd 259 (259.9-0ubuntu0.1). Read-only: you can read a unit\u2019s recent logs. Your account does not have the services.operate permission. Enabling and disabling units at boot is not available yet.'; action buttons=0",
+    "observer": "updated /etc/homelab-control/users.json (restart hc-api to apply)\nactive",
+    "screenshot": "screens/B02-old-session.png",
+    "note": ""
+  },
+  {
+    "step": "B3",
+    "title": "Fresh session receives services.operate",
+    "result": "Pass",
+    "time_utc": "2026-10-29T04:58:53Z",
+    "ui": "ssh.service: Protected tag=True, buttons=0; protected-units list=True; 'Start hc-test-dummy.service' buttons=1",
+    "observer": null,
+    "screenshot": "screens/B03-ssh-protected.png, screens/B03-actions.png",
+    "note": ""
+  },
+  {
+    "step": "B4",
+    "title": "Non-mutating Start preview",
+    "result": "Pass",
+    "time_utc": "2026-10-29T04:58:54Z",
+    "ui": "Start hc-test-dummy.service |  | Preview \u00b7 nothing has been changed yet |  | Unit | hc-test-dummy.service | Now | inactive (dead), enabled at boot | Risk | Reversible Can generally be undone. |  | Start hc-test-dummy.service, which is currently inactive (dead). |  | systemd starts the service and any dependencies it requires that are not yet running. | Boot-time enablement is not changed. | This is a runtime action. There is no automatic rollback. |  | This review is valid for 1 min 35 s. |  | Close | Start hc-test-dummy.service",
+    "observer": {
+      "ActiveState": "inactive",
+      "SubState": "dead",
+      "MainPID": "0",
+      "Result": "success",
+      "ExecMainStartTimestamp": "Thu 2026-10-29 04:57:20 UTC"
+    },
+    "screenshot": "screens/B04-start-preview.png",
+    "note": ""
+  },
+  {
+    "step": "B5",
+    "title": "Successful Start, independent systemd confirmation",
+    "result": "Pass",
+    "time_utc": "2026-10-29T04:58:56Z",
+    "ui": "Done \u2014 The service is running. Observed state: active (running). |  | Observed state | active (running) | Main PID | 2049 |  | Operation a750a2d6ea03, recorded in the operation journal (view in Audit). | audit link=True",
+    "observer": {
+      "ActiveState": "active",
+      "SubState": "running",
+      "MainPID": "2049",
+      "Result": "success",
+      "ExecMainStartTimestamp": "Thu 2026-10-29 04:58:30 UTC"
+    },
+    "screenshot": "screens/B05-start-done.png",
+    "note": ""
+  },
+  {
+    "step": "B6",
+    "title": "Incorrect password rejected",
+    "result": "Pass",
+    "time_utc": "2026-10-29T04:58:57Z",
+    "ui": "risk Disruptive=True; password field=True; message='The password is not correct.'",
+    "observer": {
+      "ActiveState": "active",
+      "SubState": "running",
+      "MainPID": "2049",
+      "Result": "success",
+      "ExecMainStartTimestamp": "Thu 2026-10-29 04:58:30 UTC"
+    },
+    "screenshot": "screens/B06-wrong-password.png",
+    "note": ""
+  },
+  {
+    "step": "B7",
+    "title": "Successful authenticated Stop",
+    "result": "Pass",
+    "time_utc": "2026-10-29T04:58:59Z",
+    "ui": "Done \u2014 The service is stopped. Observed state: inactive (dead). |  | Observed state | inactive (dead) |  | Operation ea9d5bf67b7e, recorded in the operation journal (view in Audit).",
+    "observer": {
+      "ActiveState": "inactive",
+      "SubState": "dead",
+      "MainPID": "0",
+      "Result": "success",
+      "ExecMainStartTimestamp": "Thu 2026-10-29 04:58:30 UTC"
+    },
+    "screenshot": "screens/B07-stop-done.png",
+    "note": ""
+  },
+  {
+    "step": "B8",
+    "title": "Restart reuses step-up within 5 min",
+    "result": "Pass",
+    "time_utc": "2026-10-29T04:59:03Z",
+    "ui": "start: Done \u2014 The service is running. Observed state: active (running).; restart preview password field absent=True, reuse footnote=True; result: Done \u2014 The service is running. Observed state: active (running). |  | Observed state | active (running) | Main PID | 2288 |  | Operation 3f59b0b3ff2d, recorded in the operation journal (view in Audit).",
+    "observer": {
+      "pid_before_restart": "2224",
+      "after": {
+        "ActiveState": "active",
+        "SubState": "running",
+        "MainPID": "2288",
+        "Result": "success",
+        "ExecMainStartTimestamp": "Thu 2026-10-29 04:58:38 UTC"
+      }
+    },
+    "screenshot": "screens/B08-restart-done.png",
+    "note": ""
+  },
+  {
+    "step": "B9",
+    "title": "Expired preview cannot be executed",
+    "result": "Pass",
+    "time_utc": "2026-10-29T05:01:09Z",
+    "ui": "expired notice=True; confirm button present=0; 'Review again' present=1",
+    "observer": {
+      "pid_before": "2288",
+      "after": {
+        "ActiveState": "active",
+        "SubState": "running",
+        "MainPID": "2288",
+        "Result": "success",
+        "ExecMainStartTimestamp": "Thu 2026-10-29 04:58:38 UTC"
+      }
+    },
+    "screenshot": "screens/B09-expired-preview.png",
+    "note": "UI enforces plan expiry client-side and withholds the confirm button; the server-side plan_invalid refusal for an expired token is exercised by the automated scenario"
+  },
+  {
+    "step": "B10",
+    "title": "Stale plan refused after out-of-band change",
+    "result": "Pass",
+    "time_utc": "2026-10-29T05:01:11Z",
+    "ui": "Restart hc-test-dummy.service |  | The unit changed since you reviewed it. the unit changed since the operation was reviewed; nothing was done. Review it again. Nothing was changed. |  | Close | Review again",
+    "observer": {
+      "pid_before": "2288",
+      "after_out_of_band_restart": "2600",
+      "after_browser_confirm": "2600",
+      "oob_output": ""
+    },
+    "screenshot": "screens/B10-conflict.png",
+    "note": ""
+  },
+  {
+    "step": "B11",
+    "title": "Expired step-up requires re-authentication",
+    "result": "Pass",
+    "time_utc": "2026-10-29T05:04:09Z",
+    "ui": "password asked again=True; then confirmed: Done \u2014 The service is stopped. Observed state: inactive (dead).",
+    "observer": {
+      "before_confirm": {
+        "ActiveState": "active",
+        "SubState": "running",
+        "MainPID": "2600",
+        "Result": "success",
+        "ExecMainStartTimestamp": "Thu 2026-10-29 05:00:56 UTC"
+      },
+      "after": {
+        "ActiveState": "inactive",
+        "SubState": "dead",
+        "MainPID": "0",
+        "Result": "success",
+        "ExecMainStartTimestamp": "Thu 2026-10-29 05:00:56 UTC"
+      }
+    },
+    "screenshot": "screens/B11-step-up-again.png",
+    "note": ""
+  },
+  {
+    "step": "B12",
+    "title": "Failed outcome with recovery guidance",
+    "result": "Pass",
+    "time_utc": "2026-10-29T05:04:12Z",
+    "ui": "Start hc-test-fail.service |  | Failed \u2014 systemd accepted the request, but the service failed. Observed state: failed (failed), result exit-code. |  | Observed state | failed (failed) | Result | exit-code |  | What to do next |  | No automatic rollback was performed. Before this operation the unit was inactive (dead). | Review the unit's recent logs on this page for the reason. | On the host, `systemctl status hc-test-fail.service` and `journalctl -u hc-test-fail.service` show the full state and log. |  | Operation 95a86613af53, recorded in the operation journal (view in Audit). |  | Close | Show logs",
+    "observer": {
+      "ActiveState": "failed",
+      "SubState": "failed",
+      "MainPID": "0",
+      "Result": "exit-code",
+      "ExecMainStartTimestamp": "Thu 2026-10-29 05:04:09 UTC"
+    },
+    "screenshot": "screens/B12-failed.png",
+    "note": ""
+  },
+  {
+    "step": "B13",
+    "title": "Keyboard-only Start flow",
+    "result": "Pass",
+    "time_utc": "2026-10-29T05:04:15Z",
+    "ui": "Tab reached Start button=True; focus on Close at open=True; Tab reached confirm=True; focus inside dialog=True; result='Done \u2014 The service is running. Observed state: active (running).'; focus on Close after result=True; Escape closed; focus returned to {'tag': 'CODE', 'type': None, 'label': 'hc-test-dummy.service', 'unit': 'hc-test-dummy.service'}",
+    "observer": {
+      "ActiveState": "active",
+      "SubState": "running",
+      "MainPID": "2942",
+      "Result": "success",
+      "ExecMainStartTimestamp": "Thu 2026-10-29 05:04:13 UTC"
+    },
+    "screenshot": "screens/B13-keyboard-result.png",
+    "note": ""
+  },
+  {
+    "step": "B14",
+    "title": "Audit UI and journal verification",
+    "result": "Pass",
+    "time_utc": "2026-10-29T05:04:17Z",
+    "ui": "privileged-operation rows with e2-operator: 11; ops table: Privileged operations | Started \u2195\tOperation\tOutcome\tUser\tObserved state\tDetail |  | 10/29/2026, 12:04:13 AM | \t | start hc-test-dummy.service | \t | Succeeded (verified) | \t | e2-operator | \t | active (running) | \t | The service is running. Observed state: active (running). [a7a44e51393a] |  |  | 10/29/2026, 12:04:09 AM | \t | start hc-test-fail.service | \t | Failed | \t | e2-operator | \t | failed (failed) | \t | systemd accepted the request, but the service failed. Observed state: failed (failed), result exit-code. [95a86613af53] |  |  | 10/29/2026, 12:04:07 AM | \t | stop hc-test-dummy.service | \t | Succeeded (verified) | \t | e2-operator | \t | inactive (dead) | \t | The service is stopped. Observed state: inactive (dead). [c3fd8032d7b4] |  |  | 10/28/2026, 11:58:38 PM | \t | restart hc-test-dummy.service | \t | Succeeded (verified) | \t | e2-operator | \t | active (running) | \t | The service is running. Observed state: active (running). [3f59b0b3ff2d] |  |  | 10/28/2026, 11:58:35 PM | \t | start hc-test-dummy.service | \t | Succeeded (verified) | \t | e2-operator | \t | active (running) | \t | The service is running. Observed state: active (running). [eddf24e4a2e2] |  |  | 10/28/2026, 11:58:33 PM | \t | stop hc-test-dummy.service | \t | Succeeded (verified) | \t | e2-operator | \t | inactive (dead) | \t | The service is stopped. Observed state: inactive (dead). [ea9d5bf67b7e] |  |  | 10/28/2026, 11:58:30 PM | \t | start hc-test-dummy.service | \t | Succeeded (verified) | \t | e2-operator | \t | ac || events: Audit events | Time\tEvent\tOutcome\tUser\tAddress\tDetail |  | 10/29/2026, 12:04:15 AM | \t | services.op.apply | \t | succeeded | \t | e2-operator | \t | 127.0.0.1 | \t | hc-test-dummy.service start op=a7a44e51393a49d1c0ab350cdfc8639a |  |  | 10/29/2026, 12:04:13 AM | \t | services.op.apply | \t | requested | \t | e2-operator | \t | 127.0.0.1 | \t | hc-test-dummy.service start req=cb8c04a03908ad86 |  |  | 10/29/2026, 12:04:13 AM | \t | services.op.plan | \t | success | \t | e2-operator | \t | 127.0.0.1 | \t | hc-test-dummy.service start risk=reversible |  |  | 10/29/2026, 12:04:11 AM | \t | services.op.apply | \t | failed | \t | e2-operator | \t | 127.0.0.1 | \t | hc-test-fail.service start op=95a86613af532aeb7adfe1de79ddb4e9 |  |  | 10/29/2026, 12:04:09 AM | \t | services.op.apply | \t | requested | \t | e2-operator | \t | 127.0.0.1 | \t | hc-test-fail.service start req=9107012521d243fa |  |  | 10/29/2026, 12:04:09 AM | \t | services.op.plan | \t | success | \t | e2-operator | \t | 127.0.0.1 | \t | hc-test-fail.service start risk=reversible |  |  | 10/29/2026, 12:04:09 AM | \t | services.op.apply | \t | succeeded | \t | e2-operator | \t | 127.0.0.1 | \t | hc-test-dummy.service stop op=c3fd8032d7b4c453ff9a7c53bb751af6 |  |  | 10/29/2026, 12:04:07 AM | \t | services.op.apply | \t | requested | \t | e2-operator | \t | 127.0.0.1 | \t | hc-test-dummy.service stop req=b163c11723cb2088 |  |  | 10/29/2026, 12:04:07 AM | \t | auth.step_up | \t | success | \t | e2-operator | \t | 127.0.0.1 | \t |  |  | 10/29/2026, 12:04:07 AM | \t |",
+    "observer": "records 24 (legacy 0), segments 1, head seq=24 hash=9c915c2c3be274009060fd90760db56221a19228cf716ddf567fb82655451ed3\nnote: without --checkpoint a truncated tail or a rolled-back file cannot be detected\nOK: chain verified\n600 root /var/log/homelab-control-broker/operations.jsonl",
+    "screenshot": "screens/B14-audit.png",
+    "note": ""
+  },
+  {
+    "step": "B15",
+    "title": "Sign-out and document title",
+    "result": "Pass",
+    "time_utc": "2026-10-29T05:04:17Z",
+    "ui": "title='Sign in \u00b7 Homelab Control'; sign-in form visible",
+    "observer": null,
+    "screenshot": "screens/B15-signed-out.png",
+    "note": ""
+  }
+]

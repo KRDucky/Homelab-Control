@@ -1,5 +1,7 @@
 # M2-2 evidence (service start/stop/restart)
 
+**Current E2/E4 closure:** [final combined-main KVM evidence](vm-final-main-d812995e/README.md), owner approved 2026-10-29. Ubuntu, Fedora and Arch pass on `d812995e`. The original evidence below remains unchanged.
+
 Collected 2026-10-26 on product code **`970341e6`** (`v0.1.0-dev.1-41-g970341e6`). The PR #28 head (`987ba011`) and the merge commit (`a3447efa`) differ from it
 by four frontend/test files and documentation, and these logs were not regenerated on them. Results are summarised in
 [`docs/m2/M2-2-ACCEPTANCE.md`](../../m2/M2-2-ACCEPTANCE.md). Logs were written outside the repository first
@@ -30,11 +32,10 @@ and procps added. Only disposable `hc-test-*` units, and one disposable protecte
 (`homelab-control-hctest.service`), were started, stopped or restarted. Protected units were
 planned only, never executed.
 
-## Not covered here
-- The owner's KVM VM, through the browser (E2): **outstanding**; deferred by the owner on 2026-10-27, not
-  waived, not passed; required before `services.operate` is enabled in a real deployment.
+## Not covered by the original October 26 logs
+- The owner's KVM VM, through the browser (E2): was outstanding and deferred, not waived, on 2026-10-27; completed by the later KVM evidence linked above.
 - VM evidence for E4 (`systemd-analyze security`): only the container check is here.
 - GitHub CI: overall results and run annotations are recorded in `docs/m2/M2-2-ACCEPTANCE.md`; individual job
   conclusions and logs were not seen, and the 121 s / 5 min expiry checks are not configured in CI.
 - Firefox, run locally.
-- Debian, openSUSE and Arch under real systemd.
+- Debian, openSUSE and Arch under real systemd (Arch is covered by the later KVM evidence).

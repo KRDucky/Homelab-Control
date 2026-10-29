@@ -1,0 +1,41 @@
+<volume type='file'>
+  <name>hc-test-m2-f44-rerun.qcow2</name>
+  <key>/var/lib/libvirt/hc-test/hc-test-m2-f44-rerun.qcow2</key>
+  <capacity unit='bytes'>21474836480</capacity>
+  <allocation unit='bytes'>7904055296</allocation>
+  <physical unit='bytes'>7904362496</physical>
+  <target>
+    <path>/var/lib/libvirt/hc-test/hc-test-m2-f44-rerun.qcow2</path>
+    <format type='qcow2'/>
+    <permissions>
+      <mode>0600</mode>
+      <owner>947</owner>
+      <group>947</group>
+    </permissions>
+    <timestamps>
+      <atime>1793161240.191796252</atime>
+      <mtime>1793181763.736977283</mtime>
+      <ctime>1793181763.736977283</ctime>
+      <btime>0</btime>
+    </timestamps>
+    <compat>1.1</compat>
+    <clusterSize unit='B'>65536</clusterSize>
+    <features/>
+  </target>
+  <backingStore>
+    <path>/var/lib/libvirt/hc-test/hc-test-base-fedora-44.qcow2</path>
+    <format type='qcow2'/>
+    <permissions>
+      <mode>0600</mode>
+      <owner>947</owner>
+      <group>947</group>
+    </permissions>
+    <timestamps>
+      <atime>1793161239.510880807</atime>
+      <mtime>1793161239.733853086</mtime>
+      <ctime>1793161240.388173050</ctime>
+      <btime>0</btime>
+    </timestamps>
+  </backingStore>
+</volume>
+

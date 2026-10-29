@@ -1,0 +1,16 @@
+# Payload of homelab-control-0.1.0-0.m1.v0_1_0_dev_1_52_gd812995e.x86_64.rpm
+# 14 files
+drwxr-x--- 0 /etc/homelab-control
+-rw-r----- 610 /etc/homelab-control/hc-api.env
+-rwxr-xr-x 12158768 /usr/bin/hc-api
+-rwxr-xr-x 8552304 /usr/bin/hlctl
+drwxr-xr-x 0 /usr/lib/homelab-control
+-rwxr-xr-x 3497328 /usr/lib/homelab-control/hc-broker
+-rw-r--r-- 1296 /usr/lib/systemd/system/homelab-control-broker.service
+-rw-r--r-- 319 /usr/lib/systemd/system/homelab-control-broker.socket
+-rw-r--r-- 1442 /usr/lib/systemd/system/homelab-control.service
+-rw-r--r-- 73 /usr/lib/sysusers.d/homelab-control.conf
+-rw-r--r-- 13075 /usr/share/doc/homelab-control/README.md
+-rw-r--r-- 35142 /usr/share/licenses/homelab-control/LICENSE.md
+-rw-r--r-- 4725 /usr/share/licenses/homelab-control/NOTICE.md
+-rw-r--r-- 118593 /usr/share/licenses/homelab-control/THIRD-PARTY-NOTICES.md

@@ -16,9 +16,9 @@ Where each result was obtained is stated per row:
   each with the package installed and the hardened units.
 - **GitHub CI** is described by what was actually seen (next section). "Configured" means the workflow
   is set up to run a check; it is not evidence that the check ran or passed.
-- **Workstation VM:** none was used. E2 is outstanding (below).
+- **Workstation VM:** none was used for the original October 26 evidence. Later KVM closeout follows.
 
-## CI evidence: what was and was not seen
+## Original October 26 CI evidence: what was and was not seen
 | Level | What was established |
 |---|---|
 | Overall workflow conclusion | Observed on the public run pages: ci #83 (PR #27 head `457eddf1`), ci #84 (PR #28 head `987ba011`) and ci #85 (`main`, `a3447efa`, run 40292176133) concluded success. |
@@ -40,7 +40,7 @@ merged only when every item in §1–§3 passes, with evidence linked in the PR.
   inspected, and review outside GitHub is not verified. The PR's own commits do include this document and the
   evidence logs (`55422f8c`).
 
-No owner exception to the merge condition is recorded in the repository for any of these.
+No contemporaneous owner exception to the pre-merge condition was recorded for these gaps.
 
 **Owner decision on E2 (verified).** Source: the owner's message titled "HomeControl — Documentation
 Reconciliation Decisions", sent 2026-10-27 at 00:38 America/Chicago (05:38:54 UTC), after the merge, in Claude
@@ -48,13 +48,21 @@ Code session https://claude.ai/code/session_01PcnJ5uXahpyCLU3FrjHqki. The decisi
 Deferred, not waived. Workstation-VM browser validation remains an open acceptance item and is required before
 enabling `services.operate` in a real deployment. Do not describe E2 as passed." It names E2 only. It does not
 make E2 pass, does not cover E4 or any other criterion, and does not retroactively satisfy the merge condition.
-Recommendation (not an owner decision): collect E4's VM evidence in the same VM run as E2.
+The originally proposed E4 VM collection was subsequently executed; see the dated closeout below.
+
+## Owner-approved KVM closeout (2026-10-29)
+
+**E2 and E4 pass and are closed by the owner.** [Final combined-main evidence](../evidence/m2/vm-final-main-d812995e/README.md) records Ubuntu 26.04.1, Fedora 44 and upstream Arch at `d812995e3f9e0a5ca3c12f34991c035b01e121e5`, CI 40666815912 (21/21 individual job conclusions successful). Extended M2-2: 89/0, 89/0 and 88/0 respectively; smoke/M1: 67/0 each; real-backend browser B1–B15: 15/15 each. E4: API 1.6 / broker 1.5 on each. All 14 H3 checks passed; SSH remained unchanged within each phase. B16 was not run. Server expiry is scenario evidence, not inferred from browser B9.
+
+Source: owner conversation on 2026-10-29, “I approve closing E2/E4 and preparing the documentation PR”. Earlier owner instructions record E2 acceptance and W1 review/sign-off on October 27, based on the owner's Ubuntu run; non-Debian testing remained deferred at that time. The later combined-main runs now complete that coverage. The early deferred-not-waived decision above remains history; neither later acceptance nor this PR retroactively satisfies PR #28's pre-merge condition.
+
+The evidence index records the undocumented Ubuntu shutdown gap, reused installation/audit history, MAC differences and audit checkpoint limits. Fedora stayed Enforcing in broad `init_t`, without relocation or custom policy. Production `services.operate` remains ungranted by default and needs a separate decision. No M2-3 authorization is given.
 
 ## §2 Write framework
 
 | # | Result | Evidence |
 |---|---|---|
-| W1 Closed registry | **Registry tests passed locally; required reviewer sign-off not recorded.** | `TestRegistryIsClosed`: exact op set, privileges, scopes, write phases, risk classes, lock domain, the four templates of `services.unit.apply`. The criterion also requires reviewer sign-off in the PR; none is recorded there (no review was submitted on the PR page; review elsewhere is not verified). Passing tests do not complete this criterion. |
+| W1 Closed registry | **Pass; owner review/sign-off accepted 2026-10-27.** | Registry tests remain the original evidence. Owner acceptance is recorded from the project conversation; it does not assert that a GitHub review was submitted or retroactively satisfy the original pre-merge condition. |
 | W2 Plan tokens | **Pass** (local, container) | `writes`: replay, expiry, every binding field, tampered/foreign/previous-boot tokens, concurrent single use, per-actor bound. Container: replay, other unit, other action → 409 `plan_invalid`; token after 121 s refused; refusals in the API audit (`invalid_token`) and the broker audit. |
 | W3 Revalidation | **Pass** (local, container) | `TestChangedStateIsConflict`, `TestAffectedSetChangeInvalidatesPlan`; container: out-of-band restart between plan and apply → 409 `conflict`, unit untouched. Apply re-reads with the read-only root template. |
 | W4 Locks | **Pass** (local, container) | `TestLocks` (incl. panic), `TestLockedTargetIsBusy`, `TestConcurrentAppliesExecuteOnce`, `TestPanicAfterIntentRecordsOutcome`; container: two concurrent restarts → one 200, one `busy`/`conflict`. |
@@ -69,12 +77,14 @@ Recommendation (not an owner decision): collect E4's VM evidence in the same VM 
 
 ## §3 Environment evidence
 
+E1/E3/E6 retain the original local/container and historical CI evidence below. The later KVM results and final-main CI job conclusions are recorded separately above; older uninspected CI logs are not retrospectively verified.
+
 | # | Result | Evidence |
 |---|---|---|
-| E1 Real systemd | **Pass in containers** (Ubuntu 26.04, Fedora 43). **CI: configured (short scenario); execution not verified** | `tests/systemd/m2-service-ops.sh`: 86/86 checks on Ubuntu 26.04 including the 121 s and 5 min expiry waits, smoke 63/63; Fedora 43: 86/86 and smoke 63/63 (SSH unit `sshd.service`). CI: `systemd-ubuntu` (24.04 runner VM) and `systemd-ubuntu-2604` (container) are configured to run `m2-service-ops.sh` without `HC_M2_LONG`, so the 121 s token and 5 min step-up expiry checks are not part of CI even if those jobs ran them, and CI is not configured for any non-Debian real-systemd job. Those checks, and Fedora, are container-only evidence. The criterion names CI job logs/annotations as evidence; none were inspected. |
-| E2 Owner KVM VM through the browser | **Not done: outstanding.** Deferred by the owner (decision of 2026-10-27, after the merge); not waived; not passed | Required before `services.operate` is enabled in a real deployment. The criterion asks for Ubuntu 26.04 **and** one non-Debian family, with evidence under `docs/evidence/m2/` and the commit hash. PR #28 was merged with E2 outstanding. Needs the owner's workstation (`dev/vm/`, `hc-test-` namespace). Containers are not VMs, and the container runs were API-level, not through a browser. |
+| E1 Real systemd | **Pass in containers** (Ubuntu 26.04, Fedora 43). **CI: configured (short scenario); execution not verified** | `tests/systemd/m2-service-ops.sh`: 86/86 checks on Ubuntu 26.04 including the 121 s and 5 min expiry waits, smoke 63/63; Fedora 43: 86/86 and smoke 63/63 (SSH unit `sshd.service`). CI: `systemd-ubuntu` (24.04 runner VM) and `systemd-ubuntu-2604` (container) are configured to run `m2-service-ops.sh` without `HC_M2_LONG`, so the 121 s token and 5 min step-up expiry checks are not part of CI even if those jobs ran them, and CI is not configured for any non-Debian real-systemd job. Those checks, and Fedora, were then container-only evidence; later KVM coverage is recorded above. The criterion names CI job logs/annotations as evidence; none were inspected. |
+| E2 Owner KVM VM through the browser | **Pass; owner closed 2026-10-29.** | Ubuntu 26.04.1, Fedora 44 and Arch: B1–B15 15/15 each against real guest backends, with independent systemctl observations. [Evidence and caveats](../evidence/m2/vm-final-main-d812995e/README.md). |
 | E3 Playwright | **Pass locally on Chromium and WebKit** (fixtures); Firefox does not start in this workspace. **CI: configured for Chromium, Firefox and WebKit; execution not verified** | `tests/e2e/service-ops-ui.mjs`: 35 checks per engine. Preview → wrong password → step-up → confirm → observed result, keyboard only, focus on Close, Escape and focus return, all four themes at 390 and 1100 px at 125% text, axe WCAG 2.2 AA with 0 violations. |
-| E4 `systemd-analyze security` | **Container check passed; required VM evidence outstanding.** | hc-api 1.6 and broker 1.5, the same as the M1 VM baseline; capability bounding set unchanged. |
+| E4 `systemd-analyze security` | **Pass; owner closed 2026-10-29.** | All three KVM guests: API 1.6 / broker 1.5; API effective/bounding capabilities zero, broker `c0` (setgid/setuid), ambient zero, NNP=1, Seccomp=2. [Security comparison](../evidence/m2/vm-final-main-d812995e/security/E4-COMPARISON.md). |
 | E5 Threat model | **Pass** | `docs/security/THREAT-MODEL.md`, M2-2 section. |
 | E6 Supply chain | **Pass** (local). CI: the govulncheck annotation was observed on all three runs; the other gates are configured, individual execution not verified | No new dependency; govulncheck v1.9.0 on Go 1.26.10 "No vulnerabilities found"; `reuse lint`, SBOM/notices drift, shellcheck and secret scan pass in `make check`. |
 
@@ -88,19 +98,11 @@ which were fixed:
 It also found lower-severity items, which were fixed or documented. A re-review found no new
 critical, high or medium defects. Details: ADR 0011, *Security review* and *Known limitations*.
 
-## Not met or not verified
-- **E2: outstanding** (deferred by the owner on 2026-10-27, not waived): no VM or browser run on real systemd.
-  Required before `services.operate` is enabled in a real deployment.
-- **E4: VM evidence outstanding.** Only the container check exists; the criterion requires VM evidence.
-- **Binding merge condition:** PR #28 was merged with E2 and E4's VM evidence outstanding, W1's reviewer sign-off
-  not recorded, no evidence linked in the PR description (other locations not verified), and no recorded owner
-  exception.
-- **CI:** overall workflow conclusions and run annotations were seen; individual job conclusions and logs were
-  not. Execution of the configured M2-2 checks in CI is therefore not verified.
-- **CI scope:** the 121 s token and 5 min step-up expiry checks are not configured in CI; CI has no non-Debian
-  real-systemd job.
-- **Commits:** local and container results are for `970341e6` only, not `987ba011` or `a3447efa`.
-- **Firefox:** not run locally.
-- **Distributions:** Debian, openSUSE and Arch real-systemd runs not done. Install-matrix coverage is in
-  CI.
-- **Accessibility:** no screen reader or Windows High Contrast check of the dialog.
+## Remaining limits and historical gaps
+- **Binding merge condition:** PR #28 merged before E2/E4 VM evidence and recorded W1 acceptance. Later closure does not change that history.
+- **Original CI:** individual job conclusions and logs for runs #83–#85 were not verified. Final-main CI 40666815912 has separately verified 21/21 successful job conclusions; this does not establish earlier execution.
+- **CI scope:** long expiry waits and non-Debian real-systemd scenarios were run in KVM, not added to CI.
+- **Commits:** original local/container results apply to `970341e6`; final KVM evidence applies to `d812995e`.
+- **Distributions:** Debian and openSUSE real-systemd validation remains outstanding.
+- **Browser/accessibility:** optional B16, screen reader and Windows High Contrast not run; earlier local Firefox limitation remains historical.
+- **Separate findings:** P1 unloaded-unit inventory, H1/H2 VM tooling and optional dedicated SELinux confinement remain separate work.

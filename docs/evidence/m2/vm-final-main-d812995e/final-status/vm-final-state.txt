@@ -1,0 +1,125 @@
+2026-10-29T05:05:26.231001+00:00
+Id:             -
+Name:           hc-test-m2-u2604-rerun
+UUID:           30b2ff8b-1982-4af2-bbe6-cb9157b40eab
+OS Type:        hvm
+State:          shut off
+CPU(s):         2
+Max memory:     4194304 KiB
+Used memory:    4194304 KiB
+Persistent:     yes
+Autostart:      disable
+Autostart Once: disable
+Managed save:   no
+Security model: none
+Security DOI:   0
+
+
+ Type   Device   Target   Source
+------------------------------------------------------------------------------------
+ file   disk     vda      /var/lib/libvirt/hc-test/hc-test-m2-u2604-rerun.qcow2
+ file   cdrom    hda      /var/lib/libvirt/hc-test/hc-test-m2-u2604-rerun-seed.iso
+
+
+ Name                                 Creation Time               State     Parent
+-------------------------------------------------------------------------------------------------------------
+ m2-final-validated-ubuntu-20261028   2026-10-29 00:05:09 -0500   shutoff   pre-u1-browser-resume-20261028
+ post-ssh-stop-failure-20261028       2026-10-28 05:28:33 -0500   running   pre-m2
+ pre-final-main-20261028              2026-10-28 05:20:07 -0500   running   pre-m2
+ pre-final-main-updated-20261028      2026-10-28 06:17:43 -0500   shutoff   pre-m2
+ pre-m2                               2026-10-27 23:17:08 -0500   running   
+ pre-u1-browser-resume-20261028       2026-10-28 23:57:44 -0500   running   pre-final-main-updated-20261028
+
+
+Name:           hc-test-m2-u2604-rerun.qcow2
+Type:           file
+Capacity:       20.00 GiB
+Allocation:     14.83 GiB
+
+
+Id:             -
+Name:           hc-test-m2-f44-rerun
+UUID:           680a5cf9-7e36-48be-8cc7-e63775acb2ce
+OS Type:        hvm
+State:          shut off
+CPU(s):         2
+Max memory:     4194304 KiB
+Used memory:    4194304 KiB
+Persistent:     yes
+Autostart:      disable
+Autostart Once: disable
+Managed save:   no
+Security model: none
+Security DOI:   0
+
+
+ Type   Device   Target   Source
+----------------------------------------------------------------------------------
+ file   disk     vda      /var/lib/libvirt/hc-test/hc-test-m2-f44-rerun.qcow2
+ file   cdrom    hda      /var/lib/libvirt/hc-test/hc-test-m2-f44-rerun-seed.iso
+
+
+ Name                      Creation Time               State     Parent
+-------------------------------------------------------------------------
+ m2-final-validated        2026-10-28 05:43:40 -0500   shutoff   pre-m2
+ post-fix-validation       2026-10-28 02:08:46 -0500   running   pre-m2
+ post-p2-failure           2026-10-27 23:48:10 -0500   running   pre-m2
+ pre-final-main-20261028   2026-10-28 05:20:11 -0500   running   pre-m2
+ pre-m2                    2026-10-27 23:21:14 -0500   running   
+
+
+Name:           hc-test-m2-f44-rerun.qcow2
+Type:           file
+Capacity:       20.00 GiB
+Allocation:     10.11 GiB
+
+
+Id:             -
+Name:           hc-test-m2-arch-20261028
+UUID:           c00e00f3-453d-4e8d-a977-a71f2c6b3ab8
+OS Type:        hvm
+State:          shut off
+CPU(s):         2
+Max memory:     4194304 KiB
+Used memory:    4194304 KiB
+Persistent:     yes
+Autostart:      disable
+Autostart Once: disable
+Managed save:   no
+Security model: none
+Security DOI:   0
+
+
+ Type   Device   Target   Source
+--------------------------------------------------------------------------------------
+ file   disk     vda      /var/lib/libvirt/hc-test/hc-test-m2-arch-20261028.qcow2
+ file   cdrom    hda      /var/lib/libvirt/hc-test/hc-test-m2-arch-20261028-seed.iso
+
+
+ Name                      Creation Time               State     Parent
+-------------------------------------------------------------------------
+ m2-final-validated        2026-10-28 05:56:33 -0500   shutoff   pre-hc
+ post-browser-e2           2026-10-28 01:49:07 -0500   running   pre-hc
+ pre-final-main-20261028   2026-10-28 05:20:28 -0500   running   pre-hc
+ pre-hc                    2026-10-28 00:07:03 -0500   running   pre-m2
+ pre-m2                    2026-10-28 00:04:57 -0500   running   
+
+
+Name:           hc-test-m2-arch-20261028.qcow2
+Type:           file
+Capacity:       20.00 GiB
+Allocation:     7.09 GiB
+
+
+All running domains: 
+
+Pool capacity: Name:           hc-test
+UUID:           a0b77261-caa8-4591-9f4f-07297dd198e4
+State:          running
+Persistent:     yes
+Autostart:      yes
+Capacity:       1.79 TiB
+Allocation:     951.90 GiB
+Available:      877.12 GiB
+
+

@@ -1,0 +1,6 @@
+# SSH/host-service events since 2026-10-28 11:18:26 UTC
+  none
+# MAC denials since t0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=3977 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+      2 apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=3977 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+count=4

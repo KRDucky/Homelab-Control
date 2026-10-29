@@ -1,0 +1,39 @@
+# finalize hc-test-m2-arch-20261028 — 2026-10-28T10:56:30Z
+uuid=c00e00f3-453d-4e8d-a977-a71f2c6b3ab8 (verified)
+Domain 'hc-test-m2-arch-20261028' unmarked as autostarted
+
+Autostart:      disable
+Autostart Once: disable
+Domain 'hc-test-m2-arch-20261028' is being shutdown
+
+domstate after graceful shutdown: shut off (waited ~4s)
+Domain snapshot m2-final-validated created
+snapshot m2-final-validated created (domain shut off: disk-only, cold-boot state)
+Name:           m2-final-validated
+Domain:         hc-test-m2-arch-20261028
+Current:        yes
+State:          shutoff
+Location:       internal
+Parent:         pre-hc
+Children:       0
+Descendants:    0
+Metadata:       yes
+
+  <state>shutoff</state>
+  <memory snapshot='no'/>
+    <disk name='vda' snapshot='internal'/>
+    <disk name='hda' snapshot='no'/>
+    <memory unit='KiB'>4194304</memory>
+pre-m2
+  |
+  +- pre-hc
+      |
+      +- m2-final-validated
+      +- post-browser-e2
+      +- pre-final-main-20261028
+        
+
+State:          shut off
+Persistent:     yes
+Autostart:      disable
+Autostart Once: disable

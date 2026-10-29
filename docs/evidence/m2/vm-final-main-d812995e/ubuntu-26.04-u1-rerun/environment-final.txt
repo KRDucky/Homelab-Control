@@ -1,0 +1,42 @@
+# captured 2026-10-29T05:04:27.035555+00:00
+# command: hostname; cat /etc/os-release; uname -r; systemctl --version | head -1; systemd-detect-virt; test -e /etc/hc-disposable && echo marker-present; dpkg-query -W homelab-control openssh-server systemd sudo curl perl python3; sha256sum /opt/hc/pkg.deb /usr/lib/homelab-control/hc-broker; timedatectl show -p NTPSynchronized -p TimeUSec; test -e /var/run/reboot-required && echo REBOOT-REQUIRED; sudo dpkg --audit; systemctl list-timers apt-daily.timer apt-daily-upgrade.timer --all --no-pager; systemctl show -p UnitFileState apt-daily.timer apt-daily-upgrade.timer; ps -eo pid,args | grep -E '[a]pt-get|[d]pkg|[u]nattended-upgrade' 
+# exit_code=0
+hc-test-m2-u2604-rerun
+PRETTY_NAME="Ubuntu 26.04.1 LTS"
+NAME="Ubuntu"
+VERSION_ID="26.04"
+VERSION="26.04.1 LTS (Resolute Raccoon)"
+VERSION_CODENAME=resolute
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=resolute
+LOGO=ubuntu-logo
+7.0.0-42-generic
+systemd 259 (259.9-0ubuntu0.1)
+kvm
+marker-present
+curl	8.18.0-1ubuntu2.8
+homelab-control	0.1.0+dev.1+52+gd812995e
+openssh-server	1:10.2p1-2ubuntu3.8
+perl	5.40.1-7ubuntu0.3
+python3	3.14.3-0ubuntu2
+sudo	1.9.17p2-1ubuntu3.2
+systemd	259.9-0ubuntu0.1
+53c2a5dc0c3a2be700d5993643f238b713328b15a779c33afa44dd2dad5b5a54  /opt/hc/pkg.deb
+a34f460450901650db2513fc5a7608800d15f89f4c20fbdeeb00dd9ab125c048  /usr/lib/homelab-control/hc-broker
+NTPSynchronized=yes
+TimeUSec=Thu 2026-10-29 05:04:27 UTC
+NEXT                            LEFT LAST                        PASSED UNIT                    ACTIVATES
+Thu 2026-10-29 06:41:08 UTC 1h 36min Wed 2026-10-28 11:17:06 UTC      - apt-daily-upgrade.timer apt-daily-upgrade.service
+Thu 2026-10-29 06:57:51 UTC 1h 53min Wed 2026-10-28 04:15:57 UTC      - apt-daily.timer         apt-daily.service
+
+2 timers listed.
+UnitFileState=enabled
+
+UnitFileState=enabled
+    944 /usr/bin/python3 /usr/share/unattended-upgrades/unattended-upgrade-shutdown --wait-for-signal
+   3238 bash -c hostname; cat /etc/os-release; uname -r; systemctl --version | head -1; systemd-detect-virt; test -e /etc/hc-disposable && echo marker-present; dpkg-query -W homelab-control openssh-server systemd sudo curl perl python3; sha256sum /opt/hc/pkg.deb /usr/lib/homelab-control/hc-broker; timedatectl show -p NTPSynchronized -p TimeUSec; test -e /var/run/reboot-required && echo REBOOT-REQUIRED; sudo dpkg --audit; systemctl list-timers apt-daily.timer apt-daily-upgrade.timer --all --no-pager; systemctl show -p UnitFileState apt-daily.timer apt-daily-upgrade.timer; ps -eo pid,args | grep -E '[a]pt-get|[d]pkg|[u]nattended-upgrade' 

@@ -1,0 +1,45 @@
+[
+  {
+    "name": "hc-test-m2-u2604-rerun",
+    "uuid": "30b2ff8b-1982-4af2-bbe6-cb9157b40eab",
+    "state": "shut off",
+    "autostart": "disabled",
+    "snapshots": [
+      "m2-final-validated-ubuntu-20261028",
+      "post-ssh-stop-failure-20261028",
+      "pre-final-main-20261028",
+      "pre-final-main-updated-20261028",
+      "pre-m2",
+      "pre-u1-browser-resume-20261028"
+    ],
+    "allocation": "14.83 GiB"
+  },
+  {
+    "name": "hc-test-m2-f44-rerun",
+    "uuid": "680a5cf9-7e36-48be-8cc7-e63775acb2ce",
+    "state": "shut off",
+    "autostart": "disabled",
+    "snapshots": [
+      "m2-final-validated",
+      "post-fix-validation",
+      "post-p2-failure",
+      "pre-final-main-20261028",
+      "pre-m2"
+    ],
+    "allocation": "10.11 GiB"
+  },
+  {
+    "name": "hc-test-m2-arch-20261028",
+    "uuid": "c00e00f3-453d-4e8d-a977-a71f2c6b3ab8",
+    "state": "shut off",
+    "autostart": "disabled",
+    "snapshots": [
+      "m2-final-validated",
+      "post-browser-e2",
+      "pre-final-main-20261028",
+      "pre-hc",
+      "pre-m2"
+    ],
+    "allocation": "7.09 GiB"
+  }
+]

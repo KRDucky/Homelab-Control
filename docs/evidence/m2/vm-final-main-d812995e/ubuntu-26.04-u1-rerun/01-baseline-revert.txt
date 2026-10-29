@@ -1,0 +1,26 @@
+# baseline prep step 1: revert pre-m2 + reboot — 2026-10-28T11:12:28Z
+Domain snapshot pre-m2 reverted
+
+revert rc=0 (pre-m2 is a running snapshot; libvirt resumes it)
+State:          running
+Autostart:      disable
+Autostart Once: disable
+Domain 'hc-test-m2-u2604-rerun' is being rebooted
+
+booted: 16f8f28e-dfe8-4183-bffd-858d661e0d26 uptime=5.78
+marker=present
+7.0.0-34-generic
+dpkg-query: no packages found matching homelab-control
+ls: cannot access '/etc/homelab-control': No such file or directory
+ls: cannot access '/opt/hc': No such file or directory
+ls: cannot access '/etc/webmin': No such file or directory
+NEXT                            LEFT LAST                        PASSED UNIT                    ACTIVATES
+Wed 2026-10-28 12:06:32 UTC    53min Wed 2026-10-28 04:15:57 UTC      - apt-daily-upgrade.timer apt-daily-upgrade.service
+Wed 2026-10-28 13:47:39 UTC 2h 35min Wed 2026-10-28 04:15:57 UTC      - apt-daily.timer         apt-daily.service
+
+2 timers listed.
+inactive
+inactive
+active
+1116 /usr/bin/python3 /usr/share/unattended-upgrades/unattended-upgrade-shutdown --wait-for-signal
+1447 bash -c echo "booted: $(cat /proc/sys/kernel/random/boot_id) uptime=$(cut -d" " -f1 /proc/uptime)"; echo marker=$(test -e /etc/hc-disposable && e

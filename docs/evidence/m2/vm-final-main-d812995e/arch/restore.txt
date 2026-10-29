@@ -1,0 +1,42 @@
+# restore hc-test-m2-arch-20261028 to pre-hc — 2026-10-28T10:43:49Z
+uuid=c00e00f3-453d-4e8d-a977-a71f2c6b3ab8; current state preserved as pre-final-main-20261028
+Domain snapshot pre-hc reverted
+
+revert rc=0
+Domain 'hc-test-m2-arch-20261028' is being rebooted
+
+== guest after reboot
+hc-test-m2-arch-20261028
+PRETTY_NAME="Arch Linux"
+ID=arch
+BUILD_ID=rolling
+7.2.11-arch1-1
+systemd 262 (262.1-1-arch)
+kvm
+marker=present
+LSMs=capability,landlock,lockdown,yama,bpf
+uptime=40.26
+NTPSynchronized=yes
+TimeUSec=Wed 2026-10-28 10:44:34 UTC
+host utc: 2026-10-28T10:44:34Z
+error: package 'homelab-control' was not found
+ls: cannot access '/etc/homelab-control': No such file or directory
+ls: cannot access '/var/lib/homelab-control': No such file or directory
+ls: cannot access '/opt/hc': No such file or directory
+ls: cannot access '/etc/webmin': No such file or directory
+Id=sshd.service
+ActiveState=active
+MainPID=430
+inactive
+LISTEN 0      128    0.0.0.0:22 0.0.0.0:*
+LISTEN 0      128       [::]:22    [::]:*
+== deps
+error: package 'less' was not found
+perl 5.44.0-1
+curl 8.23.0-1
+python 3.14.8-1
+iproute2 7.3.0-1
+procps-ng 4.0.7-1
+== automatic update preflight
+no update timers
+no pacman running

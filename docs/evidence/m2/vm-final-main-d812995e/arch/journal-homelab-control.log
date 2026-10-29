@@ -1,0 +1,259 @@
+Oct 28 10:44:31 hc-test-m2-arch-20261028 systemd[1]: Starting OpenSSH Daemon...
+Oct 28 10:44:31 hc-test-m2-arch-20261028 sshd[430]: Server listening on 0.0.0.0 port 22.
+Oct 28 10:44:31 hc-test-m2-arch-20261028 sshd[430]: Server listening on :: port 22.
+Oct 28 10:44:31 hc-test-m2-arch-20261028 systemd[1]: Started OpenSSH Daemon.
+Oct 28 10:44:33 hc-test-m2-arch-20261028 sshd-session[438]: Accepted publickey for hc from 192.168.122.1 port 58046 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:44:33 hc-test-m2-arch-20261028 sshd-session[438]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:44:34 hc-test-m2-arch-20261028 sshd-session[438]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:44:34 hc-test-m2-arch-20261028 sshd-session[456]: Accepted publickey for hc from 192.168.122.1 port 58058 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:44:34 hc-test-m2-arch-20261028 sshd-session[456]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:44:34 hc-test-m2-arch-20261028 sshd-session[456]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:44:40 hc-test-m2-arch-20261028 sshd-session[486]: Accepted publickey for hc from 192.168.122.1 port 42770 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:44:40 hc-test-m2-arch-20261028 sshd-session[486]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:44:41 hc-test-m2-arch-20261028 sshd-session[486]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:44:41 hc-test-m2-arch-20261028 sshd-session[497]: Accepted publickey for hc from 192.168.122.1 port 42778 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:44:41 hc-test-m2-arch-20261028 sshd-session[497]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:44:43 hc-test-m2-arch-20261028 sshd-session[513]: Accepted publickey for hc from 192.168.122.1 port 42780 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:44:43 hc-test-m2-arch-20261028 sshd-session[513]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:44:45 hc-test-m2-arch-20261028 sshd-session[519]: Accepted publickey for hc from 192.168.122.1 port 47106 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:44:45 hc-test-m2-arch-20261028 sshd-session[519]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:44:45 hc-test-m2-arch-20261028 sshd-session[519]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:44:52 hc-test-m2-arch-20261028 sshd-session[558]: Accepted publickey for hc from 192.168.122.1 port 47112 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:44:52 hc-test-m2-arch-20261028 sshd-session[558]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:44:52 hc-test-m2-arch-20261028 sshd-session[558]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:44:52 hc-test-m2-arch-20261028 sshd-session[564]: Accepted publickey for hc from 192.168.122.1 port 47124 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:44:52 hc-test-m2-arch-20261028 sshd-session[564]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:44:52 hc-test-m2-arch-20261028 sshd-session[564]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:44:52 hc-test-m2-arch-20261028 sshd-session[570]: Accepted publickey for hc from 192.168.122.1 port 47132 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:44:52 hc-test-m2-arch-20261028 sshd-session[570]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:44:53 hc-test-m2-arch-20261028 systemd[1]: Starting Homelab Control privileged broker socket...
+Oct 28 10:44:53 hc-test-m2-arch-20261028 systemd[1]: Listening on Homelab Control privileged broker socket.
+Oct 28 10:44:53 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control API and web UI (unprivileged).
+Oct 28 10:44:53 hc-test-m2-arch-20261028 hc-api[710]: 2026/10/28 10:44:53 audit checkpoint log=/var/lib/homelab-control/state.db seq=1 hash=e6a4e1a3bec4adc1c0360d1740a548239e5eccaa3ba1e3535b023dbe3bde4972
+Oct 28 10:44:53 hc-test-m2-arch-20261028 hc-api[710]: 2026/10/28 10:44:53 hc-api v0.1.0-dev.1-52-gd812995e listening on 127.0.0.1:9180 (tls=false)
+Oct 28 10:44:54 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control privileged broker (closed set of typed operations).
+Oct 28 10:44:54 hc-test-m2-arch-20261028 hc-broker[748]: 2026/10/28 10:44:54 audit checkpoint log=/var/log/homelab-control-broker/broker-audit.jsonl seq=1 hash=72e4b3f2744f347c9cd2940af7a8e788bf1aacac1b95a697650814671c3a691e
+Oct 28 10:44:54 hc-test-m2-arch-20261028 hc-broker[748]: 2026/10/28 10:44:54 audit checkpoint log=/var/log/homelab-control-broker/operations.jsonl seq=1 hash=3756b13e0e515264e827101760bccf7a529efc3c5237ad15e2dacc763d409153
+Oct 28 10:44:54 hc-test-m2-arch-20261028 hc-broker[748]: 2026/10/28 10:44:54 hc-broker v0.1.0-dev.1-52-gd812995e ready (socket-activated=true, peers uid [969 0], 8 ops)
+Oct 28 10:45:03 hc-test-m2-arch-20261028 hc-broker[748]: 2026/10/28 10:45:03 audit checkpoint log=/var/log/homelab-control-broker/operations.jsonl seq=1 hash=3756b13e0e515264e827101760bccf7a529efc3c5237ad15e2dacc763d409153
+Oct 28 10:45:03 hc-test-m2-arch-20261028 hc-broker[748]: 2026/10/28 10:45:03 audit checkpoint log=/var/log/homelab-control-broker/broker-audit.jsonl seq=88 hash=7fff75baf64fba7eba64c4f13c3b55aac9a02a7c84cc580012dd7703c200e823
+Oct 28 10:45:03 hc-test-m2-arch-20261028 systemd[1]: Stopping Homelab Control privileged broker (closed set of typed operations)...
+Oct 28 10:45:03 hc-test-m2-arch-20261028 systemd[1]: homelab-control-broker.service: Deactivated successfully.
+Oct 28 10:45:03 hc-test-m2-arch-20261028 systemd[1]: Stopped Homelab Control privileged broker (closed set of typed operations).
+Oct 28 10:45:03 hc-test-m2-arch-20261028 hc-api[710]: 2026/10/28 10:45:03 audit checkpoint log=/var/lib/homelab-control/state.db seq=44 hash=44c5a617157dff534535ff846d825ef919460b6e05117dc04310c949792f6dae
+Oct 28 10:45:03 hc-test-m2-arch-20261028 systemd[1]: Stopping Homelab Control API and web UI (unprivileged)...
+Oct 28 10:45:03 hc-test-m2-arch-20261028 systemd[1]: homelab-control.service: Deactivated successfully.
+Oct 28 10:45:03 hc-test-m2-arch-20261028 systemd[1]: Stopped Homelab Control API and web UI (unprivileged).
+Oct 28 10:45:03 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control API and web UI (unprivileged).
+Oct 28 10:45:03 hc-test-m2-arch-20261028 hc-api[2282]: 2026/10/28 10:45:03 audit checkpoint log=/var/lib/homelab-control/state.db seq=45 hash=3e69cef9067def8acb49b759c5b448637b78425d85dbc90f121d94b222ca2407
+Oct 28 10:45:03 hc-test-m2-arch-20261028 hc-api[2282]: 2026/10/28 10:45:03 hc-api v0.1.0-dev.1-52-gd812995e listening on 127.0.0.1:9180 (tls=false)
+Oct 28 10:45:04 hc-test-m2-arch-20261028 systemd[1]: homelab-control-broker.socket: Deactivated successfully.
+Oct 28 10:45:04 hc-test-m2-arch-20261028 systemd[1]: Closed Homelab Control privileged broker socket.
+Oct 28 10:45:11 hc-test-m2-arch-20261028 systemd[1]: Starting Homelab Control privileged broker socket...
+Oct 28 10:45:11 hc-test-m2-arch-20261028 systemd[1]: Listening on Homelab Control privileged broker socket.
+Oct 28 10:45:11 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control privileged broker (closed set of typed operations).
+Oct 28 10:45:11 hc-test-m2-arch-20261028 hc-broker[2431]: 2026/10/28 10:45:11 audit checkpoint log=/var/log/homelab-control-broker/broker-audit.jsonl seq=89 hash=384b7cd78938938fa6bd7a97fc44e99183c3829bf64a765f28bda2ea49f75486
+Oct 28 10:45:11 hc-test-m2-arch-20261028 hc-broker[2431]: 2026/10/28 10:45:11 audit checkpoint log=/var/log/homelab-control-broker/operations.jsonl seq=2 hash=ef88859ef0adfc483dfd4e2d044a89ac8a20868566398924abc5faad8f00337b
+Oct 28 10:45:11 hc-test-m2-arch-20261028 hc-broker[2431]: 2026/10/28 10:45:11 hc-broker v0.1.0-dev.1-52-gd812995e ready (socket-activated=true, peers uid [969 0], 8 ops)
+Oct 28 10:45:11 hc-test-m2-arch-20261028 systemd[1]: Stopping Homelab Control API and web UI (unprivileged)...
+Oct 28 10:45:11 hc-test-m2-arch-20261028 hc-api[2282]: 2026/10/28 10:45:11 audit checkpoint log=/var/lib/homelab-control/state.db seq=48 hash=1ac9a2de1af6e37166527d849642995005242d3c11f64ed7663f46e6da5393da
+Oct 28 10:45:11 hc-test-m2-arch-20261028 systemd[1]: homelab-control.service: Deactivated successfully.
+Oct 28 10:45:11 hc-test-m2-arch-20261028 systemd[1]: Stopped Homelab Control API and web UI (unprivileged).
+Oct 28 10:45:11 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control API and web UI (unprivileged).
+Oct 28 10:45:11 hc-test-m2-arch-20261028 hc-api[2453]: 2026/10/28 10:45:11 audit checkpoint log=/var/lib/homelab-control/state.db seq=49 hash=b0eac97b4e9215f564786d683fa97f1e84fd6dfb0c4eff73908116d92811a5dc
+Oct 28 10:45:11 hc-test-m2-arch-20261028 hc-api[2453]: 2026/10/28 10:45:11 hc-api v0.1.0-dev.1-52-gd812995e listening on 127.0.0.1:9180 (tls=false)
+Oct 28 10:45:12 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control disposable test unit.
+Oct 28 10:45:13 hc-test-m2-arch-20261028 systemd[1]: Stopping Homelab Control disposable test unit...
+Oct 28 10:45:13 hc-test-m2-arch-20261028 systemd[1]: hc-test-dummy.service: Deactivated successfully.
+Oct 28 10:45:13 hc-test-m2-arch-20261028 systemd[1]: Stopped Homelab Control disposable test unit.
+Oct 28 10:45:15 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control disposable test unit.
+Oct 28 10:45:16 hc-test-m2-arch-20261028 systemd[1]: Stopping Homelab Control disposable test unit...
+Oct 28 10:45:16 hc-test-m2-arch-20261028 systemd[1]: hc-test-dummy.service: Deactivated successfully.
+Oct 28 10:45:16 hc-test-m2-arch-20261028 systemd[1]: Stopped Homelab Control disposable test unit.
+Oct 28 10:45:16 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control disposable test unit.
+Oct 28 10:45:18 hc-test-m2-arch-20261028 hc-broker[2431]: 2026/10/28 10:45:18 audit checkpoint log=/var/log/homelab-control-broker/broker-audit.jsonl seq=100 hash=0b96fd33e37a6f85ae2c57b22719b95089b646fb5306b37f1d5dbc850fa2f556
+Oct 28 10:45:18 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control disposable chain base.
+Oct 28 10:45:18 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control disposable chain middle.
+Oct 28 10:45:18 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control disposable protected-name dependent.
+Oct 28 10:45:18 hc-test-m2-arch-20261028 systemd[1]: Stopping Homelab Control disposable protected-name dependent...
+Oct 28 10:45:18 hc-test-m2-arch-20261028 systemd[1]: homelab-control-hctest.service: Deactivated successfully.
+Oct 28 10:45:18 hc-test-m2-arch-20261028 systemd[1]: Stopped Homelab Control disposable protected-name dependent.
+Oct 28 10:45:18 hc-test-m2-arch-20261028 systemd[1]: Stopping Homelab Control disposable chain middle...
+Oct 28 10:45:18 hc-test-m2-arch-20261028 systemd[1]: hc-test-mid.service: Deactivated successfully.
+Oct 28 10:45:18 hc-test-m2-arch-20261028 systemd[1]: Stopped Homelab Control disposable chain middle.
+Oct 28 10:45:18 hc-test-m2-arch-20261028 systemd[1]: Stopping Homelab Control disposable chain base...
+Oct 28 10:45:18 hc-test-m2-arch-20261028 systemd[1]: hc-test-base.service: Deactivated successfully.
+Oct 28 10:45:18 hc-test-m2-arch-20261028 systemd[1]: Stopped Homelab Control disposable chain base.
+Oct 28 10:45:18 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control disposable chain base.
+Oct 28 10:45:18 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control disposable unit with a dependency.
+Oct 28 10:45:20 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control disposable failing unit.
+Oct 28 10:45:20 hc-test-m2-arch-20261028 systemd[1]: hc-test-fail.service: Main process exited, code=exited, status=1/FAILURE
+Oct 28 10:45:20 hc-test-m2-arch-20261028 systemd[1]: hc-test-fail.service: Failed with result 'exit-code'.
+Oct 28 10:45:21 hc-test-m2-arch-20261028 systemd[1]: Stopping Homelab Control disposable test unit...
+Oct 28 10:45:21 hc-test-m2-arch-20261028 systemd[1]: hc-test-dummy.service: Deactivated successfully.
+Oct 28 10:45:21 hc-test-m2-arch-20261028 systemd[1]: Stopped Homelab Control disposable test unit.
+Oct 28 10:45:21 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control disposable test unit.
+Oct 28 10:45:21 hc-test-m2-arch-20261028 systemd[1]: Stopping Homelab Control disposable test unit...
+Oct 28 10:45:21 hc-test-m2-arch-20261028 systemd[1]: hc-test-dummy.service: Deactivated successfully.
+Oct 28 10:45:21 hc-test-m2-arch-20261028 systemd[1]: Stopped Homelab Control disposable test unit.
+Oct 28 10:45:21 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control disposable test unit.
+Oct 28 10:45:23 hc-test-m2-arch-20261028 hc-api[2453]: 2026/10/28 10:45:23 audit checkpoint log=/var/lib/homelab-control/state.db seq=100 hash=3b35b2228daaeed8f8ed5a757d1f7b6dd24b363cb956d8bc0078efc52372abec
+Oct 28 10:45:23 hc-test-m2-arch-20261028 systemd[1]: Starting Homelab Control disposable slow unit...
+Oct 28 10:45:27 hc-test-m2-arch-20261028 systemd[1]: homelab-control-broker.service: Sent signal SIGKILL to main process 2431 (hc-broker) on client request.
+Oct 28 10:45:27 hc-test-m2-arch-20261028 systemd[1]: homelab-control-broker.service: Killed unit cgroup '/system.slice/homelab-control-broker.service' with SIGKILL on client request.
+Oct 28 10:45:27 hc-test-m2-arch-20261028 systemd[1]: homelab-control-broker.service: Main process exited, code=killed, status=9/KILL
+Oct 28 10:45:27 hc-test-m2-arch-20261028 systemd[1]: homelab-control-broker.service: Failed with result 'signal'.
+Oct 28 10:45:29 hc-test-m2-arch-20261028 systemd[1]: homelab-control-broker.service: Scheduled restart job, restart counter is at 1.
+Oct 28 10:45:29 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control privileged broker (closed set of typed operations).
+Oct 28 10:45:29 hc-test-m2-arch-20261028 hc-broker[2593]: 2026/10/28 10:45:29 audit checkpoint log=/var/log/homelab-control-broker/broker-audit.jsonl seq=122 hash=7f6c6026c03283f20eb30a38002bab9124c2c804227c89caefea1e41d2d10057
+Oct 28 10:45:29 hc-test-m2-arch-20261028 hc-broker[2593]: 2026/10/28 10:45:29 audit checkpoint log=/var/log/homelab-control-broker/operations.jsonl seq=18 hash=de0504a3b5a5a737a34b32c15b816691fc508872509525a35a4e6dfc3bbf77e1
+Oct 28 10:45:29 hc-test-m2-arch-20261028 hc-broker[2593]: 2026/10/28 10:45:29 recorded 1 interrupted operation(s) from before the last broker stop
+Oct 28 10:45:29 hc-test-m2-arch-20261028 hc-broker[2593]: 2026/10/28 10:45:29 hc-broker v0.1.0-dev.1-52-gd812995e ready (socket-activated=true, peers uid [969 0], 8 ops)
+Oct 28 10:45:38 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control disposable slow unit.
+Oct 28 10:50:14 hc-test-m2-arch-20261028 systemd[1]: Stopping Homelab Control disposable unit with a dependency...
+Oct 28 10:50:14 hc-test-m2-arch-20261028 systemd[1]: hc-test-needs.service: Deactivated successfully.
+Oct 28 10:50:14 hc-test-m2-arch-20261028 systemd[1]: Stopped Homelab Control disposable unit with a dependency.
+Oct 28 10:50:14 hc-test-m2-arch-20261028 systemd[1]: Stopping Homelab Control disposable chain base...
+Oct 28 10:50:14 hc-test-m2-arch-20261028 systemd[1]: hc-test-base.service: Deactivated successfully.
+Oct 28 10:50:14 hc-test-m2-arch-20261028 systemd[1]: Stopped Homelab Control disposable chain base.
+Oct 28 10:50:14 hc-test-m2-arch-20261028 systemd[1]: Stopping Homelab Control disposable test unit...
+Oct 28 10:50:14 hc-test-m2-arch-20261028 systemd[1]: hc-test-dummy.service: Deactivated successfully.
+Oct 28 10:50:14 hc-test-m2-arch-20261028 systemd[1]: Stopped Homelab Control disposable test unit.
+Oct 28 10:50:14 hc-test-m2-arch-20261028 systemd[1]: Stopping Homelab Control disposable slow unit...
+Oct 28 10:50:14 hc-test-m2-arch-20261028 systemd[1]: hc-test-slow.service: Deactivated successfully.
+Oct 28 10:50:14 hc-test-m2-arch-20261028 systemd[1]: Stopped Homelab Control disposable slow unit.
+Oct 28 10:50:15 hc-test-m2-arch-20261028 systemd[1]: Stopping Homelab Control privileged broker (closed set of typed operations)...
+Oct 28 10:50:15 hc-test-m2-arch-20261028 hc-broker[2593]: 2026/10/28 10:50:15 audit checkpoint log=/var/log/homelab-control-broker/operations.jsonl seq=19 hash=5f2b4c749e5be86115aeb33086801c68629e06641d0ba0037114d77c6357e006
+Oct 28 10:50:15 hc-test-m2-arch-20261028 hc-broker[2593]: 2026/10/28 10:50:15 audit checkpoint log=/var/log/homelab-control-broker/broker-audit.jsonl seq=126 hash=6296abea0a4768083c767670129fca8766629c39424f44868f36d92db7ee5cba
+Oct 28 10:50:15 hc-test-m2-arch-20261028 systemd[1]: Stopping Homelab Control API and web UI (unprivileged)...
+Oct 28 10:50:15 hc-test-m2-arch-20261028 hc-api[2453]: 2026/10/28 10:50:15 audit checkpoint log=/var/lib/homelab-control/state.db seq=107 hash=5f89b240e3fe1dc68206d448d9d0f8e982bcbb3f134eb8f166c4d79acd4577c1
+Oct 28 10:50:15 hc-test-m2-arch-20261028 systemd[1]: homelab-control-broker.service: Deactivated successfully.
+Oct 28 10:50:15 hc-test-m2-arch-20261028 systemd[1]: Stopped Homelab Control privileged broker (closed set of typed operations).
+Oct 28 10:50:15 hc-test-m2-arch-20261028 systemd[1]: homelab-control.service: Deactivated successfully.
+Oct 28 10:50:15 hc-test-m2-arch-20261028 systemd[1]: Stopped Homelab Control API and web UI (unprivileged).
+Oct 28 10:50:15 hc-test-m2-arch-20261028 systemd[1]: homelab-control-broker.socket: Deactivated successfully.
+Oct 28 10:50:15 hc-test-m2-arch-20261028 systemd[1]: Closed Homelab Control privileged broker socket.
+Oct 28 10:50:15 hc-test-m2-arch-20261028 sshd-session[2898]: Accepted publickey for hc from 192.168.122.1 port 47726 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:50:15 hc-test-m2-arch-20261028 sshd-session[2898]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:50:15 hc-test-m2-arch-20261028 sshd-session[2898]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:50:15 hc-test-m2-arch-20261028 sshd-session[2904]: Accepted publickey for hc from 192.168.122.1 port 47740 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:50:15 hc-test-m2-arch-20261028 sshd-session[2904]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:50:15 hc-test-m2-arch-20261028 sshd-session[2904]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:50:28 hc-test-m2-arch-20261028 sshd-session[2931]: Accepted publickey for hc from 192.168.122.1 port 48970 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:50:28 hc-test-m2-arch-20261028 sshd-session[2931]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:50:28 hc-test-m2-arch-20261028 sshd-session[2931]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:50:28 hc-test-m2-arch-20261028 sshd-session[2979]: Accepted publickey for hc from 192.168.122.1 port 48972 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:50:28 hc-test-m2-arch-20261028 sshd-session[2979]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:50:28 hc-test-m2-arch-20261028 sshd-session[2979]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:50:29 hc-test-m2-arch-20261028 sshd-session[3058]: Accepted publickey for hc from 192.168.122.1 port 48988 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:50:29 hc-test-m2-arch-20261028 sshd-session[3058]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:50:29 hc-test-m2-arch-20261028 sshd-session[3058]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:50:29 hc-test-m2-arch-20261028 sshd-session[3073]: Accepted publickey for hc from 192.168.122.1 port 48994 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:50:29 hc-test-m2-arch-20261028 sshd-session[3073]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:50:29 hc-test-m2-arch-20261028 sshd-session[3073]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:50:29 hc-test-m2-arch-20261028 sshd-session[3082]: Accepted publickey for hc from 192.168.122.1 port 49006 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:50:29 hc-test-m2-arch-20261028 sshd-session[3082]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:50:29 hc-test-m2-arch-20261028 sshd-session[3082]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:50:29 hc-test-m2-arch-20261028 sshd-session[3091]: Accepted publickey for hc from 192.168.122.1 port 49008 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:50:29 hc-test-m2-arch-20261028 sshd-session[3091]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:50:29 hc-test-m2-arch-20261028 systemd[1]: Starting Homelab Control privileged broker socket...
+Oct 28 10:50:29 hc-test-m2-arch-20261028 systemd[1]: Listening on Homelab Control privileged broker socket.
+Oct 28 10:50:29 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control API and web UI (unprivileged).
+Oct 28 10:50:29 hc-test-m2-arch-20261028 hc-api[3198]: 2026/10/28 10:50:29 audit checkpoint log=/var/lib/homelab-control/state.db seq=1 hash=30a67dc74849c453bc5b045773bd0844818db70734c14658437a9053dee55916
+Oct 28 10:50:29 hc-test-m2-arch-20261028 hc-api[3198]: 2026/10/28 10:50:29 hc-api v0.1.0-dev.1-52-gd812995e listening on 127.0.0.1:9180 (tls=false)
+Oct 28 10:50:39 hc-test-m2-arch-20261028 sshd-session[3233]: Accepted publickey for hc from 192.168.122.1 port 44314 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:50:39 hc-test-m2-arch-20261028 sshd-session[3233]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:50:40 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control privileged broker (closed set of typed operations).
+Oct 28 10:50:40 hc-test-m2-arch-20261028 hc-broker[3238]: 2026/10/28 10:50:40 audit checkpoint log=/var/log/homelab-control-broker/broker-audit.jsonl seq=1 hash=47a0e8f164935ba32c1d2f5521066caa37143cf2304271f1ff0481132611a787
+Oct 28 10:50:40 hc-test-m2-arch-20261028 hc-broker[3238]: 2026/10/28 10:50:40 audit checkpoint log=/var/log/homelab-control-broker/operations.jsonl seq=1 hash=40c09cd091ecaf2ea60b133ec79471e0caafa1ca564273a3895d8793da449f05
+Oct 28 10:50:40 hc-test-m2-arch-20261028 hc-broker[3238]: 2026/10/28 10:50:40 hc-broker v0.1.0-dev.1-52-gd812995e ready (socket-activated=true, peers uid [969 0], 8 ops)
+Oct 28 10:50:41 hc-test-m2-arch-20261028 sshd-session[3251]: Accepted publickey for hc from 192.168.122.1 port 44318 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:50:41 hc-test-m2-arch-20261028 sshd-session[3251]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:50:41 hc-test-m2-arch-20261028 systemd[1]: Stopping Homelab Control API and web UI (unprivileged)...
+Oct 28 10:50:41 hc-test-m2-arch-20261028 hc-api[3198]: 2026/10/28 10:50:41 audit checkpoint log=/var/lib/homelab-control/state.db seq=2 hash=89b2ea029371dce3bf54faa1ca32a95f2e8b8a31a763405407cea6e01fe745a4
+Oct 28 10:50:41 hc-test-m2-arch-20261028 systemd[1]: homelab-control.service: Deactivated successfully.
+Oct 28 10:50:41 hc-test-m2-arch-20261028 systemd[1]: Stopped Homelab Control API and web UI (unprivileged).
+Oct 28 10:50:41 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control API and web UI (unprivileged).
+Oct 28 10:50:41 hc-test-m2-arch-20261028 hc-api[3269]: 2026/10/28 10:50:41 audit checkpoint log=/var/lib/homelab-control/state.db seq=3 hash=0f9bebc0f3898cc462763fef9ce551edab711a67103ad217496e4876280c3738
+Oct 28 10:50:41 hc-test-m2-arch-20261028 hc-api[3269]: 2026/10/28 10:50:41 hc-api v0.1.0-dev.1-52-gd812995e listening on 127.0.0.1:9180 (tls=false)
+Oct 28 10:50:47 hc-test-m2-arch-20261028 sshd-session[3293]: Accepted publickey for hc from 192.168.122.1 port 43714 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:50:47 hc-test-m2-arch-20261028 sshd-session[3293]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:50:47 hc-test-m2-arch-20261028 sshd-session[3293]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:50:47 hc-test-m2-arch-20261028 sshd-session[3302]: Accepted publickey for hc from 192.168.122.1 port 43718 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:50:47 hc-test-m2-arch-20261028 sshd-session[3302]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:50:47 hc-test-m2-arch-20261028 sshd-session[3302]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:50:48 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control disposable test unit (E2).
+Oct 28 10:50:49 hc-test-m2-arch-20261028 sshd-session[3314]: Accepted publickey for hc from 192.168.122.1 port 43722 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:50:49 hc-test-m2-arch-20261028 sshd-session[3314]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:50:49 hc-test-m2-arch-20261028 sshd-session[3314]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:50:50 hc-test-m2-arch-20261028 sshd-session[3325]: Accepted publickey for hc from 192.168.122.1 port 43738 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:50:50 hc-test-m2-arch-20261028 sshd-session[3325]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:50:50 hc-test-m2-arch-20261028 sshd-session[3325]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:50:50 hc-test-m2-arch-20261028 systemd[1]: Stopping Homelab Control disposable test unit (E2)...
+Oct 28 10:50:50 hc-test-m2-arch-20261028 systemd[1]: hc-test-dummy.service: Deactivated successfully.
+Oct 28 10:50:50 hc-test-m2-arch-20261028 systemd[1]: Stopped Homelab Control disposable test unit (E2).
+Oct 28 10:50:52 hc-test-m2-arch-20261028 sshd-session[3336]: Accepted publickey for hc from 192.168.122.1 port 43740 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:50:52 hc-test-m2-arch-20261028 sshd-session[3336]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:50:52 hc-test-m2-arch-20261028 sshd-session[3336]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:50:52 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control disposable test unit (E2).
+Oct 28 10:50:54 hc-test-m2-arch-20261028 sshd-session[3355]: Accepted publickey for hc from 192.168.122.1 port 43756 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:50:54 hc-test-m2-arch-20261028 sshd-session[3355]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:50:54 hc-test-m2-arch-20261028 sshd-session[3355]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:50:55 hc-test-m2-arch-20261028 systemd[1]: Stopping Homelab Control disposable test unit (E2)...
+Oct 28 10:50:55 hc-test-m2-arch-20261028 systemd[1]: hc-test-dummy.service: Deactivated successfully.
+Oct 28 10:50:55 hc-test-m2-arch-20261028 systemd[1]: Stopped Homelab Control disposable test unit (E2).
+Oct 28 10:50:55 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control disposable test unit (E2).
+Oct 28 10:50:56 hc-test-m2-arch-20261028 sshd-session[3374]: Accepted publickey for hc from 192.168.122.1 port 40272 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:50:56 hc-test-m2-arch-20261028 sshd-session[3374]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:50:56 hc-test-m2-arch-20261028 sshd-session[3374]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:50:57 hc-test-m2-arch-20261028 sshd-session[3383]: Accepted publickey for hc from 192.168.122.1 port 40274 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:50:57 hc-test-m2-arch-20261028 sshd-session[3383]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:50:57 hc-test-m2-arch-20261028 sshd-session[3383]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:53:02 hc-test-m2-arch-20261028 sshd-session[3422]: Accepted publickey for hc from 192.168.122.1 port 37674 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:53:02 hc-test-m2-arch-20261028 sshd-session[3422]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:53:02 hc-test-m2-arch-20261028 sshd-session[3422]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:53:02 hc-test-m2-arch-20261028 sshd-session[3430]: Accepted publickey for hc from 192.168.122.1 port 37684 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:53:02 hc-test-m2-arch-20261028 sshd-session[3430]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:53:02 hc-test-m2-arch-20261028 sshd-session[3430]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:53:02 hc-test-m2-arch-20261028 sshd-session[3439]: Accepted publickey for hc from 192.168.122.1 port 37686 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:53:02 hc-test-m2-arch-20261028 sshd-session[3439]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:53:02 hc-test-m2-arch-20261028 systemd[1]: Stopping Homelab Control disposable test unit (E2)...
+Oct 28 10:53:02 hc-test-m2-arch-20261028 systemd[1]: hc-test-dummy.service: Deactivated successfully.
+Oct 28 10:53:02 hc-test-m2-arch-20261028 systemd[1]: Stopped Homelab Control disposable test unit (E2).
+Oct 28 10:53:02 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control disposable test unit (E2).
+Oct 28 10:53:02 hc-test-m2-arch-20261028 sshd-session[3439]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:53:02 hc-test-m2-arch-20261028 sshd-session[3449]: Accepted publickey for hc from 192.168.122.1 port 37700 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:53:02 hc-test-m2-arch-20261028 sshd-session[3449]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:53:02 hc-test-m2-arch-20261028 sshd-session[3449]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:53:04 hc-test-m2-arch-20261028 sshd-session[3456]: Accepted publickey for hc from 192.168.122.1 port 37714 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:53:04 hc-test-m2-arch-20261028 sshd-session[3456]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:53:04 hc-test-m2-arch-20261028 sshd-session[3456]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:56:00 hc-test-m2-arch-20261028 sshd-session[3509]: Accepted publickey for hc from 192.168.122.1 port 58022 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:56:00 hc-test-m2-arch-20261028 sshd-session[3509]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:56:00 hc-test-m2-arch-20261028 sshd-session[3509]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:56:00 hc-test-m2-arch-20261028 systemd[1]: Stopping Homelab Control disposable test unit (E2)...
+Oct 28 10:56:00 hc-test-m2-arch-20261028 systemd[1]: hc-test-dummy.service: Deactivated successfully.
+Oct 28 10:56:00 hc-test-m2-arch-20261028 systemd[1]: Stopped Homelab Control disposable test unit (E2).
+Oct 28 10:56:02 hc-test-m2-arch-20261028 sshd-session[3523]: Accepted publickey for hc from 192.168.122.1 port 58026 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:56:02 hc-test-m2-arch-20261028 sshd-session[3523]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:56:02 hc-test-m2-arch-20261028 sshd-session[3523]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:56:03 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control disposable failing unit (E2).
+Oct 28 10:56:03 hc-test-m2-arch-20261028 systemd[1]: hc-test-fail.service: Main process exited, code=exited, status=1/FAILURE
+Oct 28 10:56:03 hc-test-m2-arch-20261028 systemd[1]: hc-test-fail.service: Failed with result 'exit-code'.
+Oct 28 10:56:05 hc-test-m2-arch-20261028 sshd-session[3543]: Accepted publickey for hc from 192.168.122.1 port 56492 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:56:05 hc-test-m2-arch-20261028 sshd-session[3543]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:56:05 hc-test-m2-arch-20261028 sshd-session[3543]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:56:06 hc-test-m2-arch-20261028 systemd[1]: Started Homelab Control disposable test unit (E2).
+Oct 28 10:56:08 hc-test-m2-arch-20261028 sshd-session[3567]: Accepted publickey for hc from 192.168.122.1 port 56498 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:56:08 hc-test-m2-arch-20261028 sshd-session[3567]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:56:08 hc-test-m2-arch-20261028 sshd-session[3567]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:56:09 hc-test-m2-arch-20261028 sshd-session[3573]: Accepted publickey for hc from 192.168.122.1 port 56506 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:56:09 hc-test-m2-arch-20261028 sshd-session[3573]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:56:09 hc-test-m2-arch-20261028 sshd-session[3573]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:56:20 hc-test-m2-arch-20261028 sshd-session[3589]: Accepted publickey for hc from 192.168.122.1 port 52028 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:56:20 hc-test-m2-arch-20261028 sshd-session[3589]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:56:20 hc-test-m2-arch-20261028 sshd-session[3589]: pam_unix(sshd:session): session closed for user hc
+Oct 28 10:56:20 hc-test-m2-arch-20261028 sshd-session[3629]: Accepted publickey for hc from 192.168.122.1 port 52044 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:56:20 hc-test-m2-arch-20261028 sshd-session[3629]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:56:21 hc-test-m2-arch-20261028 sshd-session[3680]: Accepted publickey for hc from 192.168.122.1 port 52054 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 28 10:56:21 hc-test-m2-arch-20261028 sshd-session[3680]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)

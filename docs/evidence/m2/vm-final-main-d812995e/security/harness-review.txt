@@ -1,0 +1,55 @@
+# Harness review at d812995e — 2026-10-28T10:19:38Z
+## sha256
+b456e762a6fe75bd91939ed484965336968927973bb9aa8237df90182f1afd93  tests/systemd/h3_may_stop.sh
+1d52f377d911b00ea523e639b8314229ea2dbafb110100a2357d5865aa293f00  tests/systemd/m1-checks.sh
+e3bee71fcd2634f1d00d489b3833b580d985645151437977cb4ed6c187c829bd  tests/systemd/m2_service_ops.py
+24fc8cdc13503f923b2ed1f06ff0c26a2a504a2b19d6f9989f02d309647f99fe  tests/systemd/m2-service-ops.sh
+5d7bbe794c0e8268082e599f2ceb5fd37e37677a2cde18ad40f7004fd55dac8f  tests/systemd/systemd-smoke.sh
+e94afc4bbf1f544faa27064c834130ed397ac902d1717629bf6d1e758878aa6f  tests/systemd/test_h3_cleanup.sh
+
+## every systemctl stop/restart/kill/reboot/poweroff/isolate/mask/disable and pkill/kill call
+tests/systemd/systemd-smoke.sh:71:systemctl stop homelab-control.service ${HC_SMOKE_EXTRA_UNITS:-}
+tests/systemd/h3_may_stop.sh:6:# Decide whether the M2-2 scenario harness may `systemctl stop` a unit name.
+tests/systemd/m1-checks.sh:95:systemctl stop homelab-control-broker.service
+tests/systemd/m1-checks.sh:105:systemctl restart homelab-control.service
+tests/systemd/m1-checks.sh:107:check "session survives systemctl restart homelab-control" 200 "$(getc /api/v1/auth/session)"
+tests/systemd/m1-checks.sh:118:check "shutdown checkpoint is the log head" "$lastseq" "$cpseq"
+tests/systemd/m1-checks.sh:140:systemctl stop homelab-control-broker.socket homelab-control-broker.service
+tests/systemd/m2_service_ops.py:131:            subprocess.run(["systemctl", "stop", "--", name], capture_output=True)
+tests/systemd/m2_service_ops.py:283:    subprocess.run(["systemctl", "restart", "homelab-control.service"], check=True)
+tests/systemd/m2_service_ops.py:321:    st, p = plan(u, "stop", csrf)
+tests/systemd/m2_service_ops.py:323:    st, e = apply(u, "stop", p.get("token"), csrf)
+tests/systemd/m2_service_ops.py:331:    st, o = apply(u, "stop", p.get("token"), csrf)
+tests/systemd/m2_service_ops.py:339:    st, p = plan(u, "restart", csrf)
+tests/systemd/m2_service_ops.py:341:    st, o = apply(u, "restart", restart_token, csrf)
+tests/systemd/m2_service_ops.py:348:    st, e = apply(u, "restart", restart_token, csrf)
+tests/systemd/m2_service_ops.py:352:    st, p = plan(u, "stop", csrf)
+tests/systemd/m2_service_ops.py:353:    st, e = apply("hc-test-fail.service", "stop", p.get("token"), csrf)
+tests/systemd/m2_service_ops.py:355:    st, e = apply(u, "restart", p.get("token"), csrf)
+tests/systemd/m2_service_ops.py:359:    for unit, action in [("ssh.service", "stop"), ("homelab-control-broker.service", "restart"),
+tests/systemd/m2_service_ops.py:360:                         ("homelab-control.service", "stop"), ("dbus.service", "restart"),
+tests/systemd/m2_service_ops.py:361:                         ("systemd-journald.service", "stop")]:
+tests/systemd/m2_service_ops.py:367:        st, e = plan("hc-test-innocent.service", "stop", csrf)
+tests/systemd/m2_service_ops.py:377:    for unit, action in [("hc-test-base.service", "stop"), ("hc-test-base.service", "restart")]:
+tests/systemd/m2_service_ops.py:386:    subprocess.run(["systemctl", "stop", "homelab-control-hctest.service", "hc-test-mid.service", "hc-test-base.service"])
+tests/systemd/m2_service_ops.py:393:    st, p = plan("hc-test-base.service", "stop", csrf)
+tests/systemd/m2_service_ops.py:399:        ("hc-test-dummy.socket", {"action": "stop"}, 400), ("-x.service", {"action": "stop"}, 400),
+tests/systemd/m2_service_ops.py:400:        ("a%3Breboot.service", {"action": "stop"}, 400), ("foo@.service", {"action": "start"}, 400),
+tests/systemd/m2_service_ops.py:415:    st, p = plan(u, "stop", csrf)
+tests/systemd/m2_service_ops.py:416:    subprocess.run(["systemctl", "restart", u], check=True)
+tests/systemd/m2_service_ops.py:417:    st, e = apply(u, "stop", p.get("token"), csrf)
+tests/systemd/m2_service_ops.py:422:    _, p1 = plan(u, "restart", csrf)
+tests/systemd/m2_service_ops.py:423:    _, p2 = plan(u, "restart", csrf)
+tests/systemd/m2_service_ops.py:427:        results.append(apply(u, "restart", tok, csrf))
+tests/systemd/m2_service_ops.py:445:    subprocess.run(["systemctl", "kill", "-s", "SIGKILL", "homelab-control-broker.service"])
+tests/systemd/m2_service_ops.py:482:        st, p = plan(u, "stop", csrf)
+tests/systemd/m2_service_ops.py:484:        st, e = apply(u, "stop", p.get("token"), csrf)
+tests/systemd/m2_service_ops.py:489:        st, p = plan(u, "stop", csrf)
+tests/systemd/m2_service_ops.py:490:        st, e = apply(u, "stop", p.get("token"), csrf)
+
+## classification of the calls above
+- Harness files are byte-identical to the revisions validated earlier (Fedora 89/0, Arch 88/0, H3 14/14): m2_service_ops.py e3bee71f, h3_may_stop.sh b456e762, m2-service-ops.sh 24fc8cdc, systemd-smoke.sh 5d7bbe79, m1-checks.sh 1d52f377, test_h3_cleanup.sh e94afc4b.
+- Direct systemctl stop/restart/kill in the harness target only HomeControl units (systemd-smoke.sh:71, m1-checks.sh:95/105/140, m2_service_ops.py:283/445) or hc-test-* fixtures (m2_service_ops.py:386; :416 restarts u = hc-test-dummy.service).
+- m2_service_ops.py:131 (cleanup) runs `systemctl stop -- name` only after h3_may_stop ALLOWs it: Id == name, no host-deny name among Names, FragmentPath == /etc/systemd/system/<name>, a regular file, and name in the owned list. The alias /etc/systemd/system/hc-test-innocent.service is removed and systemd reloaded first.
+- The plan/apply calls against ssh.service, dbus.service, systemd-journald.service, homelab-control* and the alias are protected-unit refusal checks: they expect 403 policy_denied and never execute.
+- No reboot, poweroff, isolate, mask, disable, pkill or killall.

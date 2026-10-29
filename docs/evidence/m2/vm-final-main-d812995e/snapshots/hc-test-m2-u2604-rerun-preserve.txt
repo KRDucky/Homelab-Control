@@ -1,0 +1,23 @@
+# hc-test-m2-u2604-rerun — preserve current state 2026-10-28T10:20:07Z
+uuid=30b2ff8b-1982-4af2-bbe6-cb9157b40eab state=running
+Domain snapshot pre-final-main-20261028 created
+created
+Name:           pre-final-main-20261028
+Domain:         hc-test-m2-u2604-rerun
+Current:        yes
+State:          running
+Location:       internal
+Parent:         pre-m2
+Children:       0
+Descendants:    0
+Metadata:       yes
+
+  <state>running</state>
+  <memory snapshot='internal'/>
+    <disk name='vda' snapshot='internal'/>
+    <disk name='hda' snapshot='no'/>
+    <memory unit='KiB'>4194304</memory>
+    <memory unit='KiB'>4194304</memory>
+meta pre-final-main-20261028 dbed618e93b815e6
+meta pre-m2 e6fba74840b9512c
+guest-up=hc-test-m2-u2604-rerun marker=present
