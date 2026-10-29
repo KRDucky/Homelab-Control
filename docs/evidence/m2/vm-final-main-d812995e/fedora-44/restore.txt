@@ -1,0 +1,38 @@
+# restore hc-test-m2-f44-rerun to pre-m2 — 2026-10-28T10:29:55Z
+uuid=680a5cf9-7e36-48be-8cc7-e63775acb2ce; current state preserved as pre-final-main-20261028
+Domain snapshot pre-m2 reverted
+
+revert rc=0
+Domain 'hc-test-m2-f44-rerun' is being rebooted
+
+== guest after reboot
+hc-test-m2-f44-rerun
+VERSION_ID=44
+PRETTY_NAME="Fedora Linux 44 (Cloud Edition)"
+6.19.10-300.fc44.x86_64
+systemd 259 (259.5-1.fc44)
+kvm
+marker=present
+selinux=Enforcing
+uptime=6.47
+NTPSynchronized=no
+TimeUSec=Wed 2026-10-28 10:30:05 UTC
+host utc: 2026-10-28T10:30:05Z
+package homelab-control is not installed
+ls: cannot access '/etc/homelab-control': No such file or directory
+ls: cannot access '/var/lib/homelab-control': No such file or directory
+ls: cannot access '/opt/hc': No such file or directory
+ls: cannot access '/etc/webmin': No such file or directory
+Id=sshd.service
+ActiveState=active
+MainPID=1035
+inactive
+LISTEN 0      128    0.0.0.0:22 0.0.0.0:*
+LISTEN 0      128       [::]:22    [::]:*
+== automatic update preflight
+Wed 2026-10-28 11:09:43 UTC  39min -                                - dnf-makecache.timer          dnf-makecache.service
+package dnf-automatic is not installed
+package dnf5-plugin-automatic is not installed
+package PackageKit is not installed
+not-found
+1107 bash -c echo "== guest after reboot"; hostname; grep -E "^(PRETTY_NAME|VERSION_ID)=" /etc/os-release; uname -r; systemctl --version | head -1; systemd-detect-virt; echo marker=$(test -e /etc/hc-disposable && echo present || echo MISSING); echo selinux=$(getenforce); echo uptime=$(cut -d" " -f1 /proc/uptime); timedatectl show -p NTPSynchronized -p TimeUSec; echo "host utc: 2026-10-28T10:30:05Z"; rpm -q homelab-control; ls -d /etc/homelab-control /var/lib/homelab-control /opt/hc /etc/webmin 2>&1; systemctl show -p Id,ActiveState,MainPID sshd.service; systemctl is-active sshd.socket; ss -Hltn "sport = :22"; echo "== automatic update preflight"; systemctl list-timers --all --no-pager | grep -iE "dnf|packagekit|update|upgrade" || echo "no update timers"; rpm -q dnf-automatic dnf5-plugin-automatic PackageKit 2>&1; systemctl is-enabled packagekit-offline-update.service 2>&1; pgrep -a -f "dnf|rpm " || echo "no dnf/rpm running"

@@ -1,0 +1,312 @@
+Oct 28 10:24:30.937480 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183070.936:231): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=13674 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:30.937541 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183070.936:232): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=13674 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:35.554869 hc-test-m2-u2604-rerun kernel: kauditd_printk_skb: 22 callbacks suppressed
+Oct 28 10:24:35.554974 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183075.553:255): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=14112 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:35.554988 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183075.553:256): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=14112 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:35.554995 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183075.553:257): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=14112 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:35.555002 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183075.553:258): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=14112 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:35.621983 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183075.620:259): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=14117 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:35.622045 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183075.620:260): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=14117 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:35.622054 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183075.620:261): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=14117 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:35.622059 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183075.620:262): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=14117 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:35.665990 hc-test-m2-u2604-rerun systemd[1]: Stopping packagekit.service - PackageKit Daemon...
+Oct 28 10:24:35.670296 hc-test-m2-u2604-rerun systemd[1]: packagekit.service: Deactivated successfully.
+Oct 28 10:24:35.670411 hc-test-m2-u2604-rerun systemd[1]: Stopped packagekit.service - PackageKit Daemon.
+Oct 28 10:24:35.671501 hc-test-m2-u2604-rerun systemd[1]: Starting packagekit.service - PackageKit Daemon...
+Oct 28 10:24:35.676789 hc-test-m2-u2604-rerun PackageKit[14124]: daemon start
+Oct 28 10:24:35.688245 hc-test-m2-u2604-rerun systemd[1]: Started packagekit.service - PackageKit Daemon.
+Oct 28 10:24:36.723767 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183076.722:263): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=14250 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:36.723829 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183076.722:264): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=14250 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:40.007351 hc-test-m2-u2604-rerun systemd[1]: Reexecution requested from client PID 14578 ('systemctl') (unit apt-daily-upgrade.service)...
+Oct 28 10:24:40.008975 hc-test-m2-u2604-rerun systemd[1]: Reexecuting.
+Oct 28 10:24:40.383245 hc-test-m2-u2604-rerun systemd[1]: systemd 259.5-0ubuntu3.4 running in system mode (+PAM +AUDIT +SELINUX +APPARMOR +IMA +IPE +SMACK +SECCOMP +GCRYPT -GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN +KMOD +LIBCRYPTSETUP +LIBCRYPTSETUP_PLUGINS +LIBFDISK +PCRE2 +PWQUALITY +P11KIT +QRENCODE +TPM2 +BZIP2 +LZ4 +XZ +ZLIB +ZSTD +BPF_FRAMEWORK +BTF -XKBCOMMON -UTMP +SYSVINIT +LIBARCHIVE)
+Oct 28 10:24:40.383307 hc-test-m2-u2604-rerun systemd[1]: Detected virtualization kvm.
+Oct 28 10:24:40.383318 hc-test-m2-u2604-rerun systemd[1]: Detected architecture x86-64.
+Oct 28 10:24:40.408964 hc-test-m2-u2604-rerun systemd[1]: bpf-restrict-fs: BPF LSM hook not enabled in the kernel, BPF LSM not supported.
+Oct 28 10:24:40.443362 hc-test-m2-u2604-rerun systemd[1]: /usr/lib/systemd/system/xfs_scrub_all.service:26: Support for option CPUAccounting= has been removed and it is ignored
+Oct 28 10:24:40.443412 hc-test-m2-u2604-rerun systemd[1]: /usr/lib/systemd/system/system-xfs_scrub.slice:15: Support for option CPUAccounting= has been removed and it is ignored
+Oct 28 10:24:40.525178 hc-test-m2-u2604-rerun systemd[2038]: Received SIGRTMIN+25 from PID 14645 (kill).
+Oct 28 10:24:40.525693 hc-test-m2-u2604-rerun systemd[2038]: Reexecuting.
+Oct 28 10:24:40.539184 hc-test-m2-u2604-rerun systemd-journald[623]: Journal stopped
+Oct 28 10:24:40.610765 hc-test-m2-u2604-rerun systemd-journald[623]: Received SIGTERM from PID 1 (systemd).
+Oct 28 10:24:40.610826 hc-test-m2-u2604-rerun systemd[1]: Stopping systemd-journald.service - Journal Service...
+Oct 28 10:24:40.610840 hc-test-m2-u2604-rerun systemd[1]: netplan-ovs-cleanup.service - OpenVSwitch configuration for cleanup skipped, unmet condition check ConditionFileIsExecutable=/usr/bin/ovs-vsctl
+Oct 28 10:24:40.610849 hc-test-m2-u2604-rerun systemd[1]: Stopping packagekit.service - PackageKit Daemon...
+Oct 28 10:24:40.610858 hc-test-m2-u2604-rerun systemd[1]: Stopping ssh.service - OpenBSD Secure Shell server...
+Oct 28 10:24:40.610866 hc-test-m2-u2604-rerun systemd[1]: Stopping systemd-networkd-persistent-storage.service - Enable Persistent Storage in systemd-networkd...
+Oct 28 10:24:40.610872 hc-test-m2-u2604-rerun systemd[1]: systemd-networkd-wait-online.service: Deactivated successfully.
+Oct 28 10:24:40.610879 hc-test-m2-u2604-rerun systemd[1]: Stopped systemd-networkd-wait-online.service - Wait for Network to be Online.
+Oct 28 10:24:40.610884 hc-test-m2-u2604-rerun systemd[1]: Stopping systemd-networkd-wait-online.service - Wait for Network to be Online...
+Oct 28 10:24:40.610893 hc-test-m2-u2604-rerun systemd[1]: Stopping systemd-resolved.service - Network Name Resolution...
+Oct 28 10:24:40.610900 hc-test-m2-u2604-rerun systemd[1]: Stopping udisks2.service - Disk Manager...
+Oct 28 10:24:40.610904 hc-test-m2-u2604-rerun systemd[1]: ssh.service: Deactivated successfully.
+Oct 28 10:24:40.610909 hc-test-m2-u2604-rerun systemd[1]: Stopped ssh.service - OpenBSD Secure Shell server.
+Oct 28 10:24:40.610914 hc-test-m2-u2604-rerun systemd[1]: sshd-keygen.service - Generate sshd host keys on first boot skipped, unmet condition check ConditionFirstBoot=yes
+Oct 28 10:24:40.610921 hc-test-m2-u2604-rerun systemd[1]: Starting ssh.service - OpenBSD Secure Shell server...
+Oct 28 10:24:40.610926 hc-test-m2-u2604-rerun systemd[1]: packagekit.service: Deactivated successfully.
+Oct 28 10:24:40.610931 hc-test-m2-u2604-rerun systemd[1]: Stopped packagekit.service - PackageKit Daemon.
+Oct 28 10:24:40.610966 hc-test-m2-u2604-rerun systemd[1]: Starting packagekit.service - PackageKit Daemon...
+Oct 28 10:24:40.610980 hc-test-m2-u2604-rerun systemd[1]: systemd-resolved.service: Deactivated successfully.
+Oct 28 10:24:40.610987 hc-test-m2-u2604-rerun systemd[1]: Stopped systemd-resolved.service - Network Name Resolution.
+Oct 28 10:24:40.610994 hc-test-m2-u2604-rerun systemd[1]: Starting systemd-resolved.service - Network Name Resolution...
+Oct 28 10:24:40.611002 hc-test-m2-u2604-rerun systemd[1]: systemd-journald.service: Deactivated successfully.
+Oct 28 10:24:40.611007 hc-test-m2-u2604-rerun systemd[1]: Stopped systemd-journald.service - Journal Service.
+Oct 28 10:24:40.611012 hc-test-m2-u2604-rerun systemd[1]: udisks2.service: Deactivated successfully.
+Oct 28 10:24:40.611016 hc-test-m2-u2604-rerun systemd[1]: Stopped udisks2.service - Disk Manager.
+Oct 28 10:24:40.611021 hc-test-m2-u2604-rerun systemd[1]: systemd-networkd-persistent-storage.service: Deactivated successfully.
+Oct 28 10:24:40.611027 hc-test-m2-u2604-rerun systemd[1]: Stopped systemd-networkd-persistent-storage.service - Enable Persistent Storage in systemd-networkd.
+Oct 28 10:24:40.611032 hc-test-m2-u2604-rerun systemd[1]: Starting systemd-journald.service - Journal Service...
+Oct 28 10:24:40.611038 hc-test-m2-u2604-rerun systemd[1]: Stopping systemd-networkd.service - Network Management...
+Oct 28 10:24:40.611044 hc-test-m2-u2604-rerun systemd[1]: Starting udisks2.service - Disk Manager...
+Oct 28 10:24:40.611049 hc-test-m2-u2604-rerun systemd[1]: systemd-networkd.service: Deactivated successfully.
+Oct 28 10:24:40.611055 hc-test-m2-u2604-rerun systemd[1]: Stopped systemd-networkd.service - Network Management.
+Oct 28 10:24:40.611059 hc-test-m2-u2604-rerun systemd[1]: Stopping systemd-udevd.service - Rule-based Manager for Device Events and Files...
+Oct 28 10:24:40.611066 hc-test-m2-u2604-rerun systemd[1]: Started packagekit.service - PackageKit Daemon.
+Oct 28 10:24:40.611071 hc-test-m2-u2604-rerun systemd[1]: Started ssh.service - OpenBSD Secure Shell server.
+Oct 28 10:24:40.611077 hc-test-m2-u2604-rerun systemd[1]: systemd-udevd.service: Deactivated successfully.
+Oct 28 10:24:40.611081 hc-test-m2-u2604-rerun systemd[1]: Stopped systemd-udevd.service - Rule-based Manager for Device Events and Files.
+Oct 28 10:24:40.611086 hc-test-m2-u2604-rerun systemd[1]: Starting systemd-udevd.service - Rule-based Manager for Device Events and Files...
+Oct 28 10:24:40.611104 hc-test-m2-u2604-rerun systemd-journald[14671]: Collecting audit messages is disabled.
+Oct 28 10:24:40.611118 hc-test-m2-u2604-rerun systemd[1]: Started systemd-resolved.service - Network Name Resolution.
+Oct 28 10:24:40.611124 hc-test-m2-u2604-rerun systemd-journald[14671]: Journal started
+Oct 28 10:24:40.611134 hc-test-m2-u2604-rerun systemd-journald[14671]: System Journal (/var/log/journal/30b2ff8b19824af2bbe6cb9157b40eab) is 16M, max 1.8G, 1.8G free.
+Oct 28 10:24:40.602159 hc-test-m2-u2604-rerun systemd-resolved[14663]: Positive Trust Anchors:
+Oct 28 10:24:40.539590 hc-test-m2-u2604-rerun sshd[1087]: Received signal 15; terminating.
+Oct 28 10:24:40.602163 hc-test-m2-u2604-rerun systemd-resolved[14663]: . IN DS 20326 8 2 e06d44b80b8f1d39a95c0b0d7c65d08458e880409bbc683457104237c7f8ec8d
+Oct 28 10:24:40.560868 hc-test-m2-u2604-rerun PackageKit[14661]: daemon start
+Oct 28 10:24:40.612169 hc-test-m2-u2604-rerun systemd[1]: Started systemd-journald.service - Journal Service.
+Oct 28 10:24:40.602165 hc-test-m2-u2604-rerun systemd-resolved[14663]: . IN DS 38696 8 2 683d2d0acb8c9b712a1948b27f741219298d0a450d612c483af444a4c0fb2b16
+Oct 28 10:24:40.589434 hc-test-m2-u2604-rerun sshd[14668]: Server listening on 0.0.0.0 port 22.
+Oct 28 10:24:40.602176 hc-test-m2-u2604-rerun systemd-resolved[14663]: Negative trust anchors: home.arpa 10.in-addr.arpa 16.172.in-addr.arpa 17.172.in-addr.arpa 18.172.in-addr.arpa 19.172.in-addr.arpa 20.172.in-addr.arpa 21.172.in-addr.arpa 22.172.in-addr.arpa 23.172.in-addr.arpa 24.172.in-addr.arpa 25.172.in-addr.arpa 26.172.in-addr.arpa 27.172.in-addr.arpa 28.172.in-addr.arpa 29.172.in-addr.arpa 30.172.in-addr.arpa 31.172.in-addr.arpa 170.0.0.192.in-addr.arpa 171.0.0.192.in-addr.arpa 168.192.in-addr.arpa d.f.ip6.arpa ipv4only.arpa resolver.arpa corp home internal intranet lan local private test
+Oct 28 10:24:40.589439 hc-test-m2-u2604-rerun sshd[14668]: Server listening on :: port 22.
+Oct 28 10:24:40.606260 hc-test-m2-u2604-rerun systemd-resolved[14663]: Using system hostname 'hc-test-m2-u2604-rerun'.
+Oct 28 10:24:40.614195 hc-test-m2-u2604-rerun systemd[1]: Started udisks2.service - Disk Manager.
+Oct 28 10:24:40.620759 hc-test-m2-u2604-rerun systemd-udevd[14684]: Using default interface naming scheme 'v259'.
+Oct 28 10:24:40.629817 hc-test-m2-u2604-rerun systemd[1]: Started systemd-udevd.service - Rule-based Manager for Device Events and Files.
+Oct 28 10:24:40.631247 hc-test-m2-u2604-rerun systemd[1]: Starting systemd-networkd.service - Network Management...
+Oct 28 10:24:40.648575 hc-test-m2-u2604-rerun systemd-networkd[14691]: lo: Link UP
+Oct 28 10:24:40.648583 hc-test-m2-u2604-rerun systemd-networkd[14691]: lo: Gained carrier
+Oct 28 10:24:40.648593 hc-test-m2-u2604-rerun systemd-networkd[14691]: ens2: Link UP
+Oct 28 10:24:40.648594 hc-test-m2-u2604-rerun systemd-networkd[14691]: ens2: Gained carrier
+Oct 28 10:24:40.648647 hc-test-m2-u2604-rerun systemd-networkd[14691]: ens2: Gained IPv6LL
+Oct 28 10:24:40.654728 hc-test-m2-u2604-rerun systemd[1]: Started systemd-networkd.service - Network Management.
+Oct 28 10:24:40.654763 hc-test-m2-u2604-rerun systemd-networkd[14691]: ens2: Configuring with /run/systemd/network/10-netplan-ens2.network.
+Oct 28 10:24:40.656678 hc-test-m2-u2604-rerun systemd[1]: Starting systemd-networkd-persistent-storage.service - Enable Persistent Storage in systemd-networkd...
+Oct 28 10:24:40.657678 hc-test-m2-u2604-rerun systemd[1]: Starting systemd-networkd-wait-online.service - Wait for Network to be Online...
+Oct 28 10:24:40.663197 hc-test-m2-u2604-rerun systemd-networkd[14691]: ens2: DHCPv4 address 192.168.122.64/24, gateway 192.168.122.1 acquired from 192.168.122.1
+Oct 28 10:24:40.663291 hc-test-m2-u2604-rerun dbus-daemon[1033]: [system] Activating via systemd: service name='org.freedesktop.hostname1' unit='dbus-org.freedesktop.hostname1.service' requested by ':1.192' (uid=998 pid=14691 comm="/usr/lib/systemd/systemd-networkd" label="unconfined")
+Oct 28 10:24:40.664919 hc-test-m2-u2604-rerun systemd[1]: Starting systemd-hostnamed.service - Hostname Service...
+Oct 28 10:24:40.667134 hc-test-m2-u2604-rerun systemd[1]: Finished systemd-networkd-persistent-storage.service - Enable Persistent Storage in systemd-networkd.
+Oct 28 10:24:40.672218 hc-test-m2-u2604-rerun systemd[1]: Finished systemd-networkd-wait-online.service - Wait for Network to be Online.
+Oct 28 10:24:40.684210 hc-test-m2-u2604-rerun systemd[1]: Started systemd-hostnamed.service - Hostname Service.
+Oct 28 10:24:40.684665 hc-test-m2-u2604-rerun dbus-daemon[1033]: [system] Successfully activated service 'org.freedesktop.hostname1'
+Oct 28 10:24:40.686145 hc-test-m2-u2604-rerun systemd-hostnamed[14706]: Hostname set to <hc-test-m2-u2604-rerun> (static)
+Oct 28 10:24:41.728529 hc-test-m2-u2604-rerun kernel: kauditd_printk_skb: 22 callbacks suppressed
+Oct 28 10:24:41.728597 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183081.727:287): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=14835 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:41.728610 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183081.727:288): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=14835 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:41.728630 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183081.727:289): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=14835 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:41.728639 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183081.727:290): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=14835 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:41.794142 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183081.793:291): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=14840 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:41.794200 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183081.793:292): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=14840 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:41.794268 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183081.793:293): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=14840 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:41.794286 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183081.793:294): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=14840 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:41.860112 hc-test-m2-u2604-rerun systemd[1]: Reexecution requested from client PID 14853 ('systemctl') (unit apt-daily-upgrade.service)...
+Oct 28 10:24:41.861700 hc-test-m2-u2604-rerun systemd[1]: Reexecuting.
+Oct 28 10:24:42.222630 hc-test-m2-u2604-rerun systemd[1]: systemd 259.5-0ubuntu3.4 running in system mode (+PAM +AUDIT +SELINUX +APPARMOR +IMA +IPE +SMACK +SECCOMP +GCRYPT -GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN +KMOD +LIBCRYPTSETUP +LIBCRYPTSETUP_PLUGINS +LIBFDISK +PCRE2 +PWQUALITY +P11KIT +QRENCODE +TPM2 +BZIP2 +LZ4 +XZ +ZLIB +ZSTD +BPF_FRAMEWORK +BTF -XKBCOMMON -UTMP +SYSVINIT +LIBARCHIVE)
+Oct 28 10:24:42.222690 hc-test-m2-u2604-rerun systemd[1]: Detected virtualization kvm.
+Oct 28 10:24:42.222698 hc-test-m2-u2604-rerun systemd[1]: Detected architecture x86-64.
+Oct 28 10:24:42.246954 hc-test-m2-u2604-rerun systemd[1]: bpf-restrict-fs: BPF LSM hook not enabled in the kernel, BPF LSM not supported.
+Oct 28 10:24:42.279786 hc-test-m2-u2604-rerun systemd[1]: /usr/lib/systemd/system/xfs_scrub_all.service:26: Support for option CPUAccounting= has been removed and it is ignored
+Oct 28 10:24:42.279831 hc-test-m2-u2604-rerun systemd[1]: /usr/lib/systemd/system/system-xfs_scrub.slice:15: Support for option CPUAccounting= has been removed and it is ignored
+Oct 28 10:24:42.355775 hc-test-m2-u2604-rerun systemd[2038]: Received SIGRTMIN+25 from PID 14922 (kill).
+Oct 28 10:24:42.356280 hc-test-m2-u2604-rerun systemd[2038]: Reexecuting.
+Oct 28 10:24:42.366304 hc-test-m2-u2604-rerun systemd[1]: Stopping packagekit.service - PackageKit Daemon...
+Oct 28 10:24:42.367762 hc-test-m2-u2604-rerun ModemManager[1174]: <msg> caught signal, shutting down...
+Oct 28 10:24:42.368093 hc-test-m2-u2604-rerun systemd[1]: Stopping ModemManager.service - Modem Manager...
+Oct 28 10:24:42.368239 hc-test-m2-u2604-rerun ModemManager[1174]: <msg> ModemManager is shut down
+Oct 28 10:24:42.368844 hc-test-m2-u2604-rerun systemd[1]: Stopping rsyslog.service - System Logging Service...
+Oct 28 10:24:42.369189 hc-test-m2-u2604-rerun rsyslogd[1190]: [origin software="rsyslogd" swVersion="8.2512.0" x-pid="1190" x-info="https://www.rsyslog.com"] exiting on signal 15.
+Oct 28 10:24:42.370341 hc-test-m2-u2604-rerun systemd[1]: rsyslog.service: Deactivated successfully.
+Oct 28 10:24:42.371104 hc-test-m2-u2604-rerun systemd[1]: Stopped rsyslog.service - System Logging Service.
+Oct 28 10:24:42.371612 hc-test-m2-u2604-rerun systemd[1]: packagekit.service: Deactivated successfully.
+Oct 28 10:24:42.371774 hc-test-m2-u2604-rerun systemd[1]: Stopped packagekit.service - PackageKit Daemon.
+Oct 28 10:24:42.373081 hc-test-m2-u2604-rerun systemd[1]: Starting packagekit.service - PackageKit Daemon...
+Oct 28 10:24:42.374083 hc-test-m2-u2604-rerun systemd[1]: Starting rsyslog.service - System Logging Service...
+Oct 28 10:24:42.374261 hc-test-m2-u2604-rerun systemd[1]: Stopping ssh.service - OpenBSD Secure Shell server...
+Oct 28 10:24:42.375722 hc-test-m2-u2604-rerun sshd[14668]: Received signal 15; terminating.
+Oct 28 10:24:42.376408 hc-test-m2-u2604-rerun systemd[1]: ModemManager.service: Deactivated successfully.
+Oct 28 10:24:42.381199 hc-test-m2-u2604-rerun systemd[1]: Stopped ModemManager.service - Modem Manager.
+Oct 28 10:24:42.383692 hc-test-m2-u2604-rerun systemd[1]: ssh.service: Deactivated successfully.
+Oct 28 10:24:42.383783 hc-test-m2-u2604-rerun systemd[1]: Stopped ssh.service - OpenBSD Secure Shell server.
+Oct 28 10:24:42.384704 hc-test-m2-u2604-rerun systemd[1]: Stopping polkit.service - Authorization Manager...
+Oct 28 10:24:42.384723 hc-test-m2-u2604-rerun systemd[1]: sshd-keygen.service - Generate sshd host keys on first boot skipped, unmet condition check ConditionFirstBoot=yes
+Oct 28 10:24:42.385672 hc-test-m2-u2604-rerun systemd[1]: Starting ssh.service - OpenBSD Secure Shell server...
+Oct 28 10:24:42.385784 hc-test-m2-u2604-rerun systemd[1]: Stopping systemd-hostnamed.service - Hostname Service...
+Oct 28 10:24:42.387014 hc-test-m2-u2604-rerun systemd[1]: Stopping systemd-journald.service - Journal Service...
+Oct 28 10:24:42.387029 hc-test-m2-u2604-rerun systemd-journald[14671]: Received SIGTERM from PID 1 (systemd).
+Oct 28 10:24:42.387043 hc-test-m2-u2604-rerun systemd-journald[14671]: Journal stopped
+Oct 28 10:24:42.480023 hc-test-m2-u2604-rerun systemd[1]: netplan-ovs-cleanup.service - OpenVSwitch configuration for cleanup skipped, unmet condition check ConditionFileIsExecutable=/usr/bin/ovs-vsctl
+Oct 28 10:24:42.480093 hc-test-m2-u2604-rerun systemd[1]: Stopping systemd-networkd-persistent-storage.service - Enable Persistent Storage in systemd-networkd...
+Oct 28 10:24:42.480105 hc-test-m2-u2604-rerun systemd[1]: systemd-networkd-wait-online.service: Deactivated successfully.
+Oct 28 10:24:42.480110 hc-test-m2-u2604-rerun systemd[1]: Stopped systemd-networkd-wait-online.service - Wait for Network to be Online.
+Oct 28 10:24:42.480115 hc-test-m2-u2604-rerun systemd[1]: Stopping systemd-networkd-wait-online.service - Wait for Network to be Online...
+Oct 28 10:24:42.480123 hc-test-m2-u2604-rerun systemd[1]: systemd-hostnamed.service: Deactivated successfully.
+Oct 28 10:24:42.480133 hc-test-m2-u2604-rerun systemd[1]: Stopped systemd-hostnamed.service - Hostname Service.
+Oct 28 10:24:42.480142 hc-test-m2-u2604-rerun systemd[1]: Starting systemd-hostnamed.service - Hostname Service...
+Oct 28 10:24:42.480149 hc-test-m2-u2604-rerun systemd[1]: Stopping systemd-resolved.service - Network Name Resolution...
+Oct 28 10:24:42.480155 hc-test-m2-u2604-rerun systemd[1]: polkit.service: Deactivated successfully.
+Oct 28 10:24:42.480160 hc-test-m2-u2604-rerun systemd[1]: Stopped polkit.service - Authorization Manager.
+Oct 28 10:24:42.480165 hc-test-m2-u2604-rerun systemd[1]: systemd-journald.service: Deactivated successfully.
+Oct 28 10:24:42.480171 hc-test-m2-u2604-rerun systemd[1]: Stopped systemd-journald.service - Journal Service.
+Oct 28 10:24:42.480175 hc-test-m2-u2604-rerun systemd[1]: systemd-resolved.service: Deactivated successfully.
+Oct 28 10:24:42.480181 hc-test-m2-u2604-rerun systemd[1]: Stopped systemd-resolved.service - Network Name Resolution.
+Oct 28 10:24:42.480185 hc-test-m2-u2604-rerun systemd[1]: systemd-networkd-persistent-storage.service: Deactivated successfully.
+Oct 28 10:24:42.480190 hc-test-m2-u2604-rerun systemd[1]: Stopped systemd-networkd-persistent-storage.service - Enable Persistent Storage in systemd-networkd.
+Oct 28 10:24:42.480196 hc-test-m2-u2604-rerun systemd[1]: Starting systemd-journald.service - Journal Service...
+Oct 28 10:24:42.480202 hc-test-m2-u2604-rerun systemd[1]: Starting polkit.service - Authorization Manager...
+Oct 28 10:24:42.480208 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183082.440:295): apparmor="STATUS" operation="profile_replace" info="same as current profile, skipping" profile="unconfined" name="rsyslogd" pid=14952 comm="apparmor_parser"
+Oct 28 10:24:42.480217 hc-test-m2-u2604-rerun systemd[1]: Stopping systemd-networkd.service - Network Management...
+Oct 28 10:24:42.480222 hc-test-m2-u2604-rerun systemd[1]: Starting systemd-resolved.service - Network Name Resolution...
+Oct 28 10:24:42.480228 hc-test-m2-u2604-rerun systemd[1]: Started systemd-hostnamed.service - Hostname Service.
+Oct 28 10:24:42.480234 hc-test-m2-u2604-rerun systemd[1]: Started ssh.service - OpenBSD Secure Shell server.
+Oct 28 10:24:42.480241 hc-test-m2-u2604-rerun systemd[1]: netplan-ovs-cleanup.service - OpenVSwitch configuration for cleanup skipped, unmet condition check ConditionFileIsExecutable=/usr/bin/ovs-vsctl
+Oct 28 10:24:42.480245 hc-test-m2-u2604-rerun systemd[1]: Stopping udisks2.service - Disk Manager...
+Oct 28 10:24:42.480250 hc-test-m2-u2604-rerun systemd[1]: systemd-networkd.service: Deactivated successfully.
+Oct 28 10:24:42.480255 hc-test-m2-u2604-rerun systemd[1]: Stopped systemd-networkd.service - Network Management.
+Oct 28 10:24:42.480259 hc-test-m2-u2604-rerun systemd[1]: Stopping systemd-udevd.service - Rule-based Manager for Device Events and Files...
+Oct 28 10:24:42.480266 hc-test-m2-u2604-rerun systemd[1]: udisks2.service: Deactivated successfully.
+Oct 28 10:24:42.480271 hc-test-m2-u2604-rerun systemd[1]: Stopped udisks2.service - Disk Manager.
+Oct 28 10:24:42.480275 hc-test-m2-u2604-rerun systemd[1]: Starting udisks2.service - Disk Manager...
+Oct 28 10:24:42.480281 hc-test-m2-u2604-rerun systemd[1]: systemd-udevd.service: Deactivated successfully.
+Oct 28 10:24:42.480284 hc-test-m2-u2604-rerun systemd[1]: Stopped systemd-udevd.service - Rule-based Manager for Device Events and Files.
+Oct 28 10:24:42.480288 hc-test-m2-u2604-rerun systemd[1]: Starting systemd-udevd.service - Rule-based Manager for Device Events and Files...
+Oct 28 10:24:42.480307 hc-test-m2-u2604-rerun systemd-journald[14961]: Collecting audit messages is disabled.
+Oct 28 10:24:42.480324 hc-test-m2-u2604-rerun systemd-journald[14961]: Journal started
+Oct 28 10:24:42.480334 hc-test-m2-u2604-rerun systemd-journald[14961]: System Journal (/var/log/journal/30b2ff8b19824af2bbe6cb9157b40eab) is 16M, max 1.8G, 1.8G free.
+Oct 28 10:24:42.400547 hc-test-m2-u2604-rerun PackageKit[14932]: daemon start
+Oct 28 10:24:42.427052 hc-test-m2-u2604-rerun dbus-daemon[1033]: [system] Activating via systemd: service name='org.freedesktop.PolicyKit1' unit='polkit.service' requested by ':1.200' (uid=0 pid=14932 comm="/usr/libexec/packagekitd" label="unconfined")
+Oct 28 10:24:42.481244 hc-test-m2-u2604-rerun systemd[1]: Started systemd-journald.service - Journal Service.
+Oct 28 10:24:42.447516 hc-test-m2-u2604-rerun sshd[14958]: Server listening on 0.0.0.0 port 22.
+Oct 28 10:24:42.447522 hc-test-m2-u2604-rerun sshd[14958]: Server listening on :: port 22.
+Oct 28 10:24:42.486567 hc-test-m2-u2604-rerun polkitd[14962]: Started polkitd version 127
+Oct 28 10:24:42.494382 hc-test-m2-u2604-rerun systemd[1]: Started rsyslog.service - System Logging Service.
+Oct 28 10:24:42.494784 hc-test-m2-u2604-rerun systemd[1]: Started polkit.service - Authorization Manager.
+Oct 28 10:24:42.494956 hc-test-m2-u2604-rerun dbus-daemon[1033]: [system] Successfully activated service 'org.freedesktop.PolicyKit1'
+Oct 28 10:24:42.496028 hc-test-m2-u2604-rerun systemd[1]: Starting ModemManager.service - Modem Manager...
+Oct 28 10:24:42.497052 hc-test-m2-u2604-rerun rsyslogd[14965]: imuxsock: Acquired UNIX socket '/run/systemd/journal/syslog' (fd 3) from systemd.  [v8.2512.0]
+Oct 28 10:24:42.496445 hc-test-m2-u2604-rerun systemd-resolved[14963]: Positive Trust Anchors:
+Oct 28 10:24:42.497054 hc-test-m2-u2604-rerun rsyslogd[14965]: rsyslogd's groupid changed to 101
+Oct 28 10:24:42.496450 hc-test-m2-u2604-rerun systemd-resolved[14963]: . IN DS 20326 8 2 e06d44b80b8f1d39a95c0b0d7c65d08458e880409bbc683457104237c7f8ec8d
+Oct 28 10:24:42.497055 hc-test-m2-u2604-rerun rsyslogd[14965]: rsyslogd's userid changed to 100
+Oct 28 10:24:42.496451 hc-test-m2-u2604-rerun systemd-resolved[14963]: . IN DS 38696 8 2 683d2d0acb8c9b712a1948b27f741219298d0a450d612c483af444a4c0fb2b16
+Oct 28 10:24:42.497056 hc-test-m2-u2604-rerun rsyslogd[14965]: [origin software="rsyslogd" swVersion="8.2512.0" x-pid="14965" x-info="https://www.rsyslog.com"] start
+Oct 28 10:24:42.496463 hc-test-m2-u2604-rerun systemd-resolved[14963]: Negative trust anchors: home.arpa 10.in-addr.arpa 16.172.in-addr.arpa 17.172.in-addr.arpa 18.172.in-addr.arpa 19.172.in-addr.arpa 20.172.in-addr.arpa 21.172.in-addr.arpa 22.172.in-addr.arpa 23.172.in-addr.arpa 24.172.in-addr.arpa 25.172.in-addr.arpa 26.172.in-addr.arpa 27.172.in-addr.arpa 28.172.in-addr.arpa 29.172.in-addr.arpa 30.172.in-addr.arpa 31.172.in-addr.arpa 170.0.0.192.in-addr.arpa 171.0.0.192.in-addr.arpa 168.192.in-addr.arpa d.f.ip6.arpa ipv4only.arpa resolver.arpa corp home internal intranet lan local private test
+Oct 28 10:24:42.501302 hc-test-m2-u2604-rerun systemd[1]: Started packagekit.service - PackageKit Daemon.
+Oct 28 10:24:42.502322 hc-test-m2-u2604-rerun systemd-udevd[14974]: Using default interface naming scheme 'v259'.
+Oct 28 10:24:42.508987 hc-test-m2-u2604-rerun systemd-resolved[14963]: Using system hostname 'hc-test-m2-u2604-rerun'.
+Oct 28 10:24:42.509382 hc-test-m2-u2604-rerun systemd[1]: Started systemd-resolved.service - Network Name Resolution.
+Oct 28 10:24:42.511519 hc-test-m2-u2604-rerun ModemManager[14997]: <msg> ModemManager (version 1.25.95) starting in system bus...
+Oct 28 10:24:42.515808 hc-test-m2-u2604-rerun systemd[1]: Started ModemManager.service - Modem Manager.
+Oct 28 10:24:42.517451 hc-test-m2-u2604-rerun systemd[1]: Started systemd-udevd.service - Rule-based Manager for Device Events and Files.
+Oct 28 10:24:42.518663 hc-test-m2-u2604-rerun systemd[1]: Starting systemd-networkd.service - Network Management...
+Oct 28 10:24:42.519446 hc-test-m2-u2604-rerun systemd[1]: Started udisks2.service - Disk Manager.
+Oct 28 10:24:42.535263 hc-test-m2-u2604-rerun systemd-networkd[15009]: lo: Link UP
+Oct 28 10:24:42.535385 hc-test-m2-u2604-rerun systemd-networkd[15009]: lo: Gained carrier
+Oct 28 10:24:42.535436 hc-test-m2-u2604-rerun systemd-networkd[15009]: ens2: Link UP
+Oct 28 10:24:42.535476 hc-test-m2-u2604-rerun systemd-networkd[15009]: ens2: Gained carrier
+Oct 28 10:24:42.535561 hc-test-m2-u2604-rerun systemd-networkd[15009]: ens2: Gained IPv6LL
+Oct 28 10:24:42.541464 hc-test-m2-u2604-rerun systemd-networkd[15009]: ens2: Configuring with /run/systemd/network/10-netplan-ens2.network.
+Oct 28 10:24:42.541544 hc-test-m2-u2604-rerun systemd[1]: Started systemd-networkd.service - Network Management.
+Oct 28 10:24:42.543260 hc-test-m2-u2604-rerun systemd[1]: Starting systemd-networkd-persistent-storage.service - Enable Persistent Storage in systemd-networkd...
+Oct 28 10:24:42.543776 hc-test-m2-u2604-rerun systemd[1]: Starting systemd-networkd-wait-online.service - Wait for Network to be Online...
+Oct 28 10:24:42.549276 hc-test-m2-u2604-rerun systemd-networkd[15009]: ens2: DHCPv4 address 192.168.122.64/24, gateway 192.168.122.1 acquired from 192.168.122.1
+Oct 28 10:24:42.550194 hc-test-m2-u2604-rerun systemd[1]: Finished systemd-networkd-persistent-storage.service - Enable Persistent Storage in systemd-networkd.
+Oct 28 10:24:42.558048 hc-test-m2-u2604-rerun systemd-hostnamed[14947]: Hostname set to <hc-test-m2-u2604-rerun> (static)
+Oct 28 10:24:42.558844 hc-test-m2-u2604-rerun systemd[1]: Finished systemd-networkd-wait-online.service - Wait for Network to be Online.
+Oct 28 10:24:44.542998 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183084.541:296): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=15176 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:46.534528 hc-test-m2-u2604-rerun ModemManager[14997]: <msg> [base-manager] couldn't check support for device '/sys/devices/pci0000:00/0000:00:02.0': not supported by any plugin
+Oct 28 10:24:46.880910 hc-test-m2-u2604-rerun kernel: kauditd_printk_skb: 15 callbacks suppressed
+Oct 28 10:24:46.880981 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183086.878:312): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=15452 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:46.880997 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183086.878:313): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=15452 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:46.881110 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183086.879:314): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=15452 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:46.881125 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183086.879:315): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=15452 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:46.946013 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183086.943:316): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=15457 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:46.946090 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183086.943:317): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=15457 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:46.946105 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183086.943:318): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=15457 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:46.946115 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183086.943:319): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=15457 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:46.985815 hc-test-m2-u2604-rerun systemd[1]: Stopping packagekit.service - PackageKit Daemon...
+Oct 28 10:24:46.987396 hc-test-m2-u2604-rerun systemd[1]: packagekit.service: Deactivated successfully.
+Oct 28 10:24:46.987491 hc-test-m2-u2604-rerun systemd[1]: Stopped packagekit.service - PackageKit Daemon.
+Oct 28 10:24:46.988464 hc-test-m2-u2604-rerun systemd[1]: Starting packagekit.service - PackageKit Daemon...
+Oct 28 10:24:46.996930 hc-test-m2-u2604-rerun PackageKit[15465]: daemon start
+Oct 28 10:24:47.005625 hc-test-m2-u2604-rerun systemd[1]: Started packagekit.service - PackageKit Daemon.
+Oct 28 10:24:50.662029 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183090.661:320): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=21514 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:50.662130 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183090.661:321): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=21514 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:52.058224 hc-test-m2-u2604-rerun kernel: kauditd_printk_skb: 6 callbacks suppressed
+Oct 28 10:24:52.058281 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183092.057:328): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=21660 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:52.058288 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183092.057:329): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=21660 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:52.058293 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183092.057:330): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=21660 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:52.058300 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183092.057:331): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=21660 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:52.127706 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183092.126:332): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=21665 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:52.129991 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183092.126:333): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=21665 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:52.130007 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183092.126:334): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=21665 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:52.130013 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183092.126:335): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=21665 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:53.345585 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183093.344:336): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=21798 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:53.345641 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183093.344:337): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=21798 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:53.449510 hc-test-m2-u2604-rerun systemd[1]: Stopping packagekit.service - PackageKit Daemon...
+Oct 28 10:24:53.452239 hc-test-m2-u2604-rerun systemd[1]: packagekit.service: Deactivated successfully.
+Oct 28 10:24:53.452462 hc-test-m2-u2604-rerun systemd[1]: Stopped packagekit.service - PackageKit Daemon.
+Oct 28 10:24:53.453605 hc-test-m2-u2604-rerun systemd[1]: Starting packagekit.service - PackageKit Daemon...
+Oct 28 10:24:53.461782 hc-test-m2-u2604-rerun PackageKit[21811]: daemon start
+Oct 28 10:24:53.470253 hc-test-m2-u2604-rerun systemd[1]: Started packagekit.service - PackageKit Daemon.
+Oct 28 10:24:54.552756 hc-test-m2-u2604-rerun systemd[1]: Stopping ssh.service - OpenBSD Secure Shell server...
+Oct 28 10:24:54.552791 hc-test-m2-u2604-rerun sshd[14958]: Received signal 15; terminating.
+Oct 28 10:24:54.553803 hc-test-m2-u2604-rerun systemd[1]: ssh.service: Deactivated successfully.
+Oct 28 10:24:54.553993 hc-test-m2-u2604-rerun systemd[1]: Stopped ssh.service - OpenBSD Secure Shell server.
+Oct 28 10:24:54.554340 hc-test-m2-u2604-rerun systemd[1]: ssh.socket: Deactivated successfully.
+Oct 28 10:24:54.554491 hc-test-m2-u2604-rerun systemd[1]: Closed ssh.socket - OpenBSD Secure Shell server socket.
+Oct 28 10:24:54.776636 hc-test-m2-u2604-rerun systemd[1]: Started run-p22002-i18894.service - [systemd-run] systemd-stdio-bridge --user --quiet.
+Oct 28 10:24:54.785424 hc-test-m2-u2604-rerun (systemd-stdio-bridge)[22003]: pam_unix(login:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 28 10:24:54.792016 hc-test-m2-u2604-rerun systemd[1]: Started session-13.scope - Session 13 of User hc.
+Oct 28 10:24:54.796207 hc-test-m2-u2604-rerun systemd[2038]: Created slice session.slice - User Core Session Slice.
+Oct 28 10:24:54.796728 hc-test-m2-u2604-rerun systemd[2038]: Starting dbus.service - D-Bus User Message Bus...
+Oct 28 10:24:54.806683 hc-test-m2-u2604-rerun dbus-daemon[22006]: [session uid=1000 pid=22006 pidfd=5] AppArmor D-Bus mediation is enabled
+Oct 28 10:24:54.806909 hc-test-m2-u2604-rerun systemd[2038]: Started dbus.service - D-Bus User Message Bus.
+Oct 28 10:24:54.808339 hc-test-m2-u2604-rerun systemd[2038]: Reload requested from client PID 22003 ('systemd-stdio-b')...
+Oct 28 10:24:54.808366 hc-test-m2-u2604-rerun systemd[2038]: Reloading...
+Oct 28 10:24:54.840046 hc-test-m2-u2604-rerun systemd[2038]: Reloading finished in 31 ms.
+Oct 28 10:24:54.846501 hc-test-m2-u2604-rerun (sd-pam)[22005]: pam_unix(login:session): session closed for user hc
+Oct 28 10:24:54.846567 hc-test-m2-u2604-rerun systemd[1]: run-p22002-i18894.service: Deactivated successfully.
+Oct 28 10:24:54.851409 hc-test-m2-u2604-rerun systemd[1]: session-13.scope: Deactivated successfully.
+Oct 28 10:24:55.080543 hc-test-m2-u2604-rerun systemd[1]: Reload requested from client PID 22107 ('systemctl') (unit apt-daily-upgrade.service)...
+Oct 28 10:24:55.080553 hc-test-m2-u2604-rerun systemd[1]: Reloading...
+Oct 28 10:24:55.144105 hc-test-m2-u2604-rerun systemd[1]: /usr/lib/systemd/system/xfs_scrub_all.service:26: Support for option CPUAccounting= has been removed and it is ignored
+Oct 28 10:24:55.144362 hc-test-m2-u2604-rerun systemd[1]: /usr/lib/systemd/system/system-xfs_scrub.slice:15: Support for option CPUAccounting= has been removed and it is ignored
+Oct 28 10:24:55.207335 hc-test-m2-u2604-rerun systemd[1]: Reloading finished in 126 ms.
+Oct 28 10:24:55.420822 hc-test-m2-u2604-rerun systemd[1]: Reload requested from client PID 22183 ('systemctl') (unit apt-daily-upgrade.service)...
+Oct 28 10:24:55.420837 hc-test-m2-u2604-rerun systemd[1]: Reloading...
+Oct 28 10:24:55.484968 hc-test-m2-u2604-rerun systemd[1]: /usr/lib/systemd/system/xfs_scrub_all.service:26: Support for option CPUAccounting= has been removed and it is ignored
+Oct 28 10:24:55.485260 hc-test-m2-u2604-rerun systemd[1]: /usr/lib/systemd/system/system-xfs_scrub.slice:15: Support for option CPUAccounting= has been removed and it is ignored
+Oct 28 10:24:55.537558 hc-test-m2-u2604-rerun systemd[1]: Reloading finished in 116 ms.
+Oct 28 10:24:55.591026 hc-test-m2-u2604-rerun systemd[1]: sshd-keygen.service - Generate sshd host keys on first boot skipped, unmet condition check ConditionFirstBoot=yes
+Oct 28 10:24:55.594118 hc-test-m2-u2604-rerun systemd[1]: Reload requested from client PID 22251 ('systemctl') (unit apt-daily-upgrade.service)...
+Oct 28 10:24:55.594132 hc-test-m2-u2604-rerun systemd[1]: Reloading...
+Oct 28 10:24:55.662434 hc-test-m2-u2604-rerun systemd[1]: /usr/lib/systemd/system/xfs_scrub_all.service:26: Support for option CPUAccounting= has been removed and it is ignored
+Oct 28 10:24:55.662664 hc-test-m2-u2604-rerun systemd[1]: /usr/lib/systemd/system/system-xfs_scrub.slice:15: Support for option CPUAccounting= has been removed and it is ignored
+Oct 28 10:24:55.713767 hc-test-m2-u2604-rerun systemd[1]: Reloading finished in 119 ms.
+Oct 28 10:24:55.795687 hc-test-m2-u2604-rerun systemd[1]: Listening on ssh.socket - OpenBSD Secure Shell server socket.
+Oct 28 10:24:55.795813 hc-test-m2-u2604-rerun systemd[1]: sshd-keygen.service - Generate sshd host keys on first boot skipped, unmet condition check ConditionFirstBoot=yes
+Oct 28 10:24:57.819914 hc-test-m2-u2604-rerun kernel: kauditd_printk_skb: 14 callbacks suppressed
+Oct 28 10:24:57.820040 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183097.818:352): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=22485 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:57.820053 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183097.819:353): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=22485 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:57.820210 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183097.819:354): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=22485 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:57.820233 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183097.819:355): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=22485 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:57.884168 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183097.883:356): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=22490 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:57.884232 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183097.883:357): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=22490 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:57.884442 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183097.883:358): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/nsswitch.conf" pid=22490 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:57.884464 hc-test-m2-u2604-rerun kernel: audit: type=1400 audit(1793183097.883:359): apparmor="DENIED" operation="open" class="file" profile="who" name="/etc/passwd" pid=22490 comm="who" requested_mask="r" denied_mask="r" fsuid=0 ouid=0
+Oct 28 10:24:57.921591 hc-test-m2-u2604-rerun systemd[1]: Stopping udisks2.service - Disk Manager...
+Oct 28 10:24:57.929117 hc-test-m2-u2604-rerun systemd[1]: udisks2.service: Deactivated successfully.
+Oct 28 10:24:57.929278 hc-test-m2-u2604-rerun systemd[1]: Stopped udisks2.service - Disk Manager.
+Oct 28 10:24:57.930094 hc-test-m2-u2604-rerun systemd[1]: Starting udisks2.service - Disk Manager...
+Oct 28 10:24:57.944436 hc-test-m2-u2604-rerun systemd[1]: Started udisks2.service - Disk Manager.

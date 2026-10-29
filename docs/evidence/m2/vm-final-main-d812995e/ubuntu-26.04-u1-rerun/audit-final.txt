@@ -1,0 +1,13 @@
+# captured 2026-10-29T05:04:27.588150+00:00
+# command: sudo hlctl audit verify --file /var/log/homelab-control-broker/operations.jsonl; sudo hlctl audit verify --file /var/log/homelab-control-broker/broker-audit.jsonl; sudo hlctl audit verify --db /var/lib/homelab-control/state.db; sudo stat -c '%a %U %n' /var/log/homelab-control-broker/operations.jsonl
+# exit_code=0
+records 24 (legacy 0), segments 1, head seq=24 hash=9c915c2c3be274009060fd90760db56221a19228cf716ddf567fb82655451ed3
+note: without --checkpoint a truncated tail or a rolled-back file cannot be detected
+OK: chain verified
+records 112 (legacy 0), segments 1, head seq=112 hash=8e8cecd76c5263950c83796beb96f45753c32a30d34984cc57bf650dd39f8ccf
+note: without --checkpoint a truncated tail or a rolled-back file cannot be detected
+OK: chain verified
+records 54 (legacy 0), segments 1, head seq=54 hash=73304286d7ec58c7d5a2e35e6714a79991bc88829eea3ae6d1e58f5b0cb2686b
+note: without --checkpoint a truncated tail or a rolled-back file cannot be detected
+OK: chain verified
+600 root /var/log/homelab-control-broker/operations.jsonl

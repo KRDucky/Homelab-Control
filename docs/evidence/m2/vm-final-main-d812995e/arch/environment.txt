@@ -1,0 +1,16 @@
+PRETTY_NAME="Arch Linux"
+ID=arch
+BUILD_ID=rolling
+kernel=7.2.11-arch1-1
+virt=kvm
+systemd 262 (262.1-1-arch)
+lsm=capability,landlock,lockdown,yama,bpf
+package=homelab-control 0.d812995e-1 sha256=92ae3067c93dd18dcda0253bb5ddb8cf6c3ea3894b5a4e14941d2e05d05f330c
+marker=present
+perl 5.44.0-1
+curl 8.23.0-1
+python 3.14.8-1
+iproute2 7.3.0-1
+procps-ng 4.0.7-1
+sudo 1.9.17.p2-6
+openssh 10.6p1-2

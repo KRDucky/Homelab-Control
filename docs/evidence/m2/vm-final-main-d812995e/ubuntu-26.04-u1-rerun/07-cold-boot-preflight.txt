@@ -1,0 +1,26 @@
+# cold boot from pre-final-main-updated-20261028 — 2026-10-28T11:17:55Z
+pre-final-main-updated-20261028
+Domain 'hc-test-m2-u2604-rerun' started
+
+uptime=9.16 kernel=7.0.0-42-generic boot_id=1681ca99-7e98-416a-925c-54dc248d8bc7
+systemd 259 (259.9-0ubuntu0.1)
+marker=present
+running
+== ssh
+ActiveState=active
+MainPID=903
+port-22 listeners: 2
+== timers
+NEXT                            LEFT LAST                        PASSED UNIT                    ACTIVATES
+Wed 2026-10-28 14:09:11 UTC 2h 51min Wed 2026-10-28 04:15:57 UTC      - apt-daily.timer         apt-daily.service
+Thu 2026-10-29 06:15:40 UTC      18h Wed 2026-10-28 11:17:06 UTC      - apt-daily-upgrade.timer apt-daily-upgrade.service
+
+2 timers listed.
+== package-manager processes (ps, excluding this shell)
+    955 /usr/bin/python3 /usr/share/unattended-upgrades/unattended-upgrade-shutdown --wait-for-signal
+no apt/dpkg locks held
+reboot-required: no
+dpkg-query: no packages found matching homelab-control
+NTPSynchronized=no
+TimeUSec=Wed 2026-10-28 11:18:05 UTC
+host utc: 2026-10-28T11:18:06Z
