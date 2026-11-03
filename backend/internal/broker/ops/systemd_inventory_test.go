@@ -5,6 +5,7 @@
 package ops
 
 import (
+	"fmt"
 	. "homelab-control/backend/internal/broker/types"
 	"os"
 	"reflect"
@@ -96,5 +97,47 @@ func TestUnitFileInventoryRejectsInvalidNamesAndStates(t *testing.T) {
 	}
 	if len(files) != 1 || files["valid.service"].State != "static" {
 		t.Fatalf("unexpected files: %+v", files)
+	}
+}
+
+// Synthetic, test-only names. Runtime units sort after file-only ones, so a
+// plain name-order cut would drop runtime observations first.
+func TestInventoryCapKeepsRuntimeUnitsBeforeFileOnlyEntries(t *testing.T) {
+	var loaded []Unit
+	for i := 0; i < maxUnits-10; i++ {
+		loaded = append(loaded, Unit{Name: fmt.Sprintf("z-run-%04d.service", i), Type: "service", Load: "loaded", Active: "active", Sub: "running"})
+	}
+	loaded = append(loaded, Unit{Name: "zz-failed.service", Type: "service", Load: "loaded", Active: "failed", Sub: "failed"})
+	files := map[string]rawUnitFile{}
+	for i := 0; i < 100; i++ {
+		files[fmt.Sprintf("a-file-%04d.service", i)] = rawUnitFile{State: "disabled"}
+	}
+	merged := mergeUnitInventory(loaded, files)
+	if len(merged) != maxUnits-10+1+100 {
+		t.Fatalf("merged %d units", len(merged))
+	}
+	got, truncated := capInventory(merged, maxUnits)
+	if !truncated || len(got) != maxUnits {
+		t.Fatalf("cap: truncated=%v len=%d", truncated, len(got))
+	}
+	runtime, fileOnly := 0, 0
+	for i, u := range got {
+		if i > 0 && got[i-1].Name >= u.Name {
+			t.Fatalf("not name-sorted at %d: %s >= %s", i, got[i-1].Name, u.Name)
+		}
+		if u.Load == fileOnlyLoad {
+			fileOnly++
+		} else {
+			runtime++
+		}
+	}
+	if runtime != maxUnits-10+1 || fileOnly != 9 {
+		t.Fatalf("kept runtime=%d fileOnly=%d; want every runtime unit and 9 file-only", runtime, fileOnly)
+	}
+	if got[len(got)-1].Name != "zz-failed.service" || got[0].Name != "a-file-0000.service" || got[8].Name != "a-file-0008.service" {
+		t.Fatalf("unexpected kept boundary: first=%s ninth=%s last=%s", got[0].Name, got[8].Name, got[len(got)-1].Name)
+	}
+	if small, tr := capInventory(merged[:3], maxUnits); tr || len(small) != 3 {
+		t.Fatalf("under the cap: truncated=%v len=%d", tr, len(small))
 	}
 }

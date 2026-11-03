@@ -166,7 +166,7 @@ components:
             reason: { type: string }
         capabilities: { type: array, items: { $ref: '#/components/schemas/Capability' } }
     UnitList:
-      description: Runtime units plus installed unit files. File-only entries use load not-loaded and active/sub unknown; enablement does not establish runtime state.
+      description: Runtime units plus installed unit files. File-only entries use load not-loaded and active/sub unknown; enablement does not establish runtime state. counts are keyed by active state (including unknown) plus failed_total, over all units before truncation; truncation keeps runtime units before file-only entries. If list-unit-files fails, file-only entries are omitted.
       type: object
       required: [units, counts, truncated, source]
       properties:

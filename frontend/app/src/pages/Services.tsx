@@ -279,8 +279,11 @@ export function Services({
                   {
                     id: 'logs',
                     label: 'Logs',
+                    // services.unit.logs accepts only units list-units reports, so
+                    // neither missing units nor installed-only files (not-loaded) get a button.
                     render: (u: Unit) =>
-                      u.load !== 'not-found' && (
+                      u.load !== 'not-found' &&
+                      u.load !== 'not-loaded' && (
                         <button
                           type="button"
                           className="ghost small"

@@ -20,10 +20,15 @@ The Services inventory combines systemd's runtime list with its installed unit-f
 Installed units absent from the runtime list appear as **not-loaded**, with **unknown** active
 and substate and their reported enablement state. This includes aliases and template files;
 their presence does not prove they are running, inactive, or usable as service instances.
+An alias is listed under its own name even when the unit it points to is running, so for example a
+`dbus-org.freedesktop.*` alias shows **not-loaded**/**unknown** next to its running target.
 Runtime observations take precedence when a unit appears in both lists. Inventory does not load
-units or query every unit individually. Installed-only entries have no Start/Stop/Restart buttons;
-existing operation authorization and protected-unit checks remain unchanged.
-If unit-file listing is unavailable, runtime inventory remains available without that enrichment.
+units or query every unit individually. Installed-only entries have no Start/Stop/Restart or Logs
+buttons (logs are read only for units systemd currently lists); existing operation authorization and
+protected-unit checks remain unchanged. If the list would exceed 5,000 units, runtime units are kept
+before installed-only entries.
+If unit-file listing fails, the runtime list is still shown, but installed-only units are then
+**omitted** and the “At boot” column shows “—”: the list is not complete in that case.
 
 ## Who can use it
 
