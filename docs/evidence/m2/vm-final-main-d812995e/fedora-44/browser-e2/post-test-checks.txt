@@ -1,0 +1,14 @@
+# post-browser checks — 2026-10-28T10:42:58Z
+sshd.service: ActiveState=active SubState=running MainPID=1035 
+sshd.service / ssh socket events since 2026-10-28 10:37:07 UTC:
+  none
+== MAC denials since 2026-10-28 10:37:07 UTC
+count=0
+== operations journal
+records 15 (legacy 0), segments 1, head seq=15 hash=d97b92422e7d993580466d26bcaa3d14331e03bbcd4fd9c485a243738054642e
+note: without --checkpoint a truncated tail or a rolled-back file cannot be detected
+OK: chain verified
+600 root /var/log/homelab-control-broker/operations.jsonl
+bash: line 1: /var/log/homelab-control-broker/operations.jsonl: Permission denied
+== API loopback only
+LISTEN 0      4096   127.0.0.1:9180 0.0.0.0:*

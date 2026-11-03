@@ -1,0 +1,6 @@
+Documentation evidence copy verification, 2026-10-29
+181 copied files byte-identical to original local evidence.
+Execution tooling excluded; no original source evidence was edited.
+Text secret scan: private keys, GitHub tokens, credential assignments, bearer tokens and session cookies; zero findings.
+PNG screenshots retained from the previously scanned archive; source scan records B06 empty password field and B14 no secrets.
+Original source manifest preserved separately; current SHA256SUMS covers this copy.

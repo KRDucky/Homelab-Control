@@ -1,0 +1,123 @@
+# captured 2026-10-29T05:04:28.002620+00:00
+# command: systemctl show -p Id,Names,ActiveState,SubState,MainPID ssh.service ssh.socket; sudo journalctl -b -u ssh.service -u ssh.socket --no-pager; echo SSH-AUTHENTICATED-OK
+# exit_code=0
+Id=ssh.service
+Names=ssh.service sshd.service
+ActiveState=active
+SubState=running
+MainPID=916
+
+Id=ssh.socket
+Names=ssh.socket
+ActiveState=active
+SubState=running
+Oct 29 04:57:20 hc-test-m2-u2604-rerun systemd[1]: Listening on ssh.socket - OpenBSD Secure Shell server socket.
+Oct 29 04:57:20 hc-test-m2-u2604-rerun systemd[1]: Starting ssh.service - OpenBSD Secure Shell server...
+Oct 29 04:57:21 hc-test-m2-u2604-rerun sshd[916]: Server listening on 0.0.0.0 port 22.
+Oct 29 04:57:21 hc-test-m2-u2604-rerun systemd[1]: Started ssh.service - OpenBSD Secure Shell server.
+Oct 29 04:57:21 hc-test-m2-u2604-rerun sshd[916]: Server listening on :: port 22.
+Oct 29 04:57:24 hc-test-m2-u2604-rerun sshd-session[1173]: Accepted publickey for hc from 192.168.122.1 port 43656 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:57:24 hc-test-m2-u2604-rerun sshd-session[1173]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:57:25 hc-test-m2-u2604-rerun sshd-session[1173]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:57:44 hc-test-m2-u2604-rerun sshd-session[1347]: Accepted publickey for hc from 192.168.122.1 port 57820 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:57:44 hc-test-m2-u2604-rerun sshd-session[1347]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:57:44 hc-test-m2-u2604-rerun sshd-session[1347]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:20 hc-test-m2-u2604-rerun sshd-session[1451]: Accepted publickey for hc from 192.168.122.1 port 60872 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:20 hc-test-m2-u2604-rerun sshd-session[1451]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:20 hc-test-m2-u2604-rerun sshd-session[1451]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1542]: Accepted publickey for hc from 192.168.122.1 port 60888 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1542]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1542]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1593]: Accepted publickey for hc from 192.168.122.1 port 60898 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1593]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1593]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1644]: Accepted publickey for hc from 192.168.122.1 port 60906 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1644]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1644]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1701]: Accepted publickey for hc from 192.168.122.1 port 60916 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1701]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1701]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1779]: Connection closed by 192.168.122.1 port 60932
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1780]: Accepted publickey for hc from 192.168.122.1 port 60942 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1780]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:23 hc-test-m2-u2604-rerun sshd-session[1844]: Accepted publickey for hc from 192.168.122.1 port 60946 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:23 hc-test-m2-u2604-rerun sshd-session[1844]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:30 hc-test-m2-u2604-rerun sshd-session[1931]: Accepted publickey for hc from 192.168.122.1 port 42634 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:30 hc-test-m2-u2604-rerun sshd-session[1931]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:30 hc-test-m2-u2604-rerun sshd-session[1931]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:30 hc-test-m2-u2604-rerun sshd-session[1994]: Accepted publickey for hc from 192.168.122.1 port 42646 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:30 hc-test-m2-u2604-rerun sshd-session[1994]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:30 hc-test-m2-u2604-rerun sshd-session[1994]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:32 hc-test-m2-u2604-rerun sshd-session[2051]: Accepted publickey for hc from 192.168.122.1 port 42660 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:32 hc-test-m2-u2604-rerun sshd-session[2051]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:32 hc-test-m2-u2604-rerun sshd-session[2051]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:33 hc-test-m2-u2604-rerun sshd-session[2107]: Accepted publickey for hc from 192.168.122.1 port 42672 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:33 hc-test-m2-u2604-rerun sshd-session[2107]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:33 hc-test-m2-u2604-rerun sshd-session[2107]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:35 hc-test-m2-u2604-rerun sshd-session[2163]: Accepted publickey for hc from 192.168.122.1 port 42676 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:35 hc-test-m2-u2604-rerun sshd-session[2163]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:35 hc-test-m2-u2604-rerun sshd-session[2163]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:37 hc-test-m2-u2604-rerun sshd-session[2226]: Accepted publickey for hc from 192.168.122.1 port 42686 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:37 hc-test-m2-u2604-rerun sshd-session[2226]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:37 hc-test-m2-u2604-rerun sshd-session[2226]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:40 hc-test-m2-u2604-rerun sshd-session[2290]: Accepted publickey for hc from 192.168.122.1 port 58524 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:40 hc-test-m2-u2604-rerun sshd-session[2290]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:40 hc-test-m2-u2604-rerun sshd-session[2290]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:40 hc-test-m2-u2604-rerun sshd-session[2344]: Accepted publickey for hc from 192.168.122.1 port 58530 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:40 hc-test-m2-u2604-rerun sshd-session[2344]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:40 hc-test-m2-u2604-rerun sshd-session[2344]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:00:56 hc-test-m2-u2604-rerun sshd-session[2433]: Accepted publickey for hc from 192.168.122.1 port 36914 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:00:56 hc-test-m2-u2604-rerun sshd-session[2433]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:00:56 hc-test-m2-u2604-rerun sshd-session[2433]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:00:56 hc-test-m2-u2604-rerun sshd-session[2493]: Accepted publickey for hc from 192.168.122.1 port 36930 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:00:56 hc-test-m2-u2604-rerun sshd-session[2493]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:00:56 hc-test-m2-u2604-rerun sshd-session[2493]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:00:56 hc-test-m2-u2604-rerun sshd-session[2547]: Accepted publickey for hc from 192.168.122.1 port 36944 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:00:56 hc-test-m2-u2604-rerun sshd-session[2547]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:00:56 hc-test-m2-u2604-rerun sshd-session[2547]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:00:57 hc-test-m2-u2604-rerun sshd-session[2602]: Accepted publickey for hc from 192.168.122.1 port 36950 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:00:57 hc-test-m2-u2604-rerun sshd-session[2602]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:00:57 hc-test-m2-u2604-rerun sshd-session[2602]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:00:58 hc-test-m2-u2604-rerun sshd-session[2654]: Accepted publickey for hc from 192.168.122.1 port 36960 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:00:58 hc-test-m2-u2604-rerun sshd-session[2654]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:00:58 hc-test-m2-u2604-rerun sshd-session[2654]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:04:07 hc-test-m2-u2604-rerun sshd-session[2746]: Accepted publickey for hc from 192.168.122.1 port 34342 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:04:07 hc-test-m2-u2604-rerun sshd-session[2746]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:04:07 hc-test-m2-u2604-rerun sshd-session[2746]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:04:09 hc-test-m2-u2604-rerun sshd-session[2814]: Accepted publickey for hc from 192.168.122.1 port 34358 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:04:09 hc-test-m2-u2604-rerun sshd-session[2814]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:04:09 hc-test-m2-u2604-rerun sshd-session[2814]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:04:12 hc-test-m2-u2604-rerun sshd-session[2878]: Accepted publickey for hc from 192.168.122.1 port 34368 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:04:12 hc-test-m2-u2604-rerun sshd-session[2878]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:04:12 hc-test-m2-u2604-rerun sshd-session[2878]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:04:15 hc-test-m2-u2604-rerun sshd-session[2947]: Accepted publickey for hc from 192.168.122.1 port 42560 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:04:15 hc-test-m2-u2604-rerun sshd-session[2947]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:04:15 hc-test-m2-u2604-rerun sshd-session[2947]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:04:17 hc-test-m2-u2604-rerun sshd-session[2998]: Accepted publickey for hc from 192.168.122.1 port 42568 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:04:17 hc-test-m2-u2604-rerun sshd-session[2998]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:04:17 hc-test-m2-u2604-rerun sshd-session[2998]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:04:18 hc-test-m2-u2604-rerun sshd-session[3059]: Accepted publickey for hc from 192.168.122.1 port 42576 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:04:18 hc-test-m2-u2604-rerun sshd-session[3059]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:04:18 hc-test-m2-u2604-rerun sshd-session[3059]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:04:18 hc-test-m2-u2604-rerun sshd-session[3137]: Accepted publickey for hc from 192.168.122.1 port 42590 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:04:18 hc-test-m2-u2604-rerun sshd-session[3137]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:04:18 hc-test-m2-u2604-rerun sshd-session[3137]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:04:18 hc-test-m2-u2604-rerun sshd-session[3187]: Connection closed by 192.168.122.1 port 42600
+Oct 29 05:04:26 hc-test-m2-u2604-rerun sshd-session[3189]: Accepted publickey for hc from 192.168.122.1 port 51000 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:04:26 hc-test-m2-u2604-rerun sshd-session[3189]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:04:27 hc-test-m2-u2604-rerun sshd-session[3189]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:04:27 hc-test-m2-u2604-rerun sshd-session[3257]: Accepted publickey for hc from 192.168.122.1 port 51004 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:04:27 hc-test-m2-u2604-rerun sshd-session[3257]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:04:27 hc-test-m2-u2604-rerun sshd-session[3257]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:04:27 hc-test-m2-u2604-rerun sshd-session[3350]: Accepted publickey for hc from 192.168.122.1 port 51008 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:04:27 hc-test-m2-u2604-rerun sshd-session[3350]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:04:27 hc-test-m2-u2604-rerun sshd-session[3350]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:04:27 hc-test-m2-u2604-rerun sshd-session[3424]: Accepted publickey for hc from 192.168.122.1 port 51024 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:04:27 hc-test-m2-u2604-rerun sshd-session[3424]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:04:27 hc-test-m2-u2604-rerun sshd-session[3424]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:04:27 hc-test-m2-u2604-rerun sshd-session[3477]: Accepted publickey for hc from 192.168.122.1 port 51026 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:04:27 hc-test-m2-u2604-rerun sshd-session[3477]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:04:27 hc-test-m2-u2604-rerun sshd-session[3477]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:04:27 hc-test-m2-u2604-rerun sshd-session[3532]: Accepted publickey for hc from 192.168.122.1 port 51032 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:04:27 hc-test-m2-u2604-rerun sshd-session[3532]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+SSH-AUTHENTICATED-OK

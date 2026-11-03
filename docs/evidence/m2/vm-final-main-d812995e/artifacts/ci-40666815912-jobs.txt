@@ -1,0 +1,21 @@
+success	upstream-perl-tests
+success	check
+success	systemd-ubuntu
+success	browser-e2e
+success	systemd-ubuntu-2604
+success	arch-package
+success	upgrade-ubuntu
+success	release-dry-run / build (a)
+success	release-dry-run / build (b)
+success	install-matrix (debian:oldstable, deb, apt-get update && apt-get install -y curl)
+success	install-matrix (ubuntu:24.04, deb, apt-get update && apt-get install -y curl)
+success	install-matrix (debian:stable, deb, apt-get update && apt-get install -y curl)
+success	install-matrix (ubuntu:26.04, deb, apt-get update && apt-get install -y curl)
+success	install-matrix (ubuntu:22.04, deb, apt-get update && apt-get install -y curl)
+success	install-matrix (opensuse/leap:latest, rpm, zypper -n in curl util-linux shadow findutils)
+success	install-matrix (fedora:latest, rpm, dnf install -y curl util-linux shadow-utils findutils)
+success	install-matrix (opensuse/tumbleweed, rpm, zypper -n in curl util-linux shadow findutils)
+success	install-matrix (archlinux:latest, zst, pacman -Syu --noconfirm --needed curl util-linux)
+success	release-dry-run / arch (a)
+success	release-dry-run / arch (b)
+success	release-dry-run / verify

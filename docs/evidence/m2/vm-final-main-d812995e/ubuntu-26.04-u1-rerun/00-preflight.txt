@@ -1,0 +1,33 @@
+# U1 rerun preflight — 2026-10-28T11:12:17Z on cachyos-um890
+uuid=30b2ff8b-1982-4af2-bbe6-cb9157b40eab (expected 30b2ff8b-1982-4af2-bbe6-cb9157b40eab)
+State:          shut off
+Persistent:     yes
+Autostart:      disable
+Autostart Once: disable
+ Type   Device   Target   Source
+------------------------------------------------------------------------------------
+ file   disk     vda      /var/lib/libvirt/hc-test/hc-test-m2-u2604-rerun.qcow2
+ file   cdrom    hda      /var/lib/libvirt/hc-test/hc-test-m2-u2604-rerun-seed.iso
+
+<path>/var/lib/libvirt/hc-test/hc-test-base-ubuntu-26.04.qcow2</path>
+== snapshots
+ Name                             Creation Time               State     Parent
+--------------------------------------------------------------------------------
+ post-ssh-stop-failure-20261028   2026-10-28 05:28:33 -0500   running   pre-m2
+ pre-final-main-20261028          2026-10-28 05:20:07 -0500   running   pre-m2
+ pre-m2                           2026-10-27 23:17:08 -0500   running   
+
+meta post-ssh-stop-failure-20261028 867f72188b958dba state=<state>running</state>
+meta pre-final-main-20261028 dbed618e93b815e6 state=<state>running</state>
+meta pre-m2 e6fba74840b9512c state=<state>running</state>
+== storage
+Allocation:     947.74 GiB
+Available:      881.28 GiB
+Allocation:     11.64 GiB
+== other guests untouched (state only)
+hc-test-m2-f44-rerun shut off autostart=disable
+hc-test-m2-arch-20261028 shut off autostart=disable
+== U1 evidence preserved
+11
+a9598c199f42f436dd129afde69ea4e64e709809d15801e8a466cd8972396007  .dev/m2-vm/final-main-validation-20261028.tar.zst
+a9598c199f42f436dd129afde69ea4e64e709809d15801e8a466cd8972396007  final-main-validation-20261028.tar.zst

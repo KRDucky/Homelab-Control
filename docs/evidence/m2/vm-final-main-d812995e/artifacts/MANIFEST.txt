@@ -1,0 +1,21 @@
+# Artifact manifest — CI run 40666815912 (workflow ci, event push, branch main, head d812995e3f9e0a5ca3c12f34991c035b01e121e5, conclusion success 21/21)
+# GitHub artifact digests are of the ZIP container, not of the packages.
+
+artifact build id=12807130547 zip-digest=sha256:6e9022973c964a83287d11841deb764452b7f038952b7bc95e60c2de7f371be1 (local zip sha256 matches)
+artifact arch-package id=12806179769 zip-digest=sha256:68320cc645825587c841c23d6fefe99404a01af9566208d9d7bd0064bcd5704a (local zip sha256 matches)
+
+## package sha256 (extracted)
+53c2a5dc0c3a2be700d5993643f238b713328b15a779c33afa44dd2dad5b5a54  build/homelab-control_0.1.0+dev.1+52+gd812995e_amd64.deb
+9e65a979e97fd0d6256c83a9eb180d35bb889db317616148eae0ec35afa3b5da  build/homelab-control-0.1.0-0.m1.v0_1_0_dev_1_52_gd812995e.x86_64.rpm
+92ae3067c93dd18dcda0253bb5ddb8cf6c3ea3894b5a4e14941d2e05d05f330c  arch/homelab-control-0.d812995e-1-x86_64.pkg.tar.zst
+
+## loose binaries (build/SHA256SUMS verified OK)
+26342f99d0e628ad24b8c50c6abdf95a2ee97956240d4854724eb9c42127bef0  hc-api
+a34f460450901650db2513fc5a7608800d15f89f4c20fbdeeb00dd9ab125c048  hc-broker
+eb0c70455e4635ca333eed44847c105f76f6622b440dd765bdc032e3cc4aa72d  hlctl
+
+## source check at d812995e
+264:	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
+296:	attr := &syscall.SysProcAttr{Setsid: true}
+Package-embedded broker binary: DEB and Arch = a34f4604… (identical to build/hc-broker); RPM = 6bbda42b… (rpmbuild rebuild; same pattern as CI #87 and PR #31 RPM). All three carry version v0.1.0-dev.1-52-gd812995e and the runner.childSysProcAttr / runner.errnoClass functions (Setsid build).
+Not reused: CI #87 packages, PR #31-only RPM (ci-40641017846).

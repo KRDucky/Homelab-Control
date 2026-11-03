@@ -1,6 +1,6 @@
-# Current status — M2-2 (service start/stop/restart) merged 2026-10-26, E2 outstanding; Phase 1 release, M2 PR-1 and HCIS merged (updated 2026-10-27)
+# Current status — M2-2 E2/E4 closed by owner 2026-10-29; M2-3 not authorized
 
-Reconciled against `main` at `a3447efa` (the merge commit of PR #28). "Merged" means a merge commit in
+Current closeout verified against `main` at `d812995e` (CI 40666815912, 21/21). The original PR #28 history below remains dated to its inspection. "Merged" means a merge commit in
 `main`'s first-parent history (PR #27 is the one exception, described below); dates are from the merge-commit
 timestamps. "CI n/n" is the number of GitHub Actions check runs that succeeded out of those run on the PR's
 head commit, read from GitHub on 2026-10-25 for PRs #5–#24 (it is not a statement about later commits). For
@@ -43,17 +43,18 @@ head; `a3447efa` is the merge commit, whose tree is identical to `987ba011`'s. `
     24.04 (runner) and 26.04 (container) and the service-operations dialog test on Chromium, Firefox and
     WebKit. **Individual job conclusions and logs were not seen**, so execution of those particular checks in
     CI is not verified. The expiry waits (`HC_M2_LONG`) are not configured in CI, and CI has no non-Debian
-    real-systemd job; that evidence is container-only.
+    real-systemd job; that evidence was then container-only; later KVM runs include both expiry waits.
+  - **Later KVM closeout:** [combined-main evidence](evidence/m2/vm-final-main-d812995e/README.md): Ubuntu/Fedora/Arch extended scenario 89/0, 89/0, 88/0; smoke/M1 67/0 and browser B1–B15 15/15 each; E4 1.6/1.5. E2/E4 closed by owner 2026-10-29.
   - **Binding checklist (`docs/m2/M2-SECURITY-ACCEPTANCE.md`: every item in §1–§3 must pass before merge):**
     PR #28 was merged while E2 had no evidence and E4's required VM evidence was missing (only a container
-    check exists). No evidence is linked in the PR description; other locations (comments, linked discussions)
-    were not inspected, and no review was submitted on the PR page (review elsewhere is not verified). No owner
-    exception to that condition is recorded in the repository. By the owner's decision of 2026-10-27 (message
+    check existed). No evidence was linked in the PR description; other locations (comments, linked discussions)
+    were not inspected, and no review was submitted on the PR page (review elsewhere is not verified). No contemporaneous owner
+    exception to that pre-merge condition was recorded. By the owner's decision of 2026-10-27 (message
     "HomeControl — Documentation Reconciliation Decisions", 00:38 America/Chicago, after the merge; quoted in
-    `docs/m2/M2-2-ACCEPTANCE.md`), **E2 is deferred, not waived and not passed**, and is required before
+    `docs/m2/M2-2-ACCEPTANCE.md`), **E2 was deferred, not waived and not passed at that time**, and is required before
     `services.operate` is enabled in a real deployment. That decision names E2 only; it does not make any
     criterion pass.
-- **Latest CI on `main`:** ci #85 concluded success overall.
+- **Latest validated CI on `main`:** run 40666815912 at `d812995e`: 21/21 successful job conclusions. Corrections #31 (Setsid/diagnostics), #32 (process-group test) and #30 (H3 cleanup/Webmin fixture) are merged. The original CI discussion above concerns older runs.
 
 ## UI foundation continuation (2026-10-25, merged in PR #24)
 
@@ -256,9 +257,12 @@ The owner authorized completing the remaining frontend and adding a user Theme D
 - **2026-10-27 (post-M2-2 documentation reconciliation; owner message "HomeControl — Documentation Reconciliation
   Decisions", 00:38 America/Chicago; quoted in `docs/m2/M2-2-ACCEPTANCE.md`):** acceptance item E2
   (workstation-VM browser validation) is **deferred, not waived**, and is required before `services.operate`
-  is enabled in a real deployment; it is not described as passed anywhere. The decision names E2 only. M2-3 and
+  is enabled in a real deployment; it was not accepted at that time. The decision names E2 only. M2-3 and
   later milestones remain unauthorized. Failed CI run #80 is recorded in the merged-work history only; its cause
-  is unknown, and the latest run on `main` (ci #85) concluded success.
+  is unknown, and ci #85 then concluded success.
+
+- **2026-10-27 (later owner validation instructions):** E2 accepted on the owner's Ubuntu KVM run; W1 owner review/sign-off accepted. Non-Debian validation was still deferred.
+- **2026-10-29:** owner approved closing E2/E4 on the final combined-main KVM evidence and preparing this documentation PR. Production permission remains a separate decision; M2-3 remains unauthorized. See [decision register](m2/OWNER-DECISIONS.md).
 
 ## Verified on the owner's workstation VM (2026-10-16, product code `738fa37b`)
 Ubuntu 26.04.1 KVM guest, systemd 259.5 (`dev/vm/`, evidence `docs/evidence/m1/vm-26.04/`):
@@ -268,15 +272,9 @@ browser e2e **25/25**, axe WCAG 2.1 A/AA **0 violations** on 4 pages, final remo
 CI run 38866773032 on the same commit: all 15 jobs green.
 
 ## Outstanding external validation (not verified)
-- **E2:** M2-2 on the owner's workstation VM through a browser (Ubuntu 26.04 and one non-Debian family).
-  Outstanding: deferred by the owner on 2026-10-27, not waived, not passed; required before
-  `services.operate` is enabled in a real deployment.
-- **E4:** `systemd-analyze security` on a VM (the criterion asks for VM evidence); only the container check
-  has passed.
-- Individual CI job conclusions and logs for M2-2 (not visible on the public run pages).
-- M2-2 under real systemd on Debian, openSUSE and Arch; the service-operation dialog with a screen
-  reader and Windows High Contrast; Firefox run locally.
-- VM runs for distributions other than Ubuntu 26.04 (held until requested; 26.04 passed first).
+- Debian and openSUSE M2-2 real-systemd validation; optional second browser engine B16; screen reader and Windows High Contrast checks.
+- Historical CI job logs for the original M2-2 runs were not inspected. Later 21/21 job conclusions are recorded separately.
+- P1 unloaded-unit inventory, H1/H2 VM tooling and optional dedicated SELinux confinement remain separate work.
 - Upstream Webmin 2.680 not released; ~25 unreleased upstream security fixes since 2.670 — see
   `docs/security/WEBMIN-2.670-UPSTREAM-FIXES.md` (mitigations: RPC off, loopback bind, trusted admins).
 
@@ -284,7 +282,7 @@ CI run 38866773032 on the same commit: all 15 jobs green.
 Items 1, 3 and 4 are addressed for service start/stop/restart by ADR 0011 (plan tokens, revalidation,
 locks, step-up, strict arguments); item 2 by the operation journal. The residual limitation of item 1
 (a compromised `hc-api` can request any operation the broker's policy allows) is accepted and
-documented in ADR 0011. E2 (VM validation) is outstanding. The original list is kept below for
+documented in ADR 0011. E2/E4 VM validation is now closed by the owner on 2026-10-29. The original list is kept below for
 reference.
 
 1. **Broker trust:** a compromised hc-api can call every registered broker op. Safe today only because all

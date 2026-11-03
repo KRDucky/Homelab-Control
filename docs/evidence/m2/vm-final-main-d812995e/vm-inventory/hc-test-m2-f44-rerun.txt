@@ -1,0 +1,43 @@
+Id:             6
+Name:           hc-test-m2-f44-rerun
+UUID:           680a5cf9-7e36-48be-8cc7-e63775acb2ce
+OS Type:        hvm
+State:          running
+CPU(s):         2
+CPU time:       129.3s
+Max memory:     4194304 KiB
+Used memory:    4194304 KiB
+Persistent:     yes
+Autostart:      disable
+Autostart Once: disable
+Managed save:   no
+Security model: none
+Security DOI:   0
+
+ Type   Device   Target   Source
+----------------------------------------------------------------------------------
+ file   disk     vda      /var/lib/libvirt/hc-test/hc-test-m2-f44-rerun.qcow2
+ file   cdrom    hda      /var/lib/libvirt/hc-test/hc-test-m2-f44-rerun-seed.iso
+
+ Interface   Type      Source    Model    MAC
+-------------------------------------------------------------
+ vnet5       network   default   virtio   52:54:00:29:e6:bd
+
+ Target   Capacity      Allocation    Physical
+---------------------------------------------------
+ vda      20.000 GiB    7.361 GiB     7.362 GiB
+ hda      366.000 KiB   368.000 KiB   366.000 KiB
+
+## snapshots
+pre-m2
+  |
+  +- post-fix-validation
+  +- post-p2-failure
+    
+
+ Name                  Creation Time               State     Parent
+---------------------------------------------------------------------
+ post-fix-validation   2026-10-28 02:08:46 -0500   running   pre-m2
+ post-p2-failure       2026-10-27 23:48:10 -0500   running   pre-m2
+ pre-m2                2026-10-27 23:21:14 -0500   running   
+

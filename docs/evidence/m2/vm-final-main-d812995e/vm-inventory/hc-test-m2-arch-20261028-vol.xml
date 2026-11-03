@@ -1,0 +1,41 @@
+<volume type='file'>
+  <name>hc-test-m2-arch-20261028.qcow2</name>
+  <key>/var/lib/libvirt/hc-test/hc-test-m2-arch-20261028.qcow2</key>
+  <capacity unit='bytes'>21474836480</capacity>
+  <allocation unit='bytes'>5566517248</allocation>
+  <physical unit='bytes'>5566824448</physical>
+  <target>
+    <path>/var/lib/libvirt/hc-test/hc-test-m2-arch-20261028.qcow2</path>
+    <format type='qcow2'/>
+    <permissions>
+      <mode>0600</mode>
+      <owner>947</owner>
+      <group>947</group>
+    </permissions>
+    <timestamps>
+      <atime>1793163831.029960462</atime>
+      <mtime>1793182696.694876510</mtime>
+      <ctime>1793182696.694876510</ctime>
+      <btime>0</btime>
+    </timestamps>
+    <compat>1.1</compat>
+    <clusterSize unit='B'>65536</clusterSize>
+    <features/>
+  </target>
+  <backingStore>
+    <path>/var/lib/libvirt/hc-test/hc-test-base-arch-20261015.611680.qcow2</path>
+    <format type='qcow2'/>
+    <permissions>
+      <mode>0600</mode>
+      <owner>947</owner>
+      <group>947</group>
+    </permissions>
+    <timestamps>
+      <atime>1793163830.309955322</atime>
+      <mtime>1793163830.553957063</mtime>
+      <ctime>1793163831.244961996</ctime>
+      <btime>0</btime>
+    </timestamps>
+  </backingStore>
+</volume>
+
