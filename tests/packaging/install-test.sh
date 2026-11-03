@@ -30,7 +30,18 @@ echo "== $(grep -m1 ^PRETTY_NAME= /etc/os-release | cut -d'"' -f2)"
 case "$pkg" in
   # apt resolves Depends (e.g. adduser, absent from current minimal images) as a user's install would.
   *.deb) apt-get install -y "$(realpath "$pkg")" 2>&1 | tee /tmp/install.log; remove() { dpkg -P homelab-control; } ;;
-  *.rpm) rpm -Uvh "$pkg" 2>&1 | tee /tmp/install.log; remove() { rpm -e homelab-control; } ;;
+  *.rpm)
+    if grep -Eq '^ID="?fedora"?$' /etc/os-release; then
+      # Use Fedora's native local-package path (also resolves dependencies).
+      # Phase 1 CI RPMs are unsigned: DNF may skip local OpenPGP checks by
+      # default. This is installation coverage, not signature verification;
+      # do not override an administrator's configured verification policy.
+      dnf install -y "$(realpath "$pkg")" 2>&1 | tee /tmp/install.log
+    else
+      rpm -Uvh "$pkg" 2>&1 | tee /tmp/install.log
+    fi
+    remove() { rpm -e homelab-control; }
+    ;;
   *.pkg.tar.zst) pacman -U --noconfirm "$pkg" 2>&1 | tee /tmp/install.log; remove() { pacman -Rns --noconfirm homelab-control; } ;;
   *) echo "unknown package type"; exit 2 ;;
 esac
