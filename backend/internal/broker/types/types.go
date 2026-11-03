@@ -77,7 +77,9 @@ type DMIIdentity struct {
 	Source    string              `json:"source"`
 }
 
-// Unit is one systemd unit as reported by systemctl.
+// Unit is one systemd unit from runtime or installed-file inventory.
+// File-only entries have Load="not-loaded" and Active/Sub="unknown"; these
+// describe missing runtime observations, not states inferred from enablement.
 type Unit struct {
 	Name          string `json:"name"`
 	Type          string `json:"type"`
