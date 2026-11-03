@@ -48,6 +48,15 @@ const units = {
       sub: 'dead',
       description: 'x',
     },
+    {
+      name: 'installed-only.service',
+      type: 'service',
+      load: 'not-loaded',
+      active: 'unknown',
+      sub: 'unknown',
+      description: '',
+      unit_file_state: 'disabled',
+    },
   ],
 };
 
@@ -139,6 +148,9 @@ describe('service logs', () => {
     expect(within(panel).getByText(/1 journal record was unreadable/)).toBeTruthy();
     // No log action for units systemd does not have.
     expect(screen.queryByRole('button', { name: 'Show logs for ghost.service' })).toBeNull();
+    // Nor for installed-only files: the broker only reads logs of units list-units reports.
+    expect(screen.getByText('installed-only.service')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Show logs for installed-only.service' })).toBeNull();
   });
 
   it('requests a different number of entries and can be closed', async () => {

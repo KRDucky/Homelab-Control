@@ -78,10 +78,7 @@ func systemdList(ctx context.Context, env *Env, raw json.RawMessage) (any, error
 			res.Counts["failed_total"]++
 		}
 	}
-	if len(units) > maxUnits {
-		units, res.Truncated = units[:maxUnits], true
-	}
-	res.Units = units
+	res.Units, res.Truncated = capInventory(units, maxUnits)
 	return res, nil
 }
 
@@ -114,7 +111,7 @@ func mergeUnitInventory(units []Unit, files map[string]rawUnitFile) []Unit {
 		if !seen[name] {
 			units = append(units, Unit{
 				Name: name, Type: name[strings.LastIndexByte(name, '.')+1:],
-				Load: "not-loaded", Active: "unknown", Sub: "unknown",
+				Load: fileOnlyLoad, Active: "unknown", Sub: "unknown",
 			})
 		}
 	}
@@ -130,6 +127,33 @@ func mergeUnitInventory(units []Unit, files map[string]rawUnitFile) []Unit {
 	}
 	sort.Slice(units, func(i, j int) bool { return units[i].Name < units[j].Name })
 	return units
+}
+
+// fileOnlyLoad marks an installed unit file that list-units did not report.
+// systemd itself never uses this load state.
+const fileOnlyLoad = "not-loaded"
+
+// capInventory bounds a name-sorted inventory to limit entries. Runtime
+// observations are kept before file-only entries, so installed-only files can
+// never push a loaded, failed or operable unit out of the list; the kept
+// entries stay in name order.
+func capInventory(units []Unit, limit int) ([]Unit, bool) {
+	if len(units) <= limit {
+		return units, false
+	}
+	kept := make([]Unit, 0, limit)
+	for _, u := range units {
+		if u.Load != fileOnlyLoad && len(kept) < limit {
+			kept = append(kept, u)
+		}
+	}
+	for _, u := range units {
+		if u.Load == fileOnlyLoad && len(kept) < limit {
+			kept = append(kept, u)
+		}
+	}
+	sort.Slice(kept, func(i, j int) bool { return kept[i].Name < kept[j].Name })
+	return kept, true
 }
 
 // ParseListUnits validates and normalises `systemctl list-units --output=json`.
