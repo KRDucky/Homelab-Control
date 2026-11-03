@@ -95,3 +95,7 @@ Append dated verified decisions and test results. Record alternatives rejected a
 ## Verified M2-2 KVM closeout — 2026-10-29
 
 Owner approved E2/E4 closure and a documentation PR. Combined main `d812995e`, CI 40666815912 (21/21): Ubuntu/Fedora/Arch M2-2 89/0, 89/0, 88/0; smoke/M1 67/0 each; browser B1–B15 15/15 each; E4 1.6/1.5, capabilities unchanged. Fedora remains Enforcing in broad `init_t`, not dedicated confinement. [Evidence, historical failures and caveats](../evidence/m2/vm-final-main-d812995e/README.md). All guests recorded shut off/autostart disabled with historical snapshots retained. Original PR #28 pre-merge gaps and October 27 deferral remain history. Production `services.operate` remains ungranted by default; M2-3 unauthorized. P1, H1/H2, optional confinement and accessibility/distribution follow-ups remain separate.
+
+## Fedora 45 installation-test compatibility — 2026-11-03 (proposed, not merged)
+
+Owner authorized a separate Fedora-only test correction after main and P1 CI both rejected unsigned RPMs through plain rpm. The container install test now uses dnf for local Fedora RPM installation, retaining other distributions' paths and all existing assertions. Development RPMs remain unsigned; DNF local-file defaults are not artifact authentication, and no verification override, key or trust-policy change is introduced. This is package-test compatibility, not M2-3 or production enablement. Validation outcomes are recorded in the corrective PR.
