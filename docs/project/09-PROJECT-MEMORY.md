@@ -91,3 +91,7 @@
 ## How to update
 Append dated verified decisions and test results. Record alternatives rejected and why. Never replace unknowns with guesses or present planned work as shipped.
 - Final design review (2026-10-26): design accepted; colours-only runtime themes kept. Seven defects (focus ring in forced-colors, table identifier/caption wrapping, summary target size, Studio hex commit, per-page document title, TDK BOM handling) fixed on branch `review/hcis-final`, merged in PR #25 (follow-up in PR #26) on 2026-10-26. Verified in Chromium only locally; Firefox/WebKit rely on CI. Not verified: real broker data, a real screen reader, Windows High Contrast hardware. Review and Opus handoff: `docs/ui/12-FINAL-DESIGN-REVIEW-AND-HANDOFF.md`.
+
+## P1 service inventory correction — 2026-11-03 (proposed, not merged)
+
+Owner authorized a separate P1 corrective PR. The inventory now unions runtime units with validated installed unit files, retaining observed runtime states and marking file-only entries not-loaded/unknown rather than inventing inactive or loaded state. Aliases/templates remain inventory-only until supported observations exist; existing operation controls require loaded service units. No new broker operation, command, permission, dependency or M2-3 functionality is introduced. Validation and CI results are recorded in the corrective PR.

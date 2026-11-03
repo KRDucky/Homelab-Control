@@ -166,6 +166,7 @@ components:
             reason: { type: string }
         capabilities: { type: array, items: { $ref: '#/components/schemas/Capability' } }
     UnitList:
+      description: Runtime units plus installed unit files. File-only entries use load not-loaded and active/sub unknown; enablement does not establish runtime state.
       type: object
       required: [units, counts, truncated, source]
       properties:
