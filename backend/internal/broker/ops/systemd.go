@@ -71,15 +71,8 @@ func systemdList(ctx context.Context, env *Env, raw json.RawMessage) (any, error
 	if uf, err := env.Runner.Run(ctx, "systemctl", "list-unit-files", "--output=json", "--no-pager", "--type="+unitTypes); err == nil && uf.ExitCode == 0 {
 		files, _ = ParseListUnitFiles(uf.Stdout)
 	}
+	units = mergeUnitInventory(units, files)
 	for i := range units {
-		if f, ok := files[units[i].Name]; ok {
-			units[i].UnitFileState = f.State
-			if f.Preset != nil {
-				units[i].Preset = *f.Preset
-			} else if f.VendorPreset != nil {
-				units[i].Preset = *f.VendorPreset
-			}
-		}
 		res.Counts[units[i].Active]++
 		if units[i].Active == "failed" {
 			res.Counts["failed_total"]++
@@ -106,6 +99,37 @@ func runErr(err error) error {
 		}
 		return &proto.Error{Code: proto.CodeInternal, Message: msg}
 	}
+}
+
+// mergeUnitInventory combines runtime observations with installed unit files.
+// A unit file does not establish a runtime state (and may be an alias or
+// template), so file-only entries are explicitly unknown, never loaded/inactive.
+// Listing inventory must not load units or perform per-unit systemctl queries.
+func mergeUnitInventory(units []Unit, files map[string]rawUnitFile) []Unit {
+	seen := make(map[string]bool, len(units))
+	for _, u := range units {
+		seen[u.Name] = true
+	}
+	for name := range files {
+		if !seen[name] {
+			units = append(units, Unit{
+				Name: name, Type: name[strings.LastIndexByte(name, '.')+1:],
+				Load: "not-loaded", Active: "unknown", Sub: "unknown",
+			})
+		}
+	}
+	for i := range units {
+		if f, ok := files[units[i].Name]; ok {
+			units[i].UnitFileState = f.State
+			if f.Preset != nil {
+				units[i].Preset = *f.Preset
+			} else if f.VendorPreset != nil {
+				units[i].Preset = *f.VendorPreset
+			}
+		}
+	}
+	sort.Slice(units, func(i, j int) bool { return units[i].Name < units[j].Name })
+	return units
 }
 
 // ParseListUnits validates and normalises `systemctl list-units --output=json`.
@@ -142,7 +166,9 @@ func ParseListUnitFiles(b []byte) (map[string]rawUnitFile, error) {
 	}
 	out := make(map[string]rawUnitFile, len(raw))
 	for _, r := range raw {
-		if unitNameRE.MatchString(r.UnitFile) && stateRE.MatchString(r.State) {
+		dot := strings.LastIndexByte(r.UnitFile, '.')
+		if dot > 0 && unitNameRE.MatchString(r.UnitFile) && stateRE.MatchString(r.State) &&
+			strings.Contains(","+unitTypes+",", ","+r.UnitFile[dot+1:]+",") {
 			out[r.UnitFile] = r
 		}
 	}

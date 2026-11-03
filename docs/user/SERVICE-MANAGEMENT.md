@@ -14,6 +14,17 @@ Nothing else is available yet: enabling or disabling units at boot, masking, edi
 `daemon-reload`, other unit types (sockets, timers, mounts…) and host shutdown or reboot are not part
 of this version.
 
+## Installed units and runtime state
+
+The Services inventory combines systemd's runtime list with its installed unit-file list.
+Installed units absent from the runtime list appear as **not-loaded**, with **unknown** active
+and substate and their reported enablement state. This includes aliases and template files;
+their presence does not prove they are running, inactive, or usable as service instances.
+Runtime observations take precedence when a unit appears in both lists. Inventory does not load
+units or query every unit individually. Installed-only entries have no Start/Stop/Restart buttons;
+existing operation authorization and protected-unit checks remain unchanged.
+If unit-file listing is unavailable, runtime inventory remains available without that enrichment.
+
 ## Who can use it
 
 The permission is the scope **`services.operate`**. It is never granted by default, including on
