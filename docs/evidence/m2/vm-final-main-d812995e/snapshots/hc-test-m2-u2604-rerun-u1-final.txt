@@ -1,0 +1,41 @@
+2026-10-29T05:05:07.295953+00:00
+Domain 'hc-test-m2-u2604-rerun' unmarked as autostarted
+Domain 'hc-test-m2-u2604-rerun' is being shutdown
+Graceful shutdown confirmed; filesystem/database flushed by guest shutdown.
+Domain snapshot m2-final-validated-ubuntu-20261028 created
+Name:           m2-final-validated-ubuntu-20261028
+Domain:         hc-test-m2-u2604-rerun
+Current:        yes
+State:          shutoff
+Location:       internal
+Parent:         pre-u1-browser-resume-20261028
+Children:       0
+Descendants:    0
+Metadata:       yes
+All historical snapshot XML unchanged (verified by exact comparison).
+Name                                 Creation Time               State     Parent
+-------------------------------------------------------------------------------------------------------------
+ m2-final-validated-ubuntu-20261028   2026-10-29 00:05:09 -0500   shutoff   pre-u1-browser-resume-20261028
+ post-ssh-stop-failure-20261028       2026-10-28 05:28:33 -0500   running   pre-m2
+ pre-final-main-20261028              2026-10-28 05:20:07 -0500   running   pre-m2
+ pre-final-main-updated-20261028      2026-10-28 06:17:43 -0500   shutoff   pre-m2
+ pre-m2                               2026-10-27 23:17:08 -0500   running   
+ pre-u1-browser-resume-20261028       2026-10-28 23:57:44 -0500   running   pre-final-main-updated-20261028
+Id:             -
+Name:           hc-test-m2-u2604-rerun
+UUID:           30b2ff8b-1982-4af2-bbe6-cb9157b40eab
+OS Type:        hvm
+State:          shut off
+CPU(s):         2
+Max memory:     4194304 KiB
+Used memory:    4194304 KiB
+Persistent:     yes
+Autostart:      disable
+Autostart Once: disable
+Managed save:   no
+Security model: none
+Security DOI:   0
+Name:           hc-test-m2-u2604-rerun.qcow2
+Type:           file
+Capacity:       20.00 GiB
+Allocation:     14.83 GiB

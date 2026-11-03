@@ -92,6 +92,10 @@
 Append dated verified decisions and test results. Record alternatives rejected and why. Never replace unknowns with guesses or present planned work as shipped.
 - Final design review (2026-10-26): design accepted; colours-only runtime themes kept. Seven defects (focus ring in forced-colors, table identifier/caption wrapping, summary target size, Studio hex commit, per-page document title, TDK BOM handling) fixed on branch `review/hcis-final`, merged in PR #25 (follow-up in PR #26) on 2026-10-26. Verified in Chromium only locally; Firefox/WebKit rely on CI. Not verified: real broker data, a real screen reader, Windows High Contrast hardware. Review and Opus handoff: `docs/ui/12-FINAL-DESIGN-REVIEW-AND-HANDOFF.md`.
 
+## Verified M2-2 KVM closeout — 2026-10-29
+
+Owner approved E2/E4 closure and a documentation PR. Combined main `d812995e`, CI 40666815912 (21/21): Ubuntu/Fedora/Arch M2-2 89/0, 89/0, 88/0; smoke/M1 67/0 each; browser B1–B15 15/15 each; E4 1.6/1.5, capabilities unchanged. Fedora remains Enforcing in broad `init_t`, not dedicated confinement. [Evidence, historical failures and caveats](../evidence/m2/vm-final-main-d812995e/README.md). All guests recorded shut off/autostart disabled with historical snapshots retained. Original PR #28 pre-merge gaps and October 27 deferral remain history. Production `services.operate` remains ungranted by default; M2-3 unauthorized. P1, H1/H2, optional confinement and accessibility/distribution follow-ups remain separate.
+
 ## P1 service inventory correction — 2026-11-03 (proposed, not merged)
 
 Owner authorized a separate P1 corrective PR. The inventory now unions runtime units with validated installed unit files, retaining observed runtime states and marking file-only entries not-loaded/unknown rather than inventing inactive or loaded state. Aliases/templates remain inventory-only until supported observations exist; existing operation controls require loaded service units. No new broker operation, command, permission, dependency or M2-3 functionality is introduced. Validation and CI results are recorded in the corrective PR.

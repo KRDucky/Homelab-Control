@@ -1,0 +1,38 @@
+Id:             1
+Name:           hc-test-m2-u2604-rerun
+UUID:           30b2ff8b-1982-4af2-bbe6-cb9157b40eab
+OS Type:        hvm
+State:          running
+CPU(s):         2
+CPU time:       172.9s
+Max memory:     4194304 KiB
+Used memory:    4194304 KiB
+Persistent:     yes
+Autostart:      disable
+Autostart Once: disable
+Managed save:   no
+Security model: none
+Security DOI:   0
+
+ Type   Device   Target   Source
+------------------------------------------------------------------------------------
+ file   disk     vda      /var/lib/libvirt/hc-test/hc-test-m2-u2604-rerun.qcow2
+ file   cdrom    hda      /var/lib/libvirt/hc-test/hc-test-m2-u2604-rerun-seed.iso
+
+ Interface   Type      Source    Model    MAC
+-------------------------------------------------------------
+ vnet0       network   default   virtio   52:54:00:7f:1c:97
+
+ Target   Capacity      Allocation    Physical
+---------------------------------------------------
+ vda      20.000 GiB    3.378 GiB     3.378 GiB
+ hda      366.000 KiB   368.000 KiB   366.000 KiB
+
+## snapshots
+pre-m2
+
+
+ Name     Creation Time               State     Parent
+--------------------------------------------------------
+ pre-m2   2026-10-27 23:17:08 -0500   running   
+

@@ -1,0 +1,44 @@
+Id:             5
+Name:           hc-test-m2-arch-20261028
+UUID:           c00e00f3-453d-4e8d-a977-a71f2c6b3ab8
+OS Type:        hvm
+State:          running
+CPU(s):         2
+CPU time:       34.7s
+Max memory:     4194304 KiB
+Used memory:    4194304 KiB
+Persistent:     yes
+Autostart:      disable
+Autostart Once: disable
+Managed save:   no
+Security model: none
+Security DOI:   0
+
+ Type   Device   Target   Source
+--------------------------------------------------------------------------------------
+ file   disk     vda      /var/lib/libvirt/hc-test/hc-test-m2-arch-20261028.qcow2
+ file   cdrom    hda      /var/lib/libvirt/hc-test/hc-test-m2-arch-20261028-seed.iso
+
+ Interface   Type      Source    Model    MAC
+-------------------------------------------------------------
+ vnet4       network   default   virtio   52:54:00:4c:9e:35
+
+ Target   Capacity      Allocation    Physical
+---------------------------------------------------
+ vda      20.000 GiB    5.184 GiB     5.185 GiB
+ hda      366.000 KiB   368.000 KiB   366.000 KiB
+
+## snapshots
+pre-m2
+  |
+  +- pre-hc
+      |
+      +- post-browser-e2
+        
+
+ Name              Creation Time               State     Parent
+-----------------------------------------------------------------
+ post-browser-e2   2026-10-28 01:49:07 -0500   running   pre-hc
+ pre-hc            2026-10-28 00:07:03 -0500   running   pre-m2
+ pre-m2            2026-10-28 00:04:57 -0500   running   
+

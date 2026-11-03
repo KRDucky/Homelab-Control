@@ -1,0 +1,5 @@
+# tunnel check 2026-10-28T10:50:39Z
+{"api":"v1","status":"ok"}
+
+LISTEN 0      128    127.0.0.1:19182 0.0.0.0:*
+guest 192.168.122.49:9180 from host network: not-reachable

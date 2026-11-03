@@ -1,0 +1,8 @@
+Id=ssh.service
+Names=ssh.service sshd.service
+MainPID=916
+22fb6274-a21c-41ab-b7dd-062b420f1728
+2026-10-29T04:58:20Z
+NTPSynchronized=yes
+a34f460450901650db2513fc5a7608800d15f89f4c20fbdeeb00dd9ab125c048  /usr/lib/homelab-control/hc-broker
+53c2a5dc0c3a2be700d5993643f238b713328b15a779c33afa44dd2dad5b5a54  /opt/hc/pkg.deb

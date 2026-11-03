@@ -1,0 +1,25 @@
+# hc-test-m2-f44-rerun — preserve current state 2026-10-28T10:20:11Z
+uuid=680a5cf9-7e36-48be-8cc7-e63775acb2ce state=running
+Domain snapshot pre-final-main-20261028 created
+created
+Name:           pre-final-main-20261028
+Domain:         hc-test-m2-f44-rerun
+Current:        yes
+State:          running
+Location:       internal
+Parent:         pre-m2
+Children:       0
+Descendants:    0
+Metadata:       yes
+
+  <state>running</state>
+  <memory snapshot='internal'/>
+    <disk name='vda' snapshot='internal'/>
+    <disk name='hda' snapshot='no'/>
+    <memory unit='KiB'>4194304</memory>
+    <memory unit='KiB'>4194304</memory>
+meta post-fix-validation aa43035e3299abc0
+meta post-p2-failure f9f96104e9c30544
+meta pre-final-main-20261028 b19f0d5921d1fa80
+meta pre-m2 96b24243b7a4e653
+guest-up=hc-test-m2-f44-rerun marker=present

@@ -1,0 +1,96 @@
+== dpkg.log (today, upgrades/installs)
+2026-10-28 10:22:22 upgrade curl:amd64 8.18.0-1ubuntu2.7 8.18.0-1ubuntu2.8
+2026-10-28 10:22:22 upgrade libcurl4t64:amd64 8.18.0-1ubuntu2.7 8.18.0-1ubuntu2.8
+2026-10-28 10:22:22 upgrade libcurl3t64-gnutls:amd64 8.18.0-1ubuntu2.7 8.18.0-1ubuntu2.8
+2026-10-28 10:22:44 install homelab-control:amd64 <none> 0.1.0+dev.1+52+gd812995e
+2026-10-28 10:24:02 upgrade sudo:amd64 1.9.17p2-1ubuntu3.1 1.9.17p2-1ubuntu3.2
+2026-10-28 10:24:04 upgrade libx11-data:all 2:1.8.13-1 2:1.8.13-1ubuntu0.1
+2026-10-28 10:24:04 upgrade libx11-6:amd64 2:1.8.13-1 2:1.8.13-1ubuntu0.1
+2026-10-28 10:24:05 upgrade libsgutils2-1.48:amd64 1.48-3ubuntu3.1 1.48-3ubuntu3.2
+2026-10-28 10:24:05 upgrade sg3-utils:amd64 1.48-3ubuntu3.1 1.48-3ubuntu3.2
+2026-10-28 10:24:05 upgrade sg3-utils-udev:all 1.48-3ubuntu3.1 1.48-3ubuntu3.2
+2026-10-28 10:24:14 upgrade bpftool:amd64 7.7.0+7.0.0-34.34 7.7.0+7.0.0-38.38
+2026-10-28 10:24:14 install linux-headers-7.0.0-38:all <none> 7.0.0-38.38
+2026-10-28 10:24:16 install linux-headers-7.0.0-38-generic:amd64 <none> 7.0.0-38.38
+2026-10-28 10:24:17 install linux-main-modules-zfs-7.0.0-38-generic:amd64 <none> 7.0.0-38.38
+2026-10-28 10:24:17 install linux-modules-7.0.0-38-generic:amd64 <none> 7.0.0-38.38
+2026-10-28 10:24:18 install linux-image-7.0.0-38-generic:amd64 <none> 7.0.0-38.38
+2026-10-28 10:24:18 upgrade linux-virtual:amd64 7.0.0-34.34 7.0.0-38.38
+2026-10-28 10:24:18 upgrade linux-image-virtual:amd64 7.0.0-34.34 7.0.0-38.38
+2026-10-28 10:24:18 upgrade linux-headers-virtual:amd64 7.0.0-34.34 7.0.0-38.38
+2026-10-28 10:24:18 upgrade linux-headers-generic:amd64 7.0.0-34.34 7.0.0-38.38
+2026-10-28 10:24:18 upgrade linux-libc-dev:amd64 7.0.0-34.34 7.0.0-38.38
+2026-10-28 10:24:18 upgrade linux-perf:amd64 7.0.0-34.34 7.0.0-38.38
+2026-10-28 10:24:19 upgrade linux-tools-common:all 7.0.0-34.34 7.0.0-38.38
+2026-10-28 10:24:19 install linux-tools-7.0.0-38:amd64 <none> 7.0.0-38.38
+2026-10-28 10:24:19 install linux-tools-7.0.0-38-generic:amd64 <none> 7.0.0-38.38
+2026-10-28 10:24:30 upgrade bind9-dnsutils:amd64 1:9.20.24-1ubuntu0.3 1:9.20.24-1ubuntu0.4
+2026-10-28 10:24:30 upgrade bind9-host:amd64 1:9.20.24-1ubuntu0.3 1:9.20.24-1ubuntu0.4
+2026-10-28 10:24:30 upgrade bind9-libs:amd64 1:9.20.24-1ubuntu0.3 1:9.20.24-1ubuntu0.4
+2026-10-28 10:24:32 upgrade tzdata:all 2026c-0ubuntu0.26.04.1 2026e-0ubuntu0.26.04.1
+2026-10-28 10:24:33 upgrade libevent-core-2.1-7t64:amd64 2.1.12-stable-10ubuntu0.1 2.1.12-stable-10ubuntu0.2
+2026-10-28 10:24:34 upgrade liblzma5:amd64 5.8.3-1 5.8.3-1ubuntu0.1
+2026-10-28 10:24:34 upgrade xz-utils:amd64 5.8.3-1 5.8.3-1ubuntu0.1
+2026-10-28 10:24:36 upgrade distro-info-data:all 0.72-0ubuntu0.26.04.1 2026.10.12-0ubuntu0.26.04.1
+2026-10-28 10:24:37 upgrade python3-requests:all 2.32.5+dfsg-1ubuntu1 2.32.5+dfsg-1ubuntu1.1
+2026-10-28 10:24:38 upgrade openssl-provider-legacy:amd64 3.5.5-1ubuntu3.5 3.5.5-1ubuntu3.7
+2026-10-28 10:24:39 upgrade libssl3t64:amd64 3.5.5-1ubuntu3.5 3.5.5-1ubuntu3.7
+2026-10-28 10:24:39 upgrade openssl:amd64 3.5.5-1ubuntu3.5 3.5.5-1ubuntu3.7
+2026-10-28 10:24:41 upgrade zlib1g:amd64 1:1.3.dfsg+really1.3.1-1ubuntu3.1 1:1.3.dfsg+really1.3.1-1ubuntu3.2
+2026-10-28 10:24:43 upgrade git-man:all 1:2.53.0-1ubuntu1 1:2.53.0-1ubuntu1.1
+2026-10-28 10:24:43 upgrade git:amd64 1:2.53.0-1ubuntu1 1:2.53.0-1ubuntu1.1
+2026-10-28 10:24:45 upgrade libpng16-16t64:amd64 1.6.57-1 1.6.57-1ubuntu0.1
+2026-10-28 10:24:46 upgrade libxml2-16:amd64 2.15.2+dfsg-0.1ubuntu0.2 2.15.2+dfsg-0.1ubuntu0.3
+2026-10-28 10:24:48 upgrade ca-certificates:all 20260601~26.04.1 20260816ubuntu0.26.04.1
+2026-10-28 10:24:51 upgrade python3-urllib3:all 2.6.3-1ubuntu1.1 2.6.3-1ubuntu1.2
+2026-10-28 10:24:53 upgrade libbrotli1:amd64 1.2.0-3build1 1.2.0-3ubuntu0.1
+2026-10-28 10:24:54 upgrade openssh-sftp-server:amd64 1:10.2p1-2ubuntu3.6 1:10.2p1-2ubuntu3.8
+2026-10-28 10:24:54 upgrade openssh-server:amd64 1:10.2p1-2ubuntu3.6 1:10.2p1-2ubuntu3.8
+2026-10-28 10:24:54 upgrade openssh-client:amd64 1:10.2p1-2ubuntu3.6 1:10.2p1-2ubuntu3.8
+2026-10-28 10:24:57 upgrade libnss3:amd64 2:3.120-1ubuntu2.1 2:3.120-1ubuntu2.2
+2026-10-28 10:24:58 upgrade libfreetype6:amd64 2.14.2+dfsg-1ubuntu0.1 2.14.2+dfsg-1ubuntu0.2
+2026-10-28 10:24:59 upgrade python3-jwt:all 2.10.1-4ubuntu1 2.10.1-4ubuntu1.3
+2026-10-28 10:28:07 remove homelab-control:amd64 0.1.0+dev.1+52+gd812995e <none>
+== unattended-upgrades log
+2026-10-28 10:23:50,456 WARNING Could not figure out development release: Distribution data outdated. Please check for an update for distro-info-data. See /usr/share/doc/distro-info-data/README.Debian for details.
+2026-10-28 10:23:50,456 INFO Starting unattended upgrades script
+2026-10-28 10:23:50,456 INFO Allowed origins are: o=Ubuntu,a=resolute, o=Ubuntu,a=resolute-security, o=UbuntuESMApps,a=resolute-apps-security, o=UbuntuESM,a=resolute-infra-security
+2026-10-28 10:23:50,456 INFO Initial blacklist: 
+2026-10-28 10:23:50,456 INFO Initial whitelist (not strict): 
+2026-10-28 10:24:01,671 INFO Packages that will be upgraded: bind9-dnsutils bind9-host bind9-libs bpftool ca-certificates distro-info-data git git-man libbrotli1 libevent-core-2.1-7t64 libfreetype6 liblzma5 libnss3 libpng16-16t64 libsgutils2-1.48 libssl3t64 libx11-6 libx11-data libxml2-16 linux-headers-generic linux-headers-virtual linux-image-virtual linux-libc-dev linux-perf linux-tools-common linux-virtual openssh-client openssh-server openssh-sftp-server openssl openssl-provider-legacy python3-jwt python3-requests python3-urllib3 sg3-utils sg3-utils-udev sudo tzdata xz-utils zlib1g
+2026-10-28 10:24:01,671 INFO Writing dpkg log to /var/log/unattended-upgrades/unattended-upgrades-dpkg.log
+2026-10-28 10:25:01,090 INFO All upgrades installed
+== timers
+NEXT                        LEFT LAST                              PASSED UNIT                    ACTIVATES
+Wed 2026-10-28 19:31:07 UTC   9h Wed 2026-10-28 04:15:57 UTC            - apt-daily.timer         apt-daily.service
+Thu 2026-10-29 06:49:02 UTC  20h Wed 2026-10-28 10:23:50 UTC 4min 58s ago apt-daily-upgrade.timer apt-daily-upgrade.service
+
+2 timers listed.
+LastTriggerUSec=Wed 2026-10-28 10:23:50 UTC
+Persistent=yes
+== journal 10:24:50-10:24:58 (ssh/socket/dpkg)
+Oct 28 10:24:54.552756 hc-test-m2-u2604-rerun systemd[1]: Stopping ssh.service - OpenBSD Secure Shell server...
+Oct 28 10:24:54.552791 hc-test-m2-u2604-rerun sshd[14958]: Received signal 15; terminating.
+Oct 28 10:24:54.553803 hc-test-m2-u2604-rerun systemd[1]: ssh.service: Deactivated successfully.
+Oct 28 10:24:54.553993 hc-test-m2-u2604-rerun systemd[1]: Stopped ssh.service - OpenBSD Secure Shell server.
+Oct 28 10:24:54.554340 hc-test-m2-u2604-rerun systemd[1]: ssh.socket: Deactivated successfully.
+Oct 28 10:24:54.554491 hc-test-m2-u2604-rerun systemd[1]: Closed ssh.socket - OpenBSD Secure Shell server socket.
+Oct 28 10:24:55.080543 hc-test-m2-u2604-rerun systemd[1]: Reload requested from client PID 22107 ('systemctl') (unit apt-daily-upgrade.service)...
+Oct 28 10:24:55.420822 hc-test-m2-u2604-rerun systemd[1]: Reload requested from client PID 22183 ('systemctl') (unit apt-daily-upgrade.service)...
+Oct 28 10:24:55.591026 hc-test-m2-u2604-rerun systemd[1]: sshd-keygen.service - Generate sshd host keys on first boot skipped, unmet condition check ConditionFirstBoot=yes
+Oct 28 10:24:55.594118 hc-test-m2-u2604-rerun systemd[1]: Reload requested from client PID 22251 ('systemctl') (unit apt-daily-upgrade.service)...
+Oct 28 10:24:55.795687 hc-test-m2-u2604-rerun systemd[1]: Listening on ssh.socket - OpenBSD Secure Shell server socket.
+Oct 28 10:24:55.795813 hc-test-m2-u2604-rerun systemd[1]: sshd-keygen.service - Generate sshd host keys on first boot skipped, unmet condition check ConditionFirstBoot=yes
+== journal: who started apt-daily-upgrade
+Oct 28 10:23:50 hc-test-m2-u2604-rerun systemd[1]: Starting apt-daily-upgrade.service - Daily apt upgrade and clean activities...
+Oct 28 10:25:01 hc-test-m2-u2604-rerun systemd[1]: apt-daily-upgrade.service: Deactivated successfully.
+Oct 28 10:25:01 hc-test-m2-u2604-rerun systemd[1]: Finished apt-daily-upgrade.service - Daily apt upgrade and clean activities.
+Oct 28 10:25:01 hc-test-m2-u2604-rerun systemd[1]: apt-daily-upgrade.service: Consumed 1min 1.790s CPU time over 1min 11.232s wall clock time, 1.4G memory peak.
+== sudo-logged systemctl commands during scenario
+== now
+ActiveState=active
+MainPID=23265
+
+ActiveState=active
+openssh-server	1:10.2p1-2ubuntu3.8
+systemd	259.5-0ubuntu3.4
