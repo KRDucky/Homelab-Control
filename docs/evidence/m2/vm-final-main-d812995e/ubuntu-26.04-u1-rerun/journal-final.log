@@ -1,0 +1,150 @@
+# captured 2026-10-29T05:04:27.726909+00:00
+# command: sudo journalctl -b --no-pager -u 'homelab-control*' -u 'hc-test-*' -u ssh.service -u ssh.socket
+# exit_code=0
+Oct 29 04:57:20 hc-test-m2-u2604-rerun systemd[1]: Listening on ssh.socket - OpenBSD Secure Shell server socket.
+Oct 29 04:57:20 hc-test-m2-u2604-rerun systemd[1]: Started hc-test-dummy.service - Homelab Control disposable test unit (E2).
+Oct 29 04:57:20 hc-test-m2-u2604-rerun systemd[1]: Started hc-test-fail.service - Homelab Control disposable failing unit (E2).
+Oct 29 04:57:20 hc-test-m2-u2604-rerun systemd[1]: Starting ssh.service - OpenBSD Secure Shell server...
+Oct 29 04:57:20 hc-test-m2-u2604-rerun systemd[1]: hc-test-fail.service: Main process exited, code=exited, status=1/FAILURE
+Oct 29 04:57:20 hc-test-m2-u2604-rerun systemd[1]: hc-test-fail.service: Failed with result 'exit-code'.
+Oct 29 04:57:21 hc-test-m2-u2604-rerun sshd[916]: Server listening on 0.0.0.0 port 22.
+Oct 29 04:57:21 hc-test-m2-u2604-rerun systemd[1]: Started ssh.service - OpenBSD Secure Shell server.
+Oct 29 04:57:21 hc-test-m2-u2604-rerun sshd[916]: Server listening on :: port 22.
+Oct 29 04:57:24 hc-test-m2-u2604-rerun sshd-session[1173]: Accepted publickey for hc from 192.168.122.1 port 43656 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:57:24 hc-test-m2-u2604-rerun sshd-session[1173]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:57:25 hc-test-m2-u2604-rerun sshd-session[1173]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:57:44 hc-test-m2-u2604-rerun sshd-session[1347]: Accepted publickey for hc from 192.168.122.1 port 57820 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:57:44 hc-test-m2-u2604-rerun sshd-session[1347]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:57:44 hc-test-m2-u2604-rerun sshd-session[1347]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:20 hc-test-m2-u2604-rerun sshd-session[1451]: Accepted publickey for hc from 192.168.122.1 port 60872 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:20 hc-test-m2-u2604-rerun sshd-session[1451]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:20 hc-test-m2-u2604-rerun sshd-session[1451]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1542]: Accepted publickey for hc from 192.168.122.1 port 60888 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1542]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1542]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1593]: Accepted publickey for hc from 192.168.122.1 port 60898 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1593]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1593]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1644]: Accepted publickey for hc from 192.168.122.1 port 60906 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1644]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1644]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1701]: Accepted publickey for hc from 192.168.122.1 port 60916 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1701]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:21 hc-test-m2-u2604-rerun systemd[1]: Stopping hc-test-dummy.service - Homelab Control disposable test unit (E2)...
+Oct 29 04:58:21 hc-test-m2-u2604-rerun systemd[1]: hc-test-dummy.service: Deactivated successfully.
+Oct 29 04:58:21 hc-test-m2-u2604-rerun systemd[1]: Stopped hc-test-dummy.service - Homelab Control disposable test unit (E2).
+Oct 29 04:58:21 hc-test-m2-u2604-rerun systemd[1]: Starting homelab-control-broker.socket - Homelab Control privileged broker socket...
+Oct 29 04:58:21 hc-test-m2-u2604-rerun systemd[1]: Listening on homelab-control-broker.socket - Homelab Control privileged broker socket.
+Oct 29 04:58:21 hc-test-m2-u2604-rerun systemd[1]: Started homelab-control.service - Homelab Control API and web UI (unprivileged).
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1701]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1779]: Connection closed by 192.168.122.1 port 60932
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1780]: Accepted publickey for hc from 192.168.122.1 port 60942 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:21 hc-test-m2-u2604-rerun sshd-session[1780]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:21 hc-test-m2-u2604-rerun hc-api[1772]: 2026/10/29 04:58:21 audit checkpoint log=/var/lib/homelab-control/state.db seq=21 hash=a640422370e194acf9c6c3cf59aaac82073923408da1889c1448d177e26e6b8e
+Oct 29 04:58:21 hc-test-m2-u2604-rerun hc-api[1772]: 2026/10/29 04:58:21 hc-api v0.1.0-dev.1-52-gd812995e listening on 127.0.0.1:9180 (tls=false)
+Oct 29 04:58:22 hc-test-m2-u2604-rerun systemd[1]: Started homelab-control-broker.service - Homelab Control privileged broker (closed set of typed operations).
+Oct 29 04:58:22 hc-test-m2-u2604-rerun hc-broker[1832]: 2026/10/29 04:58:22 audit checkpoint log=/var/log/homelab-control-broker/broker-audit.jsonl seq=34 hash=a707bc2ed051f37b207b5983e5abd7b1b0f89b3e62420bb987e58a8630f11194
+Oct 29 04:58:22 hc-test-m2-u2604-rerun hc-broker[1832]: 2026/10/29 04:58:22 audit checkpoint log=/var/log/homelab-control-broker/operations.jsonl seq=10 hash=a190da6e8d91b11f16a3221860fc0bef957eef29a51bcf4661a2852f0f825a96
+Oct 29 04:58:22 hc-test-m2-u2604-rerun hc-broker[1832]: 2026/10/29 04:58:22 hc-broker v0.1.0-dev.1-52-gd812995e ready (socket-activated=true, peers uid [982 0], 8 ops)
+Oct 29 04:58:23 hc-test-m2-u2604-rerun sshd-session[1844]: Accepted publickey for hc from 192.168.122.1 port 60946 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:23 hc-test-m2-u2604-rerun sshd-session[1844]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:23 hc-test-m2-u2604-rerun systemd[1]: Stopping homelab-control.service - Homelab Control API and web UI (unprivileged)...
+Oct 29 04:58:23 hc-test-m2-u2604-rerun hc-api[1772]: 2026/10/29 04:58:23 audit checkpoint log=/var/lib/homelab-control/state.db seq=22 hash=a2103adc578bede9e99afddc86d427af3d743e2cee08187dea471863540be49f
+Oct 29 04:58:23 hc-test-m2-u2604-rerun systemd[1]: homelab-control.service: Deactivated successfully.
+Oct 29 04:58:23 hc-test-m2-u2604-rerun systemd[1]: Stopped homelab-control.service - Homelab Control API and web UI (unprivileged).
+Oct 29 04:58:23 hc-test-m2-u2604-rerun systemd[1]: Started homelab-control.service - Homelab Control API and web UI (unprivileged).
+Oct 29 04:58:23 hc-test-m2-u2604-rerun hc-api[1907]: 2026/10/29 04:58:23 audit checkpoint log=/var/lib/homelab-control/state.db seq=23 hash=1eb47d64a0ee4fbf67f41d7e050cb79cde6be7c05bae583c7b4bb59798a9717d
+Oct 29 04:58:23 hc-test-m2-u2604-rerun hc-api[1907]: 2026/10/29 04:58:23 hc-api v0.1.0-dev.1-52-gd812995e listening on 127.0.0.1:9180 (tls=false)
+Oct 29 04:58:30 hc-test-m2-u2604-rerun sshd-session[1931]: Accepted publickey for hc from 192.168.122.1 port 42634 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:30 hc-test-m2-u2604-rerun sshd-session[1931]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:30 hc-test-m2-u2604-rerun sshd-session[1931]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:30 hc-test-m2-u2604-rerun sshd-session[1994]: Accepted publickey for hc from 192.168.122.1 port 42646 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:30 hc-test-m2-u2604-rerun sshd-session[1994]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:30 hc-test-m2-u2604-rerun sshd-session[1994]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:30 hc-test-m2-u2604-rerun systemd[1]: Started hc-test-dummy.service - Homelab Control disposable test unit (E2).
+Oct 29 04:58:32 hc-test-m2-u2604-rerun sshd-session[2051]: Accepted publickey for hc from 192.168.122.1 port 42660 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:32 hc-test-m2-u2604-rerun sshd-session[2051]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:32 hc-test-m2-u2604-rerun sshd-session[2051]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:33 hc-test-m2-u2604-rerun sshd-session[2107]: Accepted publickey for hc from 192.168.122.1 port 42672 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:33 hc-test-m2-u2604-rerun sshd-session[2107]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:33 hc-test-m2-u2604-rerun sshd-session[2107]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:33 hc-test-m2-u2604-rerun systemd[1]: Stopping hc-test-dummy.service - Homelab Control disposable test unit (E2)...
+Oct 29 04:58:33 hc-test-m2-u2604-rerun systemd[1]: hc-test-dummy.service: Deactivated successfully.
+Oct 29 04:58:33 hc-test-m2-u2604-rerun systemd[1]: Stopped hc-test-dummy.service - Homelab Control disposable test unit (E2).
+Oct 29 04:58:35 hc-test-m2-u2604-rerun sshd-session[2163]: Accepted publickey for hc from 192.168.122.1 port 42676 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:35 hc-test-m2-u2604-rerun sshd-session[2163]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:35 hc-test-m2-u2604-rerun sshd-session[2163]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:35 hc-test-m2-u2604-rerun systemd[1]: Started hc-test-dummy.service - Homelab Control disposable test unit (E2).
+Oct 29 04:58:37 hc-test-m2-u2604-rerun sshd-session[2226]: Accepted publickey for hc from 192.168.122.1 port 42686 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:37 hc-test-m2-u2604-rerun sshd-session[2226]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:37 hc-test-m2-u2604-rerun sshd-session[2226]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:38 hc-test-m2-u2604-rerun systemd[1]: Stopping hc-test-dummy.service - Homelab Control disposable test unit (E2)...
+Oct 29 04:58:38 hc-test-m2-u2604-rerun systemd[1]: hc-test-dummy.service: Deactivated successfully.
+Oct 29 04:58:38 hc-test-m2-u2604-rerun systemd[1]: Stopped hc-test-dummy.service - Homelab Control disposable test unit (E2).
+Oct 29 04:58:38 hc-test-m2-u2604-rerun systemd[1]: Started hc-test-dummy.service - Homelab Control disposable test unit (E2).
+Oct 29 04:58:40 hc-test-m2-u2604-rerun sshd-session[2290]: Accepted publickey for hc from 192.168.122.1 port 58524 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:40 hc-test-m2-u2604-rerun sshd-session[2290]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:40 hc-test-m2-u2604-rerun sshd-session[2290]: pam_unix(sshd:session): session closed for user hc
+Oct 29 04:58:40 hc-test-m2-u2604-rerun sshd-session[2344]: Accepted publickey for hc from 192.168.122.1 port 58530 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 04:58:40 hc-test-m2-u2604-rerun sshd-session[2344]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 04:58:40 hc-test-m2-u2604-rerun sshd-session[2344]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:00:56 hc-test-m2-u2604-rerun sshd-session[2433]: Accepted publickey for hc from 192.168.122.1 port 36914 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:00:56 hc-test-m2-u2604-rerun sshd-session[2433]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:00:56 hc-test-m2-u2604-rerun sshd-session[2433]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:00:56 hc-test-m2-u2604-rerun sshd-session[2493]: Accepted publickey for hc from 192.168.122.1 port 36930 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:00:56 hc-test-m2-u2604-rerun sshd-session[2493]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:00:56 hc-test-m2-u2604-rerun sshd-session[2493]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:00:56 hc-test-m2-u2604-rerun sshd-session[2547]: Accepted publickey for hc from 192.168.122.1 port 36944 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:00:56 hc-test-m2-u2604-rerun sshd-session[2547]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:00:56 hc-test-m2-u2604-rerun systemd[1]: Stopping hc-test-dummy.service - Homelab Control disposable test unit (E2)...
+Oct 29 05:00:56 hc-test-m2-u2604-rerun systemd[1]: hc-test-dummy.service: Deactivated successfully.
+Oct 29 05:00:56 hc-test-m2-u2604-rerun systemd[1]: Stopped hc-test-dummy.service - Homelab Control disposable test unit (E2).
+Oct 29 05:00:56 hc-test-m2-u2604-rerun systemd[1]: Started hc-test-dummy.service - Homelab Control disposable test unit (E2).
+Oct 29 05:00:56 hc-test-m2-u2604-rerun sshd-session[2547]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:00:57 hc-test-m2-u2604-rerun sshd-session[2602]: Accepted publickey for hc from 192.168.122.1 port 36950 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:00:57 hc-test-m2-u2604-rerun sshd-session[2602]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:00:57 hc-test-m2-u2604-rerun sshd-session[2602]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:00:58 hc-test-m2-u2604-rerun sshd-session[2654]: Accepted publickey for hc from 192.168.122.1 port 36960 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:00:58 hc-test-m2-u2604-rerun sshd-session[2654]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:00:58 hc-test-m2-u2604-rerun sshd-session[2654]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:04:07 hc-test-m2-u2604-rerun sshd-session[2746]: Accepted publickey for hc from 192.168.122.1 port 34342 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:04:07 hc-test-m2-u2604-rerun sshd-session[2746]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:04:07 hc-test-m2-u2604-rerun sshd-session[2746]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:04:07 hc-test-m2-u2604-rerun systemd[1]: Stopping hc-test-dummy.service - Homelab Control disposable test unit (E2)...
+Oct 29 05:04:07 hc-test-m2-u2604-rerun systemd[1]: hc-test-dummy.service: Deactivated successfully.
+Oct 29 05:04:07 hc-test-m2-u2604-rerun systemd[1]: Stopped hc-test-dummy.service - Homelab Control disposable test unit (E2).
+Oct 29 05:04:08 hc-test-m2-u2604-rerun hc-broker[1832]: 2026/10/29 05:04:08 audit checkpoint log=/var/log/homelab-control-broker/broker-audit.jsonl seq=100 hash=f0c5c45ca4f9372e457efead4f1601bb6b81ecc1636676e7cd5e86f8265f726b
+Oct 29 05:04:09 hc-test-m2-u2604-rerun sshd-session[2814]: Accepted publickey for hc from 192.168.122.1 port 34358 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:04:09 hc-test-m2-u2604-rerun sshd-session[2814]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:04:09 hc-test-m2-u2604-rerun sshd-session[2814]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:04:09 hc-test-m2-u2604-rerun systemd[1]: Started hc-test-fail.service - Homelab Control disposable failing unit (E2).
+Oct 29 05:04:09 hc-test-m2-u2604-rerun systemd[1]: hc-test-fail.service: Main process exited, code=exited, status=1/FAILURE
+Oct 29 05:04:09 hc-test-m2-u2604-rerun systemd[1]: hc-test-fail.service: Failed with result 'exit-code'.
+Oct 29 05:04:12 hc-test-m2-u2604-rerun sshd-session[2878]: Accepted publickey for hc from 192.168.122.1 port 34368 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:04:12 hc-test-m2-u2604-rerun sshd-session[2878]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:04:12 hc-test-m2-u2604-rerun sshd-session[2878]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:04:13 hc-test-m2-u2604-rerun systemd[1]: Started hc-test-dummy.service - Homelab Control disposable test unit (E2).
+Oct 29 05:04:15 hc-test-m2-u2604-rerun sshd-session[2947]: Accepted publickey for hc from 192.168.122.1 port 42560 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:04:15 hc-test-m2-u2604-rerun sshd-session[2947]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:04:15 hc-test-m2-u2604-rerun sshd-session[2947]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:04:17 hc-test-m2-u2604-rerun sshd-session[2998]: Accepted publickey for hc from 192.168.122.1 port 42568 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:04:17 hc-test-m2-u2604-rerun sshd-session[2998]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:04:17 hc-test-m2-u2604-rerun sshd-session[2998]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:04:18 hc-test-m2-u2604-rerun sshd-session[3059]: Accepted publickey for hc from 192.168.122.1 port 42576 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:04:18 hc-test-m2-u2604-rerun sshd-session[3059]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:04:18 hc-test-m2-u2604-rerun sshd-session[3059]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:04:18 hc-test-m2-u2604-rerun sshd-session[3137]: Accepted publickey for hc from 192.168.122.1 port 42590 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:04:18 hc-test-m2-u2604-rerun sshd-session[3137]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:04:18 hc-test-m2-u2604-rerun sshd-session[3137]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:04:18 hc-test-m2-u2604-rerun sshd-session[3187]: Connection closed by 192.168.122.1 port 42600
+Oct 29 05:04:26 hc-test-m2-u2604-rerun sshd-session[3189]: Accepted publickey for hc from 192.168.122.1 port 51000 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:04:26 hc-test-m2-u2604-rerun sshd-session[3189]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:04:27 hc-test-m2-u2604-rerun sshd-session[3189]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:04:27 hc-test-m2-u2604-rerun sshd-session[3257]: Accepted publickey for hc from 192.168.122.1 port 51004 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:04:27 hc-test-m2-u2604-rerun sshd-session[3257]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:04:27 hc-test-m2-u2604-rerun sshd-session[3257]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:04:27 hc-test-m2-u2604-rerun sshd-session[3350]: Accepted publickey for hc from 192.168.122.1 port 51008 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:04:27 hc-test-m2-u2604-rerun sshd-session[3350]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)
+Oct 29 05:04:27 hc-test-m2-u2604-rerun sshd-session[3350]: pam_unix(sshd:session): session closed for user hc
+Oct 29 05:04:27 hc-test-m2-u2604-rerun sshd-session[3424]: Accepted publickey for hc from 192.168.122.1 port 51024 ssh2: ED25519 SHA256:YPKgFnt5DK+o3JljdofXaUjkiz9YgZc/FHr7R4n6mjI
+Oct 29 05:04:27 hc-test-m2-u2604-rerun sshd-session[3424]: pam_unix(sshd:session): session opened for user hc(uid=1000) by hc(uid=0)

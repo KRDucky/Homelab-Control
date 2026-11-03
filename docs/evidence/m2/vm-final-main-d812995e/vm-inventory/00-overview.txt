@@ -1,0 +1,29 @@
+## 2026-10-28T05:18:21-05:00 host cachyos-um890
+ Id   Name                       State
+------------------------------------------
+ 1    hc-test-m2-u2604-rerun     running
+ 5    hc-test-m2-arch-20261028   running
+ 6    hc-test-m2-f44-rerun       running
+
+
+Name:           hc-test
+UUID:           a0b77261-caa8-4591-9f4f-07297dd198e4
+State:          running
+Persistent:     yes
+Autostart:      yes
+Capacity:       1.79 TiB
+Allocation:     933.27 GiB
+Available:      895.75 GiB
+
+ Name                                      Path                                                               Type   Capacity     Allocation
+----------------------------------------------------------------------------------------------------------------------------------------------
+ hc-test-base-arch-20261015.611680.qcow2   /var/lib/libvirt/hc-test/hc-test-base-arch-20261015.611680.qcow2   file   2.00 GiB     549.97 MiB
+ hc-test-base-fedora-44.qcow2              /var/lib/libvirt/hc-test/hc-test-base-fedora-44.qcow2              file   5.00 GiB     556.69 MiB
+ hc-test-base-ubuntu-26.04.qcow2           /var/lib/libvirt/hc-test/hc-test-base-ubuntu-26.04.qcow2           file   3.50 GiB     825.04 MiB
+ hc-test-m2-arch-20261028-seed.iso         /var/lib/libvirt/hc-test/hc-test-m2-arch-20261028-seed.iso         file   366.00 KiB   368.00 KiB
+ hc-test-m2-arch-20261028.qcow2            /var/lib/libvirt/hc-test/hc-test-m2-arch-20261028.qcow2            file   20.00 GiB    5.18 GiB
+ hc-test-m2-f44-rerun-seed.iso             /var/lib/libvirt/hc-test/hc-test-m2-f44-rerun-seed.iso             file   366.00 KiB   368.00 KiB
+ hc-test-m2-f44-rerun.qcow2                /var/lib/libvirt/hc-test/hc-test-m2-f44-rerun.qcow2                file   20.00 GiB    7.36 GiB
+ hc-test-m2-u2604-rerun-seed.iso           /var/lib/libvirt/hc-test/hc-test-m2-u2604-rerun-seed.iso           file   366.00 KiB   368.00 KiB
+ hc-test-m2-u2604-rerun.qcow2              /var/lib/libvirt/hc-test/hc-test-m2-u2604-rerun.qcow2              file   20.00 GiB    3.38 GiB
+
