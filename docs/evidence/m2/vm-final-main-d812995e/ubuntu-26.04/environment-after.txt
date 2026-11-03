@@ -1,0 +1,19 @@
+# harness sudo commands during scenario window (10:22:40-10:28:10 UTC)
+      1 COMMAND=/usr/bin/env HC_SMOKE_EXTRA_UNITS=homelab-control-broker.socket HC_SMOKE_EXTRA_CHECKS=/opt/hc/tests/m1-checks.sh /opt/hc/tests/m2-service-ops.sh HC_WEBMIN_SRC=/opt/hc/webmin HC_SMOKE_SCOPES=system.read,services.read,services.logs,hardware.read HC_M2_LONG=1 bash /opt/hc/tests/systemd-smoke.sh /opt/hc/pkg.deb
+      1 COMMAND=/usr/bin/journalctl --since 2026-10-28 10:22:44 UTC --no-pager
+      1 COMMAND=/usr/bin/journalctl --since 2026-10-28 10:22:44 UTC --no-pager -u ssh.service -u ssh.socket -u sshd.socket
+      1 COMMAND=/usr/bin/journalctl -k --since 2026-10-28 10:22:44 UTC --no-pager
+      1 Oct 28 10:22:44 hc-test-m2-u2604-rerun sudo[2206]: pam_unix(sudo:session): session opened for user root(uid=0) by hc(uid=1000)
+      1 Oct 28 10:28:08 hc-test-m2-u2604-rerun sudo[2206]: pam_unix(sudo:session): session closed for user root
+      1 Oct 28 10:28:08 hc-test-m2-u2604-rerun sudo[23387]: pam_unix(sudo:session): session closed for user root
+      1 Oct 28 10:28:08 hc-test-m2-u2604-rerun sudo[23387]: pam_unix(sudo:session): session opened for user root(uid=0) by hc(uid=1000)
+      1 Oct 28 10:28:08 hc-test-m2-u2604-rerun sudo[23392]: pam_unix(sudo:session): session closed for user root
+      1 Oct 28 10:28:08 hc-test-m2-u2604-rerun sudo[23392]: pam_unix(sudo:session): session opened for user root(uid=0) by hc(uid=1000)
+      1 Oct 28 10:28:08 hc-test-m2-u2604-rerun sudo[23403]: pam_unix(sudo:session): session closed for user root
+      1 Oct 28 10:28:08 hc-test-m2-u2604-rerun sudo[23403]: pam_unix(sudo:session): session opened for user root(uid=0) by hc(uid=1000)
+PRETTY_NAME="Ubuntu 26.04.1 LTS"
+VERSION_ID="26.04"
+kernel_running=7.0.0-34-generic
+linux-image-7.0.0-38-generic	7.0.0-38.38
+openssh-server	1:10.2p1-2ubuntu3.8
+pending_reboot=yes

@@ -1,0 +1,8 @@
+# preserve failure state 2026-10-28T10:28:33Z
+Domain snapshot post-ssh-stop-failure-20261028 created
+pre-m2
+  |
+  +- post-ssh-stop-failure-20261028
+  +- pre-final-main-20261028
+    
+

@@ -1,0 +1,24 @@
+# baseline prep step 3: reboot after upgrade — 2026-10-28T11:14:49Z
+Domain 'hc-test-m2-u2604-rerun' is being rebooted
+
+uptime=7.91 kernel=7.0.0-42-generic
+systemd 259 (259.9-0ubuntu0.1)
+reboot-required: no
+running
+== ssh
+ActiveState=active
+SubState=running
+MainPID=903
+active
+LISTEN 0      4096   0.0.0.0:22 0.0.0.0:*
+LISTEN 0      4096      [::]:22    [::]:*
+== timers
+NEXT                           LEFT LAST                        PASSED UNIT                    ACTIVATES
+Wed 2026-10-28 11:17:00 UTC 2min 1s Wed 2026-10-28 04:15:57 UTC      - apt-daily-upgrade.timer apt-daily-upgrade.service
+Wed 2026-10-28 20:56:07 UTC      9h Wed 2026-10-28 04:15:57 UTC      - apt-daily.timer         apt-daily.service
+
+2 timers listed.
+1269 bash -c echo "uptime=$(cut -d" " -f1 /proc/uptime) kernel=$(uname -r)"; systemctl --version | head -1; test -e /var/run/reboot-required && echo "reboot-required: YES" || echo "reboot-required: no"; systemctl is-system-running; systemctl --failed --no-legend; echo "== ssh"; systemctl show -p ActiveState,SubState,MainPID ssh.service; systemctl is-active ssh.socket; ss -Hltn "sport = :22"; echo "== timers"; systemctl list-timers apt-daily.timer apt-daily-upgrade.timer --all --no-pager; pgrep -a -f "apt-get|dpkg|unattended-upgrade$" || echo "no apt/dpkg/unattended-upgrade running"; timedatectl show -p NTPSynchronized -p TimeUSec; echo "host utc: 2026-10-28T11:14:59Z"
+NTPSynchronized=no
+TimeUSec=Wed 2026-10-28 11:14:59 UTC
+host utc: 2026-10-28T11:14:59Z

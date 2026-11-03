@@ -1,0 +1,13 @@
+updated /etc/homelab-control/users.json (restart hc-api to apply)
+updated /etc/homelab-control/users.json (restart hc-api to apply)
+Id=hc-test-dummy.service
+ActiveState=inactive
+MainPID=0
+
+Id=hc-test-fail.service
+ActiveState=inactive
+MainPID=0
+
+Id=ssh.service
+ActiveState=active
+MainPID=916

@@ -1,0 +1,25 @@
+# baseline prep step 2: apt update + full-upgrade — 2026-10-28T11:13:09Z
+dpkg --configure -a rc=0
+Get:48 http://archive.ubuntu.com/ubuntu resolute-backports/multiverse amd64 c-n-f Metadata [120 B]
+Fetched 32.2 MB in 4s (7927 kB/s)
+Reading package lists...
+update rc=0
+== upgradable
+64
+full-upgrade rc=0
+ hc @ session #4: bash[1556], sshd-session[1482]
+ hc @ user manager: (sd-pam)[1489]
+
+No VM guests are running outdated hypervisor (qemu) binaries on this host.
+== package changes (before -> after)
+134
+== integrity
+dpkg --audit rc=0
+Reading package lists...
+Building dependency tree...
+Reading state information...
+apt-get check rc=0
+still upgradable: 1
+reboot-required: yes
+linux-image-7.0.0-42-generic
+linux-base

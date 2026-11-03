@@ -1,0 +1,19 @@
+# finalize hc-test-m2-u2604-rerun — 2026-10-28T10:56:56Z
+uuid=30b2ff8b-1982-4af2-bbe6-cb9157b40eab (verified)
+Domain 'hc-test-m2-u2604-rerun' unmarked as autostarted
+
+Autostart:      disable
+Autostart Once: disable
+Domain 'hc-test-m2-u2604-rerun' is being shutdown
+
+domstate after graceful shutdown: shut off (waited ~4s)
+pre-m2
+  |
+  +- post-ssh-stop-failure-20261028
+  +- pre-final-main-20261028
+    
+
+State:          shut off
+Persistent:     yes
+Autostart:      disable
+Autostart Once: disable

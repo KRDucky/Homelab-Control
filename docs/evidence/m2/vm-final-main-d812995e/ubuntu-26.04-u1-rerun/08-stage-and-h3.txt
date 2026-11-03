@@ -1,0 +1,37 @@
+# staging — 2026-10-28T11:18:17Z
+manifest: 53c2a5dc0c3a2be700d5993643f238b713328b15a779c33afa44dd2dad5b5a54  build/homelab-control_0.1.0+dev.1+52+gd812995e_amd64.deb
+local:    53c2a5dc0c3a2be700d5993643f238b713328b15a779c33afa44dd2dad5b5a54  .dev/m2-vm/pkgs/ci-40666815912/build/homelab-control_0.1.0+dev.1+52+gd812995e_amd64.deb
+d812995e3f9e0a5ca3c12f34991c035b01e121e5
+staged from d812995e3f9e0a5ca3c12f34991c035b01e121e5; webmin files: 44162
+0 upgraded, 0 newly installed, 0 to remove and 1 not upgraded.
+curl	8.18.0-1ubuntu2.8
+iproute2	6.19.0-1ubuntu1.1
+perl	5.40.1-7ubuntu0.3
+procps	2:4.0.4-9ubuntu1
+python3	3.14.3-0ubuntu2
+53c2a5dc0c3a2be700d5993643f238b713328b15a779c33afa44dd2dad5b5a54  /opt/hc/pkg.deb
+b456e762a6fe75bd91939ed484965336968927973bb9aa8237df90182f1afd93  /opt/hc/tests/h3_may_stop.sh
+1d52f377d911b00ea523e639b8314229ea2dbafb110100a2357d5865aa293f00  /opt/hc/tests/m1-checks.sh
+24fc8cdc13503f923b2ed1f06ff0c26a2a504a2b19d6f9989f02d309647f99fe  /opt/hc/tests/m2-service-ops.sh
+e3bee71fcd2634f1d00d489b3833b580d985645151437977cb4ed6c187c829bd  /opt/hc/tests/m2_service_ops.py
+5d7bbe794c0e8268082e599f2ceb5fd37e37677a2cde18ad40f7004fd55dac8f  /opt/hc/tests/systemd-smoke.sh
+e94afc4bbf1f544faa27064c834130ed397ac902d1717629bf6d1e758878aa6f  /opt/hc/tests/test_h3_cleanup.sh
+== H3 regression inside guest as unprivileged user
+hc
+PASS  alias of sshd.service is refused
+PASS  alias of ssh.service is refused
+PASS  owned hc-test-dummy.service is allowed
+PASS  owned homelab-control-hctest.service is allowed
+PASS  real sshd.service is refused
+PASS  real ssh.service is refused
+PASS  CREATED stand-in ssh.service is allowed
+PASS  owned unit also named sshd is refused
+PASS  dbus.service is refused
+PASS  systemd-journald.service is refused
+PASS  product broker unit is refused
+PASS  symlink unit file is refused
+PASS  Id mismatch (alias) is refused
+PASS  empty Id is refused
+test_h3_cleanup: 14 passed, 0 failed
+exit=0
+ssh.service MainPID=903

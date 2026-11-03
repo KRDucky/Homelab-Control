@@ -1,0 +1,4 @@
+# SSH/host-service events since 2026-10-28 10:44:52 UTC
+  none
+# MAC denials since t0
+count=0
