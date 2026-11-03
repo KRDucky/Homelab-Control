@@ -45,6 +45,27 @@ make deb            # dev .deb in build/ (unsigned)
 make rpm            # dev .rpm (Fedora/openSUSE) in build/ (unsigned)
 make systemd-smoke  # package under real systemd in a disposable Ubuntu container (root, docker, debootstrap)
 ```
+
+### Fedora development RPM installation
+
+For a downloaded development RPM, use Fedora's native dependency-resolving installer:
+
+```sh
+sudo dnf install ./homelab-control-VERSION.x86_64.rpm
+```
+
+Replace `VERSION` with the version in the downloaded filename.
+
+Phase 1 development packages are **unsigned** (ADR 0009). Verify the exact artifact's
+CI provenance and published SHA-256 before installation; a checksum alone does not
+establish who produced it. DNF's default local-file policy may skip OpenPGP checks
+and print a warning: successful installation is not proof of an authenticated package.
+An administrator may configure stricter local-package checks; respect failures rather
+than overriding them. Do not use `--nogpgcheck`, `--nosignature` or trust-policy edits.
+
+The disposable Fedora installation matrix uses this same local-file path. Other RPM
+families retain their existing test path; this does not change release signing policy.
+
 Run Go tests as a **non-root** user: one test checks permission handling and is skipped as root.
 
 ## Run locally (dev mode)
