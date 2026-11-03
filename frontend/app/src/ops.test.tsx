@@ -168,6 +168,28 @@ describe('service operations', () => {
     expect(screen.queryByText('Read-only', { selector: '.readonly-badge' })).toBeNull();
   });
 
+  it('shows installed-only units without inventing runtime state or offering mutations', async () => {
+    const list = unitList({ available: true });
+    list.units.push({
+      name: 'unloaded.service',
+      type: 'service',
+      load: 'not-loaded',
+      active: 'unknown',
+      sub: 'unknown',
+      description: '',
+    });
+    mock({ ...base(), 'GET /api/v1/services': { status: 200, body: list } });
+    render(<App />);
+    const unit = await screen.findByText('unloaded.service');
+    const row = unit.closest('tr');
+    if (!row) throw new Error('Installed unit has no inventory row');
+    expect(within(row).getByText('not-loaded')).toBeTruthy();
+    expect(within(row).getByText('unknown')).toBeTruthy();
+    expect(within(row).queryByRole('button', { name: /^(Start|Stop|Restart) / })).toBeNull();
+    expect(await screen.findByRole('button', { name: 'Stop demo.service' })).toBeTruthy();
+    expect(calls.filter((c) => c.key.startsWith('POST '))).toHaveLength(0);
+  });
+
   it('shows no controls and says why when operations are unavailable', async () => {
     mock(base({ available: false, reason: 'Your account does not have the services.operate permission.' }));
     render(<App />);

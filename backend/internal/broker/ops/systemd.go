@@ -71,24 +71,14 @@ func systemdList(ctx context.Context, env *Env, raw json.RawMessage) (any, error
 	if uf, err := env.Runner.Run(ctx, "systemctl", "list-unit-files", "--output=json", "--no-pager", "--type="+unitTypes); err == nil && uf.ExitCode == 0 {
 		files, _ = ParseListUnitFiles(uf.Stdout)
 	}
+	units = mergeUnitInventory(units, files)
 	for i := range units {
-		if f, ok := files[units[i].Name]; ok {
-			units[i].UnitFileState = f.State
-			if f.Preset != nil {
-				units[i].Preset = *f.Preset
-			} else if f.VendorPreset != nil {
-				units[i].Preset = *f.VendorPreset
-			}
-		}
 		res.Counts[units[i].Active]++
 		if units[i].Active == "failed" {
 			res.Counts["failed_total"]++
 		}
 	}
-	if len(units) > maxUnits {
-		units, res.Truncated = units[:maxUnits], true
-	}
-	res.Units = units
+	res.Units, res.Truncated = capInventory(units, maxUnits)
 	return res, nil
 }
 
@@ -106,6 +96,64 @@ func runErr(err error) error {
 		}
 		return &proto.Error{Code: proto.CodeInternal, Message: msg}
 	}
+}
+
+// mergeUnitInventory combines runtime observations with installed unit files.
+// A unit file does not establish a runtime state (and may be an alias or
+// template), so file-only entries are explicitly unknown, never loaded/inactive.
+// Listing inventory must not load units or perform per-unit systemctl queries.
+func mergeUnitInventory(units []Unit, files map[string]rawUnitFile) []Unit {
+	seen := make(map[string]bool, len(units))
+	for _, u := range units {
+		seen[u.Name] = true
+	}
+	for name := range files {
+		if !seen[name] {
+			units = append(units, Unit{
+				Name: name, Type: name[strings.LastIndexByte(name, '.')+1:],
+				Load: fileOnlyLoad, Active: "unknown", Sub: "unknown",
+			})
+		}
+	}
+	for i := range units {
+		if f, ok := files[units[i].Name]; ok {
+			units[i].UnitFileState = f.State
+			if f.Preset != nil {
+				units[i].Preset = *f.Preset
+			} else if f.VendorPreset != nil {
+				units[i].Preset = *f.VendorPreset
+			}
+		}
+	}
+	sort.Slice(units, func(i, j int) bool { return units[i].Name < units[j].Name })
+	return units
+}
+
+// fileOnlyLoad marks an installed unit file that list-units did not report.
+// systemd itself never uses this load state.
+const fileOnlyLoad = "not-loaded"
+
+// capInventory bounds a name-sorted inventory to limit entries. Runtime
+// observations are kept before file-only entries, so installed-only files can
+// never push a loaded, failed or operable unit out of the list; the kept
+// entries stay in name order.
+func capInventory(units []Unit, limit int) ([]Unit, bool) {
+	if len(units) <= limit {
+		return units, false
+	}
+	kept := make([]Unit, 0, limit)
+	for _, u := range units {
+		if u.Load != fileOnlyLoad && len(kept) < limit {
+			kept = append(kept, u)
+		}
+	}
+	for _, u := range units {
+		if u.Load == fileOnlyLoad && len(kept) < limit {
+			kept = append(kept, u)
+		}
+	}
+	sort.Slice(kept, func(i, j int) bool { return kept[i].Name < kept[j].Name })
+	return kept, true
 }
 
 // ParseListUnits validates and normalises `systemctl list-units --output=json`.
@@ -142,7 +190,9 @@ func ParseListUnitFiles(b []byte) (map[string]rawUnitFile, error) {
 	}
 	out := make(map[string]rawUnitFile, len(raw))
 	for _, r := range raw {
-		if unitNameRE.MatchString(r.UnitFile) && stateRE.MatchString(r.State) {
+		dot := strings.LastIndexByte(r.UnitFile, '.')
+		if dot > 0 && unitNameRE.MatchString(r.UnitFile) && stateRE.MatchString(r.State) &&
+			strings.Contains(","+unitTypes+",", ","+r.UnitFile[dot+1:]+",") {
 			out[r.UnitFile] = r
 		}
 	}
