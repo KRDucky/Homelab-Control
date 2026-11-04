@@ -226,12 +226,15 @@ def main():
         record("B8", "disable result verified on the host", obs_state == "disabled", ui=dlg.inner_text()[:120], observer=obs_state)
         dlg.get_by_role("button", name="Close").click()
 
-        # B9: protected unit has no boot control by any route.
-        page.get_by_role("searchbox", name="Search units").fill("ssh")
-        ssh_rows = page.get_by_role("row").filter(has_text="ssh.service")
-        has_btn = page.get_by_role("button", name="Disable at boot: ssh.service").count() + page.get_by_role("button", name="Enable at boot: ssh.service").count()
-        record("B9", "protected SSH unit: label, no enable/disable control", has_btn == 0 and ssh_rows.count() >= 1,
-               ui=ssh_rows.first.inner_text()[:120] if ssh_rows.count() else "no row")
+        # B9: the distribution's SSH unit (ssh.service or sshd.service) is
+        # labelled protected and has no boot control.
+        sshu = "ssh.service" if dx("systemctl show -p LoadState --value ssh.service") == "loaded" else "sshd.service"
+        page.get_by_role("searchbox", name="Search units").fill(sshu)
+        ssh_rows = page.get_by_role("row").filter(has=page.locator(f'code[data-unit="{sshu}"]'))
+        has_btn = page.get_by_role("button", name=f"Disable at boot: {sshu}").count() + page.get_by_role("button", name=f"Enable at boot: {sshu}").count()
+        row_txt = ssh_rows.first.inner_text() if ssh_rows.count() else "no row"
+        record("B9", f"protected SSH unit ({sshu}): label, no enable/disable control",
+               has_btn == 0 and "Protected" in row_txt, ui=row_txt[:120], observer=dx(f"systemctl is-enabled {sshu}"))
 
         # B10: detail panel and redacted unit file.
         page.get_by_role("searchbox", name="Search units").fill("hc-test-en-ui.service")

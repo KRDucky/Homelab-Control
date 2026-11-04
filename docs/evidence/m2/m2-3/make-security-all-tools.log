@@ -1,0 +1,42 @@
+scripts/security-check.sh
+
+== Upstream provenance
+pinned tag:          2.670
+subtree split (git): 3a2b2b8671c0669c129f5275b3dd1853106ae02b
+OK: compat/webmin is byte-identical to upstream 2.670 (tree a8482cc848f28a8e4c806861f237a2094514f533)
+
+== Go static guards (no process execution, all API routes wrapped)
+ok  	homelab-control/backend/internal/guard	0.020s
+
+== go vet
+
+== Go dependency policy (ADR 0006 amendment 1: reviewed allow-list only)
+OK: 10 reviewed modules, 8 linked into hc-api/hlctl; hc-broker links the standard library only
+
+== govulncheck (Go stdlib/toolchain advisories)
+No vulnerabilities found.
+
+== npm audit (production dependencies)
+found 0 vulnerabilities
+
+== Frontend XSS lint rules
+npm notice run @homelab-control/app@0.1.0-m0 npx
+npm notice run 'eslint' .
+
+== Third-party notices match shipped dependencies
+OK: THIRD-PARTY-NOTICES.md and packaging/debian/copyright match the shipped dependencies
+
+== SBOM matches inputs and is valid SPDX 2.3
+OK: SBOM matches inputs (261 packages)
+
+== Webmin reference tree licence inventory (per-file upstream statements reviewed)
+OK: Webmin licence inventory current (44297 files, 36 entries, no unreviewed statements)
+
+== Licensing metadata (REUSE 3.3: SPDX licence + copyright for every file)
+OK: REUSE compliant
+
+== Committed secrets / private keys
+OK: no private keys outside compat/webmin
+
+== Shell scripts
+make security exit=0

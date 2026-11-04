@@ -1,0 +1,16 @@
+== FuzzEnablementArgs (id -u 1000)
+fuzz: elapsed: 1m1s, execs: 2471382 (0/sec), new interesting: 353 (total: 358)
+PASS
+ok  	homelab-control/backend/internal/broker/ops	61.023s
+== FuzzParseInstall (id -u 1000)
+fuzz: elapsed: 1m1s, execs: 8655610 (0/sec), new interesting: 195 (total: 197)
+PASS
+ok  	homelab-control/backend/internal/broker/ops	61.008s
+== FuzzWriteArgs (id -u 1000)
+fuzz: elapsed: 1m1s, execs: 3416823 (0/sec), new interesting: 128 (total: 136)
+PASS
+ok  	homelab-control/backend/internal/broker/ops	61.006s
+== FuzzLogsArgs (id -u 1000)
+fuzz: elapsed: 1m1s, execs: 4033723 (0/sec), new interesting: 329 (total: 337)
+PASS
+ok  	homelab-control/backend/internal/broker/ops	61.007s
