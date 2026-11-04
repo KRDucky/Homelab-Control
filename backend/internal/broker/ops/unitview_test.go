@@ -265,3 +265,33 @@ func TestParseCatRedactsContinuations(t *testing.T) {
 		t.Fatalf("redactions=%d text:\n%s", c.Redactions, text)
 	}
 }
+
+// FuzzParseCat: arbitrary systemctl cat output never panics, stays within the
+// bounds, and a value assigned to a secret-named key never survives, even
+// when it is split across continuation lines.
+func FuzzParseCat(f *testing.F) {
+	f.Add("# /etc/systemd/system/x.service\n[Service]\nExecStart=/bin/x \\\n --token \\\n V\n", "V")
+	f.Add("# /etc/systemd/system/x.service\nEnvironment=A=1 \\\n PASSWORD=V\n", "V")
+	f.Fuzz(func(t *testing.T, out, v string) {
+		c, err := ParseCat("x.service", []byte(out), "", 0)
+		if err != nil {
+			return
+		}
+		n := 0
+		for _, fl := range c.Files {
+			n += len(fl.Text)
+		}
+		if n > maxContentBytes+len(c.Files) {
+			t.Fatalf("output %d bytes", n)
+		}
+		// Property: "Environment=…<v>" and "Password=<v>" lines never show v.
+		if len(v) >= 6 && !strings.ContainsAny(v, " \t\r\n\\=#;[\"'") && !strings.Contains(out, v) {
+			for _, line := range []string{"Environment=K=" + v, "Password=" + v, "Environment=A=1 \\\n K=" + v} {
+				c, err := ParseCat("x.service", []byte("# /etc/systemd/system/x.service\n"+line+"\n"), "", 0)
+				if err == nil && len(c.Files) == 1 && strings.Contains(c.Files[0].Text, v) {
+					t.Fatalf("%q shown for %q:\n%s", v, line, c.Files[0].Text)
+				}
+			}
+		}
+	})
+}
