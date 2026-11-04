@@ -142,6 +142,18 @@ def stepup(csrf, sid=None):
     return call("POST", "/api/v1/auth/step-up", {"password": PW}, csrf, sid)
 
 
+def harness_reload():
+    """Test harness only (never the product): make systemd load the fixture
+    edits this test made on purpose. Homelab Control refuses to enable while
+    unit files changed after systemd's last load (probe 8), so the harness
+    reloads after each deliberate unreloaded edit it has finished with. The
+    pauses keep the edits clear of the load time (the kernel's file-time
+    clock is coarse)."""
+    time.sleep(0.3)
+    subprocess.run(["systemctl", "daemon-reload"], check=True)
+    time.sleep(0.3)
+
+
 def journal_cursor():
     out = sh("journalctl", "--no-pager", "-n", "0", "--show-cursor")
     return out.rsplit("cursor: ", 1)[-1].strip() if "cursor: " in out else ""
@@ -174,6 +186,15 @@ def fixtures(ssh):
                                      "[Install]\nWantedBy=multi-user.target\n",
         "hc-test-en-long.service": "[Unit]\nDescription=M2-3 expiry fixture\n" + _SLEEP +
                                    "[Install]\nWantedBy=multi-user.target\n",
+        # Unreloaded-change gate (probe 8). homelab-control-hctest-prot is a
+        # protected-name stand-in (never a real access service).
+        "hc-test-en-g.service": "[Unit]\nDescription=M2-3 unloaded-change fixture\n" + _SLEEP +
+                                "[Install]\nWantedBy=multi-user.target\n",
+        "hc-test-en-g2.service": "[Unit]\nDescription=M2-3 second gate fixture\n" + _SLEEP +
+                                 "[Install]\nWantedBy=multi-user.target\n",
+        "hc-test-en-gconf.service": "[Unit]\nDescription=M2-3 conflicts with the protected stand-in\n"
+                                    "Conflicts=homelab-control-hctest-prot.service\n" + _SLEEP,
+        "homelab-control-hctest-prot.service": "[Unit]\nDescription=M2-3 disposable protected-name stand-in\n" + _SLEEP,
         "hc-test-en-stale.service": "[Unit]\nDescription=M2-3 disposable stale-plan fixture\n" + _SLEEP +
                                     "[Install]\nWantedBy=multi-user.target\n",
         "hc-test-en-secret.service": "[Unit]\nDescription=M2-3 disposable redaction fixture\n[Service]\nType=simple\n"
@@ -233,7 +254,7 @@ def setup():
     with open(dropin, "w") as f:
         f.write(f"[Service]\nEnvironment=DB_PASSWORD={SECRET_DROPIN}\n[Install]\nAlias=hc-test-en-secret-alias.service\n")
     os.chmod(dropin, 0o600)
-    subprocess.run(["systemctl", "daemon-reload"], check=True)
+    harness_reload()
 
 
 def invariants():
@@ -271,7 +292,7 @@ def cleanup(before):
         # Only directories this run created, and only the fixture links in them.
         for n in os.listdir(d):
             p = os.path.join(d, n)
-            if (os.path.islink(p) and n.startswith("hc-test-en-")) or (os.path.isfile(p) and n == "zz-hctest.conf"):
+            if (os.path.islink(p) and n.startswith("hc-test-en-")) or (os.path.isfile(p) and n.startswith("zz-hctest")):
                 os.remove(p)
         if not os.listdir(d):
             os.rmdir(d)
@@ -370,6 +391,7 @@ def main():
     check("apply disable: succeeded", (200, "succeeded", "disabled"), (st, o.get("outcome"), o.get("boot_state")))
     check("host: alias link removed", False, os.path.lexists(f"{ETC}/hc-test-en-run-alias.service"))
     check("host: still running with the same PID (no stop)", ("active", pid), (prop(r, "ActiveState"), prop(r, "MainPID")))
+    harness_reload()  # the harness's own --no-reload enable above is an unloaded change
 
     # 3. Token isolation from start/stop/restart.
     st, p = eplan(u, "disable", csrf)
@@ -385,12 +407,15 @@ def main():
     with open(f"{ETC}/{s}", "a") as f:
         f.write("Alias=hc-test-en-stale-alias.service\n")
     st, e = eapply(s, "enable", p.get("token"), csrf)
-    check("[Install] changed after review: 409 conflict, nothing done", (409, "conflict", "disabled"), (st, e.get("error"), is_enabled(s)))
+    check("[Install] changed after review: refused, nothing done", (True, "disabled"),
+          (st in (403, 409) and "othing was done" in e.get("message", ""), is_enabled(s)))
+    harness_reload()
     st, p = eplan(s, "enable", csrf)
     subprocess.run(["systemctl", "--no-reload", "enable", "--", s], check=True, capture_output=True)
     st, e = eapply(s, "enable", p.get("token"), csrf)
     check("enabled on the host after review: refused", (True, True), (st in (403, 409), "Nothing was done" in e.get("message", "") or "nothing was done" in e.get("message", "")))
     subprocess.run(["systemctl", "--no-reload", "disable", "--", s], check=True, capture_output=True)
+    harness_reload()
 
     # 5. Concurrency: one token, eight parallel applies → exactly one change.
     st, p = eplan(u, "enable", csrf)
@@ -422,6 +447,7 @@ def main():
     subprocess.run(["systemctl", "--no-reload", "enable", "--", "hc-test-en-req.service"], check=True, capture_output=True)
     # RequisiteOf comes from systemd's loaded graph: load the dependent by starting both.
     subprocess.run(["systemctl", "start", "--", "hc-test-en-req.service", "homelab-control-hctest-req.service"], check=True)
+    harness_reload()
     refusals += [
         ("hc-test-en-shadow.service", "enable", "Alias= naming another installed unit"),
         ("hc-test-en-req.service", "disable", "a protected unit declares Requisite= on it"),
@@ -454,6 +480,7 @@ def main():
     check("stale view: no link changed", [], sorted(snapshot ^ links()))
     subprocess.run(["rm", "-rf", "--", stale_dir], check=True)
     CREATED_DIRS.remove(stale_dir)
+    harness_reload()
     # systemctl disable removes links its [Install] does not describe: refused.
     m = "hc-test-en-manual.service"
     stepup(csrf)
@@ -477,6 +504,85 @@ def main():
     st, o = eapply(m, "disable", p.get("token"), csrf)
     check("disable after removing it: succeeded, fresh scan finds no link", (200, "succeeded", [False], []),
           (st, o.get("outcome"), [l.get("present") for l in o.get("links", [])], o.get("unexpected_links", [])))
+    harness_reload()  # the manual link was a change made outside Homelab Control
+
+    # 6d. Unreloaded changes (probe 8: each of these stopped a stand-in
+    # protected service at the next boot when the fixture was enabled). The
+    # loaded view does not show them, so enable must fail closed.
+    g, prot = "hc-test-en-g.service", "homelab-control-hctest-prot.service"
+    gate = "changed on disk after systemd last loaded its configuration"
+    stepup(csrf)
+    # Running, so systemd keeps its loaded copy (an inactive unit is reloaded
+    # from disk when queried, which hides the gap; probe 7 P15).
+    subprocess.run(["systemctl", "start", "--", g], check=True)
+
+    def gate_case(name, write, undo):
+        write()
+        snap = links()
+        st, e = eplan(g, "enable", csrf)
+        print(f"INFO  {name}: {st} {e.get('message', '')[:240]}")
+        check(f"unloaded change refused: {name}", (403, True), (st, gate in e.get("message", "")))
+        check(f"unloaded change: no link changed ({name})", [], sorted(snap ^ links()))
+        undo()
+        harness_reload()
+
+    def mkdrop(d, body):
+        def w():
+            if os.path.lexists(d):
+                raise RuntimeError(f"{d} exists before the test")
+            os.makedirs(d)
+            CREATED_DIRS.append(d)
+            with open(f"{d}/zz-hctest.conf", "w") as f:
+                f.write(body)
+        return w
+
+    def rmdrop(d):
+        def u():
+            subprocess.run(["rm", "-rf", "--", d], check=True)
+            CREATED_DIRS.remove(d)
+        return u
+    shared = f"{ETC}/hc-test-en-.service.d"   # prefix drop-in: applies to hc-test-en-*
+    gate_case("new prefix drop-in with Conflicts= on the protected stand-in",
+              mkdrop(shared, f"[Unit]\nConflicts={prot}\n"), rmdrop(shared))
+    with open(f"{ETC}/{g}") as f:
+        g_orig = f.read()
+
+    def edit_g():
+        with open(f"{ETC}/{g}", "w") as f:
+            f.write(g_orig.replace("[Service]", "Wants=hc-test-en-gconf.service\n[Service]"))
+
+    def restore_g():
+        with open(f"{ETC}/{g}", "w") as f:
+            f.write(g_orig)
+    gate_case("fragment edited to Want a unit that conflicts with it", edit_g, restore_g)
+    pd = f"{ETC}/{prot}.d"
+    gate_case("protected stand-in's new drop-in conflicts with the unit", mkdrop(pd, f"[Unit]\nConflicts={g}\n"), rmdrop(pd))
+    # Edit between preview and apply.
+    st, p = eplan(g, "enable", csrf)
+    check("clean state: plan enable 200", 200, st)
+    mkdrop(pd, f"[Unit]\nConflicts={g}\n")()
+    st, e = eapply(g, "enable", p.get("token"), csrf)
+    check("edit between preview and apply: refused, nothing done", (403, True, "disabled"),
+          (st, gate in e.get("message", "") and "othing was done" in e.get("message", ""), is_enabled(g)))
+    rmdrop(pd)()
+    harness_reload()
+    # Own changes do not block the next enable.
+    for unit in (g, "hc-test-en-g2.service"):
+        st, p = eplan(unit, "enable", csrf)
+        st, o = eapply(unit, "enable", p.get("token"), csrf)
+        check(f"sequential own enables, no reload in between: {unit} succeeded", (200, "succeeded"), (st, o.get("outcome")))
+    # Disable: Requisite= on disk from the protected stand-in, not loaded.
+    mkdrop(pd, f"[Unit]\nRequisite={g}\n")()
+    st, e = eplan(g, "disable", csrf)
+    check("disable refused: unloaded Requisite= of a protected unit on disk", (403, True),
+          (st, f"requisite of {prot}" in e.get("message", "")))
+    rmdrop(pd)()
+    for unit in (g, "hc-test-en-g2.service"):
+        st, p = eplan(unit, "disable", csrf)
+        st, o = eapply(unit, "disable", p.get("token"), csrf)
+        check(f"undo without a reload: disable {unit} succeeded", (200, "succeeded"), (st, o.get("outcome")))
+    subprocess.run(["systemctl", "stop", "--", g], check=True)
+    harness_reload()
 
     # 6c. Long expiry waits (HC_M2_LONG=1): a plan older than 120 s and a step-up
     # older than 5 minutes are refused, and nothing changes.

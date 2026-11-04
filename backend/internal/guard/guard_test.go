@@ -222,7 +222,7 @@ var rootExecNames = map[string]bool{
 	"RootExec": true, "RootArgv": true, "rootTemplates": true, "RootSystemctlStart": true,
 	"RootSystemctlStop": true, "RootSystemctlRestart": true, "RootTemplate": true,
 	"RootSystemctlEnable": true, "RootSystemctlDisable": true, "RootSystemctlIsEnabled": true,
-	"RootSystemctlShowInstall": true, "RootSystemctlShow": true,
+	"RootSystemctlShowInstall": true, "RootSystemctlShow": true, "RootSystemctlShowManager": true,
 }
 
 func TestRootExecConfined(t *testing.T) {

@@ -143,7 +143,7 @@ func Registry() map[string]Op {
 			Handle:      unitEnablementApply, AuditArgs: enablementAuditArgs,
 			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskDisruptive}, LockDomain: "service:<unit id>+unit-files",
 				Templates: []runner.RootTemplate{runner.RootSystemctlEnable, runner.RootSystemctlDisable, runner.RootSystemctlIsEnabled,
-					runner.RootSystemctlShowInstall, runner.RootSystemctlShow}}},
+					runner.RootSystemctlShowInstall, runner.RootSystemctlShow, runner.RootSystemctlShowManager}}},
 		{Name: "operations.journal.list", Scope: "audit.read", Privilege: PrivRootRead, Timeout: 5 * time.Second,
 			Description: "The 100 most recent privileged operations from the broker journal, including interrupted ones", Handle: journalList},
 	}

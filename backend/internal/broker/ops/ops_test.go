@@ -104,7 +104,7 @@ func TestRegistryIsClosed(t *testing.T) {
 	// the read-only queries; it can never start, stop or restart a unit, and
 	// start/stop apply can never enable or disable one.
 	got = reg["services.enablement.apply"].Write.Templates
-	if fmt.Sprint(got) != "[systemctl.enable systemctl.disable systemctl.is-enabled systemctl.show-install systemctl.show]" {
+	if fmt.Sprint(got) != "[systemctl.enable systemctl.disable systemctl.is-enabled systemctl.show-install systemctl.show systemctl.show-manager]" {
 		t.Errorf("enablement apply templates: %v", got)
 	}
 	if fmt.Sprint(reg["services.enablement.plan"].Write.Risks) != "[disruptive]" || fmt.Sprint(reg["services.enablement.apply"].Write.Risks) != "[disruptive]" {

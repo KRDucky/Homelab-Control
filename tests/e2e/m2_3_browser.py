@@ -116,7 +116,9 @@ def setup():
     dx("chown homelab-control:homelab-control /etc/homelab-control/users.json", check=True)
     for name, body in FIXTURES.items():
         dx(f"cat > {ETC}/{name}", inp=body, check=True)
-    dx("systemctl daemon-reload && systemctl start homelab-control-broker.socket homelab-control.service hc-test-en-ui.timer", check=True)
+    # Pause before and after the (test-only) reload: Homelab Control refuses to
+    # enable while unit files changed after systemd's last load (probe 8).
+    dx("sleep 0.3 && systemctl daemon-reload && sleep 0.3 && systemctl start homelab-control-broker.socket homelab-control.service hc-test-en-ui.timer", check=True)
     dx("cat > /root/relay.py", inp=RELAY, check=True)
     subprocess.Popen(["docker", "exec", "-d", NAME, "python3", "/root/relay.py"])
     for _ in range(50):
