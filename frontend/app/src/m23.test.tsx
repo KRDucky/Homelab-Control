@@ -160,7 +160,10 @@ function mock(routes: Record<string, Route>) {
 }
 
 const configureScopes = ['services.read', 'services.configure', 'audit.read'];
-function base(scopes = configureScopes, configure = { available: true }) {
+function base(
+  scopes = configureScopes,
+  configure: { available: boolean; reason?: string } = { available: true },
+) {
   return {
     'GET /api/v1/auth/session': { status: 200, body: session(scopes) },
     'GET /api/v1/capabilities': { status: 200, body: caps() },
