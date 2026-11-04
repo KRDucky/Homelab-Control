@@ -40,6 +40,7 @@ SECRET_DROPIN = "fixture-secret-abc-M23"
 passed = failed = 0
 _cleaned = False
 CREATED = []          # fixture unit files written by this run
+CREATED_DIRS = []     # fixture directories written by this run
 RESPONSES = []        # every API response body, scanned for fixture secrets
 
 
@@ -169,6 +170,10 @@ def fixtures(ssh):
                                 "[Install]\nWantedBy=multi-user.target\n",
         "hc-test-en-run.service": "[Unit]\nDescription=M2-3 disposable running fixture\n" + _SLEEP +
                                   "[Install]\nWantedBy=multi-user.target\nAlias=hc-test-en-run-alias.service\n",
+        "hc-test-en-manual.service": "[Unit]\nDescription=M2-3 undescribed-link fixture\n" + _SLEEP +
+                                     "[Install]\nWantedBy=multi-user.target\n",
+        "hc-test-en-long.service": "[Unit]\nDescription=M2-3 expiry fixture\n" + _SLEEP +
+                                   "[Install]\nWantedBy=multi-user.target\n",
         "hc-test-en-stale.service": "[Unit]\nDescription=M2-3 disposable stale-plan fixture\n" + _SLEEP +
                                     "[Install]\nWantedBy=multi-user.target\n",
         "hc-test-en-secret.service": "[Unit]\nDescription=M2-3 disposable redaction fixture\n[Service]\nType=simple\n"
@@ -262,6 +267,17 @@ def cleanup(before):
         subprocess.run(["systemctl", "stop", "--", name], capture_output=True)
         os.remove(path)
     subprocess.run(["rm", "-rf", "--", f"{ETC}/hc-test-en-secret.service.d"])
+    for d in CREATED_DIRS:
+        # Only directories this run created, and only the fixture links in them.
+        for n in os.listdir(d):
+            p = os.path.join(d, n)
+            if (os.path.islink(p) and n.startswith("hc-test-en-")) or (os.path.isfile(p) and n == "zz-hctest.conf"):
+                os.remove(p)
+        if not os.listdir(d):
+            os.rmdir(d)
+        else:
+            print(f"FAIL  cleanup left {d}: not empty")
+            failed += 1
     if os.path.isfile(VENDOR_VICTIM) and not os.path.islink(VENDOR_VICTIM):
         os.remove(VENDOR_VICTIM)
     subprocess.run(["systemctl", "daemon-reload"], capture_output=True)
@@ -418,7 +434,74 @@ def main():
                        ("hc-test-en-a.service", "enable --now")):
         st, e = eplan(unit, body, csrf)
         check(f"refused: {unit} {body}: 400", 400, st)
-    check("refusals changed no link", snapshot, links())
+    check("refusals changed no link", [], sorted(snapshot ^ links()))
+
+    # 6b. Review findings (probe 7): systemctl works from the files on disk.
+    # A drop-in written after systemd loaded a RUNNING unit is not in systemd's
+    # loaded view, but systemctl enable would honour its [Install].
+    r = "hc-test-en-run.service"
+    stale_dir = f"{ETC}/{r}.d"
+    if os.path.lexists(stale_dir):
+        raise RuntimeError(f"{stale_dir} exists before the test")
+    os.makedirs(stale_dir)
+    CREATED_DIRS.append(stale_dir)
+    with open(f"{stale_dir}/zz-hctest.conf", "w") as f:
+        f.write("[Install]\nWantedBy=graphical.target\n")
+    snapshot = links()
+    st, e = eplan(r, "enable", csrf)
+    check("new drop-in not loaded by systemd: refused as a stale view", (403, True),
+          (st, "differ from the ones systemd has loaded" in e.get("message", "")))
+    check("stale view: no link changed", [], sorted(snapshot ^ links()))
+    subprocess.run(["rm", "-rf", "--", stale_dir], check=True)
+    CREATED_DIRS.remove(stale_dir)
+    # systemctl disable removes links its [Install] does not describe: refused.
+    m = "hc-test-en-manual.service"
+    stepup(csrf)
+    st, p = eplan(m, "enable", csrf)
+    st, o = eapply(m, "enable", p.get("token"), csrf)
+    check("enable: every link read back as pointing to the unit file", (200, "succeeded", [True], []),
+          (st, o.get("outcome"), [l.get("points_to_unit") for l in o.get("links", [])], o.get("unexpected_links", [])))
+    manual_dir = f"{ETC}/hc-test-en-other.target.wants"
+    if os.path.lexists(manual_dir):
+        raise RuntimeError(f"{manual_dir} exists before the test")
+    os.makedirs(manual_dir)
+    CREATED_DIRS.append(manual_dir)
+    os.symlink(f"{ETC}/{m}", f"{manual_dir}/{m}")
+    snapshot = links()
+    st, e = eplan(m, "disable", csrf)
+    check("disable with a link [Install] does not describe: refused", (403, True),
+          (st, f"{manual_dir}/{m}" in e.get("message", "") and "would remove them too" in e.get("message", "")))
+    check("undescribed link: nothing removed", [], sorted(snapshot ^ links()))
+    os.remove(f"{manual_dir}/{m}")
+    st, p = eplan(m, "disable", csrf)
+    st, o = eapply(m, "disable", p.get("token"), csrf)
+    check("disable after removing it: succeeded, fresh scan finds no link", (200, "succeeded", [False], []),
+          (st, o.get("outcome"), [l.get("present") for l in o.get("links", [])], o.get("unexpected_links", [])))
+
+    # 6c. Long expiry waits (HC_M2_LONG=1): a plan older than 120 s and a step-up
+    # older than 5 minutes are refused, and nothing changes.
+    if os.environ.get("HC_M2_LONG") == "1":
+        lu = "hc-test-en-long.service"
+        stepup(csrf)
+        st, p = eplan(lu, "enable", csrf)
+        print("INFO  waiting 125 s for the plan token to expire")
+        time.sleep(125)
+        stepup(csrf)
+        st, e = eapply(lu, "enable", p.get("token"), csrf)
+        check("LONG: plan older than 120 s: 409 plan_invalid, still disabled", (409, "plan_invalid", "disabled"),
+              (st, e.get("error"), is_enabled(lu)))
+        stepup(csrf)
+        print("INFO  waiting 305 s for the step-up to expire")
+        time.sleep(305)
+        st, p = eplan(lu, "enable", csrf)
+        st, e = eapply(lu, "enable", p.get("token"), csrf)
+        check("LONG: step-up older than 5 minutes: 403 step_up_required, still disabled", (403, "step_up_required", "disabled"),
+              (st, e.get("error"), is_enabled(lu)))
+        stepup(csrf)
+        st, o = eapply(lu, "enable", p.get("token"), csrf)
+        check("LONG: same plan after a fresh step-up: succeeded", (200, "succeeded"), (st, o.get("outcome")))
+    else:
+        print("SKIP  M2-3 token/step-up expiry waits (set HC_M2_LONG=1)")
 
     # 7. Root-only drop-in: the [Install] alias in it is honoured, its secret never disclosed.
     sec = "hc-test-en-secret.service"

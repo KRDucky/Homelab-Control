@@ -247,7 +247,7 @@ export function Services({
             ? 'You can start, stop and restart .service units that are not protected. Every operation is reviewed first, stop and restart ask for your password, and the result shown is the state systemd reports afterwards.'
             : `Starting, stopping and restarting: ${data.operate?.reason ?? 'not available.'}`}{' '}
           {configure
-            ? 'You can also enable or disable a service at boot. That is a separate, persistent setting: it does not start or stop the service now, systemd is not reloaded, and it takes effect at the next boot. It is reviewed first and always asks for your password.'
+            ? 'You can also enable or disable a service at boot. That is a separate, persistent setting: it does not start or stop the service now and systemd is not reloaded. systemd applies it at the next boot, or earlier if it reloads its configuration for another reason (package updates commonly do). It is reviewed first and always asks for your password.'
             : `Enabling or disabling at boot: ${data.configure?.reason ?? 'not available.'}`}
         </p>
       </header>

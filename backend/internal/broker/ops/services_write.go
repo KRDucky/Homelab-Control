@@ -938,7 +938,20 @@ func InspectUnit(env *Env) writes.Inspector {
 			}
 			o := UnitObserved{ID: target, UnitFileState: st}
 			b, _ := json.Marshal(o)
-			return b, st + " at boot"
+			var before UnitObserved
+			_ = json.Unmarshal(intent.Observed, &before)
+			desc := st + " at boot"
+			if before.UnitFileState != "" {
+				verdict := "unchanged"
+				if st != before.UnitFileState {
+					verdict = "changed"
+				}
+				desc += fmt.Sprintf(" (before the change: %s; requested: %s; %s, not verified)", before.UnitFileState, intent.Action, verdict)
+			}
+			if l, err := scanUnitLinks(env.Roots, systemdUnitDir, []string{target}, ""); err == nil {
+				desc += fmt.Sprintf("; %d link(s) named after the unit under %s", len(l), systemdUnitDir)
+			}
+			return b, desc
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), showTimeout)
 		defer cancel()

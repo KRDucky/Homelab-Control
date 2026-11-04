@@ -15,6 +15,16 @@ if HC_PW=$pw HC_SID=$sid python3 "$(dirname "${BASH_SOURCE[0]}")/m2_3_enablement
 else
   check "M2-3 enablement scenario" 0 1
 fi
+# Real broker kill during a boot-time change: disposable hosts only, opt-in.
+if [ "${HC_M2_INTERRUPT:-}" = 1 ] && [ -f /etc/hc-disposable ]; then
+  if HC_PW=$pw HC_SID=$sid python3 "$(dirname "${BASH_SOURCE[0]}")/m2_3_interrupt.py"; then
+    check "M2-3 broker interruption scenario" 0 0
+  else
+    check "M2-3 broker interruption scenario" 0 1
+  fi
+else
+  echo "SKIP  M2-3 broker interruption (disposable hosts only; set HC_M2_INTERRUPT=1)"
+fi
 # E4 comparison: exposure and capabilities with the M2-3 templates (no new capability).
 echo "== E4 (M2-3): systemd-analyze security"
 for u in homelab-control.service homelab-control-broker.service; do

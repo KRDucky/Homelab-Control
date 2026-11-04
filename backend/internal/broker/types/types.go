@@ -248,6 +248,10 @@ type EnablementPlan struct {
 type LinkObservation struct {
 	Path    string `json:"path"`
 	Present bool   `json:"present"`
+	// Target is where a present link points; PointsToUnit whether that is
+	// the unit file the review found.
+	Target       string `json:"target,omitempty"`
+	PointsToUnit bool   `json:"points_to_unit,omitempty"`
 }
 
 // EnablementOutcome is the result of services.enablement.apply. "succeeded"
@@ -263,6 +267,9 @@ type EnablementOutcome struct {
 	BootStateBefore string            `json:"boot_state_before"`
 	BootState       string            `json:"boot_state,omitempty"` // empty when it could not be read back
 	Links           []LinkObservation `json:"links"`
+	// Unexpected are links to the unit found afterwards that the plan did not
+	// describe (a fresh scan of /etc/systemd/system).
+	Unexpected []string `json:"unexpected_links,omitempty"`
 	// Reported are systemctl's own "Created symlink"/"Removed" lines.
 	Reported   []string      `json:"reported,omitempty"`
 	Observed   *UnitObserved `json:"observed,omitempty"`
