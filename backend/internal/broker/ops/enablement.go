@@ -149,6 +149,8 @@ type EnablementController interface {
 	// IsEnabled returns systemd's enablement state, computed from disk.
 	IsEnabled(ctx context.Context, env *Env, unit string) (string, error)
 	Change(ctx context.Context, env *Env, action, unit string) (runner.Result, error)
+	// ManagerLoad reports when systemd last loaded its unit files.
+	ManagerLoad(ctx context.Context, env *Env) (ManagerLoad, error)
 }
 
 type systemctlEnablement struct{}
@@ -226,6 +228,24 @@ func ParseIsEnabled(stdout []byte, stderr string) (string, error) {
 		return "", &proto.Error{Code: proto.CodeUnavailable, Message: "systemctl is-enabled gave no usable answer: " + clean(res.Stderr, 200)}
 	}
 	return word, nil
+}
+
+// ManagerLoad (production): the fixed manager query, as root inside apply.
+func (systemctlEnablement) ManagerLoad(ctx context.Context, env *Env) (ManagerLoad, error) {
+	var res runner.Result
+	var err error
+	if env.RootExec != nil {
+		res, err = env.RootExec.Run(ctx, runner.RootSystemctlShowManager)
+	} else {
+		res, err = env.Runner.Run(ctx, "systemctl", runner.ManagerShowArgs()...)
+	}
+	if err != nil {
+		return ManagerLoad{}, runErr(err)
+	}
+	if res.ExitCode != 0 {
+		return ManagerLoad{}, &proto.Error{Code: proto.CodeUnavailable, Message: "systemctl show failed: " + clean(res.Stderr, 200)}
+	}
+	return ParseManagerShow(res.Stdout)
 }
 
 var changeTemplates = map[string]runner.RootTemplate{
@@ -341,6 +361,14 @@ func reviewEnablement(ctx context.Context, env *Env, action, requested string) (
 			p.ID, clean(strings.Join(append([]string{fragment}, dropIns...), " "), 600),
 			clean(strings.Join(append([]string{ip.FragmentPath}, ip.DropInPaths...), " "), 600))
 	}
+	// Enable: the boot-time checks below use systemd's loaded graph, which is
+	// only the boot-time truth if nothing changed on disk since it was loaded
+	// (probe 8). Fail closed otherwise.
+	if action == ActionEnable {
+		if err := requireLoadedConfiguration(ctx, env, p.ID); err != nil {
+			return r, err
+		}
+	}
 	info, err := ReadInstall(env.Roots, fragment, dropIns)
 	if err != nil {
 		if IsUnsupported(err) {
@@ -429,6 +457,10 @@ func reviewEnablement(ctx context.Context, env *Env, action, requested string) (
 		r.links = append(r.links, systemdUnitDir+a)
 	}
 	if action == ActionDisable {
+		// Requisite= in unit files on disk, loaded or not (probe 8).
+		if err := checkRequisitesOnDisk(env, p.ID, append(append([]string{p.ID}, info.Alias...), p.Names...)); err != nil {
+			return r, err
+		}
 		// A protected unit that declares Requisite= on this one would fail at
 		// boot once this one is no longer started there.
 		for _, n := range p.Deps["RequisiteOf"] {
@@ -811,7 +843,11 @@ func unitEnablementApply(ctx context.Context, env *Env, raw json.RawMessage) (an
 	obs := r.p.Observed()
 	obs.UnitFileState = out.BootState
 	out.Observed = &obs
-	rec.Observed, _ = json.Marshal(obs)
+	// The journal also records which links this change touched and when, so
+	// that the change gate can tell them from changes made elsewhere.
+	jo := journalObserved{UnitObserved: obs, StartedAt: started, FinishedAt: time.Now().UTC()}
+	jo.ChangedLinks = append(append([]string{}, r.links...), unexpected...)
+	rec.Observed, _ = json.Marshal(jo)
 	if outcome != OutcomeSucceeded {
 		out.Recovery = []string{
 			"No automatic rollback was performed. Before this change the unit was " + r.state + " at boot.",

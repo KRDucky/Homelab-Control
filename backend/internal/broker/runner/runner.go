@@ -70,7 +70,27 @@ const (
 	RootSystemctlDisable     RootTemplate = "systemctl.disable"
 	RootSystemctlIsEnabled   RootTemplate = "systemctl.is-enabled"
 	RootSystemctlShowInstall RootTemplate = "systemctl.show-install"
+	// RootSystemctlShowManager reads when the manager last loaded its unit
+	// files (no target; PR #36 review, probe 8).
+	RootSystemctlShowManager RootTemplate = "systemctl.show-manager"
 )
+
+// managerShowProperties are the manager's unit-load timestamps: realtime
+// (printed in UTC with microseconds) and monotonic. UnitsLoadTimestamp
+// (systemd >= 255) is set at every reload; UnitsLoadStartTimestamp at boot.
+var managerShowProperties = []string{
+	"UnitsLoadStartTimestamp", "UnitsLoadStartTimestampMonotonic",
+	"UnitsLoadTimestamp", "UnitsLoadTimestampMonotonic",
+}
+
+// ManagerShowArgs is the fixed manager query (no unit).
+func ManagerShowArgs() []string {
+	a := []string{"show", "--no-pager", "--timestamp=us+utc"}
+	for _, p := range managerShowProperties {
+		a = append(a, "--property="+p)
+	}
+	return a
+}
 
 // installShowProperties is the fixed property list of the unit-file query
 // (identity and where the unit's definition comes from).
@@ -148,6 +168,8 @@ var rootTemplates = map[RootTemplate]rootTemplate{
 	RootSystemctlDisable:     {"systemctl", []string{"--no-ask-password", "--no-reload", "disable", "--"}, validEnablementUnit, 1},
 	RootSystemctlIsEnabled:   {"systemctl", []string{"is-enabled", "--"}, validServiceUnit, 1},
 	RootSystemctlShowInstall: {"systemctl", ShowInstallArgs(), validServiceUnit, 1},
+	// Exactly zero targets.
+	RootSystemctlShowManager: {"systemctl", ManagerShowArgs(), nil, 0},
 }
 
 // validEnablementUnit additionally refuses template instances: enabling an
@@ -426,6 +448,12 @@ func RootArgv(t RootTemplate, targets ...string) ([]string, error) {
 	tpl, ok := rootTemplates[t]
 	if !ok {
 		return nil, fmt.Errorf("%q: %w", t, ErrUnknownTemplate)
+	}
+	if tpl.maxTargets == 0 {
+		if len(targets) != 0 {
+			return nil, fmt.Errorf("%d targets: %w", len(targets), ErrBadArg)
+		}
+		return append([]string{}, tpl.argv...), nil
 	}
 	if len(targets) == 0 || len(targets) > tpl.maxTargets {
 		return nil, fmt.Errorf("%d targets: %w", len(targets), ErrBadArg)

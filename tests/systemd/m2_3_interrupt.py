@@ -174,7 +174,7 @@ def main():
     with open(path, "w") as f:
         f.write("[Unit]\nDescription=M2-3 disposable interruption fixture\n" + m._SLEEP + "[Install]\nWantedBy=multi-user.target\n")
     before_links = m.links()
-    subprocess.run([REAL, "daemon-reload"], check=True)
+    m.harness_reload()  # test harness only; clear of the change gate's margin
     orig = install_wrapper()
     try:
         m.SID = m.login()

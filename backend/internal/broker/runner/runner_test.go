@@ -162,12 +162,21 @@ func TestRootTemplatesAreClosed(t *testing.T) {
 		RootSystemctlDisable:     "systemctl --no-ask-password --no-reload disable -- demo.service",
 		RootSystemctlIsEnabled:   "systemctl is-enabled -- demo.service",
 		RootSystemctlShowInstall: "systemctl show --no-pager --property=Id --property=Names --property=LoadState --property=FragmentPath --property=SourcePath --property=DropInPaths --property=Transient --property=NeedDaemonReload --property=UnitFilePreset -- demo.service",
+		// PR #36 review (probe 8): manager unit-load timestamps, no target.
+		RootSystemctlShowManager: "systemctl show --no-pager --timestamp=us+utc --property=UnitsLoadStartTimestamp --property=UnitsLoadStartTimestampMonotonic --property=UnitsLoadTimestamp --property=UnitsLoadTimestampMonotonic",
 	}
 	if len(rootTemplates) != len(want) {
 		t.Fatalf("%d root templates, want %d — new root templates need review", len(rootTemplates), len(want))
 	}
 	for id, w := range want {
-		argv, err := RootArgv(id, "demo.service")
+		targets := []string{"demo.service"}
+		if id == RootSystemctlShowManager {
+			targets = nil
+			if _, err := RootArgv(id, "demo.service"); !errors.Is(err, ErrBadArg) {
+				t.Errorf("%s accepted a target", id)
+			}
+		}
+		argv, err := RootArgv(id, targets...)
 		if err != nil || rootTemplates[id].binary+" "+strings.Join(argv, " ") != w {
 			t.Errorf("%s: %v %v", id, argv, err)
 		}
@@ -195,7 +204,7 @@ func TestRootTargetValidation(t *testing.T) {
 		"foo@.service", "../x.service", "a/b.service", "x\n.service", "x\x00.service", "foo\\x2d.service",
 		strings.Repeat("a", 101) + ".service", "-.mount", "x.unknowntype"} {
 		for id := range rootTemplates {
-			if _, err := RootArgv(id, bad); !errors.Is(err, ErrBadArg) {
+			if _, err := RootArgv(id, bad); !errors.Is(err, ErrBadArg) && !(id == RootSystemctlShowManager && bad == "") {
 				t.Errorf("%s %q: %v", id, bad, err)
 			}
 		}

@@ -92,6 +92,7 @@ func TestEnablementLoadedDropInIsPlanned(t *testing.T) {
 	e := newEnablementEnv(t)
 	writeUnit(t, e.files.root, "/etc/systemd/system/demo.service.d/zz.conf", "[Install]\nWantedBy=extra.target\n")
 	e.files.props["demo.service"].DropInPaths = []string{"/etc/systemd/system/demo.service.d/zz.conf"}
+	e.files.reload()
 	p, err := e.eplan(t, "demo.service", "enable")
 	if err != nil {
 		t.Fatal(err)
@@ -118,6 +119,7 @@ func TestEnablementSharedDropIns(t *testing.T) {
 	e := newEnablementEnv(t)
 	writeUnit(t, e.files.root, "/usr/lib/systemd/system/service.d/10-timeout-abort.conf", "[Service]\nTimeoutStopFailureMode=abort\n")
 	e.files.props["demo.service"].DropInPaths = []string{"/usr/lib/systemd/system/service.d/10-timeout-abort.conf"}
+	e.files.reload()
 	if _, err := e.eplan(t, "demo.service", "enable"); err != nil {
 		t.Fatalf("type-level drop-in without [Install]: %v", err)
 	}
@@ -125,6 +127,7 @@ func TestEnablementSharedDropIns(t *testing.T) {
 	e = newEnablementEnv(t)
 	writeUnit(t, e.files.root, "/etc/systemd/system/demo-.service.d/x.conf", "[Install]\nWantedBy=extra.target\n")
 	e.files.props["demo.service"].DropInPaths = []string{"/etc/systemd/system/demo-.service.d/x.conf"}
+	e.files.reload()
 	if _, err := e.eplan(t, "demo.service", "enable"); code(err) != proto.CodePolicyDenied || !strings.Contains(err.Error(), "systemctl ignores") {
 		t.Fatalf("prefix drop-in with [Install]: %v", err)
 	}
@@ -132,6 +135,7 @@ func TestEnablementSharedDropIns(t *testing.T) {
 	e = newEnablementEnv(t)
 	writeUnit(t, e.files.root, "/etc/systemd/system/service.d/c.conf", "[Unit]\nConflicts=ssh.service\n")
 	e.files.props["demo.service"].DropInPaths = []string{"/etc/systemd/system/service.d/c.conf"}
+	e.files.reload()
 	if _, err := e.eplan(t, "demo.service", "enable"); code(err) != proto.CodePolicyDenied || !strings.Contains(err.Error(), "conflicts with ssh.service") {
 		t.Fatalf("shared Conflicts=ssh: %v", err)
 	}
@@ -148,6 +152,7 @@ func TestEnablementDiskUnitHazards(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			e := newEnablementEnv(t)
 			writeUnit(t, e.files.root, "/etc/systemd/system/demo.service", c.file)
+			e.files.reload()
 			if _, err := e.eplan(t, "demo.service", "enable"); code(err) != proto.CodePolicyDenied || !strings.Contains(err.Error(), c.want) {
 				t.Fatalf("got %v", err)
 			}
@@ -157,6 +162,7 @@ func TestEnablementDiskUnitHazards(t *testing.T) {
 	e := newEnablementEnv(t)
 	writeUnit(t, e.files.root, "/etc/systemd/system/demo.service",
 		"[Service]\nExecStart=/bin/echo \\\n[Install]\nAlias=sshd.service\n[Install]\nWantedBy=multi-user.target\n")
+	e.files.reload()
 	p, err := e.eplan(t, "demo.service", "enable")
 	if err != nil || len(p.Aliases) != 0 {
 		t.Fatalf("continuation read as a section: %+v %v", p, err)

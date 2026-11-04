@@ -36,6 +36,32 @@ type fakeFiles struct {
 	// changeFn replaces the default (systemctl-like) behaviour.
 	changeFn func(action, unit string) (runner.Result, error)
 	isErr    error
+	// loadedAt is when the fake manager last "loaded" the unit files.
+	loadedAt time.Time
+	loadErr  error
+}
+
+// testBoot is the fake boot time (uptime is measured from it).
+var testBoot = time.Now().Add(-time.Hour)
+
+// reload simulates a daemon-reload done by the test harness: later changes
+// on disk count as not loaded.
+func (f *fakeFiles) reload() {
+	time.Sleep(20 * time.Millisecond) // earlier writes are before the load
+	f.mu.Lock()
+	f.loadedAt = time.Now()
+	f.mu.Unlock()
+	time.Sleep(20 * time.Millisecond) // past the coarse file-time clock
+}
+
+func (f *fakeFiles) ManagerLoad(_ context.Context, _ *Env) (ManagerLoad, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.loadErr != nil {
+		return ManagerLoad{}, f.loadErr
+	}
+	return ManagerLoad{BootRealtime: testBoot, BootMonotonic: time.Second, HasReloadStamp: true,
+		ReloadRealtime: f.loadedAt, ReloadMonotonic: f.loadedAt.Sub(testBoot)}, nil
 }
 
 func (f *fakeFiles) ShowInstall(_ context.Context, _ *Env, unit string) (InstallProps, error) {
@@ -220,6 +246,9 @@ func newEnablementEnv(t *testing.T, units ...UnitProps) *eenv {
 		writeUnit(t, f.root, frag, wantedByMulti)
 	}
 	w.env.Enablement = f
+	uptime = func() (time.Duration, error) { return time.Since(testBoot), nil }
+	loadMargin = 10 * time.Millisecond
+	f.reload()
 	return &eenv{wenv: w, files: f, tt: t}
 }
 
@@ -490,6 +519,7 @@ func TestEnablementRefusals(t *testing.T) {
 			if c.mutate != nil {
 				c.mutate(e)
 			}
+			e.files.reload() // the harness reloads systemd after editing fixtures
 			if c.action == "" {
 				c.action = "enable"
 			}
@@ -656,6 +686,7 @@ func TestEnablementHonestOutcomes(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			e := newEnablementEnv(t)
 			writeUnit(t, e.files.root, "/etc/systemd/system/demo.service", two)
+			e.files.reload()
 			p, err := e.eplan(t, "demo.service", "enable")
 			if err != nil || len(p.Links) != 2 {
 				t.Fatalf("plan: %+v %v", p, err)
@@ -833,6 +864,7 @@ func TestEnablementCollisionsAndRequisite(t *testing.T) {
 				writeUnit(t, e.files.root, "/etc/systemd/system/demo.service", c.file)
 			}
 			c.mutate(e)
+			e.files.reload()
 			if c.action == "" {
 				c.action = "enable"
 			}
@@ -845,6 +877,7 @@ func TestEnablementCollisionsAndRequisite(t *testing.T) {
 	// The alias is free again once the unit is gone: allowed.
 	e := newEnablementEnv(t)
 	writeUnit(t, e.files.root, "/etc/systemd/system/demo.service", aliasFile)
+	e.files.reload()
 	if _, err := e.eplan(t, "demo.service", "enable"); err != nil {
 		t.Fatalf("free alias refused: %v", err)
 	}
