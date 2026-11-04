@@ -7,25 +7,25 @@ cd frontend/app && npm run -s typecheck && npm run -s lint && npm run -s format:
 Checking formatting...
 All matched files use Prettier code style!
 cd backend && go test -count=1 -cover ./...
-ok  	homelab-control/backend/cmd/hc-api	0.090s	coverage: 15.0% of statements
+ok  	homelab-control/backend/cmd/hc-api	0.071s	coverage: 15.0% of statements
 	homelab-control/backend/cmd/hc-broker		coverage: 0.0% of statements
-ok  	homelab-control/backend/cmd/hlctl	0.394s	coverage: 69.9% of statements
-ok  	homelab-control/backend/internal/api	6.881s	coverage: 87.3% of statements
-ok  	homelab-control/backend/internal/audit	0.004s	coverage: 75.9% of statements
-ok  	homelab-control/backend/internal/auth	0.621s	coverage: 78.2% of statements
-ok  	homelab-control/backend/internal/broker/ops	0.671s	coverage: 76.7% of statements
+ok  	homelab-control/backend/cmd/hlctl	0.363s	coverage: 69.9% of statements
+ok  	homelab-control/backend/internal/api	6.827s	coverage: 87.3% of statements
+ok  	homelab-control/backend/internal/audit	0.002s	coverage: 75.9% of statements
+ok  	homelab-control/backend/internal/auth	0.587s	coverage: 78.2% of statements
+ok  	homelab-control/backend/internal/broker/ops	0.669s	coverage: 77.2% of statements
 ok  	homelab-control/backend/internal/broker/proto	0.003s	coverage: 81.6% of statements
-ok  	homelab-control/backend/internal/broker/runner	0.237s	coverage: 84.3% of statements
-ok  	homelab-control/backend/internal/broker/server	5.208s	coverage: 78.9% of statements
+ok  	homelab-control/backend/internal/broker/runner	0.216s	coverage: 84.3% of statements
+ok  	homelab-control/backend/internal/broker/server	5.211s	coverage: 78.9% of statements
 	homelab-control/backend/internal/broker/types		coverage: 0.0% of statements
 ok  	homelab-control/backend/internal/broker/writes	0.005s	coverage: 90.6% of statements
 	homelab-control/backend/internal/brokerclient		coverage: 0.0% of statements
-ok  	homelab-control/backend/internal/guard	0.046s	coverage: [no statements]
+ok  	homelab-control/backend/internal/guard	0.042s	coverage: [no statements]
 ok  	homelab-control/backend/internal/hostinfo	0.056s	coverage: 86.1% of statements
-ok  	homelab-control/backend/internal/hwinfo	0.007s	coverage: 89.5% of statements
-ok  	homelab-control/backend/internal/modules	0.005s	coverage: 93.7% of statements
-ok  	homelab-control/backend/internal/servicepolicy	0.007s	coverage: 94.3% of statements
-ok  	homelab-control/backend/internal/state	0.131s	coverage: 79.4% of statements
+ok  	homelab-control/backend/internal/hwinfo	0.005s	coverage: 89.5% of statements
+ok  	homelab-control/backend/internal/modules	0.002s	coverage: 93.7% of statements
+ok  	homelab-control/backend/internal/servicepolicy	0.003s	coverage: 94.3% of statements
+ok  	homelab-control/backend/internal/state	0.088s	coverage: 79.4% of statements
 ?   	homelab-control/backend/internal/version	[no test files]
 	homelab-control/backend/internal/webui		coverage: 0.0% of statements
 cd frontend/app && npm test
@@ -41,14 +41,14 @@ Not implemented: HTMLCanvasElement's getContext() method: without installing the
 
  Test Files  10 passed (10)
       Tests  73 passed (73)
-   Start at  01:15:48
-   Duration  3.62s (tests 60%, environment 33%, import 6%, transform 1%)
+   Start at  01:32:18
+   Duration  3.62s (tests 59%, environment 34%, import 6%, transform 1%)
 
 node --test sdk/theme/tdk.test.mjs
-✔ standalone create, validate, flatten and overwrite protection (73.771248ms)
-✔ malicious inputs fail closed in the SDK runtime and CLI (68.798721ms)
-✔ all base palettes and shipped starter themes pass (87.497821ms)
-✔ a UTF-8 byte order mark is ignored, as in the app importer (22.365846ms)
+✔ standalone create, validate, flatten and overwrite protection (74.98602ms)
+✔ malicious inputs fail closed in the SDK runtime and CLI (70.372036ms)
+✔ all base palettes and shipped starter themes pass (80.200946ms)
+✔ a UTF-8 byte order mark is ignored, as in the app importer (17.872383ms)
 ℹ tests 4
 ℹ suites 0
 ℹ pass 4
@@ -56,18 +56,18 @@ node --test sdk/theme/tdk.test.mjs
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 282.556777
+ℹ duration_ms 273.937129
 python3 -m unittest discover -s tests/release -t . -v
 test_assemble_renames_deb_and_writes_sums (tests.release.test_release_tool.Assemble.test_assemble_renames_deb_and_writes_sums) ... ok
 test_assemble_requires_one_arch_package (tests.release.test_release_tool.Assemble.test_assemble_requires_one_arch_package) ... ok
-test_notes_unsigned_banner_and_checksums (tests.release.test_release_tool.SbomAndNotes.test_notes_unsigned_banner_and_checksums) ... /home/ian/Projects/Homelab-Control/.dev/worktrees/m2-3/tests/release/test_release_tool.py:308: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmptfy4pnlc/notes.md' mode='r' encoding='UTF-8'>
+test_notes_unsigned_banner_and_checksums (tests.release.test_release_tool.SbomAndNotes.test_notes_unsigned_banner_and_checksums) ... /home/ian/Projects/Homelab-Control/.dev/worktrees/m2-3/tests/release/test_release_tool.py:308: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpdjehtngj/notes.md' mode='r' encoding='UTF-8'>
   text = open(out).read()
 ResourceWarning: Enable tracemalloc to get the object allocation traceback
 ok
-test_stamp_is_deterministic (tests.release.test_release_tool.SbomAndNotes.test_stamp_is_deterministic) ... /home/ian/Projects/Homelab-Control/.dev/worktrees/m2-3/tests/release/test_release_tool.py:293: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmprt0cyvv5/a' mode='r' encoding='UTF-8'>
+test_stamp_is_deterministic (tests.release.test_release_tool.SbomAndNotes.test_stamp_is_deterministic) ... /home/ian/Projects/Homelab-Control/.dev/worktrees/m2-3/tests/release/test_release_tool.py:293: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpp6t8yki6/a' mode='r' encoding='UTF-8'>
   a = open(os.path.join(t, "a")).read()
 ResourceWarning: Enable tracemalloc to get the object allocation traceback
-/home/ian/Projects/Homelab-Control/.dev/worktrees/m2-3/tests/release/test_release_tool.py:294: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmprt0cyvv5/b' mode='r' encoding='UTF-8'>
+/home/ian/Projects/Homelab-Control/.dev/worktrees/m2-3/tests/release/test_release_tool.py:294: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpp6t8yki6/b' mode='r' encoding='UTF-8'>
   self.assertEqual(a, open(os.path.join(t, "b")).read())
 ResourceWarning: Enable tracemalloc to get the object allocation traceback
 ok
@@ -79,12 +79,12 @@ test_fixture_passes (tests.release.test_release_tool.Verify.test_fixture_passes)
 test_git_dir_in_source_archive (tests.release.test_release_tool.Verify.test_git_dir_in_source_archive) ... ok
 test_go_module_sources_required (tests.release.test_release_tool.Verify.test_go_module_sources_required) ... ok
 test_links_must_stay_inside_the_tree (tests.release.test_release_tool.Verify.test_links_must_stay_inside_the_tree) ... ok
-test_malformed_sums (tests.release.test_release_tool.Verify.test_malformed_sums) ... /home/ian/Projects/Homelab-Control/.dev/worktrees/m2-3/tests/release/test_release_tool.py:181: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp66lr4em1/rel/SHA256SUMS' mode='a' encoding='UTF-8'>
+test_malformed_sums (tests.release.test_release_tool.Verify.test_malformed_sums) ... /home/ian/Projects/Homelab-Control/.dev/worktrees/m2-3/tests/release/test_release_tool.py:181: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp5fvw5ipr/rel/SHA256SUMS' mode='a' encoding='UTF-8'>
   open(os.path.join(self.f.d, "SHA256SUMS"), "a").write("not a checksum line\n")
 ResourceWarning: Enable tracemalloc to get the object allocation traceback
 ok
 test_missing_artifact (tests.release.test_release_tool.Verify.test_missing_artifact) ... ok
-test_sums_must_cover_every_file (tests.release.test_release_tool.Verify.test_sums_must_cover_every_file) ... /home/ian/Projects/Homelab-Control/.dev/worktrees/m2-3/tests/release/test_release_tool.py:176: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp4fjllf19/rel/SHA256SUMS' mode='r' encoding='UTF-8'>
+test_sums_must_cover_every_file (tests.release.test_release_tool.Verify.test_sums_must_cover_every_file) ... /home/ian/Projects/Homelab-Control/.dev/worktrees/m2-3/tests/release/test_release_tool.py:176: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp2eukajw3/rel/SHA256SUMS' mode='r' encoding='UTF-8'>
   lines = open(p).read().splitlines()
 ResourceWarning: Enable tracemalloc to get the object allocation traceback
 ok
@@ -110,7 +110,7 @@ test_no_untrusted_expressions_in_scripts (tests.release.test_workflow_policy.Rel
 test_sequence_and_serialisation (tests.release.test_workflow_policy.ReleaseWorkflowPolicy.test_sequence_and_serialisation) ... ok
 
 ----------------------------------------------------------------------
-Ran 35 tests in 0.102s
+Ran 35 tests in 2.827s
 
 OK
 tests/release/version-order-test.sh
@@ -152,7 +152,7 @@ ok  	homelab-control/backend/internal/guard	0.021s
 OK: 10 reviewed modules, 8 linked into hc-api/hlctl; hc-broker links the standard library only
 
 == govulncheck (Go stdlib/toolchain advisories)
-SKIPPED: govulncheck not installed (CI installs it)
+No vulnerabilities found.
 
 == npm audit (production dependencies)
 found 0 vulnerabilities
@@ -166,17 +166,15 @@ OK: THIRD-PARTY-NOTICES.md and packaging/debian/copyright match the shipped depe
 
 == SBOM matches inputs and is valid SPDX 2.3
 OK: SBOM matches inputs (261 packages)
-SKIPPED: pyspdxtools not installed (CI installs spdx-tools)
 
 == Webmin reference tree licence inventory (per-file upstream statements reviewed)
 OK: Webmin licence inventory current (44297 files, 36 entries, no unreviewed statements)
 
 == Licensing metadata (REUSE 3.3: SPDX licence + copyright for every file)
-SKIPPED: reuse not installed (CI installs it)
+OK: REUSE compliant
 
 == Committed secrets / private keys
 OK: no private keys outside compat/webmin
 
 == Shell scripts
-SKIPPED: shellcheck not installed (CI installs it)
 make check exit=0
