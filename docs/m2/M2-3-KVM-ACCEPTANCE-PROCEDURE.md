@@ -1,122 +1,132 @@
 # M2-3 KVM acceptance procedure (prepared for owner authorization; NOT run)
 
-**Status:** procedure only. No guest has been created, started or modified for M2-3. Running it needs an
-explicit owner authorization (below). By the standing assignment, VM work is Codex's
-(`docs/evidence/m2/vm-final-main-d812995e/README.md`); Claude Code does not touch the VMs.
-Container evidence (`docs/evidence/m2/m2-3/`) does **not** satisfy this procedure: containers share the
-workstation kernel, have no real boot, and ran with SELinux disabled.
+**Status:** procedure only. No KVM guest has been created, started or modified for M2-3. Nothing below may be
+done before the owner's explicit authorization (next section). By the standing assignment VM work is Codex's
+(`docs/evidence/m2/vm-final-main-d812995e/README.md`); Claude Code does not operate VMs. Container evidence
+(`docs/evidence/m2/m2-3/`) does **not** satisfy this procedure: containers share the workstation kernel, have
+no real boot and ran with SELinux disabled.
 
 ## Authorization required before any guest operation
-The owner must authorize, in their own words:
-1. creating **new, disposable** KVM guests for M2-3 (Ubuntu 26.04.1, Fedora 44 with SELinux **Enforcing**,
-   and optionally upstream Arch Linux) from distribution cloud images, on an isolated libvirt network;
-2. installing the CI-built packages of a named PR #36 revision in them and running the M2-3 scenario
-   (it enables/disables disposable `hc-test-*` units, restarts the broker, SIGKILLs it once on purpose,
-   and reboots the guest once);
-3. deleting those guests afterwards.
+The owner must authorize, in their own words, after reviewing the safety corrections:
+1. **Creating** new disposable KVM guests for M2-3 — Ubuntu 26.04.1 and Fedora 44 with SELinux **Enforcing**
+   (optionally Ubuntu 22.04 for systemd 249, and upstream Arch) — from distribution cloud images, on an
+   isolated libvirt NAT network, with no host directory shares.
+2. **Installing** the CI-built packages named below and running Phase A (normal acceptance: real systemd,
+   disposable `hc-test-*` units, broker restarts, two guest reboots, the browser checklist).
+3. Separately, **Phase B** (deliberate test-wrapper run): temporarily replacing `/usr/bin/systemctl` in the
+   guest with a root-owned test wrapper and SIGKILLing the broker on purpose. Phase B may be authorized or
+   declined independently of Phase A.
+4. **Retaining** the new guests afterwards (shut off, autostart disabled). **Deleting them is not part of this
+   procedure**; it needs a separate cleanup approval.
 
-The retained Ubuntu, Fedora and Arch acceptance VMs and their snapshots are **not** used, started, reverted
-or changed by this procedure. If the owner prefers them, that is a separate authorization.
+Not covered and not to be touched: the retained Ubuntu, Fedora and Arch acceptance VMs, their disks and
+snapshots, `AGENTS.md`, the file-manager worktree, production hosts.
 
-## Inputs
-- **Revision:** PR #36 head `d7b703b0` (product commit `82c24a74`; later commits change only tests, harness
-  and documentation), unless the authorization names a newer head, in which case use that head's CI run.
-- **Packages:** the `build` artifact of CI run **41811761629** (`gh run download 41811761629 -n build`). GitHub
-  builds `pull_request` runs from the merge of the head into `main` (merge ref `6fddf060`, hence the version
-  `…g6fddf060`). Verify `sha256sum -c SHA256SUMS` and these hashes
-  (`../evidence/m2/m2-3/review-82c24a74/ci/build-artifact-41811761629.sha256`):
-  - `homelab-control_0.1.0+dev.1+71+g6fddf060_amd64.deb`
-    `e672d30888e97f0944fe4ee93274270c8b3258d223c9195e28e34e7b8df460ef`
-  - `homelab-control-0.1.0-0.m1.v0_1_0_dev_1_71_g6fddf060.x86_64.rpm`
-    `f40271256fe86815fcb6394135ed93cf39c846e188734c82b91645f169df9b0f`
-  Do not build packages locally for acceptance. Artifacts expire; if they have, re-run CI for the same head.
-- **Tests:** `tests/systemd/` from the same revision (copied to the guest as `/opt/hc/tests`) and
-  `compat/webmin` (for the smoke checks).
-- **Images:** official cloud images with their published checksums (Ubuntu 26.04.1 server cloud image,
-  Fedora 44 Cloud Base qcow2). Record image names and SHA-256.
+## Inputs (final validated revision)
+- **PR #36 head:** `{{HEAD}}`. **Product commit:** `3bec1294b0523565199fafd12c437bef5fcbbffd` (later commits
+  change only tests, harness or documentation; see `docs/m2/M2-3-ACCEPTANCE.md`, "Revisions").
+- **CI run:** `{{RUN}}` on that head, `{{JOBS}}`. GitHub builds `pull_request` runs from the merge of the head
+  into `main` (merge ref `{{MERGE}}`), which is what the package versions name.
+- **Packages:** `gh run download {{RUN}} -n build`, then `sha256sum -c SHA256SUMS` (binaries) and check:
+
+  | File | SHA-256 |
+  |---|---|
+  | `{{DEB}}` | `{{DEBSHA}}` |
+  | `{{RPM}}` | `{{RPMSHA}}` |
+
+  Recorded in `docs/evidence/m2/m2-3/review-3bec1294/ci/build-artifact-{{RUN}}.sha256`. Do not build packages
+  locally for acceptance. If the artifact has expired, re-run CI for the same head and record the new run and
+  hashes (they will differ: builds are not bit-reproducible across runs).
+- **Tests:** `tests/systemd/` and `compat/webmin/` from the PR head.
+- **Images:** official cloud images, verified against their published checksums; record names and SHA-256.
 
 ## Guest setup (each guest)
-1. Create the guest with 2 vCPU, 4 GiB RAM, a fresh overlay disk on the cloud image, cloud-init with an SSH
-   key only (no password login), on an isolated NAT network, no host directory shares.
-2. Fedora: confirm `getenforce` → `Enforcing` and `sestatus` → policy `targeted`; record both. Do **not**
-   change SELinux mode or policy. Ubuntu: record `aa-status --enabled; echo $?`.
-3. Mark the guest disposable: `sudo touch /etc/hc-disposable`.
-4. Record the baseline: `systemctl --version`, `uname -r`, `systemctl is-enabled ssh.service` (Fedora:
-   `sshd.service`), `systemctl show -p MainPID sshd.service`/`ssh.service`, and
+1. 2 vCPU, 4 GiB RAM, a fresh overlay disk on the cloud image, cloud-init with an SSH key only.
+2. Record `systemctl --version`, `uname -r`, `cat /etc/os-release`. Fedora: `getenforce` → `Enforcing`,
+   `sestatus` (policy `targeted`). Do **not** change SELinux mode or policy. Ubuntu: `aa-status --enabled; echo $?`.
+3. `sudo touch /etc/hc-disposable`.
+4. Baseline: SSH unit (`ssh.service` on Ubuntu, `sshd.service` on Fedora) `is-enabled` and `MainPID`;
    `find /etc/systemd/system -type l -printf '%p -> %l\n' | sort > /root/links-before.txt`.
-5. Copy packages and tests (as `docker-systemd.sh` lays them out): `ssh guest sudo install -d -o $USER /opt/hc`, then
-   `scp <pkg> guest:/opt/hc/pkg.deb` (or `pkg.rpm`), `scp -r tests/systemd guest:/opt/hc/tests`,
+5. Copy inputs as `docker-systemd.sh` lays them out: `ssh guest sudo install -d -o "$USER" /opt/hc`;
+   `scp <pkg> guest:/opt/hc/pkg.deb` (or `pkg.rpm`); `scp -r tests/systemd guest:/opt/hc/tests`;
    `scp -r compat/webmin guest:/opt/hc/webmin`.
-6. Fedora only: `sudo ausearch -m AVC,USER_AVC -ts boot > /root/avc-before.txt 2>&1 || true` and
-   `ls -Z /usr/bin/systemctl > /root/systemctl-label-before.txt`.
+6. Fedora: `ausearch -m AVC,USER_AVC -ts boot > /root/avc-before.txt 2>&1 || true`.
 
-## Run (each guest, as root, over SSH)
+## Phase A — normal acceptance (no test wrapper)
 ```sh
 cd /opt/hc
 export HC_PKG_KIND=deb   # rpm on Fedora
-HC_M2_LONG=1 HC_M2_INTERRUPT=1 \
+HC_M2_LONG=1 \
 HC_SMOKE_EXTRA_UNITS=homelab-control-broker.socket \
 HC_SMOKE_EXTRA_CHECKS="/opt/hc/tests/m1-checks.sh /opt/hc/tests/m2-service-ops.sh /opt/hc/tests/m2-3-checks.sh" \
-  /opt/hc/tests/systemd-smoke.sh /opt/hc/pkg.$HC_PKG_KIND 2>&1 | tee /root/m2-3-kvm.log
-echo "exit ${PIPESTATUS[0]}" | tee -a /root/m2-3-kvm.log
+HC_WEBMIN_SRC=/opt/hc/webmin HC_SMOKE_SCOPES=system.read,services.read,services.logs,hardware.read \
+  /opt/hc/tests/systemd-smoke.sh /opt/hc/pkg.$HC_PKG_KIND 2>&1 | tee /root/m2-3-phase-a.log
+echo "exit ${PIPESTATUS[0]}" | tee -a /root/m2-3-phase-a.log
 ```
-Expected: exit 0; no `FAIL` lines; no `SKIP` for the expiry waits or the broker interruption (both
-`HC_M2_LONG=1` and `HC_M2_INTERRUPT=1` are set); the M2-2 and M2-3 counts are recorded (container
-reference on `82c24a74`: `docs/evidence/m2/m2-3/README.md`).
+`HC_M2_INTERRUPT` is **not** set: the broker-interruption scenario prints `SKIP` here and runs only in Phase B.
+Expected: exit 0, no `FAIL`, no `SKIP` for the expiry waits; counts recorded (container reference:
+`docs/evidence/m2/m2-3/README.md`).
 
-### Real reboot check (each guest)
-After the scenario (which cleans up its own fixtures), check boot behaviour with a real kernel boot:
-```sh
-cat > /etc/systemd/system/hc-test-boot.service <<'EOF'
-[Unit]
-Description=M2-3 KVM boot fixture
-[Service]
-ExecStart=/bin/sleep infinity
-[Install]
-WantedBy=multi-user.target
-EOF
-systemctl daemon-reload
-```
-Enable it **through the UI or API** (plan → step-up → apply), record the outcome, then `systemctl reboot`.
-After the boot: `systemctl is-active hc-test-boot.service` → `active`; SSH reachable; then disable it through
-the UI/API, reboot again, and check `inactive`. Remove the fixture
-(`rm /etc/systemd/system/hc-test-boot.service; systemctl daemon-reload`).
+**Real reboots.** Create `/etc/systemd/system/hc-test-boot.service` (`ExecStart=/bin/sleep infinity`,
+`[Install] WantedBy=multi-user.target`), run `systemctl daemon-reload` (harness step, so that the review sees no
+unloaded change), enable it **through the UI or API** (plan → password → apply), `systemctl reboot`; after the
+boot `systemctl is-active hc-test-boot.service` → `active` and SSH reachable. Disable it through the UI/API,
+reboot, check `inactive`. Then remove the fixture (`rm` + `systemctl daemon-reload`). Record both boots.
 
-### Browser (Ubuntu and Fedora)
-**Manual checklist** (the `tests/e2e/m2_3_browser.py` harness drives a Docker container and cannot run
-against a VM as is). Real backend through a workstation-loopback SSH tunnel
-(`ssh -L 127.0.0.1:9180:127.0.0.1:9180 guest`), a fresh browser profile, Chromium and Firefox. Perform the
-B1–B18 steps listed in that file through the tunnel, with an independent `systemctl` observation over SSH for
-each step, and record them in an `E2-BROWSER-RECORD.md` like M2-2's. Include keyboard-only enable, the phone (390 px) and laptop (1366 px)
-layouts, axe on each page, and a check that the plan text says the change can take effect before a reboot.
+**Unloaded-change refusal on a real boot (recommended).** After the first reboot, write
+`/etc/systemd/system/hc-test-boot.service.d/zz.conf` (`[Unit]` with `Description=x`) without a reload and
+confirm that planning enable is refused ("changed on disk after systemd last loaded its configuration"), then
+remove it and reload.
+
+**Browser (manual checklist).** The `tests/e2e/m2_3_browser.py` harness drives a Docker container and cannot run
+against a VM as is. Through a workstation-loopback SSH tunnel (`ssh -L 127.0.0.1:9180:127.0.0.1:9180 guest`),
+with a fresh browser profile in Chromium and Firefox, perform its steps B1–B18 with an independent `systemctl`
+observation over SSH for each, and record them in `E2-BROWSER-RECORD.md` as for M2-2.
+
+**Phase A checks afterwards.**
+1. `find /etc/systemd/system -type l -printf '%p -> %l\n' | sort | diff /root/links-before.txt -` → empty.
+2. SSH `is-enabled` as at baseline; `MainPID` unchanged within each boot (record the values).
+3. E4: `systemd-analyze security homelab-control.service homelab-control-broker.service` (last lines); compare
+   with API 1.6 / broker 1.5; `systemctl show -p CapabilityBoundingSet homelab-control-broker.service` →
+   `cap_setgid cap_setuid`.
+4. `hlctl audit verify --file /var/log/homelab-control-broker/operations.jsonl` → exit 0.
+5. **Fedora SELinux (normal acceptance):** `getenforce` → `Enforcing`; `ausearch -m AVC,USER_AVC -ts boot` →
+   no denial for `hc-broker`, `hc-api`, `systemctl` or the units, compared with `avc-before.txt`; classify any
+   other denial as in the M2-2 closeout. A relevant AVC is a failure. This phase never replaces a system binary,
+   so no test-wrapper denial can occur in it.
+
+## Phase B — deliberate broker kill with a test wrapper (separately authorized)
+Only after Phase A has been recorded. It changes a system binary temporarily; its denials are classified
+separately and count neither for nor against normal SELinux acceptance.
+1. **Identity before:** `stat -c '%s %a %u:%g %i' /usr/bin/systemctl`, `sha256sum /usr/bin/systemctl`,
+   (Fedora) `ls -Z /usr/bin/systemctl` and `getfattr -n security.selinux /usr/bin/systemctl`, and package
+   verification `rpm -V systemd` (Fedora) or `dpkg --verify systemd` (Ubuntu); save to `/root/phase-b-before.txt`.
+2. Note the time, then run the interruption scenario alone:
+   `HC_PW=… HC_SID=… HC_M2_INTERRUPT=1 python3 /opt/hc/tests/m2_3_interrupt.py | tee /root/m2-3-phase-b.log`
+   (it needs an admin session with `services.configure`, as `m2-3-checks.sh` provides; alternatively run the
+   whole smoke with `HC_M2_INTERRUPT=1` and without `HC_M2_LONG`). The log prints `wrapper window starts/ends`;
+   the script moves the original aside, installs the wrapper, restores the original with `os.replace` (same
+   inode), runs `restorecon` where SELinux is present, and checks size, mode, owner, SHA-256 and label.
+3. **Identity after:** repeat step 1 into `/root/phase-b-after.txt`; `diff` must be empty (inode, size, mode,
+   owner, SHA-256, label, package verification); `restorecon -n -v /usr/bin/systemctl` must print nothing.
+4. **Denials:** `ausearch -m AVC,USER_AVC -ts <start time>`; denials inside the wrapper window are
+   **test-wrapper** denials (recorded, not product findings); denials outside it are reviewed as product denials.
+5. Expected in the log: per variant one intent and one `interrupted` record, observed state "unchanged" /
+   "changed, not verified", nothing retried, hash chain verifies.
 
 ## Afterwards (each guest)
-1. `find /etc/systemd/system -type l -printf '%p -> %l\n' | sort | diff /root/links-before.txt -` → empty.
-2. SSH: `is-enabled` and `MainPID` as in the baseline (MainPID changes only across the deliberate reboots;
-   record both values).
-3. E4: `systemd-analyze security homelab-control.service homelab-control-broker.service | tail -n 1` each;
-   compare with API 1.6 / broker 1.5 (the M2-2 KVM closeout); any increase is a finding; `systemctl show -p CapabilityBoundingSet homelab-control-broker.service`
-   → `cap_setgid cap_setuid`.
-4. **Fedora SELinux:** `getenforce` → still `Enforcing`; `ls -Z /usr/bin/systemctl` equals
-   `systemctl-label-before.txt` (the broker-kill test temporarily replaces `/usr/bin/systemctl` with a test
-   wrapper, restores it, runs `restorecon` and checks size, mode, owner, SHA-256 and label; the log prints
-   `wrapper window starts/ends` timestamps). Classify AVCs inside that window as **test-wrapper** denials,
-   separately from product denials; `ausearch -m AVC,USER_AVC -ts boot` → no new denial
-   for `hc-broker`, `hc-api`, `systemctl` or the broker's root templates compared with `avc-before.txt`;
-   classify any other denial as in the M2-2 closeout. A relevant AVC is a failure.
-5. `hlctl audit verify --file /var/log/homelab-control-broker/operations.jsonl` → exit 0; the journal shows
-   the deliberate interruption as one intent plus one `interrupted` record for each variant.
-6. Copy logs (no passwords, cookies, tokens or session stores), then shut the guest down and delete it if the
-   authorization says so.
+Copy the logs (no passwords, cookies, plan tokens or session stores) to
+`docs/evidence/m2/m2-3/kvm-<date>/`, then shut the guest down and disable autostart. **Retain the guest**; do
+not delete it or its disk until a separate cleanup approval.
 
-## Acceptance gates this procedure can close (owner decides)
+## Gates this procedure can close (the owner decides)
 | Gate | Closed by |
 |---|---|
-| M2-3 on a real kernel boot (Ubuntu, Fedora) | Run + reboot check |
-| SELinux Enforcing (Fedora) | Step 2 and Afterwards 4 |
-| Long token/step-up expiry on real systemd | `HC_M2_LONG=1` lines in the log |
-| Real broker kill during a boot-time change | `m2_3_interrupt.py` lines in the log |
+| M2-3 on real kernel boots (Ubuntu, Fedora; optionally 249 and Arch) | Phase A + reboots |
+| SELinux Enforcing, normal operation (Fedora) | Phase A check 5 |
+| Long token/step-up expiry on real systemd | Phase A `HC_M2_LONG=1` lines |
+| Real broker kill during a boot-time change, binary identity restored | Phase B |
 | Real-backend browser workflow in a VM | Browser record |
-| E4 in a VM | Afterwards 3 |
+| E4 in a VM | Phase A check 3 |
 
-Not closed by it: owner decisions O-1…O-5, D-10, merge, production activation of `services.configure`.
+Not closed by it: owner approval of P-1…P-6, D-10, merge, production activation of `services.configure`.

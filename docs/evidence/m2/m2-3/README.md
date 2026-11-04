@@ -24,7 +24,35 @@ scenario also checks this itself).
 - **Packages** built locally from clean trees (`make deb`, `make rpm`; binaries with the workstation's Go 1.27.3,
   not the pinned toolchain); hashes in `containers/5a14c727/packages.sha256`.
 
-## Review round: product commit `82c24a74` (current; supersedes `5a14c727`)
+## Second review round: product commit `3bec1294` (current; supersedes `82c24a74` and `5a14c727`)
+Unloaded unit-file changes (findings R12, R13; `docs/m2/M2-3-DESIGN-REVIEW.md` §1.2 and §8). Files:
+`review-3bec1294/`. Local packages built from the clean tree at `3bec1294` with Go 1.26.10
+(`containers-long/packages.sha256`); the KVM procedure uses CI's packages instead.
+
+| Check | Ubuntu 26.04.1 (259) | Ubuntu 24.04.5 (255) | Ubuntu 22.04.5 (249) | Fedora 44 (259, `.rpm`) |
+|---|---|---|---|---|
+| Smoke + M1 | 71 / 0 | 71 / 0 | 71 / 0 | 71 / 0 |
+| M2-2 regression, `HC_M2_LONG=1` | 89 / 0 | 89 / 0 | 89 / 0 | 89 / 0 |
+| M2-3 scenario, `HC_M2_LONG=1` (`containers-long/`) | 106 / 0 | 105 / 0 | 106 / 0 | 105 / 0 |
+| Real broker SIGKILL (`containers-long/`) | 19 / 0 | 19 / 0 | 19 / 0 | 19 / 0 |
+| Final test files, short mode + broker kill (`containers-final-tests/`) | 86 / 105 / 19 | 86 / 104 / 19 | 86 / 105 / 19 | 86 / 104 / 19 |
+| Browser B1–B18 (Chromium) | 18 / 18 | not run | not run | 18 / 18 |
+
+- `containers-long/` ran the test files of `3bec1294`; the final test files (`5bc407d7`: the dependency-edit
+  case 6d and an inode/group restore check) were run again in short mode with the broker kill
+  (`containers-final-tests/`: M2-2 / M2-3 / interrupt counts). Product code was identical in both.
+- **Reproduction before the fix** (`repro-old-82c24a74-ubuntu-2604.log`): the new checks against the old
+  `82c24a74` package: all three unloaded changes accepted (200) for a loaded fixture, the edit between preview
+  and apply **enabled** the unit, and a disable was accepted despite an unloaded protected-name `Requisite=`
+  (6 FAIL, as expected).
+- Gates on the final tree: `make check` exit 0 (Go 1.26.10; govulncheck, REUSE, shellcheck, spdx-tools; nothing
+  skipped) — `make-check.log`; Go tests as uid 1000: 285 tests + 116 subtests, 0 failed —
+  `go-tests-nonroot.txt`; Vitest 73/73; CI browser suites locally 298/0 (Chromium, Firefox) —
+  `ci-browser-e2e-chromium-firefox.log` (a first attempt skipped the browser part because a Python without
+  Playwright was first on `PATH`; rerun).
+- Workstation unchanged (`containers-long/host-{before,after}.txt` identical). Probes: `probes/probe8*`.
+
+## Review round: product commit `82c24a74` (superseded by `3bec1294`)
 After the owner's PR #36 review assignment (findings R1–R11, `docs/m2/M2-3-DESIGN-REVIEW.md` §7). Files:
 `review-82c24a74/`. Packages built locally from the clean tree at `82c24a74` with Go 1.26.10
 (`containers/packages.sha256`); GitHub CI's own packages for the PR head are what the KVM procedure uses.

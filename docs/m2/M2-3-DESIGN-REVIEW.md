@@ -53,6 +53,31 @@ restarted between phases, so "after reboot" is a real fresh boot of PID 1 (not a
 | P19 | `--no-reload enable`: when does it take effect? | Immediately on disk (`is-enabled` = enabled); the running manager's `multi-user.target` `Wants=` does not contain the unit. Starting a **target that was not loaded yet** started the newly wanted unit at once, without a reload. After any `daemon-reload`, `systemctl start multi-user.target` started it. After reboot it started | "Takes effect at the next boot" was wrong. The plan and UI now say: written to disk now; used at the next boot **or** as soon as systemd reloads its configuration for another reason (package installs/updates commonly do) or first loads a target; so it can take effect before a reboot |
 | P20 | `--no-reload disable` of a running, enabled unit | Link removed, unit keeps running; the running `multi-user.target` still `Wants=` it until a reload; not started after reboot | Disable consequences say the running manager still treats the unit as wanted until a reload or reboot |
 
+### 1.2 Probe 8: unreloaded [Unit] changes (second review round; 249.11, 255.4, 259.9, Fedora 259.10)
+`docs/evidence/m2/m2-3/probes/probe8*`. Each fixture was loaded (running) before the edit, then enabled with
+`systemctl --no-reload enable`, then the container restarted (fresh PID 1). The first run combined the
+changes in one boot (`probe8-unreloaded-*.out`, `hcp-prot` stopped on all four, cause not isolated); the
+isolated runs `probe8-g{1,2,3,4}-*.out` make one change per boot. `hcp-prot.service` stands in for
+a protected service.
+
+| # | Change written without a reload | Loaded view (`systemctl show`) | At the next boot (all four versions) |
+|---|---|---|---|
+| P21 | New prefix drop-in `hcp-a-.service.d/` with `Conflicts=hcp-prot.service` | `Conflicts=` and `DropInPaths=` lack it; `NeedDaemonReload=no` on 249 and 255, `yes` on 259 | `hcp-prot` **stopped** (all four, isolated run g1) |
+| P22 | The enabled unit's own fragment edited to `Wants=` a unit that conflicts with `hcp-prot` | `Wants=` empty; `NeedDaemonReload=yes` | `hcp-prot` **stopped** (all four, g2) |
+| P23 | `hcp-prot`'s own new drop-in `Conflicts=` the enabled unit | the enabled unit's `ConflictedBy=` empty; `NeedDaemonReload=no` on 249 | `hcp-prot` stayed active; the **enabled unit** did not start (all four, g3) |
+| P23b | **Another** unit edited: the enabled unit `Wants=hcp-dep` (loaded), `hcp-dep`'s fragment gains `Conflicts=hcp-prot.service` | `hcp-dep` `Conflicts=` lacks it | `hcp-prot` **stopped** (all four, g4) |
+| P24 | Manager timestamps | `UnitsLoadStartTimestamp` is set at boot only (unchanged by `daemon-reload`, all versions). `UnitsLoadTimestamp` (≥ 255) is set at the **start** of every reload, before units load; 249 has no such property. `/run/systemd/generator` is recreated (new change time) at the start of every boot and reload, before units load, on all versions | The broker's "last load" threshold (§3.4) |
+| P25 | Files PID 1 writes itself | `/run/systemd/transient/*` (systemd-run) and `/etc/systemd/system.control/*` (set-property) change after the last load but are applied by PID 1 at once; generator output is rewritten at each reload | Excluded from the change scan |
+
+Conclusion: both gaps allowed an enablement whose boot-time activation affects a protected service (P21,
+P22), including through a change to **another** unit's file (P23b), which a review of the unit's own files
+can never see. P23 shows a case where the protected unit wins instead; it is refused all the same (the
+outcome depends on the configuration). Reproduced
+through the product with the old build `82c24a74` (`docs/evidence/m2/m2-3/review-3bec1294/repro-old-82c24a74-ubuntu-2604.log`):
+all three unloaded changes were accepted for a loaded fixture, an edit between preview and apply was
+**enabled**, and a disable was accepted although a protected-name unit's unloaded drop-in declared
+`Requisite=` on it.
+
 ## 2. New operations (ADR 0008 registry)
 | Op | Scope | Privilege | Args | Notes |
 |---|---|---|---|---|
@@ -120,6 +145,23 @@ Accepted only when all hold (checked at plan **and** again at apply with root re
   `/etc/systemd/system` (bounded: 50,000 entries, depth 8) whose name or target names the unit or an install
   alias, or whose target is the fragment, must be one of the planned links and point to the fragment; any link in
   `/run/systemd/system` is refused (runtime enablement);
+- **enable only — nothing changed on disk since systemd last loaded its unit files** (P21–P24, second review
+  round): every entry (file, link, directory) under `/etc/systemd/system`, `/etc/systemd/system.attached`,
+  `/run/systemd/system`, `/run/systemd/system.attached`, `/usr/local/lib/systemd/system`,
+  `/usr/lib/systemd/system` (and a split-usr `/lib/systemd/system`) must have a change time (ctime, which
+  cannot be set from user space) before the **last-load threshold**: systemd ≥ 255 `UnitsLoadTimestamp` (or
+  the boot load before any reload), 249 the change time of `/run/systemd/generator` (never earlier than the
+  boot load); the earliest of the realtime value and the value derived from its monotonic form via
+  `/proc/uptime` (so a realtime clock step cannot move it later); minus 100 ms. Not scanned: PID 1's own
+  `system.control`, `transient` and generator directories (P25). Changes the operation journal attributes to
+  Homelab Control's own completed enablement changes are not counted: the outcome record lists the link paths
+  it changed and its start/finish times, and only those paths and their directories, with a change time
+  inside that window (± 100 ms), are excused; interrupted operations are never excused. If the threshold
+  cannot be read, enable is refused. Bounded: 100,000 entries, depth 8;
+- **disable only:** no unit file on disk (in any unit directory, loaded or not, including drop-ins) declares
+  `Requisite=` on the unit or an alias when that file belongs to a protected unit or to a shared drop-in
+  directory (whose units cannot be named); continued values are joined; values with specifiers or quotes
+  count as a match;
 - **enable only:** `Conflicts=` and `FailureAction=`/`SuccessAction=`/`StartLimitAction=`/`JobTimeoutAction=` read
   from the files on disk (the next boot uses them, not the loaded copy) must not name a protected unit or a
   reboot/power-off action; a continued (`\`) value of these keys is refused;
@@ -184,11 +226,26 @@ units can therefore not be enabled or disabled from the UI, by any name.
   and updates commonly run one), or the first load of a target that wants the unit, applies it before a
   reboot; starting such a target can then start (or, after disable, still start) the unit. Until then
   `systemctl show`/`status` on the host show the old setting. The UI reads enablement from disk and says so.
-- **Unit-file changes without a reload:** the broker reads `[Install]`, `Conflicts=` and `*Action=` from disk
-  and refuses a new or removed fragment or `<id>.d` drop-in (P14). It does **not** detect a new or removed
-  prefix (`foo-.service.d`) or type-level (`service.d`) drop-in written without a reload (it reads only those
-  systemd has loaded), although such a drop-in's `[Unit]` settings apply at the next boot. The boot-time
-  dependency walk uses systemd's loaded graph; other `[Unit]` edits made without a reload are not reviewed.
+- **Unit-file changes without a reload (second review round):** closed for enable by the change gate (fail
+  closed; §3.4); for disable by the on-disk `Requisite=` scan. Remaining races and limits:
+  - **Race window:** a change made after the apply-time revalidation and before `systemctl` runs (milliseconds,
+    under both locks) is not seen; a change made inside an own operation's ±100 ms window *to one of that
+    operation's link paths or their directories* is excused. Changes made afterwards are root's own boot-time
+    configuration, reported by nothing.
+  - **Clock:** change times and thresholds use the realtime clock. Steps after the last load are covered on
+    255+ by the monotonic form; on 249 (generator-directory time, no monotonic form) a backward step after a
+    reload can hide a change made during the stepped interval.
+  - **249 heuristic:** systemd 249 records no reload time; the generator directory's change time is used
+    (measured, P24). Writing into `/run/systemd/generator` needs root.
+  - **Usability:** after any change on disk not loaded by systemd — including an administrator's
+    `systemctl --no-reload enable`, a package that installs a unit without reloading, or an interrupted
+    Homelab Control operation — enable is refused until the next reload or boot. Disable (undo) stays
+    available. Proposal P-6 in `OWNER-DECISIONS.md`.
+  - **Disable:** units started at boot by other means (`Requires=`, `Wants=`, activation) are unchanged by
+    disable and are not reviewed; `Requisite=` from a unit that is protected only by an alias name is not
+    matched by name (aliases of the requiring unit are not resolved).
+  - Settings outside unit files (`/etc/systemd/system.conf` and its drop-ins, kernel command line, presets)
+    are not reviewed.
 - **Boot-time conditions** differ from the plan-time walk (other units' states at boot are not modelled);
   the walk is conservative for protected names and dangerous targets, not a boot simulation.
 - **Not protected by name:** services that are harmful to disable but not listed (reverse proxy,
@@ -270,3 +327,17 @@ Inspected in this round without finding a defect:
   `services.` prefix).
 Not re-inspected in this round (unchanged since the first review and covered by its tests): the token
 framework (`writes.go`) and the journal format.
+
+## 8. Second review round (2026-11-04): unreloaded changes
+The owner asked whether the two gaps reported after §7 (new shared drop-ins without a reload; boot checks
+using systemd's loaded state) permit enabling a unit whose eventual activation affects protected services.
+**They did** (§1.2, P21–P23; reproduced through the product with `82c24a74`). Fixed in product commit
+`3bec1294`:
+
+| # | Finding | Correction | Tests |
+|---|---|---|---|
+| R12 | New/edited/removed unit files or links not loaded by systemd (own, shared or another unit's) escaped the enable review; edits between preview and apply too | Change gate against the last load (§3.4), fail closed; own journaled changes excused; new fixed root template `systemctl.show-manager` (no target) | `TestEnableRefusedAfterUnloadedChanges`, `TestEnableEditBetweenPreviewAndApply`, `TestEnableGateExcusesOwnJournaledChanges`, `TestEnableGateForeignChangeDuringOwnChange`, `TestEnableGateDoesNotExcuseInterruptedChanges`, `TestEnableGateFailsClosedWithoutLoadTime`, `TestParseManagerShow`, `TestLoadThreshold`; container checks 6d |
+| R13 | Disable's `Requisite=` protection used only systemd's loaded `RequisiteOf` | Scan of unit files on disk (§3.4) | `TestDisableRefusesRequisiteOnDisk`; container check "disable refused: unloaded Requisite=" |
+
+No daemon-reload was added and the protected-unit policy is unchanged. Each new check was removed once to
+confirm that a test fails (including excusing every change inside an own operation's window).

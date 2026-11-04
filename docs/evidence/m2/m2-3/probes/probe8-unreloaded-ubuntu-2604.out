@@ -1,0 +1,85 @@
+container hc-probe-ubuntu-2604-356587 (ubuntu-2604): systemd state=degraded
+systemd 259 (259.9-0ubuntu0.1)
+
+## T1 manager load timestamps (us+utc) and the property names this version has
+  UnitsLoadStartTimestamp=Wed 2026-11-04 11:25:35 UTC
+  UnitsLoadStartTimestampMonotonic=25090680629
+  UnitsLoadFinishTimestamp=Wed 2026-11-04 11:25:35 UTC
+  UnitsLoadFinishTimestampMonotonic=25090696749
+  UnitsLoadTimestampMonotonic=0
+  UnitsLoadStartTimestamp=Wed 2026-11-04 11:25:35.164385 UTC
+  UnitsLoadFinishTimestamp=Wed 2026-11-04 11:25:35.180504 UTC
+
+## T2 does daemon-reload update them? (setup reload)
+  UnitsLoadStartTimestamp=Wed 2026-11-04 11:25:35.164385 UTC
+  UnitsLoadFinishTimestamp=Wed 2026-11-04 11:25:35.180504 UTC
+
+## T3 generator, transient and control files vs. the load start
+  ctime 2026-11-04 11:25:36.785411396 +0000  /run/systemd/generator
+  ctime 2026-11-04 11:25:36.821698662 +0000  /run/systemd/transient/hcp-transient.service
+  ctime 2026-11-04 11:25:36.825818101 +0000  /etc/systemd/system.control/hcp-prot.service.d/50-CPUWeight.conf
+  UnitsLoadStartTimestamp=Wed 2026-11-04 11:25:35.164385 UTC
+  UnitsLoadFinishTimestamp=Wed 2026-11-04 11:25:35.180504 UTC
+  hcp-prot: active
+
+## G1 NEW prefix drop-in (hcp-a-.service.d) adding Conflicts=hcp-prot.service, no reload
+  loaded: Conflicts=shutdown.target
+  loaded: DropInPaths=
+  loaded: NeedDaemonReload=yes
+  ctime 2026-11-04 11:25:37.032824344 +0000  /etc/systemd/system/hcp-a-.service.d/zz-g1.conf
+Warning: The unit file, source configuration file or drop-ins of hcp-a-x.service changed on disk. Run 'systemctl daemon-reload' to reload units.
+  enable: Created symlink '/etc/systemd/system/multi-user.target.wants/hcp-a-x.service' → '/etc/systemd/system/hcp-a-x.service'.
+
+## G2 existing fragment edited: Wants=hcp-conflictor.service, no reload
+Warning: The unit file, source configuration file or drop-ins of hcp-b.service changed on disk. Run 'systemctl daemon-reload' to reload units.
+  loaded: Wants=
+  loaded: NeedDaemonReload=yes
+  ctime 2026-11-04 11:25:37.051317349 +0000  /etc/systemd/system/hcp-b.service
+  enable: Created symlink '/etc/systemd/system/multi-user.target.wants/hcp-b.service' → '/etc/systemd/system/hcp-b.service'.
+
+## G3 OTHER unit's new drop-in: hcp-prot.service.d Conflicts=hcp-c.service, no reload
+  loaded hcp-c: ConflictedBy=
+  loaded hcp-c: NeedDaemonReload=yes
+Warning: The unit file, source configuration file or drop-ins of hcp-c.service changed on disk. Run 'systemctl daemon-reload' to reload units.
+  loaded hcp-c (started): ConflictedBy=
+Warning: The unit file, source configuration file or drop-ins of hcp-c.service changed on disk. Run 'systemctl daemon-reload' to reload units.
+  enable: Created symlink '/etc/systemd/system/multi-user.target.wants/hcp-c.service' → '/etc/systemd/system/hcp-c.service'.
+
+## T4 entries under /etc/systemd/system newer than the load start (find -newer is mtime; ctime list)
+  UnitsLoadStartTimestamp=Wed 2026-11-04 11:25:35.164385 UTC
+  UnitsLoadFinishTimestamp=Wed 2026-11-04 11:25:35.180504 UTC
+  2026-11-04+11:25:36.7766989230 f /etc/systemd/system/hcp-a-x.service
+  2026-11-04+11:25:36.7766989230 f /etc/systemd/system/hcp-c.service
+  2026-11-04+11:25:36.7766989230 f /etc/systemd/system/hcp-conflictor.service
+  2026-11-04+11:25:36.7766989230 f /etc/systemd/system/hcp-prot.service
+  2026-11-04+11:25:36.8848258800 l /etc/systemd/system/multi-user.target.wants/hcp-prot.service
+  2026-11-04+11:25:37.0328243440 d /etc/systemd/system/hcp-a-.service.d
+  2026-11-04+11:25:37.0328243440 f /etc/systemd/system/hcp-a-.service.d/zz-g1.conf
+  2026-11-04+11:25:37.0468242000 l /etc/systemd/system/multi-user.target.wants/hcp-a-x.service
+  2026-11-04+11:25:37.0513173490 f /etc/systemd/system/hcp-b.service
+  2026-11-04+11:25:37.0588240750 l /etc/systemd/system/multi-user.target.wants/hcp-b.service
+  2026-11-04+11:25:37.0598240640 d /etc/systemd/system
+  2026-11-04+11:25:37.0608240540 d /etc/systemd/system/hcp-prot.service.d
+  2026-11-04+11:25:37.0608240540 f /etc/systemd/system/hcp-prot.service.d/zz-g3.conf
+  2026-11-04+11:25:37.0758238980 d /etc/systemd/system/multi-user.target.wants
+  2026-11-04+11:25:37.0758238980 l /etc/systemd/system/multi-user.target.wants/hcp-c.service
+container hc-probe-ubuntu-2604-356587 (ubuntu-2604): systemd state=degraded
+
+## after restart (fresh PID 1)
+systemd 259 (259.9-0ubuntu0.1)
+  UnitsLoadStartTimestamp=Wed 2026-11-04 11:25:37.369464 UTC
+  UnitsLoadFinishTimestamp=Wed 2026-11-04 11:25:37.383937 UTC
+  hcp-prot.service: active=inactive enabled=enabled
+  hcp-a-x.service: active=active enabled=enabled
+  hcp-b.service: active=active enabled=enabled
+  hcp-c.service: active=inactive enabled=enabled
+  hcp-conflictor.service: active=active enabled=static
+
+## jobs and conflicts this boot
+  Started hcp-prot.service - probe hcp-prot.service.
+  Stopping hcp-prot.service - probe hcp-prot.service...
+  hcp-prot.service: Deactivated successfully.
+  Stopped hcp-prot.service - probe hcp-prot.service.
+  Started hcp-conflictor.service - probe conflictor.
+  (end)
+exit 0
