@@ -24,7 +24,41 @@ scenario also checks this itself).
 - **Packages** built locally from clean trees (`make deb`, `make rpm`; binaries with the workstation's Go 1.27.3,
   not the pinned toolchain); hashes in `containers/5a14c727/packages.sha256`.
 
-## Final round: product commit `5a14c727`
+## Review round: product commit `82c24a74` (current; supersedes `5a14c727`)
+After the owner's PR #36 review assignment (findings R1–R11, `docs/m2/M2-3-DESIGN-REVIEW.md` §7). Files:
+`review-82c24a74/`. Packages built locally from the clean tree at `82c24a74` with Go 1.26.10
+(`containers/packages.sha256`); GitHub CI's own packages for the PR head are what the KVM procedure uses.
+
+| Check | Ubuntu 26.04.1 (259) | Ubuntu 24.04.5 (255) | Ubuntu 22.04.5 (249) | Fedora 44 (259, `.rpm`) |
+|---|---|---|---|---|
+| Package smoke + M1 checks | 71 / 0 | 71 / 0 | 71 / 0 | 71 / 0 |
+| M2-2 regression, **`HC_M2_LONG=1`** (expiry waits) | 89 / 0 | 89 / 0 | 89 / 0 | 89 / 0 |
+| M2-3 scenario, **`HC_M2_LONG=1`** | 93 / 0 | 92 / 0 | 93 / 0 | 92 / 0 |
+| **Real broker SIGKILL** during enable (`m2_3_interrupt.py`) | 19 / 0 | 19 / 0 | 19 / 0 | 19 / 0 |
+| Real-backend browser B1–B18 (Chromium) | 18 / 18 | not run | not run | 18 / 18 |
+| E4 API / broker | 1.6 / 1.5 | 1.6 / 1.5 | 1.6 / 1.5 | 1.6 / 1.5 |
+
+- Broker kill: a root-owned wrapper (disposable container only, restored and checked afterwards) delayed
+  `systemctl enable` of the fixture before / after the real call; the broker was SIGKILLed in the delay,
+  systemd restarted it (`Restart=on-failure`), and the journal held one intent + one `interrupted` record per
+  variant ("unchanged" / "changed, not verified"), nothing retried, hash chain verified. The printed INFO line
+  of the record was empty in this run (harness printed a nested field; fixed afterwards, the assertion checked
+  the whole record).
+- An earlier attempt of this round is **invalid** and not kept: the harness did not pass CI's
+  `HC_SMOKE_SCOPES`/`HC_WEBMIN_SRC`, so the M1 checks failed with `forbidden`; `docker-systemd.sh` now
+  defaults to CI's environment (R11).
+- Gates on `82c24a74`: `make check` exit 0 (Go 1.26.10, govulncheck "No vulnerabilities found", REUSE
+  compliant, shellcheck, spdx-tools; nothing skipped) — `make-check.log`; Go tests as uid 1000: 275 tests +
+  97 subtests, 0 failed — `go-tests-nonroot.txt`; Vitest 73/73; CI browser suites locally 298/0 (Chromium,
+  Firefox) — `ci-browser-e2e-chromium-firefox.log`; fuzz 60 s each (`FuzzParseInstall`,
+  `FuzzEnablementArgs`, new `FuzzParseCat`), no failure — `fuzz-60s.txt` (`FuzzParseCat` was added after
+  `82c24a74`, test-only).
+- GitHub CI run 41793837318 on the previous head `9862a8dd` (product code identical to `5a14c727`): 21/21 jobs
+  success, none skipped (`ci/ci-41793837318-jobs.tsv`); both systemd jobs ran the M2-3 scenario (83/0 on the
+  runner VM, 84/0 in the 26.04 container) with expiry waits skipped; WebKit ran only the theme CSSOM/CSP probe.
+- Workstation unchanged (`containers/host-{before,after}.txt` identical). Probes: `probes/probe7*`.
+
+## Earlier round: product commit `5a14c727` (superseded)
 | Check | Ubuntu 26.04.1 (systemd 259.9) | Ubuntu 24.04.5 (255.4) | Ubuntu 22.04.5 (249.11) | Fedora 44 (259.10, `.rpm`) |
 |---|---|---|---|---|
 | Package smoke + M1 checks | 70 / 0 | 70 / 0 | 70 / 0 | 70 / 0 |

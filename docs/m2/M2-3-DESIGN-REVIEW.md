@@ -39,6 +39,20 @@ design was fixed. Scripts and raw output: `docs/evidence/m2/m2-3/probes/`.
 | P12 | `list-timers`/`list-sockets --output=json` | Supported; fields `next,left,last,passed,unit,activates` (µs, may be null) and `listen,unit,activates`; `activates` can be null | Typed parsers tolerate null |
 | P13 | `TimersMonotonic=` in `show` | Printed once **per** trigger (repeated key) | A separate multi-value parser; `ParseShow` (which refuses repeated keys) is not reused |
 
+### 1.1 Probe 7: review of PR #36 (systemd 259.9, 249.11 and Fedora 259.10)
+Plain systemd, no Homelab Control installed; `docs/evidence/m2/m2-3/probes/probe7*`. The container is
+restarted between phases, so "after reboot" is a real fresh boot of PID 1 (not a VM boot).
+
+| # | Question | Observation (all three unless noted) | Design consequence |
+|---|---|---|---|
+| P14 | New `<unit>.d` drop-in or new `/etc` fragment written while the unit is **loaded** (running), no reload | `systemctl show` still lists the old `FragmentPath`/`DropInPaths`; `systemctl --no-reload enable` honours the files on disk and created a link to a target the loaded view does not mention. `NeedDaemonReload` was `yes` on 259 but **`no` on 249** | The broker resolves the fragment and `<id>.d/*.conf` along systemctl's search path itself and refuses when they differ from the loaded view (§3.4). `NeedDaemonReload` alone is not a usable gate |
+| P15 | Same for an **unloaded** unit | `show` loads it from disk and is accurate | (explains why the first container round did not show P14) |
+| P16 | Prefix (`hcp-.service.d`) and type-level (`service.d`) drop-ins | PID 1 lists them in `DropInPaths`; `systemctl enable` **ignores** their `[Install]` (Fedora ships `service.d/10-timeout-abort.conf`) | `[Install]` is read from `<id>.d` only; a shared drop-in that has an `[Install]` section is refused as ambiguous; its `[Unit]` hazards are still checked |
+| P17 | What does `disable` remove? | **Every** symbolic link under `/etc/systemd/system`, at any depth, whose name or target names the unit: links in other targets' `.wants/`, in another unit's `.requires/`, a renamed link, a manual alias and `deep/er/<unit>`, none of them described by `[Install]` | The broker scans the tree (bounded) and refuses enable/disable when any link to the unit is not described by `[Install]`; runtime links are refused; read-back is a fresh scan (§3.7) |
+| P18 | `WantedBy=sysinit.target`/`basic.target`/`local-fs.target`/`sockets.target` with default dependencies, then reboot | No ordering cycle and no deleted job in the journal; the units start after `basic.target` (systemd does not add the implicit target `After=` that would close the loop) | Not refused; recorded. Early-boot ordering is not an M2-3 defect |
+| P19 | `--no-reload enable`: when does it take effect? | Immediately on disk (`is-enabled` = enabled); the running manager's `multi-user.target` `Wants=` does not contain the unit. Starting a **target that was not loaded yet** started the newly wanted unit at once, without a reload. After any `daemon-reload`, `systemctl start multi-user.target` started it. After reboot it started | "Takes effect at the next boot" was wrong. The plan and UI now say: written to disk now; used at the next boot **or** as soon as systemd reloads its configuration for another reason (package installs/updates commonly do) or first loads a target; so it can take effect before a reboot |
+| P20 | `--no-reload disable` of a running, enabled unit | Link removed, unit keeps running; the running `multi-user.target` still `Wants=` it until a reload; not started after reboot | Disable consequences say the running manager still treats the unit as wanted until a reload or reboot |
+
 ## 2. New operations (ADR 0008 registry)
 | Op | Scope | Privilege | Args | Notes |
 |---|---|---|---|---|
@@ -97,6 +111,18 @@ Accepted only when all hold (checked at plan **and** again at apply with root re
 - `SourcePath=` is empty (no SysV script), `Transient=no`, and the fragment lies in `/etc/systemd/system`,
   `/usr/lib/systemd/system`, `/lib/systemd/system` or `/usr/local/lib/systemd/system` (no generator or
   runtime units);
+- **the files on disk are the ones systemd has loaded** (P14): the broker finds the fragment (first match along
+  systemctl's search path) and the `<id>.d/*.conf` drop-ins itself and compares them with `FragmentPath` and the
+  `<id>.d` entries of `DropInPaths` (merged-usr `/lib` = `/usr/lib`); any difference is refused ("review after the
+  next boot or after systemd reloads its configuration"). Shared (prefix/type-level) drop-ins with an `[Install]`
+  section are refused (P16);
+- **no link to the unit that `[Install]` does not describe** (P17): every symbolic link under
+  `/etc/systemd/system` (bounded: 50,000 entries, depth 8) whose name or target names the unit or an install
+  alias, or whose target is the fragment, must be one of the planned links and point to the fragment; any link in
+  `/run/systemd/system` is refused (runtime enablement);
+- **enable only:** `Conflicts=` and `FailureAction=`/`SuccessAction=`/`StartLimitAction=`/`JobTimeoutAction=` read
+  from the files on disk (the next boot uses them, not the loaded copy) must not name a protected unit or a
+  reboot/power-off action; a continued (`\`) value of these keys is refused;
 - the fragment and every drop-in parse (§3.5) and the combined `[Install]` section has no `RequiredBy=`,
   `UpheldBy=`, `Also=` or `DefaultInstance=`, no specifiers (`%`), no empty (reset) assignments, no line
   continuations and no unknown keys. `Also=` and `RequiredBy=`/`UpheldBy=` are refused rather than walked:
@@ -133,8 +159,10 @@ The broker therefore reads the fragment and the drop-ins **in-process as root**,
 Read-back does not trust `systemctl`'s exit status or output:
 1. root `is-enabled` must report `enabled` / `disabled`;
 2. the broker `lstat`s every expected link itself: `/etc/systemd/system/<target>.wants/<unit>` for each
-   `WantedBy=` and `/etc/systemd/system/<alias>` for each `Alias=` must all exist as symlinks after enable and
-   all be absent after disable.
+   `WantedBy=` and `/etc/systemd/system/<alias>` for each `Alias=` must all exist as symlinks **pointing to the
+   unit file** after enable and all be absent after disable;
+3. a fresh scan of `/etc/systemd/system` (as in §3.4) must find no other link to the unit; any is reported as
+   `unexpected_links` and the outcome is not `succeeded`.
 
 Outcomes: `succeeded` only if both agree with the request and `systemctl` exited 0. `failed` if nothing
 changed or `systemctl` failed; when some links changed and others did not, the message says the change is
@@ -151,9 +179,14 @@ units can therefore not be enabled or disabled from the UI, by any name.
 
 ### 3.9 Residual risks (accepted for review)
 - **Compromised `hc-api`** can still request any enable/disable the broker policy allows (ADR 0011 limit).
-- **No manager reload:** until the next boot or a reload by someone else, `systemctl show`/`status` on the
-  host show the old enablement, and the running manager does not know the new `Wants=` links. This is the
-  price of not running a global reload. The UI reads enablement from disk and says so.
+- **No manager reload (P19, P20):** the setting is on disk at once; the running manager does not know the new
+  `Wants=` links (or still has the removed ones) until it reloads. Any later `daemon-reload` (package installs
+  and updates commonly run one), or the first load of a target that wants the unit, applies it before a
+  reboot; starting such a target can then start (or, after disable, still start) the unit. Until then
+  `systemctl show`/`status` on the host show the old setting. The UI reads enablement from disk and says so.
+- **Edits to existing unit files without a reload:** the broker reads `[Install]`, `Conflicts=` and `*Action=`
+  from disk, and refuses new or removed files (P14), but the boot-time dependency walk uses systemd's loaded
+  graph; other `[Unit]` edits made on the host without a reload are not reviewed.
 - **Boot-time conditions** differ from the plan-time walk (other units' states at boot are not modelled);
   the walk is conservative for protected names and dangerous targets, not a boot simulation.
 - **Not protected by name:** services that are harmful to disable but not listed (reverse proxy,
@@ -169,10 +202,12 @@ units can therefore not be enabled or disabled from the UI, by any name.
   `static`, `generated`, `transient`, `masked`. Last exit is shown only when `ExecMainExitTimestamp` is set;
   `NRestarts` only for services. Dependencies come from systemd, capped at 64 names per list.
 - **Unit-file contents** (P9) are read by `systemctl cat` running as `homelab-control`, so root-only files are
-  never shown (the response lists them as unreadable). Redacted before leaving the broker: every `Environment=` value (variable names are kept); the whole value of `SetCredential*=` and of any key containing `passw`, `passphrase`, `secret`, `token`, `apikey`, `api_key`, `privatekey`, `private_key` or `credential`; in `Exec*=` lines, the value of arguments whose name contains `pass`, `secret`, `token`, `apikey`, `auth` or `key` (`--password=…`, `--token …`, `api_key=…`); and the user-info part of any URL (`scheme://user:pass@`). `EnvironmentFile=` paths are shown, never the file. Bounded to 64 KiB and 2,000 lines, control characters
+  never shown (the response lists them as unreadable). Redacted before leaving the broker: every `Environment=` value (variable names are kept); the whole value of `SetCredential*=` and of any key containing `passw`, `passphrase`, `secret`, `token`, `apikey`, `api_key`, `privatekey`, `private_key` or `credential`; in `Exec*=` lines, the value of arguments whose name contains `pass`, `secret`, `token`, `apikey`, `auth` or `key` (`--password=…`, `--token …`, `api_key=…`); and the user-info part of any URL (`scheme://user:pass@`). `EnvironmentFile=` paths are shown, never the file. Redaction works on logical lines joined across `\` continuations (a redacted multi-line value is shown as one line). Bounded to 64 KiB and 2,000 lines, control characters
   stripped. Gated by `services.logs` (the existing non-default scope for sensitive content; a dedicated scope
   is an open owner item O-2) and audited fail-closed (who, which unit, never content). Redaction is
-  heuristic; this is stated in the UI.
+  heuristic and **not a secrecy guarantee**; this is stated in the UI. Known gaps (review, §7): positional secrets
+  (`-u user:pass`, `mysql -pSECRET`, a bare token argument), quoted header values (`"Authorization: Bearer …"`),
+  secrets in URL query strings, and keys whose names do not contain the listed words. See O-2.
 - **Timers and sockets** are listed with systemd's own fields; unknown or null values are shown as unknown.
 
 ## 5. D-10: minimal module registry (proposed implementation, for owner review)
@@ -199,3 +234,28 @@ recovery; protected-unit tables for every enablement path; module-disabled 404 a
 systemd in disposable Ubuntu and Fedora containers with cleanup invariants (SSH/broker `is-enabled` and
 `/etc/systemd/system` symlink snapshot unchanged); real-backend browser flow with keyboard and phone layout;
 E4 comparison. Results: `M2-3-ACCEPTANCE.md`.
+
+## 7. Review of PR #36 (2026-11-04, after CI run 41793837318)
+Requested by the owner as a review and corrective-development assignment (not acceptance). Findings on
+product commit `5a14c727`, fixed in `82c24a74` unless marked otherwise:
+
+| # | Finding | Severity | Evidence | Correction |
+|---|---|---|---|---|
+| R1 | Review used systemd's loaded view of the unit files; for a loaded unit a new `<id>.d` drop-in or `/etc` fragment written without a reload was honoured by `enable` but not reviewed (and not caught by apply-time revalidation) | High (unreviewed links, possibly to a protected target) | P14, `probe7b-loaded-*.out` | On-disk resolution, refusal on mismatch, digest over the on-disk files (§3.4); `TestEnablementRefusesStaleLoadedView`, `TestEnablementDropInAfterPlanIsRefusedAtApply`; container check "new drop-in not loaded by systemd" |
+| R2 | `disable` removes links its `[Install]` does not describe (other targets, another unit's `.requires/`, manual aliases, any depth); the plan did not show them and read-back did not see them | High (affected links not reviewed) | P17 | Bounded scan, refusal, runtime links refused, link targets checked (§3.4); `TestDisableRefusesUndescribedLinks`; container check "disable with a link [Install] does not describe" |
+| R3 | Read-back checked only that a link existed, not where it pointed, and did not look for other links | Medium | — | Target check and fresh scan, `unexpected_links` (§3.7); `TestEnablementReadBackScansLinks` |
+| R4 | `[Install]` from prefix/type-level drop-ins was treated as honoured | Low (would produce a false `failed`) | P16 | `<id>.d` only; ambiguous shared `[Install]` refused; `TestEnablementSharedDropIns` |
+| R5 | `Conflicts=`/`*Action=` edits on disk not yet loaded were not checked for the next boot | Medium | P14 | Read from disk for enable (§3.4); `TestEnablementDiskUnitHazards` |
+| R6 | Unit-file contents: a secret on a backslash continuation line was shown unredacted | Medium (disclosure to `services.logs` holders) | `TestParseCatRedactsContinuations` | Logical-line redaction (§4). Other heuristic gaps remain (§4, O-2) |
+| R7 | Plan and UI promised "takes effect at the next boot" | Medium (misleading consequence) | P19, P20 | Wording corrected in the broker, UI and docs |
+| R8 | Interrupted-operation recovery described only the current `is-enabled` | Low | — | Describes before/requested/observed and the links named after the unit, "not verified"; `TestEnablementRecoveryDescribesObservedState`; real broker kill, `m2_3_interrupt.py` |
+| R9 | Tests mirrored the implementation: the fake controller created exactly the links the review computed, so R1–R3 could not fail | Test quality | — | The fake now models measured `systemctl` behaviour independently (`systemctlModel`); every new check was removed once to confirm a test fails |
+| R10 | `WantedBy=` early-boot targets suspected of creating ordering cycles | Not confirmed | P18 | None |
+| R11 | Harness: `docker-systemd.sh` ran only the base smoke checks unless `HC_SMOKE_EXTRA_*` was passed | Harness | first rerun showed 11 checks | Defaults to the CI set |
+
+Reviewed without finding a defect: token binding (op, action, canonical target, actor, session, digest;
+single use; expiry), the two locks and their order, journal intent before and outcome after (fsync, hash
+chain), step-up always required, module-disabled enforcement in `hc-api` (404 identical to unknown routes,
+before authentication) and in the broker (`module_disabled` before the scope check; `broker.info` filtered),
+and that nothing outside the Services module calls `services.*` routes (the Audit page only filters by the
+`services.` prefix).

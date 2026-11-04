@@ -205,6 +205,10 @@ use are separate decisions. The review of the new write against every element of
 - **Journal** unchanged in format; the recovery inspector now receives the intent record and describes an
   interrupted enablement by its boot setting.
 - **Read-back** independent of `systemctl`: root `is-enabled` plus the broker's own `lstat` of every expected
-  link; partial changes are reported as `failed` with the observed links; no rollback.
-- **Known limitations** added: no manager reload (status on the host shows the old setting until the next boot
-  or reload); boot-time conditions are not simulated; concurrent root edits on the host are reported, not prevented.
+  link (and its target) and a fresh scan for other links to the unit; partial changes are reported as `failed`
+  with the observed links; no rollback.
+- **Review from disk** (PR #36 review): the fragment, `<id>.d` drop-ins and every link naming the unit are read
+  from disk, as `systemctl` does; a mismatch with systemd's loaded view, or a link `[Install]` does not
+  describe, is refused.
+- **Known limitations** added: no manager reload (the setting can take effect before a reboot, at any later
+  reload or first load of a target; status on the host shows the old setting until then); boot-time conditions are not simulated; concurrent root edits on the host are reported, not prevented.
