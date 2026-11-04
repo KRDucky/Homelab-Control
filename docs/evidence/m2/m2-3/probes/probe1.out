@@ -1,0 +1,247 @@
+######## ubuntu2604
+--- implicit reload? (journal Reloading lines count before/after)
+Created symlink '/etc/systemd/system/hc-probe-alias.service' → '/etc/systemd/system/hc-probe-a.service'.
+Created symlink '/etc/systemd/system/multi-user.target.wants/hc-probe-a.service' → '/etc/systemd/system/hc-probe-a.service'.
+rc=0
+reload lines before=2 after enable=4
+Removed '/etc/systemd/system/multi-user.target.wants/hc-probe-a.service'.
+Removed '/etc/systemd/system/hc-probe-alias.service'.
+disable --no-reload rc=0
+after --no-reload disable=4
+--- freshness after enable --no-reload
+Created symlink '/etc/systemd/system/hc-probe-alias.service' → '/etc/systemd/system/hc-probe-a.service'.
+Created symlink '/etc/systemd/system/multi-user.target.wants/hc-probe-a.service' → '/etc/systemd/system/hc-probe-a.service'.
+rc=0
+show UnitFileState=enabled is-enabled=enabled
+lrwxrwxrwx 1 root root 38 Nov  4 06:19 hc-probe-a.service -> /etc/systemd/system/hc-probe-a.service
+lrwxrwxrwx 1 root root  38 Nov  4 06:19 hc-probe-alias.service -> /etc/systemd/system/hc-probe-a.service
+Removed '/etc/systemd/system/multi-user.target.wants/hc-probe-a.service'.
+Removed '/etc/systemd/system/hc-probe-alias.service'.
+rc=0
+after disable: show=enabled is-enabled=disabled; alias exists? ls: cannot access '/etc/systemd/system/hc-probe-alias.service': No such file or directory
+--- Also=
+Created symlink '/etc/systemd/system/multi-user.target.wants/hc-probe-b.service' → '/etc/systemd/system/hc-probe-b.service'.
+Created symlink '/etc/systemd/system/multi-user.target.wants/hc-probe-c.service' → '/etc/systemd/system/hc-probe-c.service'.
+rc=0
+b=enabled c=enabled
+Removed '/etc/systemd/system/multi-user.target.wants/hc-probe-b.service'.
+Removed '/etc/systemd/system/multi-user.target.wants/hc-probe-c.service'.
+rc=0
+b=disabled c=disabled
+--- static
+The unit files have no installation config (WantedBy=, RequiredBy=, UpheldBy=,
+Also=, or Alias= settings in the [Install] section, and DefaultInstance= for
+template units). This means they are not meant to be enabled or disabled using systemctl.
+ 
+Possible reasons for having these kinds of units are:
+• A unit may be statically enabled by being symlinked from another unit's
+  .wants/, .requires/, or .upholds/ directory.
+• A unit's purpose may be to act as a helper for some other unit which has
+  a requirement dependency on it.
+• A unit may be started when needed via activation (socket, path, timer,
+  D-Bus, udev, scripted systemctl call, ...).
+• In case of template units, the unit is meant to be enabled with some
+  instance name specified.
+rc=0
+is-enabled static=static rc=0
+--- masked
+Created symlink '/etc/systemd/system/multi-user.target.wants/hc-probe-c.service' → '/etc/systemd/system/hc-probe-c.service'.
+rc=0
+enabled
+--- enable via alias name
+Removed '/etc/systemd/system/multi-user.target.wants/hc-probe-a.service'.
+Removed '/etc/systemd/system/hc-probe-alias.service'.
+rc=0
+disabled
+not-found
+--- is-enabled on various
+ssh.service: disabled rc=1
+sshd.service: alias rc=0
+ssh.socket: enabled rc=0
+systemd-journald.service: static rc=0
+hc-nonexistent.service: not-found rc=4
+getty@.service: enabled rc=0
+getty@tty1.service: enabled rc=0
+--- runtime enable
+runtime: enabled
+--- cat as nobody (0600 drop-in)
+# Warning: hc-probe-c.service changed on disk, the version systemd has loaded is outdated.
+# This output shows the current version of the unit's original fragment and drop-in files.
+# If fragments or drop-ins were added or removed, they are not properly reflected in this output.
+# Run 'systemctl daemon-reload' to reload units.
+Failed to open "/etc/systemd/system/hc-probe-c.service.d/secret.conf": Permission denied
+# /etc/systemd/system/hc-probe-c.service
+[Service]
+ExecStart=/bin/sleep 1000
+[Install]
+WantedBy=multi-user.target
+
+# /etc/systemd/system/hc-probe-c.service.d/secret.conf
+rc=1
+--- cat template
+# /usr/lib/systemd/system/getty@.service
+#  SPDX-License-Identifier: LGPL-2.1-or-later
+#
+rc=0
+--- show on unloaded
+listed before: 0
+LoadState=loaded
+ActiveState=inactive
+listed after: 0
+--- list-units with pattern after --
+[]
+
+[{"unit_file":"hc-probe-a.service","state":"disabled","preset":"enabled"}]
+
+--- timers json
+[{"next":1793774034845450,"left":1793774034845450,"last":0,"passed":0,"unit":"systemd-tmpfiles-clean.timer","activates":"systemd-tmpfiles-clean.service"},{"next":1793792182477547,"left":1793792182477547,"last":0,"passed":0,"unit":"motd-news.timer","activates":"motd-news.service"},{"next":1793836800000000,"left":1793836800000000,"last":0,"passed":0,"unit":"dpkg-db-backup.timer","activates":"dpkg-db-backup.service"},{"next":1794107450663218,"left":1794107450663218,"last":0,"passed":0,"unit":"e2scrub_all.timer","activates":"e2scrub_all.service"},{"next":null,"left":null,"last":0,"passed":0,"unit"
+--- sockets json
+[{"listen":"0.0.0.0:22","unit":"ssh.socket","activates":"ssh.service"},{"listen":"[::]:22","unit":"ssh.socket","activates":"ssh.service"},{"listen":"audit 1","unit":"systemd-journald-audit.socket","activates":"systemd-journald.service"},{"listen":"/run/dbus/system_bus_socket","unit":"dbus.socket","activates":"dbus.service"},{"listen":"/run/ssh-unix-local/socket","unit":"sshd-unix-local.socket","activates":null},{"listen":"/run/systemd/io.systemd.AskPassword","unit":"systemd-ask-password.socket","activates":null},{"listen":"/run/systemd/io.systemd.Credentials","unit":"systemd-creds.socket","act
+--- TimersCalendar show
+timer=systemd-tmpfiles-clean.timer
+Unit=systemd-tmpfiles-clean.service
+TimersMonotonic={ OnUnitActiveUSec=1d ; next_elapse=0 }
+TimersMonotonic={ OnBootUSec=15min ; next_elapse=2h 6min 30.361694s }
+NextElapseUSecRealtime=
+LastTriggerUSec=
+Persistent=no
+--- show not-found
+Id=hc-nope.service
+LoadState=not-found
+ActiveState=inactive
+UnitFileState=
+--- template show
+Failed to get properties: Unit name getty@.service is neither a valid invocation ID nor unit name.
+rc=1
+######## fedora44
+--- implicit reload? (journal Reloading lines count before/after)
+Created symlink '/etc/systemd/system/hc-probe-alias.service' → '/etc/systemd/system/hc-probe-a.service'.
+Created symlink '/etc/systemd/system/multi-user.target.wants/hc-probe-a.service' → '/etc/systemd/system/hc-probe-a.service'.
+rc=0
+reload lines before=2 after enable=4
+Removed '/etc/systemd/system/multi-user.target.wants/hc-probe-a.service'.
+Removed '/etc/systemd/system/hc-probe-alias.service'.
+disable --no-reload rc=0
+after --no-reload disable=4
+--- freshness after enable --no-reload
+Created symlink '/etc/systemd/system/hc-probe-alias.service' → '/etc/systemd/system/hc-probe-a.service'.
+Created symlink '/etc/systemd/system/multi-user.target.wants/hc-probe-a.service' → '/etc/systemd/system/hc-probe-a.service'.
+rc=0
+show UnitFileState=enabled is-enabled=enabled
+lrwxrwxrwx 1 root root 38 Nov  4 06:19 hc-probe-a.service -> /etc/systemd/system/hc-probe-a.service
+lrwxrwxrwx 1 root root  38 Nov  4 06:19 hc-probe-alias.service -> /etc/systemd/system/hc-probe-a.service
+Removed '/etc/systemd/system/multi-user.target.wants/hc-probe-a.service'.
+Removed '/etc/systemd/system/hc-probe-alias.service'.
+rc=0
+after disable: show=enabled is-enabled=disabled; alias exists? ls: cannot access '/etc/systemd/system/hc-probe-alias.service': No such file or directory
+--- Also=
+Created symlink '/etc/systemd/system/multi-user.target.wants/hc-probe-b.service' → '/etc/systemd/system/hc-probe-b.service'.
+Created symlink '/etc/systemd/system/multi-user.target.wants/hc-probe-c.service' → '/etc/systemd/system/hc-probe-c.service'.
+rc=0
+b=enabled c=enabled
+Removed '/etc/systemd/system/multi-user.target.wants/hc-probe-b.service'.
+Removed '/etc/systemd/system/multi-user.target.wants/hc-probe-c.service'.
+rc=0
+b=disabled c=disabled
+--- static
+The unit files have no installation config (WantedBy=, RequiredBy=, UpheldBy=,
+Also=, or Alias= settings in the [Install] section, and DefaultInstance= for
+template units). This means they are not meant to be enabled or disabled using systemctl.
+ 
+Possible reasons for having these kinds of units are:
+• A unit may be statically enabled by being symlinked from another unit's
+  .wants/, .requires/, or .upholds/ directory.
+• A unit's purpose may be to act as a helper for some other unit which has
+  a requirement dependency on it.
+• A unit may be started when needed via activation (socket, path, timer,
+  D-Bus, udev, scripted systemctl call, ...).
+• In case of template units, the unit is meant to be enabled with some
+  instance name specified.
+rc=0
+is-enabled static=static rc=0
+--- masked
+Created symlink '/etc/systemd/system/multi-user.target.wants/hc-probe-c.service' → '/etc/systemd/system/hc-probe-c.service'.
+rc=0
+enabled
+--- enable via alias name
+Removed '/etc/systemd/system/multi-user.target.wants/hc-probe-a.service'.
+Removed '/etc/systemd/system/hc-probe-alias.service'.
+rc=0
+disabled
+not-found
+--- is-enabled on various
+ssh.service: not-found rc=4
+sshd.service: enabled rc=0
+ssh.socket: not-found rc=4
+systemd-journald.service: static rc=0
+hc-nonexistent.service: not-found rc=4
+getty@.service: enabled rc=0
+getty@tty1.service: enabled rc=0
+--- runtime enable
+runtime: enabled
+--- cat as nobody (0600 drop-in)
+# Warning: hc-probe-c.service changed on disk, the version systemd has loaded is outdated.
+# This output shows the current version of the unit's original fragment and drop-in files.
+# If fragments or drop-ins were added or removed, they are not properly reflected in this output.
+# Run 'systemctl daemon-reload' to reload units.
+Failed to open "/etc/systemd/system/hc-probe-c.service.d/secret.conf": Permission denied
+# /etc/systemd/system/hc-probe-c.service
+[Service]
+ExecStart=/bin/sleep 1000
+[Install]
+WantedBy=multi-user.target
+
+# /usr/lib/systemd/system/service.d/10-timeout-abort.conf
+# This file is part of the systemd package.
+# See https://fedoraproject.org/wiki/Changes/Shorter_Shutdown_Timer.
+#
+# To facilitate debugging when a service fails to stop cleanly,
+# TimeoutStopFailureMode=abort is set to "crash" services that fail to stop in
+# the time allotted. This will cause the service to be terminated with SIGABRT
+# and a coredump to be generated.
+#
+# To undo this configuration change, create a mask file:
+#   sudo mkdir -p /etc/systemd/system/service.d
+#   sudo ln -sv /dev/null /etc/systemd/system/service.d/10-timeout-abort.conf
+
+[Service]
+TimeoutStopFailureMode=abort
+
+# /etc/systemd/system/hc-probe-c.service.d/secret.conf
+rc=1
+--- cat template
+# /usr/lib/systemd/system/getty@.service
+#  SPDX-License-Identifier: LGPL-2.1-or-later
+#
+rc=0
+--- show on unloaded
+listed before: 0
+LoadState=loaded
+ActiveState=inactive
+listed after: 0
+--- list-units with pattern after --
+[]
+
+[{"unit_file":"hc-probe-a.service","state":"disabled","preset":"disabled"}]
+
+--- timers json
+[{"next":1793774034986029,"left":1793774034986029,"last":0,"passed":0,"unit":"systemd-tmpfiles-clean.timer","activates":"systemd-tmpfiles-clean.service"},{"next":null,"left":null,"last":0,"passed":0,"unit":"dnf-makecache.timer","activates":null},{"next":null,"left":null,"last":0,"passed":0,"unit":"fstrim.timer","activates":"fstrim.service"}]
+
+--- sockets json
+[{"listen":"audit 1","unit":"systemd-journald-audit.socket","activates":"systemd-journald.service"},{"listen":"/run/dbus/system_bus_socket","unit":"dbus.socket","activates":"dbus-broker.service"},{"listen":"/run/ssh-unix-local/socket","unit":"sshd-unix-local.socket","activates":null},{"listen":"/run/systemd/coredump","unit":"systemd-coredump.socket","activates":null},{"listen":"/run/systemd/io.systemd.AskPassword","unit":"systemd-ask-password.socket","activates":null},{"listen":"/run/systemd/io.systemd.BootControl","unit":"systemd-bootctl.socket","activates":null},{"listen":"/run/systemd/io.sy
+--- TimersCalendar show
+timer=systemd-tmpfiles-clean.timer
+Unit=systemd-tmpfiles-clean.service
+TimersMonotonic={ OnUnitActiveUSec=1d ; next_elapse=0 }
+TimersMonotonic={ OnBootUSec=15min ; next_elapse=2h 6min 30.502273s }
+NextElapseUSecRealtime=
+LastTriggerUSec=
+Persistent=no
+--- show not-found
+Id=hc-nope.service
+LoadState=not-found
+ActiveState=inactive
+UnitFileState=
+--- template show
+Failed to get properties: Unit name getty@.service is neither a valid invocation ID nor unit name.
+rc=1
