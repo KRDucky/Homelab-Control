@@ -127,7 +127,7 @@ func TestEnableGateExcusesOwnJournaledChanges(t *testing.T) {
 	if _, err := e.eplan(t, "three.service", "enable"); err != nil {
 		t.Fatalf("own changes blocked the next enable: %v", err)
 	}
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(3 * ownWindowMargin)
 	// A foreign removal in the directory the own changes touched.
 	if err := os.Remove(filepath.Join(e.files.root, "/etc/systemd/system/multi-user.target.wants/demo.service")); err != nil {
 		t.Fatal(err)
@@ -231,43 +231,103 @@ func TestParseManagerShow(t *testing.T) {
 	}
 }
 
-// The threshold is the earliest of the realtime and monotonic forms, so a
-// realtime clock step in either direction never moves it later.
+// The threshold is the earliest of the generator directory's change time, the
+// realtime stamp and its monotonic form, so a realtime clock step in either
+// direction never moves it later; no margin (probe 9).
 func TestLoadThreshold(t *testing.T) {
 	saved := uptime
 	defer func() { uptime = saved }()
 	root := Roots{Root: t.TempDir()}
 	now := time.Date(2026, 11, 4, 12, 0, 0, 0, time.UTC)
 	uptime = func() (time.Duration, error) { return 2 * time.Hour, nil }
-	// Reloaded 1 h after boot (monotonic): loaded at now-1h.
+	truth := now.Add(-time.Hour) // reloaded 1 h after boot (monotonic)
 	m := ManagerLoad{BootRealtime: now.Add(-2 * time.Hour), BootMonotonic: time.Second, HasReloadStamp: true,
 		ReloadMonotonic: time.Hour}
 	for name, real := range map[string]time.Time{
-		"consistent":                       now.Add(-time.Hour),
-		"clock stepped back after load":    now.Add(-time.Hour).Add(10 * time.Minute), // realtime later than truth? use the earlier
-		"clock stepped forward after load": now.Add(-time.Hour).Add(-10 * time.Minute),
+		"consistent":                       truth,
+		"clock stepped back after load":    truth.Add(10 * time.Minute),
+		"clock stepped forward after load": truth.Add(-10 * time.Minute),
 	} {
 		m.ReloadRealtime = real
 		th, err := loadThreshold(root, m, now)
-		want := now.Add(-time.Hour)
+		want := truth
 		if real.Before(want) {
 			want = real
 		}
-		if err != nil || !th.Equal(want.Add(-loadMargin)) {
+		if err != nil || !th.Equal(want) {
 			t.Errorf("%s: %v %v, want %v", name, th, err, want)
 		}
 	}
-	// systemd 249 (no reload stamp): the generator directory's change time,
-	// never earlier than the boot load.
-	m = ManagerLoad{BootRealtime: time.Now().Add(-2 * time.Hour), BootMonotonic: time.Second}
+	// No reload since boot (255+): the boot stamp.
+	m.ReloadRealtime, m.ReloadMonotonic = time.Time{}, 0
+	if th, _ := loadThreshold(root, m, now); !th.Equal(now.Add(-2*time.Hour+time.Second)) && !th.Equal(now.Add(-2*time.Hour)) {
+		t.Errorf("boot: %v", th)
+	}
+	// systemd 249 (no reload stamp) without a generator directory: since boot.
+	m249 := ManagerLoad{BootRealtime: now.Add(-2 * time.Hour), BootMonotonic: time.Second}
+	if th, err := loadThreshold(root, m249, now); err != nil || !th.Equal(m249.BootRealtime) {
+		t.Errorf("249 without generator dir: %v %v", th, err)
+	}
+	// With the generator directory (recreated at each reload): its change time,
+	// on 249 alone, on 255+ when it is the earliest.
 	gen := root.Path(generatorDir)
 	if err := os.MkdirAll(gen, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	fi, _ := os.Stat(gen)
-	th, err := loadThreshold(root, m, time.Now())
-	if err != nil || !th.Equal(ctimeOf(fi).Add(-loadMargin)) {
-		t.Errorf("249: %v %v", th, err)
+	real := time.Now()
+	if th, err := loadThreshold(root, m249, real.Add(time.Minute)); err != nil || !th.Equal(ctimeOf(fi)) {
+		t.Errorf("249: %v %v, want %v", th, err, ctimeOf(fi))
+	}
+	later := real.Add(time.Minute)
+	m.ReloadRealtime, m.ReloadMonotonic = later, time.Hour
+	uptime = func() (time.Duration, error) { return time.Hour, nil } // derived = later
+	if th, err := loadThreshold(root, m, later); err != nil || !th.Equal(ctimeOf(fi)) {
+		t.Errorf("255+ with an earlier generator dir: %v %v", th, err)
+	}
+	// A generator directory "from the future" (clock stepped back) is ignored.
+	m249.BootRealtime = ctimeOf(fi).Add(-time.Hour)
+	if th, _ := loadThreshold(root, m249, ctimeOf(fi).Add(-time.Minute)); !th.Equal(m249.BootRealtime) {
+		t.Errorf("future generator dir: %v", th)
+	}
+}
+
+// Runtime unit configuration (gone at the next boot) blocks enable.
+func TestEnableRefusedWithRuntimeConfiguration(t *testing.T) {
+	e := newEnablementEnv(t)
+	writeUnit(t, e.files.root, "/run/systemd/system/other.service.d/x.conf", "[Unit]\nDescription=x\n")
+	e.files.reload()
+	if _, err := e.eplan(t, "demo.service", "enable"); code(err) != proto.CodePolicyDenied || !strings.Contains(err.Error(), "runtime unit configuration") {
+		t.Fatalf("runtime configuration: %v", err)
+	}
+	// An empty runtime directory (created during boot) does not.
+	_ = os.RemoveAll(filepath.Join(e.files.root, "/run/systemd/system/other.service.d"))
+	e.files.reload()
+	if _, err := e.eplan(t, "demo.service", "enable"); err != nil {
+		t.Fatalf("empty runtime dir: %v", err)
+	}
+}
+
+// Links systemctl created beyond the plan are recorded but never excused.
+func TestEnableGateDoesNotExcuseUnexpectedLinks(t *testing.T) {
+	e := newEnablementEnv(t, svc("demo.service", "inactive"), svc("two.service", "inactive"))
+	p, err := e.eplan(t, "demo.service", "enable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.files.changeFn = func(a, u string) (runner.Result, error) {
+		out := systemctlModel(e.files.root, a, u)
+		l := filepath.Join(e.files.root, "/etc/systemd/system/surprise.target.wants/demo.service")
+		_ = os.MkdirAll(filepath.Dir(l), 0o755)
+		_ = os.Symlink("/etc/systemd/system/demo.service", l)
+		e.files.state[u] = "enabled"
+		return runner.Result{Stdout: []byte(out)}, nil
+	}
+	if o, err := e.eapply(t, withStepUp(e.env, time.Now()), "demo.service", "enable", p.Token); err != nil || len(o.Unexpected) != 1 {
+		t.Fatalf("%+v %v", o, err)
+	}
+	if _, err := e.eplan(t, "two.service", "enable"); code(err) != proto.CodePolicyDenied || !strings.Contains(err.Error(), "surprise.target.wants") {
+		t.Fatalf("unexpected link excused: %v", err)
 	}
 }
 

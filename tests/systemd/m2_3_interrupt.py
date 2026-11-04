@@ -179,6 +179,15 @@ def main():
     try:
         m.SID = m.login()
         st, sess = m.call("GET", "/api/v1/auth/session")
+        if "services.configure" not in (sess.get("scopes") or []):
+            # Run on its own (Phase B): grant the scope as the M2-3 scenario does.
+            grant = ",".join(sorted(set(sess.get("scopes") or []) | {"services.read", "services.configure", "audit.read"}))
+            subprocess.run(["hlctl", "user", "scopes", "--file", m.USERS, "--username", "admin", "--scopes", grant],
+                           check=True, capture_output=True)
+            subprocess.run(["chown", "homelab-control:homelab-control", m.USERS], check=True)
+            m.restart_api()
+            m.SID = m.login()
+            st, sess = m.call("GET", "/api/v1/auth/session")
         csrf = sess.get("csrf_token")
         m.check("session has services.configure", True, "services.configure" in (sess.get("scopes") or []))
         run_variant("before", csrf, "disabled", "enable")

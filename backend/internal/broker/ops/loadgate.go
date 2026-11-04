@@ -46,10 +46,15 @@ import (
 // set-property), /run/systemd/transient (loaded by PID 1 when created), the
 // generator directories (rewritten by PID 1 at every boot and reload).
 var changeScanDirs = []string{
-	"/etc/systemd/system/", "/etc/systemd/system.attached/", "/run/systemd/system/",
-	"/run/systemd/system.attached/", "/usr/local/lib/systemd/system/", "/usr/lib/systemd/system/",
-	"/lib/systemd/system/",
+	"/etc/systemd/system/", "/etc/systemd/system.attached/", "/usr/local/lib/systemd/system/",
+	"/usr/lib/systemd/system/", "/lib/systemd/system/",
 }
+
+// runtimeUnitDirs hold runtime unit configuration (tmpfs): loaded now but
+// gone at the next boot, so the boot-time effect of an enable cannot be
+// reviewed while any exists. (The directories themselves are created during
+// boot, so their own change times are not used; probe 9.)
+var runtimeUnitDirs = []string{"/run/systemd/system/", "/run/systemd/system.attached/"}
 
 // generatorDir is recreated by PID 1 at the start of every reload, before
 // units are loaded (probe 8b, systemd 249/255/259).
@@ -111,9 +116,10 @@ func parseUTCus(v string) (time.Time, error) {
 	return time.Parse("Mon 2006-01-02 15:04:05.000000 MST", v)
 }
 
-// uptime returns CLOCK_BOOTTIME (/proc/uptime); tests replace it. BOOTTIME
-// is >= MONOTONIC (it includes suspend), so thresholds derived from it are
-// earlier, never later, than the true load time.
+// uptime returns CLOCK_BOOTTIME (/proc/uptime, 10 ms resolution); tests
+// replace it. BOOTTIME is >= MONOTONIC (it includes suspend), so a threshold
+// derived from it is earlier after a suspend (more refusals) and at most
+// 10 ms later otherwise, which the generator directory's time bounds.
 var uptime = func() (time.Duration, error) {
 	b, err := os.ReadFile("/proc/uptime")
 	if err != nil {
@@ -131,40 +137,52 @@ var uptime = func() (time.Duration, error) {
 }
 
 // loadThreshold is the time from which a change on disk counts as not yet
-// loaded. It is the earliest of the realtime and monotonic-derived forms of
-// the last load (robust to realtime clock steps in either direction), minus
-// loadMargin. On systemd < 255 the last reload is taken from the
-// generator directory's change time (recreated at the start of a reload),
-// never earlier than the boot load.
+// loaded (probe 8b, probe 9). Units are read after the generators ran, and
+// /run/systemd/generator is recreated by those generators at every boot and
+// reload; its change time comes from the same coarse kernel clock as every
+// other file's, so a change made after the units were read always has a
+// change time at or after it: no margin is needed, and package files or links
+// written just before their own reload (measured: 0.4-100 ms before) are not
+// counted. The threshold is the EARLIEST of that time, the manager's realtime
+// load stamp and the stamp's monotonic form converted to the current realtime
+// frame (so a realtime clock step after the load cannot move it later).
+// systemd < 255 has no reload stamp: the generator directory alone.
 func loadThreshold(root Roots, m ManagerLoad, now time.Time) (time.Time, error) {
-	up, err := uptime()
-	if err != nil {
-		return time.Time{}, err
+	var t time.Time
+	consider := func(c time.Time) {
+		if !c.IsZero() && (t.IsZero() || c.Before(t)) {
+			t = c
+		}
 	}
-	real, mono := m.BootRealtime, m.BootMonotonic
+	if fi, err := os.Stat(root.Path(generatorDir)); err == nil {
+		if c := ctimeOf(fi); !c.After(now) {
+			consider(c)
+		}
+	}
 	if m.HasReloadStamp {
+		real, mono := m.BootRealtime, m.BootMonotonic
 		if !m.ReloadRealtime.IsZero() && m.ReloadMonotonic > 0 {
 			real, mono = m.ReloadRealtime, m.ReloadMonotonic
 		}
-	} else if fi, err := os.Stat(root.Path(generatorDir)); err == nil {
-		if c := ctimeOf(fi); c.After(real) && !c.After(now) {
-			real, mono = c, 0 // no monotonic form for a file time
+		consider(real)
+		up, err := uptime()
+		if err != nil {
+			return time.Time{}, err
 		}
+		consider(now.Add(-(up - mono)))
+	} else if t.IsZero() {
+		consider(m.BootRealtime) // no generator directory: everything since boot
 	}
-	t := real
-	if mono > 0 {
-		if derived := now.Add(-(up - mono)); derived.Before(t) {
-			t = derived
-		}
+	if t.IsZero() {
+		return t, errors.New("no load time")
 	}
-	return t.Add(-loadMargin), nil
+	return t, nil
 }
 
-// loadMargin covers the coarse kernel clock used for file change times
-// (it can lag the precise clock by a few milliseconds) and the 10 ms
-// resolution of /proc/uptime. Applied to the threshold (earlier) and to the
-// windows of own changes (wider).
-var loadMargin = 100 * time.Millisecond
+// ownWindowMargin widens an own change's recorded window: the kernel's
+// file-time clock is coarse and can read up to one tick (<= 10 ms) earlier
+// than the precise clock that recorded the window's start.
+var ownWindowMargin = 20 * time.Millisecond
 
 func ctimeOf(fi fs.FileInfo) time.Time {
 	if st, ok := fi.Sys().(*syscall.Stat_t); ok {
@@ -184,9 +202,10 @@ type ownChange struct {
 // gate; the recovery inspector reads only the embedded fields).
 type journalObserved struct {
 	UnitObserved
-	ChangedLinks []string  `json:"changed_links,omitempty"`
-	StartedAt    time.Time `json:"started_at"`
-	FinishedAt   time.Time `json:"finished_at"`
+	ChangedLinks    []string  `json:"changed_links,omitempty"`
+	UnexpectedLinks []string  `json:"unexpected_links,omitempty"`
+	StartedAt       time.Time `json:"started_at"`
+	FinishedAt      time.Time `json:"finished_at"`
 }
 
 // ownChanges returns enablement changes the journal records as finished
@@ -268,7 +287,7 @@ func unloadedChanges(root Roots, threshold time.Time, own []ownChange, limit int
 				host = path.Join(host, filepath.ToSlash(rel))
 			}
 			for _, o := range own {
-				if o.paths[host] && !c.Before(o.start.Add(-loadMargin)) && !c.After(o.end.Add(loadMargin)) {
+				if o.paths[host] && !c.Before(o.start.Add(-ownWindowMargin)) && !c.After(o.end.Add(ownWindowMargin)) {
 					return nil
 				}
 			}
@@ -290,6 +309,22 @@ func unloadedChanges(root Roots, threshold time.Time, own []ownChange, limit int
 // disk after systemd last loaded them, unless every change is Homelab
 // Control's own journaled enablement change.
 func requireLoadedConfiguration(ctx context.Context, env *Env, id string) error {
+	for _, d := range runtimeUnitDirs {
+		ents, err := os.ReadDir(env.Roots.Path(strings.TrimSuffix(d, "/")))
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return denied("%s cannot be enabled here: %s could not be read", id, d)
+		}
+		if len(ents) > 0 {
+			var names []string
+			for _, e := range ents {
+				if len(names) < 5 {
+					names = append(names, e.Name())
+				}
+			}
+			return denied("%s cannot be enabled here: runtime unit configuration exists in %s (%s). It is loaded now but gone at the next boot, "+
+				"so the boot-time effect cannot be reviewed. Review the change again after it is removed or after the next boot.", id, d, clean(strings.Join(names, ", "), 300))
+		}
+	}
 	m, err := env.enablement().ManagerLoad(ctx, env)
 	if err != nil {
 		return denied("%s cannot be enabled here: when systemd last loaded its unit files could not be determined (%s)", id, clean(err.Error(), 160))
@@ -423,6 +458,9 @@ func requisiteNames(b []byte, want map[string]bool) bool {
 		if check(l) {
 			return true
 		}
+	}
+	if sc.Err() != nil {
+		return true // unreadable (for example an overlong line): fail closed
 	}
 	return logical != "" && check(logical)
 }

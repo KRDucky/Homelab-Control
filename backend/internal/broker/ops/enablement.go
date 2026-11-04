@@ -846,7 +846,10 @@ func unitEnablementApply(ctx context.Context, env *Env, raw json.RawMessage) (an
 	// The journal also records which links this change touched and when, so
 	// that the change gate can tell them from changes made elsewhere.
 	jo := journalObserved{UnitObserved: obs, StartedAt: started, FinishedAt: time.Now().UTC()}
-	jo.ChangedLinks = append(append([]string{}, r.links...), unexpected...)
+	// Only the planned (reviewed) links are recorded as this change's own;
+	// unexpected links stay unexcused for the change gate.
+	jo.ChangedLinks = append([]string{}, r.links...)
+	jo.UnexpectedLinks = unexpected
 	rec.Observed, _ = json.Marshal(jo)
 	if outcome != OutcomeSucceeded {
 		out.Recovery = []string{
