@@ -44,6 +44,9 @@ After the owner's PR #36 review assignment (findings R1–R11, `docs/m2/M2-3-DES
   variant ("unchanged" / "changed, not verified"), nothing retried, hash chain verified. The printed INFO line
   of the record was empty in this run (harness printed a nested field; fixed afterwards, the assertion checked
   the whole record).
+- Interrupt recheck (`interrupt-recheck/`, short mode, Ubuntu 26.04 and Fedora 44) after the harness began
+  checking the restored `systemctl` by SHA-256 and SELinux label and printing the wrapper window: 19/0 each
+  (smoke 71/0, M2-2 86/0, M2-3 90/0 and 89/0); label empty because SELinux is disabled in the containers.
 - An earlier attempt of this round is **invalid** and not kept: the harness did not pass CI's
   `HC_SMOKE_SCOPES`/`HC_WEBMIN_SRC`, so the M1 checks failed with `forbidden`; `docker-systemd.sh` now
   defaults to CI's environment (R11).

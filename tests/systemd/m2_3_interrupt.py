@@ -71,24 +71,39 @@ def broker_pid():
     return m.prop("homelab-control-broker.service", "MainPID")
 
 
+def identity(path):
+    """Size, mode, owner, SHA-256 and (where SELinux is present) the label."""
+    import hashlib
+    st = os.stat(path)
+    with open(path, "rb") as f:
+        digest = hashlib.sha256(f.read()).hexdigest()
+    try:
+        label = os.getxattr(path, "security.selinux").decode(errors="replace").rstrip("\0")
+    except OSError:
+        label = ""
+    return (st.st_size, st.st_mode, st.st_uid, digest, label)
+
+
 def install_wrapper():
     if os.path.lexists(MOVED):
         raise RuntimeError(f"{MOVED} exists; refusing")
-    st = os.stat(REAL)
+    orig = identity(REAL)
+    print(f"INFO  wrapper window starts {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
     shutil.move(REAL, MOVED)
     with open(REAL, "w") as f:
         f.write(WRAPPER)
     os.chown(REAL, 0, 0)
     os.chmod(REAL, 0o755)
-    return st
+    return orig
 
 
 def restore_wrapper(orig):
     if os.path.exists(MOVED):
         os.replace(MOVED, REAL)
-    st = os.stat(REAL)
-    m.check("systemctl binary restored (size, mode, owner)", (orig.st_size, orig.st_mode, orig.st_uid),
-            (st.st_size, st.st_mode, st.st_uid))
+    if orig[4] and shutil.which("restorecon"):
+        subprocess.run(["restorecon", REAL], capture_output=True)
+    print(f"INFO  wrapper window ends {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
+    m.check("systemctl binary restored (size, mode, owner, sha256, SELinux label)", orig, identity(REAL))
 
 
 def run_variant(mode, csrf, before_state, action):
