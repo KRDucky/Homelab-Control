@@ -204,21 +204,34 @@ func unitDetail(ctx context.Context, env *Env, raw json.RawMessage) (any, error)
 		return nil, &proto.Error{Code: proto.CodeUnavailable, Message: "systemctl show failed: " + clean(res.Stderr, 200)}
 	}
 	blocks := ParseShowBlocks(res.Stdout)
-	if len(blocks) != 1 {
+	if len(blocks) != 1 || !unitNameRE.MatchString(first(blocks[0], "Id")) {
 		return nil, &proto.Error{Code: proto.CodeInternal, Message: "unexpected systemctl show output"}
 	}
-	b := blocks[0]
-	d.ID = first(b, "Id")
-	if !unitNameRE.MatchString(d.ID) {
-		return nil, &proto.Error{Code: proto.CodeInternal, Message: "systemctl show returned no valid unit ID"}
+	if id := first(blocks[0], "Id"); id != unit {
+		// The installed state of the canonical unit, not of the alias link.
+		if mc, err := lookup(ctx, env, id); err == nil && mc.fileOnly != nil {
+			canon := mc.fileOnly.State
+			return BuildDetail(d, blocks[0], &canon), nil
+		}
 	}
+	return BuildDetail(d, blocks[0], nil), nil
+}
+
+// BuildDetail fills d from one `systemctl show` block of DetailShowArgs.
+// canonicalBootState, when set, is the installed state of the canonical unit
+// (the requested name was an alias).
+func BuildDetail(d UnitDetail, b map[string][]string, canonicalBootState *string) UnitDetail {
+	if d.Dependencies == nil {
+		d.Dependencies = map[string][]string{}
+	}
+	d.ID = first(b, "Id")
+	unit := d.Requested
 	d.Names = unitList(first(b, "Names"))
 	if d.ID != unit {
 		d.Kind = "alias"
 		d.Notes = append(d.Notes, unit+" is an alias of "+d.ID+".")
-		// The installed state of the canonical unit, not of the alias link.
-		if mc, err := lookup(ctx, env, d.ID); err == nil && mc.fileOnly != nil {
-			d.BootState = mc.fileOnly.State
+		if canonicalBootState != nil {
+			d.BootState = *canonicalBootState
 		}
 	}
 	d.Description = clean(first(b, "Description"), 256)
@@ -284,7 +297,7 @@ func unitDetail(ctx context.Context, env *Env, raw json.RawMessage) (any, error)
 	if d.NeedDaemonReload {
 		d.Notes = append(d.Notes, "systemd's loaded copy differs from the files on disk (NeedDaemonReload=yes); the dependencies shown are those systemd has loaded.")
 	}
-	return d, nil
+	return d
 }
 
 // Unit-file contents (services.unit.contents) ------------------------------
@@ -371,6 +384,16 @@ func unitContents(ctx context.Context, env *Env, raw json.RawMessage) (any, erro
 	if err != nil {
 		return nil, runErr(err)
 	}
+	return ParseCat(unit, res.Stdout, res.Stderr, res.ExitCode)
+}
+
+// ParseCat turns `systemctl cat` output into redacted, bounded file texts.
+func ParseCat(unit string, stdout []byte, stderr string, exitCode int) (UnitContents, error) {
+	res := struct {
+		Stdout   []byte
+		Stderr   string
+		ExitCode int
+	}{stdout, stderr, exitCode}
 	c := UnitContents{Unit: unit, Files: []UnitFileText{},
 		Source: "systemctl cat (run as homelab-control: files only root can read are not shown); values that look like secrets are redacted"}
 	for _, l := range strings.Split(res.Stderr, "\n") {
@@ -380,10 +403,10 @@ func unitContents(ctx context.Context, env *Env, raw json.RawMessage) (any, erro
 	}
 	if res.ExitCode != 0 && len(res.Stdout) == 0 {
 		if strings.Contains(res.Stderr, "No files found") {
-			return nil, &proto.Error{Code: proto.CodeNotFound, Message: "systemd has no unit file for this unit"}
+			return c, &proto.Error{Code: proto.CodeNotFound, Message: "systemd has no unit file for this unit"}
 		}
 		if len(c.Unreadable) == 0 {
-			return nil, &proto.Error{Code: proto.CodeUnavailable, Message: "systemctl cat failed: " + clean(res.Stderr, 200)}
+			return c, &proto.Error{Code: proto.CodeUnavailable, Message: "systemctl cat failed: " + clean(res.Stderr, 200)}
 		}
 	}
 	var cur *UnitFileText
@@ -520,9 +543,20 @@ func timersList(ctx context.Context, env *Env, raw json.RawMessage) (any, error)
 	if res.ExitCode != 0 {
 		return nil, &proto.Error{Code: proto.CodeUnavailable, Message: "systemctl list-timers failed: " + clean(res.Stderr, 200)}
 	}
+	out, names, err := ParseTimerRows(res.Stdout)
+	if err != nil {
+		return nil, err
+	}
+	ApplyTimerStates(&out, stateOf(ctx, env, names, timerProps))
+	return out, nil
+}
+
+// ParseTimerRows parses `systemctl list-timers --all --output=json`.
+func ParseTimerRows(b []byte) (TimerList, []string, error) {
+	res := struct{ Stdout []byte }{b}
 	var rows []rawTimer
 	if err := json.Unmarshal(res.Stdout, &rows); err != nil {
-		return nil, &proto.Error{Code: proto.CodeInternal, Message: "unexpected systemctl list-timers output"}
+		return TimerList{}, nil, &proto.Error{Code: proto.CodeInternal, Message: "unexpected systemctl list-timers output"}
 	}
 	out := TimerList{Timers: []TimerInfo{}, Source: "systemctl list-timers --all --output=json and systemctl show (run as homelab-control)"}
 	var names []string
@@ -541,7 +575,12 @@ func timersList(ctx context.Context, env *Env, raw json.RawMessage) (any, error)
 		out.Timers = append(out.Timers, t)
 		names = append(names, r.Unit)
 	}
-	st := stateOf(ctx, env, names, timerProps)
+	return out, names, nil
+}
+
+// ApplyTimerStates adds the batched `systemctl show` facts; timers systemd did
+// not answer for keep the state "unknown".
+func ApplyTimerStates(out *TimerList, st map[string]map[string][]string) {
 	for i := range out.Timers {
 		t := &out.Timers[i]
 		b, ok := st[t.Unit]
@@ -567,7 +606,6 @@ func timersList(ctx context.Context, env *Env, raw json.RawMessage) (any, error)
 			}
 		}
 	}
-	return out, nil
 }
 
 var socketProps = []string{"Id", "Description", "ActiveState", "SubState", "UnitFileState"}
@@ -586,9 +624,21 @@ func socketsList(ctx context.Context, env *Env, raw json.RawMessage) (any, error
 	if res.ExitCode != 0 {
 		return nil, &proto.Error{Code: proto.CodeUnavailable, Message: "systemctl list-sockets failed: " + clean(res.Stderr, 200)}
 	}
+	out, names, err := ParseSocketRows(res.Stdout)
+	if err != nil {
+		return nil, err
+	}
+	ApplySocketStates(&out, stateOf(ctx, env, names, socketProps))
+	return out, nil
+}
+
+// ParseSocketRows parses `systemctl list-sockets --all --output=json`, one
+// entry per socket unit with all its listen addresses.
+func ParseSocketRows(b []byte) (SocketList, []string, error) {
+	res := struct{ Stdout []byte }{b}
 	var rows []rawSocket
 	if err := json.Unmarshal(res.Stdout, &rows); err != nil {
-		return nil, &proto.Error{Code: proto.CodeInternal, Message: "unexpected systemctl list-sockets output"}
+		return SocketList{}, nil, &proto.Error{Code: proto.CodeInternal, Message: "unexpected systemctl list-sockets output"}
 	}
 	out := SocketList{Sockets: []SocketInfo{}, Source: "systemctl list-sockets --all --output=json and systemctl show (run as homelab-control)"}
 	idx := map[string]int{}
@@ -619,7 +669,11 @@ func socketsList(ctx context.Context, env *Env, raw json.RawMessage) (any, error
 	for _, s := range out.Sockets {
 		names = append(names, s.Unit)
 	}
-	st := stateOf(ctx, env, names, socketProps)
+	return out, names, nil
+}
+
+// ApplySocketStates adds the batched `systemctl show` facts.
+func ApplySocketStates(out *SocketList, st map[string]map[string][]string) {
 	for i := range out.Sockets {
 		s := &out.Sockets[i]
 		b, ok := st[s.Unit]
@@ -630,7 +684,6 @@ func socketsList(ctx context.Context, env *Env, raw json.RawMessage) (any, error
 		s.Description = clean(first(b, "Description"), 256)
 		s.ActiveState, s.SubState, s.UnitFileState = state(first(b, "ActiveState")), state(first(b, "SubState")), state(first(b, "UnitFileState"))
 	}
-	return out, nil
 }
 
 func systemdBooted(env *Env) bool {
