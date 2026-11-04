@@ -784,3 +784,21 @@ func TestInstallRefusalsDoNotEchoValues(t *testing.T) {
 		}
 	}
 }
+
+func TestParseIsEnabledAcrossVersions(t *testing.T) {
+	for _, c := range []struct{ out, errout, want string }{
+		{"enabled\n", "", "enabled"},
+		{"not-found\n", "", "not-found"}, // systemd ≥ 255
+		{"", "Failed to get unit file state for x.service: No such file or directory\n", "not-found"}, // 249 (probe 6)
+		{"alias\n", "", "alias"},
+	} {
+		if got, err := ParseIsEnabled([]byte(c.out), c.errout); err != nil || got != c.want {
+			t.Errorf("%q/%q → %q %v", c.out, c.errout, got, err)
+		}
+	}
+	for _, bad := range [][2]string{{"", "Access denied"}, {"Enabled!\n", ""}, {"", ""}} {
+		if _, err := ParseIsEnabled([]byte(bad[0]), bad[1]); code(err) != proto.CodeUnavailable {
+			t.Errorf("%q accepted: %v", bad, err)
+		}
+	}
+}

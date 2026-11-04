@@ -315,7 +315,8 @@ var (
 	secretAssignE = regexp.MustCompile(`(?i)^([a-z0-9_.-]*(pass|secret|token|apikey|api_key)[a-z0-9_.-]*)=(.+)$`)
 	userinfoRE    = regexp.MustCompile(`([A-Za-z][A-Za-z0-9+.-]*://)[^/\s@]+@`)
 	envNameRE     = regexp.MustCompile(`(?:^|[\s"'])([A-Za-z_][A-Za-z0-9_]*)=`)
-	failedOpenRE  = regexp.MustCompile(`^Failed to open "(/[^"]{1,500})": `)
+	// systemd ≥ 258: `Failed to open "/path": …`; ≤ 255: `Failed to cat /path: …` (probe 6).
+	failedOpenRE = regexp.MustCompile(`^Failed to (?:open "(/[^"]{1,500})"|cat (/[^\s:]{1,500})): `)
 )
 
 const redacted = "[redacted]"
@@ -398,7 +399,7 @@ func ParseCat(unit string, stdout []byte, stderr string, exitCode int) (UnitCont
 		Source: "systemctl cat (run as homelab-control: files only root can read are not shown); values that look like secrets are redacted"}
 	for _, l := range strings.Split(res.Stderr, "\n") {
 		if m := failedOpenRE.FindStringSubmatch(strings.TrimSpace(l)); m != nil && len(c.Unreadable) < 32 {
-			c.Unreadable = append(c.Unreadable, clean(m[1], 500))
+			c.Unreadable = append(c.Unreadable, clean(m[1]+m[2], 500))
 		}
 	}
 	if res.ExitCode != 0 && len(res.Stdout) == 0 {
@@ -454,9 +455,18 @@ func ParseCat(unit string, stdout []byte, stderr string, exitCode int) (UnitCont
 		lines++
 	}
 	flush()
+	listed := map[string]bool{}
 	for i := range c.Files {
+		listed[c.Files[i].Path] = true
 		if c.Files[i].Text == "" && contains(c.Unreadable, c.Files[i].Path) {
 			c.Files[i].Unreadable = true
+		}
+	}
+	// Older systemctl prints no header for a file it cannot read: list it too,
+	// so the reader sees that part of the unit is not shown.
+	for _, p := range c.Unreadable {
+		if !listed[p] {
+			c.Files = append(c.Files, UnitFileText{Path: p, Unreadable: true})
 		}
 	}
 	if len(c.Files) > 32 {

@@ -335,7 +335,8 @@ def main():
     check("host: link exists", True, os.path.islink(f"{ETC}/multi-user.target.wants/{u}"))
     check("host: unit NOT started (no --now)", "inactive", prop(u, "ActiveState"))
     check("host: no manager reload during the change", [], reloads)
-    check("host: systemd reports NeedDaemonReload (expected without reload)", "yes", prop(u, "NeedDaemonReload"))
+    # systemd ≥ 255 marks the unit NeedDaemonReload=yes after a --no-reload change; 249 does not (informational).
+    print(f"INFO  NeedDaemonReload after --no-reload enable: {prop(u, 'NeedDaemonReload')} ({sh('systemctl', '--version').splitlines()[0]})")
     st, e = eapply(u, "enable", p.get("token"), csrf)
     check("replayed token: 409 plan_invalid", (409, "plan_invalid"), (st, e.get("error")))
     st, e = eplan(u, "enable", csrf)
