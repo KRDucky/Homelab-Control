@@ -23,7 +23,7 @@ import (
 // directives whose values are unit names. File content never leaves this
 // file; the token digest covers paths and parsed directives, not content.
 
-// installDirs are the directories a fragment may come from. Runtime (/run)
+// fragmentDirs are the directories a fragment may come from. Runtime (/run)
 // and generator directories are not listed: generated, transient and
 // runtime units are refused for enablement.
 var fragmentDirs = []string{"/etc/systemd/system/", "/usr/lib/systemd/system/", "/lib/systemd/system/", "/usr/local/lib/systemd/system/"}
@@ -117,7 +117,8 @@ func ParseInstall(b []byte, into *InstallInfo) error {
 		case "DefaultInstance":
 			dst = &into.DefaultInstance
 		default:
-			return unsupported("the [Install] section contains %q, which is not supported here", clean(k, 40))
+			// Key and value are never echoed: drop-ins may be root-only.
+			return unsupported("the [Install] section contains a setting (line %d) that is not supported here", n+1)
 		}
 		if v == "" {
 			return unsupported("the [Install] section resets %s with an empty assignment", k)
@@ -127,11 +128,11 @@ func ParseInstall(b []byte, into *InstallInfo) error {
 		}
 		for _, f := range strings.Fields(v) {
 			if k == "DefaultInstance" {
-				*dst = append(*dst, clean(f, 100))
+				*dst = append(*dst, "set") // presence only; the value is never kept
 				continue
 			}
 			if !inspectable(f) {
-				return unsupported("%s= names %q, which is not a plain unit name", k, clean(f, 120))
+				return unsupported("%s= (line %d) names something that is not a plain unit name", k, n+1)
 			}
 			if len(*dst) < 64 && !contains(*dst, f) {
 				*dst = append(*dst, f)

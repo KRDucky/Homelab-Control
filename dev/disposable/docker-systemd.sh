@@ -12,9 +12,9 @@
 # It runs --privileged because systemd and the units' sandboxing need it: use only
 # on a workstation where that is acceptable, never on a production host.
 #
-# Usage: dev/disposable/docker-systemd.sh <ubuntu-2604|fedora-44> <package> [extra smoke env...]
+# Usage: dev/disposable/docker-systemd.sh <ubuntu-2604|ubuntu-2404|ubuntu-2204|fedora-44> <package> [extra smoke env...]
 set -euo pipefail
-image=${1:?image (ubuntu-2604|fedora-44)}; pkg=${2:?package}; shift 2
+image=${1:?image (ubuntu-2604|ubuntu-2404|ubuntu-2204|fedora-44)}; pkg=${2:?package}; shift 2
 root=$(cd "$(dirname "$0")/../.." && pwd)
 df=$root/dev/disposable/images/$image.Dockerfile
 [ -f "$df" ] || { echo "no such image $image"; exit 2; }

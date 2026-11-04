@@ -188,7 +188,19 @@ def fixtures(ssh):
                                        f"Conflicts={ssh}\n" + _SLEEP + "[Install]\nWantedBy=multi-user.target\n",
         "hc-test-en-spec.service": "[Unit]\nDescription=M2-3 specifier fixture\n" + _SLEEP +
                                    "[Install]\nWantedBy=multi-user.target\nAlias=%N-x.service\n",
+        # Alias= naming another unit (VENDOR_VICTIM, in /usr/lib): probe 4 showed that
+        # enabling it would replace that unit's definition at the next reload.
+        "hc-test-en-shadow.service": "[Unit]\nDescription=M2-3 alias collision fixture\n" + _SLEEP +
+                                     "[Install]\nWantedBy=multi-user.target\nAlias=hc-test-en-victim.service\n",
+        # Disabled while a protected-name unit declares Requisite= on it.
+        "hc-test-en-req.service": "[Unit]\nDescription=M2-3 requisite fixture\n" + _SLEEP +
+                                  "[Install]\nWantedBy=multi-user.target\n",
+        "homelab-control-hctest-req.service": "[Unit]\nDescription=M2-3 disposable protected-name dependent\n"
+                                              "Requisite=hc-test-en-req.service\n" + _SLEEP,
     }
+
+
+VENDOR_VICTIM = "/usr/lib/systemd/system/hc-test-en-victim.service"
 
 
 def setup():
@@ -205,6 +217,10 @@ def setup():
         with open(path, "w") as f:
             f.write(body)
         CREATED.append(name)
+    if os.path.lexists(VENDOR_VICTIM):
+        raise RuntimeError(f"{VENDOR_VICTIM} exists before the test; refusing to overwrite it")
+    with open(VENDOR_VICTIM, "w") as f:
+        f.write("[Unit]\nDescription=M2-3 vendor-directory victim fixture\n" + _SLEEP)
     # A root-only drop-in that carries a secret AND an [Install] alias: the
     # broker must honour the alias (it reads as root) without disclosing it.
     os.makedirs(f"{ETC}/hc-test-en-secret.service.d", exist_ok=True)
@@ -246,6 +262,8 @@ def cleanup(before):
         subprocess.run(["systemctl", "stop", "--", name], capture_output=True)
         os.remove(path)
     subprocess.run(["rm", "-rf", "--", f"{ETC}/hc-test-en-secret.service.d"])
+    if os.path.isfile(VENDOR_VICTIM) and not os.path.islink(VENDOR_VICTIM):
+        os.remove(VENDOR_VICTIM)
     subprocess.run(["systemctl", "daemon-reload"], capture_output=True)
     subprocess.run(["systemctl", "reset-failed"], capture_output=True)
     after = invariants()
@@ -383,6 +401,13 @@ def main():
         ("hc-test-en-reqby.service", "enable", "RequiredBy="),
         ("hc-test-en-static.service", "enable", "static unit"),
         ("hc-test-en-spec.service", "enable", "specifier in [Install]"),
+    ]
+    subprocess.run(["systemctl", "--no-reload", "enable", "--", "hc-test-en-req.service"], check=True, capture_output=True)
+    # RequisiteOf comes from systemd's loaded graph: load the dependent by starting both.
+    subprocess.run(["systemctl", "start", "--", "hc-test-en-req.service", "homelab-control-hctest-req.service"], check=True)
+    refusals += [
+        ("hc-test-en-shadow.service", "enable", "Alias= naming another installed unit"),
+        ("hc-test-en-req.service", "disable", "a protected unit declares Requisite= on it"),
     ]
     snapshot = links()
     for unit, action, why in refusals:

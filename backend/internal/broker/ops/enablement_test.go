@@ -716,3 +716,71 @@ func FuzzParseInstall(f *testing.F) {
 		}
 	})
 }
+
+// Probe 4 (docs/evidence/m2/m2-3/probes/probe4-alias-collision.out): an
+// Alias= naming another unit would replace that unit's definition at the
+// next reload. Such aliases, foreign files at link paths and protected
+// Requisite= dependents are refused.
+func TestEnablementCollisionsAndRequisite(t *testing.T) {
+	aliasFile := "[Install]\nWantedBy=multi-user.target\nAlias=victim.service\n"
+	requisite := svc("demo.service", "inactive")
+	requisite.Deps["RequisiteOf"] = []string{"sshd.service"}
+	cases := map[string]struct {
+		action, file string
+		mutate       func(e *eenv)
+		message      string
+	}{
+		"alias names an installed unit file": {file: aliasFile, mutate: func(e *eenv) { e.files.state["victim.service"] = "static" }, message: "already exists"},
+		"alias names a loaded unit": {file: aliasFile, mutate: func(e *eenv) {
+			v := svc("victim.service", "active")
+			e.fake.units["victim.service"] = &v
+		}, message: "already knows that name"},
+		"regular file at the alias path": {file: aliasFile, mutate: func(e *eenv) {
+			writeUnit(e.t(), e.files.root, "/etc/systemd/system/victim.service", "[Service]\nExecStart=/bin/true\n")
+		}, message: "not a symbolic link"},
+		"regular file at the wants path": {mutate: func(e *eenv) {
+			writeUnit(e.t(), e.files.root, "/etc/systemd/system/multi-user.target.wants/demo.service", "x")
+		}, message: "not a symbolic link"},
+		"disable a requisite of SSH": {action: "disable", mutate: func(e *eenv) {
+			*e.fake.units["demo.service"] = requisite
+			e.files.state["demo.service"] = "enabled"
+			e.files.setLinks("demo.service", true, -1)
+		}, message: "requisite of sshd.service"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			e := newEnablementEnv(t)
+			e.tt = t
+			if c.file != "" {
+				writeUnit(t, e.files.root, "/etc/systemd/system/demo.service", c.file)
+			}
+			c.mutate(e)
+			if c.action == "" {
+				c.action = "enable"
+			}
+			_, err := e.eplan(t, "demo.service", c.action)
+			if code(err) != proto.CodePolicyDenied || !strings.Contains(err.Error(), c.message) {
+				t.Fatalf("got %v, want policy_denied containing %q", err, c.message)
+			}
+		})
+	}
+	// The alias is free again once the unit is gone: allowed.
+	e := newEnablementEnv(t)
+	writeUnit(t, e.files.root, "/etc/systemd/system/demo.service", aliasFile)
+	if _, err := e.eplan(t, "demo.service", "enable"); err != nil {
+		t.Fatalf("free alias refused: %v", err)
+	}
+}
+
+// [Install] content can come from root-only drop-ins: refusals name the
+// setting and line, never the value.
+func TestInstallRefusalsDoNotEchoValues(t *testing.T) {
+	for _, in := range []string{"[Install]\nTopSecretKey=hunter2-fixture\n", "[Install]\nWantedBy=hunter2-fixture;x\n",
+		"[Install]\nAlias=hunter2-fixture.bogus\n"} {
+		var i InstallInfo
+		err := ParseInstall([]byte(in), &i)
+		if err == nil || strings.Contains(err.Error(), "hunter2") || strings.Contains(err.Error(), "TopSecret") {
+			t.Errorf("%q → %v", in, err)
+		}
+	}
+}
