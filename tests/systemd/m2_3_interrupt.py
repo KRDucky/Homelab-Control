@@ -72,7 +72,7 @@ def broker_pid():
 
 
 def identity(path):
-    """Size, mode, owner, SHA-256 and (where SELinux is present) the label."""
+    """Inode, size, mode, owner, group, SHA-256 and (where SELinux is present) the label."""
     import hashlib
     st = os.stat(path)
     with open(path, "rb") as f:
@@ -81,7 +81,7 @@ def identity(path):
         label = os.getxattr(path, "security.selinux").decode(errors="replace").rstrip("\0")
     except OSError:
         label = ""
-    return (st.st_size, st.st_mode, st.st_uid, digest, label)
+    return (st.st_ino, st.st_size, st.st_mode, st.st_uid, st.st_gid, digest, label)
 
 
 def install_wrapper():
@@ -100,10 +100,10 @@ def install_wrapper():
 def restore_wrapper(orig):
     if os.path.exists(MOVED):
         os.replace(MOVED, REAL)
-    if orig[4] and shutil.which("restorecon"):
+    if orig[6] and shutil.which("restorecon"):
         subprocess.run(["restorecon", REAL], capture_output=True)
     print(f"INFO  wrapper window ends {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
-    m.check("systemctl binary restored (size, mode, owner, sha256, SELinux label)", orig, identity(REAL))
+    m.check("systemctl binary restored (inode, size, mode, owner, group, sha256, SELinux label)", orig, identity(REAL))
 
 
 def run_variant(mode, csrf, before_state, action):
