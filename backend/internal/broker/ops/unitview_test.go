@@ -167,6 +167,12 @@ func TestParseCat(t *testing.T) {
 	if strings.Contains(c.Files[0].Text, "hunter2") {
 		t.Fatal("secret not redacted")
 	}
+	// systemd ≤ 255 (probe 6): no header for the unreadable file, different wording.
+	old := "# /etc/systemd/system/hc-p6.service\n[Service]\nExecStart=/bin/sleep 1000\n"
+	c, err = ParseCat("hc-p6.service", []byte(old), "Failed to cat /etc/systemd/system/hc-p6.service.d/secret.conf: Permission denied\n", 1)
+	if err != nil || len(c.Files) != 2 || !c.Files[1].Unreadable || c.Files[1].Path != "/etc/systemd/system/hc-p6.service.d/secret.conf" {
+		t.Fatalf("systemd 255 format: %+v %v", c, err)
+	}
 	if _, err := ParseCat("x.service", nil, "No files found for x.service.\n", 1); code(err) != proto.CodeNotFound {
 		t.Fatalf("no files: %v", err)
 	}

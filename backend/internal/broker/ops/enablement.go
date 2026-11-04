@@ -205,7 +205,23 @@ func (systemctlEnablement) IsEnabled(ctx context.Context, env *Env, unit string)
 	if err != nil {
 		return "", runErr(err)
 	}
+	return ParseIsEnabled(res.Stdout, res.Stderr)
+}
+
+// ParseIsEnabled reads the printed word of `systemctl is-enabled` (its exit
+// status encodes the state and is not used).
+func ParseIsEnabled(stdout []byte, stderr string) (string, error) {
+	res := struct {
+		Stdout []byte
+		Stderr string
+	}{stdout, stderr}
 	word := strings.TrimSpace(strings.SplitN(string(res.Stdout), "\n", 2)[0])
+	// systemd 249 prints nothing for an unknown name and reports
+	// "Failed to get unit file state for X: No such file or directory" (probe 6);
+	// newer versions print "not-found".
+	if word == "" && strings.Contains(res.Stderr, "Failed to get unit file state for") && strings.Contains(res.Stderr, "No such file or directory") {
+		return "not-found", nil
+	}
 	if word == "" || !stateRE.MatchString(word) {
 		return "", &proto.Error{Code: proto.CodeUnavailable, Message: "systemctl is-enabled gave no usable answer: " + clean(res.Stderr, 200)}
 	}
