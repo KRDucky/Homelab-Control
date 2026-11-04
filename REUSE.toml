@@ -288,3 +288,12 @@ precedence = "override"
 SPDX-FileCopyrightText = ["Erik Arvidsson (WebFX), presumed"]
 SPDX-License-Identifier = "LicenseRef-Webmin-unverified"
 # END generated: compat/webmin licence inventory
+
+# Captured command output (M2-3 systemd behaviour probes). The output quotes a few header lines of
+# upstream systemd unit files, including their own SPDX tags; those tags describe systemd's files,
+# not this evidence, so they must not be read as the licence of the log.
+[[annotations]]
+path = ["docs/evidence/m2/m2-3/probes/*.out"]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 The Homelab Control Authors"
+SPDX-License-Identifier = "GPL-3.0-or-later"

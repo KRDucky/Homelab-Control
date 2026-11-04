@@ -1,0 +1,60 @@
+# M2-3 acceptance results (boot-time enable/disable, unit views, module registry)
+
+**Status:** implementation and evidence ready for owner review on branch
+`feature/m2-3-expanded-service-management` (product commit `3e749293`). **Not accepted, not merged, not
+activated in production.** The owner's authorization of 2026-11-04 covers development and isolated testing
+only (`OWNER-DECISIONS.md`). Evidence: [`../evidence/m2/m2-3/README.md`](../evidence/m2/m2-3/README.md).
+Design and ADR 0011 review: [`M2-3-DESIGN-REVIEW.md`](M2-3-DESIGN-REVIEW.md).
+
+"Pass" below means the stated evidence exists and passed; it is not the owner's acceptance.
+
+## Scope items (owner instruction)
+| Item | Result | Evidence |
+|---|---|---|
+| Enable/disable at boot, separate `services.configure`, never granted by default | Pass | `TestServicesConfigureNotGrantedByDefault`; API/broker scope tests; container scenario "services.operate alone cannot plan enablement" |
+| Boot enablement explained as different from runtime; no implicit `--now` | Pass | Plan consequences; UI text; template snapshot (no `--now`); container: unit not started after enable, still running with the same PID after disable |
+| Read-only timer and socket views | Pass | `TestTimers`, `TestSockets` (systemd 259 output); container and browser B12–B13 |
+| Unit details: dependencies, unit-file path, last exit, restart counters | Pass | `TestBuildDetailDoesNotInventState`; container; browser B10 |
+| Bounded, read-only unit-file contents | Pass | `TestParseCat` (64 KiB / 2,000 lines, control characters); container; browser B10 |
+| Unloaded, missing, static, generated, template, alias units without invented state | Pass | Detail notes for each case (unit tests); container: template, alias, not-in-inventory 404 |
+| Module registry, capability-aware navigation, disabled routes 404, broker ops refused | Pass | `TestDisabledModuleRoutes404`, `TestDisabledModuleOpsRefused`; container: 404 identical to unknown routes, `broker.info` without services ops, invalid file fails closed; browser B17 |
+| D-10 design choice documented for review | Done (open decision) | `M2-3-DESIGN-REVIEW.md` §5; `OWNER-DECISIONS.md` O-1 |
+| No executable plugin framework | Pass | Compiled-in registry only; no loading |
+
+## ADR 0011 review items for the new write
+| Item | Result | Evidence |
+|---|---|---|
+| Typed broker plan/apply, fixed argument templates | Pass | `TestRegistryIsClosed`, `TestRootTemplatesAreClosed` (no `--now`, `--runtime`, `mask`, reload…), `TestRootExecConfined` |
+| Authorization in API and broker | Pass | `TestEnablementRequiresConfigureScope`, `TestEnablementOpsNeedConfigureScopeEndToEnd` |
+| Explicit confirmation, risk class, step-up | Pass | `disruptive`, step-up always (O-3); `TestEnableFlowStepUpAndIndependentReadBack`, `TestEnablementApplyAlwaysNeedsStepUp`; browser B4, B7 |
+| Actor/session/target/state-bound expiring single-use tokens | Pass | `TestEnablementTokensNeverCrossOperations` (op, action, actor, session), `TestEnablementTokenExpiry`, replay; container replay and cross-op checks |
+| Locking, apply-time revalidation | Pass | `TestEnablementLocks`, `TestEnablementConcurrentAppliesExecuteOnce`, `TestEnablementStalePlansConflict`; container: `[Install]` edited / enabled on the host after review → refused, nothing done; 8 parallel applies → exactly one |
+| Durable intent/outcome journal; interrupted recovery | Pass (recovery unit-tested only) | Journal assertions in the tests; `TestEnablementInterruptedIsRecordedNotRetried`; container: journal lists enablement, hash chain verifies |
+| Independent read-back; honest partial/interrupted outcomes | Pass | `is-enabled` + broker `lstat` of every link; `TestEnablementHonestOutcomes` (partial, nothing changed, success not observed, timeout, unreadable) |
+| Protected-unit enforcement for persistent changes (aliases, canonical identities, affected units) | Pass | `TestEnablementRefusals` (40+ cases); container: SSH, API and broker units, protected install alias, wanted by SSH, boot conflict with SSH |
+| Unsafe/unsupported cases refused | Pass | Same table: `Also=`, `RequiredBy=`, `UpheldBy=`, specifiers, SysV, generated, transient, linked, runtime, symlinked paths, template instances |
+| Secrets in unit contents | Pass (heuristic) | `TestRedactLine`, `TestParseCat`; container: root-only drop-in reported unreadable, fixture secrets absent from API responses, audit, journal and logs |
+| No mask/unmask, editing, creation, generic daemon-reload, arbitrary commands, new dependencies | Pass | Template snapshot; `go.mod` and `package-lock.json` unchanged; ADR 0006 policy check |
+
+## Validation items
+| Item | Result |
+|---|---|
+| M2-2 regression | Go and Vitest suites pass; M2-2 real-systemd scenario 86/0 on Ubuntu 26.04 and Fedora 44 (short mode) |
+| Authorization, CSRF, input/fuzz, token expiry/replay, stale plan, concurrency, journal recovery, protected units | Unit/API tests as above; fuzz 60 s per new decoder |
+| Module-disabled enforcement | API, broker, container and browser |
+| Real systemd only in new disposable environments; cleanup cannot affect SSH or access services | Docker containers created and removed per run; cleanup only disables fixtures this run wrote (regular files it created) and checks that the symlink set under `/etc/systemd/system`, SSH/API/broker enablement and the SSH main PID are unchanged: all pass |
+| Ubuntu and a non-Debian family | Ubuntu 26.04.1 and Fedora 44 (containers) |
+| Real-backend browser workflow, keyboard, responsive HCIS | 18/18 on both; keyboard-only enable, tabs by arrow keys and Home/End, Escape and focus return; phone 390 px and laptop 1366 px in Midnight and Daybreak without page overflow; axe clean; no CSP violations |
+| E4 hardening comparison | API 1.6 / broker 1.5, same as the M2-2 VM closeout; bounding set unchanged (container values) |
+| `make check`; Go tests as non-root | `make check` exit 0 with the pinned Go 1.26.10; security gate with all CI tools exit 0; Go tests as uid 1000 |
+
+## Open items and limits (for the owner)
+- **Owner decisions O-1…O-5** (`OWNER-DECISIONS.md`): D-10 registry approach and file-based setting, scope of unit
+  contents, `disruptive` classification, `--no-reload`, refused constructs.
+- **No VM evidence** for M2-3 (containers only); E2-style workstation-VM validation is not done.
+- **Not run:** Debian, openSUSE, Arch; Firefox, WebKit; screen reader; `HC_M2_LONG` expiry waits; a real
+  broker kill during an enablement; GitHub CI for this branch.
+- **Vitest timing:** load-sensitive `findBy…` timeouts observed under CPU saturation (including untouched M2-2/M1
+  tests) and once without load; not resolved.
+- **Residual risks:** see `M2-3-DESIGN-REVIEW.md` §3.9 and the M2-3 section of `docs/security/THREAT-MODEL.md`.
+- Production `services.configure` (like `services.operate`) needs a separate owner deployment decision.
