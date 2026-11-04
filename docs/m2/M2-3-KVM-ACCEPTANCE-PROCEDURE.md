@@ -41,7 +41,8 @@ or changed by this procedure. If the owner prefers them, that is a separate auth
 5. Copy packages and tests (as `docker-systemd.sh` lays them out): `ssh guest sudo install -d -o $USER /opt/hc`, then
    `scp <pkg> guest:/opt/hc/pkg.deb` (or `pkg.rpm`), `scp -r tests/systemd guest:/opt/hc/tests`,
    `scp -r compat/webmin guest:/opt/hc/webmin`.
-6. Fedora only: `sudo ausearch -m AVC,USER_AVC -ts boot > /root/avc-before.txt 2>&1 || true`.
+6. Fedora only: `sudo ausearch -m AVC,USER_AVC -ts boot > /root/avc-before.txt 2>&1 || true` and
+   `ls -Z /usr/bin/systemctl > /root/systemctl-label-before.txt`.
 
 ## Run (each guest, as root, over SSH)
 ```sh
@@ -76,10 +77,11 @@ the UI/API, reboot again, and check `inactive`. Remove the fixture
 (`rm /etc/systemd/system/hc-test-boot.service; systemctl daemon-reload`).
 
 ### Browser (Ubuntu and Fedora)
-Real backend through a workstation-loopback SSH tunnel (`ssh -L 127.0.0.1:9180:127.0.0.1:9180 guest`), a fresh
-browser profile, Chromium and Firefox. Run the B1–B18 checklist of `tests/e2e/m2_3_browser.py` (its harness
-drives a Docker container; in a VM the same steps are performed through the tunnel and recorded in an
-`E2-BROWSER-RECORD.md` like M2-2's). Include keyboard-only enable, the phone (390 px) and laptop (1366 px)
+**Manual checklist** (the `tests/e2e/m2_3_browser.py` harness drives a Docker container and cannot run
+against a VM as is). Real backend through a workstation-loopback SSH tunnel
+(`ssh -L 127.0.0.1:9180:127.0.0.1:9180 guest`), a fresh browser profile, Chromium and Firefox. Perform the
+B1–B18 steps listed in that file through the tunnel, with an independent `systemctl` observation over SSH for
+each step, and record them in an `E2-BROWSER-RECORD.md` like M2-2's. Include keyboard-only enable, the phone (390 px) and laptop (1366 px)
 layouts, axe on each page, and a check that the plan text says the change can take effect before a reboot.
 
 ## Afterwards (each guest)
@@ -89,7 +91,11 @@ layouts, axe on each page, and a check that the plan text says the change can ta
 3. E4: `systemd-analyze security homelab-control.service homelab-control-broker.service | tail -n 1` each;
    compare with API 1.6 / broker 1.5 (the M2-2 KVM closeout); any increase is a finding; `systemctl show -p CapabilityBoundingSet homelab-control-broker.service`
    → `cap_setgid cap_setuid`.
-4. **Fedora SELinux:** `getenforce` → still `Enforcing`; `ausearch -m AVC,USER_AVC -ts boot` → no new denial
+4. **Fedora SELinux:** `getenforce` → still `Enforcing`; `ls -Z /usr/bin/systemctl` equals
+   `systemctl-label-before.txt` (the broker-kill test temporarily replaces `/usr/bin/systemctl` with a test
+   wrapper, restores it, runs `restorecon` and checks size, mode, owner, SHA-256 and label; the log prints
+   `wrapper window starts/ends` timestamps). Classify AVCs inside that window as **test-wrapper** denials,
+   separately from product denials; `ausearch -m AVC,USER_AVC -ts boot` → no new denial
    for `hc-broker`, `hc-api`, `systemctl` or the broker's root templates compared with `avc-before.txt`;
    classify any other denial as in the M2-2 closeout. A relevant AVC is a failure.
 5. `hlctl audit verify --file /var/log/homelab-control-broker/operations.jsonl` → exit 0; the journal shows

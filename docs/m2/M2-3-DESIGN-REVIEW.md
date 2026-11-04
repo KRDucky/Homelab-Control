@@ -184,9 +184,11 @@ units can therefore not be enabled or disabled from the UI, by any name.
   and updates commonly run one), or the first load of a target that wants the unit, applies it before a
   reboot; starting such a target can then start (or, after disable, still start) the unit. Until then
   `systemctl show`/`status` on the host show the old setting. The UI reads enablement from disk and says so.
-- **Edits to existing unit files without a reload:** the broker reads `[Install]`, `Conflicts=` and `*Action=`
-  from disk, and refuses new or removed files (P14), but the boot-time dependency walk uses systemd's loaded
-  graph; other `[Unit]` edits made on the host without a reload are not reviewed.
+- **Unit-file changes without a reload:** the broker reads `[Install]`, `Conflicts=` and `*Action=` from disk
+  and refuses a new or removed fragment or `<id>.d` drop-in (P14). It does **not** detect a new or removed
+  prefix (`foo-.service.d`) or type-level (`service.d`) drop-in written without a reload (it reads only those
+  systemd has loaded), although such a drop-in's `[Unit]` settings apply at the next boot. The boot-time
+  dependency walk uses systemd's loaded graph; other `[Unit]` edits made without a reload are not reviewed.
 - **Boot-time conditions** differ from the plan-time walk (other units' states at boot are not modelled);
   the walk is conservative for protected names and dangerous targets, not a boot simulation.
 - **Not protected by name:** services that are harmful to disable but not listed (reverse proxy,
@@ -253,9 +255,18 @@ product commit `5a14c727`, fixed in `82c24a74` unless marked otherwise:
 | R10 | `WantedBy=` early-boot targets suspected of creating ordering cycles | Not confirmed | P18 | None |
 | R11 | Harness: `docker-systemd.sh` ran only the base smoke checks unless `HC_SMOKE_EXTRA_*` was passed | Harness | first rerun showed 11 checks | Defaults to the CI set |
 
-Reviewed without finding a defect: token binding (op, action, canonical target, actor, session, digest;
-single use; expiry), the two locks and their order, journal intent before and outcome after (fsync, hash
-chain), step-up always required, module-disabled enforcement in `hc-api` (404 identical to unknown routes,
-before authentication) and in the broker (`module_disabled` before the scope check; `broker.info` filtered),
-and that nothing outside the Services module calls `services.*` routes (the Audit page only filters by the
-`services.` prefix).
+Inspected in this round without finding a defect:
+- `enablement.go` apply path: token consumed with op, action, target, actor, session and step-up; both locks
+  taken before root revalidation; digest compared; intent before and outcome after the template; a panic
+  writes an `uncertain` outcome.
+- Module-disabled enforcement: `api/server.go` `handle()` answers a disabled module's routes with the same
+  404 as unknown routes before authentication and CSRF (`TestDisabledModuleRoutes404` also sends the
+  requests without a session; it compares the body only for authenticated requests);
+  `broker/server/server.go` refuses with `module_disabled` before the scope check;
+  `modules.Load` refuses symlinks, non-regular, group/world-writable and non-root files, and any error
+  disables every module. Deleting the file would re-enable modules, but `/etc/homelab-control` is
+  `root:homelab-control 0750` in the packages (`hc-api`'s account cannot delete it).
+- Nothing outside the Services module calls `services.*` routes (the Audit page only filters by the
+  `services.` prefix).
+Not re-inspected in this round (unchanged since the first review and covered by its tests): the token
+framework (`writes.go`) and the journal format.
