@@ -157,6 +157,11 @@ func TestRootTemplatesAreClosed(t *testing.T) {
 		RootSystemctlStop:    "systemctl --no-ask-password --job-mode=fail stop -- demo.service",
 		RootSystemctlRestart: "systemctl --no-ask-password --job-mode=fail restart -- demo.service",
 		RootSystemctlShow:    "systemctl " + strings.Join(SystemctlShowArgs("demo.service"), " "),
+		// M2-3 (ADR 0008 Amendment 3): no --now, no --runtime, never a reload.
+		RootSystemctlEnable:      "systemctl --no-ask-password --no-reload enable -- demo.service",
+		RootSystemctlDisable:     "systemctl --no-ask-password --no-reload disable -- demo.service",
+		RootSystemctlIsEnabled:   "systemctl is-enabled -- demo.service",
+		RootSystemctlShowInstall: "systemctl show --no-pager --property=Id --property=Names --property=LoadState --property=FragmentPath --property=SourcePath --property=DropInPaths --property=Transient --property=NeedDaemonReload --property=UnitFilePreset -- demo.service",
 	}
 	if len(rootTemplates) != len(want) {
 		t.Fatalf("%d root templates, want %d — new root templates need review", len(rootTemplates), len(want))
@@ -167,8 +172,18 @@ func TestRootTemplatesAreClosed(t *testing.T) {
 			t.Errorf("%s: %v %v", id, argv, err)
 		}
 	}
-	if _, err := RootArgv("systemctl.enable", "demo.service"); !errors.Is(err, ErrUnknownTemplate) {
-		t.Errorf("unknown template: %v", err)
+	for _, unknown := range []RootTemplate{"systemctl.mask", "systemctl.unmask", "systemctl.daemon-reload", "systemctl.edit", "systemctl.reenable", "systemctl.preset", "systemctl.link"} {
+		if _, err := RootArgv(unknown, "demo.service"); !errors.Is(err, ErrUnknownTemplate) {
+			t.Errorf("unknown template %s: %v", unknown, err)
+		}
+	}
+	for id, tpl := range rootTemplates {
+		for _, a := range tpl.argv {
+			switch a {
+			case "--now", "--runtime", "--force", "--global", "--user", "daemon-reload", "mask", "unmask", "reenable", "preset", "link", "edit":
+				t.Errorf("%s contains forbidden argument %q", id, a)
+			}
+		}
 	}
 	if _, err := RootArgv("sh", "-c id"); !errors.Is(err, ErrUnknownTemplate) {
 		t.Errorf("shell template: %v", err)
@@ -187,7 +202,13 @@ func TestRootTargetValidation(t *testing.T) {
 	}
 	// Writes take exactly one .service unit; the read-only query takes any
 	// unit type, at most 32 at a time.
-	for _, id := range []RootTemplate{RootSystemctlStart, RootSystemctlStop, RootSystemctlRestart} {
+	for _, id := range []RootTemplate{RootSystemctlEnable, RootSystemctlDisable} {
+		if _, err := RootArgv(id, "getty@tty1.service"); !errors.Is(err, ErrBadArg) {
+			t.Errorf("%s accepted a template instance", id)
+		}
+	}
+	for _, id := range []RootTemplate{RootSystemctlStart, RootSystemctlStop, RootSystemctlRestart,
+		RootSystemctlEnable, RootSystemctlDisable, RootSystemctlIsEnabled, RootSystemctlShowInstall} {
 		if _, err := RootArgv(id, "x.socket"); !errors.Is(err, ErrBadArg) {
 			t.Errorf("%s accepted a socket", id)
 		}

@@ -59,6 +59,38 @@ const (
 	RootSystemctlShow    RootTemplate = "systemctl.show"
 )
 
+// The root templates approved for M2-3 (ADR 0008 Amendment 3): boot-time
+// enable/disable of one .service unit WITHOUT reloading the manager
+// (--no-reload: no implicit global daemon-reload) and WITHOUT --now, plus two
+// read-only queries apply uses to revalidate and to verify the outcome:
+// is-enabled (computed from disk, fresh after --no-reload) and the fixed
+// unit-file property list.
+const (
+	RootSystemctlEnable      RootTemplate = "systemctl.enable"
+	RootSystemctlDisable     RootTemplate = "systemctl.disable"
+	RootSystemctlIsEnabled   RootTemplate = "systemctl.is-enabled"
+	RootSystemctlShowInstall RootTemplate = "systemctl.show-install"
+)
+
+// installShowProperties is the fixed property list of the unit-file query
+// (identity and where the unit's definition comes from).
+var installShowProperties = []string{
+	"Id", "Names", "LoadState", "FragmentPath", "SourcePath", "DropInPaths",
+	"Transient", "NeedDaemonReload", "UnitFilePreset",
+}
+
+// ShowInstallArgs is the argv (without the binary) of the unit-file query.
+func ShowInstallArgs(units ...string) []string {
+	a := []string{"show", "--no-pager"}
+	for _, p := range installShowProperties {
+		a = append(a, "--property="+p)
+	}
+	return append(append(a, "--"), units...)
+}
+
+// IsEnabledArgs is the argv (without the binary) of the enablement query.
+func IsEnabledArgs(unit string) []string { return []string{"is-enabled", "--", unit} }
+
 type rootTemplate struct {
 	binary     string   // allow-list key
 	argv       []string // fixed arguments; the validated targets follow "--"
@@ -111,7 +143,16 @@ var rootTemplates = map[RootTemplate]rootTemplate{
 	RootSystemctlRestart: {"systemctl", []string{"--no-ask-password", "--job-mode=fail", "restart", "--"}, validServiceUnit, 1},
 	// Read-only: SystemctlShowArgs (ending in "--"), then up to 32 units.
 	RootSystemctlShow: {"systemctl", SystemctlShowArgs(), validQueryUnit, 32},
+	// M2-3: persistent boot-time enablement, one non-instance .service unit.
+	RootSystemctlEnable:      {"systemctl", []string{"--no-ask-password", "--no-reload", "enable", "--"}, validEnablementUnit, 1},
+	RootSystemctlDisable:     {"systemctl", []string{"--no-ask-password", "--no-reload", "disable", "--"}, validEnablementUnit, 1},
+	RootSystemctlIsEnabled:   {"systemctl", []string{"is-enabled", "--"}, validServiceUnit, 1},
+	RootSystemctlShowInstall: {"systemctl", ShowInstallArgs(), validServiceUnit, 1},
 }
+
+// validEnablementUnit additionally refuses template instances: enabling an
+// instance acts on the template's [Install] section (M2-3 does not support it).
+func validEnablementUnit(t string) bool { return validServiceUnit(t) && !strings.Contains(t, "@") }
 
 // queryUnitRE is the runner's own grammar for state-query targets: any unit
 // type, no leading '-', no escapes, separators or whitespace.

@@ -921,11 +921,24 @@ func journalList(_ context.Context, env *Env, raw json.RawMessage) (any, error) 
 }
 
 // InspectUnit is the writes.Inspector used at broker start to describe the
-// state of units whose operation was interrupted.
+// state of units whose operation was interrupted: the run state for start/
+// stop/restart, the fresh boot-time enablement for enable/disable.
 func InspectUnit(env *Env) writes.Inspector {
-	return func(target string) (json.RawMessage, string) {
+	return func(intent writes.Record) (json.RawMessage, string) {
+		target := intent.Target
 		if !servicepolicy.ValidUnit(target) || (env.Units == nil && env.Runner == nil) {
 			return nil, ""
+		}
+		if intent.Op == enablementOpName {
+			ctx, cancel := context.WithTimeout(context.Background(), showTimeout)
+			defer cancel()
+			st, err := env.enablement().IsEnabled(ctx, env, target)
+			if err != nil {
+				return nil, "unknown (the enablement state could not be read)"
+			}
+			o := UnitObserved{ID: target, UnitFileState: st}
+			b, _ := json.Marshal(o)
+			return b, st + " at boot"
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), showTimeout)
 		defer cancel()
