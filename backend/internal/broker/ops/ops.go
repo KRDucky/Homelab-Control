@@ -31,6 +31,7 @@ import (
 	"homelab-control/backend/internal/broker/proto"
 	"homelab-control/backend/internal/broker/runner"
 	"homelab-control/backend/internal/broker/writes"
+	"homelab-control/backend/internal/modules"
 )
 
 // Roots lets tests point file-reading ops at a fixture tree. Root is "/" in
@@ -67,6 +68,8 @@ type Env struct {
 	RootExec *runner.Root
 	// Actor is the caller as asserted by hc-api (per-call copy).
 	Actor proto.Actor
+	// Modules is the administrator's module setting (zero value: all enabled).
+	Modules modules.Set
 }
 
 // WriteSpec documents a write op for review and the registry snapshot test
@@ -175,6 +178,10 @@ type infoResult struct {
 	SystemdBooted bool `json:"systemd_booted"`
 	// WritesAvailable is false when the operation journal could not be opened.
 	WritesAvailable bool `json:"writes_available"`
+	// DisabledModules lists modules the administrator disabled; their ops are
+	// omitted from Ops and refused.
+	DisabledModules []string `json:"disabled_modules,omitempty"`
+	ModulesReason   string   `json:"modules_reason,omitempty"`
 }
 
 func brokerInfo(_ context.Context, env *Env, raw json.RawMessage) (any, error) {
@@ -182,7 +189,11 @@ func brokerInfo(_ context.Context, env *Env, raw json.RawMessage) (any, error) {
 		return nil, err
 	}
 	res := infoResult{Version: env.Version, Protocol: proto.Version}
+	res.DisabledModules, res.ModulesReason = env.Modules.Disabled(), env.Modules.Reason
 	for _, o := range Registry() {
+		if !env.Modules.Enabled(modules.ForOp(o.Name)) {
+			continue
+		}
 		res.Ops = append(res.Ops, OpInfo{Name: o.Name, Scope: o.Scope, Privilege: o.Privilege, Description: o.Description})
 	}
 	sort.Slice(res.Ops, func(i, j int) bool { return res.Ops[i].Name < res.Ops[j].Name })

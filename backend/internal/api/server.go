@@ -32,6 +32,7 @@ import (
 	"homelab-control/backend/internal/auth"
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
+	"homelab-control/backend/internal/modules"
 	"homelab-control/backend/internal/version"
 )
 
@@ -68,6 +69,9 @@ type Server struct {
 	persistentSessions bool
 	auditPager         AuditPager
 	stepups            *auth.StepUps
+	// mods is the administrator's module setting (M2-3). Routes of a
+	// disabled module answer exactly like unknown routes.
+	mods modules.Set
 }
 
 type overviewCache struct {
@@ -86,6 +90,9 @@ func New(cfg Config, users *auth.Store, audit *audit.Logger, collector *hostinfo
 	s.routes()
 	return s
 }
+
+// WithModules applies the administrator's module setting (M2-3).
+func (s *Server) WithModules(m modules.Set) *Server { s.mods = m; return s }
 
 // Sessions exposes the session manager (tests).
 func (s *Server) Sessions() *auth.SessionManager { return s.sessions }
@@ -115,6 +122,13 @@ func (s *Server) routes() {
 	s.handle("POST /api/v1/auth/step-up", sessionOnly, s.handleStepUp)
 	s.handle("POST /api/v1/services/units/{unit}/plan", auth.ScopeServicesOperate, s.handleUnitPlan)
 	s.handle("POST /api/v1/services/units/{unit}/apply", auth.ScopeServicesOperate, s.handleUnitApply)
+	// M2-3: read-only views and boot-time enable/disable.
+	s.handle("GET /api/v1/services/timers", auth.ScopeServicesRead, s.handleTimers)
+	s.handle("GET /api/v1/services/sockets", auth.ScopeServicesRead, s.handleSockets)
+	s.handle("GET /api/v1/services/units/{unit}", auth.ScopeServicesRead, s.handleUnitDetail)
+	s.handle("GET /api/v1/services/units/{unit}/contents", auth.ScopeServicesLogs, s.handleUnitContents)
+	s.handle("POST /api/v1/services/units/{unit}/enablement/plan", auth.ScopeServicesConfigure, s.handleEnablementPlan)
+	s.handle("POST /api/v1/services/units/{unit}/enablement/apply", auth.ScopeServicesConfigure, s.handleEnablementApply)
 	s.handle("GET /api/v1/operations", auth.ScopeAuditRead, s.handleOperations)
 	s.handle("GET /api/v1/hardware", auth.ScopeHardwareRead, s.handleHardware)
 	s.handle("GET /api/v1/legacy/webmin", auth.ScopeSystemRead, s.handleLegacy)
@@ -132,7 +146,15 @@ type ctxHandler func(w http.ResponseWriter, r *http.Request, sess *auth.Session,
 // handle registers a route with mandatory authn/authz/CSRF wrapping. There is
 // deliberately no way to register an /api route that bypasses this function.
 func (s *Server) handle(pattern, scope string, h ctxHandler) {
+	_, routePath, _ := strings.Cut(pattern, " ")
+	module := modules.ForRoute(routePath)
 	s.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
+		// A disabled module's routes do not exist: same answer as the
+		// catch-all for unknown routes, before authentication or CSRF checks.
+		if !s.mods.Enabled(module) {
+			writeError(w, http.StatusNotFound, "not_found", "unknown API route")
+			return
+		}
 		unsafe := r.Method != http.MethodGet && r.Method != http.MethodHead
 		if unsafe && !s.originAllowed(r) {
 			s.auditLog("csrf.origin_rejected", "", r, "denied", r.Header.Get("Origin"))

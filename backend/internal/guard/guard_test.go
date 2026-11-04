@@ -212,6 +212,7 @@ var rootExecFiles = map[string]bool{
 	"internal/broker/runner/runner.go":      true, // defines the templates and the handle
 	"internal/broker/ops/svcctl.go":         true, // the systemctl controller (Act)
 	"internal/broker/ops/services_write.go": true, // apply refuses without a handle
+	"internal/broker/ops/enablement.go":     true, // M2-3 enablement controller and apply (Amendment 3)
 	"internal/broker/ops/ops.go":            true, // registry lists apply's templates (W1)
 	"internal/broker/server/server.go":      true, // passes the handle to root-exec ops only
 	"cmd/hc-broker/main.go":                 true, // creates the single handle
@@ -220,6 +221,8 @@ var rootExecFiles = map[string]bool{
 var rootExecNames = map[string]bool{
 	"RootExec": true, "RootArgv": true, "rootTemplates": true, "RootSystemctlStart": true,
 	"RootSystemctlStop": true, "RootSystemctlRestart": true, "RootTemplate": true,
+	"RootSystemctlEnable": true, "RootSystemctlDisable": true, "RootSystemctlIsEnabled": true,
+	"RootSystemctlShowInstall": true, "RootSystemctlShow": true,
 }
 
 func TestRootExecConfined(t *testing.T) {

@@ -21,6 +21,7 @@ import (
 	"homelab-control/backend/internal/brokerclient"
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
+	"homelab-control/backend/internal/modules"
 	"homelab-control/backend/internal/servicepolicy"
 )
 
@@ -106,8 +107,19 @@ type Capability struct {
 	Reason string `json:"reason,omitempty"`
 }
 
+// moduleStatus describes one compiled-in module (M2-3 registry).
+type moduleStatus struct {
+	ID          string   `json:"id"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Enabled     bool     `json:"enabled"`
+	Scopes      []string `json:"scopes"`
+	Reason      string   `json:"reason,omitempty"`
+}
+
 type capabilitiesResponse struct {
-	Broker struct {
+	Modules []moduleStatus `json:"modules"`
+	Broker  struct {
 		Status  string `json:"status"` // available | unavailable
 		Version string `json:"version,omitempty"`
 		Reason  string `json:"reason,omitempty"`
@@ -166,7 +178,26 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 	if s.auditPager == nil {
 		auditCap.Status, auditCap.Reason = CapUnavailable, "Audit history needs the state database, which this server was started without."
 	}
-	resp.Capabilities = []Capability{gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs)}
+	caps := []Capability{gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs)}
+	// Navigation follows the module registry: a disabled module contributes
+	// no capability (and therefore no navigation entry).
+	resp.Capabilities = caps[:0]
+	for _, c := range caps {
+		if s.mods.Enabled(modules.ForRoute("/api/v1" + c.Path)) {
+			resp.Capabilities = append(resp.Capabilities, c)
+		}
+	}
+	resp.Modules = []moduleStatus{}
+	for _, m := range modules.All() {
+		ms := moduleStatus{ID: m.ID, Title: m.Title, Description: m.Description, Enabled: s.mods.Enabled(m.ID), Scopes: m.Scopes}
+		if !ms.Enabled {
+			ms.Reason = s.mods.Reason
+			if ms.Reason == "" {
+				ms.Reason = "Disabled by the host administrator in " + modules.DefaultPath + "."
+			}
+		}
+		resp.Modules = append(resp.Modules, ms)
+	}
 	writeJSON(w, http.StatusOK, resp)
 }
 
@@ -190,6 +221,8 @@ func brokerError(w http.ResponseWriter, err error) {
 			writeError(w, http.StatusGatewayTimeout, "timeout", pe.Message)
 		case proto.CodeBusy:
 			writeError(w, http.StatusServiceUnavailable, "busy", "The privileged helper is busy; try again.")
+		case proto.CodeModuleDisabled:
+			writeError(w, http.StatusNotFound, "not_found", "This module is disabled on this host.")
 		default:
 			writeError(w, http.StatusBadGateway, "broker_error", "The privileged helper could not complete the request.")
 		}
@@ -205,6 +238,8 @@ type servicesResponse struct {
 	types.UnitList
 	Protected map[string]servicepolicy.Protection `json:"protected"`
 	Operate   operateStatus                       `json:"operate"`
+	// Configure: boot-time enable/disable (M2-3, services.configure).
+	Configure operateStatus `json:"configure"`
 }
 
 type operateStatus struct {
@@ -241,6 +276,18 @@ func (s *Server) handleServices(w http.ResponseWriter, r *http.Request, sess *au
 		out.Operate.Reason = "The privileged helper's operation journal is unavailable, so service operations are disabled."
 	default:
 		out.Operate.Available = true
+	}
+	switch bi, err := s.brokerInfo(r.Context(), sess); {
+	case !sess.HasScope(auth.ScopeServicesConfigure):
+		out.Configure.Reason = "Your account does not have the services.configure permission."
+	case err != nil || bi == nil:
+		out.Configure.Reason = brokerDownReason
+	case !bi.hasOp("services.enablement.apply"):
+		out.Configure.Reason = "The privileged helper does not support boot-time enable/disable."
+	case !bi.WritesAvailable:
+		out.Configure.Reason = "The privileged helper's operation journal is unavailable, so boot-time changes are disabled."
+	default:
+		out.Configure.Available = true
 	}
 	writeJSON(w, http.StatusOK, out)
 }

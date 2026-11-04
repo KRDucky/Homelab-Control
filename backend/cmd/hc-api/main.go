@@ -30,6 +30,7 @@ import (
 	"homelab-control/backend/internal/brokerclient"
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
+	"homelab-control/backend/internal/modules"
 	"homelab-control/backend/internal/state"
 	"homelab-control/backend/internal/webui"
 )
@@ -47,6 +48,7 @@ func main() {
 	legacyURL := flag.String("legacy-url", "", "URL of the legacy Webmin UI to link to (optional)")
 	brokerSocket := flag.String("broker-socket", proto.DefaultSocket, "privileged broker socket (empty disables broker features)")
 	allowRoot := flag.Bool("i-understand-running-as-root-is-unsupported", false, "permit running as root (development containers only)")
+	modulesFile := flag.String("modules-config", modules.DefaultPath, "administrator's module setting (root-owned; missing = all modules enabled)")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
@@ -134,6 +136,15 @@ func main() {
 	if *brokerSocket != "" {
 		srv.WithBroker(brokerclient.New(*brokerSocket))
 	}
+	// Module registry (M2-3): an invalid setting disables every optional module.
+	// Outside development the file must be root-owned (hc-api cannot change it).
+	mods := modules.LoadOrFailClosed(*modulesFile, !*devHTTP)
+	if mods.Reason != "" {
+		log.Print(mods.Reason)
+	} else if d := mods.Disabled(); len(d) > 0 {
+		log.Printf("modules disabled by %s: %v", *modulesFile, d)
+	}
+	srv.WithModules(mods)
 	if webui.FS() == nil {
 		log.Print("warning: UI not embedded; serving API only")
 	}

@@ -42,10 +42,10 @@ const enablementOpName = "services.enablement"
 // unitFilesLock serializes enablement changes host-wide.
 const unitFilesLock = "unit-files"
 
-// Enablement actions.
+// Enablement actions (servicepolicy is the shared, pure grammar).
 const (
-	ActionEnable  = "enable"
-	ActionDisable = "disable"
+	ActionEnable  = servicepolicy.Enable
+	ActionDisable = servicepolicy.Disable
 )
 
 // systemdUnitDir is where systemctl enable writes its links (always the
@@ -65,12 +65,10 @@ type enablementApplyArgs struct {
 
 // ValidEnablementUnit is the grammar of an enablement target: a .service unit
 // name without template or instance ('@').
-func ValidEnablementUnit(unit string) bool {
-	return servicepolicy.ValidUnit(unit) && !strings.Contains(unit, "@")
-}
+func ValidEnablementUnit(unit string) bool { return servicepolicy.ValidEnablementUnit(unit) }
 
 func validEnablementArgs(unit, action string) error {
-	if action != ActionEnable && action != ActionDisable {
+	if !servicepolicy.ValidEnablementAction(action) {
 		return &proto.Error{Code: proto.CodeBadRequest, Message: "action must be enable or disable"}
 	}
 	if !ValidEnablementUnit(unit) {
