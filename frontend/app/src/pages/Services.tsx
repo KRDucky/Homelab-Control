@@ -226,7 +226,7 @@ export function Services({
           <button
             type="button"
             className="ghost small"
-            aria-label={`${boot === 'enable' ? 'Enable' : 'Disable'} ${u.name} at boot`}
+            aria-label={`${boot === 'enable' ? 'Enable' : 'Disable'} at boot: ${u.name}`}
             aria-haspopup="dialog"
             onClick={() => setOp({ unit: u.name, action: boot })}
           >

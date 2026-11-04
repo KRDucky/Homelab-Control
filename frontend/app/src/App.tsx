@@ -149,7 +149,7 @@ export function App() {
   return (
     <Shell
       pages={pages}
-      currentId={route?.id}
+      currentId={disabledModule ? undefined : route?.id}
       title={
         onThemes
           ? 'Themes & Theme Studio'
