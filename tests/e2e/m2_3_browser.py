@@ -183,9 +183,9 @@ def main():
         dlg = page.get_by_role("dialog")
         dlg.get_by_text("Preview · nothing has been changed yet").wait_for()
         txt = dlg.inner_text()
-        record("B1", "enable preview shows link, boot vs runtime, no reload, risk, no rollback",
+        record("B1", "enable preview shows link, boot vs runtime, no reload (may apply before a reboot), risk, no rollback",
                all(s in txt for s in [f"{ETC}/multi-user.target.wants/hc-test-en-ui.service", "does not start it now",
-                                       "not reloaded", "Disruptive", "no automatic rollback"]),
+                                       "not reloaded", "before a reboot", "Disruptive", "no automatic rollback"]),
                ui=txt[:200], observer=dx("systemctl is-enabled hc-test-en-ui.service"))
         shot("02-enable-preview")
         record("B2", "focus starts on Close in the dialog", page.evaluate("document.activeElement.textContent") == "Close",

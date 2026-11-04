@@ -38,6 +38,15 @@ kind=${pkg##*.}
 docker cp "$pkg" "$name:/opt/hc/pkg.$kind"
 docker cp "$root/tests/systemd" "$name":/opt/hc/tests
 docker cp "$root/compat/webmin" "$name":/opt/hc/webmin
+# Defaults as in CI's systemd jobs: the broker socket, the M1, M2-2 and M2-3
+# checks, the Webmin tree and the smoke account's scopes. An explicit
+# NAME=… argument for any of them replaces the default.
 env_args=()
+default() { local d=$1; shift; case " $* " in *" ${d%%=*}="*) ;; *) env_args+=(-e "$d") ;; esac; }
+for d in HC_SMOKE_EXTRA_UNITS=homelab-control-broker.socket \
+  "HC_SMOKE_EXTRA_CHECKS=/opt/hc/tests/m1-checks.sh /opt/hc/tests/m2-service-ops.sh /opt/hc/tests/m2-3-checks.sh" \
+  HC_WEBMIN_SRC=/opt/hc/webmin HC_SMOKE_SCOPES=system.read,services.read,services.logs,hardware.read; do
+  default "$d" "$@"
+done
 for kv in "$@"; do env_args+=(-e "$kv"); done
 docker exec "${env_args[@]}" -e HC_PKG_KIND="$kind" "$name" /opt/hc/tests/systemd-smoke.sh "/opt/hc/pkg.$kind"

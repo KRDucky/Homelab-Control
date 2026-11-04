@@ -141,7 +141,7 @@ def run_variant(mode, csrf, before_state, action):
     text = json.dumps(recs[-1]) if recs else ""
     verdict = "unchanged" if mode == "before" else "changed, not verified"
     m.check(f"[{mode}] interrupted record says '{verdict}'", True, verdict in text and "not retried" in text)
-    print(f"INFO  [{mode}] interrupted message: {recs[-1].get('message', '')[:400] if recs else ''}")
+    print(f"INFO  [{mode}] interrupted record: {text[:600]}")
     time.sleep(3)
     want = before_state if mode == "before" else {"enable": "enabled", "disable": "disabled"}[action]
     m.check(f"[{mode}] host is-enabled {want} (nothing retried)", want, m.is_enabled(UNIT))
