@@ -87,6 +87,10 @@ Accepted only when all hold (checked at plan **and** again at apply with root re
 - canonical ID is a non-template, non-instance `.service` (`servicepolicy.ValidUnit`, no `@`), `LoadState=loaded`;
 - the requested name and every name systemd knows the unit by (ID, `Names`, fragment basename) and every
   install `Alias=` are not protected; no `WantedBy=` target is protected or a shutdown/reboot/recovery unit;
+- **enable:** no `Alias=` names a unit systemd already knows (`is-enabled` must say `not-found`, `show` must say
+  `not-found` or this unit): otherwise the new alias link would replace that unit's definition at the next reload
+  (measured, `probes/probe4-alias-collision.out`); no file that is not a symbolic link sits at any link path;
+- **disable:** no protected unit declares `Requisite=` on it (systemd's `RequisiteOf`);
 - fresh `is-enabled` is exactly `disabled` (for enable) or `enabled` (for disable). Refused: `static`,
   `indirect`, `generated`, `transient`, `masked`, `masked-runtime`, `linked`, `linked-runtime`,
   `enabled-runtime`, `alias`, `bad`, `not-found` and anything unknown;
@@ -156,6 +160,8 @@ units can therefore not be enabled or disabled from the UI, by any name.
   hypervisor). `services.configure` is never granted by default.
 - **Concurrent edits** by root on the host between revalidation and the template are not prevented; the
   read-back reports what was observed.
+- **Requisite= dependents:** disabling a unit is refused when a protected unit declares `Requisite=` on it,
+  but only for dependents systemd has loaded (the relation comes from the loaded graph).
 
 ## 4. Read-only views
 - **Unit detail** never invents state: it reports `requested` vs canonical ID (alias), whether the unit was in

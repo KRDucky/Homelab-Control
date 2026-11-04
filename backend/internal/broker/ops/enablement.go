@@ -343,10 +343,33 @@ func reviewEnablement(ctx context.Context, env *Env, action, requested string) (
 		if pr := servicepolicy.NameProtection(a); pr.Protected {
 			return r, denied("%s declares the alias %s, which is protected: %s", p.ID, a, pr.Reason)
 		}
+		// An alias must not name another unit: systemd would create
+		// /etc/systemd/system/<alias> and, at the next reload or boot, that
+		// link would replace the other unit's definition (measured, probe 4).
+		if action == ActionEnable {
+			if err := aliasIsFree(ctx, env, p.ID, a); err != nil {
+				return r, err
+			}
+		}
 		r.links = append(r.links, systemdUnitDir+a)
 	}
+	if action == ActionDisable {
+		// A protected unit that declares Requisite= on this one would fail at
+		// boot once this one is no longer started there.
+		for _, n := range p.Deps["RequisiteOf"] {
+			if pr := servicepolicy.NameProtection(n); pr.Protected {
+				return r, denied("%s is a requisite of %s, which is protected: %s", p.ID, n, pr.Reason)
+			}
+		}
+	}
 	// The links must all be in the opposite state now; anything else is an
-	// inconsistent unit this version does not repair.
+	// inconsistent unit this version does not repair. A file that is not a
+	// symbolic link at a link path is never overwritten or removed.
+	for _, l := range r.links {
+		if fi, err := os.Lstat(env.Roots.Path(l)); err == nil && fi.Mode()&os.ModeSymlink == 0 {
+			return r, denied("%s cannot be %sd here: %s exists and is not a symbolic link. Check it on the host.", p.ID, action, l)
+		}
+	}
 	for _, l := range linkStates(env, r.links) {
 		if l.Present == (action == ActionEnable) {
 			return r, denied("%s is in an inconsistent state: %s is already %s. Check the unit on the host.", p.ID, l.Path,
@@ -397,6 +420,26 @@ func (r enablementReview) consequences(action string) []string {
 		"The running systemd manager is not reloaded: the change takes effect at the next boot, and until then `systemctl status` on the host may still show the old setting.",
 		"There is no automatic rollback. To undo it, review the opposite action.")
 	return c
+}
+
+// aliasIsFree refuses an alias name that systemd already knows as a unit file
+// or as a unit other than id (both answered by root at apply).
+func aliasIsFree(ctx context.Context, env *Env, id, alias string) error {
+	st, err := env.enablement().IsEnabled(ctx, env, alias)
+	if err != nil {
+		return err
+	}
+	if st != "not-found" {
+		return denied("%s declares Alias=%s, but a unit file with that name already exists (%s); enabling it would replace that unit's definition", id, alias, st)
+	}
+	q, err := env.units().Show(ctx, env, alias)
+	if err != nil {
+		return err
+	}
+	if q.LoadState != "not-found" && q.ID != id {
+		return denied("%s declares Alias=%s, but systemd already knows that name as %s; enabling it would replace that unit", id, alias, q.ID)
+	}
+	return nil
 }
 
 func nonEmpty(l []string, empty string) []string {

@@ -1,0 +1,13 @@
+--- enable hc-shadow-lib (Alias=hc-victim-lib.service)
+Created symlink '/etc/systemd/system/hc-victim-lib.service' → '/etc/systemd/system/hc-shadow-lib.service'.
+Created symlink '/etc/systemd/system/multi-user.target.wants/hc-shadow-lib.service' → '/etc/systemd/system/hc-shadow-lib.service'.
+rc=0
+lrwxrwxrwx 1 root root 41 Nov  4 07:22 /etc/systemd/system/hc-victim-lib.service -> /etc/systemd/system/hc-shadow-lib.service
+after reload: hc-victim-lib.service Id=hc-shadow-lib.service Fragment=/etc/systemd/system/hc-shadow-lib.service is-enabled=alias
+after disable: ls: cannot access '/etc/systemd/system/hc-victim-lib.service': No such file or directory
+--- enable hc-shadow-etc (Alias=hc-victim-etc.service)
+Failed to enable unit: File '/etc/systemd/system/hc-victim-etc.service' already exists
+rc=1
+-rw-r--r-- 1 root root 70 Nov  4 07:22 /etc/systemd/system/hc-victim-etc.service
+after reload: hc-victim-etc.service Id=hc-victim-etc.service Fragment=/etc/systemd/system/hc-victim-etc.service is-enabled=static
+after disable: -rw-r--r-- 1 root root 70 Nov  4 07:22 /etc/systemd/system/hc-victim-etc.service
