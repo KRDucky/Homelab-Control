@@ -184,3 +184,27 @@ of the `nebula`/`ipsec` rules) or listed above. The limitations above remain.
   reviewed, for every new write op.
 - Not authorized here: enable/disable, mask/unmask, unit-file edits, daemon-reload, any other unit
   type, host shutdown or reboot, arbitrary commands.
+
+## Extension for M2-3 (2026-11-04, proposed for owner acceptance): boot-time enable/disable
+
+The owner authorized M2-3 development and isolated testing on 2026-11-04; acceptance, merge and production
+use are separate decisions. The review of the new write against every element of this ADR is
+`docs/m2/M2-3-DESIGN-REVIEW.md` §3. In short:
+
+- **Op pair** `services.enablement.plan` / `services.enablement.apply`, scope `services.configure` (API and
+  broker), token op `services.enablement` (a start/stop token can never authorize it, nor the reverse).
+- **Risk:** both actions `disruptive`, so the unchanged `Consume` rule requires step-up. This is stricter than
+  the roadmap's "persistent → reversible"; the deviation is listed for the owner.
+- **Supported cases only** (§3.4); everything else — static, indirect, generated, transient, masked, linked,
+  runtime, alias names, template instances, SysV, `Also=`, `RequiredBy=`, `UpheldBy=`, `DefaultInstance=`,
+  specifiers, resets and unparseable `[Install]` — is refused.
+- **Protected-unit policy** extended to persistent changes: canonical ID, aliases, unit file, `[Install]`
+  aliases, `WantedBy=` targets and, for enable, the units the boot-time start would touch (M2-2 start walk).
+- **Locks** `service:<id>` (shared with start/stop) and `unit-files` (host-wide). **Revalidation** with root reads
+  of state, unit-file facts, fresh `is-enabled`, the re-parsed `[Install]` and the walk.
+- **Journal** unchanged in format; the recovery inspector now receives the intent record and describes an
+  interrupted enablement by its boot setting.
+- **Read-back** independent of `systemctl`: root `is-enabled` plus the broker's own `lstat` of every expected
+  link; partial changes are reported as `failed` with the observed links; no rollback.
+- **Known limitations** added: no manager reload (status on the host shows the old setting until the next boot
+  or reload); boot-time conditions are not simulated; concurrent root edits on the host are reported, not prevented.

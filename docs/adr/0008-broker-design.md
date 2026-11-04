@@ -158,3 +158,30 @@ the ADR 0011 plan/apply review.
 The trust assumption above is restated for writes in ADR 0011: a compromised `hc-api` can request
 any operation the broker's policy allows. The narrow template table, the protected-unit and
 dependency policy, plan tokens, locks and the journal bound what that means.
+
+## Amendment 3 (2026-11-04, M2-3, proposed for owner acceptance): enablement templates, read views, module refusal
+
+Proposed with the owner's M2-3 development authorization of 2026-11-04 (scope in
+`docs/m2/M2-3-DESIGN-REVIEW.md` §0); **not accepted until the owner accepts M2-3**. Review:
+`docs/m2/M2-3-DESIGN-REVIEW.md` §2–§3.
+
+- **Four new root templates**, each exactly one `.service` target after `--`, validated again by the runner
+  (`validEnablementUnit` refuses template instances for enable/disable):
+  `systemctl.enable` / `systemctl.disable` = `systemctl --no-ask-password --no-reload enable|disable -- <unit>`;
+  `systemctl.is-enabled` = `systemctl is-enabled -- <unit>` (read-only); `systemctl.show-install` = `systemctl show
+  --no-pager --property=<Id,Names,LoadState,FragmentPath,SourcePath,DropInPaths,Transient,NeedDaemonReload,UnitFilePreset> -- <unit>`
+  (read-only). `--no-reload` prevents the implicit global daemon-reload that `enable`/`disable` otherwise
+  perform (measured, §1 P1). No `--now`, `--runtime`, `--force`, `mask`, `link`, `preset`, `edit` or
+  `daemon-reload` exists; `TestRootTemplatesAreClosed` fails on any of them.
+- The handle still reaches only root-exec ops; `services.enablement.apply` is the second one.
+  `internal/broker/ops/enablement.go` joins the reviewed root-exec files (`TestRootExecConfined`).
+- **Root reads in-process:** `services.enablement.plan` (registered `root-read`) and apply read unit files
+  as root only to extract `[Install]` unit names, under the path rules of the review (§3.5).
+- **Read-only ops** `services.timers.list`, `services.sockets.list`, `services.unit.detail` and
+  `services.unit.contents` run fixed argv as `homelab-control`; detail and contents take `{unit}` and first
+  check inventory membership (`list-units`/`list-unit-files -- <name>`), per Amendment 1.
+- **Module refusal:** ops of a module disabled in the root-owned `/etc/homelab-control/modules.json` are refused
+  with `module_disabled` before the scope check and omitted from `broker.info`; an invalid file disables every
+  module. Journal recovery is unaffected.
+- **No new capabilities:** the broker unit is unchanged (`CapabilityBoundingSet=CAP_SETUID CAP_SETGID`); PID 1
+  writes the symlinks over D-Bus (§1 P2).

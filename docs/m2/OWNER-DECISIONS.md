@@ -210,3 +210,26 @@ in `M2-SECURITY-ACCEPTANCE.md`. Current status of the criterion: `M2-2-ACCEPTANC
 Earlier owner validation instructions explicitly record E2 acceptance and W1 review/sign-off on October 27 based on the owner's Ubuntu run, with non-Debian validation deferred. The owner also explicitly authorized the updated Ubuntu U1 baseline and retest in “Final Ubuntu 26.04.1 Acceptance Rerun (U1)”. These sources are conversation instructions, not inferred GitHub review events.
 
 Closure does not retroactively satisfy PR #28's pre-merge condition, enable production `services.operate`, authorize another privileged operation, or authorize M2-3. The evidence index preserves the Ubuntu phase-gap and reused-install caveats. This approval permits a documentation PR; merge remains an owner action.
+
+## M2-3 development authorization (2026-11-04)
+
+**Source:** the owner's instruction "Implement Homelab Control M2-3: Expanded Service Management", 2026-11-04,
+section *Owner authorization*: "M2-2 is complete. I authorize M2-3 development and isolated testing within the
+scope below. Production activation and merge remain separate owner decisions." The instruction states that it
+supersedes older statements that M2-3 is unauthorized, only for its scope (boot-time enable/disable with a
+separate `services.configure` permission, read-only timer and socket views, unit details, a minimal Services
+module registry). It excludes mask/unmask, unit editing or creation, a generic daemon-reload, arbitrary commands,
+production changes and new dependencies, and M2-4, M2-5, M2-6 and M3 (M2-5 and M2-6 remain mandatory before M3).
+
+**Not decided by it:** acceptance of the M2-3 implementation, merge, production activation of
+`services.configure`, and the items below. Implementation and evidence: `M2-3-DESIGN-REVIEW.md`,
+`M2-3-ACCEPTANCE.md`.
+
+### Items for the owner's review of M2-3
+| ID | Question | Implemented proposal (pending) |
+|---|---|---|
+| O-1 (D-10) | How first-party modules are packaged and toggled | Built-in, compiled-in modules behind `internal/modules`; the setting is the root-owned `/etc/homelab-control/modules.json`, not `state.db`, because the broker must enforce it without trusting `hc-api`; no UI/API to change it; invalid file disables all modules. D-10 itself stays **open** |
+| O-2 | Scope for unit-file contents | Reuses `services.logs` (existing non-default scope for sensitive content). Alternative: a dedicated scope, e.g. `services.files` |
+| O-3 | Risk class of enable/disable | `disruptive` (step-up always), stricter than the roadmap's "persistent → reversible" |
+| O-4 | `--no-reload` | No manager reload (the excluded generic daemon-reload); the change takes effect at the next boot, host `systemctl status` shows the old value until then |
+| O-5 | Refused constructs | `Also=`, `RequiredBy=`, `UpheldBy=`, `DefaultInstance=`, template instances, `.socket`/`.timer` enablement, SysV/generated/linked/runtime units are refused, not supported; each could be a later, separately reviewed extension |

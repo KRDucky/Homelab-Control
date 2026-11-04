@@ -2,8 +2,10 @@
 
 Readiness review, security plan and roadmap for M2, with the owner's product-scope decisions of
 2026-10-21. **Authorization status (2026-10-27):** M2 PR-1 (authorized 2026-10-21) and M2-2, service start/stop/restart
-(authorized 2026-10-23, merged 2026-10-26), are authorized and merged. M2-3 and later, and every other privileged
-write, are not authorized. The documents below are dated planning snapshots; current status is in
+(authorized 2026-10-23, merged 2026-10-26), are authorized and merged. **M2-3 development and isolated testing were
+authorized on 2026-11-04** (scope and owner items: [`OWNER-DECISIONS.md`](OWNER-DECISIONS.md#m2-3-development-authorization-2026-11-04));
+acceptance, merge and production activation are pending. M2-4 and later, and every other privileged write, are not
+authorized. The documents below are dated planning snapshots; current status is in
 [`../STATUS.md`](../STATUS.md).
 
 | Document | Content |
@@ -14,6 +16,8 @@ write, are not authorized. The documents below are dated planning snapshots; cur
 | [OWNER-DECISIONS.md](OWNER-DECISIONS.md) | Decisions D-1…D-12; D-1, D-6, D-7 approved 2026-10-21 |
 | [M2-PR1-PROPOSAL.md](M2-PR1-PROPOSAL.md) | Exact scope and tests of the first implementation PR |
 | [MODULE-ARCHITECTURE.md](MODULE-ARCHITECTURE.md) | Independent modules, ownership and conflict prevention, coordinated workflows, Physical Drive Layout Designer model and stages |
+| [M2-3-DESIGN-REVIEW.md](M2-3-DESIGN-REVIEW.md) | M2-3 design, systemd probes and ADR 0011 review of boot-time enable/disable |
+| [M2-3-ACCEPTANCE.md](M2-3-ACCEPTANCE.md) | M2-3 results and evidence, separated from owner acceptance |
 | [CAPABILITY-MATRIX.md](CAPABILITY-MATRIX.md) | Per-technology discovery, lifecycle, privileges, backend, risks, dependencies, distro notes, milestone |
 
 **Summary:**

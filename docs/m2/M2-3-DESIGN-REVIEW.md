@@ -45,7 +45,7 @@ design was fixed. Scripts and raw output: `docs/evidence/m2/m2-3/probes/`.
 | `services.timers.list` | `services.read` | unprivileged-exec | none | `list-timers --all --output=json` + batched `show` of fixed timer properties |
 | `services.sockets.list` | `services.read` | unprivileged-exec | none | `list-sockets --all --output=json` |
 | `services.unit.detail` | `services.read` | unprivileged-exec | `{unit}` | Inventory membership first (`list-units`/`list-unit-files -- <name>`), then a fixed, allow-listed property list; no `Environment=`, `Exec*` command lines or credentials are ever requested |
-| `services.unit.file` | `services.logs` | unprivileged-exec | `{unit}` | `systemctl cat` as `homelab-control`; redacted; 64 KiB / 2,000 lines |
+| `services.unit.contents` | `services.logs` | unprivileged-exec | `{unit}` | `systemctl cat` as `homelab-control`; redacted; 64 KiB / 2,000 lines (named `contents` because the registry test forbids op names ending in `file`) |
 | `services.enablement.plan` | `services.configure` | root-read | `{unit, action}` | Read-only; mints the plan token |
 | `services.enablement.apply` | `services.configure` | root-exec | `{unit, action, token}` | The only op that receives the root handle for the new templates |
 
@@ -163,11 +163,7 @@ units can therefore not be enabled or disabled from the UI, by any name.
   `static`, `generated`, `transient`, `masked`. Last exit is shown only when `ExecMainExitTimestamp` is set;
   `NRestarts` only for services. Dependencies come from systemd, capped at 64 names per list.
 - **Unit-file contents** (P9) are read by `systemctl cat` running as `homelab-control`, so root-only files are
-  never shown (the response lists them as unreadable). Redacted before leaving the broker: values of
-  `Environment=`, `SetCredential=`, `SetCredentialEncrypted=`, `LoadCredentialEncrypted=` and of any key
-  containing `PASSWORD`, `SECRET`, `TOKEN` or `KEY` (other than `KillMode`-style systemd keys listed in the
-  code); in `Exec*=` lines, values of arguments named like secrets (`--password=…`, `token=…`, `-p…`); URLs
-  with credentials (`scheme://user:pass@`). Bounded to 64 KiB and 2,000 lines, control characters
+  never shown (the response lists them as unreadable). Redacted before leaving the broker: every `Environment=` value (variable names are kept); the whole value of `SetCredential*=` and of any key containing `passw`, `passphrase`, `secret`, `token`, `apikey`, `api_key`, `privatekey`, `private_key` or `credential`; in `Exec*=` lines, the value of arguments whose name contains `pass`, `secret`, `token`, `apikey`, `auth` or `key` (`--password=…`, `--token …`, `api_key=…`); and the user-info part of any URL (`scheme://user:pass@`). `EnvironmentFile=` paths are shown, never the file. Bounded to 64 KiB and 2,000 lines, control characters
   stripped. Gated by `services.logs` (the existing non-default scope for sensitive content; a dedicated scope
   is an open owner item O-2) and audited fail-closed (who, which unit, never content). Redaction is
   heuristic; this is stated in the UI.
