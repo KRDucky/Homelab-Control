@@ -192,6 +192,9 @@ def fixtures(ssh):
                                 "[Install]\nWantedBy=multi-user.target\n",
         "hc-test-en-g2.service": "[Unit]\nDescription=M2-3 second gate fixture\n" + _SLEEP +
                                  "[Install]\nWantedBy=multi-user.target\n",
+        "hc-test-en-gw.service": "[Unit]\nDescription=M2-3 fixture with a dependency\nWants=hc-test-en-gdep.service\n" + _SLEEP +
+                                 "[Install]\nWantedBy=multi-user.target\n",
+        "hc-test-en-gdep.service": "[Unit]\nDescription=M2-3 dependency fixture\n" + _SLEEP,
         "hc-test-en-gconf.service": "[Unit]\nDescription=M2-3 conflicts with the protected stand-in\n"
                                     "Conflicts=homelab-control-hctest-prot.service\n" + _SLEEP,
         "homelab-control-hctest-prot.service": "[Unit]\nDescription=M2-3 disposable protected-name stand-in\n" + _SLEEP,
@@ -555,6 +558,29 @@ def main():
         with open(f"{ETC}/{g}", "w") as f:
             f.write(g_orig)
     gate_case("fragment edited to Want a unit that conflicts with it", edit_g, restore_g)
+    # Another unit's file (a loaded dependency) gains Conflicts= on the stand-in (probe 8 P23b).
+    gw, gdep = "hc-test-en-gw.service", "hc-test-en-gdep.service"
+    subprocess.run(["systemctl", "start", "--", gw], check=True)  # loads gw and gdep
+    with open(f"{ETC}/{gdep}") as f:
+        dep_orig = f.read()
+
+    def edit_dep():
+        with open(f"{ETC}/{gdep}", "w") as f:
+            f.write(dep_orig.replace("[Service]", f"Conflicts={prot}\n[Service]"))
+
+    def restore_dep():
+        with open(f"{ETC}/{gdep}", "w") as f:
+            f.write(dep_orig)
+    snap = links()
+    edit_dep()
+    st, e = eplan(gw, "enable", csrf)
+    print(f"INFO  dependency edited: {st} {e.get('message', '')[:240]}")
+    check("unloaded change refused: a loaded dependency's file gains Conflicts= on the stand-in", (403, True),
+          (st, gate in e.get("message", "")))
+    check("unloaded change: no link changed (dependency edited)", [], sorted(snap ^ links()))
+    restore_dep()
+    subprocess.run(["systemctl", "stop", "--", gw, gdep], check=True)
+    harness_reload()
     pd = f"{ETC}/{prot}.d"
     gate_case("protected stand-in's new drop-in conflicts with the unit", mkdrop(pd, f"[Unit]\nConflicts={g}\n"), rmdrop(pd))
     # Edit between preview and apply.
