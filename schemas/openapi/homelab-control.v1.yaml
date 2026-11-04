@@ -170,10 +170,11 @@ components:
           description: 'Compiled-in modules (M2-3 registry, D-10 proposal) and whether the host administrator enabled them (root-owned /etc/homelab-control/modules.json). Routes of a disabled module answer 404 exactly like unknown routes.'
           items:
             type: object
-            required: [id, title, description, enabled, scopes]
+            required: [id, title, description, path, enabled, scopes]
             properties:
               id: { type: string, enum: [services] }
               title: { type: string }
+              path: { type: string, description: Page of the module in the web UI }
               description: { type: string }
               enabled: { type: boolean }
               scopes: { type: array, items: { type: string } }

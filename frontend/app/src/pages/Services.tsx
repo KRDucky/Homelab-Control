@@ -2,13 +2,75 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useMemo, useState } from 'react';
-import { getServices, isOperableName, type Capability, type ServiceAction, type Unit } from '../api';
+import { useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import {
+  getServices,
+  isEnablementName,
+  isOperableName,
+  type Capability,
+  type ServiceAction,
+  type Unit,
+} from '../api';
 import { LiveIndicator, StatusIndicator } from '../ui';
 import { DataTable } from '../DataTable';
 import { explain, useData } from '../useData';
-import { ServiceActionDialog } from './ServiceActionDialog';
+import { ServiceActionDialog, type AnyAction } from './ServiceActionDialog';
+import { SocketsView, TimersView } from './TimersSockets';
+import { UnitDetailPanel } from './UnitDetailPanel';
 import { UnitLogsPanel } from './UnitLogsPanel';
+
+type View = 'units' | 'timers' | 'sockets';
+const views: { id: View; label: string }[] = [
+  { id: 'units', label: 'Units' },
+  { id: 'timers', label: 'Timers' },
+  { id: 'sockets', label: 'Sockets' },
+];
+
+/** WAI-ARIA tabs (HCIS Tabs): arrow keys, Home and End move between tabs. */
+function ViewTabs({ view, onChange }: { view: View; onChange: (v: View) => void }) {
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const onKey = (e: KeyboardEvent, i: number) => {
+    const n = views.length;
+    const next =
+      e.key === 'ArrowRight'
+        ? (i + 1) % n
+        : e.key === 'ArrowLeft'
+          ? (i - 1 + n) % n
+          : e.key === 'Home'
+            ? 0
+            : e.key === 'End'
+              ? n - 1
+              : -1;
+    if (next < 0) return;
+    e.preventDefault();
+    const v = views[next];
+    if (!v) return;
+    onChange(v.id);
+    refs.current[next]?.focus();
+  };
+  return (
+    <div className="tabs" role="tablist" aria-label="Unit views">
+      {views.map((v, i) => (
+        <button
+          key={v.id}
+          ref={(el) => {
+            refs.current[i] = el;
+          }}
+          type="button"
+          role="tab"
+          id={`tab-${v.id}`}
+          aria-selected={view === v.id}
+          aria-controls={`panel-${v.id}`}
+          tabIndex={view === v.id ? 0 : -1}
+          onClick={() => onChange(v.id)}
+          onKeyDown={(e) => onKey(e, i)}
+        >
+          {v.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 type Filter = 'all' | 'running' | 'failed' | 'inactive';
 
@@ -59,6 +121,13 @@ function actionsFor(u: Unit): ServiceAction[] {
 
 const actionLabel: Record<ServiceAction, string> = { start: 'Start', stop: 'Stop', restart: 'Restart' };
 
+/** Boot-time change offered for a unit's installed state (the broker decides). */
+function bootActionFor(u: Unit): 'enable' | 'disable' | null {
+  if (u.unit_file_state === 'disabled') return 'enable';
+  if (u.unit_file_state === 'enabled') return 'disable';
+  return null;
+}
+
 export function Services({
   onUnauthorized,
   logs,
@@ -73,7 +142,9 @@ export function Services({
   auditAvailable?: boolean;
 }) {
   const { data, error, live, reload } = useData(getServices, { intervalMs: 15_000, onUnauthorized });
-  const [op, setOp] = useState<{ unit: string; action: ServiceAction } | null>(null);
+  const [op, setOp] = useState<{ unit: string; action: AnyAction } | null>(null);
+  const [view, setView] = useState<View>('units');
+  const [detailUnit, setDetailUnit] = useState<string | null>(null);
   const [stepUp, setStepUp] = useState<string | null>(stepUpUntil);
   const [filter, setFilter] = useState<Filter>('all');
   const [type, setType] = useState('service');
@@ -109,6 +180,11 @@ export function Services({
   const failed = data.units.filter((u) => u.active === 'failed');
   const running = data.units.filter((u) => u.active === 'active').length;
   const operate = data.operate?.available === true && csrf !== '';
+  const configure = data.configure?.available === true && csrf !== '';
+  const openDetail = (u: string) => {
+    setLogUnit(null);
+    setDetailUnit(u);
+  };
   const protectedMap = data.protected ?? {};
   const protectedGroups = new Map<string, { reason: string; units: string[] }>();
   for (const [name, p] of Object.entries(protectedMap)) {
@@ -127,9 +203,10 @@ export function Services({
         </span>
       );
     }
+    const boot = configure && isEnablementName(u.name) ? bootActionFor(u) : null;
     return (
       <span className="row-actions">
-        {actionsFor(u).map((a) => (
+        {(operate ? actionsFor(u) : []).map((a) => (
           <button
             key={a}
             type="button"
@@ -141,6 +218,17 @@ export function Services({
             {actionLabel[a]}
           </button>
         ))}
+        {boot && (
+          <button
+            type="button"
+            className="ghost small"
+            aria-label={`${boot === 'enable' ? 'Enable' : 'Disable'} ${u.name} at boot`}
+            aria-haspopup="dialog"
+            onClick={() => setOp({ unit: u.name, action: boot })}
+          >
+            {boot === 'enable' ? 'Enable at boot' : 'Disable at boot'}
+          </button>
+        )}
       </span>
     );
   }
@@ -153,8 +241,10 @@ export function Services({
           {data.systemd_version ? `. ${data.systemd_version}` : ''}.{' '}
           {operate
             ? 'You can start, stop and restart .service units that are not protected. Every operation is reviewed first, stop and restart ask for your password, and the result shown is the state systemd reports afterwards.'
-            : `Read-only: you can read a unit’s recent logs. ${data.operate?.reason ?? 'Starting, stopping and restarting units is not available.'}`}{' '}
-          Enabling and disabling units at boot is not available yet.
+            : `Starting, stopping and restarting: ${data.operate?.reason ?? 'not available.'}`}{' '}
+          {configure
+            ? 'You can also enable or disable a service at boot. That is a separate, persistent setting: it does not start or stop the service now, systemd is not reloaded, and it takes effect at the next boot. It is reviewed first and always asks for your password.'
+            : `Enabling or disabling at boot: ${data.configure?.reason ?? 'not available.'}`}
         </p>
       </header>
 
@@ -181,10 +271,24 @@ export function Services({
         </section>
       )}
 
-      <section className="panel" aria-labelledby="h-units">
-        <h2 id="h-units" className="visually-hidden">
-          Units
-        </h2>
+      <ViewTabs view={view} onChange={setView} />
+      {view === 'timers' && (
+        <section className="panel" role="tabpanel" id="panel-timers" aria-labelledby="tab-timers">
+          <TimersView onUnauthorized={onUnauthorized} onDetail={openDetail} />
+        </section>
+      )}
+      {view === 'sockets' && (
+        <section className="panel" role="tabpanel" id="panel-sockets" aria-labelledby="tab-sockets">
+          <SocketsView onUnauthorized={onUnauthorized} onDetail={openDetail} />
+        </section>
+      )}
+      <section
+        className="panel"
+        role="tabpanel"
+        id="panel-units"
+        aria-labelledby="tab-units"
+        hidden={view !== 'units'}
+      >
         <div className="toolbar">
           <fieldset className="segmented">
             <legend className="visually-hidden">Filter by state</legend>
@@ -289,7 +393,10 @@ export function Services({
                           className="ghost small"
                           aria-label={`Show logs for ${u.name}`}
                           aria-pressed={logUnit === u.name}
-                          onClick={() => setLogUnit(u.name)}
+                          onClick={() => {
+                            setDetailUnit(null);
+                            setLogUnit(u.name);
+                          }}
                         >
                           Logs
                         </button>
@@ -297,7 +404,24 @@ export function Services({
                   },
                 ]
               : []),
-            ...(operate ? [{ id: 'actions', label: 'Actions', render: (u: Unit) => actionCell(u) }] : []),
+            {
+              id: 'detail',
+              label: 'Details',
+              render: (u: Unit) => (
+                <button
+                  type="button"
+                  className="ghost small"
+                  aria-label={`Show details of ${u.name}`}
+                  aria-pressed={detailUnit === u.name}
+                  onClick={() => openDetail(u.name)}
+                >
+                  Details
+                </button>
+              ),
+            },
+            ...(operate || configure
+              ? [{ id: 'actions', label: 'Actions', render: (u: Unit) => actionCell(u) }]
+              : []),
           ]}
         />
         {data.truncated && <p className="footnote">The list was truncated at 5,000 units.</p>}
@@ -312,9 +436,9 @@ export function Services({
             Service logs: {logs.reason}
           </p>
         )}
-        {operate && protectedGroups.size > 0 && (
+        {(operate || configure) && protectedGroups.size > 0 && (
           <details className="sources" id="protected-units">
-            <summary>Why some units can’t be started, stopped or restarted here</summary>
+            <summary>Why some units can’t be started, stopped, restarted, enabled or disabled here</summary>
             <p>
               A fixed, built-in policy protects units whose interruption could lock you out, end sessions, or
               affect storage or the host itself. The privileged helper enforces it, including for aliases and
@@ -351,6 +475,20 @@ export function Services({
             setOp(null);
             if (changed) reload();
           }}
+        />
+      )}
+
+      {detailUnit && (
+        <UnitDetailPanel
+          key={detailUnit}
+          unit={detailUnit}
+          canReadFile={logsUsable}
+          onClose={() => {
+            const u = detailUnit;
+            setDetailUnit(null);
+            focusUnit(u);
+          }}
+          onUnauthorized={onUnauthorized}
         />
       )}
 

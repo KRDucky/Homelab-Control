@@ -112,6 +112,7 @@ type moduleStatus struct {
 	ID          string   `json:"id"`
 	Title       string   `json:"title"`
 	Description string   `json:"description"`
+	Path        string   `json:"path"`
 	Enabled     bool     `json:"enabled"`
 	Scopes      []string `json:"scopes"`
 	Reason      string   `json:"reason,omitempty"`
@@ -189,7 +190,7 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 	}
 	resp.Modules = []moduleStatus{}
 	for _, m := range modules.All() {
-		ms := moduleStatus{ID: m.ID, Title: m.Title, Description: m.Description, Enabled: s.mods.Enabled(m.ID), Scopes: m.Scopes}
+		ms := moduleStatus{ID: m.ID, Title: m.Title, Description: m.Description, Path: m.Path, Enabled: s.mods.Enabled(m.ID), Scopes: m.Scopes}
 		if !ms.Enabled {
 			ms.Reason = s.mods.Reason
 			if ms.Reason == "" {

@@ -39,6 +39,8 @@ type Module struct {
 	APIPrefix string `json:"-"`
 	// OpPrefix: every broker op whose name starts with it belongs to the module.
 	OpPrefix string `json:"-"`
+	// Path is the module's page in the web UI.
+	Path string `json:"path"`
 }
 
 var registry = []Module{
@@ -49,6 +51,7 @@ var registry = []Module{
 		Scopes:      []string{"services.read", "services.logs", "services.operate", "services.configure"},
 		APIPrefix:   "/api/v1/services",
 		OpPrefix:    "services.",
+		Path:        "/services",
 	},
 }
 
