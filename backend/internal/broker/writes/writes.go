@@ -392,9 +392,11 @@ func (f *Framework) Read() ([]Entry, error) {
 	return out, nil
 }
 
-// Inspector reads a target's current state after an interruption. It returns
-// the observed state as JSON and a short description.
-type Inspector func(target string) (json.RawMessage, string)
+// Inspector reads the current state of an interrupted operation's target. It
+// receives the intent record (so it can describe the target the way that
+// operation affects it) and returns the observed state as JSON and a short
+// description.
+type Inspector func(intent Record) (json.RawMessage, string)
 
 // Recover finds intents without an outcome (the broker stopped between intent
 // and outcome) and records each as interrupted, with the target's current
@@ -416,7 +418,7 @@ func (f *Framework) Recover(inspect Inspector) (int, error) {
 		r.Outcome = "interrupted"
 		r.Message = "The broker stopped before the outcome of this operation was recorded. It was not retried."
 		if inspect != nil {
-			obs, desc := inspect(r.Target)
+			obs, desc := inspect(e.Intent)
 			r.Observed = obs
 			if desc != "" {
 				r.Message += " State observed at broker restart: " + desc + "."

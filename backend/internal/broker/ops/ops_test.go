@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"homelab-control/backend/internal/broker/runner"
 	"os"
 	"path/filepath"
@@ -49,6 +50,13 @@ func TestRegistryIsClosed(t *testing.T) {
 		"services.unit.plan":      {PrivUnprivilegedExec, "services.operate", "plan"},
 		"services.unit.apply":     {PrivRootExec, "services.operate", "apply"},
 		"operations.journal.list": {PrivRootRead, "audit.read", ""},
+		// M2-3 (docs/m2/M2-3-DESIGN-REVIEW.md).
+		"services.timers.list":      {PrivUnprivilegedExec, "services.read", ""},
+		"services.sockets.list":     {PrivUnprivilegedExec, "services.read", ""},
+		"services.unit.detail":      {PrivUnprivilegedExec, "services.read", ""},
+		"services.unit.contents":    {PrivUnprivilegedExec, "services.logs", ""},
+		"services.enablement.plan":  {PrivRootRead, "services.configure", "plan"},
+		"services.enablement.apply": {PrivRootExec, "services.configure", "apply"},
 	}
 	if len(reg) != len(snapshot) {
 		t.Fatalf("registry has %d ops, want %d — new ops need review and this test updated", len(reg), len(snapshot))
@@ -65,7 +73,8 @@ func TestRegistryIsClosed(t *testing.T) {
 		phase := ""
 		if op.Write != nil {
 			phase = op.Write.Phase
-			if op.Write.LockDomain != "service:<unit id>" || len(op.Write.Risks) == 0 || op.AuditArgs == nil {
+			wantLock := map[string]string{"services.unit": "service:<unit id>", "services.enablement": "service:<unit id>+unit-files"}[strings.TrimSuffix(strings.TrimSuffix(name, ".plan"), ".apply")]
+			if op.Write.LockDomain != wantLock || len(op.Write.Risks) == 0 || op.AuditArgs == nil {
 				t.Errorf("%s: incomplete write spec %+v", name, op.Write)
 			}
 		}
@@ -90,6 +99,16 @@ func TestRegistryIsClosed(t *testing.T) {
 	got := reg["services.unit.apply"].Write.Templates
 	if len(got) != 4 || got[0] != "systemctl.start" || got[1] != "systemctl.stop" || got[2] != "systemctl.restart" || got[3] != "systemctl.show" {
 		t.Errorf("apply templates: %v", got)
+	}
+	// M2-3: enablement apply holds exactly the enable/disable templates and
+	// the read-only queries; it can never start, stop or restart a unit, and
+	// start/stop apply can never enable or disable one.
+	got = reg["services.enablement.apply"].Write.Templates
+	if fmt.Sprint(got) != "[systemctl.enable systemctl.disable systemctl.is-enabled systemctl.show-install systemctl.show]" {
+		t.Errorf("enablement apply templates: %v", got)
+	}
+	if fmt.Sprint(reg["services.enablement.plan"].Write.Risks) != "[disruptive]" || fmt.Sprint(reg["services.enablement.apply"].Write.Risks) != "[disruptive]" {
+		t.Error("enablement must be classified disruptive (step-up)")
 	}
 }
 

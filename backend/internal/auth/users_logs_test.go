@@ -21,3 +21,20 @@ func TestServicesLogsNotGrantedByDefault(t *testing.T) {
 		}
 	}
 }
+
+// M2-3: persistent service configuration (boot-time enable/disable) is never
+// granted by default and is not implied by services.operate.
+func TestServicesConfigureNotGrantedByDefault(t *testing.T) {
+	if !KnownScopes[ScopeServicesConfigure] || ScopeServicesConfigure != "services.configure" {
+		t.Fatal("services.configure must be a known scope")
+	}
+	for _, s := range strings.Split(DefaultScopes, ",") {
+		if s == ScopeServicesConfigure || s == ScopeServicesOperate || strings.HasSuffix(s, ".configure") || strings.HasSuffix(s, ".operate") {
+			t.Fatalf("default scopes grant %s", s)
+		}
+	}
+	sess := Session{Scopes: []string{ScopeServicesOperate}}
+	if sess.HasScope(ScopeServicesConfigure) {
+		t.Fatal("services.operate must not imply services.configure")
+	}
+}
