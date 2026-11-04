@@ -12,16 +12,17 @@ individual job conclusions.
 The owner authorized M2-3 development and isolated testing on 2026-11-04; acceptance, merge and production
 activation remain separate owner decisions (`docs/m2/OWNER-DECISIONS.md`, owner items O-1…O-5).
 
-- **On the branch `feature/m2-3-expanded-service-management`** (product commit `3e749293`): boot-time
+- **On the branch `feature/m2-3-expanded-service-management`** (product commit `5a14c727`): boot-time
   enable/disable of `.service` units (scope `services.configure`, never granted by default; `--no-reload`, never
   `--now`; disruptive with step-up; ADR 0011 plan/apply with separate tokens, locks, root revalidation, journal and
   independent read-back); read-only unit detail, redacted unit-file contents (`services.logs`), timers and sockets;
   a minimal compiled-in module registry (D-10 proposal; root-owned `/etc/homelab-control/modules.json`).
   Design: `docs/m2/M2-3-DESIGN-REVIEW.md`; ADR 0008 Amendment 3 and the ADR 0011 extension are **proposed**.
 - **Evidence** (`docs/m2/M2-3-ACCEPTANCE.md`, `docs/evidence/m2/m2-3/`): disposable Docker containers (not VMs)
-  with Ubuntu 26.04.1 and Fedora 44: smoke/M1 70/0, M2-2 regression 86/0, M2-3 scenario 83/0 and 82/0,
-  real-backend browser 18/18 each, E4 API 1.6 / broker 1.5. `make check` exit 0 with Go 1.26.10. No VM, Debian,
-  openSUSE, Arch, Firefox/WebKit or GitHub CI evidence for M2-3 yet.
+  with Ubuntu 26.04.1, 24.04.5, 22.04.5 and Fedora 44 (SELinux disabled): smoke/M1 70/0, M2-2 regression 86/0,
+  M2-3 scenario 83–84/0 each, real-backend browser 18/18 on Ubuntu 26.04 and Fedora 44, E4 API 1.6 / broker 1.5.
+  `make check` exit 0 with Go 1.26.10 and all security tools. No VM, SELinux-enforcing, Debian, openSUSE, Arch,
+  WebKit or GitHub CI evidence for M2-3 yet.
 - **Still not authorized:** M2-4 and later; mask/unmask, unit editing or creation, daemon-reload, other privileged
   writes. M2-5 and M2-6 remain mandatory before M3.
 

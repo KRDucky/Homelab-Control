@@ -2,72 +2,82 @@
 
 Collected 2026-11-04 by Claude Code under the owner's M2-3 development and isolated-testing authorization.
 **This is implementation evidence, not owner acceptance.** Logs were written outside the repository first and
-copied here unchanged (ANSI colour codes stripped from `make` logs). They contain no passwords, cookies, plan
-tokens or fixture secrets (`grep` for `hcp1.` and the fixture values; the scenario also checks this itself).
+copied here unchanged (ANSI colour codes stripped from `make` logs; raw JSON audit lines dropped from the e2e
+log). They contain no passwords, cookies, plan tokens or fixture secret values (checked with `grep`; the
+scenario also checks this itself).
 
 ## Where things ran
-- **Workstation:** CachyOS, kernel 7.3.1, Docker; Go tests and fuzzing as uid 1000 (non-root).
-- **Disposable systemd containers** built from `dev/disposable/images/*.Dockerfile` by
-  `dev/disposable/docker-systemd.sh`: `--privileged --cgroupns=private` (the host cgroup tree is **not**
-  bind-mounted; `/proc/self/cgroup` in the container is `0::/init.scope`), own network namespace, udev and
-  update timers masked, removed after each run. **These are containers, not VMs**: no separate kernel boot,
-  the workstation kernel is shared. No KVM VM was started or modified; the retained Ubuntu, Fedora and Arch
-  acceptance VMs were not touched.
-- **Packages** built locally (`make deb`, `make rpm`) from clean trees. Binaries of the final round were built
-  with the workstation Go 1.27.3, not the pinned release toolchain (Go 1.26.10, used for `make check`).
+- **Workstation:** CachyOS, kernel 7.3.1, Docker. Go tests and fuzzing as uid 1000 (non-root) with the pinned
+  release toolchain Go 1.26.10 (`GOTOOLCHAIN=go1.26.10`, from the local module cache).
+- **Disposable systemd containers** from `dev/disposable/images/*.Dockerfile` via `dev/disposable/docker-systemd.sh`:
+  `--privileged --cgroupns=private` (the host cgroup tree is **not** bind-mounted; the container sees
+  `0::/init.scope`), own network namespace, udev and update timers masked, removed after each run. Base image
+  digests: `containers/5a14c727/base-image-digests.txt`.
+  **These are containers, not VMs:** no separate kernel boot (the workstation kernel 7.3.1 is shared), and
+  **SELinux is disabled** (the workstation kernel has no SELinux LSM; `getenforce` = Disabled in the Fedora
+  container, `containers/5a14c727/selinux.txt`). M2-2's Fedora defect P2 was SELinux-specific, so the
+  Fedora results say nothing about SELinux; KVM VM validation is still required for that.
+- No KVM VM was started or modified; the retained Ubuntu, Fedora and Arch acceptance VMs were not touched.
+- **Host unchanged:** hashes of the workstation's enabled unit files and of the symlinks under
+  `/etc/systemd/system`, sshd state (not running on this workstation) and the Docker container list were
+  recorded before and after the final round and are identical (`containers/5a14c727/host-{before,after}.txt`).
+- **Packages** built locally from clean trees (`make deb`, `make rpm`; binaries with the workstation's Go 1.27.3,
+  not the pinned toolchain); hashes in `containers/5a14c727/packages.sha256`.
 
-## Final round: product commit `3e749293`
-`containers/3e749293/packages.sha256` lists the package hashes.
+## Final round: product commit `5a14c727`
+| Check | Ubuntu 26.04.1 (systemd 259.9) | Ubuntu 24.04.5 (255.4) | Ubuntu 22.04.5 (249.11) | Fedora 44 (259.10, `.rpm`) |
+|---|---|---|---|---|
+| Package smoke + M1 checks | 70 / 0 | 70 / 0 | 70 / 0 | 70 / 0 |
+| M2-2 regression scenario (short mode) | 86 / 0 | 86 / 0 | 86 / 0 | 86 / 0 |
+| M2-3 scenario (`tests/systemd/m2_3_enablement.py`) | 84 / 0 | 83 / 0 | 84 / 0 | 83 / 0 |
+| Real-backend browser workflow B1–B18 (Chromium) | 18 / 18 | not run | not run | 18 / 18 |
+| E4 `systemd-analyze security` API / broker | 1.6 / 1.5 | 1.6 / 1.5 | 1.6 / 1.5 | 1.6 / 1.5 |
 
-| Check | Ubuntu 26.04.1, systemd 259.9 (`.deb`) | Fedora 44, systemd 259.10 (`.rpm`) |
-|---|---|---|
-| Package smoke + M1 checks (`systemd-smoke.sh`) | 70 passed, 0 failed | 70 passed, 0 failed |
-| M2-2 regression scenario (`m2_service_ops.py`, short mode) | 86 / 0 | 86 / 0 |
-| M2-3 scenario (`m2_3_enablement.py`) | 83 / 0 | 82 / 0 (the Debian-only `sshd.service` alias check does not apply) |
-| Real-backend browser workflow (`tests/e2e/m2_3_browser.py`, Chromium, B1–B18) | 18 / 18 | 18 / 18 |
-| E4: `systemd-analyze security` API / broker | 1.6 / 1.5 | 1.6 / 1.5 |
-| Broker bounding set | `cap_setgid cap_setuid` | `cap_setgid cap_setuid` |
+Counts differ by distribution only where a check does not apply (the Debian `sshd.service` alias check), and
+`NeedDaemonReload` after `--no-reload` is recorded as INFO (yes on 255 and 259, no on 249).
+E4 equals the M2-2 KVM closeout (API 1.6 / broker 1.5, `../vm-final-main-d812995e/`); the broker bounding set
+stays `cap_setgid cap_setuid`. These are container values; VM E4 evidence for M2-3 does not exist.
 
-Files: `containers/3e749293/{ubuntu-26.04,fedora-44}.log`, `browser/{ubuntu-26.04,fedora-44}/` (results,
-run log, screenshots of phone and laptop layouts, Midnight and Daybreak themes, dialogs, detail panel and the
-disabled-module page).
+Files: `containers/5a14c727/*.log`; `browser/{ubuntu-26.04,fedora-44}/` (results, run log, screenshots:
+laptop and phone layouts in Midnight and Daybreak, enable preview and result, detail panel, disabled module).
 
-**E4 comparison:** identical to the M2-2 closeout (API 1.6 / broker 1.5 on all three KVM guests, see
-`../vm-final-main-d812995e/`), and no new capability. Caveat: these values come from containers, which can
-differ from a VM for some properties; VM E4 evidence for M2-3 does not exist.
+## Local gates on `5a14c727` (idle workstation)
+- `make-check.log`: `make check` exit 0 with Go 1.26.10 and **all** security tools present (govulncheck v1.9.0
+  "No vulnerabilities found", reuse 6.2.0 "REUSE compliant", spdx-tools 0.8.3, ShellCheck 0.11.0 from its
+  container image); nothing skipped. With the workstation's own Go 1.27.3 the notices check stops because that
+  Go package ships no `LICENSE` file (environment, not code).
+- `go-tests-nonroot.txt`: `go test -count=1 -v ./...` as uid 1000: 266 tests and 86 subtests passed, 0 failed.
+- Vitest: 73 / 73 (in `make-check.log`).
+- `ci-browser-e2e-chromium-firefox.log`: CI's `tests/integration/run-hc-e2e.sh` (live API checks, `hc_e2e.py`,
+  CSSOM/CSP probe, `hcis-ui.mjs` and the M2-2 `service-ops-ui.mjs` dialog suite) with
+  `HC_CSP_BROWSERS=chromium,firefox`: 298 PASS, 0 FAIL. WebKit could not be installed on this workstation
+  (Playwright host-dependency check).
+- `fuzz-60s.txt`: 60 s each, no failure: `FuzzEnablementArgs`, `FuzzParseInstall`, and as regression
+  `FuzzWriteArgs`, `FuzzLogsArgs`.
+- `make test-release` (release tooling and workflow policy, after the `ci.yml` change): exit 0.
+
+## Probes (`probes/`)
+P1–P13 in `docs/m2/M2-3-DESIGN-REVIEW.md` §1 (probes 1–3, systemd 259); probe 4: an `Alias=` naming an
+existing vendor unit replaces it at the next reload (led to the alias-collision refusal); probe 5: systemd 255
+and 249 output formats; probe 6: older `systemctl cat`/`is-enabled` wording (led to two compatibility fixes).
 
 ## Earlier rounds (kept, superseded)
-- `containers/earlier/ubuntu-26.04-f1085ad0-run1-harness-defect.log`: 82/1. The failed check counted journal
-  lines in a one-second window by time; it was a harness defect. The corrected check (journal cursor around the
-  single apply, PID 1 messages only) found **no** PID 1 message at all during the apply in every later run.
-- `containers/earlier/*-f1085ad0*.log`, `*-87749bb9.log`: all pass after the harness fix.
-- The first browser runs found three product defects, all fixed before `3e749293`: no *Enable at boot* for
-  installed but not-loaded units; WCAG 2.5.3 `label-content-name-mismatch` on the boot buttons; and a sidebar
-  note claiming that everything except start/stop/restart was read-only, plus a stale *Overview* highlight on the
-  disabled-module page. Their test-harness defects (timer text normalised by systemd, Fedora's `sshd.service`, a
-  locator that matched explanatory text) were fixed as well.
-
-## Local gates
-- `make-check-go1.26.10.log`: `make check` exit 0 with `GOTOOLCHAIN=go1.26.10`; in that run govulncheck, reuse,
-  pyspdxtools and shellcheck were not installed and reported SKIPPED.
-- `make-security-all-tools.log`: the security gate again with govulncheck v1.9.0, reuse 6.2.0, spdx-tools
-  0.8.3 (the versions CI pins) and ShellCheck 0.11.0 (container image): exit 0, "No vulnerabilities found",
-  "REUSE compliant". It first found that `probes/probe1.out` quotes an upstream `SPDX-License-Identifier`
-  line; `REUSE.toml` now overrides the licence of those captured outputs.
-- With the workstation's own Go 1.27.3, `make check` stops at the notices check because that Go package ships
-  no `LICENSE` file (`/usr/lib/go/LICENSE` missing): an environment issue, not a code defect.
-- `go-tests-nonroot.txt`: `go test -count=1 -v ./...` as uid 1000: 263 tests and 81 subtests passed, 0 failed.
-- `vitest.txt`: 73 of 73.
-- `fuzz-60s.txt`: 60 s each, no failure: `FuzzEnablementArgs` (2.47 M execs), `FuzzParseInstall` (8.66 M),
-  and as regression `FuzzWriteArgs` and `FuzzLogsArgs`.
-- **Vitest timing:** one unidentified failure in about 25 standalone runs, and five failures (all `findBy…`
-  1-second timeouts, including tests M2-3 does not touch, such as Legacy navigation) when `make check` ran
-  while four fuzzers saturated the CPU (`make-check` run not kept). Without concurrent load: 73/73 in every
-  later run. Recorded as an open, load-sensitive test-timing issue.
+`containers/earlier/` and `browser/earlier-3e749293/`. What they found, all fixed before `5a14c727`:
+- Harness: a time-window reload check (first run, 82/1) replaced by a journal cursor; PID 1 logged nothing at
+  all during the apply in every later run. Browser-harness defects (systemd normalises `daily`, Fedora's
+  `sshd.service`, a locator matching explanatory text, axe injection blocked by the page CSP → evaluated over
+  the DevTools protocol instead).
+- Product: no *Enable at boot* for installed but not-loaded units; WCAG 2.5.3 `label-content-name-mismatch` on
+  the boot buttons; an inaccurate sidebar note and a stale navigation highlight; `Alias=` collisions (probe 4);
+  systemd 255 `cat` and 249 `is-enabled` formats (probe 6).
 
 ## Not done / unavailable
-- No VM evidence (the owner assigned VM testing to another agent; this run stayed on containers).
-- Debian, openSUSE and Arch were not run for M2-3; Firefox and WebKit were not run; no screen reader.
-- `HC_M2_LONG` expiry waits were not run for M2-2 or M2-3 (token and step-up expiry are unit-tested).
-- An interrupted enablement (broker killed between intent and outcome) is unit-tested only.
+- No VM evidence; no SELinux-enforcing run; Debian, openSUSE and Arch not run for M2-3; browser workflow only on
+  Ubuntu 26.04 and Fedora 44 with Chromium (CI suites also with Firefox); no WebKit; no screen reader.
+- `HC_M2_LONG` expiry waits not run (token and step-up expiry are unit-tested).
+- A broker kill during an enablement is unit-tested only.
 - GitHub CI has not run this branch at the time of writing.
+- **Vitest timing:** one unidentified failure in about 25 standalone runs earlier in development, and five
+  `findBy…` 1-second timeouts (including tests M2-3 does not touch, such as Legacy navigation) when `make check`
+  ran while four fuzzers saturated the CPU. Without concurrent load all later runs passed 73/73. Open,
+  load-sensitive test timing.

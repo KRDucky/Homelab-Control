@@ -1,16 +1,16 @@
-== FuzzEnablementArgs (id -u 1000)
-fuzz: elapsed: 1m1s, execs: 2471382 (0/sec), new interesting: 353 (total: 358)
+== FuzzEnablementArgs (uid 1000, go1.26.10)
+fuzz: elapsed: 1m1s, execs: 2893894 (0/sec), new interesting: 64 (total: 422)
 PASS
-ok  	homelab-control/backend/internal/broker/ops	61.023s
-== FuzzParseInstall (id -u 1000)
-fuzz: elapsed: 1m1s, execs: 8655610 (0/sec), new interesting: 195 (total: 197)
+ok  	homelab-control/backend/internal/broker/ops	61.009s
+== FuzzParseInstall (uid 1000, go1.26.10)
+fuzz: elapsed: 1m1s, execs: 16827451 (0/sec), new interesting: 48 (total: 245)
 PASS
 ok  	homelab-control/backend/internal/broker/ops	61.008s
-== FuzzWriteArgs (id -u 1000)
-fuzz: elapsed: 1m1s, execs: 3416823 (0/sec), new interesting: 128 (total: 136)
-PASS
-ok  	homelab-control/backend/internal/broker/ops	61.006s
-== FuzzLogsArgs (id -u 1000)
-fuzz: elapsed: 1m1s, execs: 4033723 (0/sec), new interesting: 329 (total: 337)
+== FuzzWriteArgs (uid 1000, go1.26.10)
+fuzz: elapsed: 1m1s, execs: 5872664 (0/sec), new interesting: 82 (total: 218)
 PASS
 ok  	homelab-control/backend/internal/broker/ops	61.007s
+== FuzzLogsArgs (uid 1000, go1.26.10)
+fuzz: elapsed: 1m1s, execs: 6762188 (0/sec), new interesting: 83 (total: 420)
+PASS
+ok  	homelab-control/backend/internal/broker/ops	61.010s
