@@ -130,6 +130,30 @@ to stop but not on the built-in list (the operator decides with `services.operat
 default); mutual exclusion between operations on *related* units; a protected dependent activated in
 the moment between revalidation and execution.
 
+## M2-3 additions: boot-time enable/disable, unit views, module registry (proposed; ADR 0008 Amendment 3, ADR 0011 extension)
+
+New capability: persistent boot-time changes (`systemctl --no-reload enable|disable`, root templates) and
+read-only unit detail, unit-file contents, timers and sockets. New asset: the administrator's module
+setting (`/etc/homelab-control/modules.json`, root-owned). Design and review: `docs/m2/M2-3-DESIGN-REVIEW.md`.
+Status below is "implemented, tested" only where tests exist on this branch; owner acceptance is pending.
+
+| Threat | Example | Control | Status |
+|---|---|---|---|
+| Elevation of privilege | Enablement used to run a SysV script, `--now`, a reload, `mask`, `link` or another verb as root | Two fixed templates with `--no-reload` and one `.service` target after `--`; template snapshot forbids other verbs and flags; SysV (`SourcePath=`), generated, transient, linked and runtime units refused | Implemented, tested (unit, template snapshot) |
+| Elevation of privilege / disclosure | A tampered plan-time `show` points the root `[Install]` reader at `/etc/shadow` or a secret file | Paths must be clean, absolute, below the unit directories, end in `.service`/`.conf`, no symlinked component (except merged-usr `/lib`), regular file ≤ 64 KiB; only `[Install]` unit names are kept; digest covers names and paths, not content; apply repeats with the root template | Implemented, tested (path table) |
+| Denial of service / lock-out | Disabling SSH, the broker or the API at boot; enabling a unit that conflicts with SSH or pulls in reboot at boot; an alias named like a protected unit | Protected-unit policy on canonical ID, aliases, unit file, `[Install]` aliases and `WantedBy=` targets; boot-time start walk (M2-2 checks) for enable; `Also=`, `RequiredBy=`, `UpheldBy=` refused | Implemented, tested (unit tables) |
+| Spoofing / replay | A start token used to enable, or an enablement token reused | Separate token op `services.enablement`; single use; bound as in M2-2; step-up always required (`disruptive`) | Implemented, tested |
+| Tampering (TOCTOU) | `[Install]`, drop-ins or enablement changed on the host after review | Digest of unit state, unit-file facts, fresh `is-enabled`, parsed `[Install]` and walk; root revalidation under `service:<id>` + `unit-files` locks | Implemented, tested (unit) |
+| Tampering (integrity of results) | UI reports a change that only partly happened | Read-back by root `is-enabled` and the broker's own `lstat` of each expected link; partial = `failed` with the observed links; no rollback claim | Implemented, tested (unit) |
+| Information disclosure | Secrets in unit files (`Environment=`, credentials, `--password=` arguments, URLs) | Contents need `services.logs`, are read by `systemctl cat` as `homelab-control` (root-only files never shown), redacted heuristically, capped, audited fail-closed without content; detail requests no `Environment=`/`Exec*`/credential properties | Implemented, tested (unit); redaction is heuristic |
+| Information disclosure | Probing for disabled module routes | Disabled module routes answer exactly like unknown routes, before authentication | Implemented, tested |
+| Tampering (configuration) | A compromised hc-api enables a disabled module | The setting is a root-owned file read by the broker itself; the broker refuses the module's ops whatever hc-api does; invalid file disables every module | Implemented, tested |
+
+**Limitations:** no manager reload, so `systemctl status` on the host shows the old enablement until the next
+boot or reload; boot-time conditions are not simulated; services harmful to disable but not on the list are
+the operator's decision (`services.configure`, never granted by default); redaction can miss secrets in
+unusual syntax; the ADR 0011 limit for a compromised `hc-api` applies unchanged.
+
 ## Residual risks after M1
 1. The legacy Webmin UI at 2.670 still lacks post-2.670 upstream fixes (`docs/upstream/SYNC.md`).
 2. `systemctl` JSON output is not a stable API; parsers are tolerant and tested against systemd 249/255 only.

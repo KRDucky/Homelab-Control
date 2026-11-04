@@ -194,7 +194,11 @@ export function Services({
     protectedGroups.set(key, g);
   }
   function actionCell(u: Unit) {
-    if (u.type !== 'service' || u.load !== 'loaded' || !isOperableName(u.name)) return null;
+    // Runtime actions need a loaded unit (M2-2, unchanged). A boot-time change
+    // also applies to an installed unit systemd has not loaded yet ("not-loaded",
+    // e.g. a disabled service that never ran): the broker loads it to review it.
+    const installed = u.load === 'loaded' || u.load === 'not-loaded';
+    if (u.type !== 'service' || !installed || !isOperableName(u.name)) return null;
     const p = protectedMap[u.name];
     if (p?.protected) {
       return (
@@ -206,7 +210,7 @@ export function Services({
     const boot = configure && isEnablementName(u.name) ? bootActionFor(u) : null;
     return (
       <span className="row-actions">
-        {(operate ? actionsFor(u) : []).map((a) => (
+        {(operate && u.load === 'loaded' ? actionsFor(u) : []).map((a) => (
           <button
             key={a}
             type="button"

@@ -91,6 +91,15 @@ function units(configure: { available: boolean; reason?: string }) {
         unit_file_state: 'static',
       },
       {
+        name: 'fresh.service',
+        type: 'service',
+        load: 'not-loaded',
+        active: 'unknown',
+        sub: 'unknown',
+        description: '',
+        unit_file_state: 'disabled',
+      },
+      {
         name: 'tty@.service',
         type: 'service',
         load: 'not-loaded',
@@ -185,6 +194,9 @@ describe('boot-time enable/disable', () => {
     expect(screen.getByRole('button', { name: 'Disable web.service at boot' })).toBeTruthy();
     // Runtime controls stay hidden without services.operate.
     expect(screen.queryByRole('button', { name: 'Stop web.service' })).toBeNull();
+    // An installed unit systemd has not loaded yet can be enabled (found by
+    // the real-backend browser run), but gets no runtime control.
+    expect(screen.getByRole('button', { name: 'Enable fresh.service at boot' })).toBeTruthy();
     // Static, template and protected units get no boot control.
     expect(screen.queryByRole('button', { name: /helper\.service at boot/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /tty@\.service at boot/ })).toBeNull();
