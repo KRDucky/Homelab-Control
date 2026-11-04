@@ -59,6 +59,10 @@ After the owner's PR #36 review assignment (findings R1–R11, `docs/m2/M2-3-DES
 - GitHub CI run 41793837318 on the previous head `9862a8dd` (product code identical to `5a14c727`): 21/21 jobs
   success, none skipped (`ci/ci-41793837318-jobs.tsv`); both systemd jobs ran the M2-3 scenario (83/0 on the
   runner VM, 84/0 in the 26.04 container) with expiry waits skipped; WebKit ran only the theme CSSOM/CSP probe.
+- GitHub CI run 41811761629 on head `d7b703b0` (product `82c24a74`; merge ref `6fddf060`): 21/21 success, none
+  skipped (`ci/ci-41811761629-jobs.tsv`); M2-3 scenario 89/0 (runner VM) and 90/0 (26.04 container), including
+  the stale-view, undescribed-link and link-target checks; expiry waits and broker kill skipped by design in CI.
+  `build` artifact hashes: `ci/build-artifact-41811761629.sha256`.
 - Workstation unchanged (`containers/host-{before,after}.txt` identical). Probes: `probes/probe7*`.
 
 ## Earlier round: product commit `5a14c727` (superseded)

@@ -19,11 +19,17 @@ The retained Ubuntu, Fedora and Arch acceptance VMs and their snapshots are **no
 or changed by this procedure. If the owner prefers them, that is a separate authorization.
 
 ## Inputs
-- **Revision:** the PR #36 head named in the authorization (at the time of writing `<HEAD>`, product commit
-  `82c24a74` or later). Record `git rev-parse HEAD`.
-- **Packages:** the `build` artifact of the CI run for exactly that head (`gh run download <run-id> -n build`).
-  Check `sha256sum -c SHA256SUMS` in the artifact and record the hashes of the `.deb` and `.rpm`. Do not
-  build packages locally for acceptance.
+- **Revision:** PR #36 head `d7b703b0` (product commit `82c24a74`; later commits change only tests, harness
+  and documentation), unless the authorization names a newer head, in which case use that head's CI run.
+- **Packages:** the `build` artifact of CI run **41811761629** (`gh run download 41811761629 -n build`). GitHub
+  builds `pull_request` runs from the merge of the head into `main` (merge ref `6fddf060`, hence the version
+  `…g6fddf060`). Verify `sha256sum -c SHA256SUMS` and these hashes
+  (`../evidence/m2/m2-3/review-82c24a74/ci/build-artifact-41811761629.sha256`):
+  - `homelab-control_0.1.0+dev.1+71+g6fddf060_amd64.deb`
+    `e672d30888e97f0944fe4ee93274270c8b3258d223c9195e28e34e7b8df460ef`
+  - `homelab-control-0.1.0-0.m1.v0_1_0_dev_1_71_g6fddf060.x86_64.rpm`
+    `f40271256fe86815fcb6394135ed93cf39c846e188734c82b91645f169df9b0f`
+  Do not build packages locally for acceptance. Artifacts expire; if they have, re-run CI for the same head.
 - **Tests:** `tests/systemd/` from the same revision (copied to the guest as `/opt/hc/tests`) and
   `compat/webmin` (for the smoke checks).
 - **Images:** official cloud images with their published checksums (Ubuntu 26.04.1 server cloud image,
