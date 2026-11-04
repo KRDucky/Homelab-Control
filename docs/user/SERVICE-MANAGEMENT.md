@@ -135,9 +135,12 @@ page and the operation journal show the state systemd reports now.
 ### Boot-time setting vs. running state
 *Enable at boot* and *Disable at boot* change **only** whether systemd starts the service when the host
 boots. They never start or stop it now (Homelab Control never uses `--now`): use Start or Stop for
-that. They also do **not** reload systemd (`--no-reload`): the change takes effect at the next boot, and
-until then `systemctl status` on the host may still show the old setting and report that the unit file
-changed on disk. Homelab Control reads the setting from disk (`systemctl is-enabled`), so the Services
+that. They also do **not** reload systemd (`--no-reload`). The setting is written to disk at once. systemd
+uses it at the next boot, but also **earlier** if it reloads its configuration for another reason
+(package installs and updates commonly do) or loads a target that wanted the service for the first
+time; after that, starting such a target can start a newly enabled service (or still start a disabled
+one until the reload). Until then `systemctl status` on the host may still show the old setting and
+report that the unit file changed on disk. Homelab Control reads the setting from disk (`systemctl is-enabled`), so the Services
 page shows the new value at once.
 
 ### Who can use it
@@ -159,8 +162,9 @@ sudo systemctl restart homelab-control.service
    or stop, the risk class **Disruptive** and that there is no automatic rollback.
 3. **Confirm with your password** (always required for boot-time changes; valid 5 minutes).
 4. **Result:** verified by the privileged helper independently of `systemctl`'s own report: the
-   setting read back from disk and every expected link checked. If only some links changed, the result
-   is **Failed** and says the change is partial; nothing is repaired automatically.
+   setting read back from disk, every expected link checked (and where it points), and a fresh search
+   for any other link to the service. If only some links changed, or other links appeared, the result
+   is **Failed** and says what was observed; nothing is repaired automatically.
 
 To undo a change, review the opposite action.
 
@@ -171,7 +175,11 @@ that would conflict with a protected unit or pull in shutdown, reboot or recover
 `RequiredBy=`, `UpheldBy=` and `DefaultInstance=`; specifiers (`%n`, …), escapes, line continuations
 or resets in `[Install]`; units generated from SysV init scripts or by generators; transient, linked,
 masked and runtime-enabled units; template instances; unit files reached through a symbolic link or
-outside the standard unit directories; a unit that changed between review and confirmation.
+outside the standard unit directories; a unit that changed between review and confirmation; a unit
+whose files on disk differ from the copy systemd has loaded (for example a drop-in added without
+`systemctl daemon-reload`; review it again after the next boot or reload); a unit with links to it that
+its `[Install]` section does not describe (`systemctl disable` would remove those too), with links in
+`/run/systemd/system`, or with links pointing elsewhere.
 
 ### Unit details, timers and sockets
 - **Details** (any unit, `services.read`): the canonical name and aliases, state, the setting at boot,
@@ -181,8 +189,10 @@ outside the standard unit directories; a unit that changed between review and co
   have no runtime state.
 - **Unit file** (`services.logs`, read on request and recorded in the audit log): the unit file and
   drop-ins as the service account can read them. Files only root can read are not shown. Values that
-  look like secrets are replaced by `[redacted]`; this detection is heuristic, so do not rely on it for
-  unit files that embed secrets in unusual ways.
+  look like secrets are replaced by `[redacted]`. This is heuristic and **not a secrecy guarantee**:
+  secrets passed as positional arguments (`-u user:pass`, `-pSECRET`), inside quoted header values or
+  URL query strings, or under setting names without words such as "password", "secret" or "token" are
+  not detected. Grant `services.logs` only to people who may read the host's unit files.
 - **Timers** and **Sockets** tabs: schedule, last and next run, listen addresses and activated units,
   as systemd reports them.
 

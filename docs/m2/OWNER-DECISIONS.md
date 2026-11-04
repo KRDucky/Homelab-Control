@@ -231,5 +231,66 @@ production changes and new dependencies, and M2-4, M2-5, M2-6 and M3 (M2-5 and M
 | O-1 (D-10) | How first-party modules are packaged and toggled | Built-in, compiled-in modules behind `internal/modules`; the setting is the root-owned `/etc/homelab-control/modules.json`, not `state.db`, because the broker must enforce it without trusting `hc-api`; no UI/API to change it; invalid file disables all modules. D-10 itself stays **open** |
 | O-2 | Scope for unit-file contents | Reuses `services.logs` (existing non-default scope for sensitive content). Alternative: a dedicated scope, e.g. `services.files` |
 | O-3 | Risk class of enable/disable | `disruptive` (step-up always), stricter than the roadmap's "persistent → reversible" |
-| O-4 | `--no-reload` | No manager reload (the excluded generic daemon-reload); the change takes effect at the next boot, host `systemctl status` shows the old value until then |
+| O-4 | `--no-reload` | No manager reload (the excluded generic daemon-reload). The setting is written to disk at once and applied at the next boot **or earlier**, at any later daemon-reload or first load of a target (corrected 2026-11-04, probe 7 P19/P20); host `systemctl status` shows the old value until then |
 | O-5 | Refused constructs | `Also=`, `RequiredBy=`, `UpheldBy=`, `DefaultInstance=`, template instances, `.socket`/`.timer` enablement, SysV/generated/linked/runtime units are refused, not supported; each could be a later, separately reviewed extension |
+
+### Proposals for O-1…O-5 after the PR #36 review (2026-11-04) — recommendations, NOT decisions
+The owner asked for these to be investigated as recommendations. Nothing below is recorded as approved;
+D-10 remains open. Evidence: `M2-3-DESIGN-REVIEW.md` §1, §1.1 and §7.
+
+**O-1 (D-10): root-owned module configuration.** *Recommendation: keep it.*
+- Evidence: `internal/modules` decodes strictly (`version` 1, known IDs, no unknown fields); `Load` refuses a
+  file that is a symlink (`O_NOFOLLOW`), not owned by root, or group/world-writable; any invalid file disables
+  every optional module (`LoadOrFailClosed`), logged; the broker enforces it independently (`module_disabled`,
+  before the scope check) and `hc-api` answers 404 exactly like unknown routes. Tests: `modules_test.go`,
+  `TestDisabledModuleRoutes404`, `TestDisabledModuleOpsRefused`; container checks (invalid file → 404, file
+  removed → services back).
+- Trade-offs: changing it needs root on the host and a restart of both units (no UI); the two processes read it
+  at start, so a change made while one of them runs is not seen by that one until it restarts (fail-closed
+  either way: a disabled module in either process is refused there). The alternative in D-10 (`state.db`)
+  would let `hc-api`, which the broker must not trust, decide what the broker allows.
+
+**O-2: unit-file contents permission.** *Recommendation: a dedicated scope (for example `services.files`),
+never default, separate from `services.logs`.*
+- Evidence: redaction is heuristic and had a confirmed gap (R6, continuation lines, fixed); remaining known gaps
+  are positional secrets (`-u user:pass`, `-pSECRET`), quoted header values, URL query strings and secret
+  keys with other names (§4). Unit files are a different kind of data from logs and are often where
+  administrators put credentials. Only files readable by the `homelab-control` user are shown (root-only
+  drop-ins never are), and every read is audited.
+- Trade-offs: one more scope to grant; existing `services.logs` holders lose access until granted. Change is
+  small (scope constant, broker registry entry, API route scope, OpenAPI, UI gating, tests) and is not made
+  without the owner's decision.
+
+**O-3: risk class.** *Recommendation: keep `disruptive` (password confirmation for every boot-time change).*
+- Evidence: a boot-time change is persistent, survives the session, can take effect before a reboot (P19), and
+  its effect is observed only later (at the next boot or reload), when nobody is watching the dialog.
+- Trade-off: one step-up per 5 minutes for routine changes; the roadmap's "persistent → reversible" class would
+  be friendlier but would let a stolen session make persistent changes without the password.
+
+**O-4: `--no-reload`.** *Recommendation: keep `--no-reload`; no reload in M2-3; the wording is corrected.*
+- Evidence (P19, P20, measured on systemd 249 and 259):
+  - **On disk:** links are created/removed immediately; `systemctl is-enabled` reports the new state at once.
+  - **systemd's cached view:** the running manager's dependency graph is unchanged (`multi-user.target` does
+    not `Want=` a newly enabled unit; still `Wants=` a disabled one); `show -p UnitFileState` is stale;
+    `NeedDaemonReload` becomes `yes` on 255/259 (not on 249).
+  - **Before any reboot:** the first load of a target that was not loaded yet reads the new links from disk
+    (a newly wanted unit started with it, without a reload); any `daemon-reload` (package installs and updates
+    commonly run one) applies the new graph, after which starting the target starts the unit.
+  - **Reboot:** the new setting is used (enabled units start, disabled ones do not).
+  - **Existing activation relationships:** unchanged. A disabled unit can still start through `Requires=`/
+    `Wants=` from other units, socket/timer/path/D-Bus activation, or a manual start; enabling does not start
+    the unit now and disabling does not stop it.
+- Trade-offs: a reload would make `systemctl status` consistent at once, but it is the excluded generic
+  daemon-reload and reloads every unit's definition (including unrelated, unreviewed edits on the host).
+  Without it the host view is stale until something else reloads. "Takes effect only at the next boot" is
+  **not** promised anywhere any more.
+
+**O-5: unsupported constructs.** *Recommendation: keep them refused and documented.*
+- Refused (all with a reason in the plan error): `Also=`, `RequiredBy=`, `UpheldBy=`, `DefaultInstance=`,
+  specifiers, continuations, resets and unknown keys in `[Install]`; templates and instances; `.socket`/
+  `.timer` enablement; SysV/generated/transient/linked/runtime/masked/static/indirect/alias states; `Alias=`
+  naming an existing unit; non-symlink files at link paths; **new since the review:** unit files on disk that
+  differ from systemd's loaded view (R1), links to the unit not described by `[Install]` (R2), runtime links,
+  links pointing elsewhere, and shared drop-ins with an `[Install]` section (R4).
+- Trade-off: some legitimate units cannot be managed here (for example units with `Also=` sockets, or after an
+  unreloaded edit until the next reload or boot). Each could become a separately reviewed extension.
