@@ -41,6 +41,8 @@ type fakeFiles struct {
 	loadErr  error
 }
 
+func dirExists(p string) bool { fi, err := os.Stat(p); return err == nil && fi.IsDir() }
+
 // testBoot is the fake boot time (uptime is measured from it).
 var testBoot = time.Now().Add(-time.Hour)
 
@@ -51,6 +53,10 @@ func (f *fakeFiles) reload() {
 	f.mu.Lock()
 	f.loadedAt = time.Now()
 	f.mu.Unlock()
+	// PID 1 recreates the generator directory at every reload (probe 8b).
+	if gen := filepath.Join(f.root, generatorDir); dirExists(gen) {
+		_ = os.Chmod(gen, 0o755)
+	}
 	time.Sleep(20 * time.Millisecond) // past the coarse file-time clock
 }
 
@@ -247,7 +253,6 @@ func newEnablementEnv(t *testing.T, units ...UnitProps) *eenv {
 	}
 	w.env.Enablement = f
 	uptime = func() (time.Duration, error) { return time.Since(testBoot), nil }
-	loadMargin = 10 * time.Millisecond
 	f.reload()
 	return &eenv{wenv: w, files: f, tt: t}
 }

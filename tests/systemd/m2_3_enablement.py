@@ -592,6 +592,39 @@ def main():
           (st, gate in e.get("message", "") and "othing was done" in e.get("message", ""), is_enabled(g)))
     rmdrop(pd)()
     harness_reload()
+    # No false refusal for the package pattern (probe 9): a unit file written and
+    # reloaded IMMEDIATELY (dpkg/dnf scripts, `systemctl enable` without
+    # --no-reload) is loaded, so it must not count as an unloaded change.
+    pkg_like = f"{ETC}/hc-test-en-pkglike.service"
+    if os.path.lexists(pkg_like):
+        raise RuntimeError(f"{pkg_like} exists before the test")
+    with open(pkg_like, "w") as f:
+        f.write("[Unit]\nDescription=M2-3 package-pattern fixture\n" + _SLEEP + "[Install]\nWantedBy=multi-user.target\n")
+    CREATED.append("hc-test-en-pkglike.service")
+    subprocess.run(["systemctl", "daemon-reload"], check=True)  # immediately, like a package script
+    st, e = eplan(g, "enable", csrf)
+    check("file written and reloaded at once (package pattern): not refused as unloaded", (200, False),
+          (st, gate in e.get("message", "")))
+    subprocess.run(["systemctl", "enable", "--", "hc-test-en-pkglike.service"], check=True, capture_output=True)  # links + reload
+    st, e = eplan(g, "enable", csrf)
+    check("systemctl enable (with its reload) on the host: not refused as unloaded", (200, False),
+          (st, gate in e.get("message", "")))
+    subprocess.run(["systemctl", "disable", "--", "hc-test-en-pkglike.service"], check=True, capture_output=True)
+    # Runtime unit configuration (gone at the next boot) blocks enable.
+    rt = "/run/systemd/system/hc-test-en-g.service.d"
+    if os.path.lexists(rt):
+        raise RuntimeError(f"{rt} exists before the test")
+    os.makedirs(rt)
+    CREATED_DIRS.append(rt)
+    with open(f"{rt}/zz-hctest.conf", "w") as f:
+        f.write("[Unit]\nDescription=runtime drop-in\n")
+    harness_reload()
+    st, e = eplan(g, "enable", csrf)
+    check("runtime unit configuration in /run/systemd/system: enable refused", (403, True),
+          (st, "runtime unit configuration" in e.get("message", "")))
+    rmdrop(rt)()
+    # The now empty runtime directory tree is left as found; reload.
+    harness_reload()
     # Own changes do not block the next enable.
     for unit in (g, "hc-test-en-g2.service"):
         st, p = eplan(unit, "enable", csrf)
