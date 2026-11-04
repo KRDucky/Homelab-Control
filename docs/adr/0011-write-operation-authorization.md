@@ -210,5 +210,8 @@ use are separate decisions. The review of the new write against every element of
 - **Review from disk** (PR #36 review): the fragment, `<id>.d` drop-ins and every link naming the unit are read
   from disk, as `systemctl` does; a mismatch with systemd's loaded view, or a link `[Install]` does not
   describe, is refused.
+- **Unloaded changes** (second review round): enable fails closed while unit files changed after systemd's
+  last load (its boot-time checks use the loaded graph); own journaled changes are excused; disable checks
+  `Requisite=` in unit files on disk. A fixed, target-less root template reads the manager's load timestamps.
 - **Known limitations** added: no manager reload (the setting can take effect before a reboot, at any later
   reload or first load of a target; status on the host shows the old setting until then); boot-time conditions are not simulated; concurrent root edits on the host are reported, not prevented.

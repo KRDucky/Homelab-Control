@@ -12,20 +12,20 @@ individual job conclusions.
 The owner authorized M2-3 development and isolated testing on 2026-11-04; acceptance, merge and production
 activation remain separate owner decisions (`docs/m2/OWNER-DECISIONS.md`, owner items O-1…O-5).
 
-- **On the branch `feature/m2-3-expanded-service-management`** (product commit `82c24a74`, after the owner's PR #36
-  review assignment; it supersedes `5a14c727`; findings R1–R11 in `docs/m2/M2-3-DESIGN-REVIEW.md` §7): boot-time
-  enable/disable of `.service` units (scope `services.configure`, never granted by default; `--no-reload`, never
-  `--now`; disruptive with step-up; ADR 0011 plan/apply with separate tokens, locks, root revalidation, journal and
-  independent read-back); read-only unit detail, redacted unit-file contents (`services.logs`), timers and sockets;
-  a minimal compiled-in module registry (D-10 proposal; root-owned `/etc/homelab-control/modules.json`).
-  Design: `docs/m2/M2-3-DESIGN-REVIEW.md`; ADR 0008 Amendment 3 and the ADR 0011 extension are **proposed**.
-- **Evidence** (`docs/m2/M2-3-ACCEPTANCE.md`, `docs/evidence/m2/m2-3/review-82c24a74/`): disposable Docker
-  containers (not VMs) with Ubuntu 26.04.1, 24.04.5, 22.04.5 and Fedora 44 (SELinux disabled): smoke/M1 71/0,
-  M2-2 with expiry waits 89/0, M2-3 with expiry waits 92–93/0, real broker kill 19/0 each, browser 18/18 on
-  Ubuntu 26.04 and Fedora 44, E4 API 1.6 / broker 1.5. `make check` exit 0 (Go 1.26.10, all security tools).
-  GitHub CI 21/21 on the previous head `9862a8dd`. No VM, SELinux-enforcing, Debian, openSUSE or Arch evidence;
-  KVM procedure prepared, needs owner authorization (`docs/m2/M2-3-KVM-ACCEPTANCE-PROCEDURE.md`). O-1…O-5 have
-  recommendations, not decisions; D-10 open.
+- **On the branch `feature/m2-3-expanded-service-management`** (draft PR #36; current product commit
+  `3bec1294`, after two owner review rounds; findings R1–R13 in `docs/m2/M2-3-DESIGN-REVIEW.md` §7–§8):
+  boot-time enable/disable of `.service` units (scope `services.configure`, never granted by default;
+  `--no-reload`, never `--now`; disruptive with step-up; ADR 0011 plan/apply with separate tokens, locks, root
+  revalidation from disk, journal and independent read-back; enable refused while unit files changed after
+  systemd's last load); read-only unit detail, redacted unit-file contents (`services.logs`), timers and sockets;
+  a minimal compiled-in module registry (root-owned `/etc/homelab-control/modules.json`).
+  ADR 0008 Amendment 3 and the ADR 0011 extension are **proposed**.
+- **Evidence** (`docs/m2/M2-3-ACCEPTANCE.md`, `docs/evidence/m2/m2-3/review-3bec1294/`): disposable Docker
+  containers (not VMs; SELinux disabled) with Ubuntu 26.04.1, 24.04.5, 22.04.5 and Fedora 44: smoke/M1 71/0,
+  M2-2 with expiry waits 89/0, M2-3 with expiry waits 105–106/0, real broker kill 19/0 each, browser 18/18 on
+  Ubuntu 26.04 and Fedora 44. `make check` exit 0. No VM, SELinux-enforcing, Debian, openSUSE or Arch evidence;
+  KVM procedure prepared, needs owner authorization (`docs/m2/M2-3-KVM-ACCEPTANCE-PROCEDURE.md`). Proposals
+  P-1…P-6 await owner approval (not decisions); D-10 open.
 - **Still not authorized:** M2-4 and later; mask/unmask, unit editing or creation, daemon-reload, other privileged
   writes. M2-5 and M2-6 remain mandatory before M3.
 

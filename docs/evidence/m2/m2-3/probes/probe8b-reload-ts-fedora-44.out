@@ -1,0 +1,16 @@
+container hc-probe-fedora-44-362727 (fedora-44): systemd state=running
+systemd 259 (259.10-1.fc44)
+  boot GeneratorsStartTimestamp=Wed 2026-11-04 11:27:46.622996 UTC
+  boot UnitsLoadStartTimestamp=Wed 2026-11-04 11:27:46.628597 UTC
+  boot UnitsLoadFinishTimestamp=Wed 2026-11-04 11:27:46.653879 UTC
+  boot ctime 2026-11-04 11:27:46.626605395 +0000 /run/systemd/generator
+  reload1 GeneratorsStartTimestamp=Wed 2026-11-04 11:27:46.622996 UTC
+  reload1 UnitsLoadStartTimestamp=Wed 2026-11-04 11:27:46.628597 UTC
+  reload1 UnitsLoadFinishTimestamp=Wed 2026-11-04 11:27:46.653879 UTC
+  reload1 UnitsLoadTimestamp=Wed 2026-11-04 11:27:48.209493 UTC
+  reload1 ctime 2026-11-04 11:27:48.218179833 +0000 /run/systemd/generator
+  reload2 GeneratorsStartTimestamp=Wed 2026-11-04 11:27:46.622996 UTC
+  reload2 UnitsLoadStartTimestamp=Wed 2026-11-04 11:27:46.628597 UTC
+  reload2 UnitsLoadFinishTimestamp=Wed 2026-11-04 11:27:46.653879 UTC
+  reload2 UnitsLoadTimestamp=Wed 2026-11-04 11:27:49.269651 UTC
+  reload2 ctime 2026-11-04 11:27:49.279565417 +0000 /run/systemd/generator

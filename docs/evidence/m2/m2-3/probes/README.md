@@ -16,3 +16,10 @@ Scripts: `dev/disposable/probes/m2-3-review-probe.sh` and `m2-3-review-probe-loa
 between phase `pre` and `post`, a fresh PID 1 boot). Homelab Control is not installed; fixtures are `hcp-*`.
 Outputs: `probe7-review-{ubuntu-2604,ubuntu-2204,fedora-44}.out` (systemd 259.9, 249.11, 259.10) and
 `probe7b-loaded-{ubuntu-2604,ubuntu-2204}.out`. Findings: `docs/m2/M2-3-DESIGN-REVIEW.md` §1.1 and §7.
+
+## Probe 8: unreloaded [Unit] changes and the manager's load time (2026-11-04, second review round)
+Scripts: `dev/disposable/probes/m2-3-probe8-unreloaded.sh` (phase `pre`, container restart, phase `post`)
+and `m2-3-probe8b-reload-ts.sh`, run with `dev/disposable/probe-container.sh`. Outputs:
+`probe8-unreloaded-*.out`, `probe8b-reload-ts-*.out` for Ubuntu 26.04 (259.9), 24.04 (255.4), 22.04 (249.11)
+and Fedora 44 (259.10). `hcp-prot.service` is a stand-in for a protected service. Findings:
+`docs/m2/M2-3-DESIGN-REVIEW.md` §1.2 and §8.

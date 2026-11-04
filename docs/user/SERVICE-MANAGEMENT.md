@@ -181,6 +181,16 @@ whose files on disk differ from the copy systemd has loaded (for example a drop-
 its `[Install]` section does not describe (`systemctl disable` would remove those too), with links in
 `/run/systemd/system`, or with links pointing elsewhere.
 
+**Enable after an unreloaded change.** *Enable at boot* is refused while any unit file, drop-in or link
+under the unit directories changed after systemd last loaded its configuration — for example a drop-in or
+override written without `systemctl daemon-reload`, a `systemctl --no-reload enable` run on the host, or a
+package that installed a unit without reloading. systemd would use such a change at the next boot, but the
+review checks the boot-time effect against what systemd has loaded, so it cannot evaluate it. The message
+lists the changed paths. Run the review again after the next boot or after systemd reloads its
+configuration (`sudo systemctl daemon-reload`, if that is appropriate on the host). Homelab Control's own
+boot-time changes do not block the next one, and *Disable at boot* stays available. A disable is refused if a
+protected unit's files on disk declare `Requisite=` on the service.
+
 ### Unit details, timers and sockets
 - **Details** (any unit, `services.read`): the canonical name and aliases, state, the setting at boot,
   the unit file and drop-ins, the service type, automatic restarts since the manager started, the last

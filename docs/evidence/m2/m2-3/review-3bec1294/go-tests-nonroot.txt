@@ -1,0 +1,835 @@
+=== RUN   TestValidateLegacyURL
+--- PASS: TestValidateLegacyURL (0.00s)
+=== RUN   TestIsLoopback
+--- PASS: TestIsLoopback (0.00s)
+PASS
+ok  	homelab-control/backend/cmd/hc-api	0.069s
+=== RUN   TestUserLifecycle
+--- PASS: TestUserLifecycle (0.20s)
+=== RUN   TestUserScopes
+--- PASS: TestUserScopes (0.07s)
+=== RUN   TestAuditVerify
+--- PASS: TestAuditVerify (0.00s)
+=== RUN   TestAuditVerifyDatabase
+--- PASS: TestAuditVerifyDatabase (0.00s)
+PASS
+ok  	homelab-control/backend/cmd/hlctl	0.331s
+=== RUN   TestSessionsListAndRevokeOwnOnly
+--- PASS: TestSessionsListAndRevokeOwnOnly (0.16s)
+=== RUN   TestSessionsSurviveServerRestart
+--- PASS: TestSessionsSurviveServerRestart (0.18s)
+=== RUN   TestAuditEndpoint
+--- PASS: TestAuditEndpoint (0.34s)
+=== RUN   TestAuditUnavailableWithoutStateDB
+--- PASS: TestAuditUnavailableWithoutStateDB (0.09s)
+=== RUN   TestCapabilitiesWithBroker
+--- PASS: TestCapabilitiesWithBroker (0.09s)
+=== RUN   TestCapabilitiesBrokerDown
+--- PASS: TestCapabilitiesBrokerDown (0.09s)
+=== RUN   TestCapabilitiesNoSystemd
+--- PASS: TestCapabilitiesNoSystemd (0.18s)
+=== RUN   TestCapabilitiesRespectScopes
+--- PASS: TestCapabilitiesRespectScopes (0.09s)
+=== RUN   TestServicesEndpoint
+--- PASS: TestServicesEndpoint (0.09s)
+=== RUN   TestServicesWithoutBrokerConfigured
+--- PASS: TestServicesWithoutBrokerConfigured (0.09s)
+=== RUN   TestHardwareEndpoint
+--- PASS: TestHardwareEndpoint (0.09s)
+=== RUN   TestLegacyEndpointFallsBack
+--- PASS: TestLegacyEndpointFallsBack (0.09s)
+=== RUN   TestCapabilitiesRequireSession
+--- PASS: TestCapabilitiesRequireSession (0.05s)
+=== RUN   TestUnitLogsRequiresScope
+--- PASS: TestUnitLogsRequiresScope (0.09s)
+=== RUN   TestUnitLogsValidatesBeforeBroker
+--- PASS: TestUnitLogsValidatesBeforeBroker (0.09s)
+=== RUN   TestUnitLogsOK
+--- PASS: TestUnitLogsOK (0.09s)
+=== RUN   TestUnitLogsBrokerErrors
+--- PASS: TestUnitLogsBrokerErrors (0.55s)
+=== RUN   TestUnitLogsFailClosedOnAudit
+--- PASS: TestUnitLogsFailClosedOnAudit (0.09s)
+=== RUN   TestHealthIsPublicAndMinimal
+--- PASS: TestHealthIsPublicAndMinimal (0.05s)
+=== RUN   TestOverviewRequiresAuthentication
+--- PASS: TestOverviewRequiresAuthentication (0.05s)
+=== RUN   TestLoginAndReadOverview
+--- PASS: TestLoginAndReadOverview (0.07s)
+=== RUN   TestScopeEnforcedServerSide
+--- PASS: TestScopeEnforcedServerSide (0.07s)
+=== RUN   TestBadCredentialsAndThrottle
+--- PASS: TestBadCredentialsAndThrottle (0.23s)
+=== RUN   TestLoginRequiresSameOrigin
+--- PASS: TestLoginRequiresSameOrigin (0.05s)
+=== RUN   TestLoginStrictJSON
+--- PASS: TestLoginStrictJSON (0.04s)
+=== RUN   TestLogoutRequiresCSRFToken
+--- PASS: TestLogoutRequiresCSRFToken (0.07s)
+=== RUN   TestDisabledAccountLosesSession
+--- PASS: TestDisabledAccountLosesSession (0.07s)
+=== RUN   TestSessionFixationDefence
+--- PASS: TestSessionFixationDefence (0.09s)
+=== RUN   TestSecurityHeadersAndUnknownRoutes
+--- PASS: TestSecurityHeadersAndUnknownRoutes (0.05s)
+=== RUN   TestSecureCookieModeUsesHostPrefix
+--- PASS: TestSecureCookieModeUsesHostPrefix (0.07s)
+=== RUN   TestEnablementRequiresConfigureScope
+--- PASS: TestEnablementRequiresConfigureScope (0.09s)
+=== RUN   TestEnablementCSRFOriginAndValidation
+--- PASS: TestEnablementCSRFOriginAndValidation (0.09s)
+=== RUN   TestEnablementApplyAlwaysNeedsStepUp
+--- PASS: TestEnablementApplyAlwaysNeedsStepUp (0.11s)
+=== RUN   TestEnablementFailsClosedWithoutAudit
+--- PASS: TestEnablementFailsClosedWithoutAudit (0.11s)
+=== RUN   TestUnitContentsNeedsLogsScopeAndAudit
+--- PASS: TestUnitContentsNeedsLogsScopeAndAudit (0.18s)
+=== RUN   TestReadViewsAndDetailProtectionLabel
+--- PASS: TestReadViewsAndDetailProtectionLabel (0.18s)
+=== RUN   TestDisabledModuleRoutes404
+--- PASS: TestDisabledModuleRoutes404 (0.09s)
+=== RUN   TestBrokerModuleDisabledMapsTo404
+--- PASS: TestBrokerModuleDisabledMapsTo404 (0.09s)
+=== RUN   TestServiceOpsRequireOperateScope
+--- PASS: TestServiceOpsRequireOperateScope (0.09s)
+=== RUN   TestServiceOpsCSRFAndOrigin
+--- PASS: TestServiceOpsCSRFAndOrigin (0.09s)
+=== RUN   TestServiceOpsValidateBeforeBroker
+--- PASS: TestServiceOpsValidateBeforeBroker (0.09s)
+=== RUN   TestPlanBindsSessionAndAudits
+--- PASS: TestPlanBindsSessionAndAudits (0.09s)
+=== RUN   TestApplyStepUp
+--- PASS: TestApplyStepUp (0.13s)
+=== RUN   TestStepUpIsPerSession
+--- PASS: TestStepUpIsPerSession (0.13s)
+=== RUN   TestScopeRemovalAppliesToLiveSessions
+--- PASS: TestScopeRemovalAppliesToLiveSessions (0.09s)
+=== RUN   TestApplyBrokerRefusalsMapped
+--- PASS: TestApplyBrokerRefusalsMapped (0.55s)
+=== RUN   TestApplyTransportErrorIsOutcomeUnknown
+--- PASS: TestApplyTransportErrorIsOutcomeUnknown (0.18s)
+=== RUN   TestApplyFailClosedOnAudit
+--- PASS: TestApplyFailClosedOnAudit (0.09s)
+=== RUN   TestServicesListMarksProtectedAndOperable
+--- PASS: TestServicesListMarksProtectedAndOperable (0.09s)
+=== RUN   TestOperationsEndpoint
+--- PASS: TestOperationsEndpoint (0.18s)
+=== RUN   TestStepUpEndpoint
+--- PASS: TestStepUpEndpoint (0.14s)
+=== RUN   TestStepUpRequiresOriginCSRFAndJSON
+--- PASS: TestStepUpRequiresOriginCSRFAndJSON (0.09s)
+=== RUN   TestStepUpThrottled
+--- PASS: TestStepUpThrottled (0.20s)
+=== RUN   TestStepUpScopedToSessionAndCleared
+--- PASS: TestStepUpScopedToSessionAndCleared (0.16s)
+PASS
+ok  	homelab-control/backend/internal/api	6.863s
+=== RUN   TestLogInjectionIsNeutralised
+--- PASS: TestLogInjectionIsNeutralised (0.00s)
+=== RUN   TestFileCreatedPrivate
+--- PASS: TestFileCreatedPrivate (0.00s)
+=== RUN   TestChainVerifiesAndContinuesAcrossReopen
+--- PASS: TestChainVerifiesAndContinuesAcrossReopen (0.00s)
+=== RUN   TestDetectsModificationReorderDeletionInsertion
+=== RUN   TestDetectsModificationReorderDeletionInsertion/reorder
+=== RUN   TestDetectsModificationReorderDeletionInsertion/delete
+=== RUN   TestDetectsModificationReorderDeletionInsertion/insert
+=== RUN   TestDetectsModificationReorderDeletionInsertion/garbage
+=== RUN   TestDetectsModificationReorderDeletionInsertion/modify
+--- PASS: TestDetectsModificationReorderDeletionInsertion (0.00s)
+    --- PASS: TestDetectsModificationReorderDeletionInsertion/reorder (0.00s)
+    --- PASS: TestDetectsModificationReorderDeletionInsertion/delete (0.00s)
+    --- PASS: TestDetectsModificationReorderDeletionInsertion/insert (0.00s)
+    --- PASS: TestDetectsModificationReorderDeletionInsertion/garbage (0.00s)
+    --- PASS: TestDetectsModificationReorderDeletionInsertion/modify (0.00s)
+=== RUN   TestTruncationAndRollbackNeedCheckpoint
+--- PASS: TestTruncationAndRollbackNeedCheckpoint (0.00s)
+=== RUN   TestOpenRefusesSymlinkAndStartsNewSegmentAfterBadTail
+--- PASS: TestOpenRefusesSymlinkAndStartsNewSegmentAfterBadTail (0.00s)
+=== RUN   TestLegacyRecordsBeforeChain
+--- PASS: TestLegacyRecordsBeforeChain (0.00s)
+=== RUN   TestCheckpointCallbackAndParse
+--- PASS: TestCheckpointCallbackAndParse (0.00s)
+=== RUN   TestStructuredDataIsChainedAndValidated
+--- PASS: TestStructuredDataIsChainedAndValidated (0.00s)
+PASS
+ok  	homelab-control/backend/internal/audit	0.003s
+=== RUN   TestHashAndVerify
+--- PASS: TestHashAndVerify (0.09s)
+=== RUN   TestRejectWeakOrMalformedHashes
+--- PASS: TestRejectWeakOrMalformedHashes (0.00s)
+=== RUN   TestUsersFilePermissions
+--- PASS: TestUsersFilePermissions (0.09s)
+=== RUN   TestUsersFileRejectsSymlink
+--- PASS: TestUsersFileRejectsSymlink (0.02s)
+=== RUN   TestUsersFileValidation
+--- PASS: TestUsersFileValidation (0.04s)
+=== RUN   TestAuthenticate
+--- PASS: TestAuthenticate (0.22s)
+=== RUN   TestSessionLifecycle
+--- PASS: TestSessionLifecycle (0.00s)
+=== RUN   TestSessionCap
+--- PASS: TestSessionCap (0.00s)
+=== RUN   TestCSRF
+--- PASS: TestCSRF (0.00s)
+=== RUN   TestThrottle
+--- PASS: TestThrottle (0.00s)
+=== RUN   TestThrottleMemoryBounded
+--- PASS: TestThrottleMemoryBounded (0.02s)
+=== RUN   TestStepUpWindowAndBinding
+--- PASS: TestStepUpWindowAndBinding (0.00s)
+=== RUN   TestStepUpClear
+--- PASS: TestStepUpClear (0.00s)
+=== RUN   TestServicesLogsNotGrantedByDefault
+--- PASS: TestServicesLogsNotGrantedByDefault (0.00s)
+=== RUN   TestServicesConfigureNotGrantedByDefault
+--- PASS: TestServicesConfigureNotGrantedByDefault (0.00s)
+PASS
+ok  	homelab-control/backend/internal/auth	0.555s
+=== RUN   TestEnablementRefusesStaleLoadedView
+=== RUN   TestEnablementRefusesStaleLoadedView/removed_drop-in
+=== RUN   TestEnablementRefusesStaleLoadedView/new_drop-in
+=== RUN   TestEnablementRefusesStaleLoadedView/new_fragment
+--- PASS: TestEnablementRefusesStaleLoadedView (0.12s)
+    --- PASS: TestEnablementRefusesStaleLoadedView/removed_drop-in (0.04s)
+    --- PASS: TestEnablementRefusesStaleLoadedView/new_drop-in (0.04s)
+    --- PASS: TestEnablementRefusesStaleLoadedView/new_fragment (0.04s)
+=== RUN   TestEnablementDropInAfterPlanIsRefusedAtApply
+--- PASS: TestEnablementDropInAfterPlanIsRefusedAtApply (0.04s)
+=== RUN   TestEnablementLoadedDropInIsPlanned
+--- PASS: TestEnablementLoadedDropInIsPlanned (0.08s)
+=== RUN   TestEnablementSharedDropIns
+--- PASS: TestEnablementSharedDropIns (0.24s)
+=== RUN   TestEnablementDiskUnitHazards
+=== RUN   TestEnablementDiskUnitHazards/failure_reboot
+=== RUN   TestEnablementDiskUnitHazards/continued_conflict
+=== RUN   TestEnablementDiskUnitHazards/conflicts_ssh
+--- PASS: TestEnablementDiskUnitHazards (0.32s)
+    --- PASS: TestEnablementDiskUnitHazards/failure_reboot (0.08s)
+    --- PASS: TestEnablementDiskUnitHazards/continued_conflict (0.08s)
+    --- PASS: TestEnablementDiskUnitHazards/conflicts_ssh (0.08s)
+=== RUN   TestDisableRefusesUndescribedLinks
+=== RUN   TestDisableRefusesUndescribedLinks/renamed_in_wants
+=== RUN   TestDisableRefusesUndescribedLinks/deep
+=== RUN   TestDisableRefusesUndescribedLinks/other_target
+=== RUN   TestDisableRefusesUndescribedLinks/requires
+=== RUN   TestDisableRefusesUndescribedLinks/manual_alias
+--- PASS: TestDisableRefusesUndescribedLinks (0.32s)
+    --- PASS: TestDisableRefusesUndescribedLinks/renamed_in_wants (0.04s)
+    --- PASS: TestDisableRefusesUndescribedLinks/deep (0.04s)
+    --- PASS: TestDisableRefusesUndescribedLinks/other_target (0.04s)
+    --- PASS: TestDisableRefusesUndescribedLinks/requires (0.04s)
+    --- PASS: TestDisableRefusesUndescribedLinks/manual_alias (0.04s)
+=== RUN   TestEnablementReadBackScansLinks
+--- PASS: TestEnablementReadBackScansLinks (0.08s)
+=== RUN   TestEnablementRecoveryDescribesObservedState
+--- PASS: TestEnablementRecoveryDescribesObservedState (0.04s)
+=== RUN   TestEnableRefusedAfterUnloadedChanges
+=== RUN   TestEnableRefusedAfterUnloadedChanges/protected_unit's_new_drop-in
+=== RUN   TestEnableRefusedAfterUnloadedChanges/vendor_unit_replaced
+=== RUN   TestEnableRefusedAfterUnloadedChanges/file_removed
+=== RUN   TestEnableRefusedAfterUnloadedChanges/foreign_link
+=== RUN   TestEnableRefusedAfterUnloadedChanges/new_prefix_drop-in
+=== RUN   TestEnableRefusedAfterUnloadedChanges/new_type-level_drop-in
+=== RUN   TestEnableRefusedAfterUnloadedChanges/fragment_edited
+--- PASS: TestEnableRefusedAfterUnloadedChanges (0.61s)
+    --- PASS: TestEnableRefusedAfterUnloadedChanges/protected_unit's_new_drop-in (0.08s)
+    --- PASS: TestEnableRefusedAfterUnloadedChanges/vendor_unit_replaced (0.08s)
+    --- PASS: TestEnableRefusedAfterUnloadedChanges/file_removed (0.12s)
+    --- PASS: TestEnableRefusedAfterUnloadedChanges/foreign_link (0.08s)
+    --- PASS: TestEnableRefusedAfterUnloadedChanges/new_prefix_drop-in (0.08s)
+    --- PASS: TestEnableRefusedAfterUnloadedChanges/new_type-level_drop-in (0.08s)
+    --- PASS: TestEnableRefusedAfterUnloadedChanges/fragment_edited (0.08s)
+=== RUN   TestEnableEditBetweenPreviewAndApply
+=== RUN   TestEnableEditBetweenPreviewAndApply/protected_unit_drop-in
+=== RUN   TestEnableEditBetweenPreviewAndApply/shared_drop-in
+--- PASS: TestEnableEditBetweenPreviewAndApply (0.08s)
+    --- PASS: TestEnableEditBetweenPreviewAndApply/protected_unit_drop-in (0.04s)
+    --- PASS: TestEnableEditBetweenPreviewAndApply/shared_drop-in (0.04s)
+=== RUN   TestEnableGateExcusesOwnJournaledChanges
+--- PASS: TestEnableGateExcusesOwnJournaledChanges (0.06s)
+=== RUN   TestEnableGateDoesNotExcuseInterruptedChanges
+--- PASS: TestEnableGateDoesNotExcuseInterruptedChanges (0.04s)
+=== RUN   TestEnableGateFailsClosedWithoutLoadTime
+--- PASS: TestEnableGateFailsClosedWithoutLoadTime (0.04s)
+=== RUN   TestDisableRefusesRequisiteOnDisk
+=== RUN   TestDisableRefusesRequisiteOnDisk/other_section
+=== RUN   TestDisableRefusesRequisiteOnDisk/names_another_unit
+=== RUN   TestDisableRefusesRequisiteOnDisk/protected_unit_fragment
+=== RUN   TestDisableRefusesRequisiteOnDisk/protected_unit_drop-in
+=== RUN   TestDisableRefusesRequisiteOnDisk/continued_value
+=== RUN   TestDisableRefusesRequisiteOnDisk/shared_drop-in
+=== RUN   TestDisableRefusesRequisiteOnDisk/prefix_drop-in
+=== RUN   TestDisableRefusesRequisiteOnDisk/unprotected_unit
+--- PASS: TestDisableRefusesRequisiteOnDisk (0.32s)
+    --- PASS: TestDisableRefusesRequisiteOnDisk/other_section (0.04s)
+    --- PASS: TestDisableRefusesRequisiteOnDisk/names_another_unit (0.04s)
+    --- PASS: TestDisableRefusesRequisiteOnDisk/protected_unit_fragment (0.04s)
+    --- PASS: TestDisableRefusesRequisiteOnDisk/protected_unit_drop-in (0.04s)
+    --- PASS: TestDisableRefusesRequisiteOnDisk/continued_value (0.04s)
+    --- PASS: TestDisableRefusesRequisiteOnDisk/shared_drop-in (0.04s)
+    --- PASS: TestDisableRefusesRequisiteOnDisk/prefix_drop-in (0.04s)
+    --- PASS: TestDisableRefusesRequisiteOnDisk/unprotected_unit (0.04s)
+=== RUN   TestParseManagerShow
+--- PASS: TestParseManagerShow (0.00s)
+=== RUN   TestLoadThreshold
+--- PASS: TestLoadThreshold (0.00s)
+=== RUN   TestEnableGateForeignChangeDuringOwnChange
+--- PASS: TestEnableGateForeignChangeDuringOwnChange (0.04s)
+=== RUN   TestEnableFlowStepUpAndIndependentReadBack
+--- PASS: TestEnableFlowStepUpAndIndependentReadBack (0.04s)
+=== RUN   TestEnablementTokensNeverCrossOperations
+--- PASS: TestEnablementTokensNeverCrossOperations (0.04s)
+=== RUN   TestEnablementTokenExpiry
+--- PASS: TestEnablementTokenExpiry (0.04s)
+=== RUN   TestEnablementStalePlansConflict
+=== RUN   TestEnablementStalePlansConflict/fragment_moved
+=== RUN   TestEnablementStalePlansConflict/is-enabled_changed
+=== RUN   TestEnablementStalePlansConflict/[Install]_gained_an_alias
+=== RUN   TestEnablementStalePlansConflict/drop-in_added
+=== RUN   TestEnablementStalePlansConflict/run_state_changed
+--- PASS: TestEnablementStalePlansConflict (0.20s)
+    --- PASS: TestEnablementStalePlansConflict/fragment_moved (0.04s)
+    --- PASS: TestEnablementStalePlansConflict/is-enabled_changed (0.04s)
+    --- PASS: TestEnablementStalePlansConflict/[Install]_gained_an_alias (0.04s)
+    --- PASS: TestEnablementStalePlansConflict/drop-in_added (0.04s)
+    --- PASS: TestEnablementStalePlansConflict/run_state_changed (0.04s)
+=== RUN   TestEnablementRefusals
+=== RUN   TestEnablementRefusals/reboot_on_failure
+=== RUN   TestEnablementRefusals/UpheldBy=
+=== RUN   TestEnablementRefusals/injection
+=== RUN   TestEnablementRefusals/enable_--now_is_not_an_action
+=== RUN   TestEnablementRefusals/start_is_not_an_enablement
+=== RUN   TestEnablementRefusals/broker_unit
+=== RUN   TestEnablementRefusals/template
+=== RUN   TestEnablementRefusals/leading_dash
+=== RUN   TestEnablementRefusals/static
+=== RUN   TestEnablementRefusals/wanted_by_protected_unit
+=== RUN   TestEnablementRefusals/wanted_by_reboot
+=== RUN   TestEnablementRefusals/RequiredBy=
+=== RUN   TestEnablementRefusals/reset_assignment
+=== RUN   TestEnablementRefusals/unknown_install_key
+=== RUN   TestEnablementRefusals/not_found
+=== RUN   TestEnablementRefusals/linked
+=== RUN   TestEnablementRefusals/generated
+=== RUN   TestEnablementRefusals/drop-in_install_alias_protected
+=== RUN   TestEnablementRefusals/alias_resolves_to_protected
+=== RUN   TestEnablementRefusals/Also=
+=== RUN   TestEnablementRefusals/DefaultInstance=
+=== RUN   TestEnablementRefusals/template_instance
+=== RUN   TestEnablementRefusals/mask_is_not_an_action
+=== RUN   TestEnablementRefusals/already_disabled
+=== RUN   TestEnablementRefusals/already_enabled
+=== RUN   TestEnablementRefusals/enabled-runtime
+=== RUN   TestEnablementRefusals/protected_by_name
+=== RUN   TestEnablementRefusals/specifier
+=== RUN   TestEnablementRefusals/indirect
+=== RUN   TestEnablementRefusals/SysV_source
+=== RUN   TestEnablementRefusals/transient
+=== RUN   TestEnablementRefusals/generator_directory
+=== RUN   TestEnablementRefusals/install_alias_protected
+=== RUN   TestEnablementRefusals/line_continuation
+=== RUN   TestEnablementRefusals/no_install_targets
+=== RUN   TestEnablementRefusals/socket_unit
+=== RUN   TestEnablementRefusals/symlinked_directory
+=== RUN   TestEnablementRefusals/inconsistent_links
+=== RUN   TestEnablementRefusals/drop-in_outside_dirs
+=== RUN   TestEnablementRefusals/masked
+=== RUN   TestEnablementRefusals/boot_conflict
+--- PASS: TestEnablementRefusals (3.31s)
+    --- PASS: TestEnablementRefusals/reboot_on_failure (0.08s)
+    --- PASS: TestEnablementRefusals/UpheldBy= (0.08s)
+    --- PASS: TestEnablementRefusals/injection (0.08s)
+    --- PASS: TestEnablementRefusals/enable_--now_is_not_an_action (0.08s)
+    --- PASS: TestEnablementRefusals/start_is_not_an_enablement (0.08s)
+    --- PASS: TestEnablementRefusals/broker_unit (0.08s)
+    --- PASS: TestEnablementRefusals/template (0.08s)
+    --- PASS: TestEnablementRefusals/leading_dash (0.08s)
+    --- PASS: TestEnablementRefusals/static (0.08s)
+    --- PASS: TestEnablementRefusals/wanted_by_protected_unit (0.08s)
+    --- PASS: TestEnablementRefusals/wanted_by_reboot (0.08s)
+    --- PASS: TestEnablementRefusals/RequiredBy= (0.08s)
+    --- PASS: TestEnablementRefusals/reset_assignment (0.08s)
+    --- PASS: TestEnablementRefusals/unknown_install_key (0.08s)
+    --- PASS: TestEnablementRefusals/not_found (0.08s)
+    --- PASS: TestEnablementRefusals/linked (0.08s)
+    --- PASS: TestEnablementRefusals/generated (0.08s)
+    --- PASS: TestEnablementRefusals/drop-in_install_alias_protected (0.08s)
+    --- PASS: TestEnablementRefusals/alias_resolves_to_protected (0.08s)
+    --- PASS: TestEnablementRefusals/Also= (0.08s)
+    --- PASS: TestEnablementRefusals/DefaultInstance= (0.08s)
+    --- PASS: TestEnablementRefusals/template_instance (0.08s)
+    --- PASS: TestEnablementRefusals/mask_is_not_an_action (0.08s)
+    --- PASS: TestEnablementRefusals/already_disabled (0.08s)
+    --- PASS: TestEnablementRefusals/already_enabled (0.08s)
+    --- PASS: TestEnablementRefusals/enabled-runtime (0.08s)
+    --- PASS: TestEnablementRefusals/protected_by_name (0.08s)
+    --- PASS: TestEnablementRefusals/specifier (0.08s)
+    --- PASS: TestEnablementRefusals/indirect (0.08s)
+    --- PASS: TestEnablementRefusals/SysV_source (0.08s)
+    --- PASS: TestEnablementRefusals/transient (0.08s)
+    --- PASS: TestEnablementRefusals/generator_directory (0.08s)
+    --- PASS: TestEnablementRefusals/install_alias_protected (0.08s)
+    --- PASS: TestEnablementRefusals/line_continuation (0.08s)
+    --- PASS: TestEnablementRefusals/no_install_targets (0.08s)
+    --- PASS: TestEnablementRefusals/socket_unit (0.08s)
+    --- PASS: TestEnablementRefusals/symlinked_directory (0.08s)
+    --- PASS: TestEnablementRefusals/inconsistent_links (0.08s)
+    --- PASS: TestEnablementRefusals/drop-in_outside_dirs (0.08s)
+    --- PASS: TestEnablementRefusals/masked (0.08s)
+    --- PASS: TestEnablementRefusals/boot_conflict (0.08s)
+=== RUN   TestMergedUsrLibIsAccepted
+--- PASS: TestMergedUsrLibIsAccepted (0.00s)
+=== RUN   TestReadInstallPathSafety
+--- PASS: TestReadInstallPathSafety (0.00s)
+=== RUN   TestParseInstall
+--- PASS: TestParseInstall (0.00s)
+=== RUN   TestEnablementLocks
+--- PASS: TestEnablementLocks (0.04s)
+=== RUN   TestEnablementConcurrentAppliesExecuteOnce
+--- PASS: TestEnablementConcurrentAppliesExecuteOnce (0.04s)
+=== RUN   TestEnablementHonestOutcomes
+=== RUN   TestEnablementHonestOutcomes/read-back_fails
+=== RUN   TestEnablementHonestOutcomes/partial_with_error
+=== RUN   TestEnablementHonestOutcomes/nothing_changed
+=== RUN   TestEnablementHonestOutcomes/success_claimed,_not_observed
+=== RUN   TestEnablementHonestOutcomes/timeout
+--- PASS: TestEnablementHonestOutcomes (0.41s)
+    --- PASS: TestEnablementHonestOutcomes/read-back_fails (0.08s)
+    --- PASS: TestEnablementHonestOutcomes/partial_with_error (0.08s)
+    --- PASS: TestEnablementHonestOutcomes/nothing_changed (0.08s)
+    --- PASS: TestEnablementHonestOutcomes/success_claimed,_not_observed (0.08s)
+    --- PASS: TestEnablementHonestOutcomes/timeout (0.08s)
+=== RUN   TestEnablementNeedsRootJournalAndSession
+--- PASS: TestEnablementNeedsRootJournalAndSession (0.04s)
+=== RUN   TestEnablementInterruptedIsRecordedNotRetried
+--- PASS: TestEnablementInterruptedIsRecordedNotRetried (0.04s)
+=== RUN   TestEnablementAuditArgsNeverContainToken
+--- PASS: TestEnablementAuditArgsNeverContainToken (0.00s)
+=== RUN   TestEnablementStrictDecode
+--- PASS: TestEnablementStrictDecode (0.04s)
+=== RUN   TestEnablementCollisionsAndRequisite
+=== RUN   TestEnablementCollisionsAndRequisite/alias_names_a_loaded_unit
+=== RUN   TestEnablementCollisionsAndRequisite/regular_file_at_the_alias_path
+=== RUN   TestEnablementCollisionsAndRequisite/regular_file_at_the_wants_path
+=== RUN   TestEnablementCollisionsAndRequisite/disable_a_requisite_of_SSH
+=== RUN   TestEnablementCollisionsAndRequisite/alias_names_an_installed_unit_file
+--- PASS: TestEnablementCollisionsAndRequisite (0.48s)
+    --- PASS: TestEnablementCollisionsAndRequisite/alias_names_a_loaded_unit (0.08s)
+    --- PASS: TestEnablementCollisionsAndRequisite/regular_file_at_the_alias_path (0.08s)
+    --- PASS: TestEnablementCollisionsAndRequisite/regular_file_at_the_wants_path (0.08s)
+    --- PASS: TestEnablementCollisionsAndRequisite/disable_a_requisite_of_SSH (0.08s)
+    --- PASS: TestEnablementCollisionsAndRequisite/alias_names_an_installed_unit_file (0.08s)
+=== RUN   TestInstallRefusalsDoNotEchoValues
+--- PASS: TestInstallRefusalsDoNotEchoValues (0.00s)
+=== RUN   TestParseIsEnabledAcrossVersions
+--- PASS: TestParseIsEnabledAcrossVersions (0.00s)
+=== RUN   TestLogsUnitGrammar
+--- PASS: TestLogsUnitGrammar (0.00s)
+=== RUN   TestLogsArgsStrictDecode
+--- PASS: TestLogsArgsStrictDecode (0.00s)
+=== RUN   TestParseJournal
+--- PASS: TestParseJournal (0.00s)
+=== RUN   TestParseJournalTotalCap
+--- PASS: TestParseJournalTotalCap (0.01s)
+=== RUN   TestRegistryIsClosed
+--- PASS: TestRegistryIsClosed (0.00s)
+=== RUN   TestAllOpsRejectArguments
+--- PASS: TestAllOpsRejectArguments (0.00s)
+=== RUN   TestWebminStatus
+--- PASS: TestWebminStatus (0.00s)
+=== RUN   TestWebminNotInstalledAndSymlinkRefused
+--- PASS: TestWebminNotInstalledAndSymlinkRefused (0.00s)
+=== RUN   TestWebminPidfileConfined
+--- PASS: TestWebminPidfileConfined (0.00s)
+=== RUN   TestVersionLess
+--- PASS: TestVersionLess (0.00s)
+=== RUN   TestDMIIdentity
+--- PASS: TestDMIIdentity (0.00s)
+=== RUN   TestParseRealSystemctlOutput
+--- PASS: TestParseRealSystemctlOutput (0.00s)
+=== RUN   TestParseRejectsHostileUnits
+--- PASS: TestParseRejectsHostileUnits (0.00s)
+=== RUN   TestSystemdListWithoutSystemctl
+--- PASS: TestSystemdListWithoutSystemctl (0.00s)
+=== RUN   TestRunErrIncludesErrnoClass
+--- PASS: TestRunErrIncludesErrnoClass (0.00s)
+=== RUN   TestBrokerInfoReportsSystemdBoot
+--- PASS: TestBrokerInfoReportsSystemdBoot (0.00s)
+=== RUN   TestShowPropertiesMatchRunner
+--- PASS: TestShowPropertiesMatchRunner (0.00s)
+=== RUN   TestStopFlowWithStepUpAndVerifiedOutcome
+--- PASS: TestStopFlowWithStepUpAndVerifiedOutcome (0.00s)
+=== RUN   TestStartIsReversibleWithoutStepUp
+--- PASS: TestStartIsReversibleWithoutStepUp (0.00s)
+=== RUN   TestStartConflictingWithServicesIsDisruptive
+--- PASS: TestStartConflictingWithServicesIsDisruptive (0.00s)
+=== RUN   TestRestartIsDisruptive
+--- PASS: TestRestartIsDisruptive (0.00s)
+=== RUN   TestSubstitutionsRejected
+--- PASS: TestSubstitutionsRejected (0.00s)
+=== RUN   TestExpiredTokenRejected
+--- PASS: TestExpiredTokenRejected (0.00s)
+=== RUN   TestChangedStateIsConflict
+--- PASS: TestChangedStateIsConflict (0.00s)
+=== RUN   TestProtectedUnitsRefusedInBroker
+--- PASS: TestProtectedUnitsRefusedInBroker (0.01s)
+=== RUN   TestAliasAndFragmentBypassRefused
+--- PASS: TestAliasAndFragmentBypassRefused (0.00s)
+=== RUN   TestRefuseManualAndCapabilities
+--- PASS: TestRefuseManualAndCapabilities (0.00s)
+=== RUN   TestDependencyPolicy
+--- PASS: TestDependencyPolicy (0.00s)
+=== RUN   TestLoadStates
+--- PASS: TestLoadStates (0.00s)
+=== RUN   TestInvalidTargetsAndActions
+--- PASS: TestInvalidTargetsAndActions (0.00s)
+=== RUN   TestPlanRequiresSessionBinding
+--- PASS: TestPlanRequiresSessionBinding (0.00s)
+=== RUN   TestLockedTargetIsBusy
+--- PASS: TestLockedTargetIsBusy (0.00s)
+=== RUN   TestConcurrentAppliesExecuteOnce
+--- PASS: TestConcurrentAppliesExecuteOnce (0.00s)
+=== RUN   TestFailureReporting
+--- PASS: TestFailureReporting (0.61s)
+=== RUN   TestClassifyExecErrorHasErrnoClassNotPath
+--- PASS: TestClassifyExecErrorHasErrnoClassNotPath (0.00s)
+=== RUN   TestUnreadableStateAfterActIsUncertain
+--- PASS: TestUnreadableStateAfterActIsUncertain (0.00s)
+=== RUN   TestNothingRunsWithoutJournalOrRoot
+--- PASS: TestNothingRunsWithoutJournalOrRoot (0.00s)
+=== RUN   TestSystemdNotBooted
+--- PASS: TestSystemdNotBooted (0.00s)
+=== RUN   TestJournalListAndInterrupted
+--- PASS: TestJournalListAndInterrupted (0.00s)
+=== RUN   TestAuditArgsNeverContainToken
+--- PASS: TestAuditArgsNeverContainToken (0.00s)
+=== RUN   TestTransitiveDependencyPolicy
+--- PASS: TestTransitiveDependencyPolicy (0.00s)
+=== RUN   TestInactiveProtectedDependent
+--- PASS: TestInactiveProtectedDependent (0.00s)
+=== RUN   TestStopTimeActionsAndTriggers
+--- PASS: TestStopTimeActionsAndTriggers (0.00s)
+=== RUN   TestUninspectableDependents
+--- PASS: TestUninspectableDependents (0.00s)
+=== RUN   TestWalkIsBounded
+--- PASS: TestWalkIsBounded (0.00s)
+=== RUN   TestAffectedSetChangeInvalidatesPlan
+--- PASS: TestAffectedSetChangeInvalidatesPlan (0.00s)
+=== RUN   TestParseShowMany
+--- PASS: TestParseShowMany (0.00s)
+=== RUN   TestSecondOrderEffects
+--- PASS: TestSecondOrderEffects (0.00s)
+=== RUN   TestStateQueryPathSelection
+--- PASS: TestStateQueryPathSelection (0.00s)
+=== RUN   TestPanicAfterIntentRecordsOutcome
+--- PASS: TestPanicAfterIntentRecordsOutcome (0.00s)
+=== RUN   TestReReviewItems
+--- PASS: TestReReviewItems (0.00s)
+=== RUN   TestInventoryIncludesInstalledUnloadedUnits
+--- PASS: TestInventoryIncludesInstalledUnloadedUnits (0.00s)
+=== RUN   TestInventoryWithRealSystemctlFixtures
+=== RUN   TestInventoryWithRealSystemctlFixtures/jammy
+=== RUN   TestInventoryWithRealSystemctlFixtures/noble
+--- PASS: TestInventoryWithRealSystemctlFixtures (0.00s)
+    --- PASS: TestInventoryWithRealSystemctlFixtures/jammy (0.00s)
+    --- PASS: TestInventoryWithRealSystemctlFixtures/noble (0.00s)
+=== RUN   TestUnitFileInventoryRejectsInvalidNamesAndStates
+--- PASS: TestUnitFileInventoryRejectsInvalidNamesAndStates (0.00s)
+=== RUN   TestInventoryCapKeepsRuntimeUnitsBeforeFileOnlyEntries
+--- PASS: TestInventoryCapKeepsRuntimeUnitsBeforeFileOnlyEntries (0.00s)
+=== RUN   TestViewArgsStrictAndValidated
+--- PASS: TestViewArgsStrictAndValidated (0.00s)
+=== RUN   TestDetailPropsNeverRequestSecrets
+--- PASS: TestDetailPropsNeverRequestSecrets (0.00s)
+=== RUN   TestBuildDetailDoesNotInventState
+--- PASS: TestBuildDetailDoesNotInventState (0.00s)
+=== RUN   TestRedactLine
+--- PASS: TestRedactLine (0.00s)
+=== RUN   TestParseCat
+--- PASS: TestParseCat (0.00s)
+=== RUN   TestTimers
+--- PASS: TestTimers (0.00s)
+=== RUN   TestSockets
+--- PASS: TestSockets (0.00s)
+=== RUN   TestParseShowBlocksKeepsRepeatedKeys
+--- PASS: TestParseShowBlocksKeepsRepeatedKeys (0.00s)
+=== RUN   TestParseCatRedactsContinuations
+--- PASS: TestParseCatRedactsContinuations (0.00s)
+=== RUN   FuzzEnablementArgs
+=== RUN   FuzzEnablementArgs/seed#0
+=== RUN   FuzzEnablementArgs/seed#1
+=== RUN   FuzzEnablementArgs/seed#2
+=== RUN   FuzzEnablementArgs/seed#3
+=== RUN   FuzzEnablementArgs/seed#4
+--- PASS: FuzzEnablementArgs (0.00s)
+    --- PASS: FuzzEnablementArgs/seed#0 (0.00s)
+    --- PASS: FuzzEnablementArgs/seed#1 (0.00s)
+    --- PASS: FuzzEnablementArgs/seed#2 (0.00s)
+    --- PASS: FuzzEnablementArgs/seed#3 (0.00s)
+    --- PASS: FuzzEnablementArgs/seed#4 (0.00s)
+=== RUN   FuzzParseInstall
+=== RUN   FuzzParseInstall/seed#0
+=== RUN   FuzzParseInstall/seed#1
+--- PASS: FuzzParseInstall (0.00s)
+    --- PASS: FuzzParseInstall/seed#0 (0.00s)
+    --- PASS: FuzzParseInstall/seed#1 (0.00s)
+=== RUN   FuzzLogsArgs
+=== RUN   FuzzLogsArgs/seed#0
+=== RUN   FuzzLogsArgs/seed#1
+=== RUN   FuzzLogsArgs/seed#2
+=== RUN   FuzzLogsArgs/seed#3
+=== RUN   FuzzLogsArgs/seed#4
+=== RUN   FuzzLogsArgs/seed#5
+=== RUN   FuzzLogsArgs/seed#6
+=== RUN   FuzzLogsArgs/seed#7
+--- PASS: FuzzLogsArgs (0.00s)
+    --- PASS: FuzzLogsArgs/seed#0 (0.00s)
+    --- PASS: FuzzLogsArgs/seed#1 (0.00s)
+    --- PASS: FuzzLogsArgs/seed#2 (0.00s)
+    --- PASS: FuzzLogsArgs/seed#3 (0.00s)
+    --- PASS: FuzzLogsArgs/seed#4 (0.00s)
+    --- PASS: FuzzLogsArgs/seed#5 (0.00s)
+    --- PASS: FuzzLogsArgs/seed#6 (0.00s)
+    --- PASS: FuzzLogsArgs/seed#7 (0.00s)
+=== RUN   FuzzWriteArgs
+=== RUN   FuzzWriteArgs/seed#0
+=== RUN   FuzzWriteArgs/seed#1
+=== RUN   FuzzWriteArgs/seed#2
+=== RUN   FuzzWriteArgs/seed#3
+=== RUN   FuzzWriteArgs/seed#4
+=== RUN   FuzzWriteArgs/seed#5
+=== RUN   FuzzWriteArgs/seed#6
+=== RUN   FuzzWriteArgs/seed#7
+--- PASS: FuzzWriteArgs (0.00s)
+    --- PASS: FuzzWriteArgs/seed#0 (0.00s)
+    --- PASS: FuzzWriteArgs/seed#1 (0.00s)
+    --- PASS: FuzzWriteArgs/seed#2 (0.00s)
+    --- PASS: FuzzWriteArgs/seed#3 (0.00s)
+    --- PASS: FuzzWriteArgs/seed#4 (0.00s)
+    --- PASS: FuzzWriteArgs/seed#5 (0.00s)
+    --- PASS: FuzzWriteArgs/seed#6 (0.00s)
+    --- PASS: FuzzWriteArgs/seed#7 (0.00s)
+=== RUN   FuzzParseCat
+=== RUN   FuzzParseCat/seed#0
+=== RUN   FuzzParseCat/seed#1
+--- PASS: FuzzParseCat (0.00s)
+    --- PASS: FuzzParseCat/seed#0 (0.00s)
+    --- PASS: FuzzParseCat/seed#1 (0.00s)
+PASS
+ok  	homelab-control/backend/internal/broker/ops	7.818s
+=== RUN   TestOpNames
+--- PASS: TestOpNames (0.00s)
+=== RUN   TestFrameRoundTripAndLimits
+--- PASS: TestFrameRoundTripAndLimits (0.00s)
+=== RUN   TestDecodeArgsStrict
+--- PASS: TestDecodeArgsStrict (0.00s)
+PASS
+ok  	homelab-control/backend/internal/broker/proto	0.003s
+=== RUN   TestOnlyAllowlistedBinaries
+--- PASS: TestOnlyAllowlistedBinaries (0.00s)
+=== RUN   TestShellMetacharactersRejected
+--- PASS: TestShellMetacharactersRejected (0.00s)
+=== RUN   TestEnvironmentReplaced
+--- PASS: TestEnvironmentReplaced (0.00s)
+=== RUN   TestTimeoutKillsProcessGroup
+--- PASS: TestTimeoutKillsProcessGroup (0.20s)
+=== RUN   TestOutputCapped
+--- PASS: TestOutputCapped (0.00s)
+=== RUN   TestUnsafeBinaryRejected
+--- PASS: TestUnsafeBinaryRejected (0.00s)
+=== RUN   TestMissingKnownBinaryIsNotExist
+--- PASS: TestMissingKnownBinaryIsNotExist (0.00s)
+=== RUN   TestSupplementaryGroupsNeverRoot
+--- PASS: TestSupplementaryGroupsNeverRoot (0.00s)
+=== RUN   TestJournalctlIsTheOnlyNewBinary
+--- PASS: TestJournalctlIsTheOnlyNewBinary (0.00s)
+=== RUN   TestRootTemplatesAreClosed
+--- PASS: TestRootTemplatesAreClosed (0.00s)
+=== RUN   TestRootTargetValidation
+--- PASS: TestRootTargetValidation (0.00s)
+=== RUN   TestRootRunUsesFixedArgvAndScrubbedEnv
+--- PASS: TestRootRunUsesFixedArgvAndScrubbedEnv (0.00s)
+=== RUN   TestRootRunTimeoutKillsGroup
+--- PASS: TestRootRunTimeoutKillsGroup (0.00s)
+=== RUN   TestChildSysProcAttrUsesSetsidNotSetpgid
+--- PASS: TestChildSysProcAttrUsesSetsidNotSetpgid (0.00s)
+=== RUN   TestExecErrorClassOmitsPath
+--- PASS: TestExecErrorClassOmitsPath (0.00s)
+=== RUN   TestConcurrentRuns
+--- PASS: TestConcurrentRuns (0.00s)
+=== RUN   TestTimeoutKillsGrandchildInGroup
+--- PASS: TestTimeoutKillsGrandchildInGroup (0.01s)
+PASS
+ok  	homelab-control/backend/internal/broker/runner	0.217s
+=== RUN   TestSocketMode
+--- PASS: TestSocketMode (0.00s)
+=== RUN   TestInfoAndUnknownOp
+--- PASS: TestInfoAndUnknownOp (0.00s)
+=== RUN   TestScopeRecheckedByBroker
+--- PASS: TestScopeRecheckedByBroker (0.00s)
+=== RUN   TestPeerNotAllowed
+--- PASS: TestPeerNotAllowed (0.00s)
+=== RUN   TestMalformedRequests
+--- PASS: TestMalformedRequests (0.00s)
+=== RUN   TestSlowClientTimesOut
+--- PASS: TestSlowClientTimesOut (5.00s)
+=== RUN   TestPanickingOpContained
+--- PASS: TestPanickingOpContained (0.00s)
+=== RUN   TestBusy
+--- PASS: TestBusy (0.20s)
+=== RUN   TestClientUnavailable
+--- PASS: TestClientUnavailable (0.00s)
+=== RUN   TestAuditHasNoResults
+--- PASS: TestAuditHasNoResults (0.00s)
+=== RUN   TestAuditFailureWithholdsResult
+--- PASS: TestAuditFailureWithholdsResult (0.00s)
+=== RUN   TestOpArgsSummarisedInAudit
+--- PASS: TestOpArgsSummarisedInAudit (0.00s)
+=== RUN   TestAuditRecordsExecErrnoClass
+--- PASS: TestAuditRecordsExecErrnoClass (0.00s)
+=== RUN   TestRootExecHandleOnlyForRootExecOps
+--- PASS: TestRootExecHandleOnlyForRootExecOps (0.00s)
+=== RUN   TestWriteOpsRefusedWithoutScopeEndToEnd
+--- PASS: TestWriteOpsRefusedWithoutScopeEndToEnd (0.00s)
+=== RUN   TestDisabledModuleOpsRefused
+--- PASS: TestDisabledModuleOpsRefused (0.00s)
+=== RUN   TestEnablementOpsNeedConfigureScopeEndToEnd
+--- PASS: TestEnablementOpsNeedConfigureScopeEndToEnd (0.00s)
+PASS
+ok  	homelab-control/backend/internal/broker/server	5.208s
+=== RUN   TestTokenHappyPathAndReplay
+--- PASS: TestTokenHappyPathAndReplay (0.00s)
+=== RUN   TestTokenExpires
+--- PASS: TestTokenExpires (0.00s)
+=== RUN   TestTokenBoundToEveryField
+--- PASS: TestTokenBoundToEveryField (0.00s)
+=== RUN   TestTamperedAndForeignTokens
+--- PASS: TestTamperedAndForeignTokens (0.00s)
+=== RUN   TestStepUpRequiredForDisruptive
+--- PASS: TestStepUpRequiredForDisruptive (0.00s)
+=== RUN   TestConcurrentConsumeIsSingleUse
+--- PASS: TestConcurrentConsumeIsSingleUse (0.00s)
+=== RUN   TestOutstandingBounded
+--- PASS: TestOutstandingBounded (0.00s)
+=== RUN   TestLocks
+--- PASS: TestLocks (0.00s)
+=== RUN   TestJournalIntentOutcomeAndInterruptedRecovery
+--- PASS: TestJournalIntentOutcomeAndInterruptedRecovery (0.00s)
+=== RUN   TestIntentFailsClosedWithoutJournal
+--- PASS: TestIntentFailsClosedWithoutJournal (0.00s)
+=== RUN   TestJournalRefusesSymlink
+--- PASS: TestJournalRefusesSymlink (0.00s)
+=== RUN   TestPerActorBoundProtectsOtherUsers
+--- PASS: TestPerActorBoundProtectsOtherUsers (0.00s)
+PASS
+ok  	homelab-control/backend/internal/broker/writes	0.005s
+=== RUN   TestNoProcessExecution
+--- PASS: TestNoProcessExecution (0.02s)
+=== RUN   TestEveryAPIRouteIsWrapped
+--- PASS: TestEveryAPIRouteIsWrapped (0.00s)
+=== RUN   TestUnprivilegedBinariesDoNotLinkPrivilegedCode
+--- PASS: TestUnprivilegedBinariesDoNotLinkPrivilegedCode (0.00s)
+=== RUN   TestRootExecConfined
+--- PASS: TestRootExecConfined (0.01s)
+=== RUN   TestOpenAPIMatchesRoutes
+--- PASS: TestOpenAPIMatchesRoutes (0.00s)
+PASS
+ok  	homelab-control/backend/internal/guard	0.028s
+=== RUN   TestSystemFromFixture
+--- PASS: TestSystemFromFixture (0.00s)
+=== RUN   TestDistroFamily
+--- PASS: TestDistroFamily (0.00s)
+=== RUN   TestParseOSReleaseQuoting
+--- PASS: TestParseOSReleaseQuoting (0.00s)
+=== RUN   TestCPUInfo
+--- PASS: TestCPUInfo (0.00s)
+=== RUN   TestMemory
+--- PASS: TestMemory (0.00s)
+=== RUN   TestMemoryWithoutMemAvailableIsLabelled
+--- PASS: TestMemoryWithoutMemAvailableIsLabelled (0.00s)
+=== RUN   TestFilesystems
+--- PASS: TestFilesystems (0.00s)
+=== RUN   TestUnescapeMount
+--- PASS: TestUnescapeMount (0.00s)
+=== RUN   TestNetwork
+--- PASS: TestNetwork (0.00s)
+=== RUN   TestLegacyNotInstalled
+--- PASS: TestLegacyNotInstalled (0.00s)
+=== RUN   TestLegacyUnreadableConfigNeedsPrivilege
+--- PASS: TestLegacyUnreadableConfigNeedsPrivilege (0.00s)
+=== RUN   TestMissingRootsReportUnavailable
+--- PASS: TestMissingRootsReportUnavailable (0.00s)
+=== RUN   TestLargeMountTableReadCompletely
+--- PASS: TestLargeMountTableReadCompletely (0.00s)
+=== RUN   TestStatfsTimeoutDoesNotHang
+--- PASS: TestStatfsTimeoutDoesNotHang (0.05s)
+=== RUN   TestOverlayRootIsReported
+--- PASS: TestOverlayRootIsReported (0.00s)
+=== RUN   TestFilesystemsPreferHostMountTable
+--- PASS: TestFilesystemsPreferHostMountTable (0.00s)
+=== RUN   TestFilesystemsSandboxFallbackWithholdsReadOnly
+--- PASS: TestFilesystemsSandboxFallbackWithholdsReadOnly (0.00s)
+PASS
+ok  	homelab-control/backend/internal/hostinfo	0.055s
+=== RUN   TestSystem
+--- PASS: TestSystem (0.00s)
+=== RUN   TestPCIWithNames
+--- PASS: TestPCIWithNames (0.00s)
+=== RUN   TestParsePCIIDsFixture
+--- PASS: TestParsePCIIDsFixture (0.00s)
+=== RUN   TestUSBSkipsInterfaces
+--- PASS: TestUSBSkipsInterfaces (0.00s)
+=== RUN   TestDiskIdentity
+--- PASS: TestDiskIdentity (0.00s)
+=== RUN   TestSensors
+--- PASS: TestSensors (0.00s)
+=== RUN   TestEmptyHostIsLabelledNotInvented
+--- PASS: TestEmptyHostIsLabelledNotInvented (0.00s)
+=== RUN   TestRankIdentity
+--- PASS: TestRankIdentity (0.00s)
+=== RUN   TestVirtualDiskMediaTypeUnknown
+--- PASS: TestVirtualDiskMediaTypeUnknown (0.00s)
+PASS
+ok  	homelab-control/backend/internal/hwinfo	0.002s
+=== RUN   TestRegistryIsClosed
+--- PASS: TestRegistryIsClosed (0.00s)
+=== RUN   TestParseIsStrict
+--- PASS: TestParseIsStrict (0.00s)
+=== RUN   TestLoadFailsClosed
+--- PASS: TestLoadFailsClosed (0.00s)
+PASS
+ok  	homelab-control/backend/internal/modules	0.002s
+=== RUN   TestProtectedNames
+--- PASS: TestProtectedNames (0.00s)
+=== RUN   TestOrdinaryServicesNotProtected
+--- PASS: TestOrdinaryServicesNotProtected (0.00s)
+=== RUN   TestNamesProtectionCoversAliasesAndUnitFiles
+--- PASS: TestNamesProtectionCoversAliasesAndUnitFiles (0.00s)
+=== RUN   TestValidUnitAndAction
+--- PASS: TestValidUnitAndAction (0.00s)
+=== RUN   TestDangerousTargetsAndActions
+--- PASS: TestDangerousTargetsAndActions (0.00s)
+=== RUN   TestProtectionCoversOtherUnitTypesAndReviewAdditions
+--- PASS: TestProtectionCoversOtherUnitTypesAndReviewAdditions (0.00s)
+PASS
+ok  	homelab-control/backend/internal/servicepolicy	0.001s
+=== RUN   TestOpenCreatesPrivateFileAndMigrates
+--- PASS: TestOpenCreatesPrivateFileAndMigrates (0.00s)
+=== RUN   TestOpenRefusesUnsafePaths
+--- PASS: TestOpenRefusesUnsafePaths (0.00s)
+=== RUN   TestMigrationFailureRollsBackAndRefuses
+--- PASS: TestMigrationFailureRollsBackAndRefuses (0.00s)
+=== RUN   TestMigrationBackupAndDowngradeRefusal
+--- PASS: TestMigrationBackupAndDowngradeRefusal (0.00s)
+=== RUN   TestSessionsPersistAcrossReopen
+--- PASS: TestSessionsPersistAcrossReopen (0.00s)
+=== RUN   TestSessionLimitsWithDatabase
+--- PASS: TestSessionLimitsWithDatabase (0.00s)
+=== RUN   TestAuditChainInDatabase
+--- PASS: TestAuditChainInDatabase (0.00s)
+=== RUN   TestConcurrentUse
+--- PASS: TestConcurrentUse (0.01s)
+PASS
+ok  	homelab-control/backend/internal/state	0.082s
+uid 1000; tests 285, subtests 116, failed 0
