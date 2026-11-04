@@ -308,7 +308,8 @@ components:
         exit_code: { type: integer }
         boot_state_before: { type: string }
         boot_state: { type: string, description: 'Absent when it could not be read back' }
-        links: { type: array, items: { type: object, required: [path, present], properties: { path: { type: string }, present: { type: boolean } } } }
+        links: { type: array, items: { type: object, required: [path, present], properties: { path: { type: string }, present: { type: boolean }, target: { type: string, description: 'Where a present link points (as stored)' }, points_to_unit: { type: boolean, description: 'Whether that target is the unit file found by the review' } } } }
+        unexpected_links: { type: array, items: { type: string }, description: 'Links to the unit found by a fresh scan of /etc/systemd/system afterwards that the plan did not describe; any makes the outcome not succeeded' }
         reported: { type: array, items: { type: string }, description: "systemctl's own Created symlink / Removed lines" }
         observed: { $ref: '#/components/schemas/UnitObserved' }
         recovery: { type: array, items: { type: string } }

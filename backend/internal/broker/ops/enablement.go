@@ -251,6 +251,9 @@ type enablementReview struct {
 	info  InstallInfo
 	state string   // is-enabled before
 	links []string // links enable creates / disable removes (absolute paths)
+	// On disk: the fragment systemctl uses and the links that name the unit.
+	fragment string
+	found    []unitLink
 	// Boot-time start walk (enable only).
 	stops, starts []string
 	hidden        int
@@ -326,12 +329,68 @@ func reviewEnablement(ctx context.Context, env *Env, action, requested string) (
 			return r, denied("%s reports the enablement state %q, which this version does not change", p.ID, st)
 		}
 	}
-	info, err := ReadInstall(env.Roots, ip.FragmentPath, ip.DropInPaths)
+	// systemctl works from the files on disk; PID 1's view may be stale
+	// (probe 7). Both must agree, or the review cannot describe the change.
+	fragment, dropIns, err := diskUnitFiles(env.Roots, p.ID)
+	if err != nil {
+		return r, denied("%s cannot be %sd here: %s", p.ID, action, err.Error())
+	}
+	if !sameUnitFiles(env.Roots, p.ID, fragment, dropIns, ip) {
+		return r, denied("the unit files of %s on disk (%s) differ from the ones systemd has loaded (%s). "+
+			"This version does not reload systemd; review the change after the next boot or after systemd reloads its configuration.",
+			p.ID, clean(strings.Join(append([]string{fragment}, dropIns...), " "), 600),
+			clean(strings.Join(append([]string{ip.FragmentPath}, ip.DropInPaths...), " "), 600))
+	}
+	info, err := ReadInstall(env.Roots, fragment, dropIns)
 	if err != nil {
 		if IsUnsupported(err) {
 			return r, denied("%s cannot be %sd here: %s", p.ID, action, err.Error())
 		}
 		return r, denied("the unit files of %s could not be read safely", p.ID)
+	}
+	// Prefix ("foo-.service.d") and type-level ("service.d") drop-ins apply
+	// [Unit] settings at boot, but systemctl ignores their [Install] (probe 7):
+	// an [Install] section there is ambiguous and refused.
+	var others []string
+	for _, d := range ip.DropInPaths {
+		if !ownDropIn(p.ID, d) {
+			others = append(others, d)
+		}
+	}
+	if len(others) > maxDropIns {
+		return r, denied("%s cannot be %sd here: the unit has more than %d drop-in files", p.ID, action, maxDropIns)
+	}
+	for _, d := range others {
+		if err := safeUnitPath(env.Roots, d, dropInDirs, ".conf"); err != nil {
+			return r, denied("%s cannot be %sd here: %s", p.ID, action, err.Error())
+		}
+		b, err := readFixed(env.Roots.Path(d), maxUnitFileBytes)
+		if err != nil {
+			return r, denied("the unit files of %s could not be read safely", p.ID)
+		}
+		var o InstallInfo
+		if err := ParseInstall(b, &o); err != nil || len(o.WantedBy)+len(o.RequiredBy)+len(o.UpheldBy)+len(o.Alias)+len(o.Also)+len(o.DefaultInstance) > 0 {
+			return r, denied("%s cannot be %sd here: the shared drop-in %s has an [Install] section, which systemctl ignores; this version does not decide which applies", p.ID, action, clean(d, 200))
+		}
+		info.Conflicts = append(info.Conflicts, o.Conflicts...)
+		info.Actions = append(info.Actions, o.Actions...)
+	}
+	// [Unit] settings on disk that the next boot will use (enable only).
+	for _, v := range info.Actions {
+		if action != ActionEnable {
+			break
+		}
+		if !servicepolicy.SafeEmergencyAction(v) {
+			return r, denied("%s has an emergency action (%s) in its unit files that can reboot or power off the host; this version does not enable or disable such units", p.ID, clean(v, 40))
+		}
+	}
+	for _, c := range info.Conflicts {
+		if action != ActionEnable {
+			break
+		}
+		if pr := servicepolicy.NameProtection(c); pr.Protected {
+			return r, denied("%s conflicts with %s, which is protected: %s", p.ID, c, pr.Reason)
+		}
 	}
 	switch {
 	case len(info.Also) > 0:
@@ -378,6 +437,27 @@ func reviewEnablement(ctx context.Context, env *Env, action, requested string) (
 			}
 		}
 	}
+	// Every link that already names the unit (systemctl disable removes them
+	// all, at any depth, probe 7) must be one the [Install] section describes;
+	// links in the runtime directory are not managed at all.
+	names := append([]string{p.ID}, info.Alias...)
+	found, err := scanUnitLinks(env.Roots, systemdUnitDir, names, fragment)
+	if err != nil {
+		return r, denied("%s cannot be %sd here: %s", p.ID, action, err.Error())
+	}
+	if rt, err := scanUnitLinks(env.Roots, "/run/systemd/system/", names, fragment); err != nil || len(rt) > 0 {
+		return r, denied("%s cannot be %sd here: it has links in /run/systemd/system (runtime enablement), which this version does not change", p.ID, action)
+	}
+	if extra := unexpectedLinks(found, r.links); len(extra) > 0 {
+		return r, denied("%s cannot be %sd here: these links to it are not described by its [Install] section, and systemctl disable would remove them too: %s. "+
+			"This version does not change them; check them on the host.", p.ID, action, clean(strings.Join(extra, ", "), 600))
+	}
+	for _, l := range found {
+		if !pointsTo(env.Roots, l.Target, fragment) {
+			return r, denied("%s cannot be %sd here: the link %s points to %s, not to the unit file %s", p.ID, action, l.Path, clean(l.Target, 200), fragment)
+		}
+	}
+	r.fragment, r.found = fragment, found
 	// The links must all be in the opposite state now; anything else is an
 	// inconsistent unit this version does not repair. A file that is not a
 	// symbolic link at a link path is never overwritten or removed.
@@ -386,7 +466,7 @@ func reviewEnablement(ctx context.Context, env *Env, action, requested string) (
 			return r, denied("%s cannot be %sd here: %s exists and is not a symbolic link. Check it on the host.", p.ID, action, l)
 		}
 	}
-	for _, l := range linkStates(env, r.links) {
+	for _, l := range linkStates(env, r.links, fragment) {
 		if l.Present == (action == ActionEnable) {
 			return r, denied("%s is in an inconsistent state: %s is already %s. Check the unit on the host.", p.ID, l.Path,
 				map[bool]string{true: "present", false: "absent"}[l.Present])
@@ -401,9 +481,18 @@ func reviewEnablement(ctx context.Context, env *Env, action, requested string) (
 		r.stops, r.starts, r.hidden = sortedKeys(a.stops, p.ID), sortedKeys(a.starts, p.ID), len(a.hidden)
 	}
 	r.p, r.ip, r.info, r.state = p, ip, info, st
-	sum := sha256.Sum256([]byte(fmt.Sprintf("%q|%q|%q|%q|%q|%v|%s|%q|%q|%d",
+	for _, c := range info.Conflicts {
+		if action == ActionEnable && c != p.ID && !contains(r.stops, c) && len(r.stops) < 256 {
+			r.stops = append(r.stops, c)
+		}
+	}
+	var linkSum []string
+	for _, l := range found {
+		linkSum = append(linkSum, l.Path+"->"+l.Target)
+	}
+	sum := sha256.Sum256([]byte(fmt.Sprintf("%q|%q|%q|%q|%q|%v|%s|%q|%q|%d|%q",
 		ip.ID, ip.Names, ip.FragmentPath, ip.DropInPaths, ip.SourcePath, ip.Transient, st,
-		info.Digest(ip.FragmentPath, ip.DropInPaths), append(append([]string{}, r.stops...), r.starts...), r.hidden)))
+		info.Digest(fragment, dropIns), append(append([]string{}, r.stops...), r.starts...), r.hidden, linkSum)))
 	r.digest = p.Digest() + "." + hex.EncodeToString(sum[:12])
 	return r, nil
 }
@@ -412,7 +501,7 @@ func (r enablementReview) consequences(action string) []string {
 	var c []string
 	if action == ActionEnable {
 		c = append(c,
-			"systemd will start the service at the next boot, as part of "+strings.Join(nonEmpty(r.info.WantedBy, "its alias only"), ", ")+".",
+			"systemd will start the service at boot, as part of "+strings.Join(nonEmpty(r.info.WantedBy, "its alias only"), ", ")+".",
 			"This does not start it now: its current state stays "+r.p.ActiveState+". Use Start for that.")
 		if len(r.stops) > 0 {
 			c = append(c, "When it starts at boot, systemd stops the conflicting units listed below if they are running.")
@@ -427,13 +516,17 @@ func (r enablementReview) consequences(action string) []string {
 		c = append(c,
 			"systemd will no longer start the service at boot through "+strings.Join(nonEmpty(r.info.WantedBy, "its alias"), ", ")+".",
 			"This does not stop it now: its current state stays "+r.p.ActiveState+". Use Stop for that.",
-			"It can still start at boot if another unit requires it, or through socket, timer, path or D-Bus activation.")
+			"It can still start at boot if another unit requires it, or through socket, timer, path or D-Bus activation.",
+			"Until systemd reloads its configuration or the host reboots, the running manager still treats the service as wanted by "+
+				strings.Join(nonEmpty(r.info.WantedBy, "its targets"), ", ")+": starting such a target again before then can still start it.")
 		if len(r.info.Alias) > 0 {
 			c = append(c, "Its alias names ("+strings.Join(r.info.Alias, ", ")+") are removed too; anything that refers to the service by an alias will no longer find it after the next reload or boot.")
 		}
 	}
 	c = append(c,
-		"The running systemd manager is not reloaded: the change takes effect at the next boot, and until then `systemctl status` on the host may still show the old setting.",
+		"The setting is written to disk now; the running systemd manager is not reloaded. systemd uses the new setting at the next boot, "+
+			"but also as soon as it reloads its configuration for another reason (package installs and updates commonly do) or first loads a target that is not loaded yet; "+
+			"so it can take effect before a reboot. Until then `systemctl status` on the host may still show the old setting.",
 		"There is no automatic rollback. To undo it, review the opposite action.")
 	return c
 }
@@ -456,6 +549,17 @@ func aliasIsFree(ctx context.Context, env *Env, id, alias string) error {
 		return denied("%s declares Alias=%s, but systemd already knows that name as %s; enabling it would replace that unit", id, alias, q.ID)
 	}
 	return nil
+}
+
+// unexpectedLinks lists found links that are not among the expected paths.
+func unexpectedLinks(found []unitLink, expected []string) []string {
+	var out []string
+	for _, l := range found {
+		if !contains(expected, l.Path) {
+			out = append(out, l.Path)
+		}
+	}
+	return out
 }
 
 func nonEmpty(l []string, empty string) []string {
@@ -518,14 +622,33 @@ func capList(l []string, n int) []string {
 	return l
 }
 
-// linkStates lstats the expected links itself (independent of systemctl).
-func linkStates(env *Env, links []string) []LinkObservation {
+// linkStates lstats the expected links itself (independent of systemctl) and
+// records where each present link points.
+func linkStates(env *Env, links []string, fragment string) []LinkObservation {
 	out := make([]LinkObservation, 0, len(links))
 	for _, l := range links {
-		fi, err := os.Lstat(env.Roots.Path(l))
-		out = append(out, LinkObservation{Path: l, Present: err == nil && fi.Mode()&os.ModeSymlink != 0})
+		o := LinkObservation{Path: l}
+		if fi, err := os.Lstat(env.Roots.Path(l)); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+			o.Present = true
+			if t, err := os.Readlink(env.Roots.Path(l)); err == nil {
+				o.Target = clean(t, 300)
+				o.PointsToUnit = pointsTo(env.Roots, t, fragment)
+			}
+		}
+		out = append(out, o)
 	}
 	return out
+}
+
+// observeLinks is the read-back: the expected links, and every other link
+// that names the unit after the change (a fresh scan, as in the review).
+func observeLinks(env *Env, r enablementReview) ([]LinkObservation, []string, error) {
+	links := linkStates(env, r.links, r.fragment)
+	found, err := scanUnitLinks(env.Roots, systemdUnitDir, append([]string{r.p.ID}, r.info.Alias...), r.fragment)
+	if err != nil {
+		return links, nil, err
+	}
+	return links, unexpectedLinks(found, r.links), nil
 }
 
 // reportedChanges keeps systemctl's own "Created symlink"/"Removed" lines.
@@ -541,17 +664,25 @@ func reportedChanges(res runner.Result) []string {
 }
 
 // classifyEnablement compares the request with what was observed afterwards.
-func classifyEnablement(action string, res runner.Result, runErr error, before, after string, afterErr error, links []LinkObservation) (string, string) {
+func classifyEnablement(action string, res runner.Result, runErr error, before, after string, afterErr error, links []LinkObservation, unexpected []string, scanErr error) (string, string) {
 	want := map[string]string{ActionEnable: "enabled", ActionDisable: "disabled"}[action]
 	wantPresent := action == ActionEnable
 	ok, changed := 0, 0
 	for _, l := range links {
-		if l.Present == wantPresent {
+		if l.Present == wantPresent && (!wantPresent || l.PointsToUnit) {
 			ok++
 		}
+		if l.Present == wantPresent {
+			changed++ // links started in the opposite state (revalidated)
+		}
 	}
-	changed = ok // links started in the opposite state (revalidated), so a match is a change
-	linkText := fmt.Sprintf("%d of %d expected links %s", ok, len(links), map[bool]string{true: "present", false: "removed"}[wantPresent])
+	linkText := fmt.Sprintf("%d of %d expected links %s", ok, len(links), map[bool]string{true: "present and pointing to the unit file", false: "removed"}[wantPresent])
+	switch {
+	case scanErr != nil:
+		linkText += "; the other links to the unit could not be scanned"
+	case len(unexpected) > 0:
+		linkText += fmt.Sprintf("; %d other link(s) to the unit that were not reviewed: %s", len(unexpected), clean(strings.Join(unexpected, ", "), 300))
+	}
 	if errors.Is(runErr, runner.ErrTimeout) {
 		return OutcomeUncertain, "systemctl did not finish within " + actTimeout.String() + ". Observed afterwards: " + linkText + "."
 	}
@@ -563,12 +694,12 @@ func classifyEnablement(action string, res runner.Result, runErr error, before, 
 		}
 		return OutcomeFailed, msg + "; nothing was executed. Observed: " + linkText + "."
 	}
-	if afterErr != nil {
-		return OutcomeUncertain, fmt.Sprintf("systemctl exited with status %d, but the enablement state could not be read back, so the result is not verified. Observed: %s.", res.ExitCode, linkText)
+	if afterErr != nil || scanErr != nil {
+		return OutcomeUncertain, fmt.Sprintf("systemctl exited with status %d, but the enablement state could not be fully read back, so the result is not verified. Observed: %s.", res.ExitCode, linkText)
 	}
 	observed := fmt.Sprintf(" Observed: is-enabled reports %q; %s.", after, linkText)
 	switch {
-	case res.ExitCode == 0 && after == want && ok == len(links):
+	case res.ExitCode == 0 && after == want && ok == len(links) && len(unexpected) == 0:
 		return OutcomeSucceeded, map[string]string{ActionEnable: "The service is enabled at boot.", ActionDisable: "The service is disabled at boot."}[action] + observed
 	case changed == 0 && after == before:
 		if res.ExitCode != 0 {
@@ -666,10 +797,10 @@ func unitEnablementApply(ctx context.Context, env *Env, raw json.RawMessage) (an
 	rctx, rcancel := context.WithTimeout(context.Background(), showTimeout)
 	after, afterErr := env.enablement().IsEnabled(rctx, env, b.Target)
 	rcancel()
-	links := linkStates(env, r.links)
-	outcome, msg := classifyEnablement(a.Action, res, runErr, r.state, after, afterErr, links)
+	links, unexpected, scanErr := observeLinks(env, r)
+	outcome, msg := classifyEnablement(a.Action, res, runErr, r.state, after, afterErr, links, unexpected, scanErr)
 	out := EnablementOutcome{OperationID: opID, Unit: b.Target, Action: a.Action, Outcome: outcome, Message: msg,
-		BootStateBefore: r.state, Links: links, Reported: reportedChanges(res), StartedAt: started, FinishedAt: time.Now().UTC()}
+		BootStateBefore: r.state, Links: links, Unexpected: unexpected, Reported: reportedChanges(res), StartedAt: started, FinishedAt: time.Now().UTC()}
 	if afterErr == nil {
 		out.BootState = after
 	}

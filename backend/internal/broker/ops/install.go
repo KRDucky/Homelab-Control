@@ -47,6 +47,17 @@ type InstallInfo struct {
 	Alias           []string `json:"alias,omitempty"`
 	Also            []string `json:"also,omitempty"`
 	DefaultInstance []string `json:"default_instance,omitempty"`
+	// From [Unit], read from disk because a boot after --no-reload uses the
+	// files, not PID 1's loaded copy: units it conflicts with, and the
+	// values of its *Action= settings.
+	Conflicts []string `json:"conflicts,omitempty"`
+	Actions   []string `json:"actions,omitempty"`
+}
+
+// unitHazardKeys are the [Unit] settings read from disk.
+var unitHazardKeys = map[string]bool{
+	"Conflicts": true, "FailureAction": true, "SuccessAction": true,
+	"StartLimitAction": true, "JobTimeoutAction": true,
 }
 
 // Digest identifies the install information together with where it came from.
@@ -79,8 +90,19 @@ func IsUnsupported(err error) bool {
 // keys and values that are not plain unit names are refused, not guessed.
 func ParseInstall(b []byte, into *InstallInfo) error {
 	section := ""
+	// A line ending in a backslash continues on the next one (systemd joins
+	// them). Continuations of settings that matter here are refused; others
+	// are skipped, so a continued value is never read as a new setting or
+	// section header.
+	inCont := false
 	for n, raw := range strings.Split(string(b), "\n") {
 		line := strings.TrimSpace(strings.TrimRight(raw, "\r"))
+		if inCont {
+			if line != "" && line[0] != '#' && line[0] != ';' {
+				inCont = strings.HasSuffix(line, "\\")
+			}
+			continue
+		}
 		if line == "" || line[0] == '#' || line[0] == ';' {
 			continue
 		}
@@ -91,17 +113,33 @@ func ParseInstall(b []byte, into *InstallInfo) error {
 			section = line[1 : len(line)-1]
 			continue
 		}
+		k, v, ok := strings.Cut(line, "=")
+		k, v = strings.TrimSpace(k), strings.TrimSpace(v)
+		if section == "Unit" && ok && unitHazardKeys[k] {
+			if strings.HasSuffix(line, "\\") {
+				return unsupported("the [Unit] setting %s= uses a line continuation (line %d)", k, n+1)
+			}
+			if k == "Conflicts" {
+				for _, f := range strings.Fields(v) {
+					if len(into.Conflicts) < 256 && !contains(into.Conflicts, f) {
+						into.Conflicts = append(into.Conflicts, f)
+					}
+				}
+			} else if v != "" && len(into.Actions) < 16 {
+				into.Actions = append(into.Actions, v)
+			}
+			continue
+		}
 		if section != "Install" {
+			inCont = strings.HasSuffix(line, "\\")
 			continue // other sections are never interpreted (or kept)
 		}
 		if strings.HasSuffix(line, "\\") {
 			return unsupported("the [Install] section uses a line continuation (line %d)", n+1)
 		}
-		k, v, ok := strings.Cut(line, "=")
 		if !ok {
 			return unsupported("line %d of the [Install] section is not a key=value assignment", n+1)
 		}
-		k, v = strings.TrimSpace(k), strings.TrimSpace(v)
 		var dst *[]string
 		switch k {
 		case "WantedBy":
@@ -140,6 +178,14 @@ func ParseInstall(b []byte, into *InstallInfo) error {
 		}
 	}
 	return nil
+}
+
+// HasInstallSection reports whether a unit file has a non-empty [Install]
+// section (used for drop-ins systemctl ignores).
+func HasInstallSection(b []byte) bool {
+	var probe InstallInfo
+	err := ParseInstall(b, &probe)
+	return err != nil || len(probe.WantedBy)+len(probe.RequiredBy)+len(probe.UpheldBy)+len(probe.Alias)+len(probe.Also)+len(probe.DefaultInstance) > 0
 }
 
 func contains(l []string, s string) bool {

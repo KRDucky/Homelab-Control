@@ -131,7 +131,7 @@ const enablePlan = {
   effect: 'Enable batch.service at boot. It is currently disabled.',
   consequences: [
     'This does not start it now: its current state stays inactive. Use Start for that.',
-    'The running systemd manager is not reloaded: the change takes effect at the next boot.',
+    'The setting is written to disk now; the running systemd manager is not reloaded. systemd uses the new setting at the next boot, but also as soon as it reloads its configuration for another reason.',
     'There is no automatic rollback. To undo it, review the opposite action.',
   ],
   links: ['/etc/systemd/system/multi-user.target.wants/batch.service'],

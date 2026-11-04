@@ -523,7 +523,24 @@ export function ServiceActionDialog({
                 <ul>
                   {o.links.map((l) => (
                     <li key={l.path}>
-                      <code>{l.path}</code> — {l.present ? 'present' : 'absent'}
+                      <code>{l.path}</code> —{' '}
+                      {!l.present
+                        ? 'absent'
+                        : l.points_to_unit
+                          ? 'present, pointing to the unit file'
+                          : `present, but pointing to ${l.target ?? 'something else'}`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {o.unexpected_links && o.unexpected_links.length > 0 && (
+              <div className="also">
+                <p>Other links to the unit found afterwards that were not part of the review:</p>
+                <ul>
+                  {o.unexpected_links.map((l) => (
+                    <li key={l}>
+                      <code>{l}</code>
                     </li>
                   ))}
                 </ul>

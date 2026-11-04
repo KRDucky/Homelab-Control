@@ -321,6 +321,11 @@ var (
 
 const redacted = "[redacted]"
 
+func isCommentLine(l string) bool {
+	t := strings.TrimSpace(l)
+	return t != "" && (t[0] == '#' || t[0] == ';')
+}
+
 // redactLine removes values that commonly hold secrets. It is heuristic and
 // conservative (it may hide harmless values); the UI says so.
 func redactLine(line string) (string, bool) {
@@ -420,6 +425,38 @@ func ParseCat(unit string, stdout []byte, stderr string, exitCode int) (UnitCont
 		}
 		b.Reset()
 	}
+	// Lines ending in a backslash continue on the next one: a value (and a
+	// secret in it) may span several lines, so redaction works on the joined
+	// logical line. A redacted logical line is shown as one line.
+	var group []string
+	emit := func() bool {
+		out := group
+		if len(group) > 0 {
+			parts := make([]string, len(group))
+			for i, g := range group {
+				parts[i] = strings.TrimSuffix(strings.TrimRight(g, " \t"), "\\")
+			}
+			if red, did := redactLine(strings.Join(parts, " ")); did {
+				c.Redactions++
+				out = []string{red}
+			}
+		}
+		group = nil
+		for _, l := range out {
+			if bytes+len(l) > maxContentBytes || lines >= maxContentLines {
+				c.Truncated = true
+				return false
+			}
+			b.WriteString(l + "\n")
+			bytes += len(l) + 1
+			lines++
+		}
+		return true
+	}
+	continues := func(l string) bool {
+		t := strings.TrimSpace(l)
+		return t != "" && t[0] != '#' && t[0] != ';' && strings.HasSuffix(t, "\\")
+	}
 	for _, raw := range strings.Split(string(res.Stdout), "\n") {
 		line := strings.Map(func(r rune) rune {
 			if r == '\t' {
@@ -431,6 +468,9 @@ func ParseCat(unit string, stdout []byte, stderr string, exitCode int) (UnitCont
 			return r
 		}, raw)
 		if p, ok := strings.CutPrefix(line, "# /"); ok && !strings.ContainsAny(p, " \t") {
+			if !emit() {
+				break
+			}
 			flush()
 			cur = &UnitFileText{Path: clean("/"+p, 500)}
 			continue
@@ -442,17 +482,17 @@ func ParseCat(unit string, stdout []byte, stderr string, exitCode int) (UnitCont
 			}
 			continue
 		}
-		if bytes+len(line) > maxContentBytes || lines >= maxContentLines {
-			c.Truncated = true
+		inGroup := len(group) > 0
+		group = append(group, line)
+		if (inGroup || continues(line)) && len(group) < maxContentLines && (continues(line) || isCommentLine(line)) {
+			continue // the logical line goes on
+		}
+		if !emit() {
 			break
 		}
-		red, did := redactLine(line)
-		if did {
-			c.Redactions++
-		}
-		b.WriteString(red + "\n")
-		bytes += len(red) + 1
-		lines++
+	}
+	if !c.Truncated {
+		emit()
 	}
 	flush()
 	listed := map[string]bool{}

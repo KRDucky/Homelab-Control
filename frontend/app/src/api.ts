@@ -593,6 +593,10 @@ export type EnablementAction = 'enable' | 'disable';
 export interface LinkObservation {
   path: string;
   present: boolean;
+  /** Where a present link points, as stored in the link. */
+  target?: string;
+  /** Whether that is the unit file the review found. */
+  points_to_unit?: boolean;
 }
 
 export interface EnablementPlan {
@@ -627,6 +631,8 @@ export interface EnablementOutcome {
   boot_state_before: string;
   boot_state?: string;
   links: LinkObservation[];
+  /** Other links to the unit found afterwards that the plan did not describe. */
+  unexpected_links?: string[];
   reported?: string[];
   observed?: UnitObserved;
   recovery?: string[];

@@ -8,6 +8,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -103,9 +105,83 @@ func (f *fakeFiles) Change(_ context.Context, env *Env, action, unit string) (ru
 	if f.changeFn != nil {
 		return f.changeFn(action, unit)
 	}
-	f.setLinks(unit, action == ActionEnable, -1)
+	out := systemctlModel(f.root, action, unit)
 	f.state[unit] = map[string]string{ActionEnable: "enabled", ActionDisable: "disabled"}[action]
-	return runner.Result{Stdout: []byte("Created symlink '/etc/systemd/system/multi-user.target.wants/" + unit + "' → '/etc/systemd/system/" + unit + "'.\n")}, nil
+	return runner.Result{Stdout: []byte(out)}, nil
+}
+
+// systemctlModel does what `systemctl --no-reload enable|disable` was measured
+// to do (probe 7), written independently of the review code: the fragment and
+// "<unit>.d/*.conf" drop-ins are looked up on disk (not in PID 1's view),
+// enable links WantedBy=/Alias= of those files, and disable removes every
+// symbolic link under /etc/systemd/system, at any depth, whose name or target
+// names the unit or one of its aliases.
+func systemctlModel(root, action, unit string) string {
+	frag := ""
+	for _, d := range []string{"/etc/systemd/system", "/run/systemd/system", "/usr/local/lib/systemd/system", "/usr/lib/systemd/system"} {
+		if _, err := os.Lstat(filepath.Join(root, d, unit)); err == nil {
+			frag = d + "/" + unit
+			break
+		}
+	}
+	files := []string{frag}
+	for _, d := range []string{"/etc/systemd/system", "/run/systemd/system", "/usr/local/lib/systemd/system", "/usr/lib/systemd/system"} {
+		m, _ := filepath.Glob(filepath.Join(root, d, unit+".d", "*.conf"))
+		files = append(files, m...)
+	}
+	var wanted, aliases []string
+	for i, f := range files {
+		if i == 0 {
+			f = filepath.Join(root, f)
+		}
+		b, _ := os.ReadFile(f)
+		inInstall := false
+		for _, l := range strings.Split(string(b), "\n") {
+			l = strings.TrimSpace(l)
+			if strings.HasPrefix(l, "[") {
+				inInstall = l == "[Install]"
+			} else if v, ok := strings.CutPrefix(l, "WantedBy="); ok && inInstall {
+				wanted = append(wanted, strings.Fields(v)...)
+			} else if v, ok := strings.CutPrefix(l, "Alias="); ok && inInstall {
+				aliases = append(aliases, strings.Fields(v)...)
+			}
+		}
+	}
+	var log strings.Builder
+	if action == ActionEnable {
+		var links []string
+		for _, w := range wanted {
+			links = append(links, "/etc/systemd/system/"+w+".wants/"+unit)
+		}
+		for _, a := range aliases {
+			links = append(links, "/etc/systemd/system/"+a)
+		}
+		for _, l := range links {
+			_ = os.MkdirAll(filepath.Dir(filepath.Join(root, l)), 0o755)
+			if os.Symlink(frag, filepath.Join(root, l)) == nil {
+				fmt.Fprintf(&log, "Created symlink '%s' → '%s'.\n", l, frag)
+			}
+		}
+		return log.String()
+	}
+	names := map[string]bool{unit: true}
+	for _, a := range aliases {
+		names[a] = true
+	}
+	base := filepath.Join(root, "/etc/systemd/system")
+	_ = filepath.WalkDir(base, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.Type()&fs.ModeSymlink == 0 {
+			return nil
+		}
+		t, _ := os.Readlink(p)
+		if names[d.Name()] || names[filepath.Base(t)] || t == frag {
+			_ = os.Remove(p)
+			rel, _ := filepath.Rel(root, p)
+			fmt.Fprintf(&log, "Removed '/%s'.\n", rel)
+		}
+		return nil
+	})
+	return log.String()
 }
 
 type eenv struct {
@@ -191,7 +267,7 @@ func TestEnableFlowStepUpAndIndependentReadBack(t *testing.T) {
 		t.Fatalf("plan: %+v", p)
 	}
 	all := strings.Join(p.Consequences, " ")
-	for _, want := range []string{"next boot", "does not start it now", "not reloaded", "no automatic rollback"} {
+	for _, want := range []string{"next boot", "before a reboot", "does not start it now", "not reloaded", "no automatic rollback"} {
 		if !strings.Contains(all, want) {
 			t.Errorf("consequences lack %q: %v", want, p.Consequences)
 		}
@@ -237,7 +313,7 @@ func TestEnableFlowStepUpAndIndependentReadBack(t *testing.T) {
 	if err != nil || out.Outcome != OutcomeSucceeded || out.BootState != "disabled" || out.Links[0].Present {
 		t.Fatalf("disable: %+v %v", out, err)
 	}
-	if !strings.Contains(strings.Join(d.Consequences, " "), "does not stop it now") {
+	if dc := strings.Join(d.Consequences, " "); !strings.Contains(dc, "does not stop it now") || !strings.Contains(dc, "still treats the service as wanted") {
 		t.Errorf("disable consequences: %v", d.Consequences)
 	}
 }
@@ -381,10 +457,12 @@ func TestEnablementRefusals(t *testing.T) {
 		"transient":                     {mutate: func(e *eenv) { e.files.props["demo.service"].Transient = true }, code: proto.CodePolicyDenied, message: "transient"},
 		"generator directory": {mutate: func(e *eenv) {
 			writeUnit(e.t(), e.files.root, "/run/systemd/generator/demo.service", wantedByMulti)
+			_ = os.Remove(filepath.Join(e.files.root, "/etc/systemd/system/demo.service"))
 			e.files.props["demo.service"].FragmentPath = "/run/systemd/generator/demo.service"
 		}, code: proto.CodePolicyDenied, message: "outside the unit directories"},
 		"symlinked directory": {mutate: func(e *eenv) {
 			writeUnit(e.t(), e.files.root, "/srv/elsewhere/demo.service", wantedByMulti)
+			_ = os.Remove(filepath.Join(e.files.root, "/etc/systemd/system/demo.service"))
 			_ = os.MkdirAll(filepath.Join(e.files.root, "/usr/local/lib/systemd"), 0o755)
 			_ = os.Symlink(filepath.Join(e.files.root, "/srv/elsewhere"), filepath.Join(e.files.root, "/usr/local/lib/systemd/system"))
 			e.files.props["demo.service"].FragmentPath = "/usr/local/lib/systemd/system/demo.service"

@@ -240,3 +240,28 @@ func TestParseShowBlocksKeepsRepeatedKeys(t *testing.T) {
 	}
 	_ = UnitDetail{}
 }
+
+// A secret on a continuation line is part of the logical line systemd joins
+// (review finding): it must be redacted, not shown as a "plain" line.
+func TestParseCatRedactsContinuations(t *testing.T) {
+	out := "# /etc/systemd/system/demo.service\n[Service]\n" +
+		"ExecStart=/usr/bin/demo --listen 0.0.0.0 \\\n  --password \\\n  hunter2-cont \\\n  --verbose\n" +
+		"Environment=A=1 \\\n  DB_PASSWORD=hunter3-cont\n" +
+		"ExecStartPre=/bin/echo one \\\n  # a comment inside the continuation\n  two\n" +
+		"Description=ends with a backslash \\\n" +
+		"[Install]\nWantedBy=multi-user.target\n"
+	c, err := ParseCat("demo.service", []byte(out), "", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := c.Files[0].Text
+	for _, secret := range []string{"hunter2-cont", "hunter3-cont"} {
+		if strings.Contains(text, secret) {
+			t.Fatalf("secret %q shown:\n%s", secret, text)
+		}
+	}
+	if c.Redactions != 2 || !strings.Contains(text, "--listen 0.0.0.0") || !strings.Contains(text, "two") ||
+		!strings.Contains(text, "WantedBy=multi-user.target") {
+		t.Fatalf("redactions=%d text:\n%s", c.Redactions, text)
+	}
+}
