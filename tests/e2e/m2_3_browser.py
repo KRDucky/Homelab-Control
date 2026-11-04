@@ -134,8 +134,14 @@ def overflow(page):
     return page.evaluate("document.scrollingElement.scrollWidth - document.scrollingElement.clientWidth")
 
 
+AXE_SRC = open(AXE).read() if os.path.exists(AXE) else ""
+
+
 def axe(page, scope="document"):
-    page.add_script_tag(path=AXE)
+    # Evaluated over the DevTools protocol: the page's CSP (script-src 'self')
+    # stays in force and is checked separately (B18).
+    if not page.evaluate("typeof window.axe !== 'undefined'"):
+        page.evaluate(AXE_SRC)
     res = page.evaluate(f"async () => (await axe.run({scope})).violations.map(v => v.id + ':' + v.nodes.length)")
     return res
 
@@ -171,7 +177,7 @@ def main():
         log("page: " + page.locator("main").inner_text()[:600].replace("\n", " | "))
 
         # B1: enable at boot through the keyboard: focus the button, Enter.
-        btn = page.get_by_role("button", name="Enable hc-test-en-ui.service at boot")
+        btn = page.get_by_role("button", name="Enable at boot: hc-test-en-ui.service")
         btn.focus()
         page.keyboard.press("Enter")
         dlg = page.get_by_role("dialog")
@@ -209,7 +215,7 @@ def main():
                ui=str(page.evaluate("document.activeElement && document.activeElement.outerHTML.slice(0,80)")))
 
         # B7: the list now offers Disable; disable within the step-up window.
-        page.get_by_role("button", name="Disable hc-test-en-ui.service at boot").click()
+        page.get_by_role("button", name="Disable at boot: hc-test-en-ui.service").click()
         dlg = page.get_by_role("dialog")
         dlg.get_by_text("Preview · nothing has been changed yet").wait_for()
         record("B7", "within 5 minutes no password is asked again", dlg.get_by_label("Re-enter your password").count() == 0,
@@ -223,7 +229,7 @@ def main():
         # B9: protected unit has no boot control by any route.
         page.get_by_role("searchbox", name="Search units").fill("ssh")
         ssh_rows = page.get_by_role("row").filter(has_text="ssh.service")
-        has_btn = page.get_by_role("button", name="Disable ssh.service at boot").count() + page.get_by_role("button", name="Enable ssh.service at boot").count()
+        has_btn = page.get_by_role("button", name="Disable at boot: ssh.service").count() + page.get_by_role("button", name="Enable at boot: ssh.service").count()
         record("B9", "protected SSH unit: label, no enable/disable control", has_btn == 0 and ssh_rows.count() >= 1,
                ui=ssh_rows.first.inner_text()[:120] if ssh_rows.count() else "no row")
 
@@ -233,10 +239,12 @@ def main():
         panel = page.get_by_role("region", name="Details: hc-test-en-ui.service")
         panel.get_by_text(f"{ETC}/hc-test-en-ui.service").first.wait_for()
         panel.get_by_role("button", name="Show unit file").click()
-        panel.get_by_text("redacted").first.wait_for()
+        panel.locator("figure.unit-file-text pre").first.wait_for()
         ptxt = panel.inner_text()
-        record("B10", "detail panel: path, restarts, unit file redacted (no fixture secret)",
-               "fixture-ui-token" not in ptxt and "API_TOKEN=[redacted]" in ptxt and "Automatic restarts" in ptxt, ui=ptxt[:200])
+        conds = {"no fixture secret": "fixture-ui-token" not in ptxt, "value redacted": "API_TOKEN=[redacted]" in ptxt,
+                 "restart counter": "Automatic restarts" in ptxt, "unit file path": f"{ETC}/hc-test-en-ui.service" in ptxt}
+        record("B10", "detail panel: path, restarts, unit file redacted (no fixture secret)", all(conds.values()),
+               ui=str(conds), note=ptxt.replace("\n", " | ")[:900])
         v = axe(page, "document.querySelector('.detail-panel')")
         record("B11", "axe: detail panel has no violations", v == [], ui=str(v))
         shot("04-detail")
@@ -247,8 +255,8 @@ def main():
         tab.focus()
         page.keyboard.press("ArrowRight")
         page.get_by_role("table", name="Timers").wait_for()
-        page.get_by_text("OnCalendar=daily").first.wait_for()
-        record("B12", "ArrowRight selects Timers; fixture timer schedule shown",
+        page.get_by_role("row").filter(has_text="hc-test-en-ui.timer").get_by_text("OnCalendar=").first.wait_for()
+        record("B12", "ArrowRight selects Timers; fixture timer schedule shown (systemd normalises 'daily')",
                page.get_by_role("tab", name="Timers").get_attribute("aria-selected") == "true",
                ui=page.get_by_role("row").filter(has_text="hc-test-en-ui.timer").first.inner_text()[:160],
                observer=dx("systemctl show -p TimersCalendar --value hc-test-en-ui.timer")[:80])
@@ -277,7 +285,7 @@ def main():
         page.set_viewport_size({"width": 390, "height": 844})
         page.get_by_role("tab", name="Units").click()
         page.get_by_role("searchbox", name="Search units").fill("hc-test-en-ui.service")
-        page.get_by_role("button", name="Enable hc-test-en-ui.service at boot").click()
+        page.get_by_role("button", name="Enable at boot: hc-test-en-ui.service").click()
         page.get_by_role("dialog").get_by_text("Preview · nothing has been changed yet").wait_for()
         if overflow(page) > 1:
             problems.append(f"phone dialog overflow {overflow(page)}px")
@@ -295,7 +303,7 @@ def main():
         page.get_by_text("This module is disabled on this host").wait_for()
         nav = page.get_by_role("navigation", name="Main")
         record("B17", "module disabled: page explains, navigation hides Services",
-               nav.get_by_text("Services").count() == 0, ui=page.locator("main").inner_text()[:160])
+               nav.get_by_role("link", name="Services", exact=True).count() == 0, ui=page.locator("main").inner_text()[:160])
         shot("07-module-disabled")
         record("B18", "no page errors or CSP violations", errors == [] and csp == [], ui=str(errors + csp)[:200])
         browser.close()

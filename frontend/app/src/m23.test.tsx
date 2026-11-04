@@ -190,19 +190,22 @@ describe('boot-time enable/disable', () => {
   it('offers the boot setting only with services.configure, only for enabled/disabled non-template units', async () => {
     mock(base());
     render(<App />);
-    await screen.findByRole('button', { name: 'Enable batch.service at boot' });
-    expect(screen.getByRole('button', { name: 'Disable web.service at boot' })).toBeTruthy();
+    await screen.findByRole('button', { name: 'Enable at boot: batch.service' });
+    expect(screen.getByRole('button', { name: 'Disable at boot: web.service' })).toBeTruthy();
     // Runtime controls stay hidden without services.operate.
     expect(screen.queryByRole('button', { name: 'Stop web.service' })).toBeNull();
     // An installed unit systemd has not loaded yet can be enabled (found by
     // the real-backend browser run), but gets no runtime control.
-    expect(screen.getByRole('button', { name: 'Enable fresh.service at boot' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Enable at boot: fresh.service' })).toBeTruthy();
     // Static, template and protected units get no boot control.
-    expect(screen.queryByRole('button', { name: /helper\.service at boot/ })).toBeNull();
-    expect(screen.queryByRole('button', { name: /tty@\.service at boot/ })).toBeNull();
-    expect(screen.queryByRole('button', { name: /ssh\.service at boot/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /at boot: helper\.service/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /at boot: tty@\.service/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /at boot: ssh\.service/ })).toBeNull();
     // Boot-time vs runtime is explained.
     expect(screen.getByText(/does not start or stop the service now/)).toBeTruthy();
+    // WCAG 2.5.3 (label in name): found by the real-backend browser run.
+    const res = await axe.run(document.body, { rules: { 'label-content-name-mismatch': { enabled: true } } });
+    expect(res.violations.map((v) => v.id)).toEqual([]);
   });
 
   it('explains why there are no boot controls without the permission', async () => {
@@ -227,7 +230,7 @@ describe('boot-time enable/disable', () => {
     r['POST /api/v1/services/units/batch.service/enablement/apply'] = { status: 200, body: enableOutcome };
     mock(r);
     render(<App />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Enable batch.service at boot' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Enable at boot: batch.service' }));
     const dialog = await screen.findByRole('dialog');
     await within(dialog).findByText('Preview · nothing has been changed yet');
     expect(
@@ -280,7 +283,7 @@ describe('boot-time enable/disable', () => {
     };
     mock(r);
     render(<App />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Enable batch.service at boot' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Enable at boot: batch.service' }));
     const dialog = await screen.findByRole('dialog');
     fireEvent.change(await within(dialog).findByLabelText(/Re-enter your password/), {
       target: { value: 'pw' },
@@ -303,7 +306,7 @@ describe('boot-time enable/disable', () => {
     };
     mock(r);
     render(<App />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Disable web.service at boot' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Disable at boot: web.service' }));
     const dialog = await screen.findByRole('dialog');
     await within(dialog).findByText(/declares Also=/);
     expect(within(dialog).queryByRole('button', { name: 'Review again' })).toBeNull();
