@@ -28,6 +28,7 @@ import (
 	"homelab-control/backend/internal/broker/runner"
 	"homelab-control/backend/internal/broker/server"
 	"homelab-control/backend/internal/broker/writes"
+	"homelab-control/backend/internal/modules"
 	"homelab-control/backend/internal/version"
 )
 
@@ -36,6 +37,7 @@ func main() {
 	serviceUser := flag.String("service-user", "homelab-control", "account allowed to call the broker and used for child processes")
 	auditFile := flag.String("audit-log", "/var/log/homelab-control-broker/broker-audit.jsonl", "broker audit log")
 	opsFile := flag.String("operations-journal", "/var/log/homelab-control-broker/operations.jsonl", "broker operation journal (write operations)")
+	modulesFile := flag.String("modules-config", modules.DefaultPath, "administrator's module setting (root-owned; missing = all modules enabled)")
 	devNonRoot := flag.Bool("dev-non-root", false, "development only: run without root (root-only ops report unreadable data)")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
@@ -79,6 +81,14 @@ func main() {
 		allowed = append(allowed, uint32(os.Geteuid()))
 	}
 	env := &ops.Env{Runner: rn, Roots: ops.Roots{Root: "/"}, Version: version.Version}
+	// Module registry (M2-3): an invalid setting disables every optional
+	// module (fail closed); interrupted-operation recovery below still runs.
+	env.Modules = modules.LoadOrFailClosed(*modulesFile, os.Geteuid() == 0)
+	if env.Modules.Reason != "" {
+		log.Print(env.Modules.Reason)
+	} else if d := env.Modules.Disabled(); len(d) > 0 {
+		log.Printf("modules disabled by %s: %v", *modulesFile, d)
+	}
 	// Journal reader group for services.unit.logs (absent on hosts without
 	// persistent journald access control; the op then reports unavailable).
 	if g, err := user.LookupGroup("systemd-journal"); err == nil {
