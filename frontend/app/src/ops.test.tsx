@@ -157,12 +157,13 @@ describe('service operations', () => {
     expect(screen.getByRole('button', { name: 'Start idle.service' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Stop idle.service' })).toBeNull();
     // Protected: a label with its reason instead of controls.
-    expect(screen.queryByRole('button', { name: /ssh\.service/ })?.textContent).not.toMatch(/Stop|Restart/);
+    // (Every unit has a read-only Details button; no operation control.)
+    expect(screen.queryByRole('button', { name: /^(Start|Stop|Restart|Enable|Disable) ssh\.service/ })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Stop ssh.service' })).toBeNull();
     expect(screen.getByText('Protected')).toBeTruthy();
     expect(screen.getByText(/Why some units can’t be started/)).toBeTruthy();
     // Sockets and missing units get no controls.
-    expect(screen.queryByRole('button', { name: /dbus\.socket/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^(Start|Stop|Restart|Enable|Disable) dbus\.socket/ })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Start ghost.service' })).toBeNull();
     // The shell is no longer labelled read-only for this account.
     expect(screen.queryByText('Read-only', { selector: '.readonly-badge' })).toBeNull();

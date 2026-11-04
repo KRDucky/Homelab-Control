@@ -132,9 +132,21 @@ export interface Capability {
   reason?: string;
 }
 
+/** A compiled-in module (M2-3 registry). Disabled modules have no routes or navigation. */
+export interface ModuleStatus {
+  id: string;
+  title: string;
+  description: string;
+  path: string;
+  enabled: boolean;
+  scopes: string[];
+  reason?: string;
+}
+
 export interface Capabilities {
   broker: { status: 'available' | 'unavailable'; version?: string; reason?: string };
   capabilities: Capability[];
+  modules?: ModuleStatus[];
 }
 
 export interface Unit {
@@ -165,6 +177,8 @@ export interface UnitList {
   protected?: Record<string, Protection>;
   /** Whether start/stop/restart can be offered to this account. */
   operate?: { available: boolean; reason?: string };
+  /** Whether boot-time enable/disable can be offered (services.configure, M2-3). */
+  configure?: { available: boolean; reason?: string };
 }
 
 export interface LogEntry {
@@ -476,4 +490,168 @@ export interface OperationRecord {
 
 export function getOperations(): Promise<{ operations: OperationRecord[]; source: string }> {
   return request<{ operations: OperationRecord[]; source: string }>('/api/v1/operations');
+}
+
+// ---- M2-3: read-only unit views and boot-time enable/disable ----------------
+
+export interface UnitExit {
+  code: 'exited' | 'killed' | 'dumped core' | 'unknown';
+  status: number;
+  exited_at: string;
+  started_at?: string;
+}
+
+export interface UnitDetail {
+  requested: string;
+  id?: string;
+  kind: 'unit' | 'alias' | 'template';
+  in_runtime: boolean;
+  loaded_for_query?: boolean;
+  names?: string[];
+  description?: string;
+  load_state?: string;
+  active_state?: string;
+  sub_state?: string;
+  result?: string;
+  unit_file_state?: string;
+  boot_state?: string;
+  preset?: string;
+  fragment_path?: string;
+  source_path?: string;
+  drop_in_paths?: string[];
+  generated?: boolean;
+  transient?: boolean;
+  need_daemon_reload?: boolean;
+  service_type?: string;
+  restart?: string;
+  restarts?: number;
+  main_pid?: number;
+  last_exit?: UnitExit;
+  active_since?: string;
+  inactive_since?: string;
+  state_since?: string;
+  dependencies: Record<string, string[]>;
+  dependencies_truncated?: boolean;
+  notes?: string[];
+  source: string;
+  protected?: Protection;
+}
+
+export interface UnitContents {
+  unit: string;
+  files: { path: string; text: string; unreadable?: boolean }[];
+  unreadable?: string[];
+  redactions: number;
+  truncated: boolean;
+  notes?: string[];
+  source: string;
+}
+
+export interface TimerInfo {
+  unit: string;
+  activates?: string;
+  description?: string;
+  active_state: string;
+  sub_state?: string;
+  unit_file_state?: string;
+  next?: string;
+  last?: string;
+  schedule?: string[];
+  persistent?: boolean;
+}
+
+export interface SocketInfo {
+  unit: string;
+  description?: string;
+  listen: string[];
+  activates?: string[];
+  active_state: string;
+  sub_state?: string;
+  unit_file_state?: string;
+}
+
+const unitPath = (unit: string) => `/api/v1/services/units/${encodeURIComponent(unit)}`;
+
+export function getUnitDetail(unit: string): Promise<UnitDetail> {
+  return request<UnitDetail>(unitPath(unit));
+}
+
+export function getUnitContents(unit: string): Promise<UnitContents> {
+  return request<UnitContents>(`${unitPath(unit)}/contents`);
+}
+
+export function getTimers(): Promise<{ timers: TimerInfo[]; truncated: boolean; source: string }> {
+  return request<{ timers: TimerInfo[]; truncated: boolean; source: string }>('/api/v1/services/timers');
+}
+
+export function getSockets(): Promise<{ sockets: SocketInfo[]; truncated: boolean; source: string }> {
+  return request<{ sockets: SocketInfo[]; truncated: boolean; source: string }>('/api/v1/services/sockets');
+}
+
+export type EnablementAction = 'enable' | 'disable';
+
+export interface LinkObservation {
+  path: string;
+  present: boolean;
+}
+
+export interface EnablementPlan {
+  unit: string;
+  requested: string;
+  action: EnablementAction;
+  risk: RiskClass;
+  step_up_required: boolean;
+  token: string;
+  expires_at: string;
+  observed: UnitObserved;
+  /** `systemctl is-enabled` (from disk) at review time. */
+  boot_state: string;
+  preset?: string;
+  effect: string;
+  consequences: string[];
+  links: string[];
+  wanted_by?: string[];
+  aliases?: string[];
+  also_affected?: string[];
+  also_started?: string[];
+  notes?: string[];
+}
+
+export interface EnablementOutcome {
+  operation_id: string;
+  unit: string;
+  action: EnablementAction;
+  outcome: 'succeeded' | 'failed' | 'uncertain';
+  message: string;
+  exit_code?: number;
+  boot_state_before: string;
+  boot_state?: string;
+  links: LinkObservation[];
+  reported?: string[];
+  observed?: UnitObserved;
+  recovery?: string[];
+  started_at: string;
+  finished_at: string;
+}
+
+/** Same grammar as the server (servicepolicy.ValidEnablementUnit). */
+export function isEnablementName(name: string): boolean {
+  return isOperableName(name) && !name.includes('@');
+}
+
+export function planEnablement(
+  unit: string,
+  action: EnablementAction,
+  csrf: string,
+): Promise<EnablementPlan> {
+  return postJSON<EnablementPlan>(`${unitPath(unit)}/enablement/plan`, csrf, { action });
+}
+
+export function applyEnablement(
+  unit: string,
+  action: EnablementAction,
+  token: string,
+  csrf: string,
+): Promise<EnablementOutcome> {
+  return postJSON<EnablementOutcome>(`${unitPath(unit)}/enablement/apply`, csrf, { action, token });
 }
