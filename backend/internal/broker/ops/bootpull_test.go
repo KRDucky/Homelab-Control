@@ -212,3 +212,45 @@ func TestDisableBootPullStalePlan(t *testing.T) {
 	}
 	_ = os.RemoveAll(filepath.Join(e.files.root, "/etc/systemd/system/multi-user.target.d"))
 }
+
+// The loaded graph does not show Homelab Control's own --no-reload changes:
+// after it disables one of two pullers, systemd still believes that puller
+// starts the protected unit. Disabling the last puller must be refused.
+func TestDisableBootPullSeesOwnUnloadedDisables(t *testing.T) {
+	e := newEnablementEnv(t, svc("demo.service", "active"), svc("other.service", "active"))
+	addUnit(e.fake, unit("wg-quick@wg0.service", nil))
+	pulls(e, "demo.service", "Wants", "wg-quick@wg0.service")
+	pulls(e, "other.service", "Wants", "wg-quick@wg0.service")
+	pulls(e, "multi-user.target", "Wants", "demo.service", "other.service") // loaded: both enabled
+	for _, u := range []string{"demo.service", "other.service"} {
+		e.files.setLinks(u, true, -1)
+		e.files.state[u] = "enabled"
+	}
+	e.files.reload()
+	p, err := e.eplan(t, "other.service", "disable")
+	if err != nil {
+		t.Fatalf("first puller (the other still anchors it): %v", err)
+	}
+	if o, err := e.eapply(t, withStepUp(e.env, time.Now()), "other.service", "disable", p.Token); err != nil || o.Outcome != "succeeded" {
+		t.Fatalf("%+v %v", o, err)
+	}
+	// systemd's loaded multi-user.target still Wants other.service (no reload).
+	_, err = e.eplan(t, "demo.service", "disable")
+	if code(err) != proto.CodePolicyDenied || !strings.Contains(err.Error(), "wg-quick@wg0.service is started at boot only through it") {
+		t.Fatalf("last puller after an own unloaded disable: %v", err)
+	}
+	// And an own unloaded enable of another puller anchors it again.
+	p, err = e.eplan(t, "other.service", "enable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.eapply(t, withStepUp(e.env, time.Now()), "other.service", "enable", p.Token); err != nil {
+		t.Fatal(err)
+	}
+	e.fake.mu.Lock()
+	e.fake.units["multi-user.target"].Deps["Wants"] = []string{"demo.service"} // loaded: other's link not known
+	e.fake.mu.Unlock()
+	if _, err := e.eplan(t, "demo.service", "disable"); err != nil {
+		t.Fatalf("own unloaded enable of another puller not counted: %v", err)
+	}
+}

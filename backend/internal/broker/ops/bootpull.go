@@ -6,8 +6,11 @@ package ops
 
 import (
 	"context"
+	"os"
+	"path"
 	"sort"
 	"strings"
+	"time"
 
 	"homelab-control/backend/internal/servicepolicy"
 )
@@ -50,6 +53,7 @@ const bootRoot = "default.target"
 type bootWalk struct {
 	ctx     context.Context
 	env     *Env
+	overlay *linkOverlay
 	exclude map[string]bool      // names of the unit being disabled
 	skip    map[string]bool      // canonical IDs not to enter (R, for the second walk)
 	seen    map[string]bool      // names already resolved
@@ -59,8 +63,8 @@ type bootWalk struct {
 	shown   int
 }
 
-func newBootWalk(ctx context.Context, env *Env, exclude []string, skip map[string]bool) *bootWalk {
-	w := &bootWalk{ctx: ctx, env: env, exclude: map[string]bool{}, skip: skip, seen: map[string]bool{},
+func newBootWalk(ctx context.Context, env *Env, ov *linkOverlay, exclude []string, skip map[string]bool) *bootWalk {
+	w := &bootWalk{ctx: ctx, env: env, overlay: ov, exclude: map[string]bool{}, skip: skip, seen: map[string]bool{},
 		units: map[string]UnitProps{}, via: map[string]string{}}
 	for _, n := range exclude {
 		w.exclude[n] = true
@@ -79,7 +83,7 @@ func (w *bootWalk) run(start []string, from string) error {
 		var names []string
 		froms := map[string]string{}
 		for _, it := range queue {
-			if w.seen[it.name] || w.exclude[it.name] {
+			if w.seen[it.name] || w.exclude[it.name] || w.overlay.goneNames[it.name] {
 				continue
 			}
 			w.seen[it.name] = true
@@ -116,7 +120,7 @@ func (w *bootWalk) run(start []string, from string) error {
 				if p.LoadState != "loaded" {
 					continue // not-found or masked: systemd does not start it
 				}
-				for _, n := range union(p, bootPullKeys...) {
+				for _, n := range w.overlay.pulls(p) {
 					queue = append(queue, item{n, p.ID})
 				}
 			}
@@ -172,7 +176,11 @@ func checkBootPulls(ctx context.Context, env *Env, p UnitProps) ([]string, error
 	if root.LoadState != "loaded" || root.ID == "" {
 		return nil, denied("%s cannot be disabled here: the boot target (%s) could not be resolved, so the effect on protected units at boot cannot be checked", p.ID, bootRoot)
 	}
-	r := newBootWalk(ctx, env, self, nil)
+	ov, err := ownLinkOverlay(ctx, env)
+	if err != nil {
+		return nil, denied("%s cannot be disabled here: Homelab Control's own boot-time changes since systemd last loaded its configuration could not be determined", p.ID)
+	}
+	r := newBootWalk(ctx, env, ov, self, nil)
 	if err := r.run([]string{root.ID}, ""); err != nil {
 		return nil, err
 	}
@@ -181,8 +189,8 @@ func checkBootPulls(ctx context.Context, env *Env, p UnitProps) ([]string, error
 		inR[id] = true
 	}
 	// 2. C: what p pulls in that nothing else in the boot graph does.
-	c := newBootWalk(ctx, env, self, inR)
-	if err := c.run(union(p, bootPullKeys...), p.ID); err != nil {
+	c := newBootWalk(ctx, env, ov, self, inR)
+	if err := c.run(ov.pulls(p), p.ID); err != nil {
 		return nil, err
 	}
 	for _, n := range c.hidden {
@@ -210,4 +218,86 @@ func checkBootPulls(ctx context.Context, env *Env, p UnitProps) ([]string, error
 		}
 	}
 	return only, nil
+}
+
+// linkOverlay corrects systemd's loaded graph for Homelab Control's own
+// enablement changes made since the last load (--no-reload, so systemd has
+// not loaded them; they are excused by the change gate). For every planned
+// link path of those operations, the link's state on disk NOW decides:
+// present → the target Wants= the unit; absent → it does not. An alias link
+// that is absent makes that name unresolvable. (Own links are only
+// "<target>.wants/<unit>" and "<alias>": RequiredBy=/UpheldBy= are refused.)
+type linkOverlay struct {
+	added     map[string][]string        // target name → unit names it now wants
+	removed   map[string]map[string]bool // target name → unit names it no longer wants
+	goneNames map[string]bool            // alias names whose link is gone
+}
+
+func ownLinkOverlay(ctx context.Context, env *Env) (*linkOverlay, error) {
+	ov := &linkOverlay{added: map[string][]string{}, removed: map[string]map[string]bool{}, goneNames: map[string]bool{}}
+	m, err := env.enablement().ManagerLoad(ctx, env)
+	if err != nil {
+		return nil, err
+	}
+	t, err := loadThreshold(env.Roots, m, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range ownChanges(env, t) {
+		for _, l := range c.links {
+			l = path.Clean(l)
+			fi, err := os.Lstat(env.Roots.Path(l))
+			present := err == nil && fi.Mode()&os.ModeSymlink != 0
+			dir, name := path.Dir(l), path.Base(l)
+			switch {
+			case dir+"/" == systemdUnitDir: // an alias
+				if !present {
+					ov.goneNames[name] = true
+				} else {
+					delete(ov.goneNames, name)
+				}
+			case strings.HasSuffix(dir, ".wants") && path.Dir(dir)+"/" == systemdUnitDir:
+				tgt := strings.TrimSuffix(path.Base(dir), ".wants")
+				if present {
+					ov.added[tgt] = append(ov.added[tgt], name)
+					delete(ov.removed[tgt], name)
+				} else {
+					if ov.removed[tgt] == nil {
+						ov.removed[tgt] = map[string]bool{}
+					}
+					ov.removed[tgt][name] = true
+				}
+			}
+		}
+	}
+	return ov, nil
+}
+
+// pulls returns u's boot pull relations with the overlay applied.
+func (ov *linkOverlay) pulls(u UnitProps) []string {
+	deps := union(u, bootPullKeys...)
+	if ov == nil {
+		return deps
+	}
+	names := append([]string{u.ID}, u.Names...)
+	var out []string
+	for _, d := range deps {
+		drop := false
+		for _, n := range names {
+			if ov.removed[n][d] {
+				drop = true
+			}
+		}
+		if !drop {
+			out = append(out, d)
+		}
+	}
+	for _, n := range names {
+		for _, a := range ov.added[n] {
+			if !contains(out, a) {
+				out = append(out, a)
+			}
+		}
+	}
+	return out
 }
