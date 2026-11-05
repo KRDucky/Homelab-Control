@@ -28,4 +28,8 @@ not owner acceptance.** Test files are those of `d9946a4a`.
   298/0 (Chromium, Firefox) — `ci-browser-e2e-chromium-firefox.log`.
 - Earlier rounds of this review: `../review-ae937d8a/` (B-1 with overlay; the same checks, the run before the
   client-deadline fix), `../review-ad725d43/` (failing first attempt), `../review-3bec1294/`, `../review-82c24a74/`.
-- GitHub CI: `ci/` (job inventory and artifact hashes, added when the run completes).
+- GitHub CI run 41977140563 on head `b1f4c45a` (merge ref `d8f9fce2`, tree identical to the head): 20/21 jobs
+  succeeded; **`systemd-ubuntu` (runner VM) failed** — blocker B-2: netplan's entries in `/run/systemd/system`
+  make the broker refuse every enable and disable (`ci/systemd-ubuntu-41977140563-results.txt`, M2-3 72/54);
+  `systemd-ubuntu-2604` (container): M2-3 127/0 (`ci/systemd-ubuntu-2604-41977140563-counts.txt`). Jobs:
+  `ci/ci-41977140563-jobs.tsv`; artifact hashes (provenance only): `ci/build-artifact-41977140563.sha256`.

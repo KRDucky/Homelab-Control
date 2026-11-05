@@ -23,6 +23,13 @@ The owner must authorize, in their own words, after reviewing the safety correct
 Not covered and not to be touched: the retained Ubuntu, Fedora and Arch acceptance VMs, their disks and
 snapshots, `AGENTS.md`, the file-manager worktree, production hosts.
 
+> **Not ready for authorization while blocker B-2 is open** (`OWNER-DECISIONS.md` P-8): on netplan-based
+> Ubuntu hosts the current build refuses every enable and disable (measured on the GitHub runner VM, CI run
+> 41977140563), so Phase A on the Ubuntu guests would fail by design. The artifact fields below stay unfilled
+> until the product revision that resolves B-2 has passed CI; the most recent CI artifacts (run 41977140563,
+> head `b1f4c45a`, merge ref `d8f9fce25991f2c25ad3bb55d9e59b1917751ee1` with a tree identical to the head's) are
+> recorded in `docs/evidence/m2/m2-3/review-d9946a4a/ci/build-artifact-41977140563.sha256` for provenance only.
+
 ## Inputs (final validated revision)
 - **PR #36 head:** `{{HEAD}}`. **Product commit:** `d9946a4a8e1953eee81ab3f7989d3ce8d151f077` (later commits
   change only tests, harness or documentation; see `docs/m2/M2-3-ACCEPTANCE.md`, "Revisions").

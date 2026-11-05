@@ -410,6 +410,19 @@ No daemon-reload was added and the protected-unit policy is unchanged. Each new 
 confirm that a test fails (including excusing every change inside an own operation's window).
 
 ## 9. B-1: disable reaching a protected unit at boot (2026-11-05)
+
+**B-2 (open, found by GitHub CI run 41977140563, job `systemd-ubuntu` — the first real, non-container host):**
+on the GitHub Ubuntu 24.04 runner VM, netplan places unit configuration in `/run/systemd/system`
+(`netplan-ovs-cleanup.service`, `systemd-networkd-wait-online.service.d`, `systemd-networkd.service.wants`).
+The rule "any runtime unit configuration refuses" (R14, `63979c1b`) therefore refuses **every enable and
+every disable** on that host (`m2-3-enablement: 72 passed, 54 failed`; evidence
+`docs/evidence/m2/m2-3/review-d9946a4a/ci/`). The rule's premise — runtime configuration is gone at the next
+boot — is false for generator-produced entries, which netplan recreates at every boot; the broker cannot tell
+them from manual runtime configuration (`systemctl --runtime`, other tools) by any measured signal. The
+containers and the containerised CI job (`systemd-ubuntu-2604`, 127/0) have no such entries, which is why they
+pass. The rule is unchanged (fail closed) pending the owner's choice (proposal P-8 in `OWNER-DECISIONS.md`).
+Netplan-based Ubuntu installations — most Ubuntu servers and cloud images — are affected.
+
 The owner approved the safety objective of P-7 (verbatim in `OWNER-DECISIONS.md`); the implementation is for
 review. Reproduced without Homelab Control (§1.3, probe 10) and through a unit test against the previous
 build's logic. Corrected in product commits `ad725d43`, `ae937d8a` (R17) and `d9946a4a` (R18):
