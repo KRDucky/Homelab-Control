@@ -40,6 +40,13 @@ const caps = (enabled = true) => ({
           scope: 'services.logs',
           status: 'available',
         },
+        {
+          id: 'unit_files',
+          label: 'Unit files',
+          path: '/services',
+          scope: 'services.files',
+          status: 'available',
+        },
         { id: 'audit', label: 'Audit', path: '/audit', scope: 'audit.read', status: 'available' },
       ]
     : [{ id: 'audit', label: 'Audit', path: '/audit', scope: 'audit.read', status: 'available' }],
@@ -316,9 +323,14 @@ describe('boot-time enable/disable', () => {
 describe('unit detail, timers and sockets', () => {
   it('opens a read-only detail panel that does not invent state', async () => {
     const r = base(['services.read']);
-    // As the server reports it for an account without services.logs.
+    // As the server reports it for an account with services.logs but without
+    // services.files: the logs permission does not include unit files.
     const c = caps();
-    c.capabilities = c.capabilities.map((x) => (x.id === 'service_logs' ? { ...x, status: 'forbidden' } : x));
+    c.capabilities = c.capabilities.map((x) =>
+      x.id === 'unit_files'
+        ? { ...x, status: 'forbidden', reason: 'Your account does not have the services.files permission.' }
+        : x,
+    );
     r['GET /api/v1/capabilities'] = { status: 200, body: c };
     r['GET /api/v1/services/units/web.service'] = {
       status: 200,
@@ -348,15 +360,16 @@ describe('unit detail, timers and sockets', () => {
     expect(within(panel).getByText(/2 since the manager started/)).toBeTruthy();
     expect(within(panel).getByText(/with status 3/)).toBeTruthy();
     expect(within(panel).getByText('db.service')).toBeTruthy();
-    // Without services.logs the unit file is not offered.
+    // Without services.files the unit file is not offered, even with services.logs.
     expect(within(panel).queryByRole('button', { name: 'Show unit file' })).toBeNull();
-    expect(within(panel).getByText(/needs the services\.logs permission/)).toBeTruthy();
+    expect(within(panel).getByText(/does not have the services\.files permission/)).toBeTruthy();
+    expect(within(panel).getByText(/separate from service logs/)).toBeTruthy();
     const res = await axe.run(panel);
     expect(res.violations.map((v) => v.id)).toEqual([]);
   });
 
-  it('shows the redacted unit file on request with services.logs', async () => {
-    const r = base(['services.read', 'services.logs']);
+  it('shows the redacted unit file on request with services.files', async () => {
+    const r = base(['services.read', 'services.files']);
     r['GET /api/v1/services/units/web.service'] = {
       status: 200,
       body: {

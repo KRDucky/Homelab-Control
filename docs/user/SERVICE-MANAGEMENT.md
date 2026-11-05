@@ -203,6 +203,10 @@ unit masked only until the next boot, a runtime unit file that replaces a persis
 a runtime drop-in that hides a persistent drop-in of the same name is refused with an explanation, and a
 protected unit that only runtime configuration starts at boot does not count as started by something else.
 
+**Unit search path.** Both boot-time actions are refused if systemd reports a unit search path other than the
+documented one (for example when `SYSTEMD_UNIT_PATH` is set for the system manager); the message shows the
+reported path.
+
 **What runs now does not count for the next boot.** *Enable at boot* is judged against the next boot, not
 against what is running at the moment: a dependency that runs now (for example because someone started it by
 hand) is checked like one that does not, socket, timer and path units the service pulls in are followed to
@@ -217,12 +221,20 @@ service.
   exit of the main process, and the dependencies systemd reports. Missing values are shown as missing;
   for an installed but unloaded unit, systemd loads its definition only to answer the query; templates
   have no runtime state.
-- **Unit file** (`services.logs`, read on request and recorded in the audit log): the unit file and
+- **Unit file** (`services.files`, read on request and recorded in the audit log): the unit file and
   drop-ins as the service account can read them. Files only root can read are not shown. Values that
   look like secrets are replaced by `[redacted]`. This is heuristic and **not a secrecy guarantee**:
   secrets passed as positional arguments (`-u user:pass`, `-pSECRET`), inside quoted header values or
   URL query strings, or under setting names without words such as "password", "secret" or "token" are
-  not detected. Grant `services.logs` only to people who may read the host's unit files.
+  not detected. **This permission can disclose sensitive configuration**: grant `services.files` only to
+  people who may read the host's unit files. It is never granted by default and is not included in
+  `services.logs` (journal entries), `services.read`, `services.operate` or `services.configure`; grant it
+  explicitly, for example `sudo hlctl user scopes --file /etc/homelab-control/users.json --username alice
+  --scopes system.read,services.read,services.files`.
+- **Downgrading** to a build without `services.files` (any build before this one): remove the scope from every
+  account first (`hlctl user scopes …` without it). A users file naming a scope the running build does not
+  know is rejected at start-up, and `hc-api` then does not start (`users file: … unknown scope`). The same
+  applies to `services.configure` for builds before M2-3.
 - **Timers** and **Sockets** tabs: schedule, last and next run, listen addresses and activated units,
   as systemd reports them.
 

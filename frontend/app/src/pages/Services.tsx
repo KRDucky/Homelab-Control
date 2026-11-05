@@ -131,12 +131,15 @@ function bootActionFor(u: Unit): 'enable' | 'disable' | null {
 export function Services({
   onUnauthorized,
   logs,
+  files,
   csrf = '',
   stepUpUntil = null,
   auditAvailable = false,
 }: {
   onUnauthorized: () => void;
   logs?: Capability | undefined;
+  /** services.files: unit-file contents (separate from services.logs). */
+  files?: Capability | undefined;
   csrf?: string;
   stepUpUntil?: string | null;
   auditAvailable?: boolean;
@@ -152,6 +155,7 @@ export function Services({
   const [showMissing, setShowMissing] = useState(false);
   const [logUnit, setLogUnit] = useState<string | null>(null);
   const logsUsable = logs?.status === 'available' || logs?.status === 'degraded';
+  const filesUsable = files?.status === 'available' || files?.status === 'degraded';
 
   const types = useMemo(() => [...new Set((data?.units ?? []).map((u) => u.type))].sort(), [data]);
   const shown = useMemo(() => {
@@ -486,7 +490,8 @@ export function Services({
         <UnitDetailPanel
           key={detailUnit}
           unit={detailUnit}
-          canReadFile={logsUsable}
+          canReadFile={filesUsable}
+          fileReason={files?.reason}
           onClose={() => {
             const u = detailUnit;
             setDetailUnit(null);

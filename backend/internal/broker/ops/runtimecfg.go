@@ -34,7 +34,7 @@ import (
 // precedence order.
 var persistentUnitDirs = []string{
 	"/etc/systemd/system.control/", "/etc/systemd/system/", "/etc/systemd/system.attached/",
-	"/usr/local/lib/systemd/system/", "/usr/lib/systemd/system/", "/lib/systemd/system/",
+	"/usr/local/lib/systemd/system/", "/lib/systemd/system/", "/usr/lib/systemd/system/",
 }
 
 // isPersistentPath reports whether a unit file or drop-in path is in a
@@ -280,28 +280,93 @@ func runtimeAliasName(root Roots, u UnitProps) (string, bool) {
 	return "", false
 }
 
-// hiddenPersistentDropIn: a drop-in systemd loaded from a runtime directory
-// hides a persistent drop-in with the same directory and file name (one name
-// per drop-in across all unit directories, by precedence; measured on systemd
-// 249, 255 and 259). At the next boot the persistent one applies. Returns
-// that persistent drop-in.
-func hiddenPersistentDropIn(root Roots, u UnitProps) (string, bool) {
+// runtimeUnitDirs are the runtime directories of the documented search path
+// (checkUnitSearchPath), whose contents are gone at the next boot.
+var runtimeUnitDirs = []string{"/run/systemd/system.control/", "/run/systemd/transient/", "/run/systemd/generator.early/",
+	"/run/systemd/system/", "/run/systemd/system.attached/", "/run/systemd/generator/", "/run/systemd/generator.late/"}
+
+// dropInDirNames are the drop-in directories systemd reads for the unit name
+// n (systemd.unit(5)): "<n>.d"; for a template instance the template's
+// "<t>@.<type>.d"; for a name with dashes every truncated prefix
+// "<p>-.<type>.d"; and the type-level "<type>.d".
+func dropInDirNames(n string) []string {
+	ext := path.Ext(n)
+	base := strings.TrimSuffix(n, ext)
+	out := []string{n + ".d"}
+	if ext == "" {
+		return out
+	}
+	if i := strings.Index(base, "@"); i >= 0 && i < len(base)-1 {
+		out = append(out, base[:i+1]+ext+".d")
+	}
+	for j := len(base) - 2; j > 0; j-- {
+		if base[j] == '-' {
+			out = append(out, base[:j+1]+ext+".d")
+		}
+	}
+	return append(out, strings.TrimPrefix(ext, ".")+".d")
+}
+
+// dropInNames lists the ".conf" entries (files, links, masks) in the given
+// directories under each drop-in directory name: base name -> path.
+func dropInNames(root Roots, dirs, dirNames []string) (map[string]string, error) {
 	merged := mergedUsr(root)
-	for _, d := range u.DropInPaths {
-		if isPersistentPath(d) {
+	out := map[string]string{}
+	for _, d := range dirs {
+		if merged && d == "/lib/systemd/system/" {
 			continue
 		}
-		rel := path.Base(path.Dir(d)) + "/" + path.Base(d)
-		if !strings.HasSuffix(path.Base(path.Dir(d)), ".d") {
-			continue
-		}
-		for _, pd := range persistentUnitDirs {
-			if merged && pd == "/lib/systemd/system/" {
+		for _, dn := range dirNames {
+			ents, err := os.ReadDir(root.Path(d + dn))
+			if errors.Is(err, fs.ErrNotExist) {
 				continue
 			}
-			if _, err := os.Lstat(root.Path(pd + rel)); err == nil {
-				return pd + rel, true
+			if err != nil || len(ents) > maxLinkDirEntries {
+				return nil, errRuntimeBounds
 			}
+			for _, e := range ents {
+				if strings.HasSuffix(e.Name(), ".conf") {
+					if _, seen := out[e.Name()]; !seen {
+						out[e.Name()] = d + dn + "/" + e.Name()
+					}
+				}
+			}
+		}
+	}
+	return out, nil
+}
+
+// hiddenPersistentDropIn: a runtime drop-in — a file, or a mask (a link to
+// /dev/null) — with the same file name as a persistent drop-in that applies
+// to u (its own, alias, template, prefix or type-level drop-in directories)
+// hides or competes with it until the next boot. systemd.unit(5) orders
+// same-named drop-ins by directory (/etc over /run over /usr/lib) and by the
+// prefix hierarchy, but does not specify how both orders combine, so any
+// such pair is treated as uncertain and refused, whichever wins now. Returns
+// the persistent drop-in (or a reason if the directories could not be read).
+func hiddenPersistentDropIn(root Roots, u UnitProps) (string, bool) {
+	var dirNames []string
+	for _, n := range append([]string{u.ID}, u.Names...) {
+		for _, dn := range dropInDirNames(n) {
+			if !contains(dirNames, dn) {
+				dirNames = append(dirNames, dn)
+			}
+		}
+	}
+	rt, err := dropInNames(root, runtimeUnitDirs, dirNames)
+	if err != nil {
+		return "runtime drop-in directories of " + u.ID + " (not readable within bounds)", true
+	}
+	if len(rt) == 0 {
+		return "", false
+	}
+	ps, err := dropInNames(root, persistentUnitDirs, dirNames)
+	if err != nil {
+		return "persistent drop-in directories of " + u.ID + " (not readable within bounds)", true
+	}
+	for name, rp := range rt {
+		if pp, ok := ps[name]; ok {
+			return pp + " (same name as " + rp + ")", true
 		}
 	}
 	return "", false
@@ -389,8 +454,7 @@ func checkRuntimeMasks(env *Env, id string, evaluated map[string]UnitProps) erro
 	type hidden struct{ unit, file, how string }
 	var found []hidden
 	files := 0
-	for _, d := range []string{"/run/systemd/system.control/", "/run/systemd/transient/", "/run/systemd/generator.early/",
-		"/run/systemd/system/", "/run/systemd/system.attached/", "/run/systemd/generator/"} {
+	for _, d := range runtimeUnitDirs {
 		ents, err := os.ReadDir(env.Roots.Path(strings.TrimSuffix(d, "/")))
 		if errors.Is(err, fs.ErrNotExist) {
 			continue
@@ -412,10 +476,15 @@ func checkRuntimeMasks(env *Env, id string, evaluated map[string]UnitProps) erro
 					if files++; files > maxRuntimeEntries {
 						return denied("%s cannot be enabled here: too many runtime drop-ins to evaluate", id)
 					}
-					for _, pd := range persistentUnitDirs {
-						if _, err := os.Lstat(env.Roots.Path(pd + name + "/" + c.Name())); err == nil {
-							found = append(found, hidden{strings.TrimSuffix(name, ".d"), pd + name + "/" + c.Name(), "a runtime drop-in with the same name"})
-							break
+					// The same name in this or a more general drop-in directory
+					// (template, prefix, type) of a persistent directory.
+				persistent:
+					for _, dn := range dropInDirNames(strings.TrimSuffix(name, ".d")) {
+						for _, pd := range persistentUnitDirs {
+							if _, err := os.Lstat(env.Roots.Path(pd + dn + "/" + c.Name())); err == nil {
+								found = append(found, hidden{strings.TrimSuffix(name, ".d"), pd + dn + "/" + c.Name(), "a runtime drop-in with the same name"})
+								break persistent
+							}
 						}
 					}
 				}
@@ -423,6 +492,9 @@ func checkRuntimeMasks(env *Env, id string, evaluated map[string]UnitProps) erro
 			}
 			if e.IsDir() {
 				continue // .wants/.requires directories add relations only
+			}
+			if d == "/run/systemd/generator.late/" {
+				continue // documented below every persistent directory: hides no unit file
 			}
 			exists, mask, target := persistentEntry(env.Roots, name)
 			if !exists || mask {

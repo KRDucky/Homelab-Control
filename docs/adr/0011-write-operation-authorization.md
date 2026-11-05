@@ -217,6 +217,9 @@ use are separate decisions. The review of the new write against every element of
 - **Next boot, not the current state** (final review, `f8d3af2e`, `eb2fc2d4`): the enable review's start walk is not pruned
   by what is running now, follows `Triggers=` and stop-checks every conflict that may run at the next boot;
   M2-2's start/stop/restart model (a change *now*) is unchanged.
+- **Unit search path** (final candidate): both actions are refused unless the manager's reported `UnitPath` is
+  exactly the documented system load path (`systemd.unit(5)`, plus the portable-service directories and
+  `/lib/systemd/system`); same-named drop-ins and drop-in masks are compared across the whole drop-in hierarchy.
 - **Unloaded changes** (second review round): enable fails closed while unit files changed after systemd's
   last load (its boot-time checks use the loaded graph); own journaled changes are excused; disable checks
   `Requisite=` in unit files on disk. A fixed, target-less root template reads the manager's load timestamps.

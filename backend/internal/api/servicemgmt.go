@@ -87,7 +87,7 @@ func (s *Server) handleUnitDetail(w http.ResponseWriter, r *http.Request, sess *
 }
 
 // handleUnitContents returns the redacted unit file. Unit files can contain
-// sensitive values, so this needs services.logs and is audited (who, which
+// sensitive values, so this needs services.files and is audited (who, which
 // unit; never content) before anything is released.
 func (s *Server) handleUnitContents(w http.ResponseWriter, r *http.Request, sess *auth.Session, _ string) {
 	unit := r.PathValue("unit")

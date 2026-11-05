@@ -54,7 +54,7 @@ func TestRegistryIsClosed(t *testing.T) {
 		"services.timers.list":      {PrivUnprivilegedExec, "services.read", ""},
 		"services.sockets.list":     {PrivUnprivilegedExec, "services.read", ""},
 		"services.unit.detail":      {PrivUnprivilegedExec, "services.read", ""},
-		"services.unit.contents":    {PrivUnprivilegedExec, "services.logs", ""},
+		"services.unit.contents":    {PrivUnprivilegedExec, "services.files", ""},
 		"services.enablement.plan":  {PrivRootRead, "services.configure", "plan"},
 		"services.enablement.apply": {PrivRootExec, "services.configure", "apply"},
 	}

@@ -126,7 +126,7 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/services/timers", auth.ScopeServicesRead, s.handleTimers)
 	s.handle("GET /api/v1/services/sockets", auth.ScopeServicesRead, s.handleSockets)
 	s.handle("GET /api/v1/services/units/{unit}", auth.ScopeServicesRead, s.handleUnitDetail)
-	s.handle("GET /api/v1/services/units/{unit}/contents", auth.ScopeServicesLogs, s.handleUnitContents)
+	s.handle("GET /api/v1/services/units/{unit}/contents", auth.ScopeServicesFiles, s.handleUnitContents)
 	s.handle("POST /api/v1/services/units/{unit}/enablement/plan", auth.ScopeServicesConfigure, s.handleEnablementPlan)
 	s.handle("POST /api/v1/services/units/{unit}/enablement/apply", auth.ScopeServicesConfigure, s.handleEnablementApply)
 	s.handle("GET /api/v1/operations", auth.ScopeAuditRead, s.handleOperations)

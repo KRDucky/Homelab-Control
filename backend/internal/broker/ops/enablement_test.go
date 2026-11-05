@@ -39,6 +39,7 @@ type fakeFiles struct {
 	// loadedAt is when the fake manager last "loaded" the unit files.
 	loadedAt time.Time
 	loadErr  error
+	unitPath []string // nil: the documented path
 }
 
 // addUnit registers u in the fake loaded graph under its ID and names.
@@ -83,8 +84,12 @@ func (f *fakeFiles) ManagerLoad(_ context.Context, _ *Env) (ManagerLoad, error) 
 	if f.loadErr != nil {
 		return ManagerLoad{}, f.loadErr
 	}
+	up := f.unitPath
+	if up == nil {
+		up = documentedUnitPath(true)
+	}
 	return ManagerLoad{BootRealtime: testBoot, BootMonotonic: time.Second, HasReloadStamp: true,
-		ReloadRealtime: f.loadedAt, ReloadMonotonic: f.loadedAt.Sub(testBoot)}, nil
+		ReloadRealtime: f.loadedAt, ReloadMonotonic: f.loadedAt.Sub(testBoot), UnitPath: up}, nil
 }
 
 func (f *fakeFiles) ShowInstall(_ context.Context, _ *Env, unit string) (InstallProps, error) {

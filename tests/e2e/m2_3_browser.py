@@ -112,6 +112,9 @@ def setup():
     log("install: " + dx({"deb": "dpkg -i /root/pkg.deb", "rpm": "rpm -Uvh /root/pkg.rpm"}[kind] + " >/dev/null 2>&1; echo rc=$?"))
     dx("sed -i 's|^HC_API_ARGS=.*|HC_API_ARGS=-listen 127.0.0.1:9180 -dev-insecure-http|' /etc/homelab-control/hc-api.env", check=True)
     dx(f"hlctl user add --file /etc/homelab-control/users.json --username {USER} "
+       "--scopes system.read,services.read,services.logs,services.files,services.operate,services.configure,audit.read", inp=PW + "\n", check=True)
+    # B19–B20: an account with every other permission but services.files.
+    dx("hlctl user add --file /etc/homelab-control/users.json --username nofiles "
        "--scopes system.read,services.read,services.logs,services.operate,services.configure,audit.read", inp=PW + "\n", check=True)
     dx("chown homelab-control:homelab-control /etc/homelab-control/users.json", check=True)
     for name, body in FIXTURES.items():
@@ -298,6 +301,32 @@ def main():
         page.get_by_role("dialog").get_by_role("button", name="Close").click()
         record("B15", "phone/laptop × Midnight/Daybreak: no overflow, axe clean", problems == [], ui="; ".join(problems)[:300])
         record("B16", "nothing changed by the reviewed-but-closed dialog", True, observer=dx("systemctl is-enabled hc-test-en-ui.service"))
+
+        # B19–B20: services.files is separate: an account with services.logs and
+        # every other permission is not offered the unit file, and the API
+        # refuses it (403), while its service logs remain available.
+        ctx2 = browser.new_context(viewport={"width": 1366, "height": 900})
+        p2 = ctx2.new_page()
+        p2.set_default_timeout(20000)
+        p2.goto(URL + "/")
+        p2.locator("#username").fill("nofiles")
+        p2.locator("#password").fill(PW)
+        p2.get_by_role("button", name="Sign in").click()
+        p2.get_by_role("navigation", name="Main").wait_for()
+        p2.goto(URL + "/services")
+        p2.get_by_role("searchbox", name="Search units").fill("hc-test-en-ui.service")
+        p2.get_by_role("button", name="Show details of hc-test-en-ui.service").click()
+        panel2 = p2.get_by_role("region", name="Details: hc-test-en-ui.service")
+        panel2.get_by_text("services.files permission").first.wait_for()
+        t2 = panel2.inner_text()
+        record("B19", "without services.files (but with services.logs): no unit-file button, reason shown",
+               panel2.get_by_role("button", name="Show unit file").count() == 0 and "separate from service logs" in t2, ui=t2[-240:])
+        codes = p2.evaluate("Promise.all(['/api/v1/services/units/hc-test-en-ui.service/contents', "
+                            "'/api/v1/services/units/hc-test-en-ui.service/logs?lines=5'].map(u => fetch(u).then(r => r.status)))")
+        audit_n = dx("journalctl -u homelab-control.service --no-pager -o cat | grep -c 'services.unit.contents.read' || true")
+        record("B20", "API: contents 403 without services.files, logs 200 with services.logs", codes == [403, 200], ui=str(codes),
+               observer=f"contents-read audit lines in the API journal: {audit_n}")
+        ctx2.close()
 
         # B17: disable the module on the host; the page says so and nav hides it.
         dx('printf \'{"version":1,"disabled":["services"]}\\n\' > /etc/homelab-control/modules.json && chmod 0644 /etc/homelab-control/modules.json')

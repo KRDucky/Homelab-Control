@@ -124,7 +124,7 @@ export function getOverview(): Promise<Overview> {
 export type CapabilityStatus = 'available' | 'degraded' | 'unavailable' | 'unsupported' | 'forbidden';
 
 export interface Capability {
-  id: 'overview' | 'services' | 'service_logs' | 'hardware' | 'legacy' | 'audit';
+  id: 'overview' | 'services' | 'service_logs' | 'unit_files' | 'hardware' | 'legacy' | 'audit';
   label: string;
   path: string;
   scope: string;
