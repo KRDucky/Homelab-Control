@@ -237,9 +237,9 @@ type EnablementPlan struct {
 	Links    []string `json:"links"`
 	WantedBy []string `json:"wanted_by,omitempty"`
 	Aliases  []string `json:"aliases,omitempty"`
-	// AlsoAffected: running units the boot-time start would stop (Conflicts=).
+	// AlsoAffected: units the boot-time start would stop (Conflicts=): running now or may run at the next boot.
 	AlsoAffected []string `json:"also_affected,omitempty"`
-	// AlsoStarted: inactive units the boot-time start pulls in.
+	// AlsoStarted: units the boot-time start pulls in that the boot target does not start anyway (running now or not).
 	AlsoStarted []string `json:"also_started,omitempty"`
 	Notes       []string `json:"notes,omitempty"`
 }

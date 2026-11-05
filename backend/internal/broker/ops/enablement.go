@@ -514,9 +514,18 @@ func reviewEnablement(ctx context.Context, env *Env, action, requested string) (
 		}
 	}
 	if action == ActionEnable {
-		// What the unit's start at boot would do, with the M2-2 start checks.
+		// What the unit's start at the NEXT boot would do, with the M2-2 start
+		// checks, independent of what is running now (bootModel).
+		m, err := newBootModel(ctx, env, p)
+		if err != nil {
+			return r, err
+		}
 		a := newAssessor(ctx, env, p)
+		a.boot = m
 		if err := a.starting(p); err != nil {
+			return r, err
+		}
+		if err := a.settle(); err != nil {
 			return r, err
 		}
 		// Runtime configuration of the units the walk evaluated (B-2).

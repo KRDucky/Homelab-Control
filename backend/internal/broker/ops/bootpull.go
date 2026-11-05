@@ -224,12 +224,28 @@ func checkBootPulls(ctx context.Context, env *Env, p UnitProps) ([]string, error
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
+	// p's own files: a runtime drop-in hiding a persistent one hides what p
+	// pulls in at boot.
+	if hidden, ok := hiddenPersistentDropIn(env.Roots, p); ok {
+		return nil, denied("%s cannot be disabled here: its persistent drop-in %s applies at the next boot but is hidden by a runtime drop-in until then; what it pulls in at boot was not evaluated", p.ID, clean(hidden, 200))
+	}
 	for _, id := range ids {
 		u := c.units[id]
 		// Runtime configuration on a unit p reaches (B-2): its boot-time
 		// relations are unknown when it is masked only until the next boot,
-		// or when a runtime unit file shadows a persistent one.
+		// when a runtime unit file shadows a persistent one, when one of its
+		// names is a runtime alias over a persistent unit (relations are
+		// shown by canonical ID, so the name they were written with is not
+		// known), or when a runtime drop-in hides a persistent one.
 		names := append([]string{u.ID}, u.Names...)
+		if n, ok := runtimeAliasName(env.Roots, u); ok {
+			return nil, denied("%s cannot be disabled here: it pulls in %s at boot (%s), and %s resolves to it only until the next boot (runtime alias); at boot that name is a different unit file, which was not evaluated",
+				p.ID, u.ID, c.path(id, p.ID), n)
+		}
+		if hidden, ok := hiddenPersistentDropIn(env.Roots, u); ok {
+			return nil, denied("%s cannot be disabled here: it pulls in %s at boot (%s), whose persistent drop-in %s applies at the next boot but is hidden by a runtime drop-in until then",
+				p.ID, u.ID, c.path(id, p.ID), clean(hidden, 200))
+		}
 		if u.LoadState == "masked" && !persistentMask(env.Roots, names) {
 			return nil, denied("%s cannot be disabled here: it pulls in %s at boot (%s), which is masked only until the next boot; what %s would start at boot was not evaluated",
 				p.ID, u.ID, c.path(id, p.ID), u.ID)
@@ -334,4 +350,71 @@ func (ov *linkOverlay) pulls(u UnitProps) []string {
 		}
 	}
 	return out
+}
+
+// bootModel is what the enable review (the start at the NEXT boot) knows
+// about that boot, independent of what is running now (final review
+// 2026-11-05: the start walk used to skip running dependencies and to stop-
+// check only running conflicts, so a change allowed now could break a
+// protected unit at the next boot):
+//   - anchored: units the boot target pulls in through persistent relations
+//     alone, without the unit being enabled (R of the disable check). Only
+//     these are not walked further: they start at boot whatever the change
+//     does. An under-approximation, so it can only add checks.
+//   - mayRun: units that may run at the next boot (anchored, or reached from
+//     the boot target in the loaded graph including runtime and generated
+//     relations and Homelab Control's own unloaded links). A conflict with
+//     any of them, or with a unit the change itself starts, or a running
+//     one, gets the full stop checks. Units started at boot by other means
+//     (udev, D-Bus activation, the kernel command line) that are not running
+//     now are not in it: a residual limit (design review §11).
+type bootModel struct {
+	anchored map[string]bool
+	mayRun   map[string]bool
+	ov       *linkOverlay
+}
+
+// deps adds, for the boot review, socket/timer/path activation (Triggers=)
+// and Homelab Control's own .wants links that systemd has not loaded.
+func (m *bootModel) deps(u UnitProps, deps []string) []string {
+	out := append([]string{}, deps...)
+	for _, n := range m.ov.pulls(u) {
+		if !contains(out, n) {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+func newBootModel(ctx context.Context, env *Env, p UnitProps) (*bootModel, error) {
+	rs, err := env.units().ShowMany(ctx, env, []string{bootRoot})
+	if err != nil {
+		return nil, err
+	}
+	if len(rs) != 1 || rs[0].LoadState != "loaded" || rs[0].ID == "" {
+		return nil, denied("%s cannot be enabled here: the boot target (%s) could not be resolved, so what it starts at boot cannot be checked", p.ID, bootRoot)
+	}
+	root := rs[0]
+	ov, err := ownLinkOverlay(ctx, env)
+	if err != nil {
+		return nil, denied("%s cannot be enabled here: Homelab Control's own boot-time changes since systemd last loaded its configuration could not be determined", p.ID)
+	}
+	self := append([]string{p.ID}, p.Names...)
+	r := newBootWalk(ctx, env, ov, self, nil)
+	r.persistentOnly = true
+	if err := r.run([]string{root.ID}, ""); err != nil {
+		return nil, err
+	}
+	l := newBootWalk(ctx, env, ov, nil, nil)
+	if err := l.run([]string{root.ID}, ""); err != nil {
+		return nil, err
+	}
+	m := &bootModel{anchored: map[string]bool{}, mayRun: map[string]bool{}, ov: ov}
+	for id := range r.units {
+		m.anchored[id], m.mayRun[id] = true, true
+	}
+	for id := range l.units {
+		m.mayRun[id] = true
+	}
+	return m, nil
 }

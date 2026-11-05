@@ -258,6 +258,52 @@ func bootName(root Roots, name string, u UnitProps) bool {
 	return pointsTo(root, target, u.FragmentPath) || path.Base(target) == u.ID
 }
 
+// runtimeAliasName returns a name of u that resolves to u only through
+// runtime configuration while a persistent, different unit file of that name
+// exists (at the next boot the name is that other unit).
+func runtimeAliasName(root Roots, u UnitProps) (string, bool) {
+	if u.LoadState != "loaded" {
+		return "", false
+	}
+	for _, n := range u.Names {
+		if n == u.ID {
+			continue
+		}
+		if exists, mask, target := persistentEntry(root, n); exists && !mask &&
+			!(target != "" && (pointsTo(root, target, u.FragmentPath) || path.Base(target) == u.ID)) {
+			return n, true
+		}
+	}
+	return "", false
+}
+
+// hiddenPersistentDropIn: a drop-in systemd loaded from a runtime directory
+// hides a persistent drop-in with the same directory and file name (one name
+// per drop-in across all unit directories, by precedence; measured on systemd
+// 249, 255 and 259). At the next boot the persistent one applies. Returns
+// that persistent drop-in.
+func hiddenPersistentDropIn(root Roots, u UnitProps) (string, bool) {
+	merged := mergedUsr(root)
+	for _, d := range u.DropInPaths {
+		if isPersistentPath(d) {
+			continue
+		}
+		rel := path.Base(path.Dir(d)) + "/" + path.Base(d)
+		if !strings.HasSuffix(path.Base(path.Dir(d)), ".d") {
+			continue
+		}
+		for _, pd := range persistentUnitDirs {
+			if merged && pd == "/lib/systemd/system/" {
+				continue
+			}
+			if _, err := os.Lstat(root.Path(pd + rel)); err == nil {
+				return pd + rel, true
+			}
+		}
+	}
+	return "", false
+}
+
 // checkBootRuntimeForEnable applies the runtime checks to every unit the
 // enable start walk evaluated (by canonical ID and requested names).
 func checkBootRuntimeForEnable(env *Env, id string, evaluated map[string]UnitProps) error {
@@ -283,6 +329,9 @@ func checkBootRuntimeForEnable(env *Env, id string, evaluated map[string]UnitPro
 			if exists, mask, _ := persistentEntry(env.Roots, u.ID); exists && !mask {
 				return denied("%s cannot be enabled here: %s is defined in %s only until the next boot; at boot its persistent unit file applies, which was not evaluated", id, u.ID, clean(u.FragmentPath, 200))
 			}
+		}
+		if hidden, ok := hiddenPersistentDropIn(env.Roots, u); ok {
+			return denied("%s cannot be enabled here: the persistent drop-in %s of %s applies at the next boot but is hidden by a runtime drop-in until then; its boot-time settings were not evaluated", id, clean(hidden, 200), u.ID)
 		}
 		runtimeDropIn := false
 		for _, d := range u.DropInPaths {
