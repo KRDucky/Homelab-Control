@@ -28,8 +28,9 @@ snapshots, `AGENTS.md`, the file-manager worktree, production hosts.
 > and in the Phase A log; the scenario prints it before section 6f.
 
 ## Inputs (final validated revision)
-- **PR #36 head validated by CI:** `fece3bba376c3a352c9cd971eae87dba64d317d3`. The commit that fills in these
-  fields changes only this file; verify with `git diff --stat fece3bba HEAD` (this file only) before use. **Product commit:** `00fb7f2b66d62c5fe492ceca3fabb8076890cddb` (later commits
+- **PR #36 head validated by CI:** `fece3bba376c3a352c9cd971eae87dba64d317d3`. Later commits change only
+  documentation and evidence (`git diff --stat fece3bba HEAD -- backend frontend schemas packaging cmd tests dev`
+  is empty); verify that before use. **Product commit:** `00fb7f2b66d62c5fe492ceca3fabb8076890cddb` (later commits
   change only tests, harness or documentation; see `docs/m2/M2-3-ACCEPTANCE.md`, "Revisions").
 - **CI run:** `41989940804` on that head, `21 of 21 jobs succeeded, including `systemd-ubuntu` on the stock runner VM with netplan`. GitHub builds `pull_request` runs from the merge of the head
   into `main` (merge ref `bd91aaadd9742a2b513cc14acb5c30ce9f48fa26` (parents `81ee254f` main and the head; tree `c8517f91` identical to the head tree`), which is what the package versions name.
