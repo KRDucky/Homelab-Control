@@ -271,9 +271,13 @@ func newEnablementEnv(t *testing.T, units ...UnitProps) *eenv {
 	w.env.Enablement = f
 	// The boot target (default.target → multi-user.target) for the disable
 	// boot-pull check (B-1); tests add what it pulls in.
+	// Persistent on disk as well (B-2: only persistent relations anchor).
 	if _, ok := w.fake.units["default.target"]; !ok {
 		addUnit(w.fake, UnitProps{ID: "multi-user.target", Names: []string{"multi-user.target", "default.target"},
-			LoadState: "loaded", ActiveState: "active", SubState: "active", Deps: map[string][]string{}})
+			LoadState: "loaded", ActiveState: "active", SubState: "active", Deps: map[string][]string{},
+			FragmentPath: "/usr/lib/systemd/system/multi-user.target"})
+		writeUnit(t, f.root, "/usr/lib/systemd/system/multi-user.target", "[Unit]\nDescription=Multi-User System\n")
+		_ = os.Symlink("multi-user.target", filepath.Join(f.root, "/usr/lib/systemd/system/default.target"))
 	}
 	uptime = func() (time.Duration, error) { return time.Since(testBoot), nil }
 	f.reload()

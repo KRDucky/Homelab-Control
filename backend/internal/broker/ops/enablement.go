@@ -519,6 +519,10 @@ func reviewEnablement(ctx context.Context, env *Env, action, requested string) (
 		if err := a.starting(p); err != nil {
 			return r, err
 		}
+		// Runtime configuration of the units the walk evaluated (B-2).
+		if err := checkBootRuntimeForEnable(env, p.ID, a.cache); err != nil {
+			return r, err
+		}
 		r.stops, r.starts, r.hidden = sortedKeys(a.stops, p.ID), sortedKeys(a.starts, p.ID), len(a.hidden)
 	}
 	r.p, r.ip, r.info, r.state = p, ip, info, st
