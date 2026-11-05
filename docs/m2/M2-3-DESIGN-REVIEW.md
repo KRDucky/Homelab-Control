@@ -523,10 +523,11 @@ stand-ins `homelab-control-hctest-rr*`; every change asked of the **product** th
 it allowed it), restarts the container (a fresh PID 1; `/run` verified empty of the fixtures afterwards) and
 records what systemd started. Controls with the same fixtures (enabled by the harness, or not disabled) show
 what the boot does without the product's decision. Run on Ubuntu 22.04 (systemd 249), 24.04 (255), 24.04 with
-netplan (255), 26.04 (259) and Fedora 44 (259) with the packages of `00fb7f2b` (before) and `f8d3af2e` (after).
-Evidence: `docs/evidence/m2/m2-3/review-f8d3af2e/running-review/`.
+netplan (255), 26.04 (259) and Fedora 44 (259) with the packages of `00fb7f2b` (before), `f8d3af2e` (first
+correction) and `eb2fc2d4` (final; all cases refused except S1's own alias enable).
+Evidence: `docs/evidence/m2/m2-3/review-eb2fc2d4/running-review/`.
 
-| Case | Situation | `00fb7f2b` (all five) | After the reboot | `f8d3af2e` (all five) |
+| Case | Situation | `00fb7f2b` (all five) | After the reboot | `f8d3af2e` and `eb2fc2d4` (all five) |
 |---|---|---|---|---|
 | U1 | Unreloaded persistent edit (`Conflicts=` with the stand-in) of a **running** dependency | Refused (change gate) | — | Refused (change gate) |
 | E1 | Enable U; U → X (**running**, not started at boot otherwise) → Y, `Conflicts=` the enabled stand-in | Refused while X stopped; **allowed while X runs** | Stand-in **inactive** (and in the control) | Refused in both states |
@@ -537,21 +538,27 @@ Evidence: `docs/evidence/m2/m2-3/review-f8d3af2e/running-review/`.
 | D1 | Disable P; P → M → stand-in; M and the stand-in running or stopped (all four combinations) | Refused in every state | — | Refused in every state |
 | D6 | Disable P; P → foo, a persistent unit wanting the stand-in; a runtime alias `foo` → bar | **Allowed** (the walk saw bar) | Stand-in not started (control: started) | Refused |
 | D7 | Disable P; P → M; M's persistent drop-in `Wants=` the stand-in, hidden by a runtime drop-in of the same name | **Allowed** | Stand-in not started (control: started) | Refused |
+| E8 | Enable U; U → Y; the enabled stand-in (started at boot anyway, so never walked) has a persistent drop-in `Conflicts=` Y in `/etc`, hidden by a same-name drop-in in `/run/systemd/system.control` (`set-property --runtime`) | `f8d3af2e`: **allowed** on all five (found after the first correction; `running-review/f8d3af2e-e8-*`) | Stand-in survived on all five (the conflicting job was dropped; not stable, see E3) | `eb2fc2d4`: refused |
+| E8b | The same drop-in hidden in `/run/systemd/system` instead | Refused: `/etc` wins over `/run/systemd/system`, the conflict is loaded (precedence measured) | — | Refused |
 | S1 | Successive `--no-reload` operations: the product enables an alias `W` of V (V wants the stand-in), then disables P, which wants `W` | Refused (systemd resolves the not-found name again when it is queried, 249–259) | Stand-in started | Refused |
 
-**Finding.** The concern is **confirmed for enable** (E1, E2, E3, E5, E7e) and **disproven for disable with
+**Finding.** The concern is **confirmed for enable** (E1, E2, E3, E5, E7e; and E8, found after the first correction) and **disproven for disable with
 running intermediates** (D1: the boot-pull check never reads the active state). Two further **disable** gaps of
 the same kind (runtime configuration hiding persistent relations: D6, D7) were found and are corrected.
 
-| # | Finding | Correction (`f8d3af2e`) | Tests |
+| # | Finding | Correction (`f8d3af2e`; R23 `eb2fc2d4`) | Tests |
 |---|---|---|---|
 | R20 | The enable review reused the M2-2 start walk, which trusts the current state: running dependencies were not walked and only running conflicts were stop-checked; `Triggers=` was not followed | Boot mode for enable only (§3.4): prune only by the persistent boot graph R; follow `Triggers=` and own unloaded links; stop-check, after the walk, every conflict that may run at the next boot. M2-2 start/stop/restart unchanged | `TestEnableDoesNotTrustRunningDependencies`, `TestEnableRunningDependencyWithEmergencyAction`, `TestEnableConflictWithAUnitThatRunsAtBoot`, `TestEnableConflictBetweenUnitsTheChangeStarts`, `TestEnableFollowsSocketActivation`, `TestEnableListsBootStartsIncludingRunningOnes`, `TestStartNowKeepsItsModel` |
 | R21 | A runtime drop-in with the same name hides a persistent drop-in until the next boot (E7e, D7; measured on 249, 255, 259: `/run` wins over `/usr/lib`) | Refused for every unit the enable walk evaluates and every unit disable reaches, and for the unit being disabled | `TestRuntimeDropInHidingAPersistentDropIn` (and: a runtime drop-in alone is not refused) |
 | R22 | Disable: a reached unit's name that is a runtime alias over a persistent unit file (relations are shown by canonical ID) | Refused | `TestDisableRuntimeAliasOverAPersistentName` |
+| R23 | (found by review of `f8d3af2e`) Enable: hidden persistent configuration of a unit the walk does **not** evaluate (one started at boot anyway) can relate to a unit the change starts; the loaded graph has no reverse edge (`ConflictedBy=`, `BoundBy=`), so neither the walk nor the stop checks see it (E8) | `eb2fc2d4`: the bounded runtime scan (before: masks only) covers every runtime unit directory (`system.control`, `transient`, `generator.early`, `system`, `system.attached`, `generator`) and every kind of hiding (mask, shadowing unit file, same-name drop-in); the hidden persistent file is parsed and the enable refused if it names an evaluated unit in `Conflicts=`, `Requires=`, `Wants=`, `BindsTo=`, `Upholds=`, `PartOf=` or `Requisite=` | `TestEnableHiddenReverseRelationOfAnUnwalkedUnit` (system and system.control drop-ins, shadowing unit file, a drop-in hiding nothing allowed), `TestEnableRuntimeMaskedConflict` |
 
 Each check was removed once and a test failed (prune by running state again; no boot-graph or started-by-change
-"may run"; no `Triggers=`/overlay; no pruning by R; no settle; each drop-in and alias refusal; drop-in never found).
-Enable plans took 0.14–0.52 s in the containers (client deadline 20 s).
+"may run"; no `Triggers=`/overlay; no pruning by R; no settle; each drop-in and alias refusal; drop-in never found;
+R23: no hidden drop-ins, no hidden fragments/masks, conflicts only, no `system.control`).
+Enable plans took 0.14–0.98 s in the containers (client deadline 20 s). A plan-only enable survey of every disabled
+stock service of the five images and three homelab-style fixtures gave the same decision for every unit with
+`00fb7f2b` and `eb2fc2d4` (`review-eb2fc2d4/enable-survey/`).
 
 **"Can only add refusals, never remove one" — where it holds (separately per action).**
 - *Disable.* R is used only as the set of units that "start at boot anyway"; refusal is monotone in C (any
@@ -567,9 +574,13 @@ Enable plans took 0.14–0.52 s in the containers (client deadline 20 s).
   **false for a "may run at boot" set**: there an under-approximation removes stop checks. Therefore conflicts
   are checked against an over-approximation — running now ∪ R ∪ the loaded boot graph (with runtime and
   generated relations) ∪ units the change starts. The loaded walk (including runtime and generated relations)
-  over-approximates within the boot graph; conflicts are symmetric in the loaded graph (`ConflictedBy=`), and
-  hidden persistent conflicts are refused (masks, shadowing, same-name drop-ins) or scanned (runtime-masked
-  units' persistent `Conflicts=`).
+  over-approximates within the boot graph. Relations are found from the evaluated side in the loaded graph,
+  where systemd records both directions (`ConflictedBy=`, `BoundBy=`, …) of every **loaded** relation. A
+  persistent relation that runtime configuration hides is not loaded in either direction: on evaluated units
+  it is refused directly (§3.4); on any other unit the bounded runtime scan finds every hiding entry (mask,
+  shadowing unit file, same-name drop-in, in every runtime unit directory) and refuses if the hidden file names
+  an evaluated unit (R23). Within the bounds the scan is complete for what runtime directories can hide; files
+  with specifiers count as uncertain and refuse only for protected units.
 
 **Residual uncertainty (not modelled; each can only be reduced by a boot simulation or a reload):**
 - A unit that is not running now and not reachable from `default.target` in persistent or loaded relations, but
@@ -580,8 +591,10 @@ Enable plans took 0.14–0.52 s in the containers (client deadline 20 s).
   between identical fixtures and versions); the review refuses rather than predicts.
 - Conditions (`Condition*=`), failures and ordering at boot are not modelled; the walk assumes every pulled-in
   unit starts.
-- Re-resolution of not-found names (S1) and drop-in precedence (R21) are measured on systemd 249, 255 and 259,
-  not documented interfaces.
+- Re-resolution of not-found names (S1) and drop-in precedence (R21, E8/E8b: `system.control` over `/etc` over
+  `/run/systemd/system` over `/usr/lib`) are measured on systemd 249, 255 and 259, not documented interfaces.
+- Hidden persistent files with specifiers in the relevant keys (template drop-ins, for example) are refused only
+  when the hiding unit is protected; otherwise their relations are not evaluated.
 - The M2-2 start/stop/restart model (accepted with M2-2) also does not follow `Triggers=` (a start of a unit that
   wants a socket does not check what the socket activates later); it is a start **now**, so its use of the
   current state is correct, but this gap is outside M2-3's scope and is listed for the owner (not changed).

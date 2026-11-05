@@ -1,1 +1,0 @@
-Go tests as uid 1000 (GOTOOLCHAIN=go1.26.10): 310 tests + 137 subtests, 0 failed

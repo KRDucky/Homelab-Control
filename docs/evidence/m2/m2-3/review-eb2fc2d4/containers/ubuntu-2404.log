@@ -1,14 +1,14 @@
-container hc-sd-ubuntu-2204-360373 (ubuntu-2204): systemd state=running; cgroup 0::/init.scope
+container hc-sd-ubuntu-2404-427212 (ubuntu-2404): systemd state=running; cgroup 0::/init.scope
 == environment
-Ubuntu 22.04.5 LTS; systemd 249 (249.11-0ubuntu3.23); kernel 7.3.1-1-cachyos
+Ubuntu 24.04.5 LTS; systemd 255 (255.4-1ubuntu8.18); kernel 7.3.1-1-cachyos
 == install (deb)
 Selecting previously unselected package homelab-control.
-(Reading database ... 8930 files and directories currently installed.)
+(Reading database ... 9851 files and directories currently installed.)
 Preparing to unpack /opt/hc/pkg.deb ...
-Unpacking homelab-control (0.1.0+dev.1+90+gf8d3af2e) ...
-Setting up homelab-control (0.1.0+dev.1+90+gf8d3af2e) ...
-Creating group homelab-control with gid 999.
-Creating user homelab-control (Homelab Control API) with uid 999 and gid 999.
+Unpacking homelab-control (0.1.0+dev.1+93+geb2fc2d4) ...
+Setting up homelab-control (0.1.0+dev.1+93+geb2fc2d4) ...
+Creating group 'homelab-control' with GID 997.
+Creating user 'homelab-control' (Homelab Control API) with UID 997 and GID 997.
 homelab-control installed but NOT enabled. Create an account with:
   sudo hlctl user add --file /etc/homelab-control/users.json --username admin
   sudo chown homelab-control:homelab-control /etc/homelab-control/users.json
@@ -27,7 +27,7 @@ PASS  overview: network section ok (1)
 PASS  broker socket active (active)
 PASS  socket mode/owner (660 root:homelab-control)
 PASS  hlctl broker info (root peer) (1)
-broker v0.1.0-dev.1-90-gf8d3af2e (protocol 1), exec available: systemctl,journalctl
+broker v0.1.0-dev.1-93-geb2fc2d4 (protocol 1), exec available: systemctl,journalctl
   broker.info              -              none               Broker version and the list of registered operations
   hardware.dmi.identity    hardware.read  root-read          Root-only SMBIOS identifiers (system/board/chassis serials, product UUID)
   legacy.webmin.status     system.read    root-read          Installed upstream Webmin: version, listener, TLS and security posture (no secrets)
@@ -54,7 +54,7 @@ PASS  capability hardware available (available)
 PASS  capability legacy available (available)
 PASS  services: homelab-control.service listed active (active)
 PASS  services: unit-file state merged (enabled-or-disabled)
-   systemd 249 (249.11-0ubuntu3.23); units=224; failed=0
+   systemd 255 (255.4-1ubuntu8.18); units=267; failed=0
 PASS  systemctl helper never runs as root (0)
    helper users observed: homelab-control 
 PASS  hardware: inventory returned (1)
@@ -66,13 +66,13 @@ PASS  legacy: running miniserv detected (True)
 PASS  legacy: no secrets in response (0)
    checks: [('version', 'ok'), ('tls', 'warn'), ('bind', 'warn'), ('referer', 'ok'), ('rpc', 'warn')]
 PASS  broker audit log written (root 0600) (600 root)
-   last broker audit: {"seq":46,"time":"2026-11-05T09:15:42.144045217Z","event":"broker.op","user":"admin","remote":"uid=999 pid=159","outcome":"ok","detail":"legacy.webmin.status 0s","prev":"b6fbfc986e8393a9085ceaa4aa7239f3766f9786386399d4a64bc637a5ac4c56","hash":"3a97fbf1f33d4883a2931febdb375f7877171faa437a889fcdc331aef4b12ec2"}
+   last broker audit: {"seq":46,"time":"2026-11-05T09:42:52.213151806Z","event":"broker.op","user":"admin","remote":"uid=997 pid=210","outcome":"ok","detail":"legacy.webmin.status 0s","prev":"a27ce96ea3530976995ccef2fa220920f9a98187320341cc35de2a58771b5536","hash":"12108bdf0d56de293a2302ffb02b14c11d95dfe2f8d26947b968745c7753333f"}
 == systemd-analyze security (broker)
-→ Overall exposure level for homelab-control-broker.service: 1.5 OK 🙂
+→ Overall exposure level for homelab-control-broker.service: 1.5 OK :-)
 == M2 PR-1b: service logs (read-only, services.logs scope)
 PASS  capability service_logs available (available)
 PASS  logs: entries returned for homelab-control.service (1)
-   last entry: 2026/11/05 09:15:33 hc-api v0.1.0-dev.1-90-gf8d3af2e listening on 127.0.0.1:9180 (tls=false)
+   last entry: 2026/11/05 09:42:43 hc-api v0.1.0-dev.1-93-geb2fc2d4 listening on 127.0.0.1:9180 (tls=false)
 PASS  logs: lines above 500 rejected (400)
 PASS  logs: option-like unit rejected (400)
 PASS  logs: encoded path traversal rejected (400)
@@ -83,11 +83,11 @@ PASS  broker audited the logs read (unit and lines only) (1)
 PASS  log content is not copied into the broker audit log (0)
 PASS  API audited the logs read (state database) (1)
 == M2 PR-1b: hash-chained audit logs verify, with journal checkpoints
-Warning: Stopping homelab-control-broker.service, but it can still be activated by:
-  homelab-control-broker.socket
-   journal checkpoint: 88:51670213ad4a6ad7bd367f99ee814d2e7491606fbc2fa316011e5d2557bbc859
+Stopping 'homelab-control-broker.service', but its triggering units are still active:
+homelab-control-broker.socket
+   journal checkpoint: 88:5bac0f239b3147c0d8bcff610b3f226ea9ae1a95f822b09d9abbd51452dd2011
 PASS  broker audit chain + journal checkpoint verify (0)
-   records 88 (legacy 0), segments 1, head seq=88 hash=51670213ad4a6ad7bd367f99ee814d2e7491606fbc2fa316011e5d2557bbc859
+   records 88 (legacy 0), segments 1, head seq=88 hash=5bac0f239b3147c0d8bcff610b3f226ea9ae1a95f822b09d9abbd51452dd2011
    OK: chain verified
 == M2 PR-1a: state database, persistent sessions, API audit trail
 PASS  state database 0600 homelab-control (600 homelab-control)
@@ -96,7 +96,7 @@ PASS  session listed as persistent (True)
 PASS  session survives systemctl restart homelab-control (200)
 PASS  only hashed session ids stored (0)
 PASS  API audit chain + journal checkpoint verify (0)
-   records 45 (legacy 0), segments 1, head seq=45 hash=dd55696e7de58bb175082df2165a21bd1c16df0e6169d300e7d42dd7dcb14911
+   records 45 (legacy 0), segments 1, head seq=45 hash=f1d18ad53d9fdb22cb31ac52f2f4b168fe179ccfa08a6d8a099f8c9e5c187c80
    OK: chain verified
 PASS  audit endpoint without audit.read is 403 (403)
 PASS  shutdown checkpoint is the log head (88)
@@ -141,7 +141,7 @@ PASS  apply stop: verified succeeded ((200, 'succeeded'))
 PASS  systemd agrees: inactive (inactive)
 PASS  apply restart: verified succeeded ((200, 'succeeded'))
 PASS  restart: new main PID (True)
-PASS  restart: observed PID matches systemd (1603)
+PASS  restart: observed PID matches systemd (1679)
 PASS  replayed token: 409 plan_invalid ((409, 'plan_invalid'))
 PASS  token used for another unit: 409 plan_invalid ((409, 'plan_invalid'))
 PASS  token used for another action: 409 plan_invalid ((409, 'plan_invalid'))
@@ -154,8 +154,8 @@ PASS  alias fixture present (True)
       (SSH unit on this host: ssh.service)
 PASS  alias resolving to ssh.service: 403 policy_denied (broker) ((403, 'policy_denied'))
 PASS  alias refusal names the protected unit (True)
-PASS  ssh.service untouched (active)
-PASS  broker not restarted by any of this (1521)
+PASS  ssh.service untouched (inactive)
+PASS  broker not restarted by any of this (1593)
 PASS  stop hc-test-base.service would stop a protected unit two hops away: 403 policy_denied ((403, 'policy_denied', True))
 PASS  restart hc-test-base.service would stop a protected unit two hops away: 403 policy_denied ((403, 'policy_denied', True))
 PASS  start pulling in reboot.target two hops away: 403 policy_denied ((403, 'policy_denied', True))
@@ -204,16 +204,21 @@ PASS  journal file mode 0600 root (600 root)
 PASS  token after 121 s: 409 plan_invalid ((409, 'plan_invalid'))
 PASS  step-up after 5 min: 403 step_up_required ((403, 'step_up_required'))
 PASS  unit untouched after expired step-up (active)
-PASS  SSH ActiveState unchanged after cleanup (active)
-PASS  SSH MainPID unchanged after cleanup (51)
+PASS  SSH ActiveState unchanged after cleanup (inactive)
+PASS  SSH MainPID unchanged after cleanup (0)
 PASS  SSH socket MainPID unchanged after cleanup ()
 m2-service-ops: 89 passed, 0 failed
 PASS  M2-2 service operations scenario (0)
 == systemd-analyze security homelab-control-broker.service
-→ Overall exposure level for homelab-control-broker.service: 1.5 OK 🙂
+→ Overall exposure level for homelab-control-broker.service: 1.5 OK :-)
 PASS  broker capability bounding set unchanged (CAP_SETUID CAP_SETGID) (cap_setgid cap_setuid)
 == M2-3: boot-time enablement, unit views, module registry (real systemd)
-== M2-3 enablement (SSH unit ssh.service, is-enabled enabled)
+Warning: The unit file, source configuration file or drop-ins of hc-test-en-run.service changed on disk. Run 'systemctl daemon-reload' to reload units.
+Warning: The unit file, source configuration file or drop-ins of hc-test-en-req.service changed on disk. Run 'systemctl daemon-reload' to reload units.
+Warning: The unit file, source configuration file or drop-ins of homelab-control-hctest-req.service changed on disk. Run 'systemctl daemon-reload' to reload units.
+Warning: The unit file, source configuration file or drop-ins of hc-test-en-g.service changed on disk. Run 'systemctl daemon-reload' to reload units.
+Warning: The unit file, source configuration file or drop-ins of hc-test-en-g.service changed on disk. Run 'systemctl daemon-reload' to reload units.
+== M2-3 enablement (SSH unit ssh.service, is-enabled disabled)
 PASS  plan without services.configure: 403 forbidden ((403, 'forbidden'))
 PASS  session has services.configure (True)
 PASS  services.operate alone cannot plan enablement: 403 ((403, 'forbidden'))
@@ -230,13 +235,13 @@ PASS  host: is-enabled enabled (enabled)
 PASS  host: link exists (True)
 PASS  host: unit NOT started (no --now) (inactive)
 PASS  host: no manager reload during the change ([])
-INFO  NeedDaemonReload after --no-reload enable: no (systemd 249 (249.11-0ubuntu3.23))
+INFO  NeedDaemonReload after --no-reload enable: yes (systemd 255 (255.4-1ubuntu8.18))
 PASS  replayed token: 409 plan_invalid ((409, 'plan_invalid'))
 PASS  enable again: 403 already enabled ((403, True))
 PASS  plan disable: links include the alias (['/etc/systemd/system/hc-test-en-run-alias.service', '/etc/systemd/system/multi-user.target.wants/hc-test-en-run.service'])
 PASS  apply disable: succeeded ((200, 'succeeded', 'disabled'))
 PASS  host: alias link removed (False)
-PASS  host: still running with the same PID (no stop) (('active', '1899'))
+PASS  host: still running with the same PID (no stop) (('active', '2005'))
 PASS  enablement token on start/stop apply: 409 plan_invalid ((409, 'plan_invalid'))
 PASS  unit not started by a foreign token (inactive)
 PASS  token still valid for its own op afterwards ((200, 'succeeded'))
@@ -297,13 +302,19 @@ PASS  B-1 refusal (direct Wants=): no link changed ([])
 PASS  B-1 refusal (direct Wants=): boot and runtime states unchanged ({'homelab-control-hctest-vpn.service': ('indirect', 'inactive'), 'hc-test-en-b1.service': ('enabled', 'inactive'), 'hc-test-en-b1t.service': ('disabled', 'inactive'), 'hc-test-en-b1a.service': ('disabled', 'inactive')})
 PASS  B-1 setup: enable hc-test-en-b1t.service ((200, 'succeeded'))
 INFO  B-1 transitive (via Requires= of a helper): 403 hc-test-en-b1t.service cannot be disabled here: homelab-control-hctest-vpn.service is started at boot only through it (hc-test-en-b1t.service → hc-test-en-b1mid.service → homelab-control-hctest-vpn.service), and homelab-control-hctest-vpn.service is protected:
-Warning: Stopping homelab-control-broker.service, but it can still be activated by:
-  homelab-control-broker.socket
-Warning: Stopping homelab-control-broker.service, but it can still be activated by:
-  homelab-control-broker.socket
-Warning: Stopping homelab-control-broker.service, but it can still be activated by:
-  homelab-control-broker.socket
-PASS  B-1 refused: disabling hc-test-en-b1t.service would stop the protected stand-in at boot (transitive (via Requires= of a helper)) ((403, True, True))
+PASS  B-1 refused: disabling hc-test-en-b1t.service would stop the protected stand-in at boot (transitive (via Requires= of a helper)) ((403, True, True))Warning: The unit file, source configuration file or drop-ins of homelab-control-broker.service changed on disk. Run 'systemctl daemon-reload' to reload units.
+Stopping 'homelab-control-broker.service', but its triggering units are still active:
+homelab-control-broker.socket
+Warning: The unit file, source configuration file or drop-ins of homelab-control.service changed on disk. Run 'systemctl daemon-reload' to reload units.
+Warning: The unit file, source configuration file or drop-ins of homelab-control-broker.service changed on disk. Run 'systemctl daemon-reload' to reload units.
+Stopping 'homelab-control-broker.service', but its triggering units are still active:
+homelab-control-broker.socket
+Warning: The unit file, source configuration file or drop-ins of homelab-control.service changed on disk. Run 'systemctl daemon-reload' to reload units.
+Warning: The unit file, source configuration file or drop-ins of homelab-control-broker.service changed on disk. Run 'systemctl daemon-reload' to reload units.
+Stopping 'homelab-control-broker.service', but its triggering units are still active:
+homelab-control-broker.socket
+Warning: The unit file, source configuration file or drop-ins of homelab-control.service changed on disk. Run 'systemctl daemon-reload' to reload units.
+
 PASS  B-1 refusal (transitive (via Requires= of a helper)): no link changed ([])
 PASS  B-1 refusal (transitive (via Requires= of a helper)): boot and runtime states unchanged ({'homelab-control-hctest-vpn.service': ('indirect', 'inactive'), 'hc-test-en-b1.service': ('disabled', 'inactive'), 'hc-test-en-b1t.service': ('enabled', 'inactive'), 'hc-test-en-b1a.service': ('disabled', 'inactive')})
 PASS  B-1 setup: enable hc-test-en-b1a.service ((200, 'succeeded'))
@@ -343,7 +354,6 @@ PASS  contents: root-only drop-in reported unreadable (True)
 PASS  contents: no fixture secret ((False, False))
 PASS  detail: unit, path, restarts counter ((200, 'unit', '/etc/systemd/system/hc-test-en-a.service', True))
 PASS  detail: boot state from disk (disabled)
-PASS  detail: alias resolved, protected label ((200, 'alias', 'ssh.service', True))
 PASS  detail: template has no runtime state ((200, 'template', None))
 PASS  detail: not in inventory: 404 (404)
 PASS  timers: 200 list ((200, True))
@@ -366,22 +376,22 @@ PASS  invalid module setting fails closed: 404 (404)
 PASS  module setting removed: services back (200)
 PASS  cleanup: no symbolic link gained under /etc/systemd/system ([])
 PASS  cleanup: no symbolic link lost under /etc/systemd/system ([])
-PASS  cleanup: ssh_enabled unchanged (enabled)
-PASS  cleanup: ssh_socket_enabled unchanged (disabled)
-PASS  cleanup: ssh_pid unchanged (51)
+PASS  cleanup: ssh_enabled unchanged (disabled)
+PASS  cleanup: ssh_socket_enabled unchanged (enabled)
+PASS  cleanup: ssh_pid unchanged (0)
 PASS  cleanup: api_enabled unchanged (disabled)
 PASS  cleanup: broker_socket_enabled unchanged (disabled)
 PASS  cleanup: broker_enabled unchanged (static)
-m2-3-enablement: 141 passed, 0 failed
+m2-3-enablement: 140 passed, 0 failed
 PASS  M2-3 enablement scenario (0)
-INFO  wrapper window starts 2026-11-05T09:28:29Z
+INFO  wrapper window starts 2026-11-05T09:55:41Z
 PASS  session has services.configure (True)
 PASS  [before] plan enable: 200 (200)
 PASS  [before] wrapper reached its delay (True)
 PASS  [before] client gets an error, not an outcome ((True, None))
 PASS  [before] journal: one intent, one interrupted, no outcome (['op.intent', 'op.interrupted'])
 PASS  [before] interrupted record says 'unchanged' (True)
-INFO  [before] interrupted record: {"seq": 68, "time": "2026-11-05T09:28:32.250346122Z", "event": "op.interrupted", "user": "admin", "outcome": "interrupted", "detail": "enable hc-test-int.service fd496833ac2355c6a8e378d3bdb5f2b5", "data": {"op_id": "fd496833ac2355c6a8e378d3bdb5f2b5", "op": "services.enablement", "action": "enable", "target": "hc-test-int.service", "actor": "admin", "request_id": "50f2cb90fdbdcbe3", "token_id": "814d4c97b4418ea47329a9043f0bed76", "risk": "disruptive", "state": "846552c4058a0c90227ebd3a6f406601e42d3af58c63ec51acfd1288a7465ad6.83f8a9190b018073c575b7c6", "outcome": "interrupted", "message": "The b
+INFO  [before] interrupted record: {"seq": 68, "time": "2026-11-05T09:55:44.214613879Z", "event": "op.interrupted", "user": "admin", "outcome": "interrupted", "detail": "enable hc-test-int.service 6b21eb2503513d7a639679a70da01a17", "data": {"op_id": "6b21eb2503513d7a639679a70da01a17", "op": "services.enablement", "action": "enable", "target": "hc-test-int.service", "actor": "admin", "request_id": "77263b1d285a8a78", "token_id": "bc544258e3beef5aca65af28a3ba6d49", "risk": "disruptive", "state": "82a68e01d03f3054f641c9946336d62de4a133a1fef50a293df0df9bc239577a.83f8a9190b018073c575b7c6", "outcome": "interrupted", "message": "The b
 PASS  [before] host is-enabled disabled (nothing retried) (disabled)
 PASS  [before] no wrapper delay left running (1)
 PASS  [after] plan enable: 200 (200)
@@ -389,36 +399,35 @@ PASS  [after] wrapper reached its delay (True)
 PASS  [after] client gets an error, not an outcome ((True, None))
 PASS  [after] journal: one intent, one interrupted, no outcome (['op.intent', 'op.interrupted'])
 PASS  [after] interrupted record says 'changed, not verified' (True)
-INFO  [after] interrupted record: {"seq": 71, "time": "2026-11-05T09:28:37.752941662Z", "event": "op.interrupted", "user": "admin", "outcome": "interrupted", "detail": "enable hc-test-int.service 84ae74fe37a3e70f29b4228a9a98fb80", "data": {"op_id": "84ae74fe37a3e70f29b4228a9a98fb80", "op": "services.enablement", "action": "enable", "target": "hc-test-int.service", "actor": "admin", "request_id": "c3fa90947a22dff6", "token_id": "2d5e12fc44eb0ea9d9015eb9982e243d", "risk": "disruptive", "state": "846552c4058a0c90227ebd3a6f406601e42d3af58c63ec51acfd1288a7465ad6.83f8a9190b018073c575b7c6", "outcome": "interrupted", "message": "The b
+INFO  [after] interrupted record: {"seq": 71, "time": "2026-11-05T09:55:49.750493707Z", "event": "op.interrupted", "user": "admin", "outcome": "interrupted", "detail": "enable hc-test-int.service 4fd22c916d4b0fc440fc0bdfd51b03ca", "data": {"op_id": "4fd22c916d4b0fc440fc0bdfd51b03ca", "op": "services.enablement", "action": "enable", "target": "hc-test-int.service", "actor": "admin", "request_id": "57abed183f5d180e", "token_id": "4041815adcbb68b071f130de91aa29d2", "risk": "disruptive", "state": "82a68e01d03f3054f641c9946336d62de4a133a1fef50a293df0df9bc239577a.83f8a9190b018073c575b7c6", "outcome": "interrupted", "message": "The b
 PASS  [after] host is-enabled enabled (nothing retried) (enabled)
 PASS  [after] no wrapper delay left running (1)
 PASS  after an interrupted change: disable refused until systemd reloads ((403, True))
 PASS  after recovery: disable reviewed and succeeded ((200, 'succeeded'))
-INFO  wrapper window ends 2026-11-05T09:28:41Z
-PASS  systemctl binary restored (inode, size, mode, owner, group, sha256, SELinux label) ((13543466, 1119856, 33261, 0, 0, 'de4c5cdd03758593036da105a57f959b76bd1ad6e0d1e567d29d16458aeaddf6', ''))
+INFO  wrapper window ends 2026-11-05T09:55:53Z
+PASS  systemctl binary restored (inode, size, mode, owner, group, sha256, SELinux label) ((13528057, 1501304, 33261, 0, 0, '37ec607113f55f1b385b4fa75588a43402aec0de57927500763b267713f10f63', ''))
 PASS  operation journal hash chain verifies (0)
 PASS  links under /etc/systemd/system as before ([])
 m2-3-interrupt: 20 passed, 0 failed
 PASS  M2-3 broker interruption scenario (0)
 == E4 (M2-3): systemd-analyze security
-homelab-control.service: → Overall exposure level for homelab-control.service: 1.6 OK 🙂
-homelab-control-broker.service: → Overall exposure level for homelab-control-broker.service: 1.5 OK 🙂
+homelab-control.service: → Overall exposure level for homelab-control.service: 1.6 OK :-)
+homelab-control-broker.service: → Overall exposure level for homelab-control-broker.service: 1.5 OK :-)
 PASS  broker capability bounding set unchanged (CAP_SETUID CAP_SETGID) (cap_setgid cap_setuid)
 PASS  API has no capabilities ()
 == journal (last lines)
 homelab-control.service: Deactivated successfully.
-Stopped Homelab Control API and web UI (unprivileged).
-Started Homelab Control API and web UI (unprivileged).
-2026/11/05 09:28:28 audit checkpoint log=/var/lib/homelab-control/state.db seq=263 hash=21f5d9bf0283bed3d3a51a7f4961c4052dfd676af78f6e0d7eb1babec2ac20e7
-2026/11/05 09:28:28 hc-api v0.1.0-dev.1-90-gf8d3af2e listening on 127.0.0.1:9180 (tls=false)
+Stopped homelab-control.service - Homelab Control API and web UI (unprivileged).
+Started homelab-control.service - Homelab Control API and web UI (unprivileged).
+2026/11/05 09:55:40 audit checkpoint log=/var/lib/homelab-control/state.db seq=263 hash=86252ec8e7af329ccaa0c34a34b4bde86a288a891ffb39ccc263af4510c78b02
+2026/11/05 09:55:40 hc-api v0.1.0-dev.1-93-geb2fc2d4 listening on 127.0.0.1:9180 (tls=false)
 == systemd-analyze security
-→ Overall exposure level for homelab-control.service: 1.6 OK 🙂
+→ Overall exposure level for homelab-control.service: 1.6 OK :-)
 == remove + purge
-(Reading database ... 8947 files and directories currently installed.)
-Removing homelab-control (0.1.0+dev.1+90+gf8d3af2e) ...
-Purging configuration files for homelab-control (0.1.0+dev.1+90+gf8d3af2e) ...
+(Reading database ... 9867 files and directories currently installed.)
+Removing homelab-control (0.1.0+dev.1+93+geb2fc2d4) ...
+Purging configuration files for homelab-control (0.1.0+dev.1+93+geb2fc2d4) ...
 State and audit data kept in /var/lib/homelab-control, /var/log/homelab-control and /var/log/homelab-control-broker (remove manually if no longer needed).
-dpkg: warning: while removing homelab-control, directory '/usr/lib/systemd/system' not empty so not removed
 PASS  binaries removed (0)
 PASS  unit removed (0)
 systemd-smoke: 71 passed, 0 failed

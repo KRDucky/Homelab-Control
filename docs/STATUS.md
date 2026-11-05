@@ -13,7 +13,7 @@ The owner authorized M2-3 development and isolated testing on 2026-11-04; accept
 activation remain separate owner decisions (`docs/m2/OWNER-DECISIONS.md`, owner items O-1…O-5).
 
 - **On the branch `feature/m2-3-expanded-service-management`** (draft PR #36; current product commit
-  `f8d3af2e`, after five review rounds; findings R1–R22 in `docs/m2/M2-3-DESIGN-REVIEW.md` §7–§11):
+  `eb2fc2d4`, after five review rounds; findings R1–R23 in `docs/m2/M2-3-DESIGN-REVIEW.md` §7–§11):
   boot-time enable/disable of `.service` units (scope `services.configure`, never granted by default;
   `--no-reload`, never `--now`; disruptive with step-up; ADR 0011 plan/apply with separate tokens, locks, root
   revalidation from disk, journal and independent read-back; both actions refused while unit files changed
@@ -29,8 +29,8 @@ activation remain separate owner decisions (`docs/m2/OWNER-DECISIONS.md`, owner 
   B-2 (netplan's runtime unit configuration refused every enable/disable on the GitHub runner VM) addressed in
   product commit `00fb7f2b` with the owner-approved approach P-8 option 3 (implementation for review); evidence
   `docs/evidence/m2/m2-3/review-00fb7f2b/`. Final safety review (2026-11-05): enable trusted the current
-  running state; reproduced with real container reboots and corrected in `f8d3af2e` (evidence
-  `docs/evidence/m2/m2-3/review-f8d3af2e/`). Proposals P-1…P-6 and P-9 await owner approval (not decisions;
+  running state; reproduced with real container reboots and corrected in `f8d3af2e` and `eb2fc2d4` (evidence
+  `docs/evidence/m2/m2-3/review-eb2fc2d4/`). Proposals P-1…P-6 and P-9 await owner approval (not decisions;
   P-2 not implemented); P-7 objective and P-8 approach approved, implementations for review; D-10 open; KVM
   acceptance not authorized.
 - **Still not authorized:** M2-4 and later; mask/unmask, unit editing or creation, daemon-reload, other privileged
