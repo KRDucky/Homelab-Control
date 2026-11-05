@@ -525,7 +525,8 @@ records what systemd started. Controls with the same fixtures (enabled by the ha
 what the boot does without the product's decision. Run on Ubuntu 22.04 (systemd 249), 24.04 (255), 24.04 with
 netplan (255), 26.04 (259) and Fedora 44 (259) with the packages of `00fb7f2b` (before), `f8d3af2e` (first
 correction) and `eb2fc2d4` (final; all cases refused except S1's own alias enable).
-Evidence: `docs/evidence/m2/m2-3/review-eb2fc2d4/running-review/`.
+Evidence: `docs/evidence/m2/m2-3/review-eb2fc2d4/running-review/` (all three builds; the first correction's own round is
+`review-f8d3af2e/`).
 
 | Case | Situation | `00fb7f2b` (all five) | After the reboot | `f8d3af2e` and `eb2fc2d4` (all five) |
 |---|---|---|---|---|
