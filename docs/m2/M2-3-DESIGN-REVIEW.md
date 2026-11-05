@@ -297,9 +297,14 @@ units can therefore not be enabled or disabled from the UI, by any name.
     an edge, so a protected unit started only on D-Bus demand and pulled in by the disabled unit is refused
     (over-refusal, never under). Units the disabled unit still pulls in because something else starts *it*
     are treated as no longer started (more refusals). `Requisite=`-only relations do not start anything and
-    are covered by the separate `Requisite=` checks. Over-refusal: disabling a unit that is the only puller of
-    a protected unit such as `network-online.target` consumers (`NetworkManager-wait-online.service`) or a
-    `dbus`-prefixed unit is refused even when harmless. The check uses systemd's loaded graph; it is only
+    are covered by the separate `Requisite=` checks. Over-refusal, **measured** with the plan-only survey
+    (`docs/evidence/m2/m2-3/review-*/survey/`): on all four container images every enabled, unprotected
+    service was allowed (protected names refused as before); but a service with `Wants=network-online.target`
+    that is the only puller of that target is refused once a wait-online unit is enabled
+    ("network.target is started at boot only through it"; in the containers nothing else starts
+    `network.target`, on a real host the network service usually does, while the wait-online unit itself is
+    protected by name). Harmless cases of this kind are refused; the rule is not loosened (owner decision).
+    Real cloud images are measured by the KVM procedure (Phase A, survey). The check uses systemd's loaded graph; it is only
     valid because the change gate refuses while unit files changed on disk after the last load.
   - **Disable:** units started at boot by other means (`Requires=`, `Wants=`, activation) are unchanged by
     disable and are not reviewed; `Requisite=` from a unit that is protected only by an alias name is not
@@ -407,12 +412,13 @@ confirm that a test fails (including excusing every change inside an own operati
 ## 9. B-1: disable reaching a protected unit at boot (2026-11-05)
 The owner approved the safety objective of P-7 (verbatim in `OWNER-DECISIONS.md`); the implementation is for
 review. Reproduced without Homelab Control (§1.3, probe 10) and through a unit test against the previous
-build's logic. Corrected in product commits `ad725d43` and `ae937d8a` (R17):
+build's logic. Corrected in product commits `ad725d43`, `ae937d8a` (R17) and `d9946a4a` (R18):
 
 | # | Finding | Correction | Tests |
 |---|---|---|---|
 | R15 | Disable accepted for a unit that, directly, transitively or through an alias, is the only boot-time puller of a protected (for example remote-access) unit | Boot-pull check (§3.4), fail closed; `Triggers` added to the fixed read-only property list | `TestDisableRefusedWhenOnlyItStartsAProtectedUnitAtBoot` (Wants/Requires/BindsTo/Upholds, transitive, alias; links, boot and runtime states unchanged), `TestDisableAllowedWhenTheProtectedUnitIsStartedOtherwise` (anchored, socket-activated, unprotected, default dependencies), `TestDisableBootPullFailsClosed`, `TestDisableBootPullStalePlan` (graph and disk changes between preview and apply); container checks 6e |
 | R17 | (found by the real-systemd scenario on `ad725d43`, all four versions) The loaded graph does not contain the broker's own `--no-reload` changes: after it disabled one of two pullers, the last puller's disable would have been allowed although nothing starts the protected unit at the next boot | Own-change link overlay (§3.4), product commit `ae937d8a` | `TestDisableBootPullSeesOwnUnloadedDisables` (fails without either half of the overlay); scenario 6e "last puller after an own unloaded disable"; the failing `ad725d43` round is kept in `docs/evidence/m2/m2-3/review-ad725d43/` |
+| R18 | `hc-api`'s broker client waited 15 s for `services.enablement.apply`, whose broker timeout is 55 s (revalidation with the walk, the template, read-back): a slow apply could be reported as an error while it completed | Client deadlines above every broker op timeout (`enablement.apply` 75 s, `enablement.plan` 20 s, 15 s read-only ops 20 s); product commit `d9946a4a` | `TestClientDeadlinesExceedBrokerTimeouts` (guard, all ops); `TestDisableBootPullTimeoutAtApplyFailsClosed`; measured plan durations 85–231 ms in the containers |
 | R16 | Disable's checks used the loaded graph while unit files could have changed on disk | The change gate applies to disable too; own journaled changes excused; after an interrupted change disable is refused until a reload or boot (recorded by `m2_3_interrupt.py`) | `TestEnableGateFailsClosedWithoutLoadTime`, `TestDisableBootPullStalePlan`; container checks |
 
 Each of the six checks of R15/R16 was removed or weakened once (no boot-pull check; direct `Wants=` only;

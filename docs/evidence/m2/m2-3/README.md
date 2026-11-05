@@ -24,7 +24,12 @@ scenario also checks this itself).
 - **Packages** built locally from clean trees (`make deb`, `make rpm`; binaries with the workstation's Go 1.27.3,
   not the pinned toolchain); hashes in `containers/5a14c727/packages.sha256`.
 
-## Third review round: product commit `ae937d8a` (current; B-1)
+## Third review round, final: product commit `d9946a4a` (current)
+See `review-d9946a4a/README.md`: four distributions with expiry waits and a real broker kill (all exit 0),
+unloaded-change and B-1 checks, standalone Phase B, fresh-install probe, plan-only disable survey, browser,
+local gates.
+
+## Third review round: product commit `ae937d8a` (superseded by `d9946a4a`; B-1)
 See `review-ae937d8a/README.md`: four distributions with expiry waits and a real broker kill (all exit 0),
 B-1 checks, standalone Phase B, fresh-install probe, browser, local gates. The superseded first attempt
 (`ad725d43`, failing two checks on all four) is kept in `review-ad725d43/`. The `63979c1b` round left no
