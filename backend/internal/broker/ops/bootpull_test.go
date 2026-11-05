@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"homelab-control/backend/internal/broker/proto"
+	"homelab-control/backend/internal/broker/runner"
 )
 
 // Blocker B-1 (probe 10, measured on systemd 249/255/259): after disabling a
@@ -252,5 +253,28 @@ func TestDisableBootPullSeesOwnUnloadedDisables(t *testing.T) {
 	e.fake.mu.Unlock()
 	if _, err := e.eplan(t, "demo.service", "disable"); err != nil {
 		t.Fatalf("own unloaded enable of another puller not counted: %v", err)
+	}
+}
+
+// A boot-graph walk that fails or times out at apply (revalidation) fails
+// closed: nothing runs, no intent is journaled, links and states unchanged.
+func TestDisableBootPullTimeoutAtApplyFailsClosed(t *testing.T) {
+	e := disableEnv(t, unit("helper.service", nil))
+	pulls(e, "demo.service", "Wants", "helper.service")
+	p, err := e.eplan(t, "demo.service", "disable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	links := linksUnder(t, e.files.root)
+	e.fake.manyErr = runner.ErrTimeout
+	_, err = e.eapply(t, withStepUp(e.env, time.Now()), "demo.service", "disable", p.Token)
+	if err == nil || !strings.Contains(err.Error(), "time") {
+		t.Fatalf("apply with a timed-out walk: %v", err)
+	}
+	unchanged(t, e, links, map[string]string{"demo.service": "active"})
+	for _, k := range journalKinds(t, e.journal) {
+		if k == "op.intent" {
+			t.Fatal("an intent was journaled although revalidation failed")
+		}
 	}
 }
