@@ -210,10 +210,13 @@ Accepted only when all hold (checked at plan **and** again at apply with root re
     drop-ins (`Requires=`/`Wants=`/`BindsTo=`/`Upholds=`), persistent links, activation by persistent
     socket/timer/path units, and names that resolve at boot (a persistent alias link or unit file); a unit
     whose fragment is runtime, or whose persistent files are uncertain (specifiers, resets, unreadable),
-    anchors nothing. Units the disabled unit reaches that are masked only until the next boot, or whose runtime
-    unit file shadows a persistent one, are refused (their boot-time relations are unknown);
+    anchors nothing. Units the disabled unit reaches that are masked only until the next boot, whose runtime
+    unit file shadows a persistent one, that have a name which is a runtime alias over a persistent unit file,
+    or whose runtime drop-in hides a persistent drop-in of the same name (the unit itself included) are refused
+    (their boot-time relations are unknown; §11);
   - *enable:* every unit the start walk evaluated must not be masked only until the next boot, have a runtime
-    unit file shadowing a persistent one, or be reached through a runtime alias over a persistent unit name;
+    unit file shadowing a persistent one, be reached through a runtime alias over a persistent unit name, or
+    have a runtime drop-in hiding a persistent drop-in of the same name (§11);
     for units with runtime drop-ins the safety-relevant settings (`FailureAction=`, `SuccessAction=`,
     `StartLimitAction=`, `JobTimeoutAction=`, `OnFailureJobMode=`, `OnSuccessJobMode=`) are re-derived from the
     persistent files and must be safe; a unit masked only until the next boot whose persistent file has
@@ -249,7 +252,14 @@ Accepted only when all hold (checked at plan **and** again at apply with root re
 - **enable only:** the boot-time start of the unit passes the M2-2 start checks (no shutdown/reboot/recovery
   units pulled in or triggered, no reboot/power-off `*Action=`, no `isolate` triggers, no protected
   `Conflicts=`/`ConflictedBy=` names, no uninspectable `.service` dependency), using the same bounded
-  dependency walk (96 units). Running units it conflicts with are listed.
+  dependency walk (96 units) in a **boot mode** that does not depend on what is running now (§11, since
+  `f8d3af2e`): the only units it does not descend into are those the boot target starts anyway through
+  persistent relations alone (R, computed as for disable, without the unit); it follows `Triggers=` (socket, timer and
+  path activation) and Homelab Control's own unloaded `.wants` links; after the walk, every conflicting unit
+  that may run at the next boot — running now, in R, reached from the boot target in the loaded graph
+  (including runtime and generated relations), or started by the change itself — gets the full stop checks
+  (protected units, reboot/power-off actions, propagation through `BoundBy=`/`RequiredBy=`/…). Units the
+  change starts at boot (running now or not) and units it may stop are listed.
 
 ### 3.5 Reading `[Install]` as root (disclosure and path safety)
 `[Install]` is not available from systemd's API, and drop-ins may be root-only (0600) and contain secrets.
@@ -456,9 +466,8 @@ runtime check; no runtime-mask check on reached units; no persistent safety-sett
 anchoring; no link-directory bound; no shadowing check; no runtime-mask conflict check).
 
 **Can the relevance calculation miss relationships? (review; limits, not a boot simulation)**
-- The enable start walk descends only into units that are not running; runtime configuration on the
-  dependencies of currently running units is not examined (as for all of the walk, their state at boot is
-  assumed to be like now).
+- ~~The enable start walk descends only into units that are not running~~ — this limit was a real gap and is
+  corrected in `f8d3af2e` (§11).
 - Runtime-only relations are assumed absent at boot, including generator output and netplan's entries, which
   in practice are recreated: this can only cause refusals (a protected unit anchored only through generated or
   runtime configuration is treated as not started), never permit one.
@@ -503,3 +512,76 @@ protection by one alias name only; no anchoring; boot-only units outside the dig
 test failed each time. Usability on a freshly installed host: the scenario's ordinary disables (default
 dependencies, `WantedBy=multi-user.target`) succeed on all four versions; see the evidence for `ad725d43`.
 
+## 11. Final safety review: what is running now (2026-11-05)
+The owner asked whether the documented limit "dependencies of currently running units aren't re-walked" can
+bypass protected-unit enforcement after a reload or reboot, for enable and for disable, with independent
+reproductions, and not to rely on the current active state as proof of future boot safety.
+
+**Method.** `dev/disposable/boot-repro.sh` installs a package in a disposable systemd container (private cgroup
+namespace, `/run` a tmpfs), runs `tests/systemd/m2_3_boot_repro.py` (fixtures `hc-rr-*`, protected-name
+stand-ins `homelab-control-hctest-rr*`; every change asked of the **product** through the API and applied when
+it allowed it), restarts the container (a fresh PID 1; `/run` verified empty of the fixtures afterwards) and
+records what systemd started. Controls with the same fixtures (enabled by the harness, or not disabled) show
+what the boot does without the product's decision. Run on Ubuntu 22.04 (systemd 249), 24.04 (255), 24.04 with
+netplan (255), 26.04 (259) and Fedora 44 (259) with the packages of `00fb7f2b` (before) and `f8d3af2e` (after).
+Evidence: `docs/evidence/m2/m2-3/review-f8d3af2e/running-review/`.
+
+| Case | Situation | `00fb7f2b` (all five) | After the reboot | `f8d3af2e` (all five) |
+|---|---|---|---|---|
+| U1 | Unreloaded persistent edit (`Conflicts=` with the stand-in) of a **running** dependency | Refused (change gate) | — | Refused (change gate) |
+| E1 | Enable U; U → X (**running**, not started at boot otherwise) → Y, `Conflicts=` the enabled stand-in | Refused while X stopped; **allowed while X runs** | Stand-in **inactive** (and in the control) | Refused in both states |
+| E2 | Enable U; U → X (**running**) with `FailureAction=reboot` | Refused while X stopped; **allowed while X runs** | (X did not fail) | Refused in both states |
+| E3 | Enable U with `Conflicts=` Z; the enabled stand-in `BindsTo=` Z; Z (and so the stand-in) **stopped now** | Refused while Z runs; **allowed while stopped** | Which conflicting job survives is not stable: stand-in inactive on 255, 259 and Fedora; on 249 it survived while its identical control did not, and on 255 the control survived | Refused in both states |
+| E5 | Enable U; U → socket whose service `Conflicts=` the enabled stand-in | **Allowed** (`Triggers=` not followed) | Stand-in stopped at the first connection | Refused |
+| E7e | Enable U; U → M; M's persistent drop-in `10-hc.conf` (`Conflicts=` the stand-in) hidden by a runtime `10-hc.conf` | **Allowed** | Stand-in **inactive**; `Conflicts=` back after boot | Refused |
+| D1 | Disable P; P → M → stand-in; M and the stand-in running or stopped (all four combinations) | Refused in every state | — | Refused in every state |
+| D6 | Disable P; P → foo, a persistent unit wanting the stand-in; a runtime alias `foo` → bar | **Allowed** (the walk saw bar) | Stand-in not started (control: started) | Refused |
+| D7 | Disable P; P → M; M's persistent drop-in `Wants=` the stand-in, hidden by a runtime drop-in of the same name | **Allowed** | Stand-in not started (control: started) | Refused |
+| S1 | Successive `--no-reload` operations: the product enables an alias `W` of V (V wants the stand-in), then disables P, which wants `W` | Refused (systemd resolves the not-found name again when it is queried, 249–259) | Stand-in started | Refused |
+
+**Finding.** The concern is **confirmed for enable** (E1, E2, E3, E5, E7e) and **disproven for disable with
+running intermediates** (D1: the boot-pull check never reads the active state). Two further **disable** gaps of
+the same kind (runtime configuration hiding persistent relations: D6, D7) were found and are corrected.
+
+| # | Finding | Correction (`f8d3af2e`) | Tests |
+|---|---|---|---|
+| R20 | The enable review reused the M2-2 start walk, which trusts the current state: running dependencies were not walked and only running conflicts were stop-checked; `Triggers=` was not followed | Boot mode for enable only (§3.4): prune only by the persistent boot graph R; follow `Triggers=` and own unloaded links; stop-check, after the walk, every conflict that may run at the next boot. M2-2 start/stop/restart unchanged | `TestEnableDoesNotTrustRunningDependencies`, `TestEnableRunningDependencyWithEmergencyAction`, `TestEnableConflictWithAUnitThatRunsAtBoot`, `TestEnableConflictBetweenUnitsTheChangeStarts`, `TestEnableFollowsSocketActivation`, `TestEnableListsBootStartsIncludingRunningOnes`, `TestStartNowKeepsItsModel` |
+| R21 | A runtime drop-in with the same name hides a persistent drop-in until the next boot (E7e, D7; measured on 249, 255, 259: `/run` wins over `/usr/lib`) | Refused for every unit the enable walk evaluates and every unit disable reaches, and for the unit being disabled | `TestRuntimeDropInHidingAPersistentDropIn` (and: a runtime drop-in alone is not refused) |
+| R22 | Disable: a reached unit's name that is a runtime alias over a persistent unit file (relations are shown by canonical ID) | Refused | `TestDisableRuntimeAliasOverAPersistentName` |
+
+Each check was removed once and a test failed (prune by running state again; no boot-graph or started-by-change
+"may run"; no `Triggers=`/overlay; no pruning by R; no settle; each drop-in and alias refusal; drop-in never found).
+Enable plans took 0.14–0.52 s in the containers (client deadline 20 s).
+
+**"Can only add refusals, never remove one" — where it holds (separately per action).**
+- *Disable.* R is used only as the set of units that "start at boot anyway"; refusal is monotone in C (any
+  protected unit in C refuses), and C is everything the unit reaches that is not in R. Dropping relations from
+  R (runtime, generated, implicit, uncertain) makes R smaller and C larger, so it can only add refusals. This
+  holds **only if C itself is not under-approximated**: C is walked in the loaded graph, which systemd builds
+  from persistent and runtime configuration. Runtime configuration can only *add* dependencies (dependency lists
+  cannot be reset in drop-ins), except where it *hides* persistent configuration: masks, shadowing unit files,
+  aliases and same-name drop-ins — each of those is now refused on units in C (D6 and D7 were the two missing).
+  Unreloaded persistent changes are excluded by the change gate; own unloaded links by the overlay; own unloaded
+  aliases by systemd re-resolving not-found names on query (S1, measured, not a documented interface).
+- *Enable.* The claim holds for the **pruning** set (R): a smaller R means more units walked and checked. It is
+  **false for a "may run at boot" set**: there an under-approximation removes stop checks. Therefore conflicts
+  are checked against an over-approximation — running now ∪ R ∪ the loaded boot graph (with runtime and
+  generated relations) ∪ units the change starts. The loaded walk (including runtime and generated relations)
+  over-approximates within the boot graph; conflicts are symmetric in the loaded graph (`ConflictedBy=`), and
+  hidden persistent conflicts are refused (masks, shadowing, same-name drop-ins) or scanned (runtime-masked
+  units' persistent `Conflicts=`).
+
+**Residual uncertainty (not modelled; each can only be reduced by a boot simulation or a reload):**
+- A unit that is not running now and not reachable from `default.target` in persistent or loaded relations, but
+  is started at boot by other means — udev (`SYSTEMD_WANTS`), D-Bus activation, `systemd.unit=`/`systemd.wants=`
+  on the kernel command line, a generator whose output is absent now — is not in the "may run" set: a conflict
+  with it is not stop-checked.
+- Which of two conflicting start jobs systemd keeps in one boot transaction is not stable (E3: it differed
+  between identical fixtures and versions); the review refuses rather than predicts.
+- Conditions (`Condition*=`), failures and ordering at boot are not modelled; the walk assumes every pulled-in
+  unit starts.
+- Re-resolution of not-found names (S1) and drop-in precedence (R21) are measured on systemd 249, 255 and 259,
+  not documented interfaces.
+- The M2-2 start/stop/restart model (accepted with M2-2) also does not follow `Triggers=` (a start of a unit that
+  wants a socket does not check what the socket activates later); it is a start **now**, so its use of the
+  current state is correct, but this gap is outside M2-3's scope and is listed for the owner (not changed).

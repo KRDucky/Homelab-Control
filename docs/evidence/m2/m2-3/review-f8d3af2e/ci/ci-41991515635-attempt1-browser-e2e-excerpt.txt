@@ -1,0 +1,81 @@
+2026-11-05T08:12:24.6078156Z {"seq":15,"time":"2026-11-05T08:12:24.358758939Z","event":"auth.step_up","user":"auditor","remote":"127.0.0.1","outcome":"success","prev":"9082c45dd07f99ea469eba77d8fb4375d7d37b3843918bc4e73e4b9049b398fd","hash":"3b61651a0c96ecf4c1243c7a643e8aa11b4d8ab6a8c4a0899fece6b2adbc0d9c"}
+2026-11-05T08:12:24.6079551Z hc-api live checks: 22 passed, 0 failed
+2026-11-05T08:12:31.8364758Z PASS  keyboard: first Tab focuses the username field
+2026-11-05T08:12:31.8365323Z PASS  wrong password shows a specific, non-revealing error
+2026-11-05T08:12:31.8367569Z PASS  overview shows the real hostname (runnervm48cm3)
+2026-11-05T08:12:31.8368365Z PASS  session cookie is HttpOnly + SameSite=Strict
+2026-11-05T08:12:31.8368998Z PASS  no element uses inline style attributes
+2026-11-05T08:12:31.8369622Z PASS  mobile layout has no horizontal page scroll
+2026-11-05T08:12:31.8370428Z PASS  appearance: Enter opens the menu with focus on the current theme
+2026-11-05T08:12:31.8371290Z PASS  appearance: theme applies without changing layout or navigation
+2026-11-05T08:12:31.8372152Z PASS  appearance: Escape closes the menu and returns focus to its button
+2026-11-05T08:12:31.8372898Z PASS  appearance: preferences persist after reload
+2026-11-05T08:12:31.8373857Z PASS  appearance: no inline style attributes
+2026-11-05T08:12:31.8374446Z PASS  sidebar: collapses to the icon rail
+2026-11-05T08:12:31.8375001Z PASS  sidebar: collapsed state persists
+2026-11-05T08:12:31.8375581Z PASS  appearance: reset restores the System theme
+2026-11-05T08:12:31.8376784Z PASS  responsive 390px: drawer navigation, no horizontal page scroll
+2026-11-05T08:12:31.8377527Z PASS  drawer: focus moves into the navigation
+2026-11-05T08:12:31.8378250Z PASS  drawer: Escape closes it and returns focus to the menu button
+2026-11-05T08:12:31.8379061Z PASS  responsive 768px: rail navigation, no horizontal page scroll
+2026-11-05T08:12:31.8379876Z PASS  responsive 1024px: rail navigation, no horizontal page scroll
+2026-11-05T08:12:31.8380724Z PASS  responsive 1366px: expanded navigation, no horizontal page scroll
+2026-11-05T08:12:31.8381595Z PASS  responsive 2560px: expanded navigation, no horizontal page scroll
+2026-11-05T08:12:31.8382278Z PASS  sign out returns to the login form
+2026-11-05T08:12:31.8382801Z PASS  no CSP violations in the console
+2026-11-05T08:12:31.8383304Z browser e2e: 23 passed, 0 failed
+2026-11-05T08:13:06.2771662Z Traceback (most recent call last):
+2026-11-05T08:13:06.2772893Z   File "/home/runner/work/Homelab-Control/Homelab-Control/tests/e2e/theme_cssom_csp.py", line 141, in <module>
+2026-11-05T08:13:06.2774000Z == chromium 153.0.8010.12
+2026-11-05T08:13:06.2774608Z PASS  CSP header present, no 'unsafe-inline'
+2026-11-05T08:13:06.2775276Z PASS  CSSOM custom property applied
+2026-11-05T08:13:06.2776097Z     main()
+2026-11-05T08:13:06.2776872Z PASS  CSSOM custom property: no CSP violation
+2026-11-05T08:13:06.2778221Z   File "/home/runner/work/Homelab-Control/Homelab-Control/tests/e2e/theme_cssom_csp.py", line 125, in main
+2026-11-05T08:13:06.2779317Z PASS  custom property removal restores theme
+2026-11-05T08:13:06.2780043Z     r, checks = run(p, name)
+2026-11-05T08:13:06.2780696Z PASS  CSSOM element style applied without violation
+2026-11-05T08:13:06.2781407Z                 ^^^^^^^^^^^^
+2026-11-05T08:13:06.2781984Z PASS  <style> element blocked (control)
+2026-11-05T08:13:06.2783194Z   File "/home/runner/work/Homelab-Control/Homelab-Control/tests/e2e/theme_cssom_csp.py", line 99, in run
+2026-11-05T08:13:06.2784243Z PASS  <style> element reported (control)
+2026-11-05T08:13:06.2784908Z     resp = page.goto(BASE + "/", wait_until="load")
+2026-11-05T08:13:06.2785554Z PASS  style attribute blocked (control)
+2026-11-05T08:13:06.2786151Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-05T08:13:06.2787582Z   File "/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/playwright/sync_api/_generated.py", line 9903, in goto
+2026-11-05T08:13:06.2788767Z PASS  style attribute reported (control)
+2026-11-05T08:13:06.2789537Z info  adoptedStyleSheets: {"applied": true, "violations": 0}
+2026-11-05T08:13:06.2819442Z ##[notice]chromium 153.0.8010.12: 9/9 checks passed
+2026-11-05T08:13:06.2833938Z info  violations reported: ["style-src-elem", "style-src-attr"]
+2026-11-05T08:13:06.2834579Z     self._sync(
+2026-11-05T08:13:06.2835522Z   File "/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/playwright/_impl/_sync_base.py", line 115, in _sync
+2026-11-05T08:13:06.2836418Z     return task.result()
+2026-11-05T08:13:06.2837079Z            ^^^^^^^^^^^^^
+2026-11-05T08:13:06.2837995Z   File "/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/playwright/_impl/_page.py", line 562, in goto
+2026-11-05T08:13:06.2839052Z     return await self._main_frame.goto(**locals_to_params(locals()))
+2026-11-05T08:13:06.2839703Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-05T08:13:06.2840728Z   File "/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/playwright/_impl/_frame.py", line 157, in goto
+2026-11-05T08:13:06.2841668Z     await self._channel.send(
+2026-11-05T08:13:06.2858040Z   File "/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/playwright/_impl/_connection.py", line 76, in send
+2026-11-05T08:13:06.2859434Z     return await self._connection.wrap_api_call(
+2026-11-05T08:13:06.2859980Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-05T08:13:06.2861083Z   File "/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/playwright/_impl/_connection.py", line 632, in wrap_api_call
+2026-11-05T08:13:06.2862550Z     raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+2026-11-05T08:13:06.2863502Z playwright._impl._errors.TimeoutError: Page.goto: Timeout 30000ms exceeded.
+2026-11-05T08:13:06.2864138Z Call log:
+2026-11-05T08:13:06.2864655Z   - navigating to "http://127.0.0.1:9180/", waiting until "load"
+2026-11-05T08:13:06.2865075Z 
+2026-11-05T08:13:07.1147883Z PASS production CSP keeps unsafe-inline disabled
+2026-11-05T08:13:07.1183915Z PASS pagination bounds live service rows
+2026-11-05T08:13:07.2060517Z PASS pagination advances
+2026-11-05T08:13:07.2624335Z PASS palette filters permitted pages
+2026-11-05T08:13:07.3068798Z PASS palette navigates
+2026-11-05T08:13:07.3812612Z PASS browser-local save
+2026-11-05T08:13:07.4728034Z PASS no CSP errors while applying custom theme
+2026-11-05T08:13:07.4736815Z PASS confirmed activation persists
+2026-11-05T08:13:07.5647412Z PASS Escape reverts trial
+2026-11-05T08:13:22.9914884Z PASS timed preview automatically reverts
+2026-11-05T08:13:23.0871199Z PASS hostile import explains duplicate keys
+2026-11-05T08:13:23.4391377Z PASS axe studio at the default text size: []
+2026-11-05T08:13:23.4404870Z PASS disclosure headings meet the 24px target size
+2026-11-05T08:13:23.4415410Z PASS document title names the page
