@@ -88,6 +88,7 @@ type bootFacts struct {
 	pulls     []string          // Requires=, Wants=, BindsTo=, Upholds= values
 	triggers  []string          // [Socket] Service=, [Timer]/[Path] Unit=
 	conflicts []string          // Conflicts= values
+	binds     []string          // PartOf=, Requisite= values (stop propagation, no start)
 	scalars   map[string]string // safety-relevant [Unit] settings, last assignment wins
 	uncertain string            // why the files cannot be evaluated ("" if they can)
 }
@@ -112,7 +113,7 @@ func parseBootFacts(b []byte, f *bootFacts) {
 			return
 		}
 		k, v = strings.TrimSpace(k), strings.TrimSpace(v)
-		read := (section == "Unit" && (bootPullFileKeys[k] || bootScalarKeys[k] || k == "Conflicts")) ||
+		read := (section == "Unit" && (bootPullFileKeys[k] || bootScalarKeys[k] || k == "Conflicts" || k == "PartOf" || k == "Requisite")) ||
 			(section == "Socket" && k == "Service") || ((section == "Timer" || section == "Path") && k == "Unit")
 		if !read {
 			return
@@ -130,6 +131,8 @@ func parseBootFacts(b []byte, f *bootFacts) {
 			f.scalars[k] = v
 		case k == "Conflicts":
 			f.conflicts = append(f.conflicts, strings.Fields(v)...)
+		case k == "PartOf" || k == "Requisite":
+			f.binds = append(f.binds, strings.Fields(v)...)
 		case section == "Unit":
 			f.pulls = append(f.pulls, strings.Fields(v)...)
 		default:
@@ -363,12 +366,17 @@ func checkBootRuntimeForEnable(env *Env, id string, evaluated map[string]UnitPro
 // maxRuntimeEntries bounds the top level of the runtime unit directories.
 const maxRuntimeEntries = 4096
 
-// checkRuntimeMasks: a unit masked only until the next boot has its
-// persistent definition back at boot, which systemd has not loaded now. If
-// that definition conflicts with a unit the enable walk evaluated, the
-// conflict is invisible in the loaded graph (no ConflictedBy=) but applies at
-// boot: refused. Runtime masks of units that relate to nothing evaluated are
-// irrelevant.
+// checkRuntimeMasks: runtime configuration can hide persistent configuration
+// of ANY unit until the next boot — a runtime mask, a runtime unit file that
+// shadows a persistent one, or a runtime drop-in with the same name as a
+// persistent drop-in. The hidden persistent file applies at boot, but systemd
+// has not loaded it, so its relations to the units the enable walk evaluated
+// are invisible in the loaded graph (no ConflictedBy=, BoundBy=, … on them),
+// and the walk never reaches a unit through them (for example one started at
+// boot anyway). If a hidden persistent file names an evaluated unit in
+// Conflicts=, Requires=, Wants=, BindsTo=, Upholds=, PartOf= or Requisite=,
+// the change is refused. Hidden configuration that names nothing evaluated
+// is irrelevant (final safety review, §11).
 func checkRuntimeMasks(env *Env, id string, evaluated map[string]UnitProps) error {
 	walked := map[string]bool{}
 	for name, u := range evaluated {
@@ -377,7 +385,12 @@ func checkRuntimeMasks(env *Env, id string, evaluated map[string]UnitProps) erro
 			walked[n] = true
 		}
 	}
-	for _, d := range []string{"/run/systemd/system/", "/run/systemd/system.attached/"} {
+	// hidden is one persistent file that runtime configuration hides.
+	type hidden struct{ unit, file, how string }
+	var found []hidden
+	files := 0
+	for _, d := range []string{"/run/systemd/system.control/", "/run/systemd/transient/", "/run/systemd/generator.early/",
+		"/run/systemd/system/", "/run/systemd/system.attached/", "/run/systemd/generator/"} {
 		ents, err := os.ReadDir(env.Roots.Path(strings.TrimSuffix(d, "/")))
 		if errors.Is(err, fs.ErrNotExist) {
 			continue
@@ -386,43 +399,74 @@ func checkRuntimeMasks(env *Env, id string, evaluated map[string]UnitProps) erro
 			return denied("%s cannot be enabled here: the runtime unit directory %s could not be read within bounds", id, d)
 		}
 		for _, e := range ents {
-			if e.Type()&fs.ModeSymlink == 0 {
+			name := e.Name()
+			if e.IsDir() && strings.HasSuffix(name, ".d") {
+				confs, err := os.ReadDir(env.Roots.Path(d + name))
+				if err != nil || len(confs) > maxLinkDirEntries {
+					return denied("%s cannot be enabled here: the runtime drop-in directory %s could not be read within bounds", id, clean(d+name, 200))
+				}
+				for _, c := range confs {
+					if !strings.HasSuffix(c.Name(), ".conf") {
+						continue
+					}
+					if files++; files > maxRuntimeEntries {
+						return denied("%s cannot be enabled here: too many runtime drop-ins to evaluate", id)
+					}
+					for _, pd := range persistentUnitDirs {
+						if _, err := os.Lstat(env.Roots.Path(pd + name + "/" + c.Name())); err == nil {
+							found = append(found, hidden{strings.TrimSuffix(name, ".d"), pd + name + "/" + c.Name(), "a runtime drop-in with the same name"})
+							break
+						}
+					}
+				}
 				continue
 			}
-			if t, _ := os.Readlink(env.Roots.Path(d + e.Name())); t != "/dev/null" {
-				continue
+			if e.IsDir() {
+				continue // .wants/.requires directories add relations only
 			}
-			masked := e.Name()
-			exists, mask, target := persistentEntry(env.Roots, masked)
+			exists, mask, target := persistentEntry(env.Roots, name)
 			if !exists || mask {
 				continue // no persistent definition: nothing returns at boot
 			}
 			file := target
 			if file == "" {
 				for _, pd := range persistentUnitDirs {
-					if _, err := os.Lstat(env.Roots.Path(pd + masked)); err == nil {
-						file = pd + masked
+					if _, err := os.Lstat(env.Roots.Path(pd + name)); err == nil {
+						file = pd + name
 						break
 					}
 				}
 			}
-			f := bootFacts{scalars: map[string]string{}}
-			if b, err := readFixed(env.Roots.Path(file), maxUnitFileBytes); err != nil {
-				f.uncertain = "unreadable"
-			} else {
-				parseBootFacts(b, &f)
+			how := "a runtime unit file"
+			if t, _ := os.Readlink(env.Roots.Path(d + name)); t == "/dev/null" {
+				how = "a runtime mask"
 			}
-			if walked[masked] && f.uncertain == "" {
-				continue // reached by the walk itself: refused there if relevant
+			found = append(found, hidden{name, file, how})
+		}
+	}
+	for _, h := range found {
+		f := bootFacts{scalars: map[string]string{}}
+		if b, err := readFixed(env.Roots.Path(h.file), maxUnitFileBytes); err != nil {
+			f.uncertain = "unreadable"
+		} else {
+			parseBootFacts(b, &f)
+		}
+		if walked[h.unit] && f.uncertain == "" {
+			continue // reached by the walk itself: refused there if relevant
+		}
+		for _, c := range append(append(append([]string{}, f.conflicts...), f.pulls...), f.binds...) {
+			if !walked[c] {
+				continue
 			}
-			for _, c := range f.conflicts {
-				if walked[c] {
-					return denied("%s cannot be enabled here: %s is masked only until the next boot, and its persistent unit file conflicts with %s, which this change involves at boot", id, masked, c)
-				}
+			if h.how == "a runtime mask" {
+				return denied("%s cannot be enabled here: %s is masked only until the next boot, and its persistent unit file relates to %s, which this change involves at boot",
+					id, h.unit, c)
 			}
-			if f.uncertain != "" && servicepolicy.NameProtection(masked).Protected {
-				return denied("%s cannot be enabled here: the protected unit %s is masked only until the next boot and its persistent unit file cannot be evaluated", id, masked)
-			}
+			return denied("%s cannot be enabled here: %s of %s is hidden by %s until the next boot, and it relates to %s (which this change involves at boot); that relation was not evaluated",
+				id, clean(h.file, 200), h.unit, h.how, c)
+		}
+		if f.uncertain != "" && servicepolicy.NameProtection(h.unit).Protected {
+			return denied("%s cannot be enabled here: the protected unit %s has persistent configuration hidden by %s until the next boot that cannot be evaluated", id, h.unit, h.how)
 		}
 	}
 	return nil
