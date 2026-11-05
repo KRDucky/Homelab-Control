@@ -142,7 +142,7 @@ echo "exit ${PIPESTATUS[0]}" | tee -a /root/m2-3-phase-a.log
 ```
 `HC_M2_INTERRUPT` is **not** set: the broker-interruption scenario prints `SKIP` here and runs only in Phase B.
 Expected: exit 0, no `FAIL`, no `SKIP` for the expiry waits; counts recorded (container reference:
-`docs/evidence/m2/m2-3/review-c0f620de/containers/`). The log must contain the passing `binaries removed` and `unit removed`
+`docs/evidence/m2/m2-3/review-c0f620de/containers/`). The log must show the `binaries removed` and `unit removed` checks
 passing.
 
 **A2 — disable survey (plan only, measurement).** Same environment as A1 without `HC_M2_LONG`, with
