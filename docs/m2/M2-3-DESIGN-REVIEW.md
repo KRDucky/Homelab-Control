@@ -67,6 +67,7 @@ a protected service.
 | P23 | `hcp-prot`'s own new drop-in `Conflicts=` the enabled unit | the enabled unit's `ConflictedBy=` empty; `NeedDaemonReload=no` on 249 | `hcp-prot` stayed active; the **enabled unit** did not start (all four, g3) |
 | P23b | **Another** unit edited: the enabled unit `Wants=hcp-dep` (loaded), `hcp-dep`'s fragment gains `Conflicts=hcp-prot.service` | `hcp-dep` `Conflicts=` lacks it | `hcp-prot` **stopped** (all four, g4) |
 | P24 | Manager timestamps | `UnitsLoadStartTimestamp` is set at boot only (unchanged by `daemon-reload`, all versions). `UnitsLoadTimestamp` (≥ 255) is set at the **start** of every reload, before units load; 249 has no such property. `/run/systemd/generator` is recreated (new change time) at the start of every boot and reload, before units load, on all versions | The broker's "last load" threshold (§3.4) |
+| P26 | Fresh install, **no harness reload** (probe 9): boot, install the package (its scripts run `daemon-reload`), `systemctl enable --now` the broker socket | Unit files and links are written 0.4–100 ms before their own reload; `/run/systemd/system` is created during boot (after the load on 249) and stays empty | With the first rule (100 ms margin) all of these counted as unloaded, so enable would have been refused on every new host until a reboot. With the exact rule (§3.4) nothing counts, on all four versions (`probe9-fresh-install-*.out`; first rule: `probe9-margin100ms-*.out`) |
 | P25 | Files PID 1 writes itself | `/run/systemd/transient/*` (systemd-run) and `/etc/systemd/system.control/*` (set-property) change after the last load but are applied by PID 1 at once; generator output is rewritten at each reload | Excluded from the change scan |
 
 Conclusion: both gaps allowed an enablement whose boot-time activation affects a protected service (P21,
@@ -77,6 +78,27 @@ through the product with the old build `82c24a74` (`docs/evidence/m2/m2-3/review
 all three unloaded changes were accepted for a loaded fixture, an edit between preview and apply was
 **enabled**, and a disable was accepted although a protected-name unit's unloaded drop-in declared
 `Requisite=` on it.
+
+### 1.3 Probe 10: disabling a unit that pulls in a protected unit (B-1; 249.11, 255.4, 259.9, Fedora 259.10)
+`docs/evidence/m2/m2-3/probes/probe10-*.out`. `hcp-vpn.service` stands in for a remote-access unit and has no
+`[Install]` section (it starts only when pulled in). The puller `hcp-b1.service` (`WantedBy=multi-user.target`)
+is enabled, then disabled with `--no-reload`, then the container restarts (fresh PID 1). Identical on all four:
+
+| Case | `hcp-vpn` after the reboot |
+|---|---|
+| control: puller left enabled | active |
+| direct: puller `Wants=hcp-vpn.service` | **inactive** |
+| transitive: puller `Wants=` a helper that `Requires=hcp-vpn.service` | **inactive** |
+| alias: puller `Wants=` an alias name (symlink) of `hcp-vpn.service` | **inactive** |
+| anchored: a second enabled unit also `Wants=hcp-vpn.service` | active |
+| socket: `hcp-vpn.socket` enabled (`Service=hcp-vpn.service`) | service inactive, socket listening (starts on demand) |
+
+The `exit 1` recorded for the non-socket cases comes from the script's last line (a `[ … = socket ] &&` test),
+not from a failure. Through the product (real systemd, Ubuntu 26.04 container, the new scenario against the build before the
+correction, `63979c1b`; `docs/evidence/m2/m2-3/review-ad725d43/repro-old-63979c1b-ubuntu-2604.log`): all three
+disables (direct, transitive, alias) were **accepted** (200), and when the other puller went away between
+preview and apply the unit was **disabled**; the disable-side change gate was absent (6 checks failed as
+expected).
 
 ## 2. New operations (ADR 0008 registry)
 | Op | Scope | Privilege | Args | Notes |
@@ -145,19 +167,42 @@ Accepted only when all hold (checked at plan **and** again at apply with root re
   `/etc/systemd/system` (bounded: 50,000 entries, depth 8) whose name or target names the unit or an install
   alias, or whose target is the fragment, must be one of the planned links and point to the fragment; any link in
   `/run/systemd/system` is refused (runtime enablement);
-- **enable only — nothing changed on disk since systemd last loaded its unit files** (P21–P24, second review
+- **enable and disable (disable since `ad725d43`) — nothing changed on disk since systemd last loaded its unit files** (P21–P26, second review
   round): every entry (file, link, directory) under `/etc/systemd/system`, `/etc/systemd/system.attached`,
-  `/run/systemd/system`, `/run/systemd/system.attached`, `/usr/local/lib/systemd/system`,
-  `/usr/lib/systemd/system` (and a split-usr `/lib/systemd/system`) must have a change time (ctime, which
-  cannot be set from user space) before the **last-load threshold**: systemd ≥ 255 `UnitsLoadTimestamp` (or
-  the boot load before any reload), 249 the change time of `/run/systemd/generator` (never earlier than the
-  boot load); the earliest of the realtime value and the value derived from its monotonic form via
-  `/proc/uptime` (so a realtime clock step cannot move it later); minus 100 ms. Not scanned: PID 1's own
-  `system.control`, `transient` and generator directories (P25). Changes the operation journal attributes to
-  Homelab Control's own completed enablement changes are not counted: the outcome record lists the link paths
-  it changed and its start/finish times, and only those paths and their directories, with a change time
-  inside that window (± 100 ms), are excused; interrupted operations are never excused. If the threshold
-  cannot be read, enable is refused. Bounded: 100,000 entries, depth 8;
+  `/usr/local/lib/systemd/system`, `/usr/lib/systemd/system` (and a split-usr `/lib/systemd/system`) must have
+  a change time (ctime, which cannot be set from user space) **before the last-load threshold**, without a
+  margin. The threshold is the earliest of: the change time of `/run/systemd/generator` (recreated by PID 1
+  before units are read at every boot and reload, P24, with the same coarse kernel clock as every other file
+  time, so any change made after the units were read has a change time at or after it); on systemd ≥ 255 the
+  `UnitsLoadTimestamp` stamp (or the boot stamp before any reload) and its monotonic form converted with
+  `/proc/uptime` (so a realtime clock step after the load cannot move the threshold later). On 249 only the
+  generator directory exists as a reload marker. Files and links written just before their own reload
+  (package scripts, `systemctl enable`) are therefore not counted (P26). Runtime unit configuration: any entry
+  in `/run/systemd/system` or `/run/systemd/system.attached` refuses enable (loaded now, gone at the next boot;
+  the directories themselves are created during boot and are not judged by change time). Not scanned: PID 1's
+  own `system.control`, `transient` and generator directories (P25). Changes the operation journal attributes
+  to Homelab Control's own completed enablement changes are not counted: the outcome record lists the
+  **planned** link paths and the start/finish times, and only those paths and their directories, with a change
+  time inside that window (± 20 ms for the coarse clock), are excused. This is safe because those links are
+  `.wants`/alias symlinks to a unit file that was reviewed, `RequiredBy=`/`UpheldBy=` are refused (own links
+  never add such dependencies), and they change no unit's settings; links systemctl created beyond the plan
+  and interrupted operations are never excused. Limit: separately reviewed own changes are not re-evaluated
+  together. If the threshold cannot be read, enable is refused. Bounded: 100,000 entries, depth 8;
+- **disable only — no protected unit started at boot only through it** (B-1, §1.3; safety objective approved
+  by the owner 2026-11-05): the broker walks the loaded graph from `default.target` (resolved to its canonical
+  ID) through `Requires=`, `Wants=`, `BindsTo=`, `Upholds=` and `Triggers=` (socket, timer and path
+  activation), with the unit removed as if it never started (set R), then the units the unit pulls in through
+  the same relations that are not in R (set C, walked transitively, aliases resolved by systemd to canonical
+  IDs). Refused when a unit in C is protected by its canonical ID or any of its names, when C contains a
+  `.service` that cannot be inspected, when the boot target cannot be resolved, or when either walk exceeds
+  4,000 units. The units in C (none protected) are listed in the plan and covered by the token digest, so a
+  change of the graph between preview and apply invalidates the plan. The change gate below applies to
+  disable as well, so the loaded graph equals the files on disk — except for Homelab Control's own
+  `--no-reload` changes, which the gate excuses: the walk therefore applies an **overlay** of those operations'
+  planned link paths, judged by each link's state on disk now (present: the target wants the unit; absent: it
+  does not; an absent own alias link makes the name unresolvable). Own links are only `<target>.wants/<unit>`
+  and aliases (`RequiredBy=`/`UpheldBy=` are refused). Removing an edge that the target also declares in its own
+  file (`Wants=` in `[Unit]`) can only cause more refusals;
 - **disable only:** no unit file on disk (in any unit directory, loaded or not, including drop-ins) declares
   `Requisite=` on the unit or an alias when that file belongs to a protected unit or to a shared drop-in
   directory (whose units cannot be named); continued values are joined; values with specifiers or quotes
@@ -229,8 +274,12 @@ units can therefore not be enabled or disabled from the UI, by any name.
 - **Unit-file changes without a reload (second review round):** closed for enable by the change gate (fail
   closed; §3.4); for disable by the on-disk `Requisite=` scan. Remaining races and limits:
   - **Race window:** a change made after the apply-time revalidation and before `systemctl` runs (milliseconds,
-    under both locks) is not seen; a change made inside an own operation's ±100 ms window *to one of that
-    operation's link paths or their directories* is excused. Changes made afterwards are root's own boot-time
+    under both locks) is not seen; a change made inside an own operation's ±20 ms window *to one of that
+    operation's planned link paths or their directories* is excused.
+  - **Coarse clock:** on kernels with a 10 ms tick (HZ=100) and without fine-grained file times, a change made
+    within a few milliseconds after a reload's generators finished, and after its file was read, can carry a
+    change time just below a `UnitsLoadTimestamp`-based threshold; on 249 (generator directory only) this
+    cannot happen. After a suspend, the monotonic form makes the threshold earlier (more refusals, never fewer). Changes made afterwards are root's own boot-time
     configuration, reported by nothing.
   - **Clock:** change times and thresholds use the realtime clock. Steps after the last load are covered on
     255+ by the monotonic form; on 249 (generator-directory time, no monotonic form) a backward step after a
@@ -238,9 +287,20 @@ units can therefore not be enabled or disabled from the UI, by any name.
   - **249 heuristic:** systemd 249 records no reload time; the generator directory's change time is used
     (measured, P24). Writing into `/run/systemd/generator` needs root.
   - **Usability:** after any change on disk not loaded by systemd — including an administrator's
-    `systemctl --no-reload enable`, a package that installs a unit without reloading, or an interrupted
-    Homelab Control operation — enable is refused until the next reload or boot. Disable (undo) stays
-    available. Proposal P-6 in `OWNER-DECISIONS.md`.
+    `systemctl --no-reload enable`, a package that installs a unit without reloading, any runtime unit
+    configuration, or an interrupted Homelab Control operation — enable is refused until the next reload or
+    boot. Disable (undo) stays available. A fresh install followed by the documented first steps is not
+    affected (P26). Not measured: cloud-init/netplan on real cloud-image boots (KVM procedure step). Proposal
+    P-6 in `OWNER-DECISIONS.md`.
+  - **Disable boot-pull check (B-1) — limits:** it models the boot as the start of `default.target`; a
+    kernel command line `systemd.unit=` or `emergency`/`rescue` boot is not modelled. D-Bus activation is not
+    an edge, so a protected unit started only on D-Bus demand and pulled in by the disabled unit is refused
+    (over-refusal, never under). Units the disabled unit still pulls in because something else starts *it*
+    are treated as no longer started (more refusals). `Requisite=`-only relations do not start anything and
+    are covered by the separate `Requisite=` checks. Over-refusal: disabling a unit that is the only puller of
+    a protected unit such as `network-online.target` consumers (`NetworkManager-wait-online.service`) or a
+    `dbus`-prefixed unit is refused even when harmless. The check uses systemd's loaded graph; it is only
+    valid because the change gate refuses while unit files changed on disk after the last load.
   - **Disable:** units started at boot by other means (`Requires=`, `Wants=`, activation) are unchanged by
     disable and are not reviewed; `Requisite=` from a unit that is protected only by an alias name is not
     matched by name (aliases of the requiring unit are not resolved).
@@ -332,12 +392,31 @@ framework (`writes.go`) and the journal format.
 The owner asked whether the two gaps reported after §7 (new shared drop-ins without a reload; boot checks
 using systemd's loaded state) permit enabling a unit whose eventual activation affects protected services.
 **They did** (§1.2, P21–P23; reproduced through the product with `82c24a74`). Fixed in product commit
-`3bec1294`:
+`3bec1294`, corrected in `63979c1b` (R14):
 
 | # | Finding | Correction | Tests |
 |---|---|---|---|
 | R12 | New/edited/removed unit files or links not loaded by systemd (own, shared or another unit's) escaped the enable review; edits between preview and apply too | Change gate against the last load (§3.4), fail closed; own journaled changes excused; new fixed root template `systemctl.show-manager` (no target) | `TestEnableRefusedAfterUnloadedChanges`, `TestEnableEditBetweenPreviewAndApply`, `TestEnableGateExcusesOwnJournaledChanges`, `TestEnableGateForeignChangeDuringOwnChange`, `TestEnableGateDoesNotExcuseInterruptedChanges`, `TestEnableGateFailsClosedWithoutLoadTime`, `TestParseManagerShow`, `TestLoadThreshold`; container checks 6d |
 | R13 | Disable's `Requisite=` protection used only systemd's loaded `RequisiteOf` | Scan of unit files on disk (§3.4) | `TestDisableRefusesRequisiteOnDisk`; container check "disable refused: unloaded Requisite=" |
 
+| R14 | The first gate rule (100 ms margin) counted files and links written just before their own reload, so a freshly installed host would have refused every enable until a reboot (found by measuring a fresh install without a harness reload, P26) | Exact threshold (generator directory, earliest of the stamps, no margin); runtime configuration refused instead of judged by change time; only planned links excused; Requisite= scanner fails closed on read errors. Product commit `63979c1b` (supersedes `3bec1294`) | `TestLoadThreshold`, `TestEnableRefusedWithRuntimeConfiguration`, `TestEnableGateDoesNotExcuseUnexpectedLinks`; container checks "package pattern" and "runtime unit configuration"; probe 9 |
+
 No daemon-reload was added and the protected-unit policy is unchanged. Each new check was removed once to
 confirm that a test fails (including excusing every change inside an own operation's window).
+
+## 9. B-1: disable reaching a protected unit at boot (2026-11-05)
+The owner approved the safety objective of P-7 (verbatim in `OWNER-DECISIONS.md`); the implementation is for
+review. Reproduced without Homelab Control (§1.3, probe 10) and through a unit test against the previous
+build's logic. Corrected in product commits `ad725d43` and `ae937d8a` (R17):
+
+| # | Finding | Correction | Tests |
+|---|---|---|---|
+| R15 | Disable accepted for a unit that, directly, transitively or through an alias, is the only boot-time puller of a protected (for example remote-access) unit | Boot-pull check (§3.4), fail closed; `Triggers` added to the fixed read-only property list | `TestDisableRefusedWhenOnlyItStartsAProtectedUnitAtBoot` (Wants/Requires/BindsTo/Upholds, transitive, alias; links, boot and runtime states unchanged), `TestDisableAllowedWhenTheProtectedUnitIsStartedOtherwise` (anchored, socket-activated, unprotected, default dependencies), `TestDisableBootPullFailsClosed`, `TestDisableBootPullStalePlan` (graph and disk changes between preview and apply); container checks 6e |
+| R17 | (found by the real-systemd scenario on `ad725d43`, all four versions) The loaded graph does not contain the broker's own `--no-reload` changes: after it disabled one of two pullers, the last puller's disable would have been allowed although nothing starts the protected unit at the next boot | Own-change link overlay (§3.4), product commit `ae937d8a` | `TestDisableBootPullSeesOwnUnloadedDisables` (fails without either half of the overlay); scenario 6e "last puller after an own unloaded disable"; the failing `ad725d43` round is kept in `docs/evidence/m2/m2-3/review-ad725d43/` |
+| R16 | Disable's checks used the loaded graph while unit files could have changed on disk | The change gate applies to disable too; own journaled changes excused; after an interrupted change disable is refused until a reload or boot (recorded by `m2_3_interrupt.py`) | `TestEnableGateFailsClosedWithoutLoadTime`, `TestDisableBootPullStalePlan`; container checks |
+
+Each of the six checks of R15/R16 was removed or weakened once (no boot-pull check; direct `Wants=` only;
+protection by one alias name only; no anchoring; boot-only units outside the digest; gate on enable only) and a
+test failed each time. Usability on a freshly installed host: the scenario's ordinary disables (default
+dependencies, `WantedBy=multi-user.target`) succeed on all four versions; see the evidence for `ad725d43`.
+

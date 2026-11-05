@@ -1,0 +1,29 @@
+2026-11-05T05:01:42Z install: rc=0
+2026-11-05T05:01:44Z environment: PRETTY_NAME="Ubuntu 26.04.1 LTS"
+systemd 259 (259.9-0ubuntu0.1)
+2026-11-05T05:01:44Z package: homelab-control	0.1.0+dev.1+78+gae937d8a
+2026-11-05T05:01:45Z services API as seen by the page: {"operate":{"available":true},"configure":{"available":true},"unit":[{"name":"hc-test-en-ui-timer.service","type":"service","load":"loaded","active":"inactive","sub":"dead","description":"M2-3 browser timer target (example)","unit_file_state":"static"},{"name":"hc-test-en-ui.service","type":"service","load":"not-loaded","active":"unknown","sub":"unknown","description":"","unit_file_state":"disabled","preset":"enabled"},{"name":"hc-test-en-ui.timer","type":"timer","load":"loaded","active":"active","sub":"waiting","description":"M2-3 browser timer (example)","unit_file_state":"disabled","preset"
+2026-11-05T05:01:45Z page: Services |  | 285 units, 65 active, 1 failed. systemd 259 (259.9-0ubuntu0.1). You can start, stop and restart .service units that are not protected. Every operation is reviewed first, stop and restart ask for your password, and the result shown is the state systemd reports afterwards. You can also enable or disable a service at boot. That is a separate, persistent setting: it does not start or stop the service now and systemd is not reloaded. systemd applies it at the next boot, or earlier if it reloads its configuration for another reason (package updates commonly do). It is reviewed first and al
+2026-11-05T05:01:45Z B1 Pass: enable preview shows link, boot vs runtime, no reload (may apply before a reboot), risk, no rollback | ui='Enable at boot: hc-test-en-ui.service\n\nPreview · nothing has been changed yet\n\nUnit\nhc-test-en-ui.service\nNow\ninactive (dead)\nAt boot\ndisabled (distribution preset: enabled)\nRisk\nDisruptive May interr' | observer='disabled' 
+2026-11-05T05:01:45Z B2 Pass: focus starts on Close in the dialog | ui='Close' | observer='' 
+2026-11-05T05:01:45Z B3 Pass: axe: enable dialog has no violations | ui='[]' | observer='' 
+2026-11-05T05:01:45Z B4 Pass: confirm without password: asks for it, nothing changed | ui='Enter your password to confirm this disruptive operation.' | observer='disabled' 
+2026-11-05T05:01:46Z B5 Pass: enable result is verified; host enabled, link present, NOT started | ui='Enable at boot: hc-test-en-ui.service\n\nDone — The service is enabled at boot. Observed: is-enabled reports "enabled"; 1 of 1 expected links present and pointing' | observer='enabled link inactive' 
+2026-11-05T05:01:46Z B6 Pass: Escape closes the result and returns focus to the unit | ui='<code data-unit="hc-test-en-ui.service" tabindex="-1">hc-test-en-ui.service</cod' | observer='' 
+2026-11-05T05:01:46Z B7 Pass: within 5 minutes no password is asked again | ui='password field absent' | observer='' 
+2026-11-05T05:01:46Z B8 Pass: disable result verified on the host | ui='Disable at boot: hc-test-en-ui.service\n\nDone — The service is disabled at boot. Observed: is-enabled reports "disabled";' | observer='disabled' 
+2026-11-05T05:01:47Z B9 Pass: protected SSH unit (ssh.service): label, no enable/disable control | ui='ssh.service\n\t\ninactive (dead)\n\t\ndisabled\n\t\nOpenBSD Secure Shell server\n\t\nLogs\n\t\nDetails\n\t\nProtected\n: Remote login (SSH)' | observer='disabled' 
+2026-11-05T05:01:47Z B10 Pass: detail panel: path, restarts, unit file redacted (no fixture secret) | ui="{'no fixture secret': True, 'value redacted': True, 'restart counter': True, 'unit file path': True}" | observer='' Details: hc-test-en-ui.service | Refresh | Close | systemd has no record of the main process running since the manager started. | This unit is installed but was not loaded; systemd loaded its definition only to answer this query. Nothing was changed. | systemd's loaded copy differs from the files on disk (NeedDaemonReload=yes); the dependencies shown are those systemd has loaded. | Unit | hc-test-en-ui.service | Description | M2-3 browser fixture (example) | State | inactive (dead) | At boot | disabled (distribution preset: enabled) | Unit file | /etc/systemd/system/hc-test-en-ui.service | Service type | simple, Restart=no | Automatic restarts | 0 since the manager started | Dependencies (8) | After | basic.targetsysinit.targetsystem.slicesystemd-journald.socket | Before | shutdown.target | Conflicts with | shutdown.target | Requires | sysinit.targetsystem.slice | Unit file |  | 1 line r
+2026-11-05T05:01:47Z B11 Pass: axe: detail panel has no violations | ui='[]' | observer='' 
+2026-11-05T05:01:47Z B12 Pass: ArrowRight selects Timers; fixture timer schedule shown (systemd normalises 'daily') | ui='hc-test-en-ui.timer\n\t\nactive (waiting)\n\t\nOnCalendar=*-*-* 00:00:00\n\t\n11/5/2026, 6:00:00 PM\n\t\n—\n\t\nhc-test-en-ui-timer.service\n\t\nyes\n\t\ndisabled' | observer='{ OnCalendar=*-*-* 00:00:00 ; next_elapse=Fri 2026-11-06 00:00:00 UTC }' 
+2026-11-05T05:01:47Z B13 Pass: End selects Sockets; broker socket path shown | ui='homelab-control-broker.socket\n\t\nactive (running)\n\t\n/run/homelab-control/broker.sock\n\t\nhomelab-control-broker.service\n\t\ndisabled' | observer='' 
+2026-11-05T05:01:47Z B14 Pass: axe: sockets view has no violations | ui='[]' | observer='' 
+2026-11-05T05:01:52Z B15 Pass: phone/laptop × Midnight/Daybreak: no overflow, axe clean | ui='' | observer='' 
+2026-11-05T05:01:52Z B16 Pass: nothing changed by the reviewed-but-closed dialog | ui='' | observer='disabled' 
+2026-11-05T05:01:54Z B17 Pass: module disabled: page explains, navigation hides Services | ui='Services\n\nThis module is disabled on this host. Disabled by the host administrator in /etc/homelab-control/modules.json.' | observer='' 
+2026-11-05T05:01:54Z B18 Pass: no page errors or CSP violations | ui='[]' | observer='' 
+2026-11-05T05:01:55Z final host state: disabled
+disabled
+alias
+m2-3-browser: 18 passed, 0 failed
+exit 0

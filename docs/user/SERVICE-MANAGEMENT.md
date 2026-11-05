@@ -188,8 +188,14 @@ package that installed a unit without reloading. systemd would use such a change
 review checks the boot-time effect against what systemd has loaded, so it cannot evaluate it. The message
 lists the changed paths. Run the review again after the next boot or after systemd reloads its
 configuration (`sudo systemctl daemon-reload`, if that is appropriate on the host). Homelab Control's own
-boot-time changes do not block the next one, and *Disable at boot* stays available. A disable is refused if a
-protected unit's files on disk declare `Requisite=` on the service.
+boot-time changes do not block the next one, and *Disable at boot* stays available. The same applies to *Disable at
+boot*: it is refused while unit files changed without a reload, and also when the service is the only thing
+that starts a protected unit at boot — for example a custom unit that pulls in a WireGuard, Tailscale or SSH
+unit through `Wants=`, `Requires=`, `BindsTo=` or `Upholds=`, directly, through other units or through an
+alias. Disabling it would leave that protected unit stopped after the next reboot. If another enabled unit,
+or a socket, timer or path unit, also starts it, the disable is allowed, and the review lists the units that
+will no longer start at boot. A disable is also refused if a protected unit's files declare `Requisite=` on
+the service.
 
 ### Unit details, timers and sockets
 - **Details** (any unit, `services.read`): the canonical name and aliases, state, the setting at boot,

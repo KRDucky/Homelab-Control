@@ -1,0 +1,28 @@
+systemd 249 (249.11-0ubuntu3.23)
+## freshly booted, before installing
+  UnitsLoadStartTimestamp=Wed 2026-11-04 12:07:40.101904 UTC
+  threshold (epoch, before the 100 ms margin): 1793794060
+  changed: d /run/systemd/system (+0.093 s vs. load)
+  (end of list)
+  /run/systemd/system: 2026-11-04 12:07:40.092655799 +0000 2026-11-04 12:07:40.092655799 +0000; entries: 0
+  /run mount: tmpfs  rw,nosuid,nodev,noexec,relatime,mode=755,inode64,huge=advise
+## installing the package (deb; its scripts run daemon-reload)
+  installed: 0
+  UnitsLoadStartTimestamp=Wed 2026-11-04 12:07:40.101904 UTC
+  threshold (epoch, before the 100 ms margin): 1793794061
+  changed: d /usr/lib/systemd/system (+0.075 s vs. load)
+  changed: f /usr/lib/systemd/system/homelab-control-broker.service (+0.075 s vs. load)
+  changed: f /usr/lib/systemd/system/homelab-control-broker.socket (+0.075 s vs. load)
+  changed: f /usr/lib/systemd/system/homelab-control.service (+0.075 s vs. load)
+  (end of list)
+## after the documented first step (systemctl enable --now the broker socket; enable reloads)
+  UnitsLoadStartTimestamp=Wed 2026-11-04 12:07:40.101904 UTC
+  threshold (epoch, before the 100 ms margin): 1793794061
+  changed: d /etc/systemd/system (+0.162 s vs. load)
+  changed: d /etc/systemd/system/sockets.target.wants (+0.162 s vs. load)
+  changed: l /etc/systemd/system/sockets.target.wants/homelab-control-broker.socket (+0.162 s vs. load)
+  changed: d /usr/lib/systemd/system (+0.075 s vs. load)
+  changed: f /usr/lib/systemd/system/homelab-control-broker.service (+0.075 s vs. load)
+  changed: f /usr/lib/systemd/system/homelab-control-broker.socket (+0.075 s vs. load)
+  changed: f /usr/lib/systemd/system/homelab-control.service (+0.075 s vs. load)
+  (end of list)
