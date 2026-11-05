@@ -73,7 +73,7 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
 | Runtime unit configuration (B-2) | netplan's entries do not block ordinary enable/disable; relevant runtime masks, drop-ins, shadowing unit files, aliases and runtime-only anchors evaluated or refused (unit tests, container 6f on five images) |
 | Real-backend browser workflow | 18/18 on Ubuntu 26.04 and Fedora 44 (Chromium) |
 | `make check`; Go tests as non-root | exit 0, nothing skipped; uid 1000: 300 tests + 135 subtests, 0 failed |
-| GitHub CI | Run 41989940804 on head `fece3bba` (product `00fb7f2b`; merge ref tree identical): **21/21 succeeded**; `systemd-ubuntu` (stock runner VM with netplan's runtime entries) M2-3 137/0, M2-2 86/0; `systemd-ubuntu-2604` (container) M2-3 138/0. Expiry waits and broker kill are not run in CI (container evidence) |
+| GitHub CI | Run 42008315859 on head `660151b0` (product `eb2fc2d4`; merge ref `f7c6bfca`, tree identical): **21/21 succeeded, attempt 1**; `systemd-ubuntu` (stock runner VM with netplan's runtime entries) M2-3 137/0, M2-2 86/0; `systemd-ubuntu-2604` M2-3 138/0. Previous head `6770ccf0` (run 41991515635): attempt 1 `browser-e2e` `Page.goto` timeout in `theme_cssom_csp.py`, attempt 2 21/21. Earlier: run 41989940804 on `fece3bba` 21/21 |
 
 ## Open items and limits (for the owner)
 - **B-2** addressed in `00fb7f2b` (P-8 option 3 approach approved; implementation for review); see CI below.

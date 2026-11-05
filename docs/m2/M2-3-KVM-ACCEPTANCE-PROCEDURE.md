@@ -23,25 +23,33 @@ The owner must authorize, in their own words, after reviewing the safety correct
 Not covered and not to be touched: the retained Ubuntu, Fedora and Arch acceptance VMs, their disks and
 snapshots, `AGENTS.md`, the file-manager worktree, production hosts.
 
-> B-2 is addressed in `00fb7f2b` (P-8 option 3; implementation pending owner review). Ubuntu cloud images use
-> netplan: record `/run/systemd/system` (`find /run/systemd/system -printf '%y %p %l\n'`) after the first boot
-> and in the Phase A log; the scenario prints it before section 6f.
+> B-2 is addressed since `00fb7f2b` (P-8 option 3) and the final safety review in `f8d3af2e`/`eb2fc2d4` (P-9:
+> enable judged against the next boot; hidden runtime configuration refused); implementations pending owner
+> review. Ubuntu cloud images use netplan: record `/run/systemd/system` (`find /run/systemd/system -printf
+> '%y %p %l\n'`) and `/run/systemd/system.control` after the first boot and in the Phase A log; the scenario
+> prints the former before section 6f.
 
 ## Inputs (final validated revision)
-- **PR #36 head validated by CI:** `fece3bba376c3a352c9cd971eae87dba64d317d3`. Later commits change only
-  documentation and evidence (`git diff --stat fece3bba HEAD -- backend frontend schemas packaging cmd tests dev`
-  is empty); verify that before use. **Product commit:** `00fb7f2b66d62c5fe492ceca3fabb8076890cddb` (later commits
-  change only tests, harness or documentation; see `docs/m2/M2-3-ACCEPTANCE.md`, "Revisions").
-- **CI run:** `41989940804` on that head, `21 of 21 jobs succeeded, including `systemd-ubuntu` on the stock runner VM with netplan`. GitHub builds `pull_request` runs from the merge of the head
-  into `main` (merge ref `bd91aaadd9742a2b513cc14acb5c30ce9f48fa26` (parents `81ee254f` main and the head; tree `c8517f91` identical to the head tree`), which is what the package versions name.
-- **Packages:** `gh run download 41989940804 -n build`, then `sha256sum -c SHA256SUMS` (binaries) and check:
+- **Product commit:** `eb2fc2d45267fa3cef1d2340d737b27c969b14db` (see `docs/m2/M2-3-ACCEPTANCE.md`, "Revisions").
+- **PR #36 head validated by CI:** `660151b03fb119f9d1a2e044b486d7460320aae4`. Between the product commit and that
+  head only documentation, evidence and measurement scripts changed
+  (`git diff --stat eb2fc2d4 660151b0 -- backend frontend schemas packaging cmd` is empty). Commits after
+  `660151b0` change only documentation (this provenance) — verify with
+  `git diff --stat 660151b0 HEAD -- backend frontend schemas packaging cmd tests dev` (must be empty) before use.
+- **CI run:** `42008315859` on that head, attempt 1: **21 of 21 jobs succeeded**, including `systemd-ubuntu` on the
+  stock runner VM with netplan's runtime entries (M2-3 137/0, M2-2 86/0) and `systemd-ubuntu-2604` (M2-3
+  138/0). GitHub builds `pull_request` runs from the merge of the head into `main`: merge ref
+  `f7c6bfca689636a5dfdd92bc764eeba2c1159d8d` (parents `81ee254f6fd1fb22531116a390903afd26b3918f`, `main` on GitHub,
+  and the head; tree `21cafccc5b6c48af151ec7b469290104702aaf3e`, **identical to the head's tree**). The package
+  versions name the merge ref (`gf7c6bfca`), not the head: same tree, so the same product code.
+- **Packages:** `gh run download 42008315859 -n build`, then `sha256sum -c SHA256SUMS` (binaries) and check:
 
   | File | SHA-256 |
   |---|---|
-  | `homelab-control_0.1.0+dev.1+88+gbd91aaad_amd64.deb` | `ff44bfd68a8cc095a3266c98bd332338113d050fdf8a44181ca572e9fc0c8918` |
-  | `homelab-control-0.1.0-0.m1.v0_1_0_dev_1_88_gbd91aaad.x86_64.rpm` | `d15c51c11ecf85a8d2b0ad377e454a7587836f24fb71c59342722635a58ca728` |
+  | `homelab-control_0.1.0+dev.1+95+gf7c6bfca_amd64.deb` | `79102d1da8705b45432d607ea3e18dbc395035dbfeb51c711dd1e5be4745bc45` |
+  | `homelab-control-0.1.0-0.m1.v0_1_0_dev_1_95_gf7c6bfca.x86_64.rpm` | `40a07dcbad9f83b6d0f79960424d15df98417de6464eb1934a9dc3cf2cf1abe1` |
 
-  Recorded in `docs/evidence/m2/m2-3/review-00fb7f2b/ci/build-artifact-41989940804.sha256`. Do not build packages
+  Recorded in `docs/evidence/m2/m2-3/review-eb2fc2d4/ci/build-artifact-42008315859.sha256`. Do not build packages
   locally for acceptance. If the artifact has expired, re-run CI for the same head and record the new run and
   hashes (they will differ: builds are not bit-reproducible across runs).
 - **Tests:** `tests/systemd/` and `compat/webmin/` from the PR head.
@@ -130,7 +138,7 @@ separately and count neither for nor against normal SELinux acceptance.
    HC_WEBMIN_SRC=/opt/hc/webmin HC_SMOKE_SCOPES=system.read,services.read,services.logs,hardware.read \
      /opt/hc/tests/systemd-smoke.sh /opt/hc/pkg.$HC_PKG_KIND 2>&1 | tee /root/m2-3-phase-b.log
    ```
-   (tested in containers: `docs/evidence/m2/m2-3/review-00fb7f2b/phase-b/`). The log prints `wrapper window starts/ends`;
+   (tested in containers: standalone `docs/evidence/m2/m2-3/review-00fb7f2b/phase-b/`; the same interruption checks 20/0 inside the full runs on `eb2fc2d4`, `review-eb2fc2d4/containers/`). The log prints `wrapper window starts/ends`;
    the script moves the original aside, installs the wrapper, restores the original with `os.replace` (same
    inode), runs `restorecon` where SELinux is present, and checks size, mode, owner, SHA-256 and label.
 3. **Identity after:** repeat step 1 into `/root/phase-b-after.txt`; `diff` must be empty (inode, size, mode,
