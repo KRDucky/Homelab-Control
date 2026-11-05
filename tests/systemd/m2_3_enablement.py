@@ -209,6 +209,9 @@ def fixtures(ssh):
                                   "[Install]\nWantedBy=multi-user.target\n",
         "hc-test-en-b1anchor.service": "[Unit]\nDescription=M2-3 B-1 other puller\nWants=homelab-control-hctest-vpn.service\n" + _SLEEP +
                                        "[Install]\nWantedBy=multi-user.target\n",
+        # B-2 (6f): an admin unit pulling in a vendor unit (written to /usr/lib).
+        "hc-test-en-rw.service": "[Unit]\nDescription=M2-3 runtime-mask fixture\nWants=hc-test-en-rmdep.service\n" + _SLEEP +
+                                 "[Install]\nWantedBy=multi-user.target\n",
         "hc-test-en-stale.service": "[Unit]\nDescription=M2-3 disposable stale-plan fixture\n" + _SLEEP +
                                     "[Install]\nWantedBy=multi-user.target\n",
         "hc-test-en-secret.service": "[Unit]\nDescription=M2-3 disposable redaction fixture\n[Service]\nType=simple\n"
@@ -242,6 +245,7 @@ def fixtures(ssh):
 
 VENDOR_VICTIM = "/usr/lib/systemd/system/hc-test-en-victim.service"
 VPN_ALIAS = "hc-test-en-vpnalias.service"
+VENDOR_RMDEP = "/usr/lib/systemd/system/hc-test-en-rmdep.service"
 
 
 def setup():
@@ -260,6 +264,10 @@ def setup():
         CREATED.append(name)
     if os.path.lexists(VENDOR_VICTIM):
         raise RuntimeError(f"{VENDOR_VICTIM} exists before the test; refusing to overwrite it")
+    if os.path.lexists(VENDOR_RMDEP):
+        raise RuntimeError(f"{VENDOR_RMDEP} exists before the test; refusing to overwrite it")
+    with open(VENDOR_RMDEP, "w") as f:
+        f.write("[Unit]\nDescription=M2-3 vendor-directory runtime-mask fixture\n" + _SLEEP)
     with open(VENDOR_VICTIM, "w") as f:
         f.write("[Unit]\nDescription=M2-3 vendor-directory victim fixture\n" + _SLEEP)
     # An unprotected alias name of the protected stand-in (B-1), a symlink.
@@ -324,6 +332,11 @@ def cleanup(before):
             failed += 1
     if os.path.isfile(VENDOR_VICTIM) and not os.path.islink(VENDOR_VICTIM):
         os.remove(VENDOR_VICTIM)
+    rmask = "/run/systemd/system/hc-test-en-rmdep.service"
+    if os.path.islink(rmask) and os.readlink(rmask) == "/dev/null":
+        os.remove(rmask)
+    if os.path.isfile(VENDOR_RMDEP) and not os.path.islink(VENDOR_RMDEP):
+        os.remove(VENDOR_RMDEP)
     subprocess.run(["systemctl", "daemon-reload"], capture_output=True)
     subprocess.run(["systemctl", "reset-failed"], capture_output=True)
     after = invariants()
@@ -632,7 +645,9 @@ def main():
     check("systemctl enable (with its reload) on the host: not refused as unloaded", (200, False),
           (st, gate in e.get("message", "")))
     subprocess.run(["systemctl", "disable", "--", "hc-test-en-pkglike.service"], check=True, capture_output=True)
-    # Runtime unit configuration (gone at the next boot) blocks enable.
+    # A harmless runtime drop-in on the unit itself (B-2, P-8 option 3): it is
+    # evaluated, not assumed to exist at boot, and overrides nothing that
+    # matters at boot, so it does not block the change.
     rt = "/run/systemd/system/hc-test-en-g.service.d"
     if os.path.lexists(rt):
         raise RuntimeError(f"{rt} exists before the test")
@@ -642,8 +657,7 @@ def main():
         f.write("[Unit]\nDescription=runtime drop-in\n")
     harness_reload()
     st, e = eplan(g, "enable", csrf)
-    check("runtime unit configuration in /run/systemd/system: enable refused", (403, True),
-          (st, "runtime unit configuration" in e.get("message", "")))
+    check("harmless runtime drop-in on the unit itself: enable not refused", 200, st)
     rmdrop(rt)()
     # The now empty runtime directory tree is left as found; reload.
     harness_reload()
@@ -744,40 +758,45 @@ def main():
     os.remove(runtime_wants)
     harness_reload()
     subprocess.run(["systemctl", "disable", "--", b1], check=True, capture_output=True)
-    # A unit the disabled unit reaches is masked only until the next boot.
-    check("6f setup: enable b1t", (200, "succeeded"), product(b1t, "enable"))
-    subprocess.run(["systemctl", "mask", "--runtime", "--", "hc-test-en-b1mid.service"], check=True, capture_output=True)
-    snap, b1_before = links(), b1_state()
-    st, e = eplan(b1t, "disable", csrf)
-    check("6f runtime mask on a reached unit: disable refused", (403, True),
-          (st, "masked only until the next boot" in e.get("message", "")))
-    check("6f runtime mask: no link or state changed", ([], b1_before), (sorted(snap ^ links()), b1_state()))
-    subprocess.run(["systemctl", "unmask", "--runtime", "--", "hc-test-en-b1mid.service"], check=True, capture_output=True)
-    subprocess.run(["systemctl", "disable", "--", b1t], check=True, capture_output=True)
-    # Enable: a pulled-in unit masked at runtime is refused; a harmless runtime
-    # drop-in on it is evaluated and allowed.
-    subprocess.run(["systemctl", "mask", "--runtime", "--", gdep], check=True, capture_output=True)
+    # Runtime masks: only effective for units defined below /run in precedence,
+    # i.e. vendor units in /usr/lib (an /etc unit file wins over a /run mask).
+    rw, rmdep = "hc-test-en-rw.service", "hc-test-en-rmdep.service"
+    # Enable: the pulled-in vendor unit is masked only until the next boot.
+    subprocess.run(["systemctl", "mask", "--runtime", "--", rmdep], check=True, capture_output=True)
+    check("6f setup: the runtime mask is effective", "masked", prop(rmdep, "LoadState"))
     snap = links()
-    st, e = eplan(gw, "enable", csrf)
+    st, e = eplan(rw, "enable", csrf)
     check("6f enable: pulled-in unit masked at runtime refused", (403, True, []),
           (st, "masked only until the next boot" in e.get("message", ""), sorted(snap ^ links())))
-    subprocess.run(["systemctl", "unmask", "--runtime", "--", gdep], check=True, capture_output=True)
-    rdrop = f"/run/systemd/system/{gdep}.d"
+    subprocess.run(["systemctl", "unmask", "--runtime", "--", rmdep], check=True, capture_output=True)
+    # Enable: a harmless runtime drop-in on the pulled-in unit is evaluated and allowed.
+    rdrop = f"/run/systemd/system/{rmdep}.d"
     os.makedirs(rdrop, exist_ok=True)
     CREATED_DIRS.append(rdrop)
     with open(f"{rdrop}/zz-hctest.conf", "w") as f:
         f.write("[Service]\nNice=1\n")
     harness_reload()
-    st, p = eplan(gw, "enable", csrf)
+    st, p = eplan(rw, "enable", csrf)
     check("6f enable: harmless runtime drop-in on a pulled-in unit allowed", 200, st)
     # Preview → apply: the pulled-in unit is masked at runtime in between.
-    subprocess.run(["systemctl", "mask", "--runtime", "--", gdep], check=True, capture_output=True)
-    st, e = eapply(gw, "enable", p.get("token"), csrf)
+    subprocess.run(["systemctl", "mask", "--runtime", "--", rmdep], check=True, capture_output=True)
+    st, e = eapply(rw, "enable", p.get("token"), csrf)
     check("6f runtime mask between preview and apply: refused, still disabled", (403, True, "disabled"),
-          (st, "masked only until the next boot" in e.get("message", "") and "othing was done" in e.get("message", ""), is_enabled(gw)))
-    subprocess.run(["systemctl", "unmask", "--runtime", "--", gdep], check=True, capture_output=True)
+          (st, "masked only until the next boot" in e.get("message", "") and "othing was done" in e.get("message", ""), is_enabled(rw)))
+    subprocess.run(["systemctl", "unmask", "--runtime", "--", rmdep], check=True, capture_output=True)
     rmdrop(rdrop)()
     harness_reload()
+    # Disable: a unit the disabled unit reaches is masked only until the next boot.
+    check("6f setup: enable rw", (200, "succeeded"), product(rw, "enable"))
+    subprocess.run(["systemctl", "mask", "--runtime", "--", rmdep], check=True, capture_output=True)
+    snap, rw_before = links(), (is_enabled(rw), prop(rw, "ActiveState"), prop(rmdep, "LoadState"))
+    st, e = eplan(rw, "disable", csrf)
+    check("6f runtime mask on a reached unit: disable refused", (403, True),
+          (st, "masked only until the next boot" in e.get("message", "")))
+    check("6f runtime mask: no link or state changed", ([], rw_before),
+          (sorted(snap ^ links()), (is_enabled(rw), prop(rw, "ActiveState"), prop(rmdep, "LoadState"))))
+    subprocess.run(["systemctl", "unmask", "--runtime", "--", rmdep], check=True, capture_output=True)
+    check("6f after unmask: disable rw succeeded", (200, "succeeded"), product(rw, "disable"))
 
     # 6c. Long expiry waits (HC_M2_LONG=1): a plan older than 120 s and a step-up
     # older than 5 minutes are refused, and nothing changes.
