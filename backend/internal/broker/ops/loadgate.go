@@ -195,6 +195,7 @@ func ctimeOf(fi fs.FileInfo) time.Time {
 type ownChange struct {
 	start, end time.Time
 	paths      map[string]bool // link paths and their directories up to /etc/systemd/system
+	links      []string        // the planned link paths themselves
 }
 
 // journalObserved is the outcome record's observed state for enablement:
@@ -228,7 +229,7 @@ func ownChanges(env *Env, since time.Time) []ownChange {
 		if json.Unmarshal(e.Final.Observed, &o) != nil || o.StartedAt.IsZero() || o.FinishedAt.Before(since) {
 			continue
 		}
-		c := ownChange{start: o.StartedAt, end: o.FinishedAt, paths: map[string]bool{}}
+		c := ownChange{start: o.StartedAt, end: o.FinishedAt, paths: map[string]bool{}, links: o.ChangedLinks}
 		for _, l := range o.ChangedLinks {
 			for p := path.Clean(l); strings.HasPrefix(p, systemdUnitDir) || p+"/" == systemdUnitDir; p = path.Dir(p) {
 				c.paths[p] = true

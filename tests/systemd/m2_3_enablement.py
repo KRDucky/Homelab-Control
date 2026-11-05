@@ -676,37 +676,50 @@ def main():
     vpn, b1, b1t, b1a, anchor = ("homelab-control-hctest-vpn.service", "hc-test-en-b1.service", "hc-test-en-b1t.service",
                                  "hc-test-en-b1a.service", "hc-test-en-b1anchor.service")
     stepup(csrf)
-    for unit in (b1, b1t, b1a):
-        st, p = eplan(unit, "enable", csrf)
-        st, o = eapply(unit, "enable", p.get("token"), csrf)
-        check(f"B-1 setup: enable {unit}", (200, "succeeded"), (st, o.get("outcome")))
-    snap = links()
-    before = {u: (is_enabled(u), prop(u, "ActiveState")) for u in (vpn, b1, b1t, b1a)}
+
+    def b1_state():
+        return {u: (is_enabled(u), prop(u, "ActiveState")) for u in (vpn, b1, b1t, b1a)}
+
+    def product(unit, action):
+        st, p = eplan(unit, action, csrf)
+        st, o = eapply(unit, action, p.get("token"), csrf)
+        return st, o.get("outcome")
+    # Each puller alone: enable it (product), the disable is refused, then the
+    # harness disables it (systemctl, with its reload) because the product will not.
     for unit, how, extra in ((b1, "direct Wants=", vpn), (b1t, "transitive (via Requires= of a helper)", "hc-test-en-b1mid.service"),
                              (b1a, "through an unprotected alias name", vpn)):
+        check(f"B-1 setup: enable {unit}", (200, "succeeded"), product(unit, "enable"))
+        snap, before = links(), b1_state()
         st, e = eplan(unit, "disable", csrf)
         msg = e.get("message", "")
         print(f"INFO  B-1 {how}: {st} {msg[:260]}")
         check(f"B-1 refused: disabling {unit} would stop the protected stand-in at boot ({how})", (403, True, True),
               (st, "started at boot only through it" in msg, extra in msg))
-    check("B-1 refusals: no link changed", [], sorted(snap ^ links()))
-    check("B-1 refusals: boot and runtime states unchanged", before,
-          {u: (is_enabled(u), prop(u, "ActiveState")) for u in (vpn, b1, b1t, b1a)})
-    # Anchored: another enabled unit also pulls the stand-in in (harness, with reload).
+        check(f"B-1 refusal ({how}): no link changed", [], sorted(snap ^ links()))
+        check(f"B-1 refusal ({how}): boot and runtime states unchanged", before, b1_state())
+        subprocess.run(["systemctl", "disable", "--", unit], check=True, capture_output=True)
+    # Anchored by another enabled unit: allowed. Preview → apply: the other
+    # puller goes away in between (harness, with reload) → refused.
+    check("B-1 setup: enable b1 again", (200, "succeeded"), product(b1, "enable"))
     subprocess.run(["systemctl", "enable", "--", anchor], check=True, capture_output=True)
     st, p = eplan(b1, "disable", csrf)
     check("B-1 anchored elsewhere: plan disable 200", 200, st)
-    # Preview → apply: the other puller goes away (harness, with reload).
     subprocess.run(["systemctl", "disable", "--", anchor], check=True, capture_output=True)
     st, e = eapply(b1, "disable", p.get("token"), csrf)
     check("B-1 graph changed between preview and apply: refused, still enabled", (403, True, "enabled"),
           (st, "started at boot only through it" in e.get("message", "") and "othing was done" in e.get("message", ""), is_enabled(b1)))
+    # Homelab Control's own unloaded disable: the anchor is enabled and loaded
+    # (harness, with reload); the product disables it (allowed, b1 still pulls
+    # the stand-in in); systemd's loaded graph still shows the anchor, but the
+    # last puller's disable must be refused.
     subprocess.run(["systemctl", "enable", "--", anchor], check=True, capture_output=True)
-    for unit in (b1, b1t, b1a):
-        st, p = eplan(unit, "disable", csrf)
-        st, o = eapply(unit, "disable", p.get("token"), csrf)
-        check(f"B-1 anchored elsewhere: disable {unit} succeeded", (200, "succeeded"), (st, o.get("outcome")))
-    subprocess.run(["systemctl", "disable", "--", anchor], check=True, capture_output=True)
+    check("B-1 own disable of the other puller (b1 still anchors): succeeded", (200, "succeeded"), product(anchor, "disable"))
+    st, e = eplan(b1, "disable", csrf)
+    check("B-1 last puller after an own unloaded disable: refused", (403, True),
+          (st, "started at boot only through it" in e.get("message", "")))
+    # Cleanup of the B-1 fixtures by the harness (with its reload).
+    subprocess.run(["systemctl", "disable", "--", b1], check=True, capture_output=True)
+    check("B-1 fixtures disabled again", ["disabled"] * 4, [is_enabled(u) for u in (b1, b1t, b1a, anchor)])
 
     # 6c. Long expiry waits (HC_M2_LONG=1): a plan older than 120 s and a step-up
     # older than 5 minutes are refused, and nothing changes.
