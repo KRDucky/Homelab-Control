@@ -26,8 +26,10 @@ activation remain separate owner decisions (`docs/m2/OWNER-DECISIONS.md`, owner 
   containers (not VMs; SELinux disabled) with Ubuntu 26.04.1, 24.04.5, 22.04.5 and Fedora 44: smoke/M1 71/0,
   M2-2 with expiry waits 89/0, M2-3 with expiry waits 129–130/0, broker kill 20/0 each, browser 18/18 on
   Ubuntu 26.04 and Fedora 44. `make check` exit 0. No VM, SELinux-enforcing, Debian, openSUSE or Arch evidence;
-  KVM procedure prepared, needs owner authorization (`docs/m2/M2-3-KVM-ACCEPTANCE-PROCEDURE.md`). Proposals
-  P-1…P-6 await owner approval (not decisions); D-10 open.
+  GitHub CI on head `b1f4c45a`: 20/21; `systemd-ubuntu` (runner VM) fails — **blocker B-2**: netplan's runtime
+  unit configuration makes every enable/disable refused (P-8 options for the owner). KVM procedure prepared, not
+  ready for authorization while B-2 is open. Proposals P-1…P-6 and P-8 await owner approval (not decisions);
+  D-10 open.
 - **Still not authorized:** M2-4 and later; mask/unmask, unit editing or creation, daemon-reload, other privileged
   writes. M2-5 and M2-6 remain mandatory before M3.
 

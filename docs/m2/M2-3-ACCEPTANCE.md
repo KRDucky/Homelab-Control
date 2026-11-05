@@ -66,9 +66,10 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
 | Ubuntu and a non-Debian family | Ubuntu 26.04.1, 24.04.5, 22.04.5 (systemd 259, 255, 249) and Fedora 44 (containers; **SELinux disabled**) |
 | Real-backend browser workflow | 18/18 on Ubuntu 26.04 and Fedora 44 (Chromium) |
 | `make check`; Go tests as non-root | exit 0, nothing skipped; uid 1000: 294 tests + 122 subtests, 0 failed |
-| GitHub CI | See the PR and `M2-3-KVM-ACCEPTANCE-PROCEDURE.md` |
+| GitHub CI | Run 41977140563 on head `b1f4c45a` (product `d9946a4a`): 20 of 21 jobs succeeded; **`systemd-ubuntu` failed** (runner VM: blocker B-2, every enable/disable refused because of netplan's runtime unit configuration; M2-3 72/54); `systemd-ubuntu-2604` (container) 127/0 incl. B-1. **Fail — open blocker B-2** |
 
 ## Open items and limits (for the owner)
+- **Blocker B-2** (design review §9, P-8): enable and disable are refused on netplan-based Ubuntu hosts.
 - **Owner approval of proposals P-1…P-6** (`OWNER-DECISIONS.md`; not decisions): root-owned module setting,
   a separate unit-file-content permission (not implemented), password for every boot-time change,
   `--no-reload` semantics, refused constructs, and the fail-closed gate for unloaded changes. D-10 open.

@@ -250,6 +250,22 @@ effect. Evidence: `M2-3-DESIGN-REVIEW.md` §1, §1.1, §1.2, §7, §8.
 | P-6 (new) | Enable fails closed while unit files changed after systemd's last load, or while runtime unit configuration exists (§8) | Yes | Keep | The only safe alternative found is to reload (excluded) or to rebuild the boot graph from disk (not feasible here) |
 | P-7 (B-1) | Disable refuses when the affected boot dependency relationships reach a protected unit | Yes, since `ad725d43`/`ae937d8a` (implementation pending owner review) | **Safety objective approved by the owner, 2026-11-05** (below); the implementation is not approved by it | — |
 
+| P-8 (B-2, new) | How to treat runtime unit configuration in `/run/systemd/system` | Refuses enable and disable whenever any exists (unusable on netplan-based Ubuntu hosts, measured in CI) | — | — |
+
+**P-8 options (B-2; for the owner, not decided).** Measured on the GitHub Ubuntu 24.04 runner VM: netplan's
+entries in `/run/systemd/system` make every enable and disable refused. Options:
+1. *Keep refusing* (current): fail closed; the feature is unusable on netplan-based Ubuntu hosts.
+2. *Exclude `/run/systemd/system{,.attached}` like the generator directories*: usable; residual — manual
+   runtime configuration (`systemctl --runtime mask|enable`, tools writing there) is loaded now but absent at
+   the next boot and is not evaluated (for example a runtime mask hiding a conflicting unit from the review).
+3. *Refuse only runtime entries that relate to the review's units* (masks or links naming a unit in the enable
+   start walk or in the disable boot-pull sets): usable where netplan's entries concern only network units the
+   review does not reach; needs design and real-host measurement; still not a guarantee.
+4. *Allow-list known generator-produced runtime entries* (netplan): narrow but distribution-specific and
+   fragile.
+Recommendation for review: option 3, measured on the KVM guests, with option 1 retained until then. The
+choice belongs to the owner.
+
 **P-1 detail.** Validation: strict decoding (`version` 1, known IDs, no unknown fields, size limit); refused if a
 symlink (`O_NOFOLLOW`), not a regular file, not root-owned, or group/world-writable; any error disables every
 optional module (logged). Enforced independently by the broker (`module_disabled`, before the scope check) and
