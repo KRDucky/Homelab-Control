@@ -226,8 +226,8 @@ func checkBootPulls(ctx context.Context, env *Env, p UnitProps) ([]string, error
 	sort.Strings(ids)
 	// p's own files: a runtime drop-in hiding a persistent one hides what p
 	// pulls in at boot.
-	if hidden, ok := hiddenPersistentDropIn(env.Roots, p); ok {
-		return nil, denied("%s cannot be disabled here: its persistent drop-in %s applies at the next boot but is hidden by a runtime drop-in until then; what it pulls in at boot was not evaluated", p.ID, clean(hidden, 200))
+	if why := dropInRefusal(env.Roots, p); why != "" {
+		return nil, denied("%s cannot be disabled here: %s; what it pulls in at boot was not evaluated", p.ID, why)
 	}
 	for _, id := range ids {
 		u := c.units[id]
@@ -242,9 +242,8 @@ func checkBootPulls(ctx context.Context, env *Env, p UnitProps) ([]string, error
 			return nil, denied("%s cannot be disabled here: it pulls in %s at boot (%s), and %s resolves to it only until the next boot (runtime alias); at boot that name is a different unit file, which was not evaluated",
 				p.ID, u.ID, c.path(id, p.ID), n)
 		}
-		if hidden, ok := hiddenPersistentDropIn(env.Roots, u); ok {
-			return nil, denied("%s cannot be disabled here: it pulls in %s at boot (%s), whose persistent drop-in %s applies at the next boot but is hidden by a runtime drop-in until then",
-				p.ID, u.ID, c.path(id, p.ID), clean(hidden, 200))
+		if why := dropInRefusal(env.Roots, u); why != "" {
+			return nil, denied("%s cannot be disabled here: it pulls in %s at boot (%s), and %s", p.ID, u.ID, c.path(id, p.ID), why)
 		}
 		if u.LoadState == "masked" && !persistentMask(env.Roots, names) {
 			return nil, denied("%s cannot be disabled here: it pulls in %s at boot (%s), which is masked only until the next boot; what %s would start at boot was not evaluated",

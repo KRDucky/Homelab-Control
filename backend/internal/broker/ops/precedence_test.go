@@ -153,3 +153,25 @@ func TestEnableHiddenPrefixDropInOfAnUnwalkedUnit(t *testing.T) {
 	}
 	_ = time.Second
 }
+
+// A drop-in directory beyond the bounds refuses with that reason, not as a
+// hidden drop-in.
+func TestDropInDirectoryBoundsRefuseWithTheirReason(t *testing.T) {
+	for _, action := range []string{"enable", "disable"} {
+		var e *eenv
+		if action == "enable" {
+			e = enableEnv(t, inactive(unit("my-app.service", nil)))
+		} else {
+			e = disableEnv(t, unit("my-app.service", nil))
+		}
+		pulls(e, "demo.service", "Wants", "my-app.service")
+		for i := 0; i <= maxLinkDirEntries; i++ {
+			writeUnit(t, e.files.root, "/run/systemd/system/my-app.service.d/"+itoa(i)+".conf", "[Unit]\n")
+		}
+		e.files.reload()
+		_, err := e.eplan(t, "demo.service", action)
+		if err == nil || !strings.Contains(err.Error(), "could not be read within bounds") || strings.Contains(err.Error(), "hidden by") {
+			t.Fatalf("%s: %v", action, err)
+		}
+	}
+}

@@ -10,6 +10,8 @@ import (
 	"io/fs"
 	"os"
 	"path"
+	"sort"
+	"strconv"
 	"strings"
 
 	"homelab-control/backend/internal/servicepolicy"
@@ -343,8 +345,9 @@ func dropInNames(root Roots, dirs, dirNames []string) (map[string]string, error)
 // same-named drop-ins by directory (/etc over /run over /usr/lib) and by the
 // prefix hierarchy, but does not specify how both orders combine, so any
 // such pair is treated as uncertain and refused, whichever wins now. Returns
-// the persistent drop-in (or a reason if the directories could not be read).
-func hiddenPersistentDropIn(root Roots, u UnitProps) (string, bool) {
+// the persistent drop-in and the runtime entry with the same name; err when
+// the drop-in directories could not be read within bounds.
+func hiddenPersistentDropIn(root Roots, u UnitProps) (persistent, runtime string, err error) {
 	var dirNames []string
 	for _, n := range append([]string{u.ID}, u.Names...) {
 		for _, dn := range dropInDirNames(n) {
@@ -355,21 +358,39 @@ func hiddenPersistentDropIn(root Roots, u UnitProps) (string, bool) {
 	}
 	rt, err := dropInNames(root, runtimeUnitDirs, dirNames)
 	if err != nil {
-		return "runtime drop-in directories of " + u.ID + " (not readable within bounds)", true
+		return "", "", err
 	}
 	if len(rt) == 0 {
-		return "", false
+		return "", "", nil
 	}
 	ps, err := dropInNames(root, persistentUnitDirs, dirNames)
 	if err != nil {
-		return "persistent drop-in directories of " + u.ID + " (not readable within bounds)", true
+		return "", "", err
 	}
-	for name, rp := range rt {
+	names := make([]string, 0, len(rt))
+	for name := range rt {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
 		if pp, ok := ps[name]; ok {
-			return pp + " (same name as " + rp + ")", true
+			return pp, rt[name], nil
 		}
 	}
-	return "", false
+	return "", "", nil
+}
+
+// dropInRefusal explains hiddenPersistentDropIn for u (empty: nothing to refuse).
+func dropInRefusal(root Roots, u UnitProps) string {
+	persistent, runtime, err := hiddenPersistentDropIn(root, u)
+	switch {
+	case err != nil:
+		return "the drop-in directories of " + u.ID + " could not be read within bounds (" + strconv.Itoa(maxLinkDirEntries) + " entries per directory)"
+	case persistent != "":
+		return "the persistent drop-in " + clean(persistent, 200) + " of " + u.ID + " applies at the next boot but is hidden by a runtime drop-in, " +
+			"or competes with one, of the same name (" + clean(runtime, 200) + ") until then; which one systemd uses at boot was not evaluated"
+	}
+	return ""
 }
 
 // checkBootRuntimeForEnable applies the runtime checks to every unit the
@@ -398,8 +419,8 @@ func checkBootRuntimeForEnable(env *Env, id string, evaluated map[string]UnitPro
 				return denied("%s cannot be enabled here: %s is defined in %s only until the next boot; at boot its persistent unit file applies, which was not evaluated", id, u.ID, clean(u.FragmentPath, 200))
 			}
 		}
-		if hidden, ok := hiddenPersistentDropIn(env.Roots, u); ok {
-			return denied("%s cannot be enabled here: the persistent drop-in %s of %s applies at the next boot but is hidden by a runtime drop-in until then; its boot-time settings were not evaluated", id, clean(hidden, 200), u.ID)
+		if why := dropInRefusal(env.Roots, u); why != "" {
+			return denied("%s cannot be enabled here: %s", id, why)
 		}
 		runtimeDropIn := false
 		for _, d := range u.DropInPaths {
