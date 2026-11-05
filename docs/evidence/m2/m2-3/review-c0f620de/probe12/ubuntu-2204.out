@@ -1,0 +1,16 @@
+container hc-probe-ubuntu-2204-502863 (ubuntu-2204): systemd state=running
+systemd 249 (249.11-0ubuntu3.23)
+UnitPath=/etc/systemd/system.control /run/systemd/system.control /run/systemd/transient /run/systemd/generator.early /etc/systemd/system /etc/systemd/system.attached /run/systemd/system /run/systemd/system.attached /run/systemd/generator /usr/local/lib/systemd/system /lib/systemd/system /usr/lib/systemd/system /run/systemd/generator.late
+unit-paths: /etc/systemd/system.control /run/systemd/system.control /run/systemd/transient /run/systemd/generator.early /etc/systemd/system /etc/systemd/system.attached /run/systemd/system /run/systemd/system.attached /run/systemd/generator /usr/local/lib/systemd/system /lib/systemd/system /usr/lib/systemd/system /run/systemd/generator.late 
+CASE a (own /usr/lib vs own /run): Description=run-own DropInPaths=/etc/systemd/system/service.d/10-hcph.conf /run/systemd/system/service.d/10-hcpi.conf /run/systemd/system/hcpa-x.service.d/10-p.conf
+CASE b (own /etc vs own /run): Description=etc-own DropInPaths=/etc/systemd/system/service.d/10-hcph.conf /run/systemd/system/service.d/10-hcpi.conf /etc/systemd/system/hcpb-x.service.d/10-p.conf
+CASE c (own /etc vs own system.control (runtime)): Description=control-own DropInPaths=/etc/systemd/system/service.d/10-hcph.conf /run/systemd/system/service.d/10-hcpi.conf /run/systemd/system.control/hcpc-x.service.d/10-p.conf
+CASE d (own /usr/lib vs runtime MASK): Description=run-type DropInPaths=/etc/systemd/system/service.d/10-hcph.conf /run/systemd/system/service.d/10-hcpi.conf /run/systemd/system/hcpd-x.service.d/10-p.conf
+CASE e (own /usr/lib vs /etc MASK): Description=run-type DropInPaths=/etc/systemd/system/service.d/10-hcph.conf /run/systemd/system/service.d/10-hcpi.conf /etc/systemd/system/hcpe-x.service.d/10-p.conf
+CASE f (prefix /etc vs own /run): Description=etc-prefix DropInPaths=/etc/systemd/system/service.d/10-hcph.conf /run/systemd/system/service.d/10-hcpi.conf /etc/systemd/system/hcpf-.service.d/10-p.conf
+CASE g (prefix /run vs own /usr/lib): Description=run-prefix DropInPaths=/etc/systemd/system/service.d/10-hcph.conf /run/systemd/system/service.d/10-hcpi.conf /run/systemd/system/hcpg-.service.d/10-p.conf
+CASE h (type-level /etc vs own /run): Description=run-type DropInPaths=/run/systemd/system/hcph-x.service.d/10-hcph.conf /run/systemd/system/service.d/10-hcpi.conf
+CASE i (type-level /run vs own /usr/lib): Description=usrlib-own DropInPaths=/etc/systemd/system/service.d/10-hcph.conf /usr/lib/systemd/system/hcpi-x.service.d/10-hcpi.conf
+CASE j (prefix /usr/lib vs runtime MASK in own): Description=run-type DropInPaths=/etc/systemd/system/service.d/10-hcph.conf /run/systemd/system/service.d/10-hcpi.conf /run/systemd/system/hcpj-x.service.d/10-p.conf
+container hc-probe-ubuntu-2204-502863 (ubuntu-2204): systemd state=running
+post: nothing to do

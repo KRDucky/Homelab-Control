@@ -615,14 +615,17 @@ the users file and `hc-api` does not start). R26.
 
 **Unit search path and precedence, checked against the documentation.** `systemd.unit(5)` (systemd 262 man page
 on the workstation, "UNIT FILE LOAD PATH", Table 1; drop-in rules in "DESCRIPTION") and the manager's own
-`UnitPath` on all five images (`docs/evidence/m2/m2-3/review-<final>/probe12/`):
+`UnitPath` on all five images (`docs/evidence/m2/m2-3/review-c0f620de/probe12/`, `systemd-docs/`; the load-path
+table is identical at tags v249, v255 and v259):
 - Documented system load path: `/etc/systemd/system.control`, `/run/systemd/system.control`,
   `/run/systemd/transient`, `/run/systemd/generator.early`, `/etc/systemd/system`, `/run/systemd/system`,
   `/run/systemd/generator`, `/usr/local/lib/systemd/system`, `/usr/lib/systemd/system`,
   `/run/systemd/generator.late`; "determined during compilation"; `$SYSTEMD_UNIT_PATH` replaces it.
 - Reported by the managers (249, 255, 259, Fedora 259): the documented path plus `/etc/systemd/system.attached`
-  and `/run/systemd/system.attached` (portable services) after `/etc/systemd/system` and `/run/systemd/system`,
-  and on Ubuntu 22.04 `/lib/systemd/system` **before** `/usr/lib/systemd/system`. The broker listed `/lib` after
+  and `/run/systemd/system.attached` (portable services; listed in the man page's synopsis, not in its table)
+  after `/etc/systemd/system` and `/run/systemd/system`, and on Ubuntu 22.04 `/lib/systemd/system` **before**
+  `/usr/lib/systemd/system` (a distribution compile-time path, not documented; on that host `/lib` is the merged
+  `/usr/lib`). The workstation's systemd 262 reports the same path. The broker listed `/lib` after
   `/usr/lib` (only relevant on split-`/usr` hosts): corrected. R24.
 - **The review no longer assumes the path:** the read-only manager query also reads `UnitPath`; both actions
   are refused, with the reported path in the message, unless it is exactly the documented path above (with
@@ -650,4 +653,7 @@ on the workstation, "UNIT FILE LOAD PATH", Table 1; drop-in rules in "DESCRIPTIO
 | R26 | Unit-file contents needed `services.logs` | `services.files` (P-2) | `TestServicesFilesNotGrantedByDefaultOrImplied`, `TestUnitContentsNeedFilesScopeAndAudit`, `TestUnitFilesCapabilityNeedsFilesScope`, broker end-to-end refusal, UI tests, browser B19–B20, scenario §8 |
 
 Each new check was removed once and a test failed (no search-path check; any path accepted; old `/lib` order;
-no prefix or type-level directories; masks ignored; global scan without the hierarchy).
+no prefix or type-level directories; masks ignored; global scan without the hierarchy). `systemctl` itself honours
+`$SYSTEMD_UNIT_PATH`, but the runner gives every child a fixed environment without it (guard tests), so the client
+uses the same path as PID 1. A read or bounds failure in the drop-in check refuses with that reason (`c0f620de`).
+Evidence on `c0f620de`: `docs/evidence/m2/m2-3/review-c0f620de/`.

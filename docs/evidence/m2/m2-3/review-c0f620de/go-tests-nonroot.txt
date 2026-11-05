@@ -1,0 +1,1 @@
+Go tests as uid 1000 (GOTOOLCHAIN=go1.26.10) on c0f620de: 320 tests + 159 subtests, 0 failed

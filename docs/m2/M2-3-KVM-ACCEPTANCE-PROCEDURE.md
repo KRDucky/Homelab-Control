@@ -17,7 +17,8 @@ The owner must authorize, in their own words, after reviewing the safety correct
 3. Separately, **Phase B** (deliberate test-wrapper run): temporarily replacing `/usr/bin/systemctl` in the
    guest with a root-owned test wrapper and SIGKILLing the broker on purpose. Phase B may be authorized or
    declined independently of Phase A.
-4. **Retaining** the new guests afterwards (shut off, autostart disabled). **Deleting them is not part of this
+4. **Retaining** the new guests afterwards: defined, shut off, autostart disabled (`virsh autostart --disable`;
+   record `virsh dominfo` showing `Autostart: disable` and state `shut off`). **Deleting them is not part of this
    procedure**; it needs a separate cleanup approval.
 
 Not covered and not to be touched: the retained Ubuntu, Fedora and Arch acceptance VMs, their disks and
@@ -56,8 +57,12 @@ snapshots, `AGENTS.md`, the file-manager worktree, production hosts.
 - **Images:** official cloud images, verified against their published checksums; record names and SHA-256.
 
 ## Guest setup (each guest)
-1. 2 vCPU, 4 GiB RAM, a fresh overlay disk on the cloud image, cloud-init with an SSH key only.
-2. Record `systemctl --version`, `uname -r`, `cat /etc/os-release`. Fedora: `getenforce` → `Enforcing`,
+1. 2 vCPU, 4 GiB RAM, a fresh overlay disk on the cloud image, cloud-init with an SSH key only; an isolated
+   libvirt NAT network; **no host directory shares** (no virtiofs/9p, no `<filesystem>` element); no NAT port
+   forward to the guest. The workstation reaches the guest only over SSH to the guest's NAT address.
+2. Record `systemctl --version`, `uname -r`, `cat /etc/os-release`, and the manager's unit search path
+   `systemctl show -p UnitPath --value` (both actions are refused unless it is exactly the documented path,
+   `M2-3-DESIGN-REVIEW.md` §12; a different path is a **finding** to report, not a reason to change the check). Fedora: `getenforce` → `Enforcing`,
    `sestatus` (policy `targeted`). Do **not** change SELinux mode or policy. Ubuntu: `aa-status --enabled; echo $?`.
 3. `sudo touch /etc/hc-disposable`.
 4. Baseline: SSH unit (`ssh.service` on Ubuntu, `sshd.service` on Fedora) `is-enabled` and `MainPID`;
@@ -106,10 +111,16 @@ refused with the reason and the plan duration, plus a fixture with `Wants=networ
 disabled again by the harness). Record the tally as P-7 over-refusal data; a plan duration near 15 s is a
 finding.
 
-**Browser (manual checklist).** The `tests/e2e/m2_3_browser.py` harness drives a Docker container and cannot run
-against a VM as is. Through a workstation-loopback SSH tunnel (`ssh -L 127.0.0.1:9180:127.0.0.1:9180 guest`),
-with a fresh browser profile in Chromium and Firefox, perform its steps B1–B18 with an independent `systemctl`
-observation over SSH for each, and record them in `E2-BROWSER-RECORD.md` as for M2-2.
+**Browser (manual checklist), workstation-loopback only.** `hc-api` in the guest listens on the guest's
+loopback only (`HC_API_ARGS=-listen 127.0.0.1:9180 -dev-insecure-http` for this test); the workstation reaches
+it only through an SSH local forward bound to the workstation's loopback
+(`ssh -N -L 127.0.0.1:9180:127.0.0.1:9180 guest`), never through a NAT port forward or a non-loopback address.
+The `tests/e2e/m2_3_browser.py` harness drives a Docker container and cannot run against a VM as is. With a
+fresh browser profile in Chromium and Firefox at `http://127.0.0.1:9180/`, perform its steps B1–B20 with an
+independent `systemctl` observation over SSH for each, and record them in `E2-BROWSER-RECORD.md` as for M2-2.
+The browser account needs `services.files` for B10 (`hlctl user scopes … --scopes …,services.files,…`);
+B19–B20 use a second account with every permission **except** `services.files`: no unit-file button, the reason
+names `services.files`, and `GET /api/v1/services/units/<unit>/contents` answers 403 while its logs answer 200.
 
 **Phase A checks afterwards.**
 1. `find /etc/systemd/system -type l -printf '%p -> %l\n' | sort | diff /root/links-before.txt -` → empty.
@@ -118,7 +129,9 @@ observation over SSH for each, and record them in `E2-BROWSER-RECORD.md` as for 
    with API 1.6 / broker 1.5; `systemctl show -p CapabilityBoundingSet homelab-control-broker.service` →
    `cap_setgid cap_setuid`.
 4. `hlctl audit verify --file /var/log/homelab-control-broker/operations.jsonl` → exit 0.
-5. **Fedora SELinux (normal acceptance):** `getenforce` → `Enforcing`; `ausearch -m AVC,USER_AVC -ts boot` →
+5. **`services.files`:** the scenario log contains `PASS  contents without services.files (operator): 403` and
+   `PASS  contents with every scope but services.files: 403`.
+6. **Fedora SELinux (normal acceptance):** `getenforce` → `Enforcing`; `ausearch -m AVC,USER_AVC -ts boot` →
    no denial for `hc-broker`, `hc-api`, `systemctl` or the units, compared with `avc-before.txt`; classify any
    other denial as in the M2-2 closeout. A relevant AVC is a failure. This phase never replaces a system binary,
    so no test-wrapper denial can occur in it.
