@@ -226,3 +226,45 @@ func TestEnableListsBootStartsIncludingRunningOnes(t *testing.T) {
 		t.Fatalf("starts %v", p.AlsoStarted)
 	}
 }
+
+// Hidden persistent configuration on a unit the walk never evaluates: Z is
+// started at boot anyway (so not walked); its persistent drop-in conflicts
+// with (or binds to) a unit the change starts, but a same-name runtime drop-in
+// hides it, so the loaded graph shows no ConflictedBy=/BoundBy= on that unit.
+// At the next boot the persistent drop-in applies. Refused by the runtime scan.
+func TestEnableHiddenReverseRelationOfAnUnwalkedUnit(t *testing.T) {
+	for _, c := range []struct{ name, key, dir string }{
+		{"Conflicts via system", "Conflicts", "/run/systemd/system/"},
+		{"BindsTo via system.control", "BindsTo", "/run/systemd/system.control/"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			e := enableEnv(t, unit("z.service", nil), inactive(unit("y.service", nil)))
+			pulls(e, "multi-user.target", "Wants", "z.service")
+			pulls(e, "demo.service", "Wants", "y.service")
+			e.fake.mu.Lock()
+			e.fake.units["z.service"].DropInPaths = []string{c.dir + "z.service.d/50-x.conf"}
+			e.fake.mu.Unlock()
+			writeUnit(t, e.files.root, c.dir+"z.service.d/50-x.conf", "[Unit]\nDescription=runtime\n")
+			writeUnit(t, e.files.root, "/etc/systemd/system/z.service.d/50-x.conf", "[Unit]\n"+c.key+"=y.service\n")
+			e.files.reload()
+			refused(t, e, "demo.service", "enable", "hidden")
+		})
+	}
+	// A runtime unit file shadowing z's persistent file (PartOf= y): refused.
+	e := enableEnv(t, unit("z.service", nil), inactive(unit("y.service", nil)))
+	pulls(e, "multi-user.target", "Wants", "z.service")
+	pulls(e, "demo.service", "Wants", "y.service")
+	writeUnit(t, e.files.root, "/run/systemd/system/z.service", "[Service]\nExecStart=/bin/true\n")
+	writeUnit(t, e.files.root, "/usr/lib/systemd/system/z.service", "[Unit]\nPartOf=y.service\n")
+	e.files.reload()
+	refused(t, e, "demo.service", "enable", "hidden by a runtime unit file")
+	// A runtime drop-in on an unwalked unit that hides nothing: not refused.
+	e = enableEnv(t, unit("z.service", nil), inactive(unit("y.service", nil)))
+	pulls(e, "multi-user.target", "Wants", "z.service")
+	pulls(e, "demo.service", "Wants", "y.service")
+	writeUnit(t, e.files.root, "/run/systemd/system/z.service.d/50-x.conf", "[Unit]\nDescription=runtime\n")
+	e.files.reload()
+	if _, err := e.eplan(t, "demo.service", "enable"); err != nil {
+		t.Fatalf("runtime drop-in hiding nothing: %v", err)
+	}
+}

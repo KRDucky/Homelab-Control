@@ -183,6 +183,16 @@ def setup_fixtures():
     write(f"{LIB}/hc-rr-e7m.service", unit("E7e dependency"))
     write(f"{LIB}/hc-rr-e7m.service.d/10-hc.conf", f"[Unit]\nConflicts={P}7e.service\n")
     write(f"{RUN}/hc-rr-e7m.service.d/10-hc.conf", "[Unit]\nDescription=hc-rr E7e runtime drop-in\n")
+    # E8: a unit started at boot anyway (the enabled stand-in) has a persistent
+    # drop-in Conflicts= with a unit the change starts, hidden by a same-name
+    # runtime drop-in (set-property --runtime writes /run/systemd/system.control).
+    # E8b: the same with /run/systemd/system (precedence measurement).
+    for s8, rdir in (("8", "/run/systemd/system.control"), ("8b", RUN)):
+        write(f"{ETC}/{P}{s8}.service", unit(f"E{s8} protected stand-in") + WANTED)
+        write(f"{ETC}/{P}{s8}.service.d/50-hc.conf", f"[Unit]\nConflicts=hc-rr-e{s8}y.service\n")
+        write(f"{rdir}/{P}{s8}.service.d/50-hc.conf", "[Unit]\nDescription=hc-rr runtime drop-in\n")
+        write(f"{ETC}/hc-rr-e{s8}.service", unit(f"E{s8} enabled by the product", f"Wants=hc-rr-e{s8}y.service\n") + WANTED)
+        write(f"{ETC}/hc-rr-e{s8}y.service", unit(f"E{s8} pulled in"))
     # D1: disable a unit whose RUNNING intermediate pulls in a protected stand-in.
     write(f"{ETC}/{P}d1.service", unit("D1 protected stand-in"))
     write(f"{ETC}/hc-rr-d1.service", unit("D1 disabled by the product", "Wants=hc-rr-d1m.service\n") + WANTED)
@@ -244,11 +254,11 @@ def pre():
     setup_fixtures()
     reload()
     # Boot settings made by the harness (systemctl, with its reload).
-    for u in (f"{P}1", f"{P}1c", f"{P}3", f"{P}3c", f"{P}5", f"{P}7e", f"{P}u1", "hc-rr-d1", "hc-rr-d6", "hc-rr-d6c",
+    for u in (f"{P}1", f"{P}1c", f"{P}3", f"{P}3c", f"{P}5", f"{P}7e", f"{P}8", f"{P}8b", f"{P}u1", "hc-rr-d1", "hc-rr-d6", "hc-rr-d6c",
               "hc-rr-d7", "hc-rr-d7c", "hc-rr-s1p", "hc-rr-s1cp", "hc-rr-e1c", "hc-rr-e3c"):
         run("systemctl", "enable", f"{u}.service")
     run("systemctl", "enable", "hc-rr-s1cv.service")  # control: alias enabled and kept
-    for u in (f"{P}1", f"{P}1c", f"{P}3", f"{P}3c", f"{P}5", f"{P}7e", f"{P}u1"):
+    for u in (f"{P}1", f"{P}1c", f"{P}3", f"{P}3c", f"{P}5", f"{P}7e", f"{P}8", f"{P}8b", f"{P}u1"):
         run("systemctl", "start", f"{u}.service")
 
     # --- U1: an unreloaded persistent edit of a running dependency.
@@ -285,6 +295,12 @@ def pre():
     print(f"STATE    E7e: e7m Conflicts={sh('systemctl', 'show', '-p', 'Conflicts', '--value', 'hc-rr-e7m.service')!r} "
           f"DropInPaths={sh('systemctl', 'show', '-p', 'DropInPaths', '--value', 'hc-rr-e7m.service')!r}")
     product("E7e", "hc-rr-e7.service", "enable", "REFUSED (runtime drop-in hides a persistent one)")
+
+    # --- E8/E8b: hidden persistent drop-in on a unit the walk does not evaluate.
+    for s8 in ("8", "8b"):
+        print(f"STATE    E{s8}: stand-in Conflicts={sh('systemctl', 'show', '-p', 'Conflicts', '--value', P + s8 + '.service')!r} "
+              f"DropInPaths={sh('systemctl', 'show', '-p', 'DropInPaths', '--value', P + s8 + '.service')!r}")
+        product(f"E{s8}", f"hc-rr-e{s8}.service", "enable", "REFUSED (hidden persistent Conflicts= / or loaded conflict)")
 
     # --- D1: disable with a running intermediate.
     run("systemctl", "start", "hc-rr-d1m.service")
@@ -335,6 +351,8 @@ def post():
     boot("E5 after a connection", ["hc-rr-e5s.service", f"{P}5.service"])
     boot("E7e", ["hc-rr-e7.service", "hc-rr-e7m.service", f"{P}7e.service"])
     print(f"INFO     E7e at boot: e7m Conflicts={sh('systemctl', 'show', '-p', 'Conflicts', '--value', 'hc-rr-e7m.service')!r}")
+    for s8 in ("8", "8b"):
+        boot(f"E{s8}", [f"hc-rr-e{s8}.service", f"hc-rr-e{s8}y.service", f"{P}{s8}.service"])
     boot("D1", ["hc-rr-d1.service", "hc-rr-d1m.service", f"{P}d1.service"])
     boot("D6", ["hc-rr-d6.service", "hc-rr-d6foo.service", f"{P}d6.service"])
     boot("D6c(control, not disabled)", ["hc-rr-d6c.service", "hc-rr-d6cfoo.service", f"{P}d6c.service"])
