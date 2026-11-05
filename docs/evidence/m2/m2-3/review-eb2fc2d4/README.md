@@ -54,3 +54,8 @@ homelab hosts.
   Chromium had passed 9/9; excerpt `ci-41991515635-attempt1-browser-e2e-excerpt.txt`); attempt 2: 21/21.
   Intermediate head `551fe322` (product `f8d3af2e`): run 42003162105, 21/21 (superseded by `eb2fc2d4`). The final
   head's run is recorded in `M2-3-KVM-ACCEPTANCE-PROCEDURE.md`.
+- **Final CI** (`ci/`): run 42008315859 on head `660151b0` (product `eb2fc2d4`), attempt 1, 21/21 succeeded
+  (`ci-42008315859-jobs.tsv`); merge ref `f7c6bfca` (parents `81ee254f`, `660151b0`), tree `21cafccc` identical
+  to the head's; stock runner `systemd-ubuntu` M2-3 137/0 with netplan's runtime entries
+  (`systemd-ubuntu-42008315859-results.txt`); artifact hashes `build-artifact-42008315859.sha256` (as in the KVM
+  procedure).
