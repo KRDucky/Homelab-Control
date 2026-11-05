@@ -60,13 +60,18 @@ func TestShellMetacharactersRejected(t *testing.T) {
 
 func TestEnvironmentReplaced(t *testing.T) {
 	t.Setenv("HC_SECRET_TOKEN", "leak-me")
+	// systemctl computes its own unit lookup path from these: never inherited
+	// (the review checks PID 1's UnitPath; the client must use the same path).
+	t.Setenv("SYSTEMD_UNIT_PATH", "/tmp/leak-units:")
+	t.Setenv("SYSTEMD_ROOT", "/tmp/leak-root")
 	r := testRunner(t)
 	res, err := r.Run(context.Background(), "env")
 	if err != nil {
 		t.Fatal(err)
 	}
 	out := string(res.Stdout)
-	if strings.Contains(out, "leak-me") || !strings.Contains(out, "LC_ALL=C.UTF-8") || !strings.Contains(out, "SYSTEMD_COLORS=0") {
+	if strings.Contains(out, "leak-me") || strings.Contains(out, "SYSTEMD_UNIT_PATH") || strings.Contains(out, "leak-root") ||
+		!strings.Contains(out, "LC_ALL=C.UTF-8") || !strings.Contains(out, "SYSTEMD_COLORS=0") {
 		t.Fatalf("environment not replaced: %s", out)
 	}
 }
@@ -250,6 +255,7 @@ func TestRootTargetValidation(t *testing.T) {
 // mapped to echo/env so the exact argv and environment of the child are visible.
 func TestRootRunUsesFixedArgvAndScrubbedEnv(t *testing.T) {
 	t.Setenv("HC_SECRET_TOKEN", "leak-me")
+	t.Setenv("SYSTEMD_UNIT_PATH", "/tmp/leak-me-units:")
 	saved := allowlist
 	allowlist = map[string][]string{"systemctl": {"/usr/bin/echo", "/bin/echo"}}
 	t.Cleanup(func() { allowlist = saved })
