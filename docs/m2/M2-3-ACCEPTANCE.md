@@ -15,11 +15,12 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
 - `ae937d8a`: B-1 with the own-change overlay, R15–R17 (superseded only by the client-deadline fix).
 - `d9946a4a`: R18 broker client deadlines (superseded; CI showed blocker B-2).
 - `00fb7f2b`: B-2, P-8 option 3 (superseded by the final safety review; evidence `review-00fb7f2b/`).
-- **`f8d3af2e`: current product commit** (final safety review, R20–R22: enable judged against the next boot,
-  not the current state; runtime drop-ins hiding persistent ones and runtime aliases on reached units
-  refused). Later commits change only tests, probes and documentation:
-  `git diff --stat f8d3af2e HEAD -- backend frontend schemas packaging cmd` is empty.
-- Evidence: `../evidence/m2/m2-3/review-f8d3af2e/` (and `review-00fb7f2b/` for the unchanged parts) and the
+- `f8d3af2e`: final safety review, R20–R22 (superseded by R23).
+- **`eb2fc2d4`: current product commit** (final safety review, R20–R23: enable judged against the next boot,
+  not the current state; runtime configuration hiding persistent relations refused, on reached units and,
+  for enable, on any unit whose hidden file names an evaluated unit). Later commits change only tests,
+  probes and documentation: `git diff --stat eb2fc2d4 HEAD -- backend frontend schemas packaging cmd` is empty.
+- Evidence: `../evidence/m2/m2-3/review-eb2fc2d4/` (and `review-00fb7f2b/` for the unchanged parts) and the
   CI run named in `M2-3-KVM-ACCEPTANCE-PROCEDURE.md`.
   KVM validation is a separate, not yet authorized step.
 
@@ -56,10 +57,10 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
 | Secrets in unit contents | Pass (heuristic, **not a secrecy guarantee**; continuation lines fixed, R6; known gaps in design review §4; O-2) | `TestRedactLine`, `TestParseCat`; container: root-only drop-in reported unreadable, fixture secrets absent from API responses, audit, journal and logs |
 | No mask/unmask, editing, creation, generic daemon-reload, arbitrary commands, new dependencies | Pass | Template snapshot; `go.mod` and `package-lock.json` unchanged; ADR 0006 policy check |
 
-## Validation items (product commit `00fb7f2b`, `../evidence/m2/m2-3/review-00fb7f2b/`; rerun on `f8d3af2e` as noted)
+## Validation items (product commit `00fb7f2b`, `../evidence/m2/m2-3/review-00fb7f2b/`; rerun on `eb2fc2d4` as noted)
 | Item | Result |
 |---|---|
-| Final safety review on `f8d3af2e` (`review-f8d3af2e/`) | Reboot reproduction on five images: E1, E2, E3, E5, E7e (enable) and D6, D7 (disable) allowed by `00fb7f2b` with the protected stand-in down after the reboot, all refused by `f8d3af2e`; D1 (running intermediate) refused by both. Regressions on five images with long waits: smoke 71/0, M2-2 89/0, M2-3 140–141/0, broker kill 20/0; browser 18/18 (Ubuntu 26.04); `make check` exit 0, nothing skipped; Go uid 1000 310 + 137 subtests, 0 failed |
+| Final safety review on `eb2fc2d4` (`review-eb2fc2d4/`) | Reboot reproduction on five images: E1, E2, E3, E5, E7e (enable) and D6, D7 (disable) allowed by `00fb7f2b` with the protected stand-in down after the reboot; E8 allowed by `f8d3af2e`; all refused by `eb2fc2d4`; D1 (running intermediate) refused by both. Regressions on five images with long waits: smoke 71/0, M2-2 89/0, M2-3 140–141/0, broker kill 20/0; browser 18/18 (Ubuntu 26.04); `make check` exit 0, nothing skipped; Go uid 1000 310 + 137 subtests, 0 failed |
 | M2-2 regression | M2-2 real-systemd scenario with `HC_M2_LONG=1` 89/0 on Ubuntu 26.04, 24.04, 22.04 and Fedora 44; Go and Vitest suites pass; CI browser suites incl. `service-ops-ui.mjs` 298/0 locally (Chromium, Firefox) |
 | Long expiry checks | `HC_M2_LONG=1` on all four (M2-2 and M2-3) |
 | Interruption recovery | Broker SIGKILL before and after `systemctl` ran: 20/0 on all four (inside the full run) and 20/0 standalone (Phase B invocation) on Ubuntu 26.04 and Fedora 44; `systemctl` restored with identical inode, size, mode, owner, group and SHA-256; after an interrupted change enable and disable are refused until systemd reloads |
@@ -77,7 +78,7 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
 ## Open items and limits (for the owner)
 - **B-2** addressed in `00fb7f2b` (P-8 option 3 approach approved; implementation for review); see CI below.
 - **Final safety review** (design review §11): the running-state limit was a real gap for enable, corrected in
-  `f8d3af2e` (P-9, for review); residual unmodelled boot starts (udev, D-Bus activation, kernel command line)
+  `f8d3af2e`/`eb2fc2d4` (P-9, for review); residual unmodelled boot starts (udev, D-Bus activation, kernel command line)
   remain.
 - **Owner approval of proposals P-1…P-6** (`OWNER-DECISIONS.md`; not decisions): root-owned module setting,
   a separate unit-file-content permission (not implemented), password for every boot-time change,

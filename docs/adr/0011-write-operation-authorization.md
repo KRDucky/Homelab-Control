@@ -214,7 +214,7 @@ use are separate decisions. The review of the new write against every element of
   boot; evaluated only for units the review reaches (runtime-only relations anchor nothing; runtime masks,
   shadowing unit files, aliases and same-name drop-ins hiding persistent ones on reached units refused; safety
   settings re-derived from persistent files).
-- **Next boot, not the current state** (final review, `f8d3af2e`): the enable review's start walk is not pruned
+- **Next boot, not the current state** (final review, `f8d3af2e`, `eb2fc2d4`): the enable review's start walk is not pruned
   by what is running now, follows `Triggers=` and stop-checks every conflict that may run at the next boot;
   M2-2's start/stop/restart model (a change *now*) is unchanged.
 - **Unloaded changes** (second review round): enable fails closed while unit files changed after systemd's

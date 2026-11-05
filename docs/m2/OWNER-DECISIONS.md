@@ -234,7 +234,7 @@ production changes and new dependencies, and M2-4, M2-5, M2-6 and M3 (M2-5 and M
 | O-4 | `--no-reload` | No manager reload (the excluded generic daemon-reload). The setting is written to disk at once and applied at the next boot **or earlier**, at any later daemon-reload or first load of a target (corrected 2026-11-04, probe 7 P19/P20); host `systemctl status` shows the old value until then |
 | O-5 | Refused constructs | `Also=`, `RequiredBy=`, `UpheldBy=`, `DefaultInstance=`, template instances, `.socket`/`.timer` enablement, SysV/generated/linked/runtime units are refused, not supported; each could be a later, separately reviewed extension |
 
-### Design proposals for the owner's final approval (P-1…P-6) — PROPOSALS, NOT DECISIONS
+### Design proposals for the owner's final approval (P-1…P-9) — PROPOSALS, NOT DECISIONS
 Status of every item below: **proposed, not approved.** The owner asked (2026-11-04) for these to be prepared
 for final approval; until the owner approves an item in their own words it is not a decision, and D-10
 remains open. Each item states what the branch implements now, so that approval or rejection has a concrete
@@ -250,10 +250,10 @@ effect. Evidence: `M2-3-DESIGN-REVIEW.md` §1, §1.1, §1.2, §7, §8.
 | P-6 (new) | Enable (and, since `ad725d43`, disable) fails closed while unit files changed after systemd's last load (§8). Its former second half — refusal whenever runtime unit configuration exists — was replaced under P-8 in `00fb7f2b` | Yes | Keep | The only safe alternative found is to reload (excluded) or to rebuild the boot graph from disk (not feasible here) |
 | P-7 (B-1) | Disable refuses when the affected boot dependency relationships reach a protected unit | Yes, since `ad725d43`/`ae937d8a` (implementation pending owner review) | **Safety objective approved by the owner, 2026-11-05** (below); the implementation is not approved by it | — |
 | P-8 (B-2) | How to treat runtime unit configuration in `/run/systemd/system` | Option 3 since `00fb7f2b` (implementation pending owner review) | **Approach (option 3) approved by the owner, 2026-11-05** (below); the implementation is not approved by it | — |
-| P-9 (new, final review) | Enable is judged against the **next boot**, not against what is running now (boot mode; `M2-3-DESIGN-REVIEW.md` §11) | Yes, since `f8d3af2e` (correction for owner review) | Keep | Revert to the M2-2 start walk: enabling can then break a protected unit at the next boot (reproduced) |
+| P-9 (new, final review) | Enable is judged against the **next boot**, not against what is running now (boot mode; `M2-3-DESIGN-REVIEW.md` §11) | Yes, since `f8d3af2e`, completed in `eb2fc2d4` (correction for owner review) | Keep | Revert to the M2-2 start walk: enabling can then break a protected unit at the next boot (reproduced) |
 
 ### Consolidated decision table (2026-11-05) — PROPOSALS, NOT DECISIONS
-Status of the branch: product `f8d3af2e`. "Approval needed" is what the owner would decide; nothing below is
+Status of the branch: product `eb2fc2d4`. "Approval needed" is what the owner would decide; nothing below is
 decided unless quoted verbatim as an owner decision.
 
 | ID | Recommendation | Trade-off | Implementation status | Approval needed |
@@ -265,9 +265,9 @@ decided unless quoted verbatim as an owner decision.
 | P-4 | Keep `--no-reload`; document "on disk now, effective at the next reload or boot" | Host `systemctl status` shows the old setting until then; any later reload applies it | Implemented | Approve the semantics |
 | P-5 | Keep refusing unsupported constructs | Static, template, socket/timer-enabled, `RequiredBy=`/`Also=` units cannot be managed | Implemented | Approve the list |
 | P-6 | Keep the change gate for both actions | After an unreloaded edit or an interrupted operation, both actions wait for a reload or boot | Implemented | Approve |
-| P-7 | Accept the boot-pull implementation (with R21/R22 of §11) | Over-refuses when the unit is the only persistent puller of a protected unit started otherwise (e.g. generated or runtime relations) | Objective approved 2026-11-05; implementation pending | Accept the implementation |
-| P-8 | Accept option 3 as implemented (with R21/R22) | Residual unmodelled boot sources (§10, §11) | Approach approved 2026-11-05; implementation pending | Accept the implementation |
-| P-9 | Accept the enable boot mode | More refusals than the M2-2 start model (running dependencies, socket activation, conflicts with stopped boot units are now checked) | Implemented (`f8d3af2e`) | Accept the correction |
+| P-7 | Accept the boot-pull implementation (with R21–R23 of §11) | Over-refuses when the unit is the only persistent puller of a protected unit started otherwise (e.g. generated or runtime relations) | Objective approved 2026-11-05; implementation pending | Accept the implementation |
+| P-8 | Accept option 3 as implemented (with R21–R23) | Residual unmodelled boot sources (§10, §11) | Approach approved 2026-11-05; implementation pending | Accept the implementation |
+| P-9 | Accept the enable boot mode | Refuses where the M2-2 start model would allow (running dependencies, socket activation, conflicts with stopped boot units are checked). Measured cost on stock images and three homelab fixtures: no decision changed on any of five images; plans 139–977 ms instead of 17–55 ms | Implemented (`f8d3af2e`, `eb2fc2d4`) | Accept the correction |
 | KVM A | Authorize Phase A on new, retained guests (`M2-3-KVM-ACCEPTANCE-PROCEDURE.md`) | VM time; no guest deletion assumed | Procedure ready; provenance from the final CI | Authorize Phase A |
 | KVM B | Authorize Phase B (broker interruption, SELinux denials review) separately, after Phase A | Deliberate broker kills on the guests | Procedure ready | Authorize separately |
 
