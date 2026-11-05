@@ -31,4 +31,7 @@ run 41978888955 (`m2-3-enablement: 72 passed, 54 failed`, same three netplan ent
 - Local gates on the final tree: `make check` exit 0 (Go 1.26.10; govulncheck v1.9.0, reuse 6.2.0, spdx-tools
   0.8.3, ShellCheck 0.11.0; nothing skipped) — `make-check.log`; Go tests as uid 1000: 300 tests + 135
   subtests, 0 failed — `go-tests-nonroot.txt`; Vitest 73/73; CI browser suites 298/0 — `ci-browser-e2e-chromium-firefox.log`.
-- GitHub CI: `ci/` (added when the run completes).
+- GitHub CI run 41989940804 on head `fece3bba` (merge ref `bd91aaad`, tree identical to the head): 21/21 jobs
+  succeeded (`ci/ci-41989940804-jobs.tsv`); `systemd-ubuntu` on the stock runner VM listed netplan's three
+  runtime entries before section 6f and passed M2-3 137/0 (`ci/systemd-ubuntu-41989940804-results.txt`);
+  `build` artifact hashes in `ci/build-artifact-41989940804.sha256`.
