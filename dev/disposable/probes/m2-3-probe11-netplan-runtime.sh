@@ -15,7 +15,7 @@ show() {
   echo "  generator dir ctime: $(stat -c %z /run/systemd/generator)"
   find /run/systemd/system -printf '  %C+ %y %p%l\n' 2>/dev/null | sed 's/%l//' | sort -k3
   find /run/systemd/system -type l -printf '  link %p -> %l\n' 2>/dev/null
-  for f in $(find /run/systemd/system -type f); do echo "  --- $f"; sed 's/^/    /' "$f"; done
+  find /run/systemd/system -type f -print0 2>/dev/null | while IFS= read -r -d '' f; do echo "  --- $f"; sed 's/^/    /' "$f"; done
 }
 if [ "${1:-pre}" = pre ]; then
   systemctl --version | head -n1; netplan --help >/dev/null 2>&1 && dpkg -l netplan.io | tail -n1 | awk '{print "  netplan.io " $3}'
