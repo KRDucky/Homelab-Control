@@ -37,7 +37,7 @@ a real container restart, `/run` a tmpfs and empty of fixtures afterwards). `DEC
 | Broker SIGKILL | 20/0 | 20/0 | 20/0 | 20/0 | 20/0 |
 | Browser B1–B18, Chromium (`browser/`) | 18/18 | not run | not run | not run | not run |
 
-(The same regressions on `f8d3af2e` gave identical counts; logs in `.dev/m2-3-logs/rf8d3af2e/`.)
+(The same regressions on `f8d3af2e` gave identical counts: `../review-f8d3af2e/containers/`, `../review-f8d3af2e/browser/`; that folder is kept as committed in `551fe322`, its README describing the first correction.)
 
 **Cost of the boot mode (P-9), plan only** (`enable-survey/`, `tests/systemd/m2_3_enable_survey.py`): every
 disabled, non-template service of each image plus three homelab-style fixtures (wanting
