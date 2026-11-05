@@ -854,7 +854,7 @@ def main():
     nf_sid = login("nofiles")
     st, e = call("GET", f"/api/v1/services/units/{sec}/contents", sid=nf_sid)
     check("contents with every scope but services.files: 403", (403, "forbidden"), (st, e.get("error")))
-    st, _ = call("GET", f"/api/v1/services/units/{sec}/logs?lines=5", sid=nf_sid)
+    st, _ = call("GET", "/api/v1/services/units/homelab-control.service/logs?lines=5", sid=nf_sid)
     check("its service logs (services.logs) still readable: 200", 200, st)
     st, sess = call("GET", "/api/v1/auth/session")
     csrf = sess.get("csrf_token")

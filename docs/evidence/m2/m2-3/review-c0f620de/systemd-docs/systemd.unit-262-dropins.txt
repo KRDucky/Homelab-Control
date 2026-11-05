@@ -1,0 +1,10 @@
+     In addition to /etc/systemd/system, the drop-in ".d/" directories for system services can be  placed  in  /usr/lib/systemd/system  or  /run/sys‐
+     temd/system  directories.  Drop-in  files  in  /etc/  take precedence over those in /run/ which in turn take precedence over those in /usr/lib/.
+     Drop-in files under any of these directories take precedence over unit files wherever located. Multiple drop-in files with different  names  are
+     applied in lexicographic order, regardless of which of the directories they reside in.
+
+     Units  also  support a top-level drop-in with type.d/, where type may be e.g.  "service" or "socket", that allows altering or adding to the set‐
+     tings of all corresponding unit files on the system. The formatting and precedence of applying drop-in configurations  follow  what  is  defined
+     above.  Files  in type.d/ have lower precedence compared to files in name-specific override directories. The usual rules apply: multiple drop-in
+     files with different names are applied in lexicographic order, regardless of which of the directories they reside in, so a file in  type.d/  ap‐
+     plies to a unit only if there are no drop-ins or masks with that name in directories with higher precedence. See Examples.

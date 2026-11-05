@@ -16,11 +16,16 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
 - `d9946a4a`: R18 broker client deadlines (superseded; CI showed blocker B-2).
 - `00fb7f2b`: B-2, P-8 option 3 (superseded by the final safety review; evidence `review-00fb7f2b/`).
 - `f8d3af2e`: final safety review, R20–R22 (superseded by R23).
-- **`eb2fc2d4`: current product commit** (final safety review, R20–R23: enable judged against the next boot,
+- `eb2fc2d4` (final safety review, R20–R23: enable judged against the next boot,
   not the current state; runtime configuration hiding persistent relations refused, on reached units and,
   for enable, on any unit whose hidden file names an evaluated unit). Later commits change only tests,
-  probes and documentation: `git diff --stat eb2fc2d4 HEAD -- backend frontend schemas packaging cmd` is empty.
-- Evidence: `../evidence/m2/m2-3/review-eb2fc2d4/` (and `review-00fb7f2b/` for the unchanged parts) and the
+  probes and documentation (superseded by the final candidate).
+- `24367e8e`: `services.files` (P-2, owner-authorized), `UnitPath` check, drop-in hierarchy and masks (R24–R26).
+- **`c0f620de`: current product commit (final candidate)**: specific bounds message, environment guard. Later
+  commits change only tests, probes and documentation:
+  `git diff --stat c0f620de HEAD -- backend frontend schemas packaging cmd` is empty.
+- Evidence: `../evidence/m2/m2-3/review-c0f620de/` (final candidate), `review-eb2fc2d4/`, `review-f8d3af2e/`,
+  `review-00fb7f2b/` (earlier rounds) and the
   CI run named in `M2-3-KVM-ACCEPTANCE-PROCEDURE.md`.
   KVM validation is a separate, not yet authorized step.
 
@@ -33,7 +38,7 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
 | Boot enablement explained as different from runtime; no implicit `--now` | Pass | Plan consequences; UI text; template snapshot (no `--now`); container: unit not started after enable, still running with the same PID after disable |
 | Read-only timer and socket views | Pass | `TestTimers`, `TestSockets` (systemd 259 output); container and browser B12–B13 |
 | Unit details: dependencies, unit-file path, last exit, restart counters | Pass | `TestBuildDetailDoesNotInventState`; container; browser B10 |
-| Bounded, read-only unit-file contents | Pass | `TestParseCat` (64 KiB / 2,000 lines, control characters); container; browser B10 |
+| Bounded, read-only unit-file contents (`services.files`) | Pass | `TestParseCat` (64 KiB / 2,000 lines, control characters); container; browser B10 |
 | Unloaded, missing, static, generated, template, alias units without invented state | Pass | Detail notes for each case (unit tests); container: template, alias, not-in-inventory 404 |
 | Module registry, capability-aware navigation, disabled routes 404, broker ops refused | Pass | `TestDisabledModuleRoutes404`, `TestDisabledModuleOpsRefused`; container: 404 identical to unknown routes, `broker.info` without services ops, invalid file fails closed; browser B17 |
 | D-10 design choice documented for review | Done (open decision) | `M2-3-DESIGN-REVIEW.md` §5; `OWNER-DECISIONS.md` O-1 |
@@ -60,6 +65,7 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
 ## Validation items (product commit `00fb7f2b`, `../evidence/m2/m2-3/review-00fb7f2b/`; rerun on `eb2fc2d4` as noted)
 | Item | Result |
 |---|---|
+| Final candidate `c0f620de` (`review-c0f620de/`) | Five images, long waits: smoke 71/0, M2-2 89/0, M2-3 143–144/0 (incl. `services.files`), broker kill 20/0; browser B1–B20 20/20 on Ubuntu 26.04, 24.04+netplan and Fedora 44; reboot reproduction all refused (S1's own alias enable allowed); enable survey unchanged; probe 12; `make check` exit 0, nothing skipped; Go uid 1000 320 + 159 subtests, 0 failed. First runs with two test-design errors kept |
 | Final safety review on `eb2fc2d4` (`review-eb2fc2d4/`) | Reboot reproduction on five images: E1, E2, E3, E5, E7e (enable) and D6, D7 (disable) allowed by `00fb7f2b` with the protected stand-in down after the reboot; E8 allowed by `f8d3af2e`; all refused by `eb2fc2d4`; D1 (running intermediate) refused by both. Regressions on five images with long waits: smoke 71/0, M2-2 89/0, M2-3 140–141/0, broker kill 20/0; browser 18/18 (Ubuntu 26.04); `make check` exit 0, nothing skipped; Go uid 1000 310 + 137 subtests, 0 failed |
 | M2-2 regression | M2-2 real-systemd scenario with `HC_M2_LONG=1` 89/0 on Ubuntu 26.04, 24.04, 22.04 and Fedora 44; Go and Vitest suites pass; CI browser suites incl. `service-ops-ui.mjs` 298/0 locally (Chromium, Firefox) |
 | Long expiry checks | `HC_M2_LONG=1` on all four (M2-2 and M2-3) |
