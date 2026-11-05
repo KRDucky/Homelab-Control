@@ -28,18 +28,19 @@ snapshots, `AGENTS.md`, the file-manager worktree, production hosts.
 > and in the Phase A log; the scenario prints it before section 6f.
 
 ## Inputs (final validated revision)
-- **PR #36 head:** `{{HEAD}}`. **Product commit:** `00fb7f2b66d62c5fe492ceca3fabb8076890cddb` (later commits
+- **PR #36 head validated by CI:** `fece3bba376c3a352c9cd971eae87dba64d317d3`. The commit that fills in these
+  fields changes only this file; verify with `git diff --stat fece3bba HEAD` (this file only) before use. **Product commit:** `00fb7f2b66d62c5fe492ceca3fabb8076890cddb` (later commits
   change only tests, harness or documentation; see `docs/m2/M2-3-ACCEPTANCE.md`, "Revisions").
-- **CI run:** `{{RUN}}` on that head, `{{JOBS}}`. GitHub builds `pull_request` runs from the merge of the head
-  into `main` (merge ref `{{MERGE}}`), which is what the package versions name.
-- **Packages:** `gh run download {{RUN}} -n build`, then `sha256sum -c SHA256SUMS` (binaries) and check:
+- **CI run:** `41989940804` on that head, `21 of 21 jobs succeeded, including `systemd-ubuntu` on the stock runner VM with netplan`. GitHub builds `pull_request` runs from the merge of the head
+  into `main` (merge ref `bd91aaadd9742a2b513cc14acb5c30ce9f48fa26` (parents `81ee254f` main and the head; tree `c8517f91` identical to the head tree`), which is what the package versions name.
+- **Packages:** `gh run download 41989940804 -n build`, then `sha256sum -c SHA256SUMS` (binaries) and check:
 
   | File | SHA-256 |
   |---|---|
-  | `{{DEB}}` | `{{DEBSHA}}` |
-  | `{{RPM}}` | `{{RPMSHA}}` |
+  | `homelab-control_0.1.0+dev.1+88+gbd91aaad_amd64.deb` | `ff44bfd68a8cc095a3266c98bd332338113d050fdf8a44181ca572e9fc0c8918` |
+  | `homelab-control-0.1.0-0.m1.v0_1_0_dev_1_88_gbd91aaad.x86_64.rpm` | `d15c51c11ecf85a8d2b0ad377e454a7587836f24fb71c59342722635a58ca728` |
 
-  Recorded in `docs/evidence/m2/m2-3/review-00fb7f2b/ci/build-artifact-{{RUN}}.sha256`. Do not build packages
+  Recorded in `docs/evidence/m2/m2-3/review-00fb7f2b/ci/build-artifact-41989940804.sha256`. Do not build packages
   locally for acceptance. If the artifact has expired, re-run CI for the same head and record the new run and
   hashes (they will differ: builds are not bit-reproducible across runs).
 - **Tests:** `tests/systemd/` and `compat/webmin/` from the PR head.
