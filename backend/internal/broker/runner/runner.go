@@ -128,7 +128,7 @@ var systemctlShowProperties = []string{
 	"OnFailureJobMode", "OnSuccessJobMode", "StopWhenUnneeded",
 	"Requires", "Requisite", "Wants", "BindsTo", "Upholds", "PartOf",
 	"Conflicts", "ConflictedBy", "RequiredBy", "RequisiteOf", "BoundBy",
-	"ConsistsOf", "PropagatesStopTo", "OnFailure", "OnSuccess",
+	"ConsistsOf", "PropagatesStopTo", "OnFailure", "OnSuccess", "Triggers",
 	"FailureAction", "SuccessAction", "StartLimitAction", "JobTimeoutAction",
 }
 

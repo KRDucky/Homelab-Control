@@ -1,0 +1,213 @@
+// SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+package ops
+
+import (
+	"context"
+	"sort"
+	"strings"
+
+	"homelab-control/backend/internal/servicepolicy"
+)
+
+// Disable must not stop a protected unit from starting at boot (blocker B-1,
+// probe 10, systemd 249/255/259): a unit that Wants=/Requires=/BindsTo=/
+// Upholds= a protected unit — directly, transitively or through an alias —
+// is, after it is disabled, no longer started at boot, and neither is the
+// protected unit unless something else pulls it in. The owner approved this
+// safety objective on 2026-11-05 (not a particular implementation).
+//
+// The check works on systemd's loaded graph, which the change gate keeps
+// equal to the files on disk (disable now also requires that nothing changed
+// on disk after the last load):
+//  1. R: every unit the boot target (default.target, by its canonical ID)
+//     pulls in, transitively, through Requires=, Wants=, BindsTo=, Upholds=
+//     and Triggers= (socket/timer/path activation), with the unit being
+//     disabled removed from the graph (as if it never started);
+//  2. C: every unit the disabled unit pulls in through the same relations
+//     that is not in R;
+//  3. refused when C contains a protected unit (by its canonical ID or any
+//     name), a .service that cannot be inspected, or a dangerous target, or
+//     when either walk exceeds its budget or the boot target is unknown.
+// Not modelled (each errs towards refusal or is listed as a limit in the
+// design review): D-Bus activation, units started by other means (manual,
+// kernel command line systemd.unit=), the unit itself still being pulled in
+// by others.
+
+// bootPullKeys are the relations through which a start (at boot) pulls in
+// other units; Requisite= does not start anything.
+var bootPullKeys = []string{"Requires", "Wants", "BindsTo", "Upholds", "Triggers"}
+
+// maxBootWalk bounds the boot-graph walk (units shown).
+var maxBootWalk = 4000
+
+// bootRoot is the unit systemd starts at boot.
+const bootRoot = "default.target"
+
+// bootWalk is a bounded breadth-first walk over bootPullKeys.
+type bootWalk struct {
+	ctx     context.Context
+	env     *Env
+	exclude map[string]bool      // names of the unit being disabled
+	skip    map[string]bool      // canonical IDs not to enter (R, for the second walk)
+	seen    map[string]bool      // names already resolved
+	units   map[string]UnitProps // canonical ID → unit
+	via     map[string]string    // canonical ID → the unit that pulled it in
+	hidden  []string             // names that cannot be inspected
+	shown   int
+}
+
+func newBootWalk(ctx context.Context, env *Env, exclude []string, skip map[string]bool) *bootWalk {
+	w := &bootWalk{ctx: ctx, env: env, exclude: map[string]bool{}, skip: skip, seen: map[string]bool{},
+		units: map[string]UnitProps{}, via: map[string]string{}}
+	for _, n := range exclude {
+		w.exclude[n] = true
+	}
+	return w
+}
+
+// run walks from the start names (pulled in by "from").
+func (w *bootWalk) run(start []string, from string) error {
+	type item struct{ name, from string }
+	queue := make([]item, 0, len(start))
+	for _, n := range start {
+		queue = append(queue, item{n, from})
+	}
+	for len(queue) > 0 {
+		var names []string
+		froms := map[string]string{}
+		for _, it := range queue {
+			if w.seen[it.name] || w.exclude[it.name] {
+				continue
+			}
+			w.seen[it.name] = true
+			if !inspectable(it.name) {
+				w.hidden = append(w.hidden, it.name)
+				continue
+			}
+			names = append(names, it.name)
+			froms[it.name] = it.from
+		}
+		queue = queue[:0]
+		if w.shown+len(names) > maxBootWalk {
+			return denied("the boot dependency graph has more than %d units to check; manage this unit on the host", maxBootWalk)
+		}
+		w.shown += len(names)
+		for i := 0; i < len(names); i += showBatch {
+			batch := names[i:min(i+showBatch, len(names))]
+			ps, err := w.env.units().ShowMany(w.ctx, w.env, batch)
+			if err != nil {
+				return err
+			}
+			for j, p := range ps {
+				if excludedUnit(p, w.exclude) || w.skip[p.ID] {
+					continue
+				}
+				if _, done := w.units[p.ID]; done {
+					continue
+				}
+				w.units[p.ID] = p
+				w.via[p.ID] = froms[batch[min(j, len(batch)-1)]]
+				for _, n := range p.Names {
+					w.seen[n] = true
+				}
+				if p.LoadState != "loaded" {
+					continue // not-found or masked: systemd does not start it
+				}
+				for _, n := range union(p, bootPullKeys...) {
+					queue = append(queue, item{n, p.ID})
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func excludedUnit(p UnitProps, exclude map[string]bool) bool {
+	if exclude[p.ID] {
+		return true
+	}
+	for _, n := range p.Names {
+		if exclude[n] {
+			return true
+		}
+	}
+	return false
+}
+
+// path explains how the disabled unit reaches id (for the refusal message).
+func (w *bootWalk) path(id, self string) string {
+	parts := []string{id}
+	for cur := id; len(parts) < 12; {
+		from, ok := w.via[cur]
+		if !ok || from == "" || from == self {
+			break
+		}
+		parts = append(parts, from)
+		cur = from
+	}
+	parts = append(parts, self)
+	for i, j := 0, len(parts)-1; i < j; i, j = i+1, j-1 {
+		parts[i], parts[j] = parts[j], parts[i]
+	}
+	return strings.Join(parts, " → ")
+}
+
+// checkBootPulls refuses disabling p when that would stop a protected unit
+// from starting at boot. It returns the units started at boot only through p
+// (for the plan and the digest).
+func checkBootPulls(ctx context.Context, env *Env, p UnitProps) ([]string, error) {
+	self := append([]string{p.ID}, p.Names...)
+	// 1. R: the boot graph without p.
+	rs, err := env.units().ShowMany(ctx, env, []string{bootRoot})
+	if err != nil {
+		return nil, err
+	}
+	var root UnitProps
+	if len(rs) == 1 {
+		root = rs[0]
+	}
+	if root.LoadState != "loaded" || root.ID == "" {
+		return nil, denied("%s cannot be disabled here: the boot target (%s) could not be resolved, so the effect on protected units at boot cannot be checked", p.ID, bootRoot)
+	}
+	r := newBootWalk(ctx, env, self, nil)
+	if err := r.run([]string{root.ID}, ""); err != nil {
+		return nil, err
+	}
+	inR := map[string]bool{}
+	for id := range r.units {
+		inR[id] = true
+	}
+	// 2. C: what p pulls in that nothing else in the boot graph does.
+	c := newBootWalk(ctx, env, self, inR)
+	if err := c.run(union(p, bootPullKeys...), p.ID); err != nil {
+		return nil, err
+	}
+	for _, n := range c.hidden {
+		if strings.HasSuffix(n, ".service") {
+			return nil, denied("%s cannot be disabled here: it pulls in %s at boot, which cannot be inspected safely", p.ID, n)
+		}
+	}
+	var only []string
+	ids := make([]string, 0, len(c.units))
+	for id := range c.units {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		u := c.units[id]
+		if servicepolicy.DangerousTarget(id) {
+			continue // not started at boot through p any more: harmless
+		}
+		if pr := servicepolicy.NamesProtection(append([]string{u.ID}, u.Names...)...); pr.Protected {
+			return nil, denied("%s cannot be disabled here: %s is started at boot only through it (%s), and %s is protected: %s. "+
+				"Disabling it would stop that unit from starting at the next boot.", p.ID, u.ID, c.path(id, p.ID), pr.Matched, pr.Reason)
+		}
+		if u.LoadState == "loaded" {
+			only = append(only, id)
+		}
+	}
+	return only, nil
+}

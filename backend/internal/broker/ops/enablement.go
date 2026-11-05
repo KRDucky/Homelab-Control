@@ -276,8 +276,10 @@ type enablementReview struct {
 	found    []unitLink
 	// Boot-time start walk (enable only).
 	stops, starts []string
-	hidden        int
-	digest        string
+	// Disable: units started at boot only through this unit (none protected).
+	bootOnly []string
+	hidden   int
+	digest   string
 }
 
 var stateRefusal = map[string]string{
@@ -361,13 +363,12 @@ func reviewEnablement(ctx context.Context, env *Env, action, requested string) (
 			p.ID, clean(strings.Join(append([]string{fragment}, dropIns...), " "), 600),
 			clean(strings.Join(append([]string{ip.FragmentPath}, ip.DropInPaths...), " "), 600))
 	}
-	// Enable: the boot-time checks below use systemd's loaded graph, which is
-	// only the boot-time truth if nothing changed on disk since it was loaded
-	// (probe 8). Fail closed otherwise.
-	if action == ActionEnable {
-		if err := requireLoadedConfiguration(ctx, env, p.ID); err != nil {
-			return r, err
-		}
+	// The boot-time checks below (enable: the start walk; disable: the boot
+	// pull check) use systemd's loaded graph, which is only the boot-time
+	// truth if nothing changed on disk since it was loaded (probe 8). Fail
+	// closed otherwise, for both actions (B-1: on-disk versus loaded state).
+	if err := requireLoadedConfiguration(ctx, env, action, p.ID); err != nil {
+		return r, err
 	}
 	info, err := ReadInstall(env.Roots, fragment, dropIns)
 	if err != nil {
@@ -469,6 +470,14 @@ func reviewEnablement(ctx context.Context, env *Env, action, requested string) (
 			}
 		}
 	}
+	if action == ActionDisable {
+		// B-1: units started at boot only through this one, transitively.
+		only, err := checkBootPulls(ctx, env, p)
+		if err != nil {
+			return r, err
+		}
+		r.bootOnly = only
+	}
 	// Every link that already names the unit (systemctl disable removes them
 	// all, at any depth, probe 7) must be one the [Install] section describes;
 	// links in the runtime directory are not managed at all.
@@ -522,9 +531,9 @@ func reviewEnablement(ctx context.Context, env *Env, action, requested string) (
 	for _, l := range found {
 		linkSum = append(linkSum, l.Path+"->"+l.Target)
 	}
-	sum := sha256.Sum256([]byte(fmt.Sprintf("%q|%q|%q|%q|%q|%v|%s|%q|%q|%d|%q",
+	sum := sha256.Sum256([]byte(fmt.Sprintf("%q|%q|%q|%q|%q|%v|%s|%q|%q|%d|%q|%q",
 		ip.ID, ip.Names, ip.FragmentPath, ip.DropInPaths, ip.SourcePath, ip.Transient, st,
-		info.Digest(fragment, dropIns), append(append([]string{}, r.stops...), r.starts...), r.hidden, linkSum)))
+		info.Digest(fragment, dropIns), append(append([]string{}, r.stops...), r.starts...), r.hidden, linkSum, r.bootOnly)))
 	r.digest = p.Digest() + "." + hex.EncodeToString(sum[:12])
 	return r, nil
 }
@@ -549,6 +558,7 @@ func (r enablementReview) consequences(action string) []string {
 			"systemd will no longer start the service at boot through "+strings.Join(nonEmpty(r.info.WantedBy, "its alias"), ", ")+".",
 			"This does not stop it now: its current state stays "+r.p.ActiveState+". Use Stop for that.",
 			"It can still start at boot if another unit requires it, or through socket, timer, path or D-Bus activation.",
+			bootOnlyText(r.bootOnly),
 			"Until systemd reloads its configuration or the host reboots, the running manager still treats the service as wanted by "+
 				strings.Join(nonEmpty(r.info.WantedBy, "its targets"), ", ")+": starting such a target again before then can still start it.")
 		if len(r.info.Alias) > 0 {
@@ -561,6 +571,15 @@ func (r enablementReview) consequences(action string) []string {
 			"so it can take effect before a reboot. Until then `systemctl status` on the host may still show the old setting.",
 		"There is no automatic rollback. To undo it, review the opposite action.")
 	return c
+}
+
+// bootOnlyText describes the units disable stops from starting at boot.
+func bootOnlyText(l []string) string {
+	if len(l) == 0 {
+		return "No other unit is started at boot only through it."
+	}
+	return "These units are started at boot only through it and will no longer start at boot (none is protected): " +
+		strings.Join(capList(l, 20), ", ") + map[bool]string{true: ", …", false: ""}[len(l) > 20] + "."
 }
 
 // aliasIsFree refuses an alias name that systemd already knows as a unit file

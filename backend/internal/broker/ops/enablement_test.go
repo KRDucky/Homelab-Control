@@ -41,6 +41,23 @@ type fakeFiles struct {
 	loadErr  error
 }
 
+// addUnit registers u in the fake loaded graph under its ID and names.
+func addUnit(f *fakeUnits, u UnitProps) *UnitProps {
+	if u.Deps == nil {
+		u.Deps = map[string][]string{}
+	}
+	if u.Actions == nil {
+		u.Actions = map[string]string{}
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.units[u.ID] = &u
+	for _, n := range u.Names {
+		f.units[n] = &u
+	}
+	return &u
+}
+
 func dirExists(p string) bool { fi, err := os.Stat(p); return err == nil && fi.IsDir() }
 
 // testBoot is the fake boot time (uptime is measured from it).
@@ -252,6 +269,12 @@ func newEnablementEnv(t *testing.T, units ...UnitProps) *eenv {
 		writeUnit(t, f.root, frag, wantedByMulti)
 	}
 	w.env.Enablement = f
+	// The boot target (default.target → multi-user.target) for the disable
+	// boot-pull check (B-1); tests add what it pulls in.
+	if _, ok := w.fake.units["default.target"]; !ok {
+		addUnit(w.fake, UnitProps{ID: "multi-user.target", Names: []string{"multi-user.target", "default.target"},
+			LoadState: "loaded", ActiveState: "active", SubState: "active", Deps: map[string][]string{}})
+	}
 	uptime = func() (time.Duration, error) { return time.Since(testBoot), nil }
 	f.reload()
 	return &eenv{wenv: w, files: f, tt: t}

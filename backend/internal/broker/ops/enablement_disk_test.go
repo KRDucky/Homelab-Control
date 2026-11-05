@@ -189,6 +189,7 @@ func TestDisableRefusesUndescribedLinks(t *testing.T) {
 			if err := os.Symlink("/etc/systemd/system/demo.service", full); err != nil {
 				t.Fatal(err)
 			}
+			e.files.reload() // the links exist and systemd has loaded them
 			before := linksUnder(t, e.files.root)
 			_, err := e.eplan(t, "demo.service", "disable")
 			if code(err) != proto.CodePolicyDenied || !strings.Contains(err.Error(), l) || !strings.Contains(err.Error(), "would remove them too") {
@@ -218,6 +219,7 @@ func TestDisableRefusesUndescribedLinks(t *testing.T) {
 	e.files.state["demo.service"] = "enabled"
 	_ = os.MkdirAll(filepath.Join(e.files.root, "/etc/systemd/system/multi-user.target.wants"), 0o755)
 	_ = os.Symlink("/usr/lib/systemd/system/demo.service", filepath.Join(e.files.root, "/etc/systemd/system/multi-user.target.wants/demo.service"))
+	e.files.reload()
 	if _, err := e.eplan(t, "demo.service", "disable"); code(err) != proto.CodePolicyDenied || !strings.Contains(err.Error(), "not to the unit file") {
 		t.Fatalf("foreign target: %v", err)
 	}
