@@ -305,14 +305,14 @@ func unloadedChanges(root Roots, threshold time.Time, own []ownChange, limit int
 	return out, n, nil
 }
 
-// requireLoadedConfiguration refuses (enable) when unit files changed on
+// requireLoadedConfiguration refuses (enable and disable) when unit files changed on
 // disk after systemd last loaded them, unless every change is Homelab
 // Control's own journaled enablement change.
-func requireLoadedConfiguration(ctx context.Context, env *Env, id string) error {
+func requireLoadedConfiguration(ctx context.Context, env *Env, action, id string) error {
 	for _, d := range runtimeUnitDirs {
 		ents, err := os.ReadDir(env.Roots.Path(strings.TrimSuffix(d, "/")))
 		if err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return denied("%s cannot be enabled here: %s could not be read", id, d)
+			return denied("%s cannot be %sd here: %s could not be read", id, action, d)
 		}
 		if len(ents) > 0 {
 			var names []string
@@ -321,28 +321,28 @@ func requireLoadedConfiguration(ctx context.Context, env *Env, id string) error 
 					names = append(names, e.Name())
 				}
 			}
-			return denied("%s cannot be enabled here: runtime unit configuration exists in %s (%s). It is loaded now but gone at the next boot, "+
-				"so the boot-time effect cannot be reviewed. Review the change again after it is removed or after the next boot.", id, d, clean(strings.Join(names, ", "), 300))
+			return denied("%s cannot be %sd here: runtime unit configuration exists in %s (%s). It is loaded now but gone at the next boot, "+
+				"so the boot-time effect cannot be reviewed. Review the change again after it is removed or after the next boot.", id, action, d, clean(strings.Join(names, ", "), 300))
 		}
 	}
 	m, err := env.enablement().ManagerLoad(ctx, env)
 	if err != nil {
-		return denied("%s cannot be enabled here: when systemd last loaded its unit files could not be determined (%s)", id, clean(err.Error(), 160))
+		return denied("%s cannot be %sd here: when systemd last loaded its unit files could not be determined (%s)", id, action, clean(err.Error(), 160))
 	}
 	now := time.Now()
 	t, err := loadThreshold(env.Roots, m, now)
 	if err != nil {
-		return denied("%s cannot be enabled here: when systemd last loaded its unit files could not be determined", id)
+		return denied("%s cannot be %sd here: when systemd last loaded its unit files could not be determined", id, action)
 	}
 	changed, n, err := unloadedChanges(env.Roots, t, ownChanges(env, t), 5)
 	if err != nil {
-		return denied("%s cannot be enabled here: %s", id, err.Error())
+		return denied("%s cannot be %sd here: %s", id, action, err.Error())
 	}
 	if n > 0 {
-		return denied("%s cannot be enabled here: %d unit file(s) or link(s) changed on disk after systemd last loaded its configuration (%s%s). "+
+		return denied("%s cannot be %sd here: %d unit file(s) or link(s) changed on disk after systemd last loaded its configuration (%s%s). "+
 			"Boot-time effects of changes systemd has not loaded cannot be reviewed, and this version does not reload systemd. "+
 			"Review the change again after the next boot or after systemd reloads its configuration.",
-			id, n, clean(strings.Join(changed, ", "), 500), map[bool]string{true: ", …", false: ""}[n > len(changed)])
+			id, action, n, clean(strings.Join(changed, ", "), 500), map[bool]string{true: ", …", false: ""}[n > len(changed)])
 	}
 	return nil
 }

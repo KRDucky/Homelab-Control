@@ -192,11 +192,17 @@ def main():
         m.check("session has services.configure", True, "services.configure" in (sess.get("scopes") or []))
         run_variant("before", csrf, "disabled", "enable")
         run_variant("after", csrf, "disabled", "enable")
-        # After recovery the unit is enabled and consistent: disabling it is
+        # After recovery the links of the interrupted change are not
+        # attributed to a completed operation, so the change gate refuses
+        # (fail closed) until systemd has loaded them; then the disable is
         # reviewed normally and succeeds (no wrapper delay).
         with open(MODE, "w") as f:
             f.write("none")
         m.stepup(csrf)
+        st, e = m.eplan(UNIT, "disable", csrf)
+        m.check("after an interrupted change: disable refused until systemd reloads", (403, True),
+                (st, "changed on disk after systemd last loaded" in e.get("message", "")))
+        m.harness_reload()
         st, p = m.eplan(UNIT, "disable", csrf)
         st, o = m.eapply(UNIT, "disable", p.get("token"), csrf)
         m.check("after recovery: disable reviewed and succeeded", (200, "succeeded"), (st, o.get("outcome")))

@@ -198,6 +198,17 @@ def fixtures(ssh):
         "hc-test-en-gconf.service": "[Unit]\nDescription=M2-3 conflicts with the protected stand-in\n"
                                     "Conflicts=homelab-control-hctest-prot.service\n" + _SLEEP,
         "homelab-control-hctest-prot.service": "[Unit]\nDescription=M2-3 disposable protected-name stand-in\n" + _SLEEP,
+        # B-1 (probe 10): pullers of a protected-name stand-in.
+        "homelab-control-hctest-vpn.service": "[Unit]\nDescription=M2-3 disposable remote-access stand-in\n" + _SLEEP,
+        "hc-test-en-b1.service": "[Unit]\nDescription=M2-3 B-1 direct puller\nWants=homelab-control-hctest-vpn.service\n" + _SLEEP +
+                                 "[Install]\nWantedBy=multi-user.target\n",
+        "hc-test-en-b1mid.service": "[Unit]\nDescription=M2-3 B-1 helper\nRequires=homelab-control-hctest-vpn.service\n" + _SLEEP,
+        "hc-test-en-b1t.service": "[Unit]\nDescription=M2-3 B-1 transitive puller\nWants=hc-test-en-b1mid.service\n" + _SLEEP +
+                                  "[Install]\nWantedBy=multi-user.target\n",
+        "hc-test-en-b1a.service": "[Unit]\nDescription=M2-3 B-1 puller via an alias\nWants=hc-test-en-vpnalias.service\n" + _SLEEP +
+                                  "[Install]\nWantedBy=multi-user.target\n",
+        "hc-test-en-b1anchor.service": "[Unit]\nDescription=M2-3 B-1 other puller\nWants=homelab-control-hctest-vpn.service\n" + _SLEEP +
+                                       "[Install]\nWantedBy=multi-user.target\n",
         "hc-test-en-stale.service": "[Unit]\nDescription=M2-3 disposable stale-plan fixture\n" + _SLEEP +
                                     "[Install]\nWantedBy=multi-user.target\n",
         "hc-test-en-secret.service": "[Unit]\nDescription=M2-3 disposable redaction fixture\n[Service]\nType=simple\n"
@@ -230,6 +241,7 @@ def fixtures(ssh):
 
 
 VENDOR_VICTIM = "/usr/lib/systemd/system/hc-test-en-victim.service"
+VPN_ALIAS = "hc-test-en-vpnalias.service"
 
 
 def setup():
@@ -250,6 +262,11 @@ def setup():
         raise RuntimeError(f"{VENDOR_VICTIM} exists before the test; refusing to overwrite it")
     with open(VENDOR_VICTIM, "w") as f:
         f.write("[Unit]\nDescription=M2-3 vendor-directory victim fixture\n" + _SLEEP)
+    # An unprotected alias name of the protected stand-in (B-1), a symlink.
+    alias = f"{ETC}/{VPN_ALIAS}"
+    if os.path.lexists(alias):
+        raise RuntimeError(f"{alias} exists before the test; refusing to overwrite it")
+    os.symlink(f"{ETC}/homelab-control-hctest-vpn.service", alias)
     # A root-only drop-in that carries a secret AND an [Install] alias: the
     # broker must honour the alias (it reads as root) without disclosing it.
     os.makedirs(f"{ETC}/hc-test-en-secret.service.d", exist_ok=True)
@@ -291,6 +308,9 @@ def cleanup(before):
         subprocess.run(["systemctl", "stop", "--", name], capture_output=True)
         os.remove(path)
     subprocess.run(["rm", "-rf", "--", f"{ETC}/hc-test-en-secret.service.d"])
+    alias = f"{ETC}/{VPN_ALIAS}"
+    if os.path.islink(alias) and os.readlink(alias) == f"{ETC}/homelab-control-hctest-vpn.service":
+        os.remove(alias)
     for d in CREATED_DIRS:
         # Only directories this run created, and only the fixture links in them.
         for n in os.listdir(d):
@@ -307,8 +327,9 @@ def cleanup(before):
     subprocess.run(["systemctl", "daemon-reload"], capture_output=True)
     subprocess.run(["systemctl", "reset-failed"], capture_output=True)
     after = invariants()
-    gained = sorted(after["links"] - before["links"])
-    lost = sorted(before["links"] - after["links"])
+    own = f"{ETC}/{VPN_ALIAS} -> {ETC}/homelab-control-hctest-vpn.service"  # this run's fixture alias
+    gained = sorted(after["links"] - before["links"] - {own})
+    lost = sorted(before["links"] - after["links"] - {own})
     check("cleanup: no symbolic link gained under /etc/systemd/system", [], gained)
     check("cleanup: no symbolic link lost under /etc/systemd/system", [], lost)
     for k in ("ssh_enabled", "ssh_socket_enabled", "ssh_pid", "api_enabled", "broker_socket_enabled", "broker_enabled"):
@@ -386,6 +407,7 @@ def main():
     r = "hc-test-en-run.service"
     subprocess.run(["systemctl", "--no-reload", "enable", "--", r], check=True, capture_output=True)
     subprocess.run(["systemctl", "start", "--", r], check=True)
+    harness_reload()  # the harness's own --no-reload enable is an unloaded change
     pid = prop(r, "MainPID")
     st, p = eplan(r, "disable", csrf)
     check("plan disable: links include the alias", sorted([f"{ETC}/multi-user.target.wants/{r}", f"{ETC}/hc-test-en-run-alias.service"]),
@@ -394,7 +416,6 @@ def main():
     check("apply disable: succeeded", (200, "succeeded", "disabled"), (st, o.get("outcome"), o.get("boot_state")))
     check("host: alias link removed", False, os.path.lexists(f"{ETC}/hc-test-en-run-alias.service"))
     check("host: still running with the same PID (no stop)", ("active", pid), (prop(r, "ActiveState"), prop(r, "MainPID")))
-    harness_reload()  # the harness's own --no-reload enable above is an unloaded change
 
     # 3. Token isolation from start/stop/restart.
     st, p = eplan(u, "disable", csrf)
@@ -497,17 +518,18 @@ def main():
     os.makedirs(manual_dir)
     CREATED_DIRS.append(manual_dir)
     os.symlink(f"{ETC}/{m}", f"{manual_dir}/{m}")
+    harness_reload()
     snapshot = links()
     st, e = eplan(m, "disable", csrf)
     check("disable with a link [Install] does not describe: refused", (403, True),
           (st, f"{manual_dir}/{m}" in e.get("message", "") and "would remove them too" in e.get("message", "")))
     check("undescribed link: nothing removed", [], sorted(snapshot ^ links()))
     os.remove(f"{manual_dir}/{m}")
+    harness_reload()
     st, p = eplan(m, "disable", csrf)
     st, o = eapply(m, "disable", p.get("token"), csrf)
     check("disable after removing it: succeeded, fresh scan finds no link", (200, "succeeded", [False], []),
           (st, o.get("outcome"), [l.get("present") for l in o.get("links", [])], o.get("unexpected_links", [])))
-    harness_reload()  # the manual link was a change made outside Homelab Control
 
     # 6d. Unreloaded changes (probe 8: each of these stopped a stand-in
     # protected service at the next boot when the fixture was enabled). The
@@ -630,18 +652,61 @@ def main():
         st, p = eplan(unit, "enable", csrf)
         st, o = eapply(unit, "enable", p.get("token"), csrf)
         check(f"sequential own enables, no reload in between: {unit} succeeded", (200, "succeeded"), (st, o.get("outcome")))
-    # Disable: Requisite= on disk from the protected stand-in, not loaded.
+    # Disable: Requisite= from the protected stand-in. Not loaded: the change
+    # gate refuses (disable too, B-1); loaded: the Requisite= check refuses.
     mkdrop(pd, f"[Unit]\nRequisite={g}\n")()
     st, e = eplan(g, "disable", csrf)
-    check("disable refused: unloaded Requisite= of a protected unit on disk", (403, True),
+    check("disable refused while a unit file change is not loaded", (403, True), (st, gate in e.get("message", "")))
+    harness_reload()
+    st, e = eplan(g, "disable", csrf)
+    check("disable refused: Requisite= of a protected unit in its files", (403, True),
           (st, f"requisite of {prot}" in e.get("message", "")))
     rmdrop(pd)()
+    harness_reload()
     for unit in (g, "hc-test-en-g2.service"):
         st, p = eplan(unit, "disable", csrf)
         st, o = eapply(unit, "disable", p.get("token"), csrf)
-        check(f"undo without a reload: disable {unit} succeeded", (200, "succeeded"), (st, o.get("outcome")))
+        check(f"sequential own disables, no reload in between: {unit} succeeded", (200, "succeeded"), (st, o.get("outcome")))
     subprocess.run(["systemctl", "stop", "--", g], check=True)
     harness_reload()
+
+    # 6e. B-1 (probe 10): disable must not stop a protected unit from starting
+    # at boot. homelab-control-hctest-vpn.service is a protected-name stand-in
+    # for a remote-access unit (no [Install]: started only when pulled in).
+    vpn, b1, b1t, b1a, anchor = ("homelab-control-hctest-vpn.service", "hc-test-en-b1.service", "hc-test-en-b1t.service",
+                                 "hc-test-en-b1a.service", "hc-test-en-b1anchor.service")
+    stepup(csrf)
+    for unit in (b1, b1t, b1a):
+        st, p = eplan(unit, "enable", csrf)
+        st, o = eapply(unit, "enable", p.get("token"), csrf)
+        check(f"B-1 setup: enable {unit}", (200, "succeeded"), (st, o.get("outcome")))
+    snap = links()
+    before = {u: (is_enabled(u), prop(u, "ActiveState")) for u in (vpn, b1, b1t, b1a)}
+    for unit, how, extra in ((b1, "direct Wants=", vpn), (b1t, "transitive (via Requires= of a helper)", "hc-test-en-b1mid.service"),
+                             (b1a, "through an unprotected alias name", vpn)):
+        st, e = eplan(unit, "disable", csrf)
+        msg = e.get("message", "")
+        print(f"INFO  B-1 {how}: {st} {msg[:260]}")
+        check(f"B-1 refused: disabling {unit} would stop the protected stand-in at boot ({how})", (403, True, True),
+              (st, "started at boot only through it" in msg, extra in msg))
+    check("B-1 refusals: no link changed", [], sorted(snap ^ links()))
+    check("B-1 refusals: boot and runtime states unchanged", before,
+          {u: (is_enabled(u), prop(u, "ActiveState")) for u in (vpn, b1, b1t, b1a)})
+    # Anchored: another enabled unit also pulls the stand-in in (harness, with reload).
+    subprocess.run(["systemctl", "enable", "--", anchor], check=True, capture_output=True)
+    st, p = eplan(b1, "disable", csrf)
+    check("B-1 anchored elsewhere: plan disable 200", 200, st)
+    # Preview → apply: the other puller goes away (harness, with reload).
+    subprocess.run(["systemctl", "disable", "--", anchor], check=True, capture_output=True)
+    st, e = eapply(b1, "disable", p.get("token"), csrf)
+    check("B-1 graph changed between preview and apply: refused, still enabled", (403, True, "enabled"),
+          (st, "started at boot only through it" in e.get("message", "") and "othing was done" in e.get("message", ""), is_enabled(b1)))
+    subprocess.run(["systemctl", "enable", "--", anchor], check=True, capture_output=True)
+    for unit in (b1, b1t, b1a):
+        st, p = eplan(unit, "disable", csrf)
+        st, o = eapply(unit, "disable", p.get("token"), csrf)
+        check(f"B-1 anchored elsewhere: disable {unit} succeeded", (200, "succeeded"), (st, o.get("outcome")))
+    subprocess.run(["systemctl", "disable", "--", anchor], check=True, capture_output=True)
 
     # 6c. Long expiry waits (HC_M2_LONG=1): a plan older than 120 s and a step-up
     # older than 5 minutes are refused, and nothing changes.

@@ -165,11 +165,11 @@ func TestEnableGateFailsClosedWithoutLoadTime(t *testing.T) {
 	if _, err := e.eplan(t, "demo.service", "enable"); code(err) != proto.CodePolicyDenied || !strings.Contains(err.Error(), "could not be determined") {
 		t.Fatalf("enable without a load time: %v", err)
 	}
-	// Disable does not depend on it (undo stays possible).
+	// Disable needs it too (B-1: its boot-pull check uses the loaded graph).
 	e.files.setLinks("demo.service", true, -1)
 	e.files.state["demo.service"] = "enabled"
-	if _, err := e.eplan(t, "demo.service", "disable"); err != nil {
-		t.Fatalf("disable: %v", err)
+	if _, err := e.eplan(t, "demo.service", "disable"); code(err) != proto.CodePolicyDenied || !strings.Contains(err.Error(), "could not be determined") {
+		t.Fatalf("disable without a load time: %v", err)
 	}
 }
 
@@ -194,6 +194,7 @@ func TestDisableRefusesRequisiteOnDisk(t *testing.T) {
 			e.files.setLinks("demo.service", true, -1)
 			e.files.state["demo.service"] = "enabled"
 			writeUnit(t, e.files.root, c.path, c.file)
+			e.files.reload()
 			_, err := e.eplan(t, "demo.service", "disable")
 			if c.refused != (code(err) == proto.CodePolicyDenied) {
 				t.Fatalf("refused=%v: %v", c.refused, err)

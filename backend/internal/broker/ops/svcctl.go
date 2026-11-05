@@ -58,7 +58,7 @@ type UnitProps struct {
 var depProps = []string{
 	"Requires", "Requisite", "Wants", "BindsTo", "Upholds", "PartOf",
 	"Conflicts", "ConflictedBy", "RequiredBy", "RequisiteOf", "BoundBy",
-	"ConsistsOf", "PropagatesStopTo", "OnFailure", "OnSuccess",
+	"ConsistsOf", "PropagatesStopTo", "OnFailure", "OnSuccess", "Triggers",
 }
 
 var actionProps = []string{"FailureAction", "SuccessAction", "StartLimitAction", "JobTimeoutAction"}
