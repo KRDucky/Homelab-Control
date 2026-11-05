@@ -1,0 +1,11 @@
+container hc-probe-fedora-44-23074 (fedora-44): systemd state=running
+systemd 259 (259.10-1.fc44)
+  before hcp-b1.service: active=inactive enabled=enabled
+  before hcp-vpn.service: active=inactive enabled=static
+## direct (control): puller stays enabled; reboot
+container hc-probe-fedora-44-23074 (fedora-44): systemd state=running
+## direct (control): after reboot (fresh PID 1)
+systemd 259 (259.10-1.fc44)
+  after-reboot hcp-b1.service: active=active enabled=enabled
+  after-reboot hcp-vpn.service: active=active enabled=static
+exit 1

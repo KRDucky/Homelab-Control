@@ -247,7 +247,8 @@ effect. Evidence: `M2-3-DESIGN-REVIEW.md` §1, §1.1, §1.2, §7, §8.
 | P-3 (O-3) | Password confirmation (step-up) for every boot-time change (`disruptive`) | Yes | Keep | Re-class as `reversible`; a stolen session could change boot settings without the password |
 | P-4 (O-4) | `--no-reload`, with the measured semantics below | Yes | Keep | Adding a reload is excluded by the M2-3 instruction; it would need its own authorization |
 | P-5 (O-5) | Explicit refusal of unsupported constructs | Yes | Keep the list; extensions reviewed separately | Name constructs to support; each needs its own review |
-| P-6 (new) | Enable fails closed while unit files changed after systemd's last load (§8) | Yes | Keep | The only safe alternative found is to reload (excluded) or to rebuild the boot graph from disk (not feasible here) |
+| P-6 (new) | Enable fails closed while unit files changed after systemd's last load, or while runtime unit configuration exists (§8) | Yes | Keep | The only safe alternative found is to reload (excluded) or to rebuild the boot graph from disk (not feasible here) |
+| P-7 (B-1) | Disable refuses when the affected boot dependency relationships reach a protected unit | Yes, since `ad725d43`/`ae937d8a` (implementation pending owner review) | **Safety objective approved by the owner, 2026-11-05** (below); the implementation is not approved by it | — |
 
 **P-1 detail.** Validation: strict decoding (`version` 1, known IDs, no unknown fields, size limit); refused if a
 symlink (`O_NOFOLLOW`), not a regular file, not root-owned, or group/world-writable; any error disables every
@@ -288,6 +289,26 @@ edited fragment, or **another** unit's edited file — are invisible in systemd'
 next boot; three of the four isolated cases stopped a stand-in protected service. Behaviour: enable is refused
 until the next reload or boot whenever anything in the unit directories changed after the last load, except
 Homelab Control's own journaled enablement changes. Trade-offs: after an administrator's unreloaded change, a
-package that does not reload, or an interrupted Homelab Control operation, enable is unavailable until a
-reload or reboot (disable stays available); on systemd 249 the last reload time is inferred from the generator
-directory (measured, but not a documented interface).
+package that does not reload, runtime unit configuration, or an interrupted Homelab Control operation, enable is
+unavailable until a reload or reboot (disable stays available). Since `ad725d43` the gate applies to **disable as well**
+(its boot-pull check uses the loaded graph); own journaled changes stay excused, but after an interrupted
+operation or another unreloaded change neither enable nor disable is possible until a reload or reboot.
+Measured: a fresh install with the documented first steps is **not** affected (probe 9, all four versions; an earlier rule with a 100 ms margin would have
+been, R14). On systemd 249 the last reload time is the generator directory's change time (measured on 249,
+255 and 259, but not a documented interface). Not yet measured: cloud-image boots (cloud-init, netplan).
+
+**P-7 owner decision (2026-11-05), verbatim:** "I approve the safety objective behind P-7: disable must refuse
+when the affected boot dependency relationships reach a protected unit, including remote-access units. This
+does not approve a particular implementation or broader privileged operations."
+Implemented in `ad725d43` and corrected in `ae937d8a` (`M2-3-DESIGN-REVIEW.md` §1.3, §3.4, §9): the boot graph from `default.target`
+without the unit, through `Requires=`/`Wants=`/`BindsTo=`/`Upholds=`/`Triggers=`; refusal when a unit
+reached only through the disabled unit is protected by any name; fail closed on unknown boot target,
+uninspectable services and walk budget; disable also requires that nothing changed on disk after the last
+load. The implementation, its limits and its over-refusal behaviour remain for the owner's review.
+
+**P-7 background (before the decision).** Measured with a unit test: disabling a unit that `Wants=`/`Requires=`/`BindsTo=`/`Upholds=`
+`wg-quick@wg0.service` is accepted today. A remote-access or other protected unit started only through that
+unit no longer starts at the next boot. A strict rule (refuse whenever such a dependency is protected) would
+also refuse units that merely require an always-started protected unit (for example `dbus.socket`); the
+proposal therefore refuses only when the protected dependency is not itself enabled at boot (`is-enabled` other
+than `enabled`), and needs the owner's choice.

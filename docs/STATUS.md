@@ -13,16 +13,18 @@ The owner authorized M2-3 development and isolated testing on 2026-11-04; accept
 activation remain separate owner decisions (`docs/m2/OWNER-DECISIONS.md`, owner items O-1…O-5).
 
 - **On the branch `feature/m2-3-expanded-service-management`** (draft PR #36; current product commit
-  `3bec1294`, after two owner review rounds; findings R1–R13 in `docs/m2/M2-3-DESIGN-REVIEW.md` §7–§8):
+  `ae937d8a`, after three review rounds; findings R1–R17 in `docs/m2/M2-3-DESIGN-REVIEW.md` §7–§9):
   boot-time enable/disable of `.service` units (scope `services.configure`, never granted by default;
   `--no-reload`, never `--now`; disruptive with step-up; ADR 0011 plan/apply with separate tokens, locks, root
-  revalidation from disk, journal and independent read-back; enable refused while unit files changed after
-  systemd's last load); read-only unit detail, redacted unit-file contents (`services.logs`), timers and sockets;
-  a minimal compiled-in module registry (root-owned `/etc/homelab-control/modules.json`).
-  ADR 0008 Amendment 3 and the ADR 0011 extension are **proposed**.
-- **Evidence** (`docs/m2/M2-3-ACCEPTANCE.md`, `docs/evidence/m2/m2-3/review-3bec1294/`): disposable Docker
+  revalidation from disk, journal and independent read-back; both actions refused while unit files changed
+  after systemd's last load; disable refused when it would stop a protected unit from starting at boot);
+  read-only unit detail, redacted unit-file contents (`services.logs`), timers and sockets; a minimal
+  compiled-in module registry (root-owned `/etc/homelab-control/modules.json`). ADR 0008 Amendment 3 and the
+  ADR 0011 extension are **proposed**. Owner decision 2026-11-05: the safety objective of P-7 is approved
+  (not its implementation).
+- **Evidence** (`docs/m2/M2-3-ACCEPTANCE.md`, `docs/evidence/m2/m2-3/review-ae937d8a/`): disposable Docker
   containers (not VMs; SELinux disabled) with Ubuntu 26.04.1, 24.04.5, 22.04.5 and Fedora 44: smoke/M1 71/0,
-  M2-2 with expiry waits 89/0, M2-3 with expiry waits 105–106/0, real broker kill 19/0 each, browser 18/18 on
+  M2-2 with expiry waits 89/0, M2-3 with expiry waits 129–130/0, broker kill 20/0 each, browser 18/18 on
   Ubuntu 26.04 and Fedora 44. `make check` exit 0. No VM, SELinux-enforcing, Debian, openSUSE or Arch evidence;
   KVM procedure prepared, needs owner authorization (`docs/m2/M2-3-KVM-ACCEPTANCE-PROCEDURE.md`). Proposals
   P-1…P-6 await owner approval (not decisions); D-10 open.

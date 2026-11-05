@@ -1,0 +1,14 @@
+container hc-probe-ubuntu-2604-14063 (ubuntu-2604): systemd state=degraded
+systemd 259 (259.9-0ubuntu0.1)
+  before hcp-b1.service: active=inactive enabled=enabled
+  before hcp-mid.service: active=inactive enabled=static
+  before hcp-vpn.service: active=inactive enabled=static
+## transitive: disable the puller now (no reload), then reboot
+  disable: Removed '/etc/systemd/system/multi-user.target.wants/hcp-b1.service'.
+container hc-probe-ubuntu-2604-14063 (ubuntu-2604): systemd state=degraded
+## transitive: after reboot (fresh PID 1)
+systemd 259 (259.9-0ubuntu0.1)
+  after-reboot hcp-b1.service: active=inactive enabled=disabled
+  after-reboot hcp-mid.service: active=inactive enabled=static
+  after-reboot hcp-vpn.service: active=inactive enabled=static
+exit 1

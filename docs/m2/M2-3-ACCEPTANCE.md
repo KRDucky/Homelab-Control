@@ -7,11 +7,16 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
 **Revisions.**
 - `5a14c727`: first evidence round (superseded).
 - `82c24a74`: first review round, findings R1–R11 (superseded).
-- **`3bec1294b0523565199fafd12c437bef5fcbbffd`: current product commit** (second review round, R12–R13:
-  unloaded unit-file changes). Every commit after it changes only tests, harness or documentation:
-  `git diff --stat 3bec1294 HEAD -- backend frontend schemas packaging cmd` is empty.
-- Evidence: `../evidence/m2/m2-3/review-3bec1294/` (containers, browser, local gates) and the CI run named in
-  `M2-3-KVM-ACCEPTANCE-PROCEDURE.md`. KVM validation is a separate, not yet authorized step.
+- `3bec1294`: second review round, R12–R13: unloaded unit-file changes (superseded).
+- `63979c1b`: R14, exact unloaded-change threshold (superseded; its container round left no results, see
+  `../evidence/m2/m2-3/review-ad725d43/README.md`).
+- `ad725d43`: B-1 correction, first attempt (superseded; its container round failed two checks on all four
+  distributions, kept in `../evidence/m2/m2-3/review-ad725d43/`).
+- **`ae937d8a6aa918456dfa49968f271acfc33603a4`: current product commit** (B-1 with the own-change overlay,
+  R15–R17). Every commit after it changes only documentation and evidence:
+  `git diff --stat ae937d8a HEAD -- backend frontend schemas packaging cmd tests dev` is empty.
+- Evidence: `../evidence/m2/m2-3/review-ae937d8a/` (containers, browser, Phase B, probes, local gates) and the CI
+  run named in `M2-3-KVM-ACCEPTANCE-PROCEDURE.md`. KVM validation is a separate, not yet authorized step.
 
 "Pass" below means the stated evidence exists and passed; it is not the owner's acceptance.
 
@@ -40,24 +45,27 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
 | Independent read-back; honest partial/interrupted outcomes | Pass | `is-enabled` + broker `lstat` and target of every link + fresh scan for other links (R3); `TestEnablementHonestOutcomes`, `TestEnablementReadBackScansLinks`; container: links point to the unit file, no unexpected links |
 | Protected-unit enforcement for persistent changes (aliases, canonical identities, affected units) | Pass | `TestEnablementRefusals` (41 cases) and `TestEnablementCollisionsAndRequisite`; container: SSH, API and broker units, protected install alias, wanted by SSH, boot conflict with SSH |
 | Unloaded unit-file changes (R12, R13): enable fails closed; disable checks `Requisite=` on disk | Pass (containers) | Probe 8 (four versions, isolated cases); `TestEnableRefusedAfterUnloadedChanges`, `TestEnableEditBetweenPreviewAndApply`, `TestEnableGateExcusesOwnJournaledChanges`, `TestEnableGateForeignChangeDuringOwnChange`, `TestEnableGateDoesNotExcuseInterruptedChanges`, `TestDisableRefusesRequisiteOnDisk`; container checks 6d on all four; reproduction with the old build |
+| B-1 (R15–R17): disable refused when the boot dependency relationships reach a protected unit only through it | Pass (containers) | §1.3/§9 of the design review; unit tests `TestDisable*BootPull*`, `TestDisableRefusedWhen…`, `TestDisableAllowedWhen…`; container checks 6e; owner approved the safety objective (not the implementation) |
 | Target resolution from disk (R1, R4) and affected links (R2) | Pass | `TestEnablementRefusesStaleLoadedView`, `TestEnablementDropInAfterPlanIsRefusedAtApply`, `TestEnablementSharedDropIns`, `TestDisableRefusesUndescribedLinks`; container: new drop-in on a running unit refused, undescribed link refused and nothing removed |
 | Unsafe/unsupported cases refused | Pass | Same table: `Also=`, `RequiredBy=`, `UpheldBy=`, specifiers, SysV, generated, transient, linked, runtime, symlinked paths, template instances; `TestEnablementCollisionsAndRequisite`: `Alias=` naming another unit (probe 4), foreign files at link paths, disabling a requisite of a protected unit; container: alias collision and protected `Requisite=` refused |
 | Secrets in unit contents | Pass (heuristic, **not a secrecy guarantee**; continuation lines fixed, R6; known gaps in design review §4; O-2) | `TestRedactLine`, `TestParseCat`; container: root-only drop-in reported unreadable, fixture secrets absent from API responses, audit, journal and logs |
 | No mask/unmask, editing, creation, generic daemon-reload, arbitrary commands, new dependencies | Pass | Template snapshot; `go.mod` and `package-lock.json` unchanged; ADR 0006 policy check |
 
-## Validation items (product commit `3bec1294`, `../evidence/m2/m2-3/review-3bec1294/`)
+## Validation items (product commit `ae937d8a`, `../evidence/m2/m2-3/review-ae937d8a/`)
 | Item | Result |
 |---|---|
-| M2-2 regression | M2-2 real-systemd scenario with `HC_M2_LONG=1` 89/0 on Ubuntu 26.04, 24.04, 22.04 and Fedora 44; Go and Vitest suites pass; CI's browser suites incl. `service-ops-ui.mjs` 298/0 locally (Chromium, Firefox) |
-| Long expiry checks | `HC_M2_LONG=1` on all four (M2-2 and M2-3): plan older than 120 s and step-up older than 5 min refused, nothing changed |
-| Interruption recovery | Real broker SIGKILL before and after `systemctl` ran: 19/0 on all four (one intent + one `interrupted` record each, observed state reported, nothing retried, hash chain verifies, `systemctl` restored with identical inode, size, mode, owner, group and SHA-256) |
-| Unloaded changes, edits between preview and apply | Container checks 6d on all four; unit tests; reproduction with the old build |
+| M2-2 regression | M2-2 real-systemd scenario with `HC_M2_LONG=1` 89/0 on Ubuntu 26.04, 24.04, 22.04 and Fedora 44; Go and Vitest suites pass; CI browser suites incl. `service-ops-ui.mjs` 298/0 locally (Chromium, Firefox) |
+| Long expiry checks | `HC_M2_LONG=1` on all four (M2-2 and M2-3) |
+| Interruption recovery | Broker SIGKILL before and after `systemctl` ran: 20/0 on all four (inside the full run) and 20/0 standalone (Phase B invocation) on Ubuntu 26.04 and Fedora 44; `systemctl` restored with identical inode, size, mode, owner, group and SHA-256; after an interrupted change enable and disable are refused until systemd reloads |
+| Unloaded changes, edits between preview and apply | Container checks 6d on all four; unit tests; reproduction with `82c24a74` |
+| B-1: disable reaching a protected unit at boot | Probe 10 (four versions); container checks 6e on all four (direct, transitive, alias refused with links and states unchanged; anchored allowed; graph change between preview and apply refused; last puller after an own unloaded disable refused); unit tests; reproduction with `63979c1b` |
+| Usability on freshly installed hosts | Probe 9: nothing counted as unloaded after install and `enable --now`; the scenario's ordinary enables and disables succeed on all four |
 | Module-disabled enforcement | API, broker, container and browser |
-| Real systemd only in new disposable environments; cleanup cannot affect SSH or access services | Docker containers created and removed per run; workstation unchanged; cleanup touches only fixtures the run created and verifies the link set, SSH/API/broker enablement and the SSH main PID; the protected stand-ins are `homelab-control-hctest-*` fixtures, never real access services |
+| Cleanup cannot affect SSH or access services | All cleanup invariants pass on all four (link set, SSH/API/broker enablement, SSH main PID); stand-ins are `homelab-control-hctest-*` fixtures; the workstation is unchanged |
 | Ubuntu and a non-Debian family | Ubuntu 26.04.1, 24.04.5, 22.04.5 (systemd 259, 255, 249) and Fedora 44 (containers; **SELinux disabled**) |
-| Real-backend browser workflow, keyboard, responsive HCIS | 18/18 on Ubuntu 26.04 and Fedora 44 (Chromium) |
-| `make check`; Go tests as non-root | exit 0, nothing skipped; uid 1000: 285 tests + 116 subtests, 0 failed |
-| GitHub CI | See the run named in `M2-3-KVM-ACCEPTANCE-PROCEDURE.md` and the PR |
+| Real-backend browser workflow | 18/18 on Ubuntu 26.04 and Fedora 44 (Chromium) |
+| `make check`; Go tests as non-root | exit 0, nothing skipped; uid 1000: 292 tests + 122 subtests, 0 failed |
+| GitHub CI | See the PR and `M2-3-KVM-ACCEPTANCE-PROCEDURE.md` |
 
 ## Open items and limits (for the owner)
 - **Owner approval of proposals P-1…P-6** (`OWNER-DECISIONS.md`; not decisions): root-owned module setting,

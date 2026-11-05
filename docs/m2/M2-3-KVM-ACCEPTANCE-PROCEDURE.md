@@ -8,9 +8,10 @@ no real boot and ran with SELinux disabled.
 
 ## Authorization required before any guest operation
 The owner must authorize, in their own words, after reviewing the safety corrections:
-1. **Creating** new disposable KVM guests for M2-3 — Ubuntu 26.04.1 and Fedora 44 with SELinux **Enforcing**
-   (optionally Ubuntu 22.04 for systemd 249, and upstream Arch) — from distribution cloud images, on an
-   isolated libvirt NAT network, with no host directory shares.
+1. **Creating** new disposable KVM guests for M2-3 — Ubuntu 26.04.1 (systemd 259), **Ubuntu 22.04.5 (systemd
+   249, required: the only version where the unloaded-change gate relies on the generator directory as reload
+   marker)** and Fedora 44 with SELinux **Enforcing** (optionally upstream Arch) — from distribution cloud
+   images, on an isolated libvirt NAT network, with no host directory shares.
 2. **Installing** the CI-built packages named below and running Phase A (normal acceptance: real systemd,
    disposable `hc-test-*` units, broker restarts, two guest reboots, the browser checklist).
 3. Separately, **Phase B** (deliberate test-wrapper run): temporarily replacing `/usr/bin/systemctl` in the
@@ -23,7 +24,7 @@ Not covered and not to be touched: the retained Ubuntu, Fedora and Arch acceptan
 snapshots, `AGENTS.md`, the file-manager worktree, production hosts.
 
 ## Inputs (final validated revision)
-- **PR #36 head:** `{{HEAD}}`. **Product commit:** `3bec1294b0523565199fafd12c437bef5fcbbffd` (later commits
+- **PR #36 head:** `{{HEAD}}`. **Product commit:** `ae937d8a6aa918456dfa49968f271acfc33603a4` (later commits
   change only tests, harness or documentation; see `docs/m2/M2-3-ACCEPTANCE.md`, "Revisions").
 - **CI run:** `{{RUN}}` on that head, `{{JOBS}}`. GitHub builds `pull_request` runs from the merge of the head
   into `main` (merge ref `{{MERGE}}`), which is what the package versions name.
@@ -34,7 +35,7 @@ snapshots, `AGENTS.md`, the file-manager worktree, production hosts.
   | `{{DEB}}` | `{{DEBSHA}}` |
   | `{{RPM}}` | `{{RPMSHA}}` |
 
-  Recorded in `docs/evidence/m2/m2-3/review-3bec1294/ci/build-artifact-{{RUN}}.sha256`. Do not build packages
+  Recorded in `docs/evidence/m2/m2-3/review-ae937d8a/ci/build-artifact-{{RUN}}.sha256`. Do not build packages
   locally for acceptance. If the artifact has expired, re-run CI for the same head and record the new run and
   hashes (they will differ: builds are not bit-reproducible across runs).
 - **Tests:** `tests/systemd/` and `compat/webmin/` from the PR head.
@@ -51,6 +52,12 @@ snapshots, `AGENTS.md`, the file-manager worktree, production hosts.
    `scp <pkg> guest:/opt/hc/pkg.deb` (or `pkg.rpm`); `scp -r tests/systemd guest:/opt/hc/tests`;
    `scp -r compat/webmin guest:/opt/hc/webmin`.
 6. Fedora: `ausearch -m AVC,USER_AVC -ts boot > /root/avc-before.txt 2>&1 || true`.
+7. **First-boot gate inputs and install** (before any `daemon-reload` of your own): copy
+   `dev/disposable/probes/m2-3-probe9-fresh-install.sh` to the guest and run `sudo bash m2-3-probe9-fresh-install.sh
+   pre | tee /root/probe9.txt`. It lists what the broker's unloaded-change gate would count right after the
+   cloud-image boot (cloud-init, netplan), after installing `/opt/hc/pkg.*` and after `systemctl enable --now`
+   of the broker socket. Expected (containers): nothing listed. Anything listed is recorded as a P-6 finding
+   (the gate would refuse enable until a reload or reboot), not silently cleared.
 
 ## Phase A — normal acceptance (no test wrapper)
 ```sh
@@ -101,10 +108,16 @@ separately and count neither for nor against normal SELinux acceptance.
 1. **Identity before:** `stat -c '%s %a %u:%g %i' /usr/bin/systemctl`, `sha256sum /usr/bin/systemctl`,
    (Fedora) `ls -Z /usr/bin/systemctl` and `getfattr -n security.selinux /usr/bin/systemctl`, and package
    verification `rpm -V systemd` (Fedora) or `dpkg --verify systemd` (Ubuntu); save to `/root/phase-b-before.txt`.
-2. Note the time, then run the interruption scenario alone:
-   `HC_PW=… HC_SID=… HC_M2_INTERRUPT=1 python3 /opt/hc/tests/m2_3_interrupt.py | tee /root/m2-3-phase-b.log`
-   (it needs an admin session with `services.configure`, as `m2-3-checks.sh` provides; alternatively run the
-   whole smoke with `HC_M2_INTERRUPT=1` and without `HC_M2_LONG`). The log prints `wrapper window starts/ends`;
+2. Note the time, then run the interruption scenario as its own smoke invocation (the smoke creates the admin
+   account and session; `m2_3_interrupt.py` grants `services.configure` itself when it is missing):
+   ```sh
+   cd /opt/hc
+   HC_M2_INTERRUPT=1 HC_SMOKE_EXTRA_UNITS=homelab-control-broker.socket \
+   HC_SMOKE_EXTRA_CHECKS=/opt/hc/tests/m2-3-interrupt-checks.sh \
+   HC_WEBMIN_SRC=/opt/hc/webmin HC_SMOKE_SCOPES=system.read,services.read,services.logs,hardware.read \
+     /opt/hc/tests/systemd-smoke.sh /opt/hc/pkg.$HC_PKG_KIND 2>&1 | tee /root/m2-3-phase-b.log
+   ```
+   (tested in containers: `docs/evidence/m2/m2-3/review-ae937d8a/phase-b/`). The log prints `wrapper window starts/ends`;
    the script moves the original aside, installs the wrapper, restores the original with `os.replace` (same
    inode), runs `restorecon` where SELinux is present, and checks size, mode, owner, SHA-256 and label.
 3. **Identity after:** repeat step 1 into `/root/phase-b-after.txt`; `diff` must be empty (inode, size, mode,
