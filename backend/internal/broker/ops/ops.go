@@ -129,7 +129,7 @@ func Registry() map[string]Op {
 		{Name: "services.unit.detail", Scope: "services.read", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second,
 			Description: "One unit from the inventory: identity, unit-file origin, dependencies, last exit and restart counter (args: unit)",
 			Handle:      unitDetail, AuditArgs: viewAuditArgs},
-		{Name: "services.unit.contents", Scope: "services.logs", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second,
+		{Name: "services.unit.contents", Scope: "services.files", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second,
 			Description: "Read-only, redacted and size-capped unit file and drop-ins of one unit, as the service account can read them (args: unit)",
 			Handle:      unitContents, AuditArgs: viewAuditArgs},
 		// M2-3 boot-time enable/disable (ADR 0011; docs/m2/M2-3-DESIGN-REVIEW.md).

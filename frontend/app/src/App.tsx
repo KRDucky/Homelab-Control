@@ -100,6 +100,7 @@ export function App() {
   // the navigation shows one entry per page.
   const pages = capList.filter((c, i) => capList.findIndex((x) => x.path === c.path) === i);
   const logsCap = capList.find((c) => c.id === 'service_logs');
+  const filesCap = capList.find((c) => c.id === 'unit_files');
   const auditCap = capList.find((c) => c.id === 'audit');
   // Accounts with services.operate can change the host (service start/stop/
   // restart); everyone else has a read-only interface.
@@ -135,6 +136,7 @@ export function App() {
       <Services
         onUnauthorized={signedOut}
         logs={logsCap}
+        files={filesCap}
         csrf={session.csrf_token}
         stepUpUntil={session.step_up_until ?? null}
         auditAvailable={auditCap?.status === 'available'}

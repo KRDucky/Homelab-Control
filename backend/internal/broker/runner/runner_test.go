@@ -163,7 +163,7 @@ func TestRootTemplatesAreClosed(t *testing.T) {
 		RootSystemctlIsEnabled:   "systemctl is-enabled -- demo.service",
 		RootSystemctlShowInstall: "systemctl show --no-pager --property=Id --property=Names --property=LoadState --property=FragmentPath --property=SourcePath --property=DropInPaths --property=Transient --property=NeedDaemonReload --property=UnitFilePreset -- demo.service",
 		// PR #36 review (probe 8): manager unit-load timestamps, no target.
-		RootSystemctlShowManager: "systemctl show --no-pager --timestamp=us+utc --property=UnitsLoadStartTimestamp --property=UnitsLoadStartTimestampMonotonic --property=UnitsLoadTimestamp --property=UnitsLoadTimestampMonotonic",
+		RootSystemctlShowManager: "systemctl show --no-pager --timestamp=us+utc --property=UnitsLoadStartTimestamp --property=UnitsLoadStartTimestampMonotonic --property=UnitsLoadTimestamp --property=UnitsLoadTimestampMonotonic --property=UnitPath",
 	}
 	if len(rootTemplates) != len(want) {
 		t.Fatalf("%d root templates, want %d — new root templates need review", len(rootTemplates), len(want))

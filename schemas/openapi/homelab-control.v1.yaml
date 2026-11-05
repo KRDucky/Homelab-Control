@@ -35,7 +35,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
@@ -148,7 +148,7 @@ components:
       type: object
       required: [id, label, path, scope, status]
       properties:
-        id: { type: string, enum: [overview, services, hardware, legacy] }
+        id: { type: string, enum: [overview, services, hardware, legacy, audit, service_logs, unit_files] }
         label: { type: string }
         path: { type: string }
         scope: { type: string }
@@ -720,9 +720,9 @@ paths:
         '503': { description: 'Broker unavailable or systemd not running', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /services/units/{unit}/contents:
     get:
-      summary: "Read-only unit file and drop-ins (broker op services.unit.contents, `systemctl cat` as the service account): files only root can read are not shown; values that look like secrets are redacted; 64 KiB / 2,000 lines. Audited (who, which unit, never content); withheld if the audit cannot be written."
+      summary: "Read-only unit file and drop-ins (broker op services.unit.contents, `systemctl cat` as the service account): files only root can read are not shown; values that look like secrets are redacted (heuristic: this permission can disclose sensitive configuration); 64 KiB / 2,000 lines. Audited (who, which unit, never content); withheld if the audit cannot be written. Needs services.files, which no other scope implies."
       security: [{ session: [] }]
-      x-required-scope: services.logs
+      x-required-scope: services.files
       parameters:
         - { name: unit, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9:_.@-]{0,99}\\.(service|socket|timer|mount|automount|path|target|swap)$' } }
       responses:

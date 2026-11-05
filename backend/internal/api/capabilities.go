@@ -171,6 +171,17 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 	case !slices.Contains(bi.Exec, "journalctl") || !bi.SystemdBooted:
 		logs.Status, logs.Reason = CapUnsupported, "This host is not running systemd with journald."
 	}
+	// Unit-file contents (services.files) are a separate capability: the
+	// permission is separate from services.logs and never implied by it.
+	files := Capability{ID: "unit_files", Label: "Unit files", Path: "/services", Scope: auth.ScopeServicesFiles, Status: CapAvailable}
+	switch {
+	case berr != nil:
+		files.Status, files.Reason = CapUnavailable, brokerDownReason
+	case !bi.hasOp("services.unit.contents"):
+		files.Status, files.Reason = CapUnavailable, "The running broker does not provide unit-file contents."
+	case !slices.Contains(bi.Exec, "systemctl") || !bi.SystemdBooted:
+		files.Status, files.Reason = CapUnsupported, "This host is not running systemd, so there are no unit files to show."
+	}
 	legacy := Capability{ID: "legacy", Label: "Legacy Webmin", Path: "/legacy", Scope: auth.ScopeSystemRead, Status: CapAvailable}
 	if berr != nil || !bi.hasOp("legacy.webmin.status") {
 		legacy.Status, legacy.Reason = CapDegraded, "Without the privileged helper only Webmin's presence and version can be checked."
@@ -179,7 +190,7 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 	if s.auditPager == nil {
 		auditCap.Status, auditCap.Reason = CapUnavailable, "Audit history needs the state database, which this server was started without."
 	}
-	caps := []Capability{gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs)}
+	caps := []Capability{gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files)}
 	// Navigation follows the module registry: a disabled module contributes
 	// no capability (and therefore no navigation entry).
 	resp.Capabilities = caps[:0]

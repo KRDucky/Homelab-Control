@@ -120,7 +120,7 @@ entries are rewritten at every reload, judging runtime configuration by change t
 | `services.timers.list` | `services.read` | unprivileged-exec | none | `list-timers --all --output=json` + batched `show` of fixed timer properties |
 | `services.sockets.list` | `services.read` | unprivileged-exec | none | `list-sockets --all --output=json` |
 | `services.unit.detail` | `services.read` | unprivileged-exec | `{unit}` | Inventory membership first (`list-units`/`list-unit-files -- <name>`), then a fixed, allow-listed property list; no `Environment=`, `Exec*` command lines or credentials are ever requested |
-| `services.unit.contents` | `services.logs` | unprivileged-exec | `{unit}` | `systemctl cat` as `homelab-control`; redacted; 64 KiB / 2,000 lines (named `contents` because the registry test forbids op names ending in `file`) |
+| `services.unit.contents` | `services.files` | unprivileged-exec | `{unit}` | `systemctl cat` as `homelab-control`; redacted; 64 KiB / 2,000 lines (named `contents` because the registry test forbids op names ending in `file`) |
 | `services.enablement.plan` | `services.configure` | root-read | `{unit, action}` | Read-only; mints the plan token |
 | `services.enablement.apply` | `services.configure` | root-exec | `{unit, action, token}` | The only op that receives the root handle for the new templates |
 
@@ -369,8 +369,11 @@ units can therefore not be enabled or disabled from the UI, by any name.
   `NRestarts` only for services. Dependencies come from systemd, capped at 64 names per list.
 - **Unit-file contents** (P9) are read by `systemctl cat` running as `homelab-control`, so root-only files are
   never shown (the response lists them as unreadable). Redacted before leaving the broker: every `Environment=` value (variable names are kept); the whole value of `SetCredential*=` and of any key containing `passw`, `passphrase`, `secret`, `token`, `apikey`, `api_key`, `privatekey`, `private_key` or `credential`; in `Exec*=` lines, the value of arguments whose name contains `pass`, `secret`, `token`, `apikey`, `auth` or `key` (`--password=…`, `--token …`, `api_key=…`); and the user-info part of any URL (`scheme://user:pass@`). `EnvironmentFile=` paths are shown, never the file. Redaction works on logical lines joined across `\` continuations (a redacted multi-line value is shown as one line). Bounded to 64 KiB and 2,000 lines, control characters
-  stripped. Gated by `services.logs` (the existing non-default scope for sensitive content; a dedicated scope
-  is an open owner item O-2) and audited fail-closed (who, which unit, never content). Redaction is
+  stripped. Gated by **`services.files`** (P-2, implemented after the owner's authorization of 2026-11-05):
+  never granted by default and not implied by `services.logs`, `services.read`, `services.operate` or
+  `services.configure` (no scope implies another); checked by `hc-api` and again by the broker; its own
+  capability `unit_files`, so the UI offers the file only with that permission. Audited fail-closed (who,
+  which unit, never content). Redaction is
   heuristic and **not a secrecy guarantee**; this is stated in the UI. Known gaps (review, §7): positional secrets
   (`-u user:pass`, `mysql -pSECRET`, a bare token argument), quoted header values (`"Authorization: Bearer …"`),
   secrets in URL query strings, and keys whose names do not contain the listed words. See O-2.
@@ -599,3 +602,52 @@ stock service of the five images and three homelab-style fixtures gave the same 
 - The M2-2 start/stop/restart model (accepted with M2-2) also does not follow `Triggers=` (a start of a unit that
   wants a socket does not check what the socket activates later); it is a start **now**, so its use of the
   current state is correct, but this gap is outside M2-3's scope and is listed for the owner (not changed).
+
+## 12. Final candidate (2026-11-05): `services.files`, unit search path and drop-in precedence
+**`services.files` (P-2; owner authorization verbatim in `OWNER-DECISIONS.md`).** Unit-file contents need the
+new permission in `hc-api` (route) and in the broker (op registry); it is never in `DefaultScopes` and no scope
+implies another, so `services.logs`, `services.read`, `services.operate` and `services.configure` — alone or all
+together — are refused (403, no broker call, no read audited). A separate capability `unit_files` drives the UI,
+which offers the file only with it and otherwise shows the reason; the explanation says that redaction is
+heuristic and the permission can disclose sensitive configuration. Audit-before-release, the 64 KiB / 2,000-line
+bounds and redaction are unchanged. Downgrade: remove the scope first (a build that does not know it refuses
+the users file and `hc-api` does not start). R26.
+
+**Unit search path and precedence, checked against the documentation.** `systemd.unit(5)` (systemd 262 man page
+on the workstation, "UNIT FILE LOAD PATH", Table 1; drop-in rules in "DESCRIPTION") and the manager's own
+`UnitPath` on all five images (`docs/evidence/m2/m2-3/review-<final>/probe12/`):
+- Documented system load path: `/etc/systemd/system.control`, `/run/systemd/system.control`,
+  `/run/systemd/transient`, `/run/systemd/generator.early`, `/etc/systemd/system`, `/run/systemd/system`,
+  `/run/systemd/generator`, `/usr/local/lib/systemd/system`, `/usr/lib/systemd/system`,
+  `/run/systemd/generator.late`; "determined during compilation"; `$SYSTEMD_UNIT_PATH` replaces it.
+- Reported by the managers (249, 255, 259, Fedora 259): the documented path plus `/etc/systemd/system.attached`
+  and `/run/systemd/system.attached` (portable services) after `/etc/systemd/system` and `/run/systemd/system`,
+  and on Ubuntu 22.04 `/lib/systemd/system` **before** `/usr/lib/systemd/system`. The broker listed `/lib` after
+  `/usr/lib` (only relevant on split-`/usr` hosts): corrected. R24.
+- **The review no longer assumes the path:** the read-only manager query also reads `UnitPath`; both actions
+  are refused, with the reported path in the message, unless it is exactly the documented path above (with
+  or without `/lib/systemd/system`). `$SYSTEMD_UNIT_PATH`, distribution additions and other orders are
+  refused. R24.
+- Drop-ins: "Drop-in files in /etc/ take precedence over those in /run/ which in turn take precedence over those
+  in /usr/lib/"; prefix directories (`foo-.service.d`) and type-level `service.d` are read too; "drop-ins or
+  masks with that name in directories with higher precedence" override type-level ones. How directory order and
+  the prefix hierarchy combine is not specified. Probe 12 (all four versions identical): same-named drop-ins —
+  `/run` over `/usr/lib`, `/etc` over `/run`, `/run/systemd/system.control` over `/etc`; a drop-in **mask** (link to
+  `/dev/null`) in `/run` or `/etc` hides a `/usr/lib` drop-in; between an own and a prefix directory the higher
+  *directory* wins (prefix in `/etc` over own in `/run`; prefix in `/run` over own in `/usr/lib`); a type-level
+  drop-in loses to a name-specific one regardless of directory.
+- Corrected (R25): runtime drop-in **masks** and same-named drop-ins anywhere in the unit's drop-in hierarchy
+  (own, alias, template, prefix and type-level directories) are refused for every unit the review reaches,
+  **whichever one wins**, with the reason; the scan of units the walk does not evaluate (R23) also checks the
+  more general persistent directories. Aliases: only names that resolve through persistent links or files count
+  as boot-time names (§10); generated units in `/run/systemd/generator*` are runtime (never anchors);
+  `generator.late` is below every persistent directory and hides nothing.
+
+| # | Finding | Correction | Tests |
+|---|---|---|---|
+| R24 | The search path was assumed, and `/lib` was ordered after `/usr/lib` | Manager `UnitPath` read and required to equal the documented path; `/lib` before `/usr/lib` | `TestUnitSearchPathMustBeTheDocumentedOne` (6 bad paths × 2 actions, 2 good), `TestParseManagerShowUnitPath`, `TestPersistentEntryOrderOnSplitUsr`; template snapshot |
+| R25 | Drop-in masks and same-named drop-ins in prefix/template/type directories were not compared | Refused across the hierarchy, whichever wins | `TestRuntimeDropInMasksAndHierarchy` (4 cases × 2 actions; different names allowed), `TestEnableHiddenPrefixDropInOfAnUnwalkedUnit`, `TestDropInDirNames`; probe 12 |
+| R26 | Unit-file contents needed `services.logs` | `services.files` (P-2) | `TestServicesFilesNotGrantedByDefaultOrImplied`, `TestUnitContentsNeedFilesScopeAndAudit`, `TestUnitFilesCapabilityNeedsFilesScope`, broker end-to-end refusal, UI tests, browser B19–B20, scenario §8 |
+
+Each new check was removed once and a test failed (no search-path check; any path accepted; old `/lib` order;
+no prefix or type-level directories; masks ignored; global scan without the hierarchy).

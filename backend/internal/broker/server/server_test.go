@@ -387,7 +387,7 @@ func TestDisabledModuleOpsRefused(t *testing.T) {
 
 // M2-3: the broker re-checks services.configure; services.operate (or any
 // other scope) never reaches the enablement ops, and unit contents need
-// services.logs.
+// services.files (no other scope implies it).
 func TestEnablementOpsNeedConfigureScopeEndToEnd(t *testing.T) {
 	f := start(t)
 	for _, op := range []string{"services.enablement.plan", "services.enablement.apply"} {
@@ -401,8 +401,9 @@ func TestEnablementOpsNeedConfigureScopeEndToEnd(t *testing.T) {
 	}
 	var out json.RawMessage
 	err := brokerclient.New(f.sock).CallWithArgs(context.Background(), "services.unit.contents", map[string]string{"unit": "demo.service"},
-		proto.Actor{User: "tester", Scopes: []string{"services.read"}}, &out)
-	if code(err) != proto.CodeForbidden {
-		t.Errorf("contents without services.logs: %v", err)
+		proto.Actor{User: "tester", Scopes: []string{"system.read", "services.read", "hardware.read", "services.logs", "audit.read",
+			"services.operate", "services.configure"}}, &out)
+	if code(err) != proto.CodeForbidden || !strings.Contains(err.Error(), "services.files") {
+		t.Errorf("contents with every scope but services.files: %v", err)
 	}
 }

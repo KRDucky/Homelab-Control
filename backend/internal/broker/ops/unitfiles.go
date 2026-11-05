@@ -6,6 +6,7 @@ package ops
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path"
@@ -29,13 +30,49 @@ import (
 //     depth, whose name or target names the unit, including links its
 //     [Install] section does not describe (measured).
 
-// installSearchDirs is systemctl's search order for system units.
+// installSearchDirs is the system manager's unit search path in precedence
+// order: the load path documented in systemd.unit(5) ("UNIT FILE LOAD PATH",
+// system mode) plus the portable-service directories /etc and
+// /run/systemd/system.attached, and /lib/systemd/system before
+// /usr/lib/systemd/system where the build lists it — exactly what the
+// manager reports as UnitPath on systemd 249, 255 and 259 (Ubuntu, Fedora).
+// checkUnitSearchPath refuses any other path ($SYSTEMD_UNIT_PATH, other
+// compile-time paths), so the review never assumes an order systemd does
+// not use.
 var installSearchDirs = []string{
 	"/etc/systemd/system.control/", "/run/systemd/system.control/", "/run/systemd/transient/",
 	"/run/systemd/generator.early/", "/etc/systemd/system/", "/etc/systemd/system.attached/",
 	"/run/systemd/system/", "/run/systemd/system.attached/", "/run/systemd/generator/",
-	"/usr/local/lib/systemd/system/", "/usr/lib/systemd/system/", "/lib/systemd/system/",
+	"/usr/local/lib/systemd/system/", "/lib/systemd/system/", "/usr/lib/systemd/system/",
 	"/run/systemd/generator.late/",
+}
+
+// documentedUnitPath is installSearchDirs as the manager prints UnitPath
+// (no trailing slashes), with or without /lib/systemd/system.
+func documentedUnitPath(withLib bool) []string {
+	var out []string
+	for _, d := range installSearchDirs {
+		if d == "/lib/systemd/system/" && !withLib {
+			continue
+		}
+		out = append(out, strings.TrimSuffix(d, "/"))
+	}
+	return out
+}
+
+// checkUnitSearchPath fails closed unless the manager's reported unit search
+// path is exactly the one this version evaluates.
+func checkUnitSearchPath(up []string) error {
+	if up == nil {
+		return errors.New("systemd did not report its unit search path (UnitPath), so where unit files are read from at boot is not known")
+	}
+	got := strings.Join(up, " ")
+	if got == strings.Join(documentedUnitPath(true), " ") || got == strings.Join(documentedUnitPath(false), " ") {
+		return nil
+	}
+	return fmt.Errorf("systemd's unit search path (%s) differs from the documented one this version evaluates (%s), for example because "+
+		"$SYSTEMD_UNIT_PATH is set or the distribution adds directories; unit files elsewhere, or in another order, would not be reviewed",
+		clean(got, 300), strings.Join(documentedUnitPath(false), " "))
 }
 
 // mergedUsr reports whether /lib is the merged-usr link to usr/lib.

@@ -8,7 +8,7 @@ import { explain } from '../useData';
 
 // M2-3 read-only unit detail (HCIS ServiceDetail, read-only subset): what
 // systemd reports about one unit. Absent values are shown as absent, never
-// guessed. The unit file is loaded only on request (it needs services.logs and
+// guessed. The unit file is loaded only on request (it needs services.files and
 // every read is audited), and arrives already redacted by the broker.
 
 const relationLabels: Record<string, string> = {
@@ -46,12 +46,15 @@ function detailError(err: Error): string {
 export function UnitDetailPanel({
   unit,
   canReadFile,
+  fileReason,
   onClose,
   onUnauthorized,
 }: {
   unit: string;
-  /** services.logs: unit files can contain sensitive values. */
+  /** services.files: unit files can contain sensitive values. */
   canReadFile: boolean;
+  /** Why the unit file is not offered (from the unit_files capability). */
+  fileReason?: string | undefined;
   onClose: () => void;
   onUnauthorized: () => void;
 }) {
@@ -264,15 +267,17 @@ export function UnitDetailPanel({
             <h3 id="h-unitfile">Unit file</h3>
             {!canReadFile ? (
               <p className="footnote">
-                Reading unit files needs the services.logs permission, because they can contain sensitive
-                values.
+                {fileReason ?? 'Reading unit files needs the services.files permission.'} Unit files can
+                contain credentials and other sensitive configuration, so this permission is separate from
+                service logs and never granted by default.
               </p>
             ) : !file ? (
               <>
                 <p className="footnote">
                   Read-only. Files only root can read are not shown, and values that look like secrets
                   (environment values, credentials, password or token arguments) are replaced by [redacted].
-                  This detection is heuristic. The read is recorded in the audit log.
+                  This detection is heuristic: the file can still disclose sensitive configuration. The read
+                  is recorded in the audit log.
                 </p>
                 <button
                   type="button"

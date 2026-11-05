@@ -180,13 +180,26 @@ func TestEnablementFailsClosedWithoutAudit(t *testing.T) {
 	}
 }
 
-func TestUnitContentsNeedsLogsScopeAndAudit(t *testing.T) {
+// Unit-file contents need services.files, which no other scope implies
+// (owner authorization 2026-11-05): every other scope together is refused,
+// before the broker is asked and without an audit record of a read.
+func TestUnitContentsNeedFilesScopeAndAudit(t *testing.T) {
 	fb := m23Fake()
-	h := harnessWith(t, fb, []string{auth.ScopeServicesRead})
-	if rr := h.do("GET", "/api/v1/services/units/nginx.service/contents", "", nil); rr.Code != http.StatusForbidden {
-		t.Fatalf("services.read alone: %d", rr.Code)
+	others := []string{auth.ScopeSystemRead, auth.ScopeServicesRead, auth.ScopeHardwareRead, auth.ScopeServicesLogs,
+		auth.ScopeAuditRead, auth.ScopeServicesOperate, auth.ScopeServicesConfigure}
+	for _, set := range [][]string{{auth.ScopeServicesRead}, {auth.ScopeServicesLogs}, {auth.ScopeServicesOperate},
+		{auth.ScopeServicesConfigure}, others} {
+		h := harnessWith(t, fb, set)
+		rr := h.do("GET", "/api/v1/services/units/nginx.service/contents", "", nil)
+		if rr.Code != http.StatusForbidden || strings.Contains(rr.Body.String(), "Environment") ||
+			strings.Contains(h.audit.String(), `"event":"services.unit.contents.read"`) {
+			t.Fatalf("contents with %v: %d %s / %s", set, rr.Code, rr.Body, h.audit)
+		}
 	}
-	h = harnessWith(t, fb, []string{auth.ScopeServicesRead, auth.ScopeServicesLogs})
+	if len(fb.args) != 0 {
+		t.Fatalf("broker asked for contents without services.files: %v", fb.args)
+	}
+	h := harnessWith(t, fb, []string{auth.ScopeServicesRead, auth.ScopeServicesFiles})
 	rr := h.do("GET", "/api/v1/services/units/nginx.service/contents", "", nil)
 	if rr.Code != 200 || !strings.Contains(h.audit.String(), `"event":"services.unit.contents.read"`) || strings.Contains(h.audit.String(), "redacted") {
 		t.Fatalf("%d %s / %s", rr.Code, rr.Body, h.audit)

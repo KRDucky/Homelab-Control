@@ -364,7 +364,7 @@ def main():
     scopes = set(sess.get("scopes") or [])
     st, e = eplan("hc-test-en-a.service", "enable", sess.get("csrf_token"))
     check("plan without services.configure: 403 forbidden", (403, "forbidden"), (st, e.get("error")))
-    grant = ",".join(sorted(scopes | {"services.read", "services.logs", "services.operate", "services.configure", "audit.read"}))
+    grant = ",".join(sorted(scopes | {"services.read", "services.logs", "services.files", "services.operate", "services.configure", "audit.read"}))
     subprocess.run(["hlctl", "user", "scopes", "--file", USERS, "--username", "admin", "--scopes", grant], check=True, capture_output=True)
     # A second account with services.operate but not services.configure.
     subprocess.run(["hlctl", "user", "add", "--file", USERS, "--username", "operator", "--scopes",
@@ -841,6 +841,23 @@ def main():
     check("contents: 200 with redactions", (200, True), (st, c.get("redactions", 0) >= 2))
     check("contents: root-only drop-in reported unreadable", True, f"{ETC}/{sec}.d/secret.conf" in (c.get("unreadable") or []))
     check("contents: no fixture secret", (False, False), (SECRET_FRAGMENT in texts, SECRET_DROPIN in texts))
+    # services.files is separate: the operator account (services.read,
+    # services.operate) is refused, and so is a session with every scope but it.
+    st, e = call("GET", f"/api/v1/services/units/{sec}/contents", sid=op_sid)
+    check("contents without services.files (operator): 403", (403, "forbidden"), (st, e.get("error")))
+    subprocess.run(["hlctl", "user", "add", "--file", USERS, "--username", "nofiles", "--scopes",
+                    "system.read,services.read,services.logs,services.operate,services.configure,audit.read"],
+                   input=PW + "\n", text=True, check=True, capture_output=True)
+    subprocess.run(["chown", "homelab-control:homelab-control", USERS], check=True)
+    restart_api()
+    SID = login()
+    nf_sid = login("nofiles")
+    st, e = call("GET", f"/api/v1/services/units/{sec}/contents", sid=nf_sid)
+    check("contents with every scope but services.files: 403", (403, "forbidden"), (st, e.get("error")))
+    st, _ = call("GET", f"/api/v1/services/units/{sec}/logs?lines=5", sid=nf_sid)
+    check("its service logs (services.logs) still readable: 200", 200, st)
+    st, sess = call("GET", "/api/v1/auth/session")
+    csrf = sess.get("csrf_token")
     st, d = call("GET", f"/api/v1/services/units/{u}")
     check("detail: unit, path, restarts counter", (200, "unit", f"{ETC}/{u}", True),
           (st, d.get("kind"), d.get("fragment_path"), isinstance(d.get("restarts"), int)))

@@ -78,9 +78,11 @@ const (
 // managerShowProperties are the manager's unit-load timestamps: realtime
 // (printed in UTC with microseconds) and monotonic. UnitsLoadTimestamp
 // (systemd >= 255) is set at every reload; UnitsLoadStartTimestamp at boot.
+// UnitPath is the manager's unit search path, in precedence order (final
+// review: checked against the documented load path instead of assumed).
 var managerShowProperties = []string{
 	"UnitsLoadStartTimestamp", "UnitsLoadStartTimestampMonotonic",
-	"UnitsLoadTimestamp", "UnitsLoadTimestampMonotonic",
+	"UnitsLoadTimestamp", "UnitsLoadTimestampMonotonic", "UnitPath",
 }
 
 // ManagerShowArgs is the fixed manager query (no unit).

@@ -70,6 +70,8 @@ type ManagerLoad struct {
 	HasReloadStamp  bool
 	ReloadRealtime  time.Time
 	ReloadMonotonic time.Duration
+	// UnitPath is the manager's unit search path (nil if not reported).
+	UnitPath []string
 }
 
 // ParseManagerShow parses runner.ManagerShowArgs output.
@@ -99,6 +101,11 @@ func ParseManagerShow(b []byte) (ManagerLoad, error) {
 			m.HasReloadStamp = true
 			n, _ := strconv.ParseUint(v, 10, 63)
 			m.ReloadMonotonic = time.Duration(n) * time.Microsecond
+		case "UnitPath":
+			m.UnitPath = strings.Fields(v)
+			if m.UnitPath == nil {
+				m.UnitPath = []string{}
+			}
 		}
 	}
 	if m.BootRealtime.IsZero() || m.BootMonotonic == 0 {
@@ -312,6 +319,9 @@ func requireLoadedConfiguration(ctx context.Context, env *Env, action, id string
 	m, err := env.enablement().ManagerLoad(ctx, env)
 	if err != nil {
 		return denied("%s cannot be %sd here: when systemd last loaded its unit files could not be determined (%s)", id, action, clean(err.Error(), 160))
+	}
+	if err := checkUnitSearchPath(m.UnitPath); err != nil {
+		return denied("%s cannot be %sd here: %s", id, action, err.Error())
 	}
 	now := time.Now()
 	t, err := loadThreshold(env.Roots, m, now)

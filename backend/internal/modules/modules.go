@@ -48,7 +48,7 @@ var registry = []Module{
 		ID:          "services",
 		Title:       "Services",
 		Description: "systemd units: inventory, timers and sockets, unit details and logs; start/stop/restart and boot-time enable/disable through reviewed operations",
-		Scopes:      []string{"services.read", "services.logs", "services.operate", "services.configure"},
+		Scopes:      []string{"services.read", "services.logs", "services.files", "services.operate", "services.configure"},
 		APIPrefix:   "/api/v1/services",
 		OpPrefix:    "services.",
 		Path:        "/services",
