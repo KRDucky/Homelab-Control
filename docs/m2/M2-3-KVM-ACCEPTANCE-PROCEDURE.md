@@ -24,7 +24,7 @@ Not covered and not to be touched: the retained Ubuntu, Fedora and Arch acceptan
 snapshots, `AGENTS.md`, the file-manager worktree, production hosts.
 
 ## Inputs (final validated revision)
-- **PR #36 head:** `{{HEAD}}`. **Product commit:** `ae937d8a6aa918456dfa49968f271acfc33603a4` (later commits
+- **PR #36 head:** `{{HEAD}}`. **Product commit:** `d9946a4a8e1953eee81ab3f7989d3ce8d151f077` (later commits
   change only tests, harness or documentation; see `docs/m2/M2-3-ACCEPTANCE.md`, "Revisions").
 - **CI run:** `{{RUN}}` on that head, `{{JOBS}}`. GitHub builds `pull_request` runs from the merge of the head
   into `main` (merge ref `{{MERGE}}`), which is what the package versions name.
@@ -35,7 +35,7 @@ snapshots, `AGENTS.md`, the file-manager worktree, production hosts.
   | `{{DEB}}` | `{{DEBSHA}}` |
   | `{{RPM}}` | `{{RPMSHA}}` |
 
-  Recorded in `docs/evidence/m2/m2-3/review-ae937d8a/ci/build-artifact-{{RUN}}.sha256`. Do not build packages
+  Recorded in `docs/evidence/m2/m2-3/review-d9946a4a/ci/build-artifact-{{RUN}}.sha256`. Do not build packages
   locally for acceptance. If the artifact has expired, re-run CI for the same head and record the new run and
   hashes (they will differ: builds are not bit-reproducible across runs).
 - **Tests:** `tests/systemd/` and `compat/webmin/` from the PR head.
@@ -85,6 +85,13 @@ reboot, check `inactive`. Then remove the fixture (`rm` + `systemctl daemon-relo
 confirm that planning enable is refused ("changed on disk after systemd last loaded its configuration"), then
 remove it and reload.
 
+**Disable survey (plan only, measurement).** After the scenario, run the smoke once more with
+`HC_SMOKE_EXTRA_CHECKS=/opt/hc/tests/m2-3-disable-survey.sh` (same environment as above, without `HC_M2_LONG`).
+It **plans** a disable of every enabled service of the cloud image (never applies one) and records allowed /
+refused with the reason and the plan duration, plus a fixture with `Wants=network-online.target` (enabled and
+disabled again by the harness). Record the tally as P-7 over-refusal data; a plan duration near 15 s is a
+finding.
+
 **Browser (manual checklist).** The `tests/e2e/m2_3_browser.py` harness drives a Docker container and cannot run
 against a VM as is. Through a workstation-loopback SSH tunnel (`ssh -L 127.0.0.1:9180:127.0.0.1:9180 guest`),
 with a fresh browser profile in Chromium and Firefox, perform its steps B1–B18 with an independent `systemctl`
@@ -117,7 +124,7 @@ separately and count neither for nor against normal SELinux acceptance.
    HC_WEBMIN_SRC=/opt/hc/webmin HC_SMOKE_SCOPES=system.read,services.read,services.logs,hardware.read \
      /opt/hc/tests/systemd-smoke.sh /opt/hc/pkg.$HC_PKG_KIND 2>&1 | tee /root/m2-3-phase-b.log
    ```
-   (tested in containers: `docs/evidence/m2/m2-3/review-ae937d8a/phase-b/`). The log prints `wrapper window starts/ends`;
+   (tested in containers: `docs/evidence/m2/m2-3/review-d9946a4a/phase-b/`). The log prints `wrapper window starts/ends`;
    the script moves the original aside, installs the wrapper, restores the original with `os.replace` (same
    inode), runs `restorecon` where SELinux is present, and checks size, mode, owner, SHA-256 and label.
 3. **Identity after:** repeat step 1 into `/root/phase-b-after.txt`; `diff` must be empty (inode, size, mode,

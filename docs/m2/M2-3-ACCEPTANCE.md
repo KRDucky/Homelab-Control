@@ -12,11 +12,12 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
   `../evidence/m2/m2-3/review-ad725d43/README.md`).
 - `ad725d43`: B-1 correction, first attempt (superseded; its container round failed two checks on all four
   distributions, kept in `../evidence/m2/m2-3/review-ad725d43/`).
-- **`ae937d8a6aa918456dfa49968f271acfc33603a4`: current product commit** (B-1 with the own-change overlay,
-  R15–R17). Every commit after it changes only documentation and evidence:
-  `git diff --stat ae937d8a HEAD -- backend frontend schemas packaging cmd tests dev` is empty.
-- Evidence: `../evidence/m2/m2-3/review-ae937d8a/` (containers, browser, Phase B, probes, local gates) and the CI
-  run named in `M2-3-KVM-ACCEPTANCE-PROCEDURE.md`. KVM validation is a separate, not yet authorized step.
+- `ae937d8a`: B-1 with the own-change overlay, R15–R17 (superseded only by the client-deadline fix).
+- **`d9946a4a8e1953eee81ab3f7989d3ce8d151f077`: current product commit** (R18: broker client deadlines; the
+  plan-only disable survey harness). Every commit after it changes only documentation and evidence:
+  `git diff --stat d9946a4a HEAD -- backend frontend schemas packaging cmd tests dev` is empty.
+- Evidence: `../evidence/m2/m2-3/review-d9946a4a/` (containers, browser, Phase B, probes, survey, local gates)
+  and the CI run named in `M2-3-KVM-ACCEPTANCE-PROCEDURE.md`. KVM validation is a separate, not yet authorized step.
 
 "Pass" below means the stated evidence exists and passed; it is not the owner's acceptance.
 
@@ -51,7 +52,7 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
 | Secrets in unit contents | Pass (heuristic, **not a secrecy guarantee**; continuation lines fixed, R6; known gaps in design review §4; O-2) | `TestRedactLine`, `TestParseCat`; container: root-only drop-in reported unreadable, fixture secrets absent from API responses, audit, journal and logs |
 | No mask/unmask, editing, creation, generic daemon-reload, arbitrary commands, new dependencies | Pass | Template snapshot; `go.mod` and `package-lock.json` unchanged; ADR 0006 policy check |
 
-## Validation items (product commit `ae937d8a`, `../evidence/m2/m2-3/review-ae937d8a/`)
+## Validation items (product commit `d9946a4a`, `../evidence/m2/m2-3/review-d9946a4a/`)
 | Item | Result |
 |---|---|
 | M2-2 regression | M2-2 real-systemd scenario with `HC_M2_LONG=1` 89/0 on Ubuntu 26.04, 24.04, 22.04 and Fedora 44; Go and Vitest suites pass; CI browser suites incl. `service-ops-ui.mjs` 298/0 locally (Chromium, Firefox) |
@@ -59,12 +60,12 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
 | Interruption recovery | Broker SIGKILL before and after `systemctl` ran: 20/0 on all four (inside the full run) and 20/0 standalone (Phase B invocation) on Ubuntu 26.04 and Fedora 44; `systemctl` restored with identical inode, size, mode, owner, group and SHA-256; after an interrupted change enable and disable are refused until systemd reloads |
 | Unloaded changes, edits between preview and apply | Container checks 6d on all four; unit tests; reproduction with `82c24a74` |
 | B-1: disable reaching a protected unit at boot | Probe 10 (four versions); container checks 6e on all four (direct, transitive, alias refused with links and states unchanged; anchored allowed; graph change between preview and apply refused; last puller after an own unloaded disable refused); unit tests; reproduction with `63979c1b` |
-| Usability on freshly installed hosts | Probe 9: nothing counted as unloaded after install and `enable --now`; the scenario's ordinary enables and disables succeed on all four |
+| Usability on freshly installed hosts | Probe 9: nothing counted as unloaded after install and `enable --now`; the scenario's ordinary enables and disables succeed on all four; plan-only survey: every enabled unprotected service of the images allowed; measured over-refusal for a sole `network-online.target` puller once a wait-online unit is enabled |
 | Module-disabled enforcement | API, broker, container and browser |
 | Cleanup cannot affect SSH or access services | All cleanup invariants pass on all four (link set, SSH/API/broker enablement, SSH main PID); stand-ins are `homelab-control-hctest-*` fixtures; the workstation is unchanged |
 | Ubuntu and a non-Debian family | Ubuntu 26.04.1, 24.04.5, 22.04.5 (systemd 259, 255, 249) and Fedora 44 (containers; **SELinux disabled**) |
 | Real-backend browser workflow | 18/18 on Ubuntu 26.04 and Fedora 44 (Chromium) |
-| `make check`; Go tests as non-root | exit 0, nothing skipped; uid 1000: 292 tests + 122 subtests, 0 failed |
+| `make check`; Go tests as non-root | exit 0, nothing skipped; uid 1000: 294 tests + 122 subtests, 0 failed |
 | GitHub CI | See the PR and `M2-3-KVM-ACCEPTANCE-PROCEDURE.md` |
 
 ## Open items and limits (for the owner)
