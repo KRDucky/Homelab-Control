@@ -62,7 +62,7 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
 | Secrets in unit contents | Pass (heuristic, **not a secrecy guarantee**; continuation lines fixed, R6; known gaps in design review §4; O-2) | `TestRedactLine`, `TestParseCat`; container: root-only drop-in reported unreadable, fixture secrets absent from API responses, audit, journal and logs |
 | No mask/unmask, editing, creation, generic daemon-reload, arbitrary commands, new dependencies | Pass | Template snapshot; `go.mod` and `package-lock.json` unchanged; ADR 0006 policy check |
 
-## Validation items (product commit `00fb7f2b`, `../evidence/m2/m2-3/review-00fb7f2b/`; rerun on `eb2fc2d4` as noted)
+## Validation items (product commit `00fb7f2b`, `../evidence/m2/m2-3/review-00fb7f2b/`; rerun on `eb2fc2d4` and the final candidate `c0f620de` as noted)
 | Item | Result |
 |---|---|
 | Final candidate `c0f620de` (`review-c0f620de/`) | Five images, long waits: smoke 71/0, M2-2 89/0, M2-3 143–144/0 (incl. `services.files`), broker kill 20/0; browser B1–B20 20/20 on Ubuntu 26.04, 24.04+netplan and Fedora 44; reboot reproduction all refused (S1's own alias enable allowed); enable survey unchanged; probe 12; `make check` exit 0, nothing skipped; Go uid 1000 320 + 159 subtests, 0 failed. First runs with two test-design errors kept |
@@ -77,9 +77,9 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
 | Cleanup cannot affect SSH or access services | All cleanup invariants pass on all four (link set, SSH/API/broker enablement, SSH main PID); stand-ins are `homelab-control-hctest-*` fixtures; the workstation is unchanged |
 | Ubuntu and a non-Debian family | Ubuntu 26.04.1, 24.04.5, 22.04.5 (systemd 259, 255, 249), Ubuntu 24.04 with netplan (like the GitHub runner) and Fedora 44 (containers; **SELinux disabled**) |
 | Runtime unit configuration (B-2) | netplan's entries do not block ordinary enable/disable; relevant runtime masks, drop-ins, shadowing unit files, aliases and runtime-only anchors evaluated or refused (unit tests, container 6f on five images) |
-| Real-backend browser workflow | 18/18 on Ubuntu 26.04 and Fedora 44 (Chromium) |
-| `make check`; Go tests as non-root | exit 0, nothing skipped; uid 1000: 300 tests + 135 subtests, 0 failed |
-| GitHub CI | Run 42008315859 on head `660151b0` (product `eb2fc2d4`; merge ref `f7c6bfca`, tree identical): **21/21 succeeded, attempt 1**; `systemd-ubuntu` (stock runner VM with netplan's runtime entries) M2-3 137/0, M2-2 86/0; `systemd-ubuntu-2604` M2-3 138/0. Previous head `6770ccf0` (run 41991515635): attempt 1 `browser-e2e` `Page.goto` timeout in `theme_cssom_csp.py`, attempt 2 21/21. Earlier: run 41989940804 on `fece3bba` 21/21 |
+| Real-backend browser workflow | Final candidate `c0f620de`: B1–B20 20/20 on Ubuntu 26.04, 24.04+netplan and Fedora 44 (Chromium; incl. `services.files` gating). Earlier `00fb7f2b`: 18/18 on Ubuntu 26.04 and Fedora 44 |
+| `make check`; Go tests as non-root | Final candidate `c0f620de`: exit 0, nothing skipped; uid 1000: 320 tests + 159 subtests, 0 failed (`review-c0f620de/`). Earlier `00fb7f2b`: 300 + 135. Docs-only provenance commit after `40801659`: exit 0 with Go 1.26.10, govulncheck/ShellCheck/REUSE/spdx-tools not installed locally (skipped; CI runs them) |
+| GitHub CI | Run 42026882569 on head `40801659` (product `c0f620de`; merge ref `71fb621c`, tree identical): **21/21 succeeded, attempt 1**; `systemd-ubuntu` (stock runner VM with netplan's runtime entries) M2-3 140/0, M2-2 86/0; `systemd-ubuntu-2604` M2-3 141/0, M2-2 86/0 (`../evidence/m2/m2-3/review-c0f620de/ci/`). Earlier: run 42008315859 on `660151b0` (product `eb2fc2d4`) 21/21; run 41991515635 on `6770ccf0`: attempt 1 `browser-e2e` `Page.goto` timeout in `theme_cssom_csp.py`, attempt 2 21/21; run 41989940804 on `fece3bba` 21/21 |
 
 ## Open items and limits (for the owner)
 - **B-2** addressed in `00fb7f2b` (P-8 option 3 approach approved; implementation for review); see CI below.
