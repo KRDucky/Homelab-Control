@@ -689,14 +689,14 @@ def main():
     for unit, how, extra in ((b1, "direct Wants=", vpn), (b1t, "transitive (via Requires= of a helper)", "hc-test-en-b1mid.service"),
                              (b1a, "through an unprotected alias name", vpn)):
         check(f"B-1 setup: enable {unit}", (200, "succeeded"), product(unit, "enable"))
-        snap, before = links(), b1_state()
+        snap, b1_before = links(), b1_state()
         st, e = eplan(unit, "disable", csrf)
         msg = e.get("message", "")
         print(f"INFO  B-1 {how}: {st} {msg[:260]}")
         check(f"B-1 refused: disabling {unit} would stop the protected stand-in at boot ({how})", (403, True, True),
               (st, "started at boot only through it" in msg, extra in msg))
         check(f"B-1 refusal ({how}): no link changed", [], sorted(snap ^ links()))
-        check(f"B-1 refusal ({how}): boot and runtime states unchanged", before, b1_state())
+        check(f"B-1 refusal ({how}): boot and runtime states unchanged", b1_before, b1_state())
         subprocess.run(["systemctl", "disable", "--", unit], check=True, capture_output=True)
     # Anchored by another enabled unit: allowed. Preview → apply: the other
     # puller goes away in between (harness, with reload) → refused.
