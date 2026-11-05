@@ -31,4 +31,5 @@ contains these results (`m2_3_enablement.py` and `m2_3_browser.py` corrected aft
   12's type-level drop-ins change every unit's `Description`; the applied drop-in is read from `DropInPaths`.
 - Local gates: `make check` exit 0 with govulncheck, ShellCheck, REUSE and spdx-tools present (nothing skipped) —
   `make-check.log` (Vitest 73/73 inside); Go tests as uid 1000 — `go-tests-nonroot.txt`.
-- The final CI run, artifact hashes and merge-ref equivalence are recorded in `M2-3-KVM-ACCEPTANCE-PROCEDURE.md`.
+- Final CI run `42026882569` on head `40801659` (21/21), artifact hashes and merge-ref tree equivalence: `ci/`
+  (copied from the run; raw log outside Git in `.dev/m2-3-logs/ci-42026882569/`) and `M2-3-KVM-ACCEPTANCE-PROCEDURE.md`.
