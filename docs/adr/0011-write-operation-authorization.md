@@ -210,6 +210,9 @@ use are separate decisions. The review of the new write against every element of
 - **Review from disk** (PR #36 review): the fragment, `<id>.d` drop-ins and every link naming the unit are read
   from disk, as `systemctl` does; a mismatch with systemd's loaded view, or a link `[Install]` does not
   describe, is refused.
+- **Runtime unit configuration** (B-2, owner-approved approach P-8 option 3): never assumed to exist at the next
+  boot; evaluated only for units the review reaches (runtime-only relations anchor nothing; runtime masks,
+  shadowing unit files and aliases on reached units refused; safety settings re-derived from persistent files).
 - **Unloaded changes** (second review round): enable fails closed while unit files changed after systemd's
   last load (its boot-time checks use the loaded graph); own journaled changes are excused; disable checks
   `Requisite=` in unit files on disk. A fixed, target-less root template reads the manager's load timestamps.

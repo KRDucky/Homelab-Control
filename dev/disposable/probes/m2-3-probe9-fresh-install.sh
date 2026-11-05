@@ -17,7 +17,8 @@ gate() {
   # The broker's rule (loadgate.go): the earliest of the generator directory's
   # change time and (systemd >= 255) UnitsLoadTimestamp, or the boot stamp
   # before any reload; no margin. /run/systemd/system{,.attached} are not
-  # scanned by change time: any entry there refuses enable instead.
+  # scanned by change time; their entries are listed for information (since
+  # B-2 they are evaluated only where the review reaches them).
   local mono t g
   g=$(stat -c %.9Z /run/systemd/generator 2>/dev/null || stat -c %Z /run/systemd/generator)
   t=$g

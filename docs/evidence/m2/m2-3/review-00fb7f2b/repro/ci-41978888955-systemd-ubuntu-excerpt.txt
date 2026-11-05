@@ -1,0 +1,16 @@
+##[group]Runner Image Provisioner
+Version: 20261021.618
+##[group]Runner Image
+Image: ubuntu-24.04
+Version: 20261025.353.1
+Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261025.353
+== environment
+Ubuntu 24.04.5 LTS; systemd 255 (255.4-1ubuntu8.18); kernel 7.0.0-1017-azure
+m2-service-ops: 86 passed, 0 failed
+INFO  new prefix drop-in with Conflicts= on the protected stand-in: 403 hc-test-en-g.service cannot be enabled here: runtime unit configuration exists in /run/systemd/system/ (netplan-ovs-cleanup.service, systemd-networkd-wait-online.service.d, systemd-networkd.service.wants). It is loaded now but gone at the n
+INFO  fragment edited to Want a unit that conflicts with it: 403 hc-test-en-g.service cannot be enabled here: runtime unit configuration exists in /run/systemd/system/ (netplan-ovs-cleanup.service, systemd-networkd-wait-online.service.d, systemd-networkd.service.wants). It is loaded now but gone at the n
+INFO  dependency edited: 403 hc-test-en-gw.service cannot be enabled here: runtime unit configuration exists in /run/systemd/system/ (netplan-ovs-cleanup.service, systemd-networkd-wait-online.service.d, systemd-networkd.service.wants). It is loaded now but gone at the 
+INFO  protected stand-in's new drop-in conflicts with the unit: 403 hc-test-en-g.service cannot be enabled here: runtime unit configuration exists in /run/systemd/system/ (netplan-ovs-cleanup.service, systemd-networkd-wait-online.service.d, systemd-networkd.service.wants). It is loaded now but gone at the n
+PASS  runtime unit configuration in /run/systemd/system: enable refused ((403, True))
+m2-3-enablement: 72 passed, 54 failed
+systemd-smoke: 69 passed, 1 failed

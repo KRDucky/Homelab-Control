@@ -23,15 +23,12 @@ The owner must authorize, in their own words, after reviewing the safety correct
 Not covered and not to be touched: the retained Ubuntu, Fedora and Arch acceptance VMs, their disks and
 snapshots, `AGENTS.md`, the file-manager worktree, production hosts.
 
-> **Not ready for authorization while blocker B-2 is open** (`OWNER-DECISIONS.md` P-8): on netplan-based
-> Ubuntu hosts the current build refuses every enable and disable (measured on the GitHub runner VM, CI run
-> 41977140563), so Phase A on the Ubuntu guests would fail by design. The artifact fields below stay unfilled
-> until the product revision that resolves B-2 has passed CI; the most recent CI artifacts (run 41977140563,
-> head `b1f4c45a`, merge ref `d8f9fce25991f2c25ad3bb55d9e59b1917751ee1` with a tree identical to the head's) are
-> recorded in `docs/evidence/m2/m2-3/review-d9946a4a/ci/build-artifact-41977140563.sha256` for provenance only.
+> B-2 is addressed in `00fb7f2b` (P-8 option 3; implementation pending owner review). Ubuntu cloud images use
+> netplan: record `/run/systemd/system` (`find /run/systemd/system -printf '%y %p %l\n'`) after the first boot
+> and in the Phase A log; the scenario prints it before section 6f.
 
 ## Inputs (final validated revision)
-- **PR #36 head:** `{{HEAD}}`. **Product commit:** `d9946a4a8e1953eee81ab3f7989d3ce8d151f077` (later commits
+- **PR #36 head:** `{{HEAD}}`. **Product commit:** `00fb7f2b66d62c5fe492ceca3fabb8076890cddb` (later commits
   change only tests, harness or documentation; see `docs/m2/M2-3-ACCEPTANCE.md`, "Revisions").
 - **CI run:** `{{RUN}}` on that head, `{{JOBS}}`. GitHub builds `pull_request` runs from the merge of the head
   into `main` (merge ref `{{MERGE}}`), which is what the package versions name.
@@ -42,7 +39,7 @@ snapshots, `AGENTS.md`, the file-manager worktree, production hosts.
   | `{{DEB}}` | `{{DEBSHA}}` |
   | `{{RPM}}` | `{{RPMSHA}}` |
 
-  Recorded in `docs/evidence/m2/m2-3/review-d9946a4a/ci/build-artifact-{{RUN}}.sha256`. Do not build packages
+  Recorded in `docs/evidence/m2/m2-3/review-00fb7f2b/ci/build-artifact-{{RUN}}.sha256`. Do not build packages
   locally for acceptance. If the artifact has expired, re-run CI for the same head and record the new run and
   hashes (they will differ: builds are not bit-reproducible across runs).
 - **Tests:** `tests/systemd/` and `compat/webmin/` from the PR head.
@@ -131,7 +128,7 @@ separately and count neither for nor against normal SELinux acceptance.
    HC_WEBMIN_SRC=/opt/hc/webmin HC_SMOKE_SCOPES=system.read,services.read,services.logs,hardware.read \
      /opt/hc/tests/systemd-smoke.sh /opt/hc/pkg.$HC_PKG_KIND 2>&1 | tee /root/m2-3-phase-b.log
    ```
-   (tested in containers: `docs/evidence/m2/m2-3/review-d9946a4a/phase-b/`). The log prints `wrapper window starts/ends`;
+   (tested in containers: `docs/evidence/m2/m2-3/review-00fb7f2b/phase-b/`). The log prints `wrapper window starts/ends`;
    the script moves the original aside, installs the wrapper, restores the original with `os.replace` (same
    inode), runs `restorecon` where SELinux is present, and checks size, mode, owner, SHA-256 and label.
 3. **Identity after:** repeat step 1 into `/root/phase-b-after.txt`; `diff` must be empty (inode, size, mode,
