@@ -125,7 +125,7 @@ var systemctlShowProperties = []string{
 	"Id", "Names", "Description", "LoadState", "ActiveState", "SubState", "Result",
 	"UnitFileState", "FragmentPath", "MainPID", "ExecMainStatus", "InvocationID", "Type",
 	"StateChangeTimestamp", "RefuseManualStart", "RefuseManualStop", "CanStart", "CanStop",
-	"OnFailureJobMode", "OnSuccessJobMode", "StopWhenUnneeded",
+	"OnFailureJobMode", "OnSuccessJobMode", "StopWhenUnneeded", "DropInPaths",
 	"Requires", "Requisite", "Wants", "BindsTo", "Upholds", "PartOf",
 	"Conflicts", "ConflictedBy", "RequiredBy", "RequisiteOf", "BoundBy",
 	"ConsistsOf", "PropagatesStopTo", "OnFailure", "OnSuccess", "Triggers",

@@ -28,7 +28,9 @@ import (
 //  1. R: every unit the boot target (default.target, by its canonical ID)
 //     pulls in, transitively, through Requires=, Wants=, BindsTo=, Upholds=
 //     and Triggers= (socket/timer/path activation), with the unit being
-//     disabled removed from the graph (as if it never started);
+//     disabled removed from the graph (as if it never started) — counting
+//     only relations backed by persistent files and links and names that
+//     resolve at boot (B-2: runtime configuration is assumed gone);
 //  2. C: every unit the disabled unit pulls in through the same relations
 //     that is not in R;
 //  3. refused when C contains a protected unit (by its canonical ID or any
@@ -54,13 +56,16 @@ type bootWalk struct {
 	ctx     context.Context
 	env     *Env
 	overlay *linkOverlay
-	exclude map[string]bool      // names of the unit being disabled
-	skip    map[string]bool      // canonical IDs not to enter (R, for the second walk)
-	seen    map[string]bool      // names already resolved
-	units   map[string]UnitProps // canonical ID → unit
-	via     map[string]string    // canonical ID → the unit that pulled it in
-	hidden  []string             // names that cannot be inspected
-	shown   int
+	// persistentOnly: follow only relations backed by persistent files and
+	// links, and only names that resolve at boot (B-2; the anchoring graph R).
+	persistentOnly bool
+	exclude        map[string]bool      // names of the unit being disabled
+	skip           map[string]bool      // canonical IDs not to enter (R, for the second walk)
+	seen           map[string]bool      // names already resolved
+	units          map[string]UnitProps // canonical ID → unit
+	via            map[string]string    // canonical ID → the unit that pulled it in
+	hidden         []string             // names that cannot be inspected
+	shown          int
 }
 
 func newBootWalk(ctx context.Context, env *Env, ov *linkOverlay, exclude []string, skip map[string]bool) *bootWalk {
@@ -109,6 +114,9 @@ func (w *bootWalk) run(start []string, from string) error {
 				if excludedUnit(p, w.exclude) || w.skip[p.ID] {
 					continue
 				}
+				if w.persistentOnly && !bootName(w.env.Roots, batch[min(j, len(batch)-1)], p) {
+					continue // the name or the unit itself exists only until the next boot
+				}
 				if _, done := w.units[p.ID]; done {
 					continue
 				}
@@ -120,7 +128,18 @@ func (w *bootWalk) run(start []string, from string) error {
 				if p.LoadState != "loaded" {
 					continue // not-found or masked: systemd does not start it
 				}
-				for _, n := range w.overlay.pulls(p) {
+				pulled := w.overlay.pulls(p)
+				if w.persistentOnly {
+					names, ok, err := bootPulls(w.env.Roots, p)
+					if err != nil {
+						return denied("the boot dependencies of %s could not be read within bounds", p.ID)
+					}
+					if !ok {
+						continue // its boot-time relations cannot be established: it anchors nothing
+					}
+					pulled = names
+				}
+				for _, n := range pulled {
 					queue = append(queue, item{n, p.ID})
 				}
 			}
@@ -181,6 +200,7 @@ func checkBootPulls(ctx context.Context, env *Env, p UnitProps) ([]string, error
 		return nil, denied("%s cannot be disabled here: Homelab Control's own boot-time changes since systemd last loaded its configuration could not be determined", p.ID)
 	}
 	r := newBootWalk(ctx, env, ov, self, nil)
+	r.persistentOnly = true
 	if err := r.run([]string{root.ID}, ""); err != nil {
 		return nil, err
 	}
@@ -206,6 +226,20 @@ func checkBootPulls(ctx context.Context, env *Env, p UnitProps) ([]string, error
 	sort.Strings(ids)
 	for _, id := range ids {
 		u := c.units[id]
+		// Runtime configuration on a unit p reaches (B-2): its boot-time
+		// relations are unknown when it is masked only until the next boot,
+		// or when a runtime unit file shadows a persistent one.
+		names := append([]string{u.ID}, u.Names...)
+		if u.LoadState == "masked" && !persistentMask(env.Roots, names) {
+			return nil, denied("%s cannot be disabled here: it pulls in %s at boot (%s), which is masked only until the next boot; what %s would start at boot was not evaluated",
+				p.ID, u.ID, c.path(id, p.ID), u.ID)
+		}
+		if u.LoadState == "loaded" && !isPersistentPath(u.FragmentPath) {
+			if exists, mask, _ := persistentEntry(env.Roots, u.ID); exists && !mask {
+				return nil, denied("%s cannot be disabled here: it pulls in %s at boot (%s), which is defined in %s only until the next boot; its persistent unit file was not evaluated",
+					p.ID, u.ID, c.path(id, p.ID), clean(u.FragmentPath, 200))
+			}
+		}
 		if servicepolicy.DangerousTarget(id) {
 			continue // not started at boot through p any more: harmless
 		}

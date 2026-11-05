@@ -50,11 +50,10 @@ var changeScanDirs = []string{
 	"/usr/lib/systemd/system/", "/lib/systemd/system/",
 }
 
-// runtimeUnitDirs hold runtime unit configuration (tmpfs): loaded now but
-// gone at the next boot, so the boot-time effect of an enable cannot be
-// reviewed while any exists. (The directories themselves are created during
-// boot, so their own change times are not used; probe 9.)
-var runtimeUnitDirs = []string{"/run/systemd/system/", "/run/systemd/system.attached/"}
+// Runtime unit configuration (/run/systemd/system{,.attached}) is not judged
+// by change time here (it is created during boot and rewritten by generators
+// at every reload, probe 11); the runtime checks (runtimecfg.go) evaluate it
+// where it matters.
 
 // generatorDir is recreated by PID 1 at the start of every reload, before
 // units are loaded (probe 8b, systemd 249/255/259).
@@ -310,22 +309,6 @@ func unloadedChanges(root Roots, threshold time.Time, own []ownChange, limit int
 // disk after systemd last loaded them, unless every change is Homelab
 // Control's own journaled enablement change.
 func requireLoadedConfiguration(ctx context.Context, env *Env, action, id string) error {
-	for _, d := range runtimeUnitDirs {
-		ents, err := os.ReadDir(env.Roots.Path(strings.TrimSuffix(d, "/")))
-		if err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return denied("%s cannot be %sd here: %s could not be read", id, action, d)
-		}
-		if len(ents) > 0 {
-			var names []string
-			for _, e := range ents {
-				if len(names) < 5 {
-					names = append(names, e.Name())
-				}
-			}
-			return denied("%s cannot be %sd here: runtime unit configuration exists in %s (%s). It is loaded now but gone at the next boot, "+
-				"so the boot-time effect cannot be reviewed. Review the change again after it is removed or after the next boot.", id, action, d, clean(strings.Join(names, ", "), 300))
-		}
-	}
 	m, err := env.enablement().ManagerLoad(ctx, env)
 	if err != nil {
 		return denied("%s cannot be %sd here: when systemd last loaded its unit files could not be determined (%s)", id, action, clean(err.Error(), 160))

@@ -721,6 +721,64 @@ def main():
     subprocess.run(["systemctl", "disable", "--", b1], check=True, capture_output=True)
     check("B-1 fixtures disabled again", ["disabled"] * 4, [is_enabled(u) for u in (b1, b1t, b1a, anchor)])
 
+    # 6f. Runtime unit configuration (B-2, probe 11): runtime entries are not
+    # assumed to exist at the next boot. Unrelated ones (netplan's, on Ubuntu
+    # hosts that use it) must not block anything; relevant ones are evaluated.
+    gw, gdep = "hc-test-en-gw.service", "hc-test-en-gdep.service"
+    runtime_wants = f"/run/systemd/system/multi-user.target.wants/{vpn}"
+    print(f"INFO  /run/systemd/system before 6f: {sorted(os.listdir('/run/systemd/system')) if os.path.isdir('/run/systemd/system') else []}")
+    stepup(csrf)
+    # A protected stand-in started at boot by something else only through a
+    # RUNTIME link: not an anchor (the persistent puller's disable is refused).
+    check("6f setup: enable b1", (200, "succeeded"), product(b1, "enable"))
+    os.makedirs(os.path.dirname(runtime_wants), exist_ok=True)
+    if os.path.lexists(runtime_wants):
+        raise RuntimeError(f"{runtime_wants} exists before the test")
+    os.symlink(f"{ETC}/{vpn}", runtime_wants)
+    harness_reload()
+    snap, b1_before = links(), b1_state()
+    st, e = eplan(b1, "disable", csrf)
+    check("6f runtime-only anchor: disable of the persistent puller refused", (403, True),
+          (st, "started at boot only through it" in e.get("message", "")))
+    check("6f runtime-only anchor: no link or state changed", ([], b1_before), (sorted(snap ^ links()), b1_state()))
+    os.remove(runtime_wants)
+    harness_reload()
+    subprocess.run(["systemctl", "disable", "--", b1], check=True, capture_output=True)
+    # A unit the disabled unit reaches is masked only until the next boot.
+    check("6f setup: enable b1t", (200, "succeeded"), product(b1t, "enable"))
+    subprocess.run(["systemctl", "mask", "--runtime", "--", "hc-test-en-b1mid.service"], check=True, capture_output=True)
+    snap, b1_before = links(), b1_state()
+    st, e = eplan(b1t, "disable", csrf)
+    check("6f runtime mask on a reached unit: disable refused", (403, True),
+          (st, "masked only until the next boot" in e.get("message", "")))
+    check("6f runtime mask: no link or state changed", ([], b1_before), (sorted(snap ^ links()), b1_state()))
+    subprocess.run(["systemctl", "unmask", "--runtime", "--", "hc-test-en-b1mid.service"], check=True, capture_output=True)
+    subprocess.run(["systemctl", "disable", "--", b1t], check=True, capture_output=True)
+    # Enable: a pulled-in unit masked at runtime is refused; a harmless runtime
+    # drop-in on it is evaluated and allowed.
+    subprocess.run(["systemctl", "mask", "--runtime", "--", gdep], check=True, capture_output=True)
+    snap = links()
+    st, e = eplan(gw, "enable", csrf)
+    check("6f enable: pulled-in unit masked at runtime refused", (403, True, []),
+          (st, "masked only until the next boot" in e.get("message", ""), sorted(snap ^ links())))
+    subprocess.run(["systemctl", "unmask", "--runtime", "--", gdep], check=True, capture_output=True)
+    rdrop = f"/run/systemd/system/{gdep}.d"
+    os.makedirs(rdrop, exist_ok=True)
+    CREATED_DIRS.append(rdrop)
+    with open(f"{rdrop}/zz-hctest.conf", "w") as f:
+        f.write("[Service]\nNice=1\n")
+    harness_reload()
+    st, p = eplan(gw, "enable", csrf)
+    check("6f enable: harmless runtime drop-in on a pulled-in unit allowed", 200, st)
+    # Preview → apply: the pulled-in unit is masked at runtime in between.
+    subprocess.run(["systemctl", "mask", "--runtime", "--", gdep], check=True, capture_output=True)
+    st, e = eapply(gw, "enable", p.get("token"), csrf)
+    check("6f runtime mask between preview and apply: refused, still disabled", (403, True, "disabled"),
+          (st, "masked only until the next boot" in e.get("message", "") and "othing was done" in e.get("message", ""), is_enabled(gw)))
+    subprocess.run(["systemctl", "unmask", "--runtime", "--", gdep], check=True, capture_output=True)
+    rmdrop(rdrop)()
+    harness_reload()
+
     # 6c. Long expiry waits (HC_M2_LONG=1): a plan older than 120 s and a step-up
     # older than 5 minutes are refused, and nothing changes.
     if os.environ.get("HC_M2_LONG") == "1":

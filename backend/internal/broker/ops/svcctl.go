@@ -24,15 +24,18 @@ import (
 // UnitProps is the parsed, allow-listed output of `systemctl show` for one
 // unit: identity, state, the safety-relevant properties and dependency lists.
 type UnitProps struct {
-	ID                string
-	Names             []string
-	Description       string
-	LoadState         string
-	ActiveState       string
-	SubState          string
-	Result            string
-	UnitFileState     string
-	FragmentPath      string
+	ID            string
+	Names         []string
+	Description   string
+	LoadState     string
+	ActiveState   string
+	SubState      string
+	Result        string
+	UnitFileState string
+	FragmentPath  string
+	// DropInPaths are the drop-ins systemd has loaded for the unit (B-2:
+	// runtime ones are told apart from persistent ones by their directory).
+	DropInPaths       []string
 	MainPID           int
 	ExecMainStatus    int
 	InvocationID      string
@@ -67,7 +70,7 @@ var scalarProps = []string{
 	"Id", "Names", "Description", "LoadState", "ActiveState", "SubState", "Result",
 	"UnitFileState", "FragmentPath", "MainPID", "ExecMainStatus", "InvocationID", "Type",
 	"StateChangeTimestamp", "RefuseManualStart", "RefuseManualStop", "CanStart", "CanStop",
-	"OnFailureJobMode", "OnSuccessJobMode", "StopWhenUnneeded",
+	"OnFailureJobMode", "OnSuccessJobMode", "StopWhenUnneeded", "DropInPaths",
 }
 
 // showArgs is the fixed argv of the state query (runner.SystemctlShowArgs).
@@ -123,6 +126,12 @@ func ParseShow(b []byte) (UnitProps, error) {
 			p.UnitFileState = state(v)
 		case "FragmentPath":
 			p.FragmentPath = clean(v, 512)
+		case "DropInPaths":
+			for _, d := range strings.Fields(v) {
+				if len(p.DropInPaths) < 64 {
+					p.DropInPaths = append(p.DropInPaths, clean(d, 512))
+				}
+			}
 		case "MainPID":
 			p.MainPID, _ = strconv.Atoi(strings.TrimSpace(v))
 		case "ExecMainStatus":

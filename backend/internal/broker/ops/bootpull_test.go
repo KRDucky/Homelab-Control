@@ -25,8 +25,9 @@ import (
 func disableEnv(t *testing.T, extra ...UnitProps) *eenv {
 	t.Helper()
 	e := newEnablementEnv(t, svc("demo.service", "active"))
+	e.tt = t
 	for _, u := range extra {
-		addUnit(e.fake, u)
+		addUnitFile(t, e, u)
 	}
 	e.files.setLinks("demo.service", true, -1)
 	e.files.state["demo.service"] = "enabled"
@@ -36,14 +37,60 @@ func disableEnv(t *testing.T, extra ...UnitProps) *eenv {
 
 func unit(id string, deps map[string][]string, names ...string) UnitProps {
 	return UnitProps{ID: id, Names: append([]string{id}, names...), LoadState: "loaded", ActiveState: "active",
-		SubState: "running", Deps: deps}
+		SubState: "running", Deps: deps, FragmentPath: "/usr/lib/systemd/system/" + id}
 }
 
+// addUnitFile registers u in the loaded graph and writes its persistent unit
+// file (with its dependencies) and alias links, as a package would.
+func addUnitFile(t *testing.T, e *eenv, u UnitProps) {
+	t.Helper()
+	addUnit(e.fake, u)
+	body := "[Unit]\nDescription=fixture " + u.ID + "\n"
+	for k, l := range u.Deps {
+		if len(l) > 0 && k != "Triggers" {
+			body += k + "=" + strings.Join(l, " ") + "\n"
+		}
+	}
+	writeUnit(t, e.files.root, u.FragmentPath, body)
+	for _, n := range u.Names {
+		if n != u.ID {
+			_ = os.Symlink(u.FragmentPath, filepath.Join(e.files.root, "/usr/lib/systemd/system", n))
+		}
+	}
+}
+
+// pulls adds a dependency to the loaded graph and to the unit's persistent
+// file, then simulates the harness's daemon-reload.
 func pulls(e *eenv, id string, key string, names ...string) {
 	e.fake.mu.Lock()
-	defer e.fake.mu.Unlock()
 	u := e.fake.units[id]
 	u.Deps[key] = append(u.Deps[key], names...)
+	frag := u.FragmentPath
+	e.fake.mu.Unlock()
+	if key != "Triggers" {
+		b, _ := os.ReadFile(filepath.Join(e.files.root, frag))
+		writeUnit(e.tt, e.files.root, frag, string(b)+"[Unit]\n"+key+"="+strings.Join(names, " ")+"\n")
+	}
+	e.files.reload()
+}
+
+// unpull removes all of a unit's dependencies of one kind (loaded graph and
+// persistent file), then simulates the harness's daemon-reload.
+func unpull(e *eenv, id, key string) {
+	e.fake.mu.Lock()
+	u := e.fake.units[id]
+	u.Deps[key] = nil
+	frag := u.FragmentPath
+	e.fake.mu.Unlock()
+	b, _ := os.ReadFile(filepath.Join(e.files.root, frag))
+	var keep []string
+	for _, l := range strings.Split(string(b), "\n") {
+		if !strings.HasPrefix(l, key+"=") {
+			keep = append(keep, l)
+		}
+	}
+	writeUnit(e.tt, e.files.root, frag, strings.Join(keep, "\n"))
+	e.files.reload()
 }
 
 // unchanged asserts that nothing ran and no link or runtime state changed.
@@ -172,9 +219,7 @@ func TestDisableBootPullStalePlan(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e.fake.mu.Lock()
-	e.fake.units["multi-user.target"].Deps["Wants"] = nil
-	e.fake.mu.Unlock()
+	unpull(e, "multi-user.target", "Wants")
 	links := linksUnder(t, e.files.root)
 	_, err = e.eapply(t, withStepUp(e.env, time.Now()), "demo.service", "disable", p.Token)
 	if code(err) != proto.CodePolicyDenied || !strings.Contains(err.Error(), "started at boot only through it") {
@@ -190,9 +235,7 @@ func TestDisableBootPullStalePlan(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e.fake.mu.Lock()
-	e.fake.units["multi-user.target"].Deps["Wants"] = nil
-	e.fake.mu.Unlock()
+	unpull(e, "multi-user.target", "Wants")
 	if _, err = e.eapply(t, withStepUp(e.env, time.Now()), "demo.service", "disable", p.Token); code(err) != proto.CodeConflict {
 		t.Fatalf("apply after a new boot-only unit: %v", err)
 	}
@@ -219,10 +262,15 @@ func TestDisableBootPullStalePlan(t *testing.T) {
 // starts the protected unit. Disabling the last puller must be refused.
 func TestDisableBootPullSeesOwnUnloadedDisables(t *testing.T) {
 	e := newEnablementEnv(t, svc("demo.service", "active"), svc("other.service", "active"))
-	addUnit(e.fake, unit("wg-quick@wg0.service", nil))
+	e.tt = t
+	addUnitFile(t, e, unit("wg-quick@wg0.service", nil))
 	pulls(e, "demo.service", "Wants", "wg-quick@wg0.service")
 	pulls(e, "other.service", "Wants", "wg-quick@wg0.service")
-	pulls(e, "multi-user.target", "Wants", "demo.service", "other.service") // loaded: both enabled
+	// Both are enabled by their [Install] links (persistent); the loaded
+	// multi-user.target shows them too.
+	e.fake.mu.Lock()
+	e.fake.units["multi-user.target"].Deps["Wants"] = []string{"demo.service", "other.service"}
+	e.fake.mu.Unlock()
 	for _, u := range []string{"demo.service", "other.service"} {
 		e.files.setLinks(u, true, -1)
 		e.files.state[u] = "enabled"

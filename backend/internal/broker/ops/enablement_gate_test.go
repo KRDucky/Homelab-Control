@@ -293,22 +293,6 @@ func TestLoadThreshold(t *testing.T) {
 	}
 }
 
-// Runtime unit configuration (gone at the next boot) blocks enable.
-func TestEnableRefusedWithRuntimeConfiguration(t *testing.T) {
-	e := newEnablementEnv(t)
-	writeUnit(t, e.files.root, "/run/systemd/system/other.service.d/x.conf", "[Unit]\nDescription=x\n")
-	e.files.reload()
-	if _, err := e.eplan(t, "demo.service", "enable"); code(err) != proto.CodePolicyDenied || !strings.Contains(err.Error(), "runtime unit configuration") {
-		t.Fatalf("runtime configuration: %v", err)
-	}
-	// An empty runtime directory (created during boot) does not.
-	_ = os.RemoveAll(filepath.Join(e.files.root, "/run/systemd/system/other.service.d"))
-	e.files.reload()
-	if _, err := e.eplan(t, "demo.service", "enable"); err != nil {
-		t.Fatalf("empty runtime dir: %v", err)
-	}
-}
-
 // Links systemctl created beyond the plan are recorded but never excused.
 func TestEnableGateDoesNotExcuseUnexpectedLinks(t *testing.T) {
 	e := newEnablementEnv(t, svc("demo.service", "inactive"), svc("two.service", "inactive"))
