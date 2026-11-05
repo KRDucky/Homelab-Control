@@ -197,6 +197,12 @@ or a socket, timer or path unit, also starts it, the disable is allowed, and the
 will no longer start at boot. A disable is also refused if a protected unit's files declare `Requisite=` on
 the service.
 
+**Runtime configuration** (files under `/run/systemd/system`, for example netplan's on Ubuntu) is not assumed
+to be there after a reboot. It does not block anything unless it concerns a unit the review evaluates: then a
+unit masked only until the next boot, a runtime unit file that replaces a persistent one, or a runtime alias is
+refused with an explanation, and a protected unit that only runtime configuration starts at boot does not
+count as started by something else.
+
 ### Unit details, timers and sockets
 - **Details** (any unit, `services.read`): the canonical name and aliases, state, the setting at boot,
   the unit file and drop-ins, the service type, automatic restarts since the manager started, the last

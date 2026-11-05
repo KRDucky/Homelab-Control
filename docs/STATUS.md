@@ -13,7 +13,7 @@ The owner authorized M2-3 development and isolated testing on 2026-11-04; accept
 activation remain separate owner decisions (`docs/m2/OWNER-DECISIONS.md`, owner items O-1…O-5).
 
 - **On the branch `feature/m2-3-expanded-service-management`** (draft PR #36; current product commit
-  `d9946a4a`, after three review rounds; findings R1–R18 in `docs/m2/M2-3-DESIGN-REVIEW.md` §7–§9):
+  `00fb7f2b`, after four review rounds; findings R1–R19 in `docs/m2/M2-3-DESIGN-REVIEW.md` §7–§9):
   boot-time enable/disable of `.service` units (scope `services.configure`, never granted by default;
   `--no-reload`, never `--now`; disruptive with step-up; ADR 0011 plan/apply with separate tokens, locks, root
   revalidation from disk, journal and independent read-back; both actions refused while unit files changed
@@ -26,10 +26,10 @@ activation remain separate owner decisions (`docs/m2/OWNER-DECISIONS.md`, owner 
   containers (not VMs; SELinux disabled) with Ubuntu 26.04.1, 24.04.5, 22.04.5 and Fedora 44: smoke/M1 71/0,
   M2-2 with expiry waits 89/0, M2-3 with expiry waits 129–130/0, broker kill 20/0 each, browser 18/18 on
   Ubuntu 26.04 and Fedora 44. `make check` exit 0. No VM, SELinux-enforcing, Debian, openSUSE or Arch evidence;
-  GitHub CI on head `b1f4c45a`: 20/21; `systemd-ubuntu` (runner VM) fails — **blocker B-2**: netplan's runtime
-  unit configuration makes every enable/disable refused (P-8 options for the owner). KVM procedure prepared, not
-  ready for authorization while B-2 is open. Proposals P-1…P-6 and P-8 await owner approval (not decisions);
-  D-10 open.
+  B-2 (netplan's runtime unit configuration refused every enable/disable on the GitHub runner VM) addressed in
+  product commit `00fb7f2b` with the owner-approved approach P-8 option 3 (implementation for review); evidence
+  `docs/evidence/m2/m2-3/review-00fb7f2b/`. Proposals P-1…P-6 await owner approval (not decisions); P-7
+  objective and P-8 approach approved, implementations for review; D-10 open.
 - **Still not authorized:** M2-4 and later; mask/unmask, unit editing or creation, daemon-reload, other privileged
   writes. M2-5 and M2-6 remain mandatory before M3.
 

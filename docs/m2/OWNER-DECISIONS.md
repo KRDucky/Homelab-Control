@@ -250,9 +250,15 @@ effect. Evidence: `M2-3-DESIGN-REVIEW.md` §1, §1.1, §1.2, §7, §8.
 | P-6 (new) | Enable fails closed while unit files changed after systemd's last load, or while runtime unit configuration exists (§8) | Yes | Keep | The only safe alternative found is to reload (excluded) or to rebuild the boot graph from disk (not feasible here) |
 | P-7 (B-1) | Disable refuses when the affected boot dependency relationships reach a protected unit | Yes, since `ad725d43`/`ae937d8a` (implementation pending owner review) | **Safety objective approved by the owner, 2026-11-05** (below); the implementation is not approved by it | — |
 
-| P-8 (B-2, new) | How to treat runtime unit configuration in `/run/systemd/system` | Refuses enable and disable whenever any exists (unusable on netplan-based Ubuntu hosts, measured in CI) | — | — |
+| P-8 (B-2) | How to treat runtime unit configuration in `/run/systemd/system` | Option 3 since `00fb7f2b` (implementation pending owner review) | **Approach (option 3) approved by the owner, 2026-11-05** (below); the implementation is not approved by it | — |
 
-**P-8 options (B-2; for the owner, not decided).** Measured on the GitHub Ubuntu 24.04 runner VM: netplan's
+**P-8 owner decision (2026-11-05), verbatim:** "I approve investigating and implementing P-8 option 3: replace the
+blanket /run/systemd/system refusal with narrowly scoped, fail-closed checks. This approves the approach, not
+acceptance of the implementation. Preserve P-7's protected-access safety objective."
+Implemented in `00fb7f2b` (`M2-3-DESIGN-REVIEW.md` §1.4, §3.4, §10, including the review of what the relevance
+calculation can miss). Acceptance of the implementation remains the owner's.
+
+**P-8 options as presented before the decision (B-2).** Measured on the GitHub Ubuntu 24.04 runner VM: netplan's
 entries in `/run/systemd/system` make every enable and disable refused. Options:
 1. *Keep refusing* (current): fail closed; the feature is unusable on netplan-based Ubuntu hosts.
 2. *Exclude `/run/systemd/system{,.attached}` like the generator directories*: usable; residual — manual

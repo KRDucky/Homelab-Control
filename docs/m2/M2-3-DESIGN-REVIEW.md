@@ -100,6 +100,20 @@ disables (direct, transitive, alias) were **accepted** (200), and when the other
 preview and apply the unit was **disabled**; the disable-side change gate was absent (6 checks failed as
 expected).
 
+### 1.4 Probe 11: netplan's runtime unit configuration (B-2; Ubuntu 24.04, systemd 255.4, netplan.io 1.1.2)
+`docs/evidence/m2/m2-3/probes/probe11-netplan-runtime-ubuntu-2404-netplan.out`, disposable image
+`dev/disposable/images/ubuntu-2404-netplan.Dockerfile` (like the GitHub `ubuntu-24.04` runner image 20261025.353:
+netplan with the networkd renderer and a cloud-init style `/etc/netplan/50-cloud-init.yaml`; its own network
+namespace, the workstation's networking untouched). netplan's systemd generator writes, at boot **and at every
+reload** (after `UnitsLoadTimestamp`, during the generator phase):
+- the runtime unit `/run/systemd/system/netplan-ovs-cleanup.service` (`UnitFileState=enabled-runtime`),
+- its link `/run/systemd/system/systemd-networkd.service.wants/netplan-ovs-cleanup.service`,
+- the drop-in `/run/systemd/system/systemd-networkd-wait-online.service.d/10-netplan.conf` (a condition and an
+  `ExecStart=` override; no dependency or safety-relevant setting).
+These are exactly the three entries the CI runner reported. Through the product, `d9946a4a` in this image fails
+like CI (`m2-3-enablement: 72 passed, 54 failed`; `docs/evidence/m2/m2-3/review-00fb7f2b/repro/`). Because the
+entries are rewritten at every reload, judging runtime configuration by change time cannot work either.
+
 ## 2. New operations (ADR 0008 registry)
 | Op | Scope | Privilege | Args | Notes |
 |---|---|---|---|---|
@@ -188,6 +202,24 @@ Accepted only when all hold (checked at plan **and** again at apply with root re
   never add such dependencies), and they change no unit's settings; links systemctl created beyond the plan
   and interrupted operations are never excused. Limit: separately reviewed own changes are not re-evaluated
   together. If the threshold cannot be read, enable is refused. Bounded: 100,000 entries, depth 8;
+- **runtime unit configuration** (B-2, §1.4; owner-approved approach P-8 option 3): nothing under `/run` (runtime
+  unit files, drop-ins, `.wants`/`.requires`/`.upholds` links, aliases, masks, generator output, transient
+  units, `system.control`) is assumed to exist at the next boot, and only configuration of units the review
+  reaches is evaluated — unrelated runtime entries do not matter:
+  - *disable:* the anchoring graph R (below) counts only relations backed by persistent unit files and
+    drop-ins (`Requires=`/`Wants=`/`BindsTo=`/`Upholds=`), persistent links, activation by persistent
+    socket/timer/path units, and names that resolve at boot (a persistent alias link or unit file); a unit
+    whose fragment is runtime, or whose persistent files are uncertain (specifiers, resets, unreadable),
+    anchors nothing. Units the disabled unit reaches that are masked only until the next boot, or whose runtime
+    unit file shadows a persistent one, are refused (their boot-time relations are unknown);
+  - *enable:* every unit the start walk evaluated must not be masked only until the next boot, have a runtime
+    unit file shadowing a persistent one, or be reached through a runtime alias over a persistent unit name;
+    for units with runtime drop-ins the safety-relevant settings (`FailureAction=`, `SuccessAction=`,
+    `StartLimitAction=`, `JobTimeoutAction=`, `OnFailureJobMode=`, `OnSuccessJobMode=`) are re-derived from the
+    persistent files and must be safe; a unit masked only until the next boot whose persistent file has
+    `Conflicts=` with an evaluated unit is refused;
+  - bounds: 4,096 top-level runtime entries, 1,024 entries per link directory, 64 KiB per file; beyond them, or
+    on unreadable files where it matters, the operation is refused;
 - **disable only — no protected unit started at boot only through it** (B-1, §1.3; safety objective approved
   by the owner 2026-11-05): the broker walks the loaded graph from `default.target` (resolved to its canonical
   ID) through `Requires=`, `Wants=`, `BindsTo=`, `Upholds=` and `Triggers=` (socket, timer and path
@@ -408,6 +440,38 @@ using systemd's loaded state) permit enabling a unit whose eventual activation a
 
 No daemon-reload was added and the protected-unit policy is unchanged. Each new check was removed once to
 confirm that a test fails (including excusing every change inside an own operation's window).
+
+## 10. B-2: runtime unit configuration (2026-11-05)
+Root cause: the rule "any runtime unit configuration refuses" (R14, `63979c1b`) assumed runtime configuration is
+gone at the next boot and could not be evaluated; on netplan-based Ubuntu hosts netplan's generator always
+writes some (§1.4), so every enable and disable was refused. The owner approved P-8 option 3 (narrowly scoped,
+fail-closed evaluation; verbatim in `OWNER-DECISIONS.md`). Corrected in product commit `00fb7f2b` (§3.4):
+
+| # | Finding | Correction | Tests |
+|---|---|---|---|
+| R19 | Blanket refusal on any `/run/systemd/system` entry (netplan hosts unusable) | Runtime configuration evaluated only for reached units; runtime-only relations never anchor; runtime masks/shadowing/aliases on reached units refused; safety settings re-derived from persistent files | `TestNetplanRuntimeEntriesDoNotBlockOrdinaryChanges` (netplan's exact entries), `TestEnableRuntimeConfigurationOfEvaluatedUnits`, `TestEnableRuntimeMaskedConflict`, `TestDisableRuntimeAnchorsDoNotCount` (runtime link, drop-in, alias, runtime unit, unreadable and uncertain anchors refused; persistent anchor allowed), `TestDisableRuntimeConfigurationOfReachedUnits`, `TestRuntimeChangeBetweenPreviewAndApply`, `TestRuntimeEvaluationBounds`; all B-1 tests rebuilt on persistent fixtures; container checks 6f on five images incl. `ubuntu-2404-netplan`; the stock CI runner |
+
+Each new check was removed once and a test failed (R using the loaded graph; no boot-name check; no enable
+runtime check; no runtime-mask check on reached units; no persistent safety-setting check; uncertain files
+anchoring; no link-directory bound; no shadowing check; no runtime-mask conflict check).
+
+**Can the relevance calculation miss relationships? (review; limits, not a boot simulation)**
+- The enable start walk descends only into units that are not running; runtime configuration on the
+  dependencies of currently running units is not examined (as for all of the walk, their state at boot is
+  assumed to be like now).
+- Runtime-only relations are assumed absent at boot, including generator output and netplan's entries, which
+  in practice are recreated: this can only cause refusals (a protected unit anchored only through generated or
+  runtime configuration is treated as not started), never permit one.
+- Implicit dependencies that are not written in files (default dependencies, `Type=dbus` → `dbus.socket`,
+  mount and slice dependencies) do not count as anchors: more refusals only.
+- Runtime drop-ins: only the emergency actions and trigger job modes are re-derived; other overridden settings
+  (`Exec*=`, conditions, `Restart=`, `StopWhenUnneeded=`) are not, as they do not start or stop other units at
+  boot in this model.
+- Runtime masks: only the masked unit's persistent primary file's `Conflicts=` is compared with the evaluated
+  units; what a runtime-masked unit would itself start at boot is not attributed to the change (it happens at
+  boot regardless of it).
+- D-Bus activation, unit conditions, the kernel command line (`systemd.unit=`), and a runtime unit directory
+  changed after the review between apply's revalidation and the template (milliseconds) are not modelled.
 
 ## 9. B-1: disable reaching a protected unit at boot (2026-11-05)
 

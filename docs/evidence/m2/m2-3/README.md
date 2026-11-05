@@ -24,7 +24,12 @@ scenario also checks this itself).
 - **Packages** built locally from clean trees (`make deb`, `make rpm`; binaries with the workstation's Go 1.27.3,
   not the pinned toolchain); hashes in `containers/5a14c727/packages.sha256`.
 
-## Third review round, final: product commit `d9946a4a` (current)
+## Fourth review round: product commit `00fb7f2b` (current; B-2)
+See `review-00fb7f2b/README.md`: B-2 reproduced in a netplan image representative of the GitHub runner; five
+images (including the netplan one) with expiry waits and a real broker kill, all exit 0; browser, Phase B,
+fresh-install probe, survey, local gates.
+
+## Third review round, final: product commit `d9946a4a` (superseded by `00fb7f2b`)
 See `review-d9946a4a/README.md`: four distributions with expiry waits and a real broker kill (all exit 0),
 unloaded-change and B-1 checks, standalone Phase B, fresh-install probe, plan-only disable survey, browser,
 local gates.
