@@ -247,10 +247,47 @@ effect. Evidence: `M2-3-DESIGN-REVIEW.md` §1, §1.1, §1.2, §7, §8.
 | P-3 (O-3) | Password confirmation (step-up) for every boot-time change (`disruptive`) | Yes | Keep | Re-class as `reversible`; a stolen session could change boot settings without the password |
 | P-4 (O-4) | `--no-reload`, with the measured semantics below | Yes | Keep | Adding a reload is excluded by the M2-3 instruction; it would need its own authorization |
 | P-5 (O-5) | Explicit refusal of unsupported constructs | Yes | Keep the list; extensions reviewed separately | Name constructs to support; each needs its own review |
-| P-6 (new) | Enable fails closed while unit files changed after systemd's last load, or while runtime unit configuration exists (§8) | Yes | Keep | The only safe alternative found is to reload (excluded) or to rebuild the boot graph from disk (not feasible here) |
+| P-6 (new) | Enable (and, since `ad725d43`, disable) fails closed while unit files changed after systemd's last load (§8). Its former second half — refusal whenever runtime unit configuration exists — was replaced under P-8 in `00fb7f2b` | Yes | Keep | The only safe alternative found is to reload (excluded) or to rebuild the boot graph from disk (not feasible here) |
 | P-7 (B-1) | Disable refuses when the affected boot dependency relationships reach a protected unit | Yes, since `ad725d43`/`ae937d8a` (implementation pending owner review) | **Safety objective approved by the owner, 2026-11-05** (below); the implementation is not approved by it | — |
-
 | P-8 (B-2) | How to treat runtime unit configuration in `/run/systemd/system` | Option 3 since `00fb7f2b` (implementation pending owner review) | **Approach (option 3) approved by the owner, 2026-11-05** (below); the implementation is not approved by it | — |
+| P-9 (new, final review) | Enable is judged against the **next boot**, not against what is running now (boot mode; `M2-3-DESIGN-REVIEW.md` §11) | Yes, since `f8d3af2e` (correction for owner review) | Keep | Revert to the M2-2 start walk: enabling can then break a protected unit at the next boot (reproduced) |
+
+### Consolidated decision table (2026-11-05) — PROPOSALS, NOT DECISIONS
+Status of the branch: product `f8d3af2e`. "Approval needed" is what the owner would decide; nothing below is
+decided unless quoted verbatim as an owner decision.
+
+| ID | Recommendation | Trade-off | Implementation status | Approval needed |
+|---|---|---|---|---|
+| D-10 | Close D-10 with P-1's mechanism (built-in modules; root-owned file) | No UI/API toggle; root and a restart to change | Implemented as proposed | Owner decision: close D-10 (or choose another mechanism) |
+| P-1 | Approve root-owned `/etc/homelab-control/modules.json`, read by both processes at start | Invalid file disables all optional modules; changes need root + restart | Implemented | Approve the mechanism |
+| P-2 | Approve a separate `services.files` permission for unit-file contents (scope below) | One more permission to grant; downgrade needs the scope removed first | **Not implemented** (contents need `services.logs`) | Approve the scope so it can be implemented, or keep `services.logs` |
+| P-3 | Keep step-up for every boot-time change | Password at most every 5 minutes | Implemented | Approve the `disruptive` risk class |
+| P-4 | Keep `--no-reload`; document "on disk now, effective at the next reload or boot" | Host `systemctl status` shows the old setting until then; any later reload applies it | Implemented | Approve the semantics |
+| P-5 | Keep refusing unsupported constructs | Static, template, socket/timer-enabled, `RequiredBy=`/`Also=` units cannot be managed | Implemented | Approve the list |
+| P-6 | Keep the change gate for both actions | After an unreloaded edit or an interrupted operation, both actions wait for a reload or boot | Implemented | Approve |
+| P-7 | Accept the boot-pull implementation (with R21/R22 of §11) | Over-refuses when the unit is the only persistent puller of a protected unit started otherwise (e.g. generated or runtime relations) | Objective approved 2026-11-05; implementation pending | Accept the implementation |
+| P-8 | Accept option 3 as implemented (with R21/R22) | Residual unmodelled boot sources (§10, §11) | Approach approved 2026-11-05; implementation pending | Accept the implementation |
+| P-9 | Accept the enable boot mode | More refusals than the M2-2 start model (running dependencies, socket activation, conflicts with stopped boot units are now checked) | Implemented (`f8d3af2e`) | Accept the correction |
+| KVM A | Authorize Phase A on new, retained guests (`M2-3-KVM-ACCEPTANCE-PROCEDURE.md`) | VM time; no guest deletion assumed | Procedure ready; provenance from the final CI | Authorize Phase A |
+| KVM B | Authorize Phase B (broker interruption, SELinux denials review) separately, after Phase A | Deliberate broker kills on the guests | Procedure ready | Authorize separately |
+
+**P-2 exact scope (prepared for approval; not implemented).** A new permission `services.files` —
+"read unit file and drop-in contents" — required instead of `services.logs` by exactly one route and one broker
+operation: `GET /api/v1/services/units/{unit}/contents` (`backend/internal/api/server.go`) and
+`services.unit.contents` (`backend/internal/broker/ops/ops.go`; the broker checks the scope itself). Never in
+`DefaultScopes`, not implied by `services.logs`, `services.read` or any other scope. Changes: `auth.KnownScopes`
+and the scope constant; the route and op registry entries; the OpenAPI scope enum and `x-required-scope`; the
+Services module's scope list (`internal/modules`); the UI's unit-file gating and its explanation
+(`UnitDetailPanel.tsx`); the scope catalogue (`docs/project/03-SECURITY-AND-OPERATIONS.md`), user guide and threat
+model; tests (guard route/OpenAPI scope consistency, broker scope refusal, API 403, browser checks, scenario
+grants). Unchanged: unprivileged `systemctl cat` as the service account, root-only files never shown, heuristic
+redaction, limits, audit-before-release. No new privileged operation or template.
+*Compatibility:* the contents route exists only on this unmerged branch (not on `main`, not in
+`v0.1.0-dev.1`), so no released client or account changes. On a host running the branch, an account with
+`services.logs` keeps journal logs but loses unit-file contents until granted `services.files`
+(`hlctl user scopes`). A users file containing `services.files` is rejected by builds that do not know it, and
+`hc-api` then does not start (`users file: … unknown scope`) — the same already applies to `services.configure`;
+remove the scope before a downgrade.
 
 **P-8 owner decision (2026-11-05), verbatim:** "I approve investigating and implementing P-8 option 3: replace the
 blanket /run/systemd/system refusal with narrowly scoped, fail-closed checks. This approves the approach, not

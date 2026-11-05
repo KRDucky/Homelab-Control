@@ -199,9 +199,17 @@ the service.
 
 **Runtime configuration** (files under `/run/systemd/system`, for example netplan's on Ubuntu) is not assumed
 to be there after a reboot. It does not block anything unless it concerns a unit the review evaluates: then a
-unit masked only until the next boot, a runtime unit file that replaces a persistent one, or a runtime alias is
-refused with an explanation, and a protected unit that only runtime configuration starts at boot does not
-count as started by something else.
+unit masked only until the next boot, a runtime unit file that replaces a persistent one, a runtime alias, or
+a runtime drop-in that hides a persistent drop-in of the same name is refused with an explanation, and a
+protected unit that only runtime configuration starts at boot does not count as started by something else.
+
+**What runs now does not count for the next boot.** *Enable at boot* is judged against the next boot, not
+against what is running at the moment: a dependency that runs now (for example because someone started it by
+hand) is checked like one that does not, socket, timer and path units the service pulls in are followed to
+the services they activate, and a conflict with a unit that is stopped now but starts at boot (or with a unit
+the service itself starts) is checked as if that unit were running. The review therefore lists units that
+"also start at boot" even if they are already running, and refuses more often than *Start* does for the same
+service.
 
 ### Unit details, timers and sockets
 - **Details** (any unit, `services.read`): the canonical name and aliases, state, the setting at boot,

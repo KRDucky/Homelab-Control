@@ -212,7 +212,11 @@ use are separate decisions. The review of the new write against every element of
   describe, is refused.
 - **Runtime unit configuration** (B-2, owner-approved approach P-8 option 3): never assumed to exist at the next
   boot; evaluated only for units the review reaches (runtime-only relations anchor nothing; runtime masks,
-  shadowing unit files and aliases on reached units refused; safety settings re-derived from persistent files).
+  shadowing unit files, aliases and same-name drop-ins hiding persistent ones on reached units refused; safety
+  settings re-derived from persistent files).
+- **Next boot, not the current state** (final review, `f8d3af2e`): the enable review's start walk is not pruned
+  by what is running now, follows `Triggers=` and stop-checks every conflict that may run at the next boot;
+  M2-2's start/stop/restart model (a change *now*) is unchanged.
 - **Unloaded changes** (second review round): enable fails closed while unit files changed after systemd's
   last load (its boot-time checks use the loaded graph); own journaled changes are excused; disable checks
   `Requisite=` in unit files on disk. A fixed, target-less root template reads the manager's load timestamps.
