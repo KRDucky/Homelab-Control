@@ -739,3 +739,90 @@ export function previewHostSettings(
 ): Promise<HostSettingsPreview> {
   return postJSON<HostSettingsPreview>('/api/v1/host/settings/preview', csrf, req);
 }
+
+// M2-5 Stage A: application-owned manual drive-bay layout. Every assignment is
+// the administrator's statement (manual, unverified); nothing touches the host.
+export type ChassisKind = 'server' | 'shelf' | 'external' | 'desktop';
+export type CellKind =
+  'hdd-3.5' | 'ssd-2.5' | 'nvme-m2' | 'nvme-u2' | 'tray' | 'empty' | 'disabled' | 'reserved';
+export interface LayoutAssignment {
+  identity: string;
+  provenance: 'manual';
+  confidence: 'unverified';
+  assigned_by: string;
+  assigned_at: string;
+}
+export interface LayoutCell {
+  row: number;
+  col: number;
+  kind: CellKind;
+  label: string;
+  assignment?: LayoutAssignment;
+}
+export interface Chassis {
+  id: number;
+  name: string;
+  kind: ChassisKind;
+  rows: number;
+  cols: number;
+  created_at: string;
+  updated_at: string;
+  cells: LayoutCell[];
+}
+export interface ChassisSpec {
+  name: string;
+  kind: ChassisKind;
+  rows: number;
+  cols: number;
+  cells?: { row: number; col: number; kind: CellKind; label: string }[];
+}
+export interface DriveLayout {
+  chassis: Chassis[];
+}
+
+function sendJSON<T>(
+  method: 'POST' | 'PUT' | 'DELETE',
+  path: string,
+  csrf: string,
+  body?: unknown,
+): Promise<T> {
+  if (body === undefined) return request<T>(path, { method, headers: { 'X-CSRF-Token': csrf } });
+  return request<T>(path, {
+    method,
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+    body: JSON.stringify(body),
+  });
+}
+const layoutBase = '/api/v1/storage/layout';
+const bayPath = (id: number, row: number, col: number) =>
+  `${layoutBase}/chassis/${id}/bays/${row}/${col}/assignment`;
+
+// A malformed answer is an error for this panel only; the Storage page stays usable.
+async function checkedLayout(p: Promise<DriveLayout>): Promise<DriveLayout> {
+  const layout = await p;
+  if (!layout || !Array.isArray(layout.chassis)) throw new Error('invalid drive-bay layout response');
+  return layout;
+}
+// Like getStorage: the layout holds stored serial/WWN identities, so each read
+// is audited and requires the session CSRF token.
+export function getLayout(csrf: string): Promise<DriveLayout> {
+  return checkedLayout(request<DriveLayout>(layoutBase, { headers: { 'X-CSRF-Token': csrf } }));
+}
+export function createChassis(spec: ChassisSpec, csrf: string): Promise<DriveLayout> {
+  return checkedLayout(sendJSON<DriveLayout>('POST', `${layoutBase}/chassis`, csrf, spec));
+}
+export function updateChassis(id: number, spec: ChassisSpec, csrf: string): Promise<DriveLayout> {
+  return checkedLayout(sendJSON<DriveLayout>('PUT', `${layoutBase}/chassis/${id}`, csrf, spec));
+}
+export function deleteChassis(id: number, csrf: string): Promise<DriveLayout> {
+  return checkedLayout(sendJSON<DriveLayout>('DELETE', `${layoutBase}/chassis/${id}`, csrf));
+}
+/** The drive is named only by its persistent identity, never a kernel name. */
+export function assignBay(id: number, row: number, col: number, persistentID: string, csrf: string) {
+  return checkedLayout(
+    sendJSON<DriveLayout>('PUT', bayPath(id, row, col), csrf, { persistent_id: persistentID }),
+  );
+}
+export function unassignBay(id: number, row: number, col: number, csrf: string) {
+  return checkedLayout(sendJSON<DriveLayout>('DELETE', bayPath(id, row, col), csrf));
+}
