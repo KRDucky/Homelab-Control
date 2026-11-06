@@ -9,7 +9,7 @@ info:
   description: >
     Versioned management API. M0 exposes authentication and a read-only host overview only.
     All non-GET requests require an Origin header matching the server and the session's
-    X-CSRF-Token. Every endpoint except /health and /auth/login requires a session cookie.
+    X-CSRF-Token. Every endpoint except /health, /auth/login and /auth/oidc* requires a session cookie.
 servers:
   - url: /api/v1
 components:
@@ -725,6 +725,30 @@ paths:
         '403': { description: Origin rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '415': { description: Not JSON, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '429': { description: Throttled, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /auth/oidc:
+    get:
+      summary: Whether single sign-on (one administrator-configured OIDC provider) is enabled
+      security: []
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, required: [enabled], properties: { enabled: { type: boolean } } } } } }
+  /auth/oidc/start:
+    get:
+      summary: 'Begin single sign-on: sets a browser-binding cookie (HttpOnly, SameSite=Lax) and redirects to the provider (authorization code + PKCE S256, state, nonce)'
+      security: []
+      responses:
+        '303': { description: 'Redirect to the provider, or to /?login=sso_failed when the provider is unavailable' }
+        '404': { description: Single sign-on is not configured, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /auth/oidc/callback:
+    get:
+      summary: 'Provider redirect target. Verifies the one-use state, browser binding, code exchange and ID token, then issues the ordinary session of the explicitly bound local account. Never grants a password step-up.'
+      security: []
+      parameters:
+        - { name: state, in: query, schema: { type: string, maxLength: 256 } }
+        - { name: code, in: query, schema: { type: string, maxLength: 4096 } }
+        - { name: error, in: query, schema: { type: string }, description: Provider error; not logged or reflected }
+      responses:
+        '303': { description: 'Redirect to / with the session cookie set, or to /?login=sso_failed (fixed targets; no caller-supplied return URL)' }
+        '404': { description: Single sign-on is not configured, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /auth/logout:
     post:
       summary: Destroy the current session

@@ -49,7 +49,25 @@ users_before=$(sha256sum /etc/homelab-control/users.json | cut -d' ' -f1)
 check "old: no state directory yet" 0 "$([ -e /var/lib/homelab-control ] && echo 1 || echo 0)"
 
 echo "== upgrade to $(basename "$new")"
-apt-get install -y "$new" >/tmp/upg-new.log 2>&1 || dpkg -i "$new" >>/tmp/upg-new.log 2>&1
+# hc-api.env is a conffile and was edited above, as an administrator would.
+# When a package ships a changed hc-api.env, dpkg asks what to do; with no
+# terminal that prompt fails ("end of file on stdin at conffile prompt").
+# Answer it the way an administrator keeping their settings would: keep the
+# local file (--force-confold); dpkg then puts the packaged one in .dpkg-dist.
+shipped_env() { dpkg-deb --fsys-tarfile "$1" | tar -xO ./etc/homelab-control/hc-api.env | sha256sum | cut -d' ' -f1; }
+env_before=$(grep '^HC_API_ARGS=' /etc/homelab-control/hc-api.env)
+if ! apt-get install -y -o Dpkg::Options::=--force-confold "$new" >/tmp/upg-new.log 2>&1 &&
+  ! dpkg --force-confold -i "$new" >>/tmp/upg-new.log 2>&1; then
+  echo "FAIL  upgrade package installation (last lines of /tmp/upg-new.log):"
+  tail -n 40 /tmp/upg-new.log
+  exit 1
+fi
+check "administrator's hc-api.env settings kept by the upgrade" "$env_before" "$(grep '^HC_API_ARGS=' /etc/homelab-control/hc-api.env)"
+if [ "$(shipped_env "$old")" = "$(shipped_env "$new")" ]; then
+  check "no hc-api.env.dpkg-dist (packaged conffile unchanged)" 0 "$([ -e /etc/homelab-control/hc-api.env.dpkg-dist ] && echo 1 || echo 0)"
+else
+  check "new packaged hc-api.env offered as hc-api.env.dpkg-dist" "$(shipped_env "$new")" "$(sha256sum /etc/homelab-control/hc-api.env.dpkg-dist 2>/dev/null | cut -d' ' -f1)"
+fi
 systemctl daemon-reload
 systemctl restart homelab-control-broker.socket homelab-control.service
 wait_api

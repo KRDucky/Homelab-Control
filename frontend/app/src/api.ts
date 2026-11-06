@@ -113,6 +113,14 @@ export function login(username: string, password: string): Promise<SessionInfo> 
   });
 }
 
+/** Whether single sign-on is configured. Start is a plain navigation to
+ * OIDC_START_PATH (a fetch or form POST cannot follow the provider redirect). */
+export const OIDC_START_PATH = '/api/v1/auth/oidc/start';
+
+export function getOIDCStatus(): Promise<{ enabled: boolean }> {
+  return request<{ enabled: boolean }>('/api/v1/auth/oidc');
+}
+
 export function logout(csrf: string): Promise<undefined> {
   return request<undefined>('/api/v1/auth/logout', { method: 'POST', headers: { 'X-CSRF-Token': csrf } });
 }

@@ -34,6 +34,7 @@ import (
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
 	"homelab-control/backend/internal/modules"
+	"homelab-control/backend/internal/oidclogin"
 	"homelab-control/backend/internal/storageinfo"
 	"homelab-control/backend/internal/version"
 )
@@ -77,6 +78,8 @@ type Server struct {
 	// mods is the administrator's module setting (M2-3). Routes of a
 	// disabled module answer exactly like unknown routes.
 	mods modules.Set
+	// oidc is the optional single sign-on provider (nil = disabled).
+	oidc *oidclogin.Flow
 }
 
 type overviewCache struct {
@@ -117,6 +120,9 @@ const scopePublic = ""
 func (s *Server) routes() {
 	s.handle("GET /api/v1/health", scopePublic, s.handleHealth)
 	s.handle("POST /api/v1/auth/login", scopePublic, s.handleLogin)
+	s.handle("GET /api/v1/auth/oidc", scopePublic, s.handleOIDCStatus)
+	s.handle("GET /api/v1/auth/oidc/start", scopePublic, s.handleOIDCStart)
+	s.handle("GET /api/v1/auth/oidc/callback", scopePublic, s.handleOIDCCallback)
 	s.handle("POST /api/v1/auth/logout", sessionOnly, s.handleLogout)
 	s.handle("GET /api/v1/auth/session", sessionOnly, s.handleSession)
 	s.handle("GET /api/v1/auth/sessions", sessionOnly, s.handleListSessions)
