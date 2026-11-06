@@ -38,6 +38,16 @@ activation remain separate owner decisions (`docs/m2/OWNER-DECISIONS.md`, owner 
   M2-4, M2-5 and M2-6 were authorized for collaborative development and isolated testing on 2026-11-05
   (`docs/m2/OWNER-DECISIONS.md`, "Continuation through M2-6"), each behind its own gates; they remain mandatory before M3.
 
+## M2-6: hostname and timezone apply (development authorized 2026-11-05; not accepted)
+
+Owner-authorized collaborative development of hostname (static and pretty) and timezone apply after the
+read-only skeleton (PR #40 on `main`). Draft PR #41 (`hc-go/m2-6-host-settings-apply`) implements ADR 0011
+`POST /host/settings/plan` and `/apply` (scope `host.settings.apply`, never default) with closed
+`hostnamectl`/`timedatectl` templates. Preview stays non-executing. ADR 0008 Amendment 4 and the ADR 0011
+M2-6 extension remain **Proposed**. Isolated fixtures only; no production or retained-host apply, no
+frontend in this slice. This is not M2-6 acceptance and not a merge. Working notes:
+[`docs/m2/M2-6-HOST-SETTINGS-SKELETON.md`](m2/M2-6-HOST-SETTINGS-SKELETON.md).
+
 ## M2-2: controlled systemd service management (authorized 2026-10-23; merged 2026-10-26, PR #28, merge commit `a3447efa`)
 
 The owner authorized M2-2 and approved D-2 (broker-issued plan → confirm → execute), D-3 (password
