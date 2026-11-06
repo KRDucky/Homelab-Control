@@ -134,7 +134,7 @@ func main() {
 		users, al, hostinfo.NewCollector(*legacyURL), webui.FS()).
 		WithHardware(hwinfo.New())
 	if db != nil {
-		srv.WithSessionStore(db.Sessions()).WithAuditPager(db.Audit()).WithStorageSnapshots(db.StorageSnapshots())
+		srv.WithSessionStore(db.Sessions()).WithAuditPager(db.Audit()).WithStorageSnapshots(db.StorageSnapshots()).WithLayouts(db.Layouts())
 	}
 	if *oidcConfig != "" {
 		oc, err := oidclogin.LoadConfig(*oidcConfig)

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import {
   getCapabilities,
   getSession,
@@ -16,6 +16,7 @@ import { Login } from './Login';
 import { Audit } from './pages/Audit';
 import { Hardware } from './pages/Hardware';
 import { Storage } from './pages/Storage';
+import { HostSettingsPage } from './pages/HostSettings';
 import { Legacy } from './pages/Legacy';
 import { OverviewPage } from './pages/OverviewPage';
 import { Services } from './pages/Services';
@@ -54,7 +55,7 @@ export function App() {
       .catch(() => setPhase('anonymous'));
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (phase === 'anonymous') document.title = 'Sign in · Homelab Control';
   }, [phase]);
 
@@ -62,6 +63,7 @@ export function App() {
     setSession(null);
     setCaps(null);
     setPhase('anonymous');
+    document.title = 'Sign in · Homelab Control';
   }, []);
 
   useEffect(() => {
@@ -144,7 +146,16 @@ export function App() {
       />
     );
   else if (route?.id === 'audit') page = <Audit onUnauthorized={signedOut} />;
-  else if (route?.id === 'storage') page = <Storage csrf={session.csrf_token} onUnauthorized={signedOut} />;
+  else if (route?.id === 'storage')
+    page = <Storage csrf={session.csrf_token} scopes={session.scopes ?? []} onUnauthorized={signedOut} />;
+  else if (route?.id === 'host_settings')
+    page = (
+      <HostSettingsPage
+        csrf={session.csrf_token}
+        canPreview={(session.scopes ?? []).includes('host.settings.preview')}
+        onUnauthorized={signedOut}
+      />
+    );
   else if (route?.id === 'hardware') page = <Hardware onUnauthorized={signedOut} />;
   else if (route?.id === 'legacy')
     page = <Legacy legacyUrl={session.legacy_url} onUnauthorized={signedOut} />;

@@ -50,6 +50,7 @@ export const NAV_ICONS: Record<string, IconName> = {
   services: 'system',
   hardware: 'hardware',
   storage: 'hardware',
+  host_settings: 'system',
   legacy: 'external',
   audit: 'audit',
 };

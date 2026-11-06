@@ -58,6 +58,7 @@ type Server struct {
 	storageCollect   func(context.Context) (storageinfo.Graph, error)
 	storageSem       chan struct{}
 	storageSnapshots StorageSnapshotStore
+	layouts          LayoutStore
 	cfg              Config
 	users            *auth.Store
 	sessions         *auth.SessionManager
@@ -129,6 +130,9 @@ func (s *Server) routes() {
 	s.handle("POST /api/v1/auth/sessions/{id}/revoke", sessionOnly, s.handleRevokeSession)
 	s.handle("GET /api/v1/audit", auth.ScopeAuditRead, s.handleAudit)
 	s.handle("GET /api/v1/host/overview", auth.ScopeSystemRead, s.handleOverview)
+	// M2-6 skeleton: read-only host settings and a non-executing preview. No apply route.
+	s.handle("GET /api/v1/host/settings", auth.ScopeSystemRead, s.handleHostSettings)
+	s.handle("POST /api/v1/host/settings/preview", auth.ScopeHostSettingsPreview, s.handleHostSettingsPreview)
 	s.handle("GET /api/v1/capabilities", sessionOnly, s.handleCapabilities)
 	s.handle("GET /api/v1/services", auth.ScopeServicesRead, s.handleServices)
 	s.handle("GET /api/v1/services/units/{unit}/logs", auth.ScopeServicesLogs, s.handleUnitLogs)
@@ -145,6 +149,13 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/operations", auth.ScopeAuditRead, s.handleOperations)
 	s.handle("GET /api/v1/hardware", auth.ScopeHardwareRead, s.handleHardware)
 	s.handle("GET /api/v1/storage", auth.ScopeStorageRead, s.handleStorage)
+	// M2-5 Stage A: application-owned manual drive-bay layout (no host writes).
+	s.handle("GET /api/v1/storage/layout", auth.ScopeStorageRead, s.handleLayout)
+	s.handle("POST /api/v1/storage/layout/chassis", auth.ScopeLayoutManage, s.handleLayoutCreate)
+	s.handle("PUT /api/v1/storage/layout/chassis/{id}", auth.ScopeLayoutManage, s.handleLayoutUpdate)
+	s.handle("DELETE /api/v1/storage/layout/chassis/{id}", auth.ScopeLayoutManage, s.handleLayoutDelete)
+	s.handle("PUT /api/v1/storage/layout/chassis/{id}/bays/{row}/{col}/assignment", auth.ScopeLayoutManage, s.handleLayoutAssign)
+	s.handle("DELETE /api/v1/storage/layout/chassis/{id}/bays/{row}/{col}/assignment", auth.ScopeLayoutManage, s.handleLayoutUnassign)
 	s.handle("GET /api/v1/legacy/webmin", auth.ScopeSystemRead, s.handleLegacy)
 	s.mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "unknown API route")
