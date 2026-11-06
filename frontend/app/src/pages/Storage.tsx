@@ -6,6 +6,7 @@ import { getStorage } from '../api';
 import { DataTable } from '../DataTable';
 import { formatBytes } from '../format';
 import { Section } from '../ui';
+import { DriveBays } from './DriveBays';
 import { explain, useData } from '../useData';
 import {
   DRIVE_LABEL_KEY,
@@ -15,7 +16,15 @@ import {
   type DriveLabelPreference,
 } from '../storageModel';
 
-export function Storage({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: () => void }) {
+export function Storage({
+  csrf,
+  scopes = [],
+  onUnauthorized,
+}: {
+  csrf: string;
+  scopes?: string[];
+  onUnauthorized: () => void;
+}) {
   const fetchStorage = useCallback(() => getStorage(csrf), [csrf]);
   const { data, error, live, reload } = useData(fetchStorage, { onUnauthorized, intervalMs: 60_000 });
   const [preference, setPreference] = useState<DriveLabelPreference>(savedDriveLabel);
@@ -313,6 +322,13 @@ export function Storage({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
           />
         )}
       </Section>
+      <DriveBays
+        csrf={csrf}
+        nodes={graph.nodes}
+        canManage={scopes.includes('layout.manage')}
+        preference={preference}
+        onUnauthorized={onUnauthorized}
+      />
       {current && (
         <Section
           title="Selected resource"

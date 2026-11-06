@@ -46,6 +46,11 @@ const (
 	// Not in DefaultScopes and not implied by services.logs, services.read,
 	// services.operate or services.configure (no scope implies another).
 	ScopeServicesFiles = "services.files"
+	// ScopeLayoutManage allows editing the application-owned manual drive-bay
+	// layout in state.db (M2-5 Stage A, D-7). It changes no host state. Not in
+	// DefaultScopes; storage.read does not imply it, and it does not imply
+	// storage.read (assigning a drive additionally requires storage.read).
+	ScopeLayoutManage = "layout.manage"
 )
 
 // KnownScopes lists every scope the server understands. Unknown scopes in the
@@ -61,6 +66,7 @@ var KnownScopes = map[string]bool{
 	ScopeServicesOperate:   true,
 	ScopeServicesConfigure: true,
 	ScopeServicesFiles:     true,
+	ScopeLayoutManage:      true,
 }
 
 // DefaultScopes are granted by `hlctl user add` when --scopes is not given.

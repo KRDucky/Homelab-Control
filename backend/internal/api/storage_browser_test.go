@@ -102,9 +102,9 @@ func TestStorageBrowserFixture(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	users := &auth.UsersFile{Version: 1, Users: []auth.User{{Username: "browser", PasswordHash: hash, Scopes: []string{auth.ScopeSystemRead, auth.ScopeStorageRead}}, {Username: "limited", PasswordHash: hash, Scopes: []string{auth.ScopeSystemRead}}}}
+	users := &auth.UsersFile{Version: 1, Users: []auth.User{{Username: "browser", PasswordHash: hash, Scopes: []string{auth.ScopeSystemRead, auth.ScopeStorageRead}}, {Username: "limited", PasswordHash: hash, Scopes: []string{auth.ScopeSystemRead}}, {Username: "bays", PasswordHash: hash, Scopes: []string{auth.ScopeSystemRead, auth.ScopeStorageRead, auth.ScopeLayoutManage}}}}
 	collector := &hostinfo.Collector{Roots: hostinfo.Roots{Proc: filepath.Join(fixture, "proc"), Sys: filepath.Join(fixture, "sys"), Etc: filepath.Join(fixture, "etc")}}
-	server := New(Config{}, auth.NewStore(users), al, collector, os.DirFS(uiPath)).WithSessionStore(db.Sessions()).WithStorageSnapshots(db.StorageSnapshots())
+	server := New(Config{}, auth.NewStore(users), al, collector, os.DirFS(uiPath)).WithSessionStore(db.Sessions()).WithStorageSnapshots(db.StorageSnapshots()).WithLayouts(db.Layouts())
 	server.storageCollect = func(ctx context.Context) (storageinfo.Graph, error) {
 		graph, e := storageinfo.Collect(ctx, fixture)
 		if e != nil {
@@ -135,7 +135,7 @@ func TestStorageBrowserFixture(t *testing.T) {
 	defer httpServer.Close()
 	connection := filepath.Join(runtimeDir, "connection.json")
 	defer os.Remove(connection)
-	b, e := json.Marshal(map[string]string{"url": "http://" + listener.Addr().String(), "username": "browser", "limited_username": "limited", "password": password})
+	b, e := json.Marshal(map[string]string{"url": "http://" + listener.Addr().String(), "username": "browser", "limited_username": "limited", "layout_username": "bays", "password": password})
 	if e != nil {
 		t.Fatal(e)
 	}

@@ -55,8 +55,8 @@ beforeEach(() => {
   vi.stubGlobal(
     'fetch',
     vi.fn(
-      async () =>
-        new Response(JSON.stringify(observation), {
+      async (url: string) =>
+        new Response(JSON.stringify(url.includes('/storage/layout') ? { chassis: [] } : observation), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         }),
