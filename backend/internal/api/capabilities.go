@@ -195,9 +195,12 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 		storage.Status, storage.Reason = CapUnavailable, "Storage metadata collector is not available."
 	}
 	hostSettings := Capability{ID: "host_settings", Label: "Host settings", Path: "/host-settings", Scope: auth.ScopeSystemRead, Status: CapDegraded,
-		Reason: "Read-only: the host name and time zone are shown and changes can be previewed, but Homelab Control cannot apply them yet."}
-	if s.collector == nil {
+		Reason: "The host name and time zone are shown and changes can be previewed, but Homelab Control cannot apply them from this server right now."}
+	switch {
+	case s.collector == nil:
 		hostSettings.Status, hostSettings.Reason = CapUnavailable, "Host settings cannot be observed on this server."
+	case s.hostSettingsApplyAvailable(r.Context(), sess):
+		hostSettings.Status, hostSettings.Reason = CapAvailable, ""
 	}
 	caps := []Capability{gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings)}
 	// Navigation follows the module registry: a disabled module contributes

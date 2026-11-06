@@ -21,7 +21,8 @@ func TestRegistryIsClosed(t *testing.T) {
 			t.Errorf("ForRoute(%q) = %q, want %q", path, got, want)
 		}
 	}
-	for op, want := range map[string]string{"services.unit.apply": "services", "operations.journal.list": "", "broker.info": "", "servicesx": ""} {
+	for op, want := range map[string]string{"services.unit.apply": "services", "operations.journal.list": "", "broker.info": "", "servicesx": "",
+		"host.settings.plan": "", "host.settings.apply": ""} {
 		if got := ForOp(op); got != want {
 			t.Errorf("ForOp(%q) = %q", op, got)
 		}

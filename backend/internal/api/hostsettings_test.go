@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"homelab-control/backend/internal/auth"
 	"homelab-control/backend/internal/hostinfo"
@@ -194,10 +195,10 @@ func TestHostSettingsPreviewDoesNotExecute(t *testing.T) {
 	if rr := h.do("GET", "/api/v1/host/settings", "", nil); !strings.Contains(rr.Body.String(), `"fixture-static"`) {
 		t.Fatal(rr.Body.String())
 	}
-	// No apply route exists, with or without the preview scope.
+	// Preview scope never authorizes plan or apply (403, not 404).
 	for _, p := range []string{"/api/v1/host/settings/apply", "/api/v1/host/settings/plan"} {
-		if rr := h.do("POST", p, `{}`, previewHeaders(h)); rr.Code != http.StatusNotFound && rr.Code != http.StatusMethodNotAllowed {
-			t.Errorf("%s: %d", p, rr.Code)
+		if rr := h.do("POST", p, `{"static_hostname":"nas-01"}`, previewHeaders(h)); rr.Code != http.StatusForbidden || !strings.Contains(rr.Body.String(), "host.settings.apply") {
+			t.Errorf("%s: %d %s", p, rr.Code, rr.Body)
 		}
 	}
 	// Audited with field names only, never the requested values.
@@ -278,5 +279,142 @@ func TestHostSettingsPreviewUnavailableInputs(t *testing.T) {
 	}
 	if out.Valid || out.Changes[0].Outcome != PreviewUnknown || out.Changes[1].Outcome != PreviewInvalid || !strings.Contains(out.Changes[1].Reason, "could not be read") {
 		t.Fatalf("%+v", out)
+	}
+}
+
+func hostSettingsApplyFake() *fakeBroker {
+	fb := newFake()
+	fb.results["broker.info"] = map[string]any{"version": "t", "systemd_booted": true, "writes_available": true,
+		"exec_available": []string{"systemctl", "hostnamectl", "timedatectl"}, "ops": []map[string]string{
+			{"name": "broker.info"}, {"name": "host.settings.plan"}, {"name": "host.settings.apply"}}}
+	fb.results["host.settings.plan"] = map[string]any{"action": "set", "risk": "reversible", "step_up_required": false,
+		"confirmation_required": true, "token": validToken, "expires_at": time.Now().Add(2 * time.Minute),
+		"observed": map[string]any{"static_hostname": "fixture-static", "static_status": "observed",
+			"pretty_status": "observed", "timezone_status": "observed",
+			"notes": []string{"This result reports hostnamectl and timedatectl."}},
+		"effect": "This would set the static host name.", "consequences": []string{"Confirmation is required."},
+		"warnings": []string{"Changing the static host name can invalidate TLS certificates that name this host, mDNS/Avahi names, and entries in /etc/hosts. Homelab Control does not update those."},
+		"changes":  []map[string]any{{"field": "static_hostname", "current": "fixture-static", "requested": "nas-01", "outcome": "would-change"}},
+		"fields":   []string{"static_hostname"}}
+	fb.results["host.settings.apply"] = map[string]any{"operation_id": "op-hs-1", "action": "set", "outcome": "succeeded",
+		"message": "hostnamectl/timedatectl report the requested values.", "fields": []string{"static_hostname"},
+		"started_at": time.Now(), "finished_at": time.Now()}
+	return fb
+}
+
+var applyScopes = []string{auth.ScopeSystemRead, auth.ScopeHostSettingsPreview, auth.ScopeHostSettingsApply}
+
+func TestHostSettingsApplyScopeIsSeparateAndNotDefault(t *testing.T) {
+	if strings.Contains(auth.DefaultScopes, auth.ScopeHostSettingsApply) || !auth.KnownScopes[auth.ScopeHostSettingsApply] {
+		t.Fatal("host.settings.apply must be known and never granted by default")
+	}
+	fb := hostSettingsApplyFake()
+	h, _ := hostSettingsHarness(t, []string{auth.ScopeSystemRead, auth.ScopeHostSettingsPreview})
+	h.srv.WithBroker(fb)
+	before := h.audit.Len()
+	for _, p := range []string{"/api/v1/host/settings/plan", "/api/v1/host/settings/apply"} {
+		if rr := h.do("POST", p, `{"static_hostname":"nas-01","token":"`+validToken+`"}`, previewHeaders(h)); rr.Code != http.StatusForbidden || !strings.Contains(rr.Body.String(), "host.settings.apply") {
+			t.Errorf("%s: %d %s", p, rr.Code, rr.Body)
+		}
+	}
+	if len(fb.args) != 0 {
+		t.Fatalf("broker called without apply scope: %v", fb.args)
+	}
+	if strings.Contains(h.audit.String()[before:], "fields=") {
+		t.Fatal("refused plan/apply was processed")
+	}
+}
+
+func TestHostSettingsPlanApplyRequireOriginAndCSRF(t *testing.T) {
+	fb := hostSettingsApplyFake()
+	h, _ := hostSettingsHarness(t, applyScopes)
+	h.srv.WithBroker(fb)
+	body := `{"static_hostname":"nas-01","token":"` + validToken + `"}`
+	for _, p := range []string{"/api/v1/host/settings/plan", "/api/v1/host/settings/apply"} {
+		for name, hdr := range map[string]map[string]string{
+			"no origin":   {"Content-Type": "application/json", "X-CSRF-Token": h.csrf},
+			"cross-site":  {"Content-Type": "application/json", "X-CSRF-Token": h.csrf, "Origin": "https://evil.example"},
+			"no token":    {"Content-Type": "application/json", "Origin": testOrigin},
+			"wrong token": {"Content-Type": "application/json", "Origin": testOrigin, "X-CSRF-Token": "not-the-token"},
+		} {
+			if rr := h.do("POST", p, body, hdr); rr.Code != http.StatusForbidden {
+				t.Errorf("%s %s: %d %s", p, name, rr.Code, rr.Body)
+			}
+		}
+	}
+	if len(fb.args) != 0 {
+		t.Fatal("broker called")
+	}
+}
+
+func TestHostSettingsApplyAvailableAndPlanApply(t *testing.T) {
+	fb := hostSettingsApplyFake()
+	h, root := hostSettingsHarness(t, applyScopes)
+	h.srv.WithBroker(fb)
+	c := caps(t, h)["host_settings"]
+	if c.Status != CapAvailable || c.Reason != "" {
+		t.Fatalf("capability: %+v", c)
+	}
+	before := treeDigest(t, root)
+	rr := h.do("POST", "/api/v1/host/settings/preview", `{"static_hostname":"nas-01"}`, previewHeaders(h))
+	var preview hostSettingsPreviewResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &preview); err != nil || rr.Code != http.StatusOK || !preview.ApplyAvailable || preview.Executed || preview.HostChanged {
+		t.Fatal(rr.Code, rr.Body.String())
+	}
+	if after := treeDigest(t, root); after != before {
+		t.Fatal("preview changed the host fixture")
+	}
+	pr := h.do("POST", "/api/v1/host/settings/plan", `{"static_hostname":"nas-01"}`, previewHeaders(h))
+	if pr.Code != http.StatusOK || !strings.Contains(pr.Body.String(), `"risk":"reversible"`) || !strings.Contains(pr.Body.String(), "TLS") {
+		t.Fatalf("plan: %d %s", pr.Code, pr.Body)
+	}
+	ar := h.do("POST", "/api/v1/host/settings/apply", `{"static_hostname":"nas-01","token":"`+validToken+`"}`, previewHeaders(h))
+	if ar.Code != http.StatusOK || !strings.Contains(ar.Body.String(), `"outcome":"succeeded"`) {
+		t.Fatalf("apply: %d %s", ar.Code, ar.Body)
+	}
+	if after := treeDigest(t, root); after != before {
+		t.Fatal("API apply must not write the hc-api fixture; the broker fake is the only executor")
+	}
+	a := h.audit.String()
+	if strings.Contains(a, "nas-01") || strings.Contains(a, validToken) || strings.Contains(a, "hcp1.") {
+		t.Fatalf("audit leaked values or token: %s", a)
+	}
+	if !strings.Contains(a, "host.settings.plan") || !strings.Contains(a, "host.settings.apply") || !strings.Contains(a, "fields=static_hostname") {
+		t.Fatalf("audit missing events: %s", a)
+	}
+}
+
+func TestHostSettingsApplyValidatesBeforeBroker(t *testing.T) {
+	fb := hostSettingsApplyFake()
+	h, _ := hostSettingsHarness(t, applyScopes)
+	h.srv.WithBroker(fb)
+	for _, body := range []string{`{}`, `{"hostname":"x"}`, `{"token":"` + validToken + `"}`} {
+		if rr := h.do("POST", "/api/v1/host/settings/plan", body, previewHeaders(h)); rr.Code != http.StatusBadRequest {
+			t.Errorf("plan %s: %d %s", body, rr.Code, rr.Body)
+		}
+		if rr := h.do("POST", "/api/v1/host/settings/apply", body, previewHeaders(h)); rr.Code != http.StatusBadRequest {
+			t.Errorf("apply %s: %d %s", body, rr.Code, rr.Body)
+		}
+	}
+	for _, tok := range []string{"", "x", "hcp1.a.b", strings.Repeat("A", 3000)} {
+		b := `{"static_hostname":"nas-01","token":"` + tok + `"}`
+		if rr := h.do("POST", "/api/v1/host/settings/apply", b, previewHeaders(h)); rr.Code != http.StatusBadRequest {
+			t.Errorf("token %.20q: %d", tok, rr.Code)
+		}
+	}
+	if len(fb.args) != 0 {
+		t.Fatalf("broker reached with invalid input: %v", fb.args)
+	}
+}
+
+func TestHostSettingsOtherWriteScopesDoNotAuthorizeApply(t *testing.T) {
+	fb := hostSettingsApplyFake()
+	h, _ := hostSettingsHarness(t, []string{auth.ScopeSystemRead, auth.ScopeServicesOperate, auth.ScopeServicesConfigure, auth.ScopeLayoutManage})
+	h.srv.WithBroker(fb)
+	if rr := h.do("POST", "/api/v1/host/settings/plan", `{"static_hostname":"nas-01"}`, previewHeaders(h)); rr.Code != http.StatusForbidden {
+		t.Fatal(rr.Code, rr.Body.String())
+	}
+	if len(fb.args) != 0 {
+		t.Fatal("broker called")
 	}
 }

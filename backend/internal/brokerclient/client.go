@@ -34,6 +34,9 @@ var opTimeouts = map[string]time.Duration{
 	// boot-pull walk, the root template, read-back).
 	"services.enablement.plan":  20 * time.Second,
 	"services.enablement.apply": 75 * time.Second,
+	// M2-6: apply 55 s in the broker (revalidation, sequential hostnamectl/
+	// timedatectl templates, read-back).
+	"host.settings.apply": 75 * time.Second,
 	// Read-only ops with a 15 s broker timeout (equal deadlines could cut off
 	// the broker's own timeout answer).
 	"services.timers.list":  20 * time.Second,
