@@ -1,0 +1,131 @@
+container hc-probe-ubuntu-2404-netplan-232433 (ubuntu-2404-netplan): systemd state=running
+systemd 255 (255.4-1ubuntu8.18)
+  netplan.io 1.1.2-8ubuntu1~24.04.3
+## boot (before any reload)
+  GeneratorsStartTimestamp=Thu 2026-11-05 07:11:20.474618 UTC
+  GeneratorsFinishTimestamp=Thu 2026-11-05 07:11:20.479425 UTC
+  UnitsLoadStartTimestamp=Thu 2026-11-05 07:11:20.479432 UTC
+  generator dir ctime: 2026-11-05 07:11:20.477389954 +0000
+  2026-11-05+07:11:20.4771997590 d /run/systemd/system
+  2026-11-05+07:11:20.4768189690 f /run/systemd/system/netplan-ovs-cleanup.service
+  2026-11-05+07:11:20.4771997590 d /run/systemd/system/systemd-networkd-wait-online.service.d
+  2026-11-05+07:11:20.4771997590 f /run/systemd/system/systemd-networkd-wait-online.service.d/10-netplan.conf
+  2026-11-05+07:11:20.4768189690 d /run/systemd/system/systemd-networkd.service.wants
+  2026-11-05+07:11:20.4768189690 l /run/systemd/system/systemd-networkd.service.wants/netplan-ovs-cleanup.service/run/systemd/system/netplan-ovs-cleanup.service
+  link /run/systemd/system/systemd-networkd.service.wants/netplan-ovs-cleanup.service -> /run/systemd/system/netplan-ovs-cleanup.service
+  --- /run/systemd/system/systemd-networkd-wait-online.service.d/10-netplan.conf
+    [Unit]
+    ConditionPathIsSymbolicLink=/run/systemd/generator/network-online.target.wants/systemd-networkd-wait-online.service
+    
+    [Service]
+    ExecStart=
+    ExecStart=/lib/systemd/systemd-networkd-wait-online -i eth0:degraded
+    ExecStart=/lib/systemd/systemd-networkd-wait-online --any -o routable -i eth0
+  --- /run/systemd/system/netplan-ovs-cleanup.service
+    [Unit]
+    Description=OpenVSwitch configuration for cleanup
+    DefaultDependencies=no
+    Wants=ovsdb-server.service
+    After=ovsdb-server.service
+    ConditionFileIsExecutable=/usr/bin/ovs-vsctl
+    Before=network.target
+    Wants=network.target
+    
+    [Service]
+    Type=oneshot
+    TimeoutStartSec=10s
+    StartLimitBurst=0
+    ExecStart=/usr/sbin/netplan apply --only-ovs-cleanup
+  netplan-ovs-cleanup.service: Id=netplan-ovs-cleanup.service
+  netplan-ovs-cleanup.service: Wants=network.target ovsdb-server.service
+  netplan-ovs-cleanup.service: WantedBy=systemd-networkd.service
+  netplan-ovs-cleanup.service: LoadState=loaded
+  netplan-ovs-cleanup.service: FragmentPath=/run/systemd/system/netplan-ovs-cleanup.service
+  netplan-ovs-cleanup.service: DropInPaths=
+  netplan-ovs-cleanup.service: UnitFileState=enabled-runtime
+  systemd-networkd.service: Id=systemd-networkd.service
+  systemd-networkd.service: Wants=network.target systemd-networkd.socket netplan-ovs-cleanup.service
+  systemd-networkd.service: WantedBy=multi-user.target
+  systemd-networkd.service: LoadState=loaded
+  systemd-networkd.service: FragmentPath=/usr/lib/systemd/system/systemd-networkd.service
+  systemd-networkd.service: DropInPaths=
+  systemd-networkd.service: UnitFileState=enabled-runtime
+  systemd-networkd-wait-online.service: Id=systemd-networkd-wait-online.service
+  systemd-networkd-wait-online.service: Wants=
+  systemd-networkd-wait-online.service: WantedBy=network-online.target
+  systemd-networkd-wait-online.service: LoadState=loaded
+  systemd-networkd-wait-online.service: FragmentPath=/usr/lib/systemd/system/systemd-networkd-wait-online.service
+  systemd-networkd-wait-online.service: DropInPaths=/run/systemd/system/systemd-networkd-wait-online.service.d/10-netplan.conf
+  systemd-networkd-wait-online.service: UnitFileState=enabled-runtime
+## after daemon-reload
+  GeneratorsStartTimestamp=Thu 2026-11-05 07:11:20.474618 UTC
+  GeneratorsFinishTimestamp=Thu 2026-11-05 07:11:20.479425 UTC
+  UnitsLoadStartTimestamp=Thu 2026-11-05 07:11:20.479432 UTC
+  UnitsLoadTimestamp=Thu 2026-11-05 07:11:22.199738 UTC
+  generator dir ctime: 2026-11-05 07:11:22.211815667 +0000
+  2026-11-05+07:11:22.2112830140 d /run/systemd/system
+  2026-11-05+07:11:22.2112830140 f /run/systemd/system/netplan-ovs-cleanup.service
+  2026-11-05+07:11:22.2113714390 d /run/systemd/system/systemd-networkd-wait-online.service.d
+  2026-11-05+07:11:22.2113714390 f /run/systemd/system/systemd-networkd-wait-online.service.d/10-netplan.conf
+  2026-11-05+07:11:22.2112830140 d /run/systemd/system/systemd-networkd.service.wants
+  2026-11-05+07:11:22.2112830140 l /run/systemd/system/systemd-networkd.service.wants/netplan-ovs-cleanup.service/run/systemd/system/netplan-ovs-cleanup.service
+  link /run/systemd/system/systemd-networkd.service.wants/netplan-ovs-cleanup.service -> /run/systemd/system/netplan-ovs-cleanup.service
+  --- /run/systemd/system/netplan-ovs-cleanup.service
+    [Unit]
+    Description=OpenVSwitch configuration for cleanup
+    DefaultDependencies=no
+    Wants=ovsdb-server.service
+    After=ovsdb-server.service
+    ConditionFileIsExecutable=/usr/bin/ovs-vsctl
+    Before=network.target
+    Wants=network.target
+    
+    [Service]
+    Type=oneshot
+    TimeoutStartSec=10s
+    StartLimitBurst=0
+    ExecStart=/usr/sbin/netplan apply --only-ovs-cleanup
+  --- /run/systemd/system/systemd-networkd-wait-online.service.d/10-netplan.conf
+    [Unit]
+    ConditionPathIsSymbolicLink=/run/systemd/generator/network-online.target.wants/systemd-networkd-wait-online.service
+    
+    [Service]
+    ExecStart=
+    ExecStart=/lib/systemd/systemd-networkd-wait-online -i eth0:degraded
+    ExecStart=/lib/systemd/systemd-networkd-wait-online --any -o routable -i eth0
+container hc-probe-ubuntu-2404-netplan-232433 (ubuntu-2404-netplan): systemd state=running
+## after restart (fresh boot)
+  GeneratorsStartTimestamp=Thu 2026-11-05 07:11:22.471435 UTC
+  GeneratorsFinishTimestamp=Thu 2026-11-05 07:11:22.475396 UTC
+  UnitsLoadStartTimestamp=Thu 2026-11-05 07:11:22.475402 UTC
+  generator dir ctime: 2026-11-05 07:11:22.473718864 +0000
+  2026-11-05+07:11:22.4735481160 d /run/systemd/system
+  2026-11-05+07:11:22.4732708690 f /run/systemd/system/netplan-ovs-cleanup.service
+  2026-11-05+07:11:22.4735481160 d /run/systemd/system/systemd-networkd-wait-online.service.d
+  2026-11-05+07:11:22.4735481160 f /run/systemd/system/systemd-networkd-wait-online.service.d/10-netplan.conf
+  2026-11-05+07:11:22.4732708690 d /run/systemd/system/systemd-networkd.service.wants
+  2026-11-05+07:11:22.4732708690 l /run/systemd/system/systemd-networkd.service.wants/netplan-ovs-cleanup.service/run/systemd/system/netplan-ovs-cleanup.service
+  link /run/systemd/system/systemd-networkd.service.wants/netplan-ovs-cleanup.service -> /run/systemd/system/netplan-ovs-cleanup.service
+  --- /run/systemd/system/systemd-networkd-wait-online.service.d/10-netplan.conf
+    [Unit]
+    ConditionPathIsSymbolicLink=/run/systemd/generator/network-online.target.wants/systemd-networkd-wait-online.service
+    
+    [Service]
+    ExecStart=
+    ExecStart=/lib/systemd/systemd-networkd-wait-online -i eth0:degraded
+    ExecStart=/lib/systemd/systemd-networkd-wait-online --any -o routable -i eth0
+  --- /run/systemd/system/netplan-ovs-cleanup.service
+    [Unit]
+    Description=OpenVSwitch configuration for cleanup
+    DefaultDependencies=no
+    Wants=ovsdb-server.service
+    After=ovsdb-server.service
+    ConditionFileIsExecutable=/usr/bin/ovs-vsctl
+    Before=network.target
+    Wants=network.target
+    
+    [Service]
+    Type=oneshot
+    TimeoutStartSec=10s
+    StartLimitBurst=0
+    ExecStart=/usr/sbin/netplan apply --only-ovs-cleanup

@@ -1,0 +1,12 @@
+container hc-probe-ubuntu-2204-9073 (ubuntu-2204): systemd state=running
+systemd 249 (249.11-0ubuntu3.23)
+  before hcp-b1.service: active=inactive enabled=enabled
+  before hcp-vpn.service: active=inactive enabled=static
+## direct: disable the puller now (no reload), then reboot
+  disable: Removed /etc/systemd/system/multi-user.target.wants/hcp-b1.service.
+container hc-probe-ubuntu-2204-9073 (ubuntu-2204): systemd state=running
+## direct: after reboot (fresh PID 1)
+systemd 249 (249.11-0ubuntu3.23)
+  after-reboot hcp-b1.service: active=inactive enabled=disabled
+  after-reboot hcp-vpn.service: active=inactive enabled=static
+exit 1

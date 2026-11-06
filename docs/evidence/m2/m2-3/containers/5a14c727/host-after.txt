@@ -1,0 +1,4 @@
+enabled-units-sha256 b51fda5e068cf24d
+etc-systemd-symlinks-sha256 c34ddc5605821420
+sshd: inactive 0 ssh.socket: inactive inactive
+docker containers: hc-fedora45-dnf-20261103

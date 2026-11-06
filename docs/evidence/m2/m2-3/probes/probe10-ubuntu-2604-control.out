@@ -1,0 +1,11 @@
+container hc-probe-ubuntu-2604-26934 (ubuntu-2604): systemd state=degraded
+systemd 259 (259.9-0ubuntu0.1)
+  before hcp-b1.service: active=inactive enabled=enabled
+  before hcp-vpn.service: active=inactive enabled=static
+## direct (control): puller stays enabled; reboot
+container hc-probe-ubuntu-2604-26934 (ubuntu-2604): systemd state=degraded
+## direct (control): after reboot (fresh PID 1)
+systemd 259 (259.9-0ubuntu0.1)
+  after-reboot hcp-b1.service: active=active enabled=enabled
+  after-reboot hcp-vpn.service: active=active enabled=static
+exit 1

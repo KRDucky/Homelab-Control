@@ -1,0 +1,76 @@
+######## ubuntu2604
+--- symlinks written by PID1? (/etc read-only in caller's mount ns)
+touch: cannot touch '/etc/x': Read-only file system
+Created symlink '/etc/systemd/system/hc-probe-alias.service' → '/etc/systemd/system/hc-probe-a.service'.
+Created symlink '/etc/systemd/system/multi-user.target.wants/hc-probe-a.service' → '/etc/systemd/system/hc-probe-a.service'.
+rc=0
+enabled
+--- sysv
+sshd-socket-generator systemd-debug-generator systemd-factory-reset-generator systemd-fstab-generator systemd-getty-generator systemd-gpt-auto-generator systemd-hibernate-resume-generator systemd-rc-local-generator systemd-run-generator systemd-ssh-generator systemd-system-update-generator systemd-sysv-generator systemd-tpm2-generator 
+-rwxr-xr-x 1 root root 1360 Sep 16 14:55 /usr/lib/systemd/systemd-sysv-install
+--- DropInPaths/SourcePath/NRestarts/ExecMain*
+WantedBy=multi-user.target
+UpheldBy=
+Triggers=
+TriggeredBy=
+SourcePath=
+DropInPaths=/etc/systemd/system/hc-probe-c.service.d/secret.conf
+UnitFilePreset=enabled
+NeedDaemonReload=yes
+Transient=no
+NRestarts=0
+ExecMainStartTimestamp=
+ExecMainExitTimestamp=
+ExecMainCode=0
+ExecMainStatus=0
+
+WantedBy=sockets.target
+UpheldBy=
+Triggers=ssh.service
+TriggeredBy=
+SourcePath=
+DropInPaths=
+UnitFilePreset=enabled
+NeedDaemonReload=yes
+Transient=no
+--- show of a socket for type-specific props
+Triggers=dbus.service
+Listen=/run/dbus/system_bus_socket (Stream)
+######## fedora44
+--- symlinks written by PID1? (/etc read-only in caller's mount ns)
+touch: cannot touch '/etc/x': Read-only file system
+Created symlink '/etc/systemd/system/hc-probe-alias.service' → '/etc/systemd/system/hc-probe-a.service'.
+Created symlink '/etc/systemd/system/multi-user.target.wants/hc-probe-a.service' → '/etc/systemd/system/hc-probe-a.service'.
+rc=0
+enabled
+--- sysv
+systemd-bless-boot-generator systemd-cryptsetup-generator systemd-debug-generator systemd-factory-reset-generator systemd-fstab-generator systemd-getty-generator systemd-gpt-auto-generator systemd-hibernate-resume-generator systemd-integritysetup-generator systemd-rc-local-generator systemd-run-generator systemd-ssh-generator systemd-system-update-generator systemd-sysv-generator systemd-tpm2-generator systemd-veritysetup-generator 
+ls: cannot access '/usr/lib/systemd/systemd-sysv-install': No such file or directory
+--- DropInPaths/SourcePath/NRestarts/ExecMain*
+WantedBy=multi-user.target
+UpheldBy=
+Triggers=
+TriggeredBy=
+SourcePath=
+DropInPaths=/usr/lib/systemd/system/service.d/10-timeout-abort.conf /etc/systemd/system/hc-probe-c.service.d/secret.conf
+UnitFilePreset=disabled
+NeedDaemonReload=yes
+Transient=no
+NRestarts=0
+ExecMainStartTimestamp=
+ExecMainExitTimestamp=
+ExecMainCode=0
+ExecMainStatus=0
+
+WantedBy=
+UpheldBy=
+Triggers=
+TriggeredBy=
+SourcePath=
+DropInPaths=
+UnitFilePreset=
+NeedDaemonReload=yes
+Transient=no
+--- show of a socket for type-specific props
+Triggers=dbus-broker.service
+Listen=/run/dbus/system_bus_socket (Stream)

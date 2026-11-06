@@ -1,0 +1,22 @@
+ok  	homelab-control/backend/cmd/hc-api	0.073s
+?   	homelab-control/backend/cmd/hc-broker	[no test files]
+ok  	homelab-control/backend/cmd/hlctl	0.330s
+ok  	homelab-control/backend/internal/api	6.798s
+ok  	homelab-control/backend/internal/audit	0.005s
+ok  	homelab-control/backend/internal/auth	0.557s
+ok  	homelab-control/backend/internal/broker/ops	0.666s
+ok  	homelab-control/backend/internal/broker/proto	0.005s
+ok  	homelab-control/backend/internal/broker/runner	0.223s
+ok  	homelab-control/backend/internal/broker/server	5.211s
+?   	homelab-control/backend/internal/broker/types	[no test files]
+ok  	homelab-control/backend/internal/broker/writes	0.006s
+?   	homelab-control/backend/internal/brokerclient	[no test files]
+ok  	homelab-control/backend/internal/guard	0.035s
+ok  	homelab-control/backend/internal/hostinfo	0.060s
+ok  	homelab-control/backend/internal/hwinfo	0.004s
+ok  	homelab-control/backend/internal/modules	0.003s
+ok  	homelab-control/backend/internal/servicepolicy	0.003s
+ok  	homelab-control/backend/internal/state	0.085s
+?   	homelab-control/backend/internal/version	[no test files]
+?   	homelab-control/backend/internal/webui	[no test files]
+exit 0 uid 1000

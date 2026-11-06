@@ -1,0 +1,16 @@
+container hc-probe-ubuntu-2404-362725 (ubuntu-2404): systemd state=running
+systemd 255 (255.4-1ubuntu8.18)
+  boot GeneratorsStartTimestamp=Wed 2026-11-04 11:27:46.583652 UTC
+  boot UnitsLoadStartTimestamp=Wed 2026-11-04 11:27:46.587296 UTC
+  boot UnitsLoadFinishTimestamp=Wed 2026-11-04 11:27:46.601330 UTC
+  boot ctime 2026-11-04 11:27:46.585956059 +0000 /run/systemd/generator
+  reload1 GeneratorsStartTimestamp=Wed 2026-11-04 11:27:46.583652 UTC
+  reload1 UnitsLoadStartTimestamp=Wed 2026-11-04 11:27:46.587296 UTC
+  reload1 UnitsLoadFinishTimestamp=Wed 2026-11-04 11:27:46.601330 UTC
+  reload1 UnitsLoadTimestamp=Wed 2026-11-04 11:27:48.174773 UTC
+  reload1 ctime 2026-11-04 11:27:48.187388227 +0000 /run/systemd/generator
+  reload2 GeneratorsStartTimestamp=Wed 2026-11-04 11:27:46.583652 UTC
+  reload2 UnitsLoadStartTimestamp=Wed 2026-11-04 11:27:46.587296 UTC
+  reload2 UnitsLoadFinishTimestamp=Wed 2026-11-04 11:27:46.601330 UTC
+  reload2 UnitsLoadTimestamp=Wed 2026-11-04 11:27:49.224179 UTC
+  reload2 ctime 2026-11-04 11:27:49.239382453 +0000 /run/systemd/generator

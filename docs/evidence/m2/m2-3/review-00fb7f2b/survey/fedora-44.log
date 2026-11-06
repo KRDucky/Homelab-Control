@@ -1,0 +1,57 @@
+container hc-sd-fedora-44-267347 (fedora-44): systemd state=running; cgroup 0::/init.scope
+== environment
+Fedora Linux 44 (Container Image); systemd 259 (259.10-1.fc44); kernel 7.3.1-1-cachyos
+== install (rpm)
+Verifying...                          ########################################
+Preparing...                          ########################################
+Creating group 'homelab-control' with GID 995.
+Creating user 'homelab-control' (Homelab Control API) with UID 995 and GID 995.
+Updating / installing...
+homelab-control-0.1.0-0.m1.v0_1_0_dev_########################################
+homelab-control installed but NOT enabled. See /usr/share/doc/homelab-control/README.md
+PASS  service not enabled on install (disabled)
+PASS  service active (active)
+PASS  runs as homelab-control (homelab-control)
+PASS  no capabilities in effective set (0000000000000000)
+PASS  health (200)
+PASS  login issues __Host- cookie (1)
+PASS  overview under hardening returns hostname (1)
+PASS  overview: filesystems readable (ProtectHome/PrivateDevices) (1)
+PASS  overview: network section ok (1)
+== M2-3 disable survey (plan only)
+SURVEY  authselect-apply-changes.service: 200 allowed (239 ms) 
+SURVEY  dbus-broker.service: 403 refused: protected (1 ms) dbus-broker.service is protected: D-Bus and polkit: core system message bus; stopping it breaks logins and most services.
+SURVEY  fips-crypto-policy-overlay.service: 200 allowed (126 ms) 
+SURVEY  rpmdb-rebuild.service: 200 allowed (124 ms) 
+SURVEY  selinux-autorelabel-mark.service: 200 allowed (124 ms) 
+SURVEY  sshd.service: 403 refused: protected (1 ms) sshd.service is protected: Remote login (SSH): stopping or restarting it can lock you out of the host.
+SURVEY  systemd-boot-clear-sysfail.service: 403 refused: protected (1 ms) systemd-boot-clear-sysfail.service is protected: Core systemd infrastructure (journal, login, udev, networkd, resolved, power and boot units).
+SURVEY  systemd-confext.service: 403 refused: protected (1 ms) systemd-confext.service is protected: Core systemd infrastructure (journal, login, udev, networkd, resolved, power and boot units).
+SURVEY  systemd-homed-activate.service: 403 refused: protected (1 ms) systemd-homed-activate.service is protected: Core systemd infrastructure (journal, login, udev, networkd, resolved, power and boot units).
+SURVEY  systemd-homed.service: 403 refused: protected (1 ms) systemd-homed.service is protected: Core systemd infrastructure (journal, login, udev, networkd, resolved, power and boot units).
+SURVEY  systemd-network-generator.service: 403 refused: protected (1 ms) systemd-network-generator.service is protected: Core systemd infrastructure (journal, login, udev, networkd, resolved, power and boot units).
+SURVEY  systemd-oomd.service: 403 refused: protected (1 ms) systemd-oomd.service is protected: Core systemd infrastructure (journal, login, udev, networkd, resolved, power and boot units).
+SURVEY  systemd-pstore.service: 403 refused: protected (1 ms) systemd-pstore.service is protected: Core systemd infrastructure (journal, login, udev, networkd, resolved, power and boot units).
+SURVEY  systemd-resolved.service: 403 refused: protected (1 ms) systemd-resolved.service is protected: Core systemd infrastructure (journal, login, udev, networkd, resolved, power and boot units).
+SURVEY  systemd-sysext.service: 403 refused: protected (1 ms) systemd-sysext.service is protected: Core systemd infrastructure (journal, login, udev, networkd, resolved, power and boot units).
+SURVEY  systemd-tpm2-clear.service: 403 refused: protected (1 ms) systemd-tpm2-clear.service is protected: Core systemd infrastructure (journal, login, udev, networkd, resolved, power and boot units).
+SURVEY  hc-test-en-netonline.service enable: 200 succeeded
+SURVEY  hc-test-en-netonline.service (Wants=network-online.target): 200 allowed (248 ms) 
+SURVEY  network-online.target wants: 
+SURVEY  hc-test-en-netonline.service with systemd-networkd-wait-online.service enabled (network-online.target wants: systemd-networkd-wait-online.service): 403 refused: boot pull (B-1) (280 ms) hc-test-en-netonline.service cannot be disabled here: network.target is started at boot only through it (hc-test-en-netonline.service → network-online.target → systemd-networkd-wait-online.service → systemd-networkd.service → network.target
+SURVEY  systemd-networkd-wait-online.service restored: is-enabled disabled (was disabled)
+SURVEY  tally: allowed: 4; refused: protected: 12 (of 16 enabled services)
+PASS  M2-3 disable survey ran (0)
+== journal (last lines)
+homelab-control.service: Deactivated successfully.
+Stopped homelab-control.service - Homelab Control API and web UI (unprivileged).
+Started homelab-control.service - Homelab Control API and web UI (unprivileged).
+2026/11/05 07:26:48 audit checkpoint log=/var/lib/homelab-control/state.db seq=4 hash=cc1d123371ccd74423496bee18163a811685f9f721f90362cef4051effac7f27
+2026/11/05 07:26:48 hc-api v0.1.0-dev.1-84-g00fb7f2b listening on 127.0.0.1:9180 (tls=false)
+== systemd-analyze security
+→ Overall exposure level for homelab-control.service: 1.6 OK :-)
+== remove + purge
+PASS  binaries removed (0)
+PASS  unit removed (0)
+systemd-smoke: 12 passed, 0 failed
+exit 0

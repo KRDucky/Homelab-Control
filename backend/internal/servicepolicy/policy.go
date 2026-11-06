@@ -213,3 +213,19 @@ func SafeEmergencyAction(v string) bool {
 	v = strings.TrimSpace(v)
 	return v == "" || v == "none"
 }
+
+// Boot-time enablement actions (M2-3). They are a separate operation from
+// Action (start/stop/restart), with its own scope (services.configure) and
+// its own plan tokens; ValidAction never accepts them.
+const (
+	Enable  = "enable"
+	Disable = "disable"
+)
+
+// ValidEnablementAction reports whether a is enable or disable.
+func ValidEnablementAction(a string) bool { return a == Enable || a == Disable }
+
+// ValidEnablementUnit is the grammar of an enablement target: a .service unit
+// without template or instance ('@'); enabling an instance acts on its
+// template's [Install] section, which M2-3 does not support.
+func ValidEnablementUnit(name string) bool { return ValidUnit(name) && !strings.Contains(name, "@") }

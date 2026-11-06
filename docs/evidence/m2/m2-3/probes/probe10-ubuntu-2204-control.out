@@ -1,0 +1,11 @@
+container hc-probe-ubuntu-2204-22926 (ubuntu-2204): systemd state=running
+systemd 249 (249.11-0ubuntu3.23)
+  before hcp-b1.service: active=inactive enabled=enabled
+  before hcp-vpn.service: active=inactive enabled=static
+## direct (control): puller stays enabled; reboot
+container hc-probe-ubuntu-2204-22926 (ubuntu-2204): systemd state=running
+## direct (control): after reboot (fresh PID 1)
+systemd 249 (249.11-0ubuntu3.23)
+  after-reboot hcp-b1.service: active=active enabled=enabled
+  after-reboot hcp-vpn.service: active=active enabled=static
+exit 1

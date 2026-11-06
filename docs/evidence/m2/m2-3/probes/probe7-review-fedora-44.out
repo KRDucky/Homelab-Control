@@ -1,0 +1,119 @@
+container hc-probe-fedora-44-257295 (fedora-44): systemd state=running
+systemd 259 (259.10-1.fc44)
+
+## A1 new drop-in on disk, no reload: does systemctl enable honour it, and does show list it?
+  FragmentPath=/etc/systemd/system/hcp-a.service
+  DropInPaths=/usr/lib/systemd/system/service.d/10-timeout-abort.conf /etc/systemd/system/hcp-a.service.d/zz.conf
+  UnitFileState=disabled
+  NeedDaemonReload=no
+  is-enabled: disabled
+  enable: Created symlink '/etc/systemd/system/hcp-a-alias.service' → '/etc/systemd/system/hcp-a.service'.
+  enable: Created symlink '/etc/systemd/system/multi-user.target.wants/hcp-a.service' → '/etc/systemd/system/hcp-a.service'.
+  enable: Created symlink '/etc/systemd/system/hcp-x.target.wants/hcp-a.service' → '/etc/systemd/system/hcp-a.service'.
+  link: /etc/systemd/system/hcp-a-alias.service -> /etc/systemd/system/hcp-a.service
+  link: /etc/systemd/system/hcp-x.target.wants/hcp-a.service -> /etc/systemd/system/hcp-a.service
+  link: /etc/systemd/system/multi-user.target.wants/hcp-a.service -> /etc/systemd/system/hcp-a.service
+
+## A2 prefix drop-in (hcp-.service.d) loaded by PID 1: does systemctl enable honour it?
+  FragmentPath=/etc/systemd/system/hcp-b.service
+  DropInPaths=/usr/lib/systemd/system/service.d/10-timeout-abort.conf /etc/systemd/system/hcp-.service.d/zz.conf
+  UnitFileState=disabled
+  NeedDaemonReload=no
+  is-enabled: disabled
+  enable: Created symlink '/etc/systemd/system/multi-user.target.wants/hcp-b.service' → '/etc/systemd/system/hcp-b.service'.
+  link: /etc/systemd/system/multi-user.target.wants/hcp-b.service -> /etc/systemd/system/hcp-b.service
+
+## A3 type-level drop-in (service.d) loaded by PID 1: does systemctl enable honour it?
+  FragmentPath=/etc/systemd/system/hcp-b.service
+  DropInPaths=/usr/lib/systemd/system/service.d/10-timeout-abort.conf /etc/systemd/system/service.d/hcp-zz.conf
+  UnitFileState=disabled
+  NeedDaemonReload=no
+  is-enabled: disabled
+  enable: Created symlink '/etc/systemd/system/multi-user.target.wants/hcp-b.service' → '/etc/systemd/system/hcp-b.service'.
+  link: /etc/systemd/system/multi-user.target.wants/hcp-b.service -> /etc/systemd/system/hcp-b.service
+
+## A4 new /etc fragment shadowing a loaded /usr/lib one, no reload
+  FragmentPath=/etc/systemd/system/hcp-c.service
+  DropInPaths=/usr/lib/systemd/system/service.d/10-timeout-abort.conf
+  UnitFileState=disabled
+  NeedDaemonReload=no
+  is-enabled: disabled
+  enable: Created symlink '/etc/systemd/system/hcp-z.target.wants/hcp-c.service' → '/etc/systemd/system/hcp-c.service'.
+  link: /etc/systemd/system/hcp-z.target.wants/hcp-c.service -> /etc/systemd/system/hcp-c.service
+
+## B disable removes links its [Install] does not describe
+  before:
+    /etc/systemd/system/deep/er/hcp-d.service -> /etc/systemd/system/hcp-d.service
+    /etc/systemd/system/hcp-d-manual.service -> /etc/systemd/system/hcp-d.service
+    /etc/systemd/system/hcp-dep.service.requires/hcp-d.service -> /etc/systemd/system/hcp-d.service
+    /etc/systemd/system/hcp-other.target.wants/hcp-d.service -> /etc/systemd/system/hcp-d.service
+    /etc/systemd/system/multi-user.target.wants/hcp-d.service -> /etc/systemd/system/hcp-d.service
+    /etc/systemd/system/multi-user.target.wants/hcp-renamed.service -> /etc/systemd/system/hcp-d.service
+  disable: Removed '/etc/systemd/system/multi-user.target.wants/hcp-d.service'.
+  disable: Removed '/etc/systemd/system/multi-user.target.wants/hcp-renamed.service'.
+  disable: Removed '/etc/systemd/system/hcp-other.target.wants/hcp-d.service'.
+  disable: Removed '/etc/systemd/system/hcp-dep.service.requires/hcp-d.service'.
+  disable: Removed '/etc/systemd/system/hcp-d-manual.service'.
+  disable: Removed '/etc/systemd/system/deep/er/hcp-d.service'.
+  after:
+
+## C early-boot WantedBy= (default dependencies), enabled for the next boot
+  enable: Created symlink '/etc/systemd/system/sysinit.target.wants/hcp-e-sysinit.service' → '/etc/systemd/system/hcp-e-sysinit.service'.
+  enable: Created symlink '/etc/systemd/system/basic.target.wants/hcp-e-basic.service' → '/etc/systemd/system/hcp-e-basic.service'.
+  enable: Created symlink '/etc/systemd/system/local-fs.target.wants/hcp-e-local-fs.service' → '/etc/systemd/system/hcp-e-local-fs.service'.
+  enable: Created symlink '/etc/systemd/system/sockets.target.wants/hcp-e-sockets.service' → '/etc/systemd/system/hcp-e-sockets.service'.
+
+## D --no-reload semantics: enable (hcp-f wanted by multi-user, hcp-g by a not-loaded target)
+  enable: Created symlink '/etc/systemd/system/multi-user.target.wants/hcp-f.service' → '/etc/systemd/system/hcp-f.service'.
+  enable: Created symlink '/etc/systemd/system/hcp-lazy.target.wants/hcp-g.service' → '/etc/systemd/system/hcp-g.service'.
+  FragmentPath=/etc/systemd/system/hcp-f.service
+  DropInPaths=/usr/lib/systemd/system/service.d/10-timeout-abort.conf
+  UnitFileState=enabled
+  NeedDaemonReload=yes
+  is-enabled: enabled
+  multi-user.target Wants contains hcp-f: 0
+  hcp-lazy.target load state before start: loaded
+Warning: The unit file, source configuration file or drop-ins of hcp-lazy.target changed on disk. Run 'systemctl daemon-reload' to reload units.
+  after 'systemctl start hcp-lazy.target' (no reload): hcp-g is active
+Warning: The unit file, source configuration file or drop-ins of multi-user.target changed on disk. Run 'systemctl daemon-reload' to reload units.
+  after 'systemctl start multi-user.target' (no reload): hcp-f is inactive
+  after daemon-reload: Wants contains hcp-f: 1; hcp-f is inactive
+  after daemon-reload + 'systemctl start multi-user.target': hcp-f is active
+
+## D' --no-reload semantics: disable a running, enabled unit (hcp-h)
+  disable: Removed '/etc/systemd/system/multi-user.target.wants/hcp-h.service'.
+  FragmentPath=/etc/systemd/system/hcp-h.service
+  DropInPaths=/usr/lib/systemd/system/service.d/10-timeout-abort.conf
+  UnitFileState=disabled
+  NeedDaemonReload=yes
+  is-enabled: disabled
+  hcp-h is active; multi-user.target Wants contains hcp-h: 1
+  links now:
+    /etc/systemd/system/basic.target.wants/hcp-e-basic.service -> /etc/systemd/system/hcp-e-basic.service
+    /etc/systemd/system/hcp-a-alias.service -> /etc/systemd/system/hcp-a.service
+    /etc/systemd/system/hcp-lazy.target.wants/hcp-g.service -> /etc/systemd/system/hcp-g.service
+    /etc/systemd/system/hcp-x.target.wants/hcp-a.service -> /etc/systemd/system/hcp-a.service
+    /etc/systemd/system/hcp-z.target.wants/hcp-c.service -> /etc/systemd/system/hcp-c.service
+    /etc/systemd/system/local-fs.target.wants/hcp-e-local-fs.service -> /etc/systemd/system/hcp-e-local-fs.service
+    /etc/systemd/system/multi-user.target.wants/hcp-a.service -> /etc/systemd/system/hcp-a.service
+    /etc/systemd/system/multi-user.target.wants/hcp-b.service -> /etc/systemd/system/hcp-b.service
+    /etc/systemd/system/multi-user.target.wants/hcp-f.service -> /etc/systemd/system/hcp-f.service
+    /etc/systemd/system/sockets.target.wants/hcp-e-sockets.service -> /etc/systemd/system/hcp-e-sockets.service
+    /etc/systemd/system/sysinit.target.wants/hcp-e-sysinit.service -> /etc/systemd/system/hcp-e-sysinit.service
+container hc-probe-fedora-44-257295 (fedora-44): systemd state=degraded
+
+## after restart (fresh PID 1, fresh boot of the container)
+systemd 259 (259.10-1.fc44)
+  hcp-a.service: active=active enabled=enabled
+  hcp-c.service: active=inactive enabled=enabled
+  hcp-f.service: active=active enabled=enabled
+  hcp-g.service: active=inactive enabled=enabled
+  hcp-h.service: active=inactive enabled=disabled
+  hcp-e-sysinit.service: active=active enabled=enabled
+  hcp-e-basic.service: active=active enabled=enabled
+  hcp-e-local-fs.service: active=active enabled=enabled
+  hcp-e-sockets.service: active=active enabled=enabled
+  system state: degraded
+
+## ordering cycles and deleted jobs this boot
+  (end)

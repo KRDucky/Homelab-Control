@@ -44,6 +44,10 @@ See `M2-PR1-PROPOSAL.md`. **No privileged writes.** Decisions: D-1, D-6, D-7.
 | **Owner decisions** | D-2, D-3, D-4, D-5 |
 
 ### PR M2-3 — Expanded service management
+> **2026-11-04:** development authorized by the owner and implemented on `feature/m2-3-expanded-service-management`;
+> deviations from this table (risk class, refused constructs, file-based module setting) are listed as owner items
+> O-1…O-5 in `OWNER-DECISIONS.md`. Results: `M2-3-ACCEPTANCE.md`.
+
 | | |
 |---|---|
 | **Objective** | Make the Services module complete for day-to-day use |
