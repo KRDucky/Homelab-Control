@@ -283,6 +283,13 @@ func ReadOSRelease(etcRoot string) (OSRelease, string, error) {
 
 // ParseOSRelease parses KEY=VALUE lines with optional shell-style quoting.
 func ParseOSRelease(b []byte) OSRelease {
+	kv := parseKV(b)
+	return OSRelease{ID: kv["ID"], IDLike: kv["ID_LIKE"], Name: kv["NAME"], PrettyName: kv["PRETTY_NAME"], VersionID: kv["VERSION_ID"]}
+}
+
+// parseKV parses the environment-like KEY=VALUE format shared by
+// os-release(5) and machine-info(5), with optional shell-style quoting.
+func parseKV(b []byte) map[string]string {
 	kv := map[string]string{}
 	sc := bufio.NewScanner(bytes.NewReader(b))
 	for sc.Scan() {
@@ -300,7 +307,7 @@ func ParseOSRelease(b []byte) OSRelease {
 		}
 		kv[k] = v
 	}
-	return OSRelease{ID: kv["ID"], IDLike: kv["ID_LIKE"], Name: kv["NAME"], PrettyName: kv["PRETTY_NAME"], VersionID: kv["VERSION_ID"]}
+	return kv
 }
 
 // DistroFamily maps os-release to the package families Homelab Control targets.

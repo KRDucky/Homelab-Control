@@ -126,7 +126,16 @@ export function getOverview(): Promise<Overview> {
 export type CapabilityStatus = 'available' | 'degraded' | 'unavailable' | 'unsupported' | 'forbidden';
 
 export interface Capability {
-  id: 'overview' | 'services' | 'service_logs' | 'unit_files' | 'hardware' | 'legacy' | 'audit' | 'storage';
+  id:
+    | 'overview'
+    | 'services'
+    | 'service_logs'
+    | 'unit_files'
+    | 'hardware'
+    | 'legacy'
+    | 'audit'
+    | 'storage'
+    | 'host_settings';
   label: string;
   path: string;
   scope: string;
@@ -669,4 +678,64 @@ export function applyEnablement(
 // able to trigger it with a cookie-bearing image or no-cors request.
 export function getStorage(csrf: string): Promise<StorageInventory> {
   return request<StorageInventory>('/api/v1/storage', { headers: { 'X-CSRF-Token': csrf } });
+}
+
+// M2-6 skeleton: read-only host settings and a non-executing preview.
+export interface HostSetting {
+  value?: string;
+  status: 'observed' | 'not-set' | 'unavailable';
+  source: string;
+  note?: string;
+}
+
+export interface HostSettings {
+  kernel_hostname: HostSetting;
+  static_hostname: HostSetting;
+  pretty_hostname: HostSetting;
+  timezone: HostSetting;
+}
+
+export interface HostSettingsResponse {
+  collected_at: string;
+  read_only: true;
+  settings: HostSettings;
+}
+
+export interface HostSettingsPreviewRequest {
+  static_hostname?: string;
+  pretty_hostname?: string;
+  timezone?: string;
+}
+
+export interface HostSettingChange {
+  field: 'static_hostname' | 'pretty_hostname' | 'timezone';
+  current: string;
+  requested: string;
+  outcome: 'unchanged' | 'would-change' | 'invalid' | 'cannot-compare';
+  reason?: string;
+}
+
+export interface HostSettingsPreview {
+  preview_only: true;
+  executed: false;
+  host_changed: false;
+  apply_available: false;
+  notice: string;
+  valid: boolean;
+  collected_at: string;
+  current: HostSettings;
+  changes: HostSettingChange[];
+  warnings: string[];
+}
+
+export function getHostSettings(): Promise<HostSettingsResponse> {
+  return request<HostSettingsResponse>('/api/v1/host/settings');
+}
+
+/** Compares requested values with the host's. The server never applies them. */
+export function previewHostSettings(
+  req: HostSettingsPreviewRequest,
+  csrf: string,
+): Promise<HostSettingsPreview> {
+  return postJSON<HostSettingsPreview>('/api/v1/host/settings/preview', csrf, req);
 }
