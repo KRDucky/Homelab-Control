@@ -225,3 +225,29 @@ use are separate decisions. The review of the new write against every element of
   `Requisite=` in unit files on disk. A fixed, target-less root template reads the manager's load timestamps.
 - **Known limitations** added: no manager reload (the setting can take effect before a reboot, at any later
   reload or first load of a target; status on the host shows the old setting until then); boot-time conditions are not simulated; concurrent root edits on the host are reported, not prevented.
+
+## Extension for M2-6 (2026-11-06, proposed for owner acceptance): hostname and timezone
+
+The owner chose Finish M2-6 apply on 2026-11-06 after squash-merging the read-only skeleton (PR #40) to
+main. Acceptance, merge and production use are separate decisions. This extension reuses the framework
+above; it does not invent a parallel write path.
+
+- **Op pair** `host.settings.plan` / `host.settings.apply`, scope `host.settings.apply` (API and broker).
+  `host.settings.preview` never authorizes either op. Token op `host.settings`, action `set`, target `host`
+  so the journal never stores the requested host name as the target.
+- **Risk:** `reversible`. Confirmation is required. Password re-entry is not (`Consume` skips step-up for
+  this class). The class is not raised to disruptive.
+- **Fields:** static hostname, pretty hostname (empty = removal), timezone. A closed `timedatectl
+  list-timezones` read is used at plan and apply; D-Bus live view is not.
+- **Lock** `host-settings` (one host-wide). **Revalidation** recomputes a digest of observed
+  hostnamectl/timedatectl statuses and values plus which fields were requested and their values; a
+  mismatch is `conflict` and nothing runs.
+- **Journal** unchanged in format. Intent and outcome `Observed` carry field names and statuses, never
+  hostname/pretty/timezone values, never the token. The recovery inspector describes an interrupted
+  host-settings op by those statuses.
+- **Read-back** is hostnamectl/timedatectl. Packaged `hc-api` uses `ProtectHostname=yes`; the kernel
+  hostname observed by the API may stay at start-time. The outcome must not claim a kernel rename from
+  that namespace.
+- **Warnings:** when the static host name would change, the plan payload includes that TLS names, mDNS
+  and `/etc/hosts` are not updated.
+- **API audit** records `host.settings.plan` and `host.settings.apply` with field names only.
