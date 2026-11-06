@@ -168,6 +168,11 @@ input {
   margin-top: var(--hc-space-4);
   padding: var(--hc-space-3);
 }
+.login-sso {
+  justify-self: center;
+  margin-top: var(--hc-space-2);
+  font-size: var(--hc-font-size-sm);
+}
 .form-error {
   margin: var(--hc-space-2) 0 0;
   color: var(--hc-color-crit);

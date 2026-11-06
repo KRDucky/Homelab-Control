@@ -21,6 +21,7 @@ installed by the .deb as /usr/share/doc/homelab-control/copyright.
 
 Requires `npm ci` (frontend/app/node_modules) and `go` on PATH. Stdlib only.
 """
+import hashlib
 import json
 import os
 import re
@@ -35,7 +36,27 @@ REPO = "https://github.com/KRDucky/Homelab-Control---Webmin-Fork"
 # MIT boundary for Homelab Control's own files (must match REUSE.toml, LA-03).
 MIT_PATHS = ["sdk/*", "schemas/*", "themes/*", "frontend/design-system/*",
              "docs/ui/theme.schema.v1.draft.json", "docs/ui/examples/themes/*"]
-DEB_LICENSE = {"MIT": "Expat", "OFL-1.1": "OFL-1.1", "BSD-3-Clause": "BSD-3-clause"}
+DEB_LICENSE = {"MIT": "Expat", "OFL-1.1": "OFL-1.1", "BSD-3-Clause": "BSD-3-clause", "Apache-2.0": "Apache-2.0"}
+# sha256 of the whitespace-collapsed Apache-2.0 terms ("TERMS AND CONDITIONS ..." up to
+# "END OF TERMS AND CONDITIONS"), identical to the SPDX reference text. Only a licence whose terms
+# match exactly may be replaced by a reference to /usr/share/common-licenses/Apache-2.0.
+APACHE_2_TERMS_SHA256 = "efc42672d5e2255417ab2bbcef2a39e8400f0ab6d32f4c790d95a3640087923c"
+# Debian Policy 12.5 / lintian copyright-file-contains-full-apache-2-license: refer to the
+# common-licenses copy instead of embedding the full text. The full licence texts and every NOTICE
+# file stay verbatim in THIRD-PARTY-NOTICES.md (shipped in /usr/share/doc/homelab-control/).
+APACHE_2_DEB = """Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+this software except in compliance with the License. You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the
+License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+either express or implied. See the License for the specific language governing permissions
+and limitations under the License.
+
+On Debian systems, the complete text of the Apache License, Version 2.0 can be found in
+"/usr/share/common-licenses/Apache-2.0". The complete licence texts and NOTICE files shipped
+with the Apache-2.0 components are reproduced verbatim in THIRD-PARTY-NOTICES.md."""
 
 
 def license_file(pkg_dir):
@@ -99,12 +120,28 @@ def holder(text):
     """First copyright statement of a licence file, without the 'Copyright (c)' prefix."""
     for line in text.splitlines():
         m = re.match(r"\s*Copyright\s+(?:\([cC]\)\s*)?(.*\S)", line)
-        if m:
+        if m and not re.search(r"[\[{]yyyy[\]}]", m.group(1)):  # skip the Apache-2.0 appendix template
             h = m.group(1)
             if "Copyright" in h:  # OFL files repeat the statement per font file
                 h = h.split(")", 1)[0] + ")"
             return h
     sys.exit("no copyright line found in a shipped licence; resolve before release")
+
+
+def apache2_terms_sha256(text):
+    """sha256 of an Apache-2.0 licence's terms with whitespace collapsed, or None if absent."""
+    start = text.find("TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION")
+    end = text.find("END OF TERMS AND CONDITIONS")
+    if start < 0 or end < start:
+        return None
+    return hashlib.sha256(" ".join(text[start:end].split()).encode()).hexdigest()
+
+
+def require_standard_apache2(what, text):
+    """Fail closed unless `text` is the unmodified Apache License 2.0."""
+    if apache2_terms_sha256(text) != APACHE_2_TERMS_SHA256:
+        sys.exit(f"{what}: licence text is not the unmodified Apache-2.0 terms; review it and "
+                 "render it in full instead of referring to /usr/share/common-licenses/Apache-2.0")
 
 
 def deb_text(text):
@@ -156,23 +193,31 @@ def render_debian():
                 f"Copyright: {holder(p['text'])}", f"License: {lic}",
                 f"Comment: {p['name']} {p['version']} ({p['source']}). {what} compiled into the",
                 " web UI embedded in /usr/bin/hc-api."]
-        if lic != "Expat" or texts["Expat"] is None:
+        if lic == "Apache-2.0":
+            require_standard_apache2(p["name"], p["text"])
+            texts[lic] = APACHE_2_DEB
+        elif lic != "Expat" or texts["Expat"] is None:
             texts[lic] = p["text"]
     for m in go_modules():
         lic = "BSD-3-clause" if m["license"] == "BSD-3-Clause" else DEB_LICENSE.get(m["license"])
         if not lic:
             sys.exit(f"{m['path']}: no Debian licence short name for {m['license']}")
-        name = lic + "~" + m["path"].replace("/", "-")
         main_text = next(t for f, t in m["files"] if f.upper() in ("LICENSE", "LICENCE", "COPYING"))
+        if lic == "Apache-2.0":  # one standard text, shared by every Apache-2.0 component
+            require_standard_apache2(m["path"], main_text)
+            name = lic
+        else:
+            name = lic + "~" + m["path"].replace("/", "-")
         others = [f for f, _ in m["files"] if f.upper() not in ("LICENSE", "LICENCE", "COPYING")]
         out += ["", f"Files: vendor-sources/go/download/{m['path']}/*",
-                f"Copyright: {holder(main_text)}", f"License: {name}",
+                f"Copyright: {m.get('copyright') or holder(main_text)}", f"License: {name}",
                 f"Comment: Go module {m['path']} {m['version']}, compiled into /usr/bin/hc-api and /usr/bin/hlctl"
                 + " (not hc-broker).",
                 " Source (module zip) in the release source archive under vendor-sources/go/download."
                 + (f" Further notices shipped with the module ({', '.join(others)}) are reproduced in" if others else ""),
                 *([" THIRD-PARTY-NOTICES.md."] if others else [])]
-        texts[name] = re.sub(r"^\s*(MIT License\s*)?(Copyright[^\n]*\n+)+", "", main_text)
+        texts[name] = APACHE_2_DEB if lic == "Apache-2.0" else \
+            re.sub(r"^\s*(MIT License\s*)?(Copyright[^\n]*\n+)+", "", main_text)
     out += ["", "License: GPL-3+",
             " This program is free software: you can redistribute it and/or modify it under the",
             " terms of the GNU General Public License as published by the Free Software Foundation,",

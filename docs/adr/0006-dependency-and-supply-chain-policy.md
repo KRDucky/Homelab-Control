@@ -74,3 +74,21 @@ from `@fontsource-variable/inter` and `@fontsource-variable/jetbrains-mono`, rep
 | Vulnerabilities | `npm audit --omit=dev --audit-level=high`: 0 vulnerabilities (2026-10-23). |
 
 Adding or replacing a font repeats this review and the policy checks in the same PR.
+
+## Amendment 3 (2026-11-05): OpenID Connect login libraries (proposed, for supervisor/owner review)
+
+**Decision (proposed):** `hc-api` uses `github.com/coreos/go-oidc/v3` for discovery and ID token verification,
+`golang.org/x/oauth2` for the authorization-code exchange with PKCE, and `github.com/go-jose/go-jose/v4` (a go-oidc
+dependency) for JWS/JWK, rather than hand-written JWT handling. Owner direction 2026-11-05: OIDC login in the working
+skeleton, "use a maintained OIDC/OAuth implementation". Design: `docs/security/OIDC-SSO.md`.
+
+| Item | Result |
+|---|---|
+| Need | A single administrator-configured OIDC provider can sign users in to their existing local accounts. JOSE signature verification is security-critical and must not be hand-written. |
+| Versions | `go-oidc v3.21.0` (2026-09-01), `x/oauth2 v0.37.0` (2026-08-25), `go-jose v4.1.7` (2026-10-30). go-oidc only needs go-jose v4.1.4; v4.1.7 is selected because v4.1.5–v4.1.7 fixed GHSA advisories (JWS/JWE limits, header presence, JSON depth, RSA size). v4.1.8+ adds ML-DSA, which is not needed. |
+| Module graph | 3 new modules, all linked (`hc-api`, and `hlctl` because it imports `internal/api`). `x/oauth2` requires `cloud.google.com/go/compute/metadata`, but that module is outside the pruned graph: it is not in `go.sum` and not linked. The test-only package `internal/oidclogin/testidp` is not linked. |
+| Licences | Apache-2.0 (go-oidc, go-jose; go-oidc ships a CoreOS NOTICE, which is reproduced), BSD-3-Clause (x/oauth2). Apache-2.0 is compatible with GPL-3.0-or-later. `THIRD-PARTY-NOTICES.md`, DEP-5 `copyright` and the SBOM were regenerated. The generator now maps Apache-2.0 to its DEP-5 name and skips the licence's appendix template when it looks for the copyright holder; for the two Apache modules the holder comes from the allow-list `copyright` field. |
+| Provenance | Fetched through `proxy.golang.org` and checked against `sum.golang.org`; the hashes are in `go.sum` and the allow-list. |
+| Vulnerabilities | Go vulnerability DB 2026-11-05: no entry affects these versions. go-jose's v4 entries GO-2024-2631, GO-2025-3485 and GO-2026-4945 are fixed at or before v4.1.4, and x/oauth2's GO-2025-3488 is fixed in v0.27.0. `govulncheck` runs in `make security`. |
+| Privilege | `hc-broker` still links no third-party module (`scripts/check-go-deps.py`). |
+| Network | The libraries make outbound HTTPS calls to the configured issuer only. hc-api uses one client for these: 10 s timeout, no redirects, TLS 1.2 or later, and response bodies capped at 1 MiB. |
