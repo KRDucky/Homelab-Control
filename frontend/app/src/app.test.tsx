@@ -162,6 +162,27 @@ describe('App', () => {
     expect((await screen.findByRole('alert')).textContent).toMatch(/don’t match an account/);
   });
 
+  it('offers single sign-on as a plain link only when the server enables it', async () => {
+    mockFetch({
+      'GET /api/v1/auth/session': { status: 401, body: {} },
+      'GET /api/v1/auth/oidc': { status: 200, body: { enabled: true } },
+    });
+    render(<App />);
+    const link = await screen.findByRole('link', { name: 'Sign in with single sign-on' });
+    expect(link.getAttribute('href')).toBe('/api/v1/auth/oidc/start');
+    expect(screen.getByLabelText('Password')).toBeTruthy(); // local login stays available
+  });
+
+  it('hides single sign-on when it is not configured', async () => {
+    mockFetch({
+      'GET /api/v1/auth/session': { status: 401, body: {} },
+      'GET /api/v1/auth/oidc': { status: 200, body: { enabled: false } },
+    });
+    render(<App />);
+    await screen.findByLabelText('Username');
+    expect(screen.queryByRole('link', { name: 'Sign in with single sign-on' })).toBeNull();
+  });
+
   it('sends the CSRF token on sign-out', async () => {
     const calls = mockFetch({
       'GET /api/v1/auth/session': {

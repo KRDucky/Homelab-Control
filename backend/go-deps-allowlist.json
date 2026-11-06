@@ -80,6 +80,32 @@
       "linked": false,
       "h1": "h1:HMFp8mLCTPp341M/ZnA4qaf7ZlsbTc+miZjCLOFAw7w=",
       "notes": "In the module graph only; not compiled into any binary (go list -deps)."
+    },
+    {
+      "path": "github.com/coreos/go-oidc/v3",
+      "version": "v3.21.0",
+      "license": "Apache-2.0",
+      "linked": true,
+      "h1": "h1:wZo4Q9Pum8dYEj0eMUPrqR+kvuGkeUplbLpNCkBqoWM=",
+      "notes": "OIDC ID token verification and discovery (ADR 0006 amendment 3). Linked into hc-api, and into hlctl because it imports internal/api; NOTICE (CoreOS) reproduced in third-party notices.",
+      "copyright": "2014 CoreOS, Inc"
+    },
+    {
+      "path": "github.com/go-jose/go-jose/v4",
+      "version": "v4.1.7",
+      "license": "Apache-2.0",
+      "linked": true,
+      "h1": "h1:Nac/98uT5LPkfbiFuYa8ktf62a2VxwQ4xbq1GK8pV5E=",
+      "notes": "JWS/JWK for go-oidc (amendment 3). v4.1.7 chosen over go-oidc's minimum v4.1.4 for the GHSA fixes released in v4.1.5–v4.1.7; v4.1.8+ adds ML-DSA (not needed).",
+      "copyright": "2014 Square Inc. and the go-jose authors"
+    },
+    {
+      "path": "golang.org/x/oauth2",
+      "version": "v0.37.0",
+      "license": "BSD-3-Clause",
+      "linked": true,
+      "h1": "h1:JUlcxA8oAtauLfiH8FX2/FkAWHAdi0QtGCGc+hofE98=",
+      "notes": "OAuth 2.0 authorization-code exchange with PKCE (amendment 3). Its cloud.google.com/go/compute/metadata requirement is outside the pruned module graph and not linked."
     }
   ]
 }
