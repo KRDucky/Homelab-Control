@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import {
   ApiError,
   getHostSettings,
@@ -14,9 +14,11 @@ import {
 } from '../api';
 import { StatusPill } from '../ui';
 import { explain, useData } from '../useData';
+import { HostSettingsApplyDialog } from './HostSettingsApplyDialog';
 
-// M2-6 skeleton: shows the observed host name and time zone, and previews
-// requested changes. Nothing on this page changes the host; there is no apply.
+// M2-6: observed host name and time zone, a non-executing preview, and
+// plan → confirm → apply behind host.settings.apply. Preview never posts
+// plan or apply. host.settings.preview never authorizes a write.
 
 const labels: Record<HostSettingChange['field'] | 'kernel_hostname', string> = {
   kernel_hostname: 'Kernel host name',
@@ -33,24 +35,42 @@ const outcomeText: Record<HostSettingChange['outcome'], string> = {
 };
 
 function SettingValue({ s }: { s: HostSetting }) {
-  if (s.status === 'observed') return <>{s.value}</>;
+  if (s.status === 'observed') return <span className="mono">{s.value}</span>;
   return <span className="muted">{s.status === 'not-set' ? 'Not set' : 'Unavailable'}</span>;
+}
+
+function requestFromForm(form: { static_hostname: string; pretty_hostname: string; timezone: string }) {
+  const req: HostSettingsPreviewRequest = {};
+  if (form.static_hostname.trim()) req.static_hostname = form.static_hostname.trim();
+  if (form.pretty_hostname.trim()) req.pretty_hostname = form.pretty_hostname.trim();
+  if (form.timezone.trim()) req.timezone = form.timezone.trim();
+  return req;
 }
 
 export function HostSettingsPage({
   csrf,
   canPreview,
+  canApply,
+  stepUpUntil = null,
+  auditAvailable = false,
   onUnauthorized,
 }: {
   csrf: string;
   canPreview: boolean;
+  canApply: boolean;
+  stepUpUntil?: string | null;
+  auditAvailable?: boolean;
   onUnauthorized: () => void;
 }) {
-  const { data, error } = useData(getHostSettings, { onUnauthorized });
+  const { data, error, reload } = useData(getHostSettings, { onUnauthorized });
   const [form, setForm] = useState({ static_hostname: '', pretty_hostname: '', timezone: '' });
   const [preview, setPreview] = useState<HostSettingsPreview | null>(null);
+  const [previewReq, setPreviewReq] = useState<HostSettingsPreviewRequest | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [stepUp, setStepUp] = useState<string | null>(stepUpUntil);
+  const applyBtn = useRef<HTMLButtonElement>(null);
 
   if (error && !data) {
     return (
@@ -67,10 +87,7 @@ export function HostSettingsPage({
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    const req: HostSettingsPreviewRequest = {};
-    if (form.static_hostname.trim()) req.static_hostname = form.static_hostname.trim();
-    if (form.pretty_hostname.trim()) req.pretty_hostname = form.pretty_hostname.trim();
-    if (form.timezone.trim()) req.timezone = form.timezone.trim();
+    const req = requestFromForm(form);
     if (Object.keys(req).length === 0) {
       setPreviewError('Enter at least one value to preview.');
       return;
@@ -78,23 +95,30 @@ export function HostSettingsPage({
     setBusy(true);
     setPreviewError(null);
     try {
-      setPreview(await previewHostSettings(req, csrf));
+      const next = await previewHostSettings(req, csrf);
+      setPreview(next);
+      setPreviewReq(req);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) onUnauthorized();
       setPreview(null);
+      setPreviewReq(null);
       setPreviewError(err instanceof ApiError ? err.message : explain(err as Error));
     } finally {
       setBusy(false);
     }
   }
 
+  const showApply = canApply && preview?.apply_available === true && preview.valid && previewReq !== null;
+
   return (
     <div className="page">
       <header className="page-head">
         <h1 className="page-title">Host settings</h1>
         <p className="page-sub">
-          Host name and time zone as this host reports them. Changes can be previewed here; Homelab Control
-          cannot apply them yet.
+          Host name and time zone as this host reports them. Preview does not change the host
+          {canApply
+            ? '. Applying a change needs a separate confirmation.'
+            : '; Homelab Control cannot apply them without the host.settings.apply permission.'}
         </p>
       </header>
 
@@ -123,8 +147,12 @@ export function HostSettingsPage({
       <section className="panel" aria-labelledby="h-host-preview">
         <h2 id="h-host-preview">Preview a change</h2>
         <p className="banner" role="note">
-          Preview only. Nothing is changed on this host, and there is no way to apply these values from
-          Homelab Control yet.
+          Preview only. Nothing is changed on this host
+          {!canApply
+            ? '. Applying a change requires the host.settings.apply permission.'
+            : preview && !preview.apply_available
+              ? '. Apply is not available from this server right now.'
+              : '.'}
         </p>
         {!canPreview ? (
           <p className="muted">Your account does not have the host.settings.preview permission.</p>
@@ -207,9 +235,39 @@ export function HostSettingsPage({
                 {w}
               </p>
             ))}
+            {showApply && (
+              <p>
+                <button
+                  ref={applyBtn}
+                  type="button"
+                  onClick={() => setApplying(true)}
+                >
+                  Apply these settings…
+                </button>
+              </p>
+            )}
           </div>
         )}
       </section>
+      {applying && previewReq && (
+        <HostSettingsApplyDialog
+          request={previewReq}
+          csrf={csrf}
+          stepUpUntil={stepUp}
+          onStepUp={setStepUp}
+          onUnauthorized={onUnauthorized}
+          auditAvailable={auditAvailable}
+          returnFocus={() => applyBtn.current?.focus()}
+          onClose={(changed) => {
+            setApplying(false);
+            if (changed) {
+              setPreview(null);
+              setPreviewReq(null);
+              reload();
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
