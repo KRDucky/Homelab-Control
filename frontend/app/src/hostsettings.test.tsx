@@ -129,8 +129,19 @@ describe('host settings', () => {
     expect(screen.queryByRole('button', { name: /^Apply/ })).toBeNull();
   });
 
-  it('does not offer Apply without host.settings.apply even when the server says apply is available', async () => {
+  it('does not treat capability available as host.settings.apply', async () => {
+    // CapAvailable means this server has the broker op and binaries, not that
+    // the signed-in account may plan or apply.
     mock(['system.read', 'host.settings.preview'], {
+      'GET /api/v1/capabilities': {
+        status: 200,
+        body: {
+          ...caps,
+          capabilities: caps.capabilities.map((c) =>
+            c.id === 'host_settings' ? { ...c, status: 'available', reason: '' } : c,
+          ),
+        },
+      },
       'POST /api/v1/host/settings/preview': {
         status: 200,
         body: { ...preview, apply_available: true, valid: true, warnings: [] },
@@ -140,7 +151,8 @@ describe('host settings', () => {
     fireEvent.change(await screen.findByLabelText('Static host name'), { target: { value: 'nas-01' } });
     fireEvent.click(screen.getByRole('button', { name: 'Preview (does not apply)' }));
     expect(await screen.findByText('Preview result — not applied')).toBeTruthy();
-    expect(screen.getByText(/requires the host.settings.apply permission/)).toBeTruthy();
+    expect(screen.getAllByText(/requires the host.settings.apply permission/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/needs a separate confirmation/)).toBeNull();
     expect(screen.queryByRole('button', { name: /^Apply/ })).toBeNull();
     expect(calls.some((c) => /\/host\/settings\/(apply|plan)$/.test(c.key))).toBe(false);
   });
@@ -152,7 +164,7 @@ describe('host settings', () => {
     render(<App />);
     fireEvent.change(await screen.findByLabelText('Static host name'), { target: { value: 'nas-01' } });
     fireEvent.click(screen.getByRole('button', { name: 'Preview (does not apply)' }));
-    expect(await screen.findByText(/Apply is not available from this server right now/)).toBeTruthy();
+    expect((await screen.findAllByText(/Apply is not available from this server right now/)).length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: /^Apply/ })).toBeNull();
     expect(calls.some((c) => /\/host\/settings\/(apply|plan)$/.test(c.key))).toBe(false);
   });
