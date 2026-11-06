@@ -195,7 +195,7 @@ This amendment does not authorize NTP, network, users, D-Bus live view, kernel U
 or other hostnamectl/timedatectl verbs.
 
 - **Two new allow-listed binaries:** `hostnamectl` and `timedatectl`, resolved like `systemctl` (`/usr/bin`
-  then `/bin`), root-owned and not group/world-writable. `TestJournalctlIsTheOnlyNewBinary` is updated.
+  then `/bin`), root-owned and not group/world-writable. `TestAllowListedBinariesAreClosed` is the allow-list snapshot.
 - **Six new root templates**, values after `--`, validated again by the runner using
   `hostinfo.ValidStaticHostname` / `ValidPrettyHostname` / `ValidTimezoneName`:
   - `hostnamectl.set-static` = `hostnamectl --no-ask-password set-hostname --static -- <name>`
