@@ -46,21 +46,33 @@ const (
 	// Not in DefaultScopes and not implied by services.logs, services.read,
 	// services.operate or services.configure (no scope implies another).
 	ScopeServicesFiles = "services.files"
+	// ScopeHostSettingsPreview allows previewing hostname and timezone
+	// changes (M2-6 skeleton). A preview never changes the host, and this
+	// scope will never authorize applying changes: that needs its own scope
+	// and an ADR 0011 review. Not in DefaultScopes.
+	ScopeHostSettingsPreview = "host.settings.preview"
+	// ScopeLayoutManage allows editing the application-owned manual drive-bay
+	// layout in state.db (M2-5 Stage A, D-7). It changes no host state. Not in
+	// DefaultScopes; storage.read does not imply it, and it does not imply
+	// storage.read (assigning a drive additionally requires storage.read).
+	ScopeLayoutManage = "layout.manage"
 )
 
 // KnownScopes lists every scope the server understands. Unknown scopes in the
 // users file are rejected at load time so typos cannot silently grant nothing
 // (or, in later milestones, the wrong thing). All M1 scopes are read-only.
 var KnownScopes = map[string]bool{
-	ScopeStorageRead:       true,
-	ScopeSystemRead:        true,
-	ScopeServicesRead:      true,
-	ScopeHardwareRead:      true,
-	ScopeServicesLogs:      true,
-	ScopeAuditRead:         true,
-	ScopeServicesOperate:   true,
-	ScopeServicesConfigure: true,
-	ScopeServicesFiles:     true,
+	ScopeStorageRead:         true,
+	ScopeSystemRead:          true,
+	ScopeServicesRead:        true,
+	ScopeHardwareRead:        true,
+	ScopeServicesLogs:        true,
+	ScopeAuditRead:           true,
+	ScopeServicesOperate:     true,
+	ScopeServicesConfigure:   true,
+	ScopeServicesFiles:       true,
+	ScopeHostSettingsPreview: true,
+	ScopeLayoutManage:        true,
 }
 
 // DefaultScopes are granted by `hlctl user add` when --scopes is not given.

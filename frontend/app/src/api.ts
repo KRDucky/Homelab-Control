@@ -134,7 +134,16 @@ export function getOverview(): Promise<Overview> {
 export type CapabilityStatus = 'available' | 'degraded' | 'unavailable' | 'unsupported' | 'forbidden';
 
 export interface Capability {
-  id: 'overview' | 'services' | 'service_logs' | 'unit_files' | 'hardware' | 'legacy' | 'audit' | 'storage';
+  id:
+    | 'overview'
+    | 'services'
+    | 'service_logs'
+    | 'unit_files'
+    | 'hardware'
+    | 'legacy'
+    | 'audit'
+    | 'storage'
+    | 'host_settings';
   label: string;
   path: string;
   scope: string;
@@ -677,4 +686,151 @@ export function applyEnablement(
 // able to trigger it with a cookie-bearing image or no-cors request.
 export function getStorage(csrf: string): Promise<StorageInventory> {
   return request<StorageInventory>('/api/v1/storage', { headers: { 'X-CSRF-Token': csrf } });
+}
+
+// M2-6 skeleton: read-only host settings and a non-executing preview.
+export interface HostSetting {
+  value?: string;
+  status: 'observed' | 'not-set' | 'unavailable';
+  source: string;
+  note?: string;
+}
+
+export interface HostSettings {
+  kernel_hostname: HostSetting;
+  static_hostname: HostSetting;
+  pretty_hostname: HostSetting;
+  timezone: HostSetting;
+}
+
+export interface HostSettingsResponse {
+  collected_at: string;
+  read_only: true;
+  settings: HostSettings;
+}
+
+export interface HostSettingsPreviewRequest {
+  static_hostname?: string;
+  pretty_hostname?: string;
+  timezone?: string;
+}
+
+export interface HostSettingChange {
+  field: 'static_hostname' | 'pretty_hostname' | 'timezone';
+  current: string;
+  requested: string;
+  outcome: 'unchanged' | 'would-change' | 'invalid' | 'cannot-compare';
+  reason?: string;
+}
+
+export interface HostSettingsPreview {
+  preview_only: true;
+  executed: false;
+  host_changed: false;
+  apply_available: false;
+  notice: string;
+  valid: boolean;
+  collected_at: string;
+  current: HostSettings;
+  changes: HostSettingChange[];
+  warnings: string[];
+}
+
+export function getHostSettings(): Promise<HostSettingsResponse> {
+  return request<HostSettingsResponse>('/api/v1/host/settings');
+}
+
+/** Compares requested values with the host's. The server never applies them. */
+export function previewHostSettings(
+  req: HostSettingsPreviewRequest,
+  csrf: string,
+): Promise<HostSettingsPreview> {
+  return postJSON<HostSettingsPreview>('/api/v1/host/settings/preview', csrf, req);
+}
+
+// M2-5 Stage A: application-owned manual drive-bay layout. Every assignment is
+// the administrator's statement (manual, unverified); nothing touches the host.
+export type ChassisKind = 'server' | 'shelf' | 'external' | 'desktop';
+export type CellKind =
+  'hdd-3.5' | 'ssd-2.5' | 'nvme-m2' | 'nvme-u2' | 'tray' | 'empty' | 'disabled' | 'reserved';
+export interface LayoutAssignment {
+  identity: string;
+  provenance: 'manual';
+  confidence: 'unverified';
+  assigned_by: string;
+  assigned_at: string;
+}
+export interface LayoutCell {
+  row: number;
+  col: number;
+  kind: CellKind;
+  label: string;
+  assignment?: LayoutAssignment;
+}
+export interface Chassis {
+  id: number;
+  name: string;
+  kind: ChassisKind;
+  rows: number;
+  cols: number;
+  created_at: string;
+  updated_at: string;
+  cells: LayoutCell[];
+}
+export interface ChassisSpec {
+  name: string;
+  kind: ChassisKind;
+  rows: number;
+  cols: number;
+  cells?: { row: number; col: number; kind: CellKind; label: string }[];
+}
+export interface DriveLayout {
+  chassis: Chassis[];
+}
+
+function sendJSON<T>(
+  method: 'POST' | 'PUT' | 'DELETE',
+  path: string,
+  csrf: string,
+  body?: unknown,
+): Promise<T> {
+  if (body === undefined) return request<T>(path, { method, headers: { 'X-CSRF-Token': csrf } });
+  return request<T>(path, {
+    method,
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+    body: JSON.stringify(body),
+  });
+}
+const layoutBase = '/api/v1/storage/layout';
+const bayPath = (id: number, row: number, col: number) =>
+  `${layoutBase}/chassis/${id}/bays/${row}/${col}/assignment`;
+
+// A malformed answer is an error for this panel only; the Storage page stays usable.
+async function checkedLayout(p: Promise<DriveLayout>): Promise<DriveLayout> {
+  const layout = await p;
+  if (!layout || !Array.isArray(layout.chassis)) throw new Error('invalid drive-bay layout response');
+  return layout;
+}
+// Like getStorage: the layout holds stored serial/WWN identities, so each read
+// is audited and requires the session CSRF token.
+export function getLayout(csrf: string): Promise<DriveLayout> {
+  return checkedLayout(request<DriveLayout>(layoutBase, { headers: { 'X-CSRF-Token': csrf } }));
+}
+export function createChassis(spec: ChassisSpec, csrf: string): Promise<DriveLayout> {
+  return checkedLayout(sendJSON<DriveLayout>('POST', `${layoutBase}/chassis`, csrf, spec));
+}
+export function updateChassis(id: number, spec: ChassisSpec, csrf: string): Promise<DriveLayout> {
+  return checkedLayout(sendJSON<DriveLayout>('PUT', `${layoutBase}/chassis/${id}`, csrf, spec));
+}
+export function deleteChassis(id: number, csrf: string): Promise<DriveLayout> {
+  return checkedLayout(sendJSON<DriveLayout>('DELETE', `${layoutBase}/chassis/${id}`, csrf));
+}
+/** The drive is named only by its persistent identity, never a kernel name. */
+export function assignBay(id: number, row: number, col: number, persistentID: string, csrf: string) {
+  return checkedLayout(
+    sendJSON<DriveLayout>('PUT', bayPath(id, row, col), csrf, { persistent_id: persistentID }),
+  );
+}
+export function unassignBay(id: number, row: number, col: number, csrf: string) {
+  return checkedLayout(sendJSON<DriveLayout>('DELETE', bayPath(id, row, col), csrf));
 }

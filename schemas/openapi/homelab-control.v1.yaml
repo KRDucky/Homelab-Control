@@ -35,7 +35,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, storage.read] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, storage.read, host.settings.preview, layout.manage] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
@@ -201,6 +201,64 @@ components:
         claims: { type: array, items: { $ref: '#/components/schemas/StorageClaim' } }
         status: { type: string, enum: [ok, partial, unavailable] }
         notes: { type: array, items: { type: string } }
+    LayoutAssignment:
+      type: object
+      description: "An administrator's manual statement, never verified by hardware: provenance is always manual and confidence always unverified. Keyed by a persistent identity (wwn:, nvme-uuid: or serial:), never a kernel name or device number."
+      required: [identity, provenance, confidence, assigned_by, assigned_at]
+      properties:
+        identity: { type: string, maxLength: 512 }
+        provenance: { type: string, enum: [manual] }
+        confidence: { type: string, enum: [unverified] }
+        assigned_by: { type: string }
+        assigned_at: { type: string, format: date-time }
+    LayoutCell:
+      type: object
+      required: [row, col, kind, label]
+      properties:
+        row: { type: integer, minimum: 0, maximum: 23 }
+        col: { type: integer, minimum: 0, maximum: 23 }
+        kind: { type: string, enum: [hdd-3.5, ssd-2.5, nvme-m2, nvme-u2, tray, empty, disabled, reserved] }
+        label: { type: string, maxLength: 64 }
+        assignment: { $ref: '#/components/schemas/LayoutAssignment' }
+    Chassis:
+      type: object
+      required: [id, name, kind, rows, cols, created_at, updated_at, cells]
+      properties:
+        id: { type: integer }
+        name: { type: string, maxLength: 64 }
+        kind: { type: string, enum: [server, shelf, external, desktop] }
+        rows: { type: integer, minimum: 1, maximum: 24 }
+        cols: { type: integer, minimum: 1, maximum: 24 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        cells: { type: array, items: { $ref: '#/components/schemas/LayoutCell' } }
+    ChassisSpec:
+      type: object
+      additionalProperties: false
+      required: [name, kind, rows, cols]
+      description: Unlisted positions default to an unlabelled hdd-3.5 bay. At most 32 chassis.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 64 }
+        kind: { type: string, enum: [server, shelf, external, desktop] }
+        rows: { type: integer, minimum: 1, maximum: 24 }
+        cols: { type: integer, minimum: 1, maximum: 24 }
+        cells:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [row, col, kind]
+            properties:
+              row: { type: integer, minimum: 0, maximum: 23 }
+              col: { type: integer, minimum: 0, maximum: 23 }
+              kind: { type: string, enum: [hdd-3.5, ssd-2.5, nvme-m2, nvme-u2, tray, empty, disabled, reserved] }
+              label: { type: string, maxLength: 64 }
+    DriveLayout:
+      type: object
+      required: [chassis]
+      description: Stored manual layout only. Bay states (present, missing, mismatch, vacant) are computed by joining persistent identities with a current /storage observation.
+      properties:
+        chassis: { type: array, items: { $ref: '#/components/schemas/Chassis' } }
     StorageInventory:
       type: object
       required: [collected_at, read_only, graph, snapshot_persisted]
@@ -311,7 +369,7 @@ components:
       type: object
       required: [id, label, path, scope, status]
       properties:
-        id: { type: string, enum: [overview, services, hardware, legacy, audit, service_logs, unit_files, storage] }
+        id: { type: string, enum: [overview, services, hardware, legacy, audit, service_logs, unit_files, storage, host_settings] }
         label: { type: string }
         path: { type: string }
         scope: { type: string }
@@ -653,6 +711,48 @@ components:
               identifier: { type: string, maxLength: 64 }
               message: { type: string, maxLength: 4096, description: Control characters removed; capped at 4 KiB }
               truncated: { type: boolean }
+    HostSetting:
+      type: object
+      description: One observed host setting. value is present only when status is observed; unavailable means unknown, never a default.
+      required: [status, source]
+      properties:
+        value: { type: string }
+        status: { type: string, enum: [observed, not-set, unavailable] }
+        source: { type: string, description: File the value was read from }
+        note: { type: string }
+    HostSettings:
+      type: object
+      required: [kernel_hostname, static_hostname, pretty_hostname, timezone]
+      properties:
+        kernel_hostname: { $ref: '#/components/schemas/HostSetting' }
+        static_hostname: { $ref: '#/components/schemas/HostSetting' }
+        pretty_hostname: { $ref: '#/components/schemas/HostSetting' }
+        timezone: { $ref: '#/components/schemas/HostSetting' }
+    HostSettingsPreview:
+      type: object
+      description: A comparison of requested and observed values. Nothing was applied; preview_only is always true and executed, host_changed and apply_available are always false.
+      required: [preview_only, executed, host_changed, apply_available, notice, valid, collected_at, current, changes, warnings]
+      properties:
+        preview_only: { type: boolean, const: true }
+        executed: { type: boolean, const: false }
+        host_changed: { type: boolean, const: false }
+        apply_available: { type: boolean, const: false }
+        notice: { type: string }
+        valid: { type: boolean }
+        collected_at: { type: string, format: date-time }
+        current: { $ref: '#/components/schemas/HostSettings' }
+        changes:
+          type: array
+          items:
+            type: object
+            required: [field, current, requested, outcome]
+            properties:
+              field: { type: string, enum: [static_hostname, pretty_hostname, timezone] }
+              current: { type: string }
+              requested: { type: string }
+              outcome: { type: string, enum: [unchanged, would-change, invalid, cannot-compare] }
+              reason: { type: string }
+        warnings: { type: array, items: { type: string } }
     Hardware:
       type: object
       required: [inventory, identity]
@@ -806,6 +906,49 @@ paths:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Overview' } } } }
         '401': { description: No session, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: Missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /host/settings:
+    get:
+      summary: Read-only host name (kernel, static, pretty) and time zone, from unprivileged file reads (M2-6 skeleton)
+      security: [{ session: [] }]
+      x-required-scope: system.read
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [collected_at, read_only, settings]
+                properties:
+                  collected_at: { type: string, format: date-time }
+                  read_only: { type: boolean, const: true }
+                  settings: { $ref: '#/components/schemas/HostSettings' }
+        '401': { description: No session, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Host settings cannot be observed, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /host/settings/preview:
+    post:
+      summary: 'Preview hostname and time zone changes. Never changes the host: there is no apply endpoint, no plan token and no broker operation. Omitted fields are not requested; an empty pretty_hostname previews removing it.'
+      security: [{ session: [] }]
+      x-required-scope: host.settings.preview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                static_hostname: { type: string, maxLength: 64 }
+                pretty_hostname: { type: string, maxLength: 255 }
+                timezone: { type: string, maxLength: 128 }
+      responses:
+        '200': { description: 'Preview (valid tells whether every requested value is acceptable)', content: { application/json: { schema: { $ref: '#/components/schemas/HostSettingsPreview' } } } }
+        '400': { description: Invalid JSON or no field requested, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: No session, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing scope, or CSRF/Origin rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '415': { description: Not application/json, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Host settings cannot be observed, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /capabilities:
     get:
       summary: What this server can show this user right now (drives navigation)
@@ -985,6 +1128,98 @@ paths:
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: Missing storage.read permission or missing/invalid CSRF token, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: Metadata or durable access audit unavailable, or collection busy, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /storage/layout:
+    get:
+      summary: Stored manual drive-bay layout (M2-5 Stage A). Application state only; no collection or host access.
+      description: Assignments carry stored serial/WWN identities, so each read is access-audited (counts only, never identifiers) and the layout is released only after the audit record is written. The session X-CSRF-Token header is required; a cookie alone is refused with 403 csrf_rejected before the layout is read or audited.
+      security: [{ session: [] }]
+      x-required-scope: storage.read
+      parameters:
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DriveLayout' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing storage.read permission or missing/invalid CSRF token, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: State database or durable access audit unavailable (nothing is returned when the access cannot be audited), content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /storage/layout/chassis:
+    post:
+      summary: Create a manually labelled chassis grid (application state only; audited).
+      security: [{ session: [] }]
+      x-required-scope: layout.manage
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ChassisSpec' } } }
+      responses:
+        '201': { description: Created; the full layout is returned, content: { application/json: { schema: { $ref: '#/components/schemas/DriveLayout' } } } }
+        '400': { description: Invalid body or limits exceeded, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing layout.manage, or Origin/CSRF rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'State database or audit unavailable, or the change could not be audited (nothing changed when the requested record fails)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /storage/layout/chassis/{id}:
+    put:
+      summary: Replace a chassis' name, kind, size and cells. Refused (409) when an assigned bay would leave the grid or stop being a bay.
+      security: [{ session: [] }]
+      x-required-scope: layout.manage
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ChassisSpec' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DriveLayout' } } } }
+        '400': { description: Invalid body or limits exceeded, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: No such chassis, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Would drop or invalidate an existing assignment, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing layout.manage, or Origin/CSRF rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'State database or audit unavailable, or the change could not be audited (nothing changed when the requested record fails)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    delete:
+      summary: Delete a chassis. Refused (409) while any of its bays has an assignment.
+      security: [{ session: [] }]
+      x-required-scope: layout.manage
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DriveLayout' } } } }
+        '404': { description: No such chassis, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Chassis still has assignments, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing layout.manage, or Origin/CSRF rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'State database or audit unavailable, or the change could not be audited (nothing changed when the requested record fails)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /storage/layout/chassis/{id}/bays/{row}/{col}/assignment:
+    put:
+      summary: "Record a manual, unverified assignment of a drive to a bay. Also requires storage.read. The drive is confirmed against a fresh observation: exactly one whole disk whose observed, unambiguous persistent identity (wwn:, nvme-uuid: or serial:) equals persistent_id. An occupied bay or an identity already assigned elsewhere is refused (409); nothing is overwritten or moved."
+      security: [{ session: [] }]
+      x-required-scope: layout.manage
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: row, in: path, required: true, schema: { type: integer, minimum: 0, maximum: 23 } }
+        - { name: col, in: path, required: true, schema: { type: integer, minimum: 0, maximum: 23 } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, additionalProperties: false, required: [persistent_id], properties: { persistent_id: { type: string, maxLength: 512 } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DriveLayout' } } } }
+        '400': { description: Invalid body or identity tier not assignable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: No such bay, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: 'Bay occupied or not a bay, identity assigned elsewhere, or drive not currently observed as exactly one whole disk with an unambiguous identity', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing layout.manage or storage.read, or Origin/CSRF rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'State database or audit unavailable, or the change could not be audited (nothing changed when the requested record fails)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    delete:
+      summary: Remove a bay's assignment (works while the drive is missing).
+      security: [{ session: [] }]
+      x-required-scope: layout.manage
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: row, in: path, required: true, schema: { type: integer, minimum: 0, maximum: 23 } }
+        - { name: col, in: path, required: true, schema: { type: integer, minimum: 0, maximum: 23 } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DriveLayout' } } } }
+        '404': { description: No assignment at that bay, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing layout.manage, or Origin/CSRF rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'State database or audit unavailable, or the change could not be audited (nothing changed when the requested record fails)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /hardware:
     get:
       summary: Hardware inventory (read-only). Degrades instead of failing when the broker is down.
