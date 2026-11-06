@@ -391,3 +391,9 @@ unit no longer starts at the next boot. A strict rule (refuse whenever such a de
 also refuse units that merely require an always-started protected unit (for example `dbus.socket`); the
 proposal therefore refuses only when the protected dependency is not itself enabled at boot (`is-enabled` other
 than `enabled`), and needs the owner's choice.
+
+## Continuation through M2-6 (owner, 2026-11-05)
+
+Owner direct project conversation instructions: “continue through M2-4 and through M2-6” and “work with claude on this”. This authorizes collaborative implementation and isolated tests of M2-4, M2-5 and M2-6, following each prerequisite and security/acceptance gate. M2-5 and M2-6 were already made mandatory, not optional. M2-4 includes LVM2 RAID and SSD-cache discovery and selectable Serial/ID (default) or WWN display with independent corroborated identity. M2-5 is the Stage A drive locator with app-state layouts and explicit manual/unverified provenance. M2-6 is hostname/static+pretty and timezone only, using reviewed ADR 0011 typed plan/confirm/apply operations.
+
+The owner previously authorized pushes/merges once satisfied and explicitly adding their DCO signature for M2-3/M2-4. That signature exception does not automatically extend to M2-5/M2-6. No owner design acceptance, new KVM operation, existing VM mutation/deletion, production settings/permissions or M3 approval is inferred. Existing security blockers remain gates; source/license reuse decision D-12 remains unresolved where actual external source is unavailable. New source/helper designs remain review proposals until reviewed; development is not deployment.

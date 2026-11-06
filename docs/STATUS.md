@@ -34,8 +34,9 @@ activation remain separate owner decisions (`docs/m2/OWNER-DECISIONS.md`, owner 
   owner-authorized), unit search path and drop-in precedence fail closed (`review-c0f620de/`). Proposals P-1, P-3…P-6
   and P-9 await owner approval (not decisions); P-7 objective and P-8 approach approved, implementations for review; D-10 open; KVM
   acceptance not authorized.
-- **Still not authorized:** M2-4 and later; mask/unmask, unit editing or creation, daemon-reload, other privileged
-  writes. M2-5 and M2-6 remain mandatory before M3.
+- **Still not authorized:** mask/unmask, unit editing or creation, daemon-reload, other privileged writes, and M3.
+  M2-4, M2-5 and M2-6 were authorized for collaborative development and isolated testing on 2026-11-05
+  (`docs/m2/OWNER-DECISIONS.md`, "Continuation through M2-6"), each behind its own gates; they remain mandatory before M3.
 
 ## M2-2: controlled systemd service management (authorized 2026-10-23; merged 2026-10-26, PR #28, merge commit `a3447efa`)
 
