@@ -109,6 +109,7 @@ func TestMigrationFailureRollsBackAndRefuses(t *testing.T) {
 }
 
 func TestMigrationBackupAndDowngradeRefusal(t *testing.T) {
+	currentVersion := SchemaVersion()
 	p := filepath.Join(dir(t), "state.db")
 	d, err := Open(p)
 	if err != nil {
@@ -134,7 +135,7 @@ func TestMigrationBackupAndDowngradeRefusal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if v, _ := b.Version(context.Background()); v != 1 {
+	if v, _ := b.Version(context.Background()); v != currentVersion {
 		t.Fatalf("backup version %d", v)
 	}
 	if _, ok, _ := b.Sessions().Get("k"); !ok {
@@ -143,7 +144,7 @@ func TestMigrationBackupAndDowngradeRefusal(t *testing.T) {
 	b.Close()
 	d.Close()
 
-	// The real binary only knows version 1: a version-99 database is refused.
+	// The real binary only knows currentVersion: a version-99 database is refused.
 	migrations = migrations[:len(migrations)-1]
 	if _, err := Open(p); err == nil || !strings.Contains(err.Error(), "newer than this release") {
 		t.Fatalf("downgrade not refused: %v", err)
