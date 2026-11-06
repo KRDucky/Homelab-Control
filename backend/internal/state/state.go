@@ -19,6 +19,7 @@ package state
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -71,6 +72,14 @@ var migrations = []migration{
 			hash     TEXT NOT NULL
 		) STRICT`,
 		`CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT`,
+	}},
+	{2, "bounded storage graph snapshots", []string{
+		`CREATE TABLE storage_snapshots (
+   id INTEGER PRIMARY KEY AUTOINCREMENT,
+   collected_at TEXT NOT NULL,
+   boot_id TEXT NOT NULL,
+   graph BLOB NOT NULL CHECK(length(graph) <= 8388608)
+  ) STRICT`,
 	}},
 }
 
@@ -235,7 +244,13 @@ func (d *DB) migrate(ctx context.Context) error {
 	}
 	if cur > 0 {
 		// Consistent copy of the existing database before any change.
-		b := fmt.Sprintf("%s.bak-v%d-%s", d.path, cur, time.Now().UTC().Format("20060102T150405Z"))
+		// A failed migration may be retried in the same second. Preserve the
+		// earlier recovery copy and choose a new unpredictable backup name.
+		nonce := make([]byte, 8)
+		if _, err := rand.Read(nonce); err != nil {
+			return fmt.Errorf("name migration backup: %w", err)
+		}
+		b := fmt.Sprintf("%s.bak-v%d-%s-%x", d.path, cur, time.Now().UTC().Format("20060102T150405Z"), nonce)
 		if _, err := d.sql.ExecContext(ctx, `VACUUM INTO ?`, b); err != nil {
 			return fmt.Errorf("backup before migration: %w", err)
 		}

@@ -15,6 +15,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io/fs"
@@ -33,6 +34,7 @@ import (
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
 	"homelab-control/backend/internal/modules"
+	"homelab-control/backend/internal/storageinfo"
 	"homelab-control/backend/internal/version"
 )
 
@@ -52,19 +54,22 @@ type Config struct {
 
 // Server wires handlers, sessions and collectors.
 type Server struct {
-	cfg       Config
-	users     *auth.Store
-	sessions  *auth.SessionManager
-	throttle  *auth.Throttle
-	audit     *audit.Logger
-	collector *hostinfo.Collector
-	ui        fs.FS
-	loginSem  chan struct{}
-	mux       *http.ServeMux
-	overview  overviewCache
-	broker    Broker
-	hw        *hwinfo.Collector
-	bstate    brokerState
+	storageCollect   func(context.Context) (storageinfo.Graph, error)
+	storageSem       chan struct{}
+	storageSnapshots StorageSnapshotStore
+	cfg              Config
+	users            *auth.Store
+	sessions         *auth.SessionManager
+	throttle         *auth.Throttle
+	audit            *audit.Logger
+	collector        *hostinfo.Collector
+	ui               fs.FS
+	loginSem         chan struct{}
+	mux              *http.ServeMux
+	overview         overviewCache
+	broker           Broker
+	hw               *hwinfo.Collector
+	bstate           brokerState
 
 	persistentSessions bool
 	auditPager         AuditPager
@@ -87,6 +92,8 @@ func New(cfg Config, users *auth.Store, audit *audit.Logger, collector *hostinfo
 		audit: audit, collector: collector, ui: ui, loginSem: make(chan struct{}, 4), mux: http.NewServeMux(),
 		stepups: auth.NewStepUps(),
 	}
+	s.storageCollect = func(ctx context.Context) (storageinfo.Graph, error) { return storageinfo.Collect(ctx, "/") }
+	s.storageSem = make(chan struct{}, 1)
 	s.routes()
 	return s
 }
@@ -131,6 +138,7 @@ func (s *Server) routes() {
 	s.handle("POST /api/v1/services/units/{unit}/enablement/apply", auth.ScopeServicesConfigure, s.handleEnablementApply)
 	s.handle("GET /api/v1/operations", auth.ScopeAuditRead, s.handleOperations)
 	s.handle("GET /api/v1/hardware", auth.ScopeHardwareRead, s.handleHardware)
+	s.handle("GET /api/v1/storage", auth.ScopeStorageRead, s.handleStorage)
 	s.handle("GET /api/v1/legacy/webmin", auth.ScopeSystemRead, s.handleLegacy)
 	s.mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "unknown API route")
