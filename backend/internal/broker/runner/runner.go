@@ -29,13 +29,17 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"homelab-control/backend/internal/hostinfo"
 )
 
 // Binary names the runner may execute, with candidate absolute paths.
 // Adding an entry requires security review (ADR 0008).
 var allowlist = map[string][]string{
-	"systemctl":  {"/usr/bin/systemctl", "/bin/systemctl"},
-	"journalctl": {"/usr/bin/journalctl", "/bin/journalctl"},
+	"systemctl":   {"/usr/bin/systemctl", "/bin/systemctl"},
+	"journalctl":  {"/usr/bin/journalctl", "/bin/journalctl"},
+	"hostnamectl": {"/usr/bin/hostnamectl", "/bin/hostnamectl"},
+	"timedatectl": {"/usr/bin/timedatectl", "/bin/timedatectl"},
 }
 
 // argRE limits fixed arguments to a conservative character set; arguments
@@ -73,6 +77,18 @@ const (
 	// RootSystemctlShowManager reads when the manager last loaded its unit
 	// files (no target; PR #36 review, probe 8).
 	RootSystemctlShowManager RootTemplate = "systemctl.show-manager"
+)
+
+// The root templates proposed for M2-6 (ADR 0008 Amendment 4): set static
+// hostname, pretty hostname (empty = remove) and timezone, plus the read-only
+// status and list-timezones queries apply uses to revalidate and read back.
+const (
+	RootHostnamectlSetStatic     RootTemplate = "hostnamectl.set-static"
+	RootHostnamectlSetPretty     RootTemplate = "hostnamectl.set-pretty"
+	RootHostnamectlStatus        RootTemplate = "hostnamectl.status"
+	RootTimedatectlSetTimezone   RootTemplate = "timedatectl.set-timezone"
+	RootTimedatectlStatus        RootTemplate = "timedatectl.status"
+	RootTimedatectlListTimezones RootTemplate = "timedatectl.list-timezones"
 )
 
 // managerShowProperties are the manager's unit-load timestamps: realtime
@@ -172,7 +188,22 @@ var rootTemplates = map[RootTemplate]rootTemplate{
 	RootSystemctlShowInstall: {"systemctl", ShowInstallArgs(), validServiceUnit, 1},
 	// Exactly zero targets.
 	RootSystemctlShowManager: {"systemctl", ManagerShowArgs(), nil, 0},
+	// M2-6 (ADR 0008 Amendment 4, proposed): hostname and timezone. Values
+	// after --; empty pretty hostname is removal. Status and list-timezones
+	// are read-only (revalidation and read-back).
+	RootHostnamectlSetStatic:     {"hostnamectl", []string{"set-hostname", "--static", "--"}, validStaticHostname, 1},
+	RootHostnamectlSetPretty:     {"hostnamectl", []string{"set-hostname", "--pretty", "--"}, validPrettyHostname, 1},
+	RootHostnamectlStatus:        {"hostnamectl", []string{"--no-ask-password", "status"}, nil, 0},
+	RootTimedatectlSetTimezone:   {"timedatectl", []string{"set-timezone", "--"}, validTimezoneName, 1},
+	RootTimedatectlStatus:        {"timedatectl", []string{"--no-ask-password", "status"}, nil, 0},
+	RootTimedatectlListTimezones: {"timedatectl", []string{"--no-ask-password", "list-timezones"}, nil, 0},
 }
+
+func validStaticHostname(t string) bool { return hostinfo.ValidStaticHostname(t) == "" }
+
+func validPrettyHostname(t string) bool { return hostinfo.ValidPrettyHostname(t) == "" }
+
+func validTimezoneName(t string) bool { return hostinfo.ValidTimezoneName(t) == "" }
 
 // validEnablementUnit additionally refuses template instances: enabling an
 // instance acts on the template's [Install] section (M2-3 does not support it).
