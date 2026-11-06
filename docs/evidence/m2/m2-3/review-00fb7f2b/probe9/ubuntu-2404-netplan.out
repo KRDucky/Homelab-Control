@@ -1,0 +1,21 @@
+systemd 255 (255.4-1ubuntu8.18)
+## freshly booted, before installing
+  UnitsLoadStartTimestamp=Thu 2026-11-05 07:26:20.467788 UTC
+  threshold (epoch): 1793863580.466339350 (generator directory 1793863580.466339409)
+  runtime configuration: /run/systemd/system: systemd-networkd-wait-online.service.d systemd-networkd.service.wants netplan-ovs-cleanup.service 
+  (end of list)
+  /run/systemd/system: 2026-11-05 07:26:20.464743372 +0000 2026-11-05 07:26:20.464743372 +0000; entries: 3
+  /run mount: tmpfs  rw,nosuid,nodev,noexec,relatime,mode=755,inode64,huge=advise
+## installing the package (deb; its scripts run daemon-reload)
+  installed: 0
+  UnitsLoadStartTimestamp=Thu 2026-11-05 07:26:20.467788 UTC
+  UnitsLoadTimestamp=Thu 2026-11-05 07:26:21.541689 UTC
+  threshold (epoch): 1793863581.541688919 (generator directory 1793863581.553617408)
+  runtime configuration: /run/systemd/system: netplan-ovs-cleanup.service systemd-networkd-wait-online.service.d systemd-networkd.service.wants 
+  (end of list)
+## after the documented first step (systemctl enable --now the broker socket; enable reloads)
+  UnitsLoadStartTimestamp=Thu 2026-11-05 07:26:20.467788 UTC
+  UnitsLoadTimestamp=Thu 2026-11-05 07:26:21.605207 UTC
+  threshold (epoch): 1793863581.605206966 (generator directory 1793863581.622222455)
+  runtime configuration: /run/systemd/system: netplan-ovs-cleanup.service systemd-networkd-wait-online.service.d systemd-networkd.service.wants 
+  (end of list)

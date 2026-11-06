@@ -1,0 +1,70 @@
+container hc-sd-ubuntu-2604-100670 (ubuntu-2604): systemd state=degraded; cgroup 0::/init.scope
+● systemd-modules-load.service loaded failed failed Load Kernel Modules
+== environment
+Ubuntu 26.04.1 LTS; systemd 259 (259.9-0ubuntu0.1); kernel 7.3.1-1-cachyos
+== install (deb)
+Selecting previously unselected package homelab-control.
+(Reading database ... 13634 files and directories currently installed.)
+Preparing to unpack /opt/hc/pkg.deb ...
+Unpacking homelab-control (0.1.0+dev.1+78+gae937d8a) ...
+Setting up homelab-control (0.1.0+dev.1+78+gae937d8a) ...
+Creating group 'homelab-control' with GID 995.
+Creating user 'homelab-control' (Homelab Control API) with UID 995 and GID 995.
+homelab-control installed but NOT enabled. Create an account with:
+  sudo hlctl user add --file /etc/homelab-control/users.json --username admin
+  sudo chown homelab-control:homelab-control /etc/homelab-control/users.json
+then configure /etc/homelab-control/hc-api.env and run:
+  systemctl enable --now homelab-control-broker.socket homelab-control.service
+PASS  service not enabled on install (disabled)
+PASS  service active (active)
+PASS  runs as homelab-control (homelab-control)
+PASS  no capabilities in effective set (0000000000000000)
+PASS  health (200)
+PASS  login issues __Host- cookie (1)
+PASS  overview under hardening returns hostname (1)
+PASS  overview: filesystems readable (ProtectHome/PrivateDevices) (1)
+PASS  overview: network section ok (1)
+== M2-3 Phase B: broker interruption during a boot-time change
+INFO  wrapper window starts 2026-11-05T05:14:55Z
+PASS  session has services.configure (True)
+PASS  [before] plan enable: 200 (200)
+PASS  [before] wrapper reached its delay (True)
+PASS  [before] client gets an error, not an outcome ((True, None))
+PASS  [before] journal: one intent, one interrupted, no outcome (['op.intent', 'op.interrupted'])
+PASS  [before] interrupted record says 'unchanged' (True)
+INFO  [before] interrupted record: {"seq": 4, "time": "2026-11-05T05:14:58.498635081Z", "event": "op.interrupted", "user": "admin", "outcome": "interrupted", "detail": "enable hc-test-int.service b138fc1db1bb19d25b4f72e7011ac827", "data": {"op_id": "b138fc1db1bb19d25b4f72e7011ac827", "op": "services.enablement", "action": "enable", "target": "hc-test-int.service", "actor": "admin", "request_id": "1e14e22799f3224a", "token_id": "9658f8ed18f91a59434c09a551733c8c", "risk": "disruptive", "state": "82a68e01d03f3054f641c9946336d62de4a133a1fef50a293df0df9bc239577a.5311322d59de9de0a8652251", "outcome": "interrupted", "message": "The br
+PASS  [before] host is-enabled disabled (nothing retried) (disabled)
+PASS  [before] no wrapper delay left running (1)
+PASS  [after] plan enable: 200 (200)
+PASS  [after] wrapper reached its delay (True)
+PASS  [after] client gets an error, not an outcome ((True, None))
+PASS  [after] journal: one intent, one interrupted, no outcome (['op.intent', 'op.interrupted'])
+PASS  [after] interrupted record says 'changed, not verified' (True)
+INFO  [after] interrupted record: {"seq": 7, "time": "2026-11-05T05:15:03.750676017Z", "event": "op.interrupted", "user": "admin", "outcome": "interrupted", "detail": "enable hc-test-int.service 4c3c873b7b4694f4ece33763f9735f21", "data": {"op_id": "4c3c873b7b4694f4ece33763f9735f21", "op": "services.enablement", "action": "enable", "target": "hc-test-int.service", "actor": "admin", "request_id": "214acc32efdd3121", "token_id": "f620b402422537025802667af63c30d2", "risk": "disruptive", "state": "82a68e01d03f3054f641c9946336d62de4a133a1fef50a293df0df9bc239577a.5311322d59de9de0a8652251", "outcome": "interrupted", "message": "The br
+PASS  [after] host is-enabled enabled (nothing retried) (enabled)
+PASS  [after] no wrapper delay left running (1)
+PASS  after an interrupted change: disable refused until systemd reloads ((403, True))
+PASS  after recovery: disable reviewed and succeeded ((200, 'succeeded'))
+INFO  wrapper window ends 2026-11-05T05:15:07Z
+PASS  systemctl binary restored (inode, size, mode, owner, group, sha256, SELinux label) ((13151628, 302112, 33261, 0, 0, '639bce3ce5c06b605079ea56f74e3f08216ddffcfa76e11f62073aa775180082', ''))
+PASS  operation journal hash chain verifies (0)
+PASS  links under /etc/systemd/system as before ([])
+m2-3-interrupt: 20 passed, 0 failed
+PASS  M2-3 broker interruption scenario (0)
+== journal (last lines)
+homelab-control.service: Deactivated successfully.
+Stopped homelab-control.service - Homelab Control API and web UI (unprivileged).
+Started homelab-control.service - Homelab Control API and web UI (unprivileged).
+2026/11/05 05:14:56 audit checkpoint log=/var/lib/homelab-control/state.db seq=4 hash=be029e037ba39ab67f50aec3ee70c7d16c956bb4fe49c77e45b1a190b840702d
+2026/11/05 05:14:56 hc-api v0.1.0-dev.1-78-gae937d8a listening on 127.0.0.1:9180 (tls=false)
+== systemd-analyze security
+→ Overall exposure level for homelab-control.service: 1.6 OK :-)
+== remove + purge
+(Reading database ... 13650 files and directories currently installed.)
+Removing homelab-control (0.1.0+dev.1+78+gae937d8a) ...
+Purging configuration files for homelab-control (0.1.0+dev.1+78+gae937d8a) ...
+State and audit data kept in /var/lib/homelab-control, /var/log/homelab-control and /var/log/homelab-control-broker (remove manually if no longer needed).
+PASS  binaries removed (0)
+PASS  unit removed (0)
+systemd-smoke: 12 passed, 0 failed
+exit 0

@@ -1,0 +1,20 @@
+######## ubuntu2604
+fresh NeedDaemonReload p3=no ssh.socket=no sshd.service=no
+after --no-reload enable NeedDaemonReload p3=yes
+after --no-reload disable NeedDaemonReload p3=yes
+--- drop-in [Install]
+Created symlink '/etc/systemd/system/hc-p4-dropin-alias.service' → '/etc/systemd/system/hc-p4.service'.
+Created symlink '/etc/systemd/system/multi-user.target.wants/hc-p4.service' → '/etc/systemd/system/hc-p4.service'.
+hc-p4-dropin-alias.service
+hc-p4.service
+hc-p4.service.d
+######## fedora44
+fresh NeedDaemonReload p3=no ssh.socket=no sshd.service=no
+after --no-reload enable NeedDaemonReload p3=yes
+after --no-reload disable NeedDaemonReload p3=yes
+--- drop-in [Install]
+Created symlink '/etc/systemd/system/hc-p4-dropin-alias.service' → '/etc/systemd/system/hc-p4.service'.
+Created symlink '/etc/systemd/system/multi-user.target.wants/hc-p4.service' → '/etc/systemd/system/hc-p4.service'.
+hc-p4-dropin-alias.service
+hc-p4.service
+hc-p4.service.d

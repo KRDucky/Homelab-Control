@@ -35,7 +35,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, storage.read] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, storage.read] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
@@ -311,7 +311,7 @@ components:
       type: object
       required: [id, label, path, scope, status]
       properties:
-        id: { type: string, enum: [overview, services, service_logs, hardware, legacy, audit, storage] }
+        id: { type: string, enum: [overview, services, hardware, legacy, audit, service_logs, unit_files, storage] }
         label: { type: string }
         path: { type: string }
         scope: { type: string }
@@ -327,7 +327,21 @@ components:
             status: { type: string, enum: [available, unavailable] }
             version: { type: string }
             reason: { type: string }
-        capabilities: { type: array, items: { $ref: '#/components/schemas/Capability' } }
+        capabilities: { type: array, items: { $ref: '#/components/schemas/Capability' }, description: 'Capabilities of disabled modules are omitted, so navigation hides them.' }
+        modules:
+          type: array
+          description: 'Compiled-in modules (M2-3 registry, D-10 proposal) and whether the host administrator enabled them (root-owned /etc/homelab-control/modules.json). Routes of a disabled module answer 404 exactly like unknown routes.'
+          items:
+            type: object
+            required: [id, title, description, path, enabled, scopes]
+            properties:
+              id: { type: string, enum: [services] }
+              title: { type: string }
+              path: { type: string, description: Page of the module in the web UI }
+              description: { type: string }
+              enabled: { type: boolean }
+              scopes: { type: array, items: { type: string } }
+              reason: { type: string }
     UnitList:
       description: Runtime units plus installed unit files. File-only entries use load not-loaded and active/sub unknown; enablement does not establish runtime state. counts are keyed by active state (including unknown) plus failed_total, over all units before truncation; truncation keeps runtime units before file-only entries. If list-unit-files fails, file-only entries are omitted.
       type: object
@@ -360,6 +374,12 @@ components:
           required: [available]
           properties:
             available: { type: boolean, description: 'Whether start/stop/restart can be offered to this caller' }
+            reason: { type: string }
+        configure:
+          type: object
+          required: [available]
+          properties:
+            available: { type: boolean, description: 'Whether boot-time enable/disable can be offered to this caller (services.configure)' }
             reason: { type: string }
     Protection:
       type: object
@@ -416,6 +436,138 @@ components:
         recovery: { type: array, items: { type: string }, description: Recovery guidance when the outcome is not succeeded. No rollback is performed. }
         started_at: { type: string, format: date-time }
         finished_at: { type: string, format: date-time }
+    EnablementPlan:
+      type: object
+      description: 'Review of a boot-time enable or disable (M2-3). Nothing is changed. Never starts or stops the unit, never reloads systemd.'
+      required: [unit, requested, action, risk, step_up_required, token, expires_at, observed, boot_state, effect, consequences, links]
+      properties:
+        unit: { type: string, description: Canonical unit ID }
+        requested: { type: string }
+        action: { type: string, enum: [enable, disable] }
+        risk: { type: string, enum: [disruptive], description: 'Persistent boot-time changes are disruptive: step-up is always required' }
+        step_up_required: { type: boolean }
+        token: { type: string, description: 'Single-use plan token (120 s) for op services.enablement; it can never authorize start/stop/restart' }
+        expires_at: { type: string, format: date-time }
+        observed: { $ref: '#/components/schemas/UnitObserved' }
+        boot_state: { type: string, description: '`systemctl is-enabled` (computed from disk) at review time: disabled for enable, enabled for disable' }
+        preset: { type: string }
+        effect: { type: string }
+        consequences: { type: array, items: { type: string } }
+        links: { type: array, items: { type: string }, description: 'Symbolic links under /etc/systemd/system that enable creates or disable removes' }
+        wanted_by: { type: array, items: { type: string } }
+        aliases: { type: array, items: { type: string } }
+        also_affected: { type: array, items: { type: string }, description: 'Enable only: running units the boot-time start would stop (Conflicts=)' }
+        also_started: { type: array, items: { type: string }, description: 'Enable only: inactive units the boot-time start pulls in' }
+        notes: { type: array, items: { type: string } }
+    EnablementOutcome:
+      type: object
+      required: [operation_id, unit, action, outcome, message, boot_state_before, links, started_at, finished_at]
+      properties:
+        operation_id: { type: string }
+        unit: { type: string }
+        action: { type: string, enum: [enable, disable] }
+        outcome: { type: string, enum: [succeeded, failed, uncertain], description: 'succeeded only when systemctl exited 0, is-enabled reports the requested state and every expected link is in the requested state (checked by the broker itself); a partial change is failed and says so' }
+        message: { type: string }
+        exit_code: { type: integer }
+        boot_state_before: { type: string }
+        boot_state: { type: string, description: 'Absent when it could not be read back' }
+        links: { type: array, items: { type: object, required: [path, present], properties: { path: { type: string }, present: { type: boolean }, target: { type: string, description: 'Where a present link points (as stored)' }, points_to_unit: { type: boolean, description: 'Whether that target is the unit file found by the review' } } } }
+        unexpected_links: { type: array, items: { type: string }, description: 'Links to the unit found by a fresh scan of /etc/systemd/system afterwards that the plan did not describe; any makes the outcome not succeeded' }
+        reported: { type: array, items: { type: string }, description: "systemctl's own Created symlink / Removed lines" }
+        observed: { $ref: '#/components/schemas/UnitObserved' }
+        recovery: { type: array, items: { type: string } }
+        started_at: { type: string, format: date-time }
+        finished_at: { type: string, format: date-time }
+    UnitDetail:
+      type: object
+      description: 'What systemd reports about one unit from the inventory. Absent values are omitted, never guessed. kind template: no runtime state; alias: requested is another name of id; loaded_for_query: installed but not loaded, systemd loaded the definition only to answer.'
+      required: [requested, kind, in_runtime, dependencies, source]
+      properties:
+        requested: { type: string }
+        id: { type: string }
+        kind: { type: string, enum: [unit, alias, template] }
+        in_runtime: { type: boolean }
+        loaded_for_query: { type: boolean }
+        names: { type: array, items: { type: string } }
+        description: { type: string }
+        load_state: { type: string }
+        active_state: { type: string }
+        sub_state: { type: string }
+        result: { type: string }
+        unit_file_state: { type: string, description: "systemd's loaded value (may be stale after a change made without reload)" }
+        boot_state: { type: string, description: 'list-unit-files state, computed from disk' }
+        preset: { type: string }
+        fragment_path: { type: string }
+        source_path: { type: string }
+        drop_in_paths: { type: array, items: { type: string } }
+        generated: { type: boolean }
+        transient: { type: boolean }
+        need_daemon_reload: { type: boolean }
+        service_type: { type: string }
+        restart: { type: string }
+        restarts: { type: integer, description: NRestarts (services only) }
+        main_pid: { type: integer }
+        last_exit: { type: object, required: [code, status, exited_at], properties: { code: { type: string, enum: [exited, killed, dumped core, unknown] }, status: { type: integer }, exited_at: { type: string }, started_at: { type: string } } }
+        active_since: { type: string }
+        inactive_since: { type: string }
+        state_since: { type: string }
+        dependencies: { type: object, additionalProperties: { type: array, items: { type: string } }, description: 'Keyed by systemd relation (Requires, Wants, WantedBy, After, Triggers, …), at most 64 names each' }
+        dependencies_truncated: { type: boolean }
+        notes: { type: array, items: { type: string } }
+        source: { type: string }
+        protected: { $ref: '#/components/schemas/Protection' }
+    UnitContents:
+      type: object
+      required: [unit, files, redactions, truncated, source]
+      properties:
+        unit: { type: string }
+        files: { type: array, items: { type: object, required: [path, text], properties: { path: { type: string }, text: { type: string }, unreadable: { type: boolean } } } }
+        unreadable: { type: array, items: { type: string }, description: Files the service account cannot read; their content is never shown }
+        redactions: { type: integer, description: "Number of lines in which values that look like secrets were replaced by [redacted] (heuristic)" }
+        truncated: { type: boolean, description: 'Cut at 64 KiB or 2,000 lines' }
+        notes: { type: array, items: { type: string } }
+        source: { type: string }
+    TimerList:
+      type: object
+      required: [timers, truncated, source]
+      properties:
+        truncated: { type: boolean }
+        source: { type: string }
+        timers:
+          type: array
+          items:
+            type: object
+            required: [unit, active_state]
+            properties:
+              unit: { type: string }
+              activates: { type: string }
+              description: { type: string }
+              active_state: { type: string }
+              sub_state: { type: string }
+              unit_file_state: { type: string }
+              next: { type: string, format: date-time }
+              last: { type: string, format: date-time }
+              schedule: { type: array, items: { type: string } }
+              persistent: { type: boolean }
+    SocketList:
+      type: object
+      required: [sockets, truncated, source]
+      properties:
+        truncated: { type: boolean }
+        source: { type: string }
+        sockets:
+          type: array
+          items:
+            type: object
+            required: [unit, listen, active_state]
+            properties:
+              unit: { type: string }
+              description: { type: string }
+              listen: { type: array, items: { type: string } }
+              activates: { type: array, items: { type: string } }
+              active_state: { type: string }
+              sub_state: { type: string }
+              unit_file_state: { type: string }
     OperationList:
       type: object
       required: [operations, source]
@@ -698,6 +850,84 @@ paths:
         '409': { description: 'plan_invalid (expired, used or not bound to this request), conflict (the unit changed since the review; nothing done) or busy', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '502': { description: 'outcome_unknown: the broker returned no result (connection lost or timed out); the operation may or may not have run', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: 'Broker unavailable, the journal could not be written (nothing executed) or the request could not be audited (nothing executed)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /services/timers:
+    get:
+      summary: systemd timer units with schedule, last and next run (read-only, broker op services.timers.list)
+      security: [{ session: [] }]
+      x-required-scope: services.read
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/TimerList' } } } }
+        '403': { description: Missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'Broker unavailable or systemd not running', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /services/sockets:
+    get:
+      summary: systemd socket units with listen addresses (read-only, broker op services.sockets.list)
+      security: [{ session: [] }]
+      x-required-scope: services.read
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/SocketList' } } } }
+        '403': { description: Missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'Broker unavailable or systemd not running', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /services/units/{unit}:
+    get:
+      summary: 'Unit detail (read-only, broker op services.unit.detail): identity, unit-file origin, dependencies, last exit and restart counter. The unit must be in the unit list or installed unit files.'
+      security: [{ session: [] }]
+      x-required-scope: services.read
+      parameters:
+        - { name: unit, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9:_.@-]{0,99}\\.(service|socket|timer|mount|automount|path|target|swap)$' } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/UnitDetail' } } } }
+        '400': { description: Invalid unit name, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: 'Not in the unit inventory', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'Broker unavailable or systemd not running', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /services/units/{unit}/contents:
+    get:
+      summary: "Read-only unit file and drop-ins (broker op services.unit.contents, `systemctl cat` as the service account): files only root can read are not shown; values that look like secrets are redacted (heuristic: this permission can disclose sensitive configuration); 64 KiB / 2,000 lines. Audited (who, which unit, never content); withheld if the audit cannot be written. Needs services.files, which no other scope implies."
+      security: [{ session: [] }]
+      x-required-scope: services.files
+      parameters:
+        - { name: unit, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9:_.@-]{0,99}\\.(service|socket|timer|mount|automount|path|target|swap)$' } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/UnitContents' } } } }
+        '400': { description: Invalid unit name, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: 'Not in the unit inventory or no unit file', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'Broker unavailable, systemd not running, or the read could not be audited', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /services/units/{unit}/enablement/plan:
+    post:
+      summary: 'Review enabling or disabling one .service unit at boot (broker op services.enablement.plan). Does not start or stop it and never reloads systemd. Returns the links, consequences, risk (disruptive) and a single-use plan token. Nothing is changed.'
+      security: [{ session: [] }]
+      x-required-scope: services.configure
+      parameters:
+        - { name: unit, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9:_.-]{0,99}\\.service$' } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, additionalProperties: false, required: [action], properties: { action: { type: string, enum: [enable, disable] } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/EnablementPlan' } } } }
+        '400': { description: Invalid unit, action or body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing scope, CSRF/Origin rejected, or policy_denied (protected unit, alias or WantedBy target; unsupported state or [Install] construct)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: systemd does not know the unit, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: 'busy or conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'Broker or systemd unavailable, operation journal unavailable, or the review could not be audited', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /services/units/{unit}/enablement/apply:
+    post:
+      summary: 'Execute a reviewed boot-time enable/disable with its plan token (broker op services.enablement.apply): `systemctl --no-reload enable|disable`, never --now. Always needs a password re-entry within 5 minutes. Verified independently (is-enabled and the links); no rollback.'
+      security: [{ session: [] }]
+      x-required-scope: services.configure
+      parameters:
+        - { name: unit, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9:_.-]{0,99}\\.service$' } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, additionalProperties: false, required: [action, token], properties: { action: { type: string, enum: [enable, disable] }, token: { type: string, maxLength: 2048 } } } } }
+      responses:
+        '200': { description: 'Executed; the outcome is the observed one', content: { application/json: { schema: { $ref: '#/components/schemas/EnablementOutcome' } } } }
+        '400': { description: Invalid unit, action, token or body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing scope, CSRF/Origin rejected, step_up_required, or policy_denied', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: 'plan_invalid, conflict (the unit or its unit files changed; nothing done) or busy', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '502': { description: 'outcome_unknown: no result from the broker; the change may or may not have been made', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'Broker unavailable, the journal could not be written or the request could not be audited (nothing executed)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /auth/step-up:
     post:
       summary: 'Re-enter the password of the signed-in user (D-3). Valid 5 minutes for this session only; failures count toward login throttling. The password never reaches the broker or the audit log.'

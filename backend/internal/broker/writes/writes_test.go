@@ -239,8 +239,11 @@ func TestJournalIntentOutcomeAndInterruptedRecovery(t *testing.T) {
 	defer l2.Close()
 	f2, _ := New(l2, p)
 	inspected := ""
-	n, err := f2.Recover(func(target string) (json.RawMessage, string) {
-		inspected = target
+	n, err := f2.Recover(func(intent Record) (json.RawMessage, string) {
+		inspected = intent.Target
+		if intent.Op == "" {
+			t.Error("inspector did not receive the intent's op")
+		}
 		return json.RawMessage(`{"id":"b.service","load_state":"loaded","active_state":"failed","sub_state":"failed"}`), "failed (failed)"
 	})
 	if err != nil || n != 1 || inspected != "b.service" {

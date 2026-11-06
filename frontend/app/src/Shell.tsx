@@ -119,7 +119,7 @@ export function Shell({
   helperReason: string | undefined;
   onSignOut: () => void;
   version: string;
-  /** The account holds services.operate, so the interface is not read-only. */
+  /** The account holds services.operate or services.configure, so the interface is not read-only. */
   canOperate?: boolean;
   children: ReactNode;
 }) {
@@ -240,7 +240,7 @@ export function Shell({
         <div className="sidebar-foot">
           <p className="rail-note">
             {canOperate
-              ? 'You can start, stop and restart services. Each change is reviewed, confirmed and audited; everything else is read-only.'
+              ? 'You can change services (start, stop, restart, or their setting at boot, as your permissions allow). Each change is reviewed, confirmed and audited; everything else is read-only.'
               : 'Read-only for your account. Nothing here changes your system.'}
           </p>
           <button

@@ -1,0 +1,2 @@
+host: ls: cannot access '/sys/fs/selinux': No such file or directory; LSMs: capability,landlock,lockdown,yama,bpf
+fedora-44 container: getenforce=Disabled; /sys/fs/selinux/enforce=cat: /sys/fs/selinux/enforce: No such file or directory

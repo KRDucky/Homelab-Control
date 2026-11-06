@@ -36,19 +36,31 @@ const (
 	// through plan → confirm → execute (M2-2, ADR 0011). Not in DefaultScopes:
 	// grant it explicitly.
 	ScopeServicesOperate = "services.operate"
+	// ScopeServicesConfigure allows persistent changes to systemd services:
+	// boot-time enable/disable through plan → confirm → execute (M2-3, ADR
+	// 0011). Not in DefaultScopes, never implied by services.operate.
+	ScopeServicesConfigure = "services.configure"
+	// ScopeServicesFiles allows reading unit file and drop-in contents
+	// (M2-3, owner authorization 2026-11-05). Unit files can contain
+	// credentials and other sensitive configuration; redaction is heuristic.
+	// Not in DefaultScopes and not implied by services.logs, services.read,
+	// services.operate or services.configure (no scope implies another).
+	ScopeServicesFiles = "services.files"
 )
 
 // KnownScopes lists every scope the server understands. Unknown scopes in the
 // users file are rejected at load time so typos cannot silently grant nothing
 // (or, in later milestones, the wrong thing). All M1 scopes are read-only.
 var KnownScopes = map[string]bool{
-	ScopeStorageRead:     true,
-	ScopeSystemRead:      true,
-	ScopeServicesRead:    true,
-	ScopeHardwareRead:    true,
-	ScopeServicesLogs:    true,
-	ScopeAuditRead:       true,
-	ScopeServicesOperate: true,
+	ScopeStorageRead:       true,
+	ScopeSystemRead:        true,
+	ScopeServicesRead:      true,
+	ScopeHardwareRead:      true,
+	ScopeServicesLogs:      true,
+	ScopeAuditRead:         true,
+	ScopeServicesOperate:   true,
+	ScopeServicesConfigure: true,
+	ScopeServicesFiles:     true,
 }
 
 // DefaultScopes are granted by `hlctl user add` when --scopes is not given.

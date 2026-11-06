@@ -1,0 +1,38 @@
+UNIT FILE LOAD PATH
+     Unit  files  are  loaded  from  a set of paths determined during compilation, described in the two tables below. Unit files found in directories
+     listed earlier override files with the same name in directories lower in the list [2].
+
+     When the variable $SYSTEMD_UNIT_PATH is set, the contents of this variable overrides the unit load path.  If  $SYSTEMD_UNIT_PATH  ends  with  an
+     empty component (":"), the usual unit load path will be appended to the contents of the variable.
+
+     Table 1.  Load path when running in system mode (--system).
+     ┌───────────────────────────────┬────────────────────────────────────────────────────┐
+     │ Path                          │ Description                                        │
+     ├───────────────────────────────┼────────────────────────────────────────────────────┤
+     │ /etc/systemd/system.control   │ Persistent and transient configuration created us‐ │
+     ├───────────────────────────────┤ ing the dbus API                                   │
+     │ /run/systemd/system.control   │                                                    │
+     ├───────────────────────────────┼────────────────────────────────────────────────────┤
+     │ /run/systemd/transient        │ Dynamic configuration for transient units          │
+     ├───────────────────────────────┼────────────────────────────────────────────────────┤
+     │ /run/systemd/generator.early  │ Generated  units with high priority (see early-dir │
+     │                               │ in systemd.generator(7))                           │
+     ├───────────────────────────────┼────────────────────────────────────────────────────┤
+     │ /etc/systemd/system           │ System units created by the administrator          │
+     ├───────────────────────────────┼────────────────────────────────────────────────────┤
+     │ /run/systemd/system           │ Runtime units                                      │
+     ├───────────────────────────────┼────────────────────────────────────────────────────┤
+     │ /run/systemd/generator        │ Generated units with  medium  priority  (see  nor‐ │
+     │                               │ mal-dir in systemd.generator(7))                   │
+     ├───────────────────────────────┼────────────────────────────────────────────────────┤
+     │ /usr/local/lib/systemd/system │ System units installed by the administrator        │
+     ├───────────────────────────────┼────────────────────────────────────────────────────┤
+     │ /usr/lib/systemd/system       │ System units installed by the distribution package │
+     │                               │ manager                                            │
+     ├───────────────────────────────┼────────────────────────────────────────────────────┤
+     │ /run/systemd/generator.late   │ Generated units with low priority (see late-dir in │
+     │                               │ systemd.generator(7))                              │
+     └───────────────────────────────┴────────────────────────────────────────────────────┘
+
+     Table 2.  Load path when running in user mode (--user).
+systemd 262 (262.1-1-arch)

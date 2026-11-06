@@ -1,0 +1,21 @@
+check	completed	success	fece3bba376c3a352c9cd971eae87dba64d317d3	2026-11-05T07:49:34Z	2026-11-05T07:56:37Z
+upstream-perl-tests	completed	success	fece3bba376c3a352c9cd971eae87dba64d317d3	2026-11-05T07:49:34Z	2026-11-05T07:50:32Z
+systemd-ubuntu	completed	success	fece3bba376c3a352c9cd971eae87dba64d317d3	2026-11-05T07:56:40Z	2026-11-05T07:58:35Z
+browser-e2e	completed	success	fece3bba376c3a352c9cd971eae87dba64d317d3	2026-11-05T07:56:40Z	2026-11-05T08:01:07Z
+upgrade-ubuntu	completed	success	fece3bba376c3a352c9cd971eae87dba64d317d3	2026-11-05T07:56:40Z	2026-11-05T07:57:08Z
+systemd-ubuntu-2604	completed	success	fece3bba376c3a352c9cd971eae87dba64d317d3	2026-11-05T07:56:40Z	2026-11-05T08:00:28Z
+arch-package	completed	success	fece3bba376c3a352c9cd971eae87dba64d317d3	2026-11-05T07:56:40Z	2026-11-05T07:57:20Z
+release-dry-run / build (a)	completed	success	fece3bba376c3a352c9cd971eae87dba64d317d3	2026-11-05T07:56:40Z	2026-11-05T07:58:38Z
+release-dry-run / build (b)	completed	success	fece3bba376c3a352c9cd971eae87dba64d317d3	2026-11-05T07:56:40Z	2026-11-05T07:59:00Z
+install-matrix (ubuntu:26.04, deb, apt-get update && apt-get install -y curl)	completed	success	fece3bba376c3a352c9cd971eae87dba64d317d3	2026-11-05T07:57:22Z	2026-11-05T07:58:06Z
+install-matrix (opensuse/tumbleweed, rpm, zypper -n in curl util-linux shadow findutils)	completed	success	fece3bba376c3a352c9cd971eae87dba64d317d3	2026-11-05T07:57:22Z	2026-11-05T07:57:54Z
+install-matrix (debian:oldstable, deb, apt-get update && apt-get install -y curl)	completed	success	fece3bba376c3a352c9cd971eae87dba64d317d3	2026-11-05T07:57:22Z	2026-11-05T07:57:54Z
+install-matrix (ubuntu:24.04, deb, apt-get update && apt-get install -y curl)	completed	success	fece3bba376c3a352c9cd971eae87dba64d317d3	2026-11-05T07:57:22Z	2026-11-05T07:58:04Z
+install-matrix (debian:stable, deb, apt-get update && apt-get install -y curl)	completed	success	fece3bba376c3a352c9cd971eae87dba64d317d3	2026-11-05T07:57:23Z	2026-11-05T07:58:04Z
+install-matrix (archlinux:latest, zst, pacman -Syu --noconfirm --needed curl util-linux)	completed	success	fece3bba376c3a352c9cd971eae87dba64d317d3	2026-11-05T07:57:22Z	2026-11-05T07:57:58Z
+install-matrix (ubuntu:22.04, deb, apt-get update && apt-get install -y curl)	completed	success	fece3bba376c3a352c9cd971eae87dba64d317d3	2026-11-05T07:57:22Z	2026-11-05T07:58:00Z
+install-matrix (fedora:latest, rpm, dnf install -y curl util-linux shadow-utils findutils)	completed	success	fece3bba376c3a352c9cd971eae87dba64d317d3	2026-11-05T07:57:22Z	2026-11-05T07:58:00Z
+install-matrix (opensuse/leap:latest, rpm, zypper -n in curl util-linux shadow findutils)	completed	success	fece3bba376c3a352c9cd971eae87dba64d317d3	2026-11-05T07:57:22Z	2026-11-05T07:57:56Z
+release-dry-run / arch (a)	completed	success	fece3bba376c3a352c9cd971eae87dba64d317d3	2026-11-05T07:59:02Z	2026-11-05T07:59:30Z
+release-dry-run / arch (b)	completed	success	fece3bba376c3a352c9cd971eae87dba64d317d3	2026-11-05T07:59:02Z	2026-11-05T07:59:39Z
+release-dry-run / verify	completed	success	fece3bba376c3a352c9cd971eae87dba64d317d3	2026-11-05T07:59:41Z	2026-11-05T08:01:16Z

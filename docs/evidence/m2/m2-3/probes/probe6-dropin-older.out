@@ -1,0 +1,60 @@
+######## ubuntu-2404
+systemd 255 (255.4-1ubuntu8.18)
+--- show DropInPaths/FragmentPath
+Id=hc-p6.service
+FragmentPath=/etc/systemd/system/hc-p6.service
+SourcePath=
+DropInPaths=/etc/systemd/system/hc-p6.service.d/secret.conf
+--- cat as nobody: stdout
+# /etc/systemd/system/hc-p6.service
+[Service]
+ExecStart=/bin/sleep 1000
+[Install]
+WantedBy=multi-user.target
+rc=1
+--- stderr:
+Failed to cat /etc/systemd/system/hc-p6.service.d/secret.conf: Permission denied
+--- is-enabled of free alias
+not-found
+rc=4
+--- show of free alias
+Id=hc-p6-alias.service
+LoadState=not-found
+rc=0
+--- enable (alias from drop-in?)
+Created symlink /etc/systemd/system/hc-p6-alias.service → /etc/systemd/system/hc-p6.service.
+Created symlink /etc/systemd/system/multi-user.target.wants/hc-p6.service → /etc/systemd/system/hc-p6.service.
+rc=0
+hc-p6-alias.service
+hc-p6.service
+hc-p6.service.d
+######## ubuntu-2204
+systemd 249 (249.11-0ubuntu3.23)
+--- show DropInPaths/FragmentPath
+Id=hc-p6.service
+FragmentPath=/etc/systemd/system/hc-p6.service
+SourcePath=
+DropInPaths=/etc/systemd/system/hc-p6.service.d/secret.conf
+--- cat as nobody: stdout
+# /etc/systemd/system/hc-p6.service
+[Service]
+ExecStart=/bin/sleep 1000
+[Install]
+WantedBy=multi-user.target
+rc=1
+--- stderr:
+Failed to cat /etc/systemd/system/hc-p6.service.d/secret.conf: Permission denied
+--- is-enabled of free alias
+Failed to get unit file state for hc-p6-alias.service: No such file or directory
+rc=1
+--- show of free alias
+Id=hc-p6-alias.service
+LoadState=not-found
+rc=0
+--- enable (alias from drop-in?)
+Created symlink /etc/systemd/system/hc-p6-alias.service → /etc/systemd/system/hc-p6.service.
+Created symlink /etc/systemd/system/multi-user.target.wants/hc-p6.service → /etc/systemd/system/hc-p6.service.
+rc=0
+hc-p6-alias.service
+hc-p6.service
+hc-p6.service.d

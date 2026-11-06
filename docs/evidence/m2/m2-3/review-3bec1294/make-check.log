@@ -1,0 +1,180 @@
+node scripts/build-theme-sdk.mjs --check
+Theme SDK artifacts match the application.
+python3 -I docs/ui/hcis/tokens/gen-css.py --check
+OK: HCIS CSS matches tokens.json
+cd backend && go vet ./...
+cd frontend/app && npm run -s typecheck && npm run -s lint && npm run -s format:check
+Checking formatting...
+All matched files use Prettier code style!
+cd backend && go test -count=1 -cover ./...
+ok  	homelab-control/backend/cmd/hc-api	0.079s	coverage: 15.0% of statements
+	homelab-control/backend/cmd/hc-broker		coverage: 0.0% of statements
+ok  	homelab-control/backend/cmd/hlctl	0.370s	coverage: 69.9% of statements
+ok  	homelab-control/backend/internal/api	6.829s	coverage: 87.3% of statements
+ok  	homelab-control/backend/internal/audit	0.003s	coverage: 75.9% of statements
+ok  	homelab-control/backend/internal/auth	0.595s	coverage: 78.2% of statements
+ok  	homelab-control/backend/internal/broker/ops	7.823s	coverage: 78.3% of statements
+ok  	homelab-control/backend/internal/broker/proto	0.004s	coverage: 81.6% of statements
+ok  	homelab-control/backend/internal/broker/runner	0.220s	coverage: 85.2% of statements
+ok  	homelab-control/backend/internal/broker/server	5.211s	coverage: 78.9% of statements
+	homelab-control/backend/internal/broker/types		coverage: 0.0% of statements
+ok  	homelab-control/backend/internal/broker/writes	0.005s	coverage: 90.6% of statements
+	homelab-control/backend/internal/brokerclient		coverage: 0.0% of statements
+ok  	homelab-control/backend/internal/guard	0.049s	coverage: [no statements]
+ok  	homelab-control/backend/internal/hostinfo	0.063s	coverage: 86.1% of statements
+ok  	homelab-control/backend/internal/hwinfo	0.003s	coverage: 89.5% of statements
+ok  	homelab-control/backend/internal/modules	0.005s	coverage: 93.7% of statements
+ok  	homelab-control/backend/internal/servicepolicy	0.004s	coverage: 94.3% of statements
+ok  	homelab-control/backend/internal/state	0.088s	coverage: 79.4% of statements
+?   	homelab-control/backend/internal/version	[no test files]
+	homelab-control/backend/internal/webui		coverage: 0.0% of statements
+cd frontend/app && npm test
+npm notice run @homelab-control/app@0.1.0-m0 test
+npm notice run vitest run
+
+ RUN  v5.0.4 /home/ian/Projects/Homelab-Control/.dev/worktrees/m2-3/frontend/app
+
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+
+ Test Files  10 passed (10)
+      Tests  73 passed (73)
+   Start at  05:53:37
+   Duration  3.61s (tests 59%, environment 33%, import 6%, transform 1%)
+
+node --test sdk/theme/tdk.test.mjs
+✔ standalone create, validate, flatten and overwrite protection (72.36065ms)
+✔ malicious inputs fail closed in the SDK runtime and CLI (67.530103ms)
+✔ all base palettes and shipped starter themes pass (83.894636ms)
+✔ a UTF-8 byte order mark is ignored, as in the app importer (20.37642ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 273.023365
+python3 -m unittest discover -s tests/release -t . -v
+test_assemble_renames_deb_and_writes_sums (tests.release.test_release_tool.Assemble.test_assemble_renames_deb_and_writes_sums) ... ok
+test_assemble_requires_one_arch_package (tests.release.test_release_tool.Assemble.test_assemble_requires_one_arch_package) ... ok
+test_notes_unsigned_banner_and_checksums (tests.release.test_release_tool.SbomAndNotes.test_notes_unsigned_banner_and_checksums) ... /home/ian/Projects/Homelab-Control/.dev/worktrees/m2-3/tests/release/test_release_tool.py:308: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp1vwlz4c9/notes.md' mode='r' encoding='UTF-8'>
+  text = open(out).read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_stamp_is_deterministic (tests.release.test_release_tool.SbomAndNotes.test_stamp_is_deterministic) ... /home/ian/Projects/Homelab-Control/.dev/worktrees/m2-3/tests/release/test_release_tool.py:293: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpf6k_4g1t/a' mode='r' encoding='UTF-8'>
+  a = open(os.path.join(t, "a")).read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/ian/Projects/Homelab-Control/.dev/worktrees/m2-3/tests/release/test_release_tool.py:294: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpf6k_4g1t/b' mode='r' encoding='UTF-8'>
+  self.assertEqual(a, open(os.path.join(t, "b")).read())
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_pins_must_be_exact (tests.release.test_release_tool.Toolchain.test_pins_must_be_exact) ... ok
+test_repository_pins_are_exact (tests.release.test_release_tool.Toolchain.test_repository_pins_are_exact) ... ok
+test_checksum_mismatch (tests.release.test_release_tool.Verify.test_checksum_mismatch) ... ok
+test_extra_artifact (tests.release.test_release_tool.Verify.test_extra_artifact) ... ok
+test_fixture_passes (tests.release.test_release_tool.Verify.test_fixture_passes) ... ok
+test_git_dir_in_source_archive (tests.release.test_release_tool.Verify.test_git_dir_in_source_archive) ... ok
+test_go_module_sources_required (tests.release.test_release_tool.Verify.test_go_module_sources_required) ... ok
+test_links_must_stay_inside_the_tree (tests.release.test_release_tool.Verify.test_links_must_stay_inside_the_tree) ... ok
+test_malformed_sums (tests.release.test_release_tool.Verify.test_malformed_sums) ... /home/ian/Projects/Homelab-Control/.dev/worktrees/m2-3/tests/release/test_release_tool.py:181: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpd70aafff/rel/SHA256SUMS' mode='a' encoding='UTF-8'>
+  open(os.path.join(self.f.d, "SHA256SUMS"), "a").write("not a checksum line\n")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_missing_artifact (tests.release.test_release_tool.Verify.test_missing_artifact) ... ok
+test_sums_must_cover_every_file (tests.release.test_release_tool.Verify.test_sums_must_cover_every_file) ... /home/ian/Projects/Homelab-Control/.dev/worktrees/m2-3/tests/release/test_release_tool.py:176: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpya3ywwse/rel/SHA256SUMS' mode='r' encoding='UTF-8'>
+  lines = open(p).read().splitlines()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_toolchain_mismatch (tests.release.test_release_tool.Verify.test_toolchain_mismatch) ... ok
+test_unsafe_name (tests.release.test_release_tool.Verify.test_unsafe_name) ... ok
+test_unstamped_sbom (tests.release.test_release_tool.Verify.test_unstamped_sbom) ... ok
+test_verify_cli_fails_closed_on_empty_dir (tests.release.test_release_tool.Verify.test_verify_cli_fails_closed_on_empty_dir) ... ok
+test_verify_cli_rejects_bad_version (tests.release.test_release_tool.Verify.test_verify_cli_rejects_bad_version) ... ok
+test_webmin_in_source_archive (tests.release.test_release_tool.Verify.test_webmin_in_source_archive) ... ok
+test_wrong_version_or_commit (tests.release.test_release_tool.Verify.test_wrong_version_or_commit) ... ok
+test_asset_names_are_github_safe (tests.release.test_release_tool.Versions.test_asset_names_are_github_safe) ... ok
+test_deb_version_sorts_before_release (tests.release.test_release_tool.Versions.test_deb_version_sorts_before_release) ... ok
+test_dry_run_versions (tests.release.test_release_tool.Versions.test_dry_run_versions) ... ok
+test_release_versions (tests.release.test_release_tool.Versions.test_release_versions) ... ok
+test_actions_pinned_like_ci (tests.release.test_workflow_policy.ReleaseWorkflowPolicy.test_actions_pinned_like_ci) ... ok
+test_build_uses_exact_toolchain (tests.release.test_workflow_policy.ReleaseWorkflowPolicy.test_build_uses_exact_toolchain) ... ok
+test_ci_and_release_use_the_same_go (tests.release.test_workflow_policy.ReleaseWorkflowPolicy.test_ci_and_release_use_the_same_go) ... ok
+test_draft_only_never_publish_delete_or_tag (tests.release.test_workflow_policy.ReleaseWorkflowPolicy.test_draft_only_never_publish_delete_or_tag) ... ok
+test_least_privilege (tests.release.test_workflow_policy.ReleaseWorkflowPolicy.test_least_privilege) ... ok
+test_manual_trigger_only (tests.release.test_workflow_policy.ReleaseWorkflowPolicy.test_manual_trigger_only) ... ok
+test_no_secrets_or_signing (tests.release.test_workflow_policy.ReleaseWorkflowPolicy.test_no_secrets_or_signing) ... ok
+test_no_untrusted_expressions_in_scripts (tests.release.test_workflow_policy.ReleaseWorkflowPolicy.test_no_untrusted_expressions_in_scripts) ... ok
+test_sequence_and_serialisation (tests.release.test_workflow_policy.ReleaseWorkflowPolicy.test_sequence_and_serialisation) ... ok
+
+----------------------------------------------------------------------
+Ran 35 tests in 2.863s
+
+OK
+tests/release/version-order-test.sh
+PASS  deb 0.1.0-dev.1 < 0.1.0-dev.2  (0.1.0~dev.1 < 0.1.0~dev.2)
+PASS  deb 0.1.0-dev.9 < 0.1.0-dev.10  (0.1.0~dev.9 < 0.1.0~dev.10)
+PASS  deb 0.1.0-dev.3 < 0.1.0-rc.1  (0.1.0~dev.3 < 0.1.0~rc.1)
+PASS  deb 0.1.0-rc.1 < 0.1.0-rc.2  (0.1.0~rc.1 < 0.1.0~rc.2)
+PASS  deb 0.1.0-rc.2 < 0.1.0  (0.1.0~rc.2 < 0.1.0)
+PASS  deb 0.1.0-dev.1 < 0.1.0  (0.1.0~dev.1 < 0.1.0)
+PASS  deb 0.1.0 < 0.2.0-dev.1  (0.1.0 < 0.2.0~dev.1)
+PASS  rpm 0.1.0-dev.1 < 0.1.0-dev.2  (0.1.0-0.m1.0_1_0_dev_1 < 0.1.0-0.m1.0_1_0_dev_2)
+PASS  rpm 0.1.0-dev.9 < 0.1.0-dev.10  (0.1.0-0.m1.0_1_0_dev_9 < 0.1.0-0.m1.0_1_0_dev_10)
+PASS  rpm 0.1.0-dev.3 < 0.1.0-rc.1  (0.1.0-0.m1.0_1_0_dev_3 < 0.1.0-0.m1.0_1_0_rc_1)
+PASS  rpm 0.1.0-rc.1 < 0.1.0-rc.2  (0.1.0-0.m1.0_1_0_rc_1 < 0.1.0-0.m1.0_1_0_rc_2)
+PASS  rpm 0.1.0-rc.2 < 0.1.0  (0.1.0-0.m1.0_1_0_rc_2 < 0.1.0-1)
+PASS  rpm 0.1.0-dev.1 < 0.1.0  (0.1.0-0.m1.0_1_0_dev_1 < 0.1.0-1)
+PASS  rpm 0.1.0 < 0.2.0-dev.1  (0.1.0-1 < 0.2.0-0.m1.0_2_0_dev_1)
+PASS  arch 0.1.0-dev.1 < 0.1.0-dev.2  (0.1.0dev.1 < 0.1.0dev.2)
+PASS  arch 0.1.0-dev.9 < 0.1.0-dev.10  (0.1.0dev.9 < 0.1.0dev.10)
+PASS  arch 0.1.0-dev.3 < 0.1.0-rc.1  (0.1.0dev.3 < 0.1.0rc.1)
+PASS  arch 0.1.0-rc.1 < 0.1.0-rc.2  (0.1.0rc.1 < 0.1.0rc.2)
+PASS  arch 0.1.0-rc.2 < 0.1.0  (0.1.0rc.2 < 0.1.0)
+PASS  arch 0.1.0-dev.1 < 0.1.0  (0.1.0dev.1 < 0.1.0)
+PASS  arch 0.1.0 < 0.2.0-dev.1  (0.1.0 < 0.2.0dev.1)
+version order: OK
+scripts/security-check.sh
+
+== Upstream provenance
+pinned tag:          2.670
+subtree split (git): 3a2b2b8671c0669c129f5275b3dd1853106ae02b
+OK: compat/webmin is byte-identical to upstream 2.670 (tree a8482cc848f28a8e4c806861f237a2094514f533)
+
+== Go static guards (no process execution, all API routes wrapped)
+ok  	homelab-control/backend/internal/guard	0.023s
+
+== go vet
+
+== Go dependency policy (ADR 0006 amendment 1: reviewed allow-list only)
+OK: 10 reviewed modules, 8 linked into hc-api/hlctl; hc-broker links the standard library only
+
+== govulncheck (Go stdlib/toolchain advisories)
+No vulnerabilities found.
+
+== npm audit (production dependencies)
+found 0 vulnerabilities
+
+== Frontend XSS lint rules
+npm notice run @homelab-control/app@0.1.0-m0 npx
+npm notice run 'eslint' .
+
+== Third-party notices match shipped dependencies
+OK: THIRD-PARTY-NOTICES.md and packaging/debian/copyright match the shipped dependencies
+
+== SBOM matches inputs and is valid SPDX 2.3
+OK: SBOM matches inputs (261 packages)
+
+== Webmin reference tree licence inventory (per-file upstream statements reviewed)
+OK: Webmin licence inventory current (44297 files, 36 entries, no unreviewed statements)
+
+== Licensing metadata (REUSE 3.3: SPDX licence + copyright for every file)
+OK: REUSE compliant
+
+== Committed secrets / private keys
+OK: no private keys outside compat/webmin
+
+== Shell scripts
+make check exit 0

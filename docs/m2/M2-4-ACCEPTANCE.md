@@ -14,10 +14,11 @@ Status 2026-11-05: **not ready for acceptance or merge.** This lists what is evi
 | 8 | md runtime state from sysfs | Done (fixtures) | `TestCollectMDRuntimeStateWithoutDerivingHealth` |
 | 9 | ZFS, Btrfs multi-device, mergerfs | **Open** | — |
 | 10 | Bounded snapshots (migration 2), boot staleness, dedup | Done (tests) | `state` tests |
-| 11 | HCIS UI, keyboard, axe desktop/mobile, no overflow, real API/session/DB | Done (fixture browser run, 20/20) | local evidence, not committed |
-| 12 | `make check` | Pass locally 2026-11-05 (pinned Go 1.26.10, non-root) including ShellCheck 0.9.0, the version CI installs; CI not yet run on this change | local log |
+| 11 | HCIS UI, keyboard, axe desktop/mobile, no overflow, real API/session/DB | Done for the synthetic fixture only (browser run 22/22 after integrating `main` `a548f52f`; axe 0 desktop/0 mobile; no overflow). Not native-probe, distro or KVM evidence | local evidence, not committed |
+| 12 | `make check` | Pass locally 2026-11-05 (pinned Go 1.26.10, non-root) including ShellCheck 0.9.0, the version CI installs, also after integrating `main` `a548f52f` (uncommitted merge); CI not yet run on this change | local log |
 | 13 | CI, distribution packaging, SELinux, KVM | **Open** — not run | — |
 | 14 | GET side effects and request controls | Controls implemented and tested; residual audit growth for owner/supervisor review | see below; `TestStorageReadRequiresSessionCSRFToken`; e2e `cookie-only storage read refused` |
+| 15 | Module registry (M2-3, merged from `main` `a548f52f`) | `storage` is **not** a registered module: `GET /api/v1/storage` is a core route, so `/etc/homelab-control/modules.json` cannot disable it and the fail-closed state (invalid setting) does not hide it. Registering it changes the administrator file contract (`modules_test` requires review for new modules); proposed, not done | `modules.ForRoute("/api/v1/storage") == ""` |
 
 ### Row 14 — reasoning (not an accepted risk)
 

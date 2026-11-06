@@ -1,0 +1,12 @@
+== FuzzParseInstall (uid 1000)
+fuzz: elapsed: 1m1s, execs: 11575862 (0/sec), new interesting: 23 (total: 268)
+PASS
+ok  	homelab-control/backend/internal/broker/ops	61.019s
+== FuzzEnablementArgs (uid 1000)
+fuzz: elapsed: 1m1s, execs: 540166 (0/sec), new interesting: 26 (total: 448)
+PASS
+ok  	homelab-control/backend/internal/broker/ops	61.019s
+== FuzzParseCat (uid 1000)
+fuzz: elapsed: 1m1s, execs: 1232159 (0/sec), new interesting: 63 (total: 352)
+PASS
+ok  	homelab-control/backend/internal/broker/ops	61.012s

@@ -79,6 +79,7 @@ const (
 	CodeInvalidToken   = "invalid_token"    // plan token unknown, expired, used or not bound to this request
 	CodeStepUpRequired = "step_up_required" // disruptive op without a recent password re-entry
 	CodePolicyDenied   = "policy_denied"    // protected unit or unsafe dependency (D-5)
+	CodeModuleDisabled = "module_disabled"  // the op belongs to a module disabled on this host (M2-3)
 )
 
 // Response is the broker's reply.

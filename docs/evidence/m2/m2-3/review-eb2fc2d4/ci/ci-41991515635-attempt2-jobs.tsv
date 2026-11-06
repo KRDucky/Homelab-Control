@@ -1,0 +1,21 @@
+arch-package	success	127130349964	2026-11-05T08:10:39Z	2026-11-05T08:11:13Z
+browser-e2e	success	127130348158	2026-11-05T08:17:13Z	2026-11-05T08:21:54Z
+check	success	127130349754	2026-11-05T08:04:06Z	2026-11-05T08:10:37Z
+install-matrix (archlinux:latest, zst, pacman -Syu --noconfirm --needed curl util-linux)	success	127130351741	2026-11-05T08:11:15Z	2026-11-05T08:11:46Z
+install-matrix (debian:oldstable, deb, apt-get update && apt-get install -y curl)	success	127130351230	2026-11-05T08:11:15Z	2026-11-05T08:11:48Z
+install-matrix (debian:stable, deb, apt-get update && apt-get install -y curl)	success	127130351272	2026-11-05T08:11:15Z	2026-11-05T08:11:48Z
+install-matrix (fedora:latest, rpm, dnf install -y curl util-linux shadow-utils findutils)	success	127130352192	2026-11-05T08:11:15Z	2026-11-05T08:11:45Z
+install-matrix (opensuse/leap:latest, rpm, zypper -n in curl util-linux shadow findutils)	success	127130352013	2026-11-05T08:11:15Z	2026-11-05T08:11:48Z
+install-matrix (opensuse/tumbleweed, rpm, zypper -n in curl util-linux shadow findutils)	success	127130351321	2026-11-05T08:11:15Z	2026-11-05T08:11:45Z
+install-matrix (ubuntu:22.04, deb, apt-get update && apt-get install -y curl)	success	127130351319	2026-11-05T08:11:16Z	2026-11-05T08:12:07Z
+install-matrix (ubuntu:24.04, deb, apt-get update && apt-get install -y curl)	success	127130350972	2026-11-05T08:11:15Z	2026-11-05T08:12:02Z
+install-matrix (ubuntu:26.04, deb, apt-get update && apt-get install -y curl)	success	127130350373	2026-11-05T08:11:15Z	2026-11-05T08:11:51Z
+release-dry-run / arch (a)	success	127130350269	2026-11-05T08:13:37Z	2026-11-05T08:14:04Z
+release-dry-run / arch (b)	success	127130350811	2026-11-05T08:13:37Z	2026-11-05T08:14:05Z
+release-dry-run / build (a)	success	127130350157	2026-11-05T08:10:39Z	2026-11-05T08:12:50Z
+release-dry-run / build (b)	success	127130350134	2026-11-05T08:10:40Z	2026-11-05T08:13:35Z
+release-dry-run / verify	success	127130351427	2026-11-05T08:14:08Z	2026-11-05T08:15:29Z
+systemd-ubuntu-2604	success	127130408297	2026-11-05T08:10:40Z	2026-11-05T08:14:23Z
+systemd-ubuntu	success	127130350355	2026-11-05T08:10:40Z	2026-11-05T08:12:33Z
+upgrade-ubuntu	success	127130350195	2026-11-05T08:10:39Z	2026-11-05T08:11:10Z
+upstream-perl-tests	success	127130349318	2026-11-05T08:04:05Z	2026-11-05T08:05:03Z
