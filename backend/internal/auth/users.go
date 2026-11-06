@@ -51,6 +51,11 @@ const (
 	// scope will never authorize applying changes: that needs its own scope
 	// and an ADR 0011 review. Not in DefaultScopes.
 	ScopeHostSettingsPreview = "host.settings.preview"
+	// ScopeLayoutManage allows editing the application-owned manual drive-bay
+	// layout in state.db (M2-5 Stage A, D-7). It changes no host state. Not in
+	// DefaultScopes; storage.read does not imply it, and it does not imply
+	// storage.read (assigning a drive additionally requires storage.read).
+	ScopeLayoutManage = "layout.manage"
 )
 
 // KnownScopes lists every scope the server understands. Unknown scopes in the
@@ -67,6 +72,7 @@ var KnownScopes = map[string]bool{
 	ScopeServicesConfigure:   true,
 	ScopeServicesFiles:       true,
 	ScopeHostSettingsPreview: true,
+	ScopeLayoutManage:        true,
 }
 
 // DefaultScopes are granted by `hlctl user add` when --scopes is not given.
