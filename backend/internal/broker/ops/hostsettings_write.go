@@ -530,24 +530,28 @@ func hostSettingsApply(ctx context.Context, env *Env, raw json.RawMessage) (any,
 	}()
 	started := time.Now().UTC()
 	var steps []appliedStep
-	run := func(field string, fn func(context.Context) (runner.Result, error)) {
+	run := func(field string, fn func(context.Context) (runner.Result, error)) bool {
 		actx, acancel := context.WithTimeout(context.Background(), actTimeout)
 		res, runErr := fn(actx)
 		acancel()
 		steps = append(steps, appliedStep{field: field, res: res, err: runErr})
+		return runErr == nil && res.ExitCode == 0
 	}
-	if req.StaticHostname != nil && (obs.StaticStatus != hostinfo.SettingObserved || obs.StaticHostname != *req.StaticHostname) {
+	// Sequential; stop on the first failed field. Earlier successes are not
+	// rolled back.
+	cont := true
+	if cont && req.StaticHostname != nil && (obs.StaticStatus != hostinfo.SettingObserved || obs.StaticHostname != *req.StaticHostname) {
 		name := *req.StaticHostname
-		run("static_hostname", func(c context.Context) (runner.Result, error) { return env.hostSettings().SetStatic(c, env, name) })
+		cont = run("static_hostname", func(c context.Context) (runner.Result, error) { return env.hostSettings().SetStatic(c, env, name) })
 	}
-	if req.PrettyHostname != nil && !(obs.PrettyStatus == hostinfo.SettingObserved && obs.PrettyHostname == *req.PrettyHostname) &&
+	if cont && req.PrettyHostname != nil && !(obs.PrettyStatus == hostinfo.SettingObserved && obs.PrettyHostname == *req.PrettyHostname) &&
 		!(obs.PrettyStatus == hostinfo.SettingNotSet && *req.PrettyHostname == "") {
 		name := *req.PrettyHostname
-		run("pretty_hostname", func(c context.Context) (runner.Result, error) { return env.hostSettings().SetPretty(c, env, name) })
+		cont = run("pretty_hostname", func(c context.Context) (runner.Result, error) { return env.hostSettings().SetPretty(c, env, name) })
 	}
-	if req.Timezone != nil && (obs.TimezoneStatus != hostinfo.SettingObserved || obs.Timezone != *req.Timezone) {
+	if cont && req.Timezone != nil && (obs.TimezoneStatus != hostinfo.SettingObserved || obs.Timezone != *req.Timezone) {
 		name := *req.Timezone
-		run("timezone", func(c context.Context) (runner.Result, error) { return env.hostSettings().SetTimezone(c, env, name) })
+		_ = run("timezone", func(c context.Context) (runner.Result, error) { return env.hostSettings().SetTimezone(c, env, name) })
 	}
 	rctx, rcancel := context.WithTimeout(context.Background(), showTimeout)
 	after, afterErr := env.hostSettings().Status(rctx, env)

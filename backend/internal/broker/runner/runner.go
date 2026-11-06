@@ -191,10 +191,10 @@ var rootTemplates = map[RootTemplate]rootTemplate{
 	// M2-6 (ADR 0008 Amendment 4, proposed): hostname and timezone. Values
 	// after --; empty pretty hostname is removal. Status and list-timezones
 	// are read-only (revalidation and read-back).
-	RootHostnamectlSetStatic:     {"hostnamectl", []string{"set-hostname", "--static", "--"}, validStaticHostname, 1},
-	RootHostnamectlSetPretty:     {"hostnamectl", []string{"set-hostname", "--pretty", "--"}, validPrettyHostname, 1},
+	RootHostnamectlSetStatic:     {"hostnamectl", []string{"--no-ask-password", "set-hostname", "--static", "--"}, validStaticHostname, 1},
+	RootHostnamectlSetPretty:     {"hostnamectl", []string{"--no-ask-password", "set-hostname", "--pretty", "--"}, validPrettyHostname, 1},
 	RootHostnamectlStatus:        {"hostnamectl", []string{"--no-ask-password", "status"}, nil, 0},
-	RootTimedatectlSetTimezone:   {"timedatectl", []string{"set-timezone", "--"}, validTimezoneName, 1},
+	RootTimedatectlSetTimezone:   {"timedatectl", []string{"--no-ask-password", "set-timezone", "--"}, validTimezoneName, 1},
 	RootTimedatectlStatus:        {"timedatectl", []string{"--no-ask-password", "status"}, nil, 0},
 	RootTimedatectlListTimezones: {"timedatectl", []string{"--no-ask-password", "list-timezones"}, nil, 0},
 }
