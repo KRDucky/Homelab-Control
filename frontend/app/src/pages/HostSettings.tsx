@@ -116,9 +116,13 @@ export function HostSettingsPage({
         <h1 className="page-title">Host settings</h1>
         <p className="page-sub">
           Host name and time zone as this host reports them. Preview does not change the host
-          {canApply
-            ? '. Applying a change needs a separate confirmation.'
-            : '; Homelab Control cannot apply them without the host.settings.apply permission.'}
+          {!canApply
+            ? '; applying a change requires the host.settings.apply permission.'
+            : preview && !preview.apply_available
+              ? '. Apply is not available from this server right now.'
+              : preview?.apply_available
+                ? '. Applying a change needs a separate confirmation.'
+                : '.'}
         </p>
       </header>
 
