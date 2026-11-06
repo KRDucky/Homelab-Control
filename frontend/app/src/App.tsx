@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import {
   getCapabilities,
   getSession,
@@ -55,7 +55,7 @@ export function App() {
       .catch(() => setPhase('anonymous'));
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (phase === 'anonymous') document.title = 'Sign in · Homelab Control';
   }, [phase]);
 
@@ -63,6 +63,7 @@ export function App() {
     setSession(null);
     setCaps(null);
     setPhase('anonymous');
+    document.title = 'Sign in · Homelab Control';
   }, []);
 
   useEffect(() => {
