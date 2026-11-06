@@ -70,3 +70,4 @@ removes that cost without moving password checks into the web tier.
 1. [x] Implement and test the above (M0).
 2. [ ] PAM verification broker op + group→scope mapping — **deferred past M1**; needs its own ADR (first argument-taking broker op). Acceptance tests: `docs/security/PAM-AUTH-DEFERRED.md`.
 3. [ ] Persisted sessions and per-session revocation UI (M2).
+4. [ ] OIDC single sign-on to explicitly bound local accounts (working skeleton 2026-11-05, pending review): `docs/security/OIDC-SSO.md`. Sessions, CSRF, scopes and step-up are unchanged.
