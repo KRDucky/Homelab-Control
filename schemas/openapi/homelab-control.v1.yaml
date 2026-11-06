@@ -35,7 +35,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, storage.read] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
@@ -47,6 +47,169 @@ components:
         status: { type: string, enum: [ok, partial, unavailable] }
         sources: { type: array, items: { type: string } }
         errors: { type: array, items: { type: string } }
+    StorageEvidence:
+      type: object
+      required: [source, confidence]
+      properties:
+        source: { type: string }
+        confidence: { type: string }
+    StorageIdentifier:
+      type: object
+      required: [kind, value, source, ambiguous]
+      properties:
+        kind: { type: string }
+        value: { type: string }
+        source: { type: string }
+        ambiguous: { type: boolean }
+        scope: { type: string, enum: [device, controller], description: "controller marks an NVMe controller serial shared by its namespaces" }
+      description: >-
+        Kinds include wwn (NAA/EUI designators only), nvme-uuid, t10-vendor-id and nvme-vendor-id
+        (vendor-derived, not world-wide names), wwid-unclassified, serial, controller-serial, partuuid,
+        dm-uuid, md-uuid and by-id.
+    StorageMDState:
+      type: object
+      required: [level, members, source]
+      description: Raw Linux md sysfs runtime attributes; never summarized as healthy.
+      properties:
+        level: { type: string }
+        array_state: { type: string }
+        raid_disks: { type: integer, minimum: 0 }
+        degraded: { type: integer, minimum: 0 }
+        sync_action: { type: string }
+        sync_completed: { type: string }
+        mismatch_count: { type: integer, minimum: 0 }
+        source: { type: string }
+        members:
+          type: array
+          items:
+            type: object
+            properties:
+              device_number: { type: string, description: Volatile kernel major/minor observation }
+              slot: { type: string }
+              state: { type: string }
+    StorageNode:
+      type: object
+      required: [id, kind, name, identity_status, evidence]
+      properties:
+        id: { type: string, description: Snapshot-local node key; not a persistent disk identifier }
+        kind: { type: string }
+        name: { type: string }
+        persistent_id: { type: string }
+        identifiers: { type: array, items: { $ref: '#/components/schemas/StorageIdentifier' } }
+        identity_status: { type: string, enum: [observed, ambiguous, unavailable, snapshot-local] }
+        device_number: { type: string, description: Volatile kernel major/minor observation }
+        disk_seq: { type: string, description: "Kernel per-boot disk sequence number (sysfs diskseq; a partition reports its disk's). Detects device-number reuse; not a persistent identity" }
+        size_bytes: { type: integer, minimum: 0 }
+        filesystem_type: { type: string }
+        signature_uuid: { type: string, description: "UUID reported by an observed signature (signature nodes only; for LVM2_member, the PV UUID)" }
+        mountpoint: { type: string }
+        mount_root: { type: string }
+        mount_view: { type: string, enum: [service, host] }
+        md: { $ref: '#/components/schemas/StorageMDState' }
+        evidence: { type: array, items: { $ref: '#/components/schemas/StorageEvidence' } }
+        notes: { type: array, items: { type: string } }
+    StorageEdge:
+      type: object
+      required: [from, to, kind, evidence]
+      properties:
+        from: { type: string }
+        to: { type: string }
+        kind: { type: string, description: "Relationship. possibly-used-by is a provisional disk-to-PV candidate (confidence provisional) and is not a claim of use" }
+        evidence: { $ref: '#/components/schemas/StorageEvidence' }
+    StorageClaim:
+      type: object
+      required: [node, technology, evidence]
+      properties:
+        node: { type: string }
+        technology: { type: string }
+        evidence: { $ref: '#/components/schemas/StorageEvidence' }
+    StorageLVMVolume:
+      type: object
+      required: [uuid, name, vg_uuid, vg_name, health, segments]
+      properties:
+        uuid: { type: string }
+        name: { type: string }
+        vg_uuid: { type: string }
+        vg_name: { type: string }
+        parent: { type: string, description: "lv_parent name; joined only within one VG of one report" }
+        size_bytes: { type: integer, minimum: 0 }
+        attributes: { type: string, description: "lv_attr; runtime characters are ? in metadata-only mode" }
+        health: { type: string, description: "unknown when not reported or in metadata-only mode" }
+        kernel_join: { type: string, enum: [joined, no-kernel-node, ambiguous, not-checked] }
+        sync_action: { type: string }
+        sync_percent: { type: number, minimum: 0, maximum: 100 }
+        cache_total_blocks: { type: integer, minimum: 0 }
+        cache_used_blocks: { type: integer, minimum: 0 }
+        cache_dirty_blocks: { type: integer, minimum: 0 }
+        origin_uuid: { type: string }
+        pool_uuid: { type: string }
+        data_uuid: { type: string }
+        metadata_uuid: { type: string }
+        segments:
+          type: array
+          items:
+            type: object
+            required: [type]
+            properties:
+              type: { type: string }
+              start_bytes: { type: integer, minimum: 0 }
+              size_bytes: { type: integer, minimum: 0 }
+              cache_mode: { type: string }
+              cache_policy: { type: string }
+              devices: { type: string, description: Display evidence only, never an executable target }
+              metadata_devices: { type: string }
+    StorageLVMPhysicalVolume:
+      type: object
+      required: [uuid, missing, missing_state, ambiguous, segments]
+      properties:
+        uuid: { type: string }
+        name: { type: string, description: "Display evidence only; never used to join or target a device" }
+        vg_uuid: { type: string }
+        vg_name: { type: string }
+        size_bytes: { type: integer, minimum: 0 }
+        device_size_bytes: { type: integer, minimum: 0 }
+        device_number: { type: string, description: "LVM pv_major:pv_minor (absent for 0:0/-1, i.e. no device). A separate observation from sysfs that only nominates a candidate disk; see device_link" }
+        attributes: { type: string }
+        missing: { type: boolean, description: "True only when LVM reported pv_missing" }
+        missing_state: { type: string, enum: [present, missing, missing-from-attr, not-reported], description: "missing-from-attr: pv_missing absent and pv_attr bit 3 is m" }
+        ambiguous: { type: boolean, description: "PV UUID reported on more than one device or flagged duplicate in pv_attr; no device association" }
+        device_link: { type: string, enum: [verified, provisional, withheld, no-device], description: "verified needs a matching LVM2_member signature UUID, equal sizes and an unchanged later sysfs observation in the same boot; provisional means uncontradicted but uncorroborated; withheld means observations disagree" }
+        device_link_reason: { type: string }
+        segments:
+          type: array
+          items:
+            type: object
+            properties:
+              start_extent: { type: integer, minimum: 0 }
+              size_extents: { type: integer, minimum: 0 }
+              lv_uuid: { type: string }
+    StorageGraph:
+      type: object
+      required: [nodes, edges, claims, status, notes]
+      properties:
+        boot_id: { type: string, description: Observed kernel boot identifier; absent when unavailable }
+        lvm:
+          type: object
+          required: [mode, source, volumes, physical_volumes]
+          properties:
+            mode: { type: string, enum: [metadata-only, live], description: "Stated by the collector; metadata-only reports carry no runtime health" }
+            source: { type: string }
+            volumes: { type: array, items: { $ref: '#/components/schemas/StorageLVMVolume' } }
+            physical_volumes: { type: array, items: { $ref: '#/components/schemas/StorageLVMPhysicalVolume' } }
+        nodes: { type: array, items: { $ref: '#/components/schemas/StorageNode' } }
+        edges: { type: array, items: { $ref: '#/components/schemas/StorageEdge' } }
+        claims: { type: array, items: { $ref: '#/components/schemas/StorageClaim' } }
+        status: { type: string, enum: [ok, partial, unavailable] }
+        notes: { type: array, items: { type: string } }
+    StorageInventory:
+      type: object
+      required: [collected_at, read_only, graph, snapshot_persisted]
+      properties:
+        collected_at: { type: string, format: date-time }
+        read_only: { type: boolean, const: true }
+        snapshot_persisted: { type: boolean }
+        snapshot_id: { type: string, description: Historical observation ID; not authorization for a target }
+        graph: { $ref: '#/components/schemas/StorageGraph' }
     Overview:
       type: object
       required: [collected_at, system, cpu, memory, filesystems, network, legacy_webmin]
@@ -148,7 +311,7 @@ components:
       type: object
       required: [id, label, path, scope, status]
       properties:
-        id: { type: string, enum: [overview, services, hardware, legacy] }
+        id: { type: string, enum: [overview, services, service_logs, hardware, legacy, audit, storage] }
         label: { type: string }
         path: { type: string }
         scope: { type: string }
@@ -555,6 +718,19 @@ paths:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/OperationList' } } } }
         '403': { description: Missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: Broker or operation journal unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /storage:
+    get:
+      summary: Audited read-only storage metadata graph; no device or mountpoint probes
+      description: Partial observations explicitly report missing signature and technology membership information. No caller-selected paths, commands or writes. A missing claim does not mean a device is unused. storage.read is never granted by default. Because each read is audited and may save a bounded snapshot, the session X-CSRF-Token header is required (a cookie alone is refused with 403 csrf_rejected, before collection, audit or save).
+      security: [{ session: [] }]
+      parameters:
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      x-required-scope: storage.read
+      responses:
+        '200': { description: Observed inventory with provenance and limitations, content: { application/json: { schema: { $ref: '#/components/schemas/StorageInventory' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing storage.read permission or missing/invalid CSRF token, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Metadata or durable access audit unavailable, or collection busy, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /hardware:
     get:
       summary: Hardware inventory (read-only). Degrades instead of failing when the broker is down.

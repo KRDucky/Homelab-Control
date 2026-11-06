@@ -166,7 +166,11 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 	if s.auditPager == nil {
 		auditCap.Status, auditCap.Reason = CapUnavailable, "Audit history needs the state database, which this server was started without."
 	}
-	resp.Capabilities = []Capability{gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs)}
+	storage := Capability{ID: "storage", Label: "Storage", Path: "/storage", Scope: auth.ScopeStorageRead, Status: CapDegraded, Reason: "Read-only kernel metadata; on-disk signatures and native storage membership are not yet available."}
+	if s.storageCollect == nil {
+		storage.Status, storage.Reason = CapUnavailable, "Storage metadata collector is not available."
+	}
+	resp.Capabilities = []Capability{gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(storage)}
 	writeJSON(w, http.StatusOK, resp)
 }
 

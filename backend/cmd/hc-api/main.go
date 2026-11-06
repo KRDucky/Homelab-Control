@@ -129,7 +129,7 @@ func main() {
 		auth.NewStore(uf), al, hostinfo.NewCollector(*legacyURL), webui.FS()).
 		WithHardware(hwinfo.New())
 	if db != nil {
-		srv.WithSessionStore(db.Sessions()).WithAuditPager(db.Audit())
+		srv.WithSessionStore(db.Sessions()).WithAuditPager(db.Audit()).WithStorageSnapshots(db.StorageSnapshots())
 	}
 	if *brokerSocket != "" {
 		srv.WithBroker(brokerclient.New(*brokerSocket))

@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { StorageInventory } from './storageModel';
+
 // Typed client for the Homelab Control v1 API (schemas/openapi/homelab-control.v1.yaml).
 
 export interface SessionInfo {
@@ -124,7 +126,7 @@ export function getOverview(): Promise<Overview> {
 export type CapabilityStatus = 'available' | 'degraded' | 'unavailable' | 'unsupported' | 'forbidden';
 
 export interface Capability {
-  id: 'overview' | 'services' | 'service_logs' | 'hardware' | 'legacy' | 'audit';
+  id: 'overview' | 'services' | 'service_logs' | 'hardware' | 'legacy' | 'audit' | 'storage';
   label: string;
   path: string;
   scope: string;
@@ -476,4 +478,11 @@ export interface OperationRecord {
 
 export function getOperations(): Promise<{ operations: OperationRecord[]; source: string }> {
   return request<{ operations: OperationRecord[]; source: string }>('/api/v1/operations');
+}
+
+// The session CSRF token is required on this GET: a read is audited and may
+// save a snapshot, so a same-site page (another port on this host) must not be
+// able to trigger it with a cookie-bearing image or no-cors request.
+export function getStorage(csrf: string): Promise<StorageInventory> {
+  return request<StorageInventory>('/api/v1/storage', { headers: { 'X-CSRF-Token': csrf } });
 }

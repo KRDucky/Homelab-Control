@@ -21,6 +21,8 @@ import (
 // is defined in docs/project/03-SECURITY-AND-OPERATIONS.md; M0 only grants and
 // uses system.read.
 const (
+	// ScopeStorageRead allows storage metadata and identifying labels. Never granted by default.
+	ScopeStorageRead  = "storage.read"
 	ScopeSystemRead   = "system.read"   // overview, legacy Webmin status
 	ScopeServicesRead = "services.read" // systemd unit list (M1)
 	ScopeHardwareRead = "hardware.read" // hardware inventory incl. DMI serials (M1)
@@ -40,6 +42,7 @@ const (
 // users file are rejected at load time so typos cannot silently grant nothing
 // (or, in later milestones, the wrong thing). All M1 scopes are read-only.
 var KnownScopes = map[string]bool{
+	ScopeStorageRead:     true,
 	ScopeSystemRead:      true,
 	ScopeServicesRead:    true,
 	ScopeHardwareRead:    true,
