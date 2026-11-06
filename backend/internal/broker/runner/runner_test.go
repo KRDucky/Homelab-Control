@@ -142,7 +142,9 @@ func TestSupplementaryGroupsNeverRoot(t *testing.T) {
 	}
 }
 
-func TestJournalctlIsTheOnlyNewBinary(t *testing.T) {
+// TestAllowListedBinariesAreClosed is the production allow-list snapshot.
+// New binaries need security review (ADR 0008 Amendment 4).
+func TestAllowListedBinariesAreClosed(t *testing.T) {
 	want := map[string]bool{"systemctl": true, "journalctl": true, "hostnamectl": true, "timedatectl": true}
 	if len(allowlist) != len(want) {
 		t.Fatalf("allow-list changed (%d entries); new binaries need security review", len(allowlist))
