@@ -46,21 +46,27 @@ const (
 	// Not in DefaultScopes and not implied by services.logs, services.read,
 	// services.operate or services.configure (no scope implies another).
 	ScopeServicesFiles = "services.files"
+	// ScopeHostSettingsPreview allows previewing hostname and timezone
+	// changes (M2-6 skeleton). A preview never changes the host, and this
+	// scope will never authorize applying changes: that needs its own scope
+	// and an ADR 0011 review. Not in DefaultScopes.
+	ScopeHostSettingsPreview = "host.settings.preview"
 )
 
 // KnownScopes lists every scope the server understands. Unknown scopes in the
 // users file are rejected at load time so typos cannot silently grant nothing
 // (or, in later milestones, the wrong thing). All M1 scopes are read-only.
 var KnownScopes = map[string]bool{
-	ScopeStorageRead:       true,
-	ScopeSystemRead:        true,
-	ScopeServicesRead:      true,
-	ScopeHardwareRead:      true,
-	ScopeServicesLogs:      true,
-	ScopeAuditRead:         true,
-	ScopeServicesOperate:   true,
-	ScopeServicesConfigure: true,
-	ScopeServicesFiles:     true,
+	ScopeStorageRead:         true,
+	ScopeSystemRead:          true,
+	ScopeServicesRead:        true,
+	ScopeHardwareRead:        true,
+	ScopeServicesLogs:        true,
+	ScopeAuditRead:           true,
+	ScopeServicesOperate:     true,
+	ScopeServicesConfigure:   true,
+	ScopeServicesFiles:       true,
+	ScopeHostSettingsPreview: true,
 }
 
 // DefaultScopes are granted by `hlctl user add` when --scopes is not given.

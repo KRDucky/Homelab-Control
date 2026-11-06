@@ -123,6 +123,9 @@ func (s *Server) routes() {
 	s.handle("POST /api/v1/auth/sessions/{id}/revoke", sessionOnly, s.handleRevokeSession)
 	s.handle("GET /api/v1/audit", auth.ScopeAuditRead, s.handleAudit)
 	s.handle("GET /api/v1/host/overview", auth.ScopeSystemRead, s.handleOverview)
+	// M2-6 skeleton: read-only host settings and a non-executing preview. No apply route.
+	s.handle("GET /api/v1/host/settings", auth.ScopeSystemRead, s.handleHostSettings)
+	s.handle("POST /api/v1/host/settings/preview", auth.ScopeHostSettingsPreview, s.handleHostSettingsPreview)
 	s.handle("GET /api/v1/capabilities", sessionOnly, s.handleCapabilities)
 	s.handle("GET /api/v1/services", auth.ScopeServicesRead, s.handleServices)
 	s.handle("GET /api/v1/services/units/{unit}/logs", auth.ScopeServicesLogs, s.handleUnitLogs)

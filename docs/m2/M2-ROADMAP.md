@@ -88,6 +88,7 @@ See `M2-PR1-PROPOSAL.md`. **No privileged writes.** Decisions: D-1, D-6, D-7.
 | **Prerequisites** | M2-2 framework |
 | **Security** | `reversible` class; confirmation; warns that hostname affects TLS names and mDNS |
 | **Exclusions** | Network configuration, NTP servers, users and groups |
+| **Status** | Read-only skeleton in development (2026-11-06): `GET /host/settings` and a non-executing `POST /host/settings/preview`; no apply. See [`M2-6-HOST-SETTINGS-SKELETON.md`](M2-6-HOST-SETTINGS-SKELETON.md) |
 
 ## 3. Testing requirements
 | Test | Mandatory before the first privileged write (M2-2) | Introduced later |

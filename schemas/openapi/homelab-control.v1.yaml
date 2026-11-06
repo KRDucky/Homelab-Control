@@ -35,7 +35,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, storage.read] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, storage.read, host.settings.preview] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
@@ -311,7 +311,7 @@ components:
       type: object
       required: [id, label, path, scope, status]
       properties:
-        id: { type: string, enum: [overview, services, hardware, legacy, audit, service_logs, unit_files, storage] }
+        id: { type: string, enum: [overview, services, hardware, legacy, audit, service_logs, unit_files, storage, host_settings] }
         label: { type: string }
         path: { type: string }
         scope: { type: string }
@@ -653,6 +653,48 @@ components:
               identifier: { type: string, maxLength: 64 }
               message: { type: string, maxLength: 4096, description: Control characters removed; capped at 4 KiB }
               truncated: { type: boolean }
+    HostSetting:
+      type: object
+      description: One observed host setting. value is present only when status is observed; unavailable means unknown, never a default.
+      required: [status, source]
+      properties:
+        value: { type: string }
+        status: { type: string, enum: [observed, not-set, unavailable] }
+        source: { type: string, description: File the value was read from }
+        note: { type: string }
+    HostSettings:
+      type: object
+      required: [kernel_hostname, static_hostname, pretty_hostname, timezone]
+      properties:
+        kernel_hostname: { $ref: '#/components/schemas/HostSetting' }
+        static_hostname: { $ref: '#/components/schemas/HostSetting' }
+        pretty_hostname: { $ref: '#/components/schemas/HostSetting' }
+        timezone: { $ref: '#/components/schemas/HostSetting' }
+    HostSettingsPreview:
+      type: object
+      description: A comparison of requested and observed values. Nothing was applied; preview_only is always true and executed, host_changed and apply_available are always false.
+      required: [preview_only, executed, host_changed, apply_available, notice, valid, collected_at, current, changes, warnings]
+      properties:
+        preview_only: { type: boolean, const: true }
+        executed: { type: boolean, const: false }
+        host_changed: { type: boolean, const: false }
+        apply_available: { type: boolean, const: false }
+        notice: { type: string }
+        valid: { type: boolean }
+        collected_at: { type: string, format: date-time }
+        current: { $ref: '#/components/schemas/HostSettings' }
+        changes:
+          type: array
+          items:
+            type: object
+            required: [field, current, requested, outcome]
+            properties:
+              field: { type: string, enum: [static_hostname, pretty_hostname, timezone] }
+              current: { type: string }
+              requested: { type: string }
+              outcome: { type: string, enum: [unchanged, would-change, invalid, cannot-compare] }
+              reason: { type: string }
+        warnings: { type: array, items: { type: string } }
     Hardware:
       type: object
       required: [inventory, identity]
@@ -782,6 +824,49 @@ paths:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Overview' } } } }
         '401': { description: No session, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: Missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /host/settings:
+    get:
+      summary: Read-only host name (kernel, static, pretty) and time zone, from unprivileged file reads (M2-6 skeleton)
+      security: [{ session: [] }]
+      x-required-scope: system.read
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [collected_at, read_only, settings]
+                properties:
+                  collected_at: { type: string, format: date-time }
+                  read_only: { type: boolean, const: true }
+                  settings: { $ref: '#/components/schemas/HostSettings' }
+        '401': { description: No session, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Host settings cannot be observed, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /host/settings/preview:
+    post:
+      summary: 'Preview hostname and time zone changes. Never changes the host: there is no apply endpoint, no plan token and no broker operation. Omitted fields are not requested; an empty pretty_hostname previews removing it.'
+      security: [{ session: [] }]
+      x-required-scope: host.settings.preview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                static_hostname: { type: string, maxLength: 64 }
+                pretty_hostname: { type: string, maxLength: 255 }
+                timezone: { type: string, maxLength: 128 }
+      responses:
+        '200': { description: 'Preview (valid tells whether every requested value is acceptable)', content: { application/json: { schema: { $ref: '#/components/schemas/HostSettingsPreview' } } } }
+        '400': { description: Invalid JSON or no field requested, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: No session, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing scope, or CSRF/Origin rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '415': { description: Not application/json, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Host settings cannot be observed, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /capabilities:
     get:
       summary: What this server can show this user right now (drives navigation)
