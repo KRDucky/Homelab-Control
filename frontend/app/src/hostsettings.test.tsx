@@ -129,6 +129,119 @@ describe('host settings', () => {
     expect(screen.queryByRole('button', { name: /^Apply/ })).toBeNull();
   });
 
+  it('does not offer Apply without host.settings.apply even when the server says apply is available', async () => {
+    mock(['system.read', 'host.settings.preview'], {
+      'POST /api/v1/host/settings/preview': {
+        status: 200,
+        body: { ...preview, apply_available: true, valid: true, warnings: [] },
+      },
+    });
+    render(<App />);
+    fireEvent.change(await screen.findByLabelText('Static host name'), { target: { value: 'nas-01' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Preview (does not apply)' }));
+    expect(await screen.findByText('Preview result — not applied')).toBeTruthy();
+    expect(screen.getByText(/requires the host.settings.apply permission/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Apply/ })).toBeNull();
+    expect(calls.some((c) => /\/host\/settings\/(apply|plan)$/.test(c.key))).toBe(false);
+  });
+
+  it('does not offer Apply when apply_available is false, and preview still never posts apply or plan', async () => {
+    mock(['system.read', 'host.settings.preview', 'host.settings.apply'], {
+      'POST /api/v1/host/settings/preview': { status: 200, body: { ...preview, valid: true } },
+    });
+    render(<App />);
+    fireEvent.change(await screen.findByLabelText('Static host name'), { target: { value: 'nas-01' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Preview (does not apply)' }));
+    expect(await screen.findByText(/Apply is not available from this server right now/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Apply/ })).toBeNull();
+    expect(calls.some((c) => /\/host\/settings\/(apply|plan)$/.test(c.key))).toBe(false);
+  });
+
+  it('plans then applies behind host.settings.apply, shows the TLS warning, and skips step-up', async () => {
+    const plan = {
+      action: 'set',
+      risk: 'reversible',
+      step_up_required: false,
+      confirmation_required: true,
+      token: 'hcp1.plan-token-fixture',
+      expires_at: new Date(Date.now() + 120_000).toISOString(),
+      observed: {
+        static_hostname: 'fixture-static',
+        static_status: 'observed',
+        pretty_status: 'not-set',
+        timezone_status: 'observed',
+        timezone: 'Europe/Berlin',
+        notes: [
+          'This result reports hostnamectl and timedatectl. The kernel host name seen by hc-api may stay at the value from when that service started (ProtectHostname=yes); it is not proof that the kernel was renamed.',
+        ],
+      },
+      effect: 'This would set the static host name.',
+      consequences: ['Confirmation is required. This class is reversible: it does not require a password re-entry.'],
+      warnings: [
+        'Changing the static host name can invalidate TLS certificates that name this host, mDNS/Avahi names, and entries in /etc/hosts. Homelab Control does not update those.',
+      ],
+      changes: [
+        { field: 'static_hostname', current: 'fixture-static', requested: 'nas-01', outcome: 'would-change' },
+      ],
+      fields: ['static_hostname'],
+    };
+    mock(['system.read', 'host.settings.preview', 'host.settings.apply'], {
+      'POST /api/v1/host/settings/preview': {
+        status: 200,
+        body: {
+          ...preview,
+          apply_available: true,
+          valid: true,
+          notice: 'Preview only. Nothing was changed on this host.',
+          changes: [
+            { field: 'static_hostname', current: 'fixture-static', requested: 'nas-01', outcome: 'would-change' },
+          ],
+        },
+      },
+      'POST /api/v1/host/settings/plan': { status: 200, body: plan },
+      'POST /api/v1/host/settings/apply': {
+        status: 200,
+        body: {
+          operation_id: 'op-hs-fixture-1',
+          action: 'set',
+          outcome: 'succeeded',
+          message: 'hostnamectl/timedatectl report the requested values.',
+          fields: ['static_hostname'],
+          observed: plan.observed,
+          started_at: '2026-11-06T09:00:00Z',
+          finished_at: '2026-11-06T09:00:02Z',
+        },
+      },
+    });
+    render(<App />);
+    fireEvent.change(await screen.findByLabelText('Static host name'), { target: { value: 'nas-01' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Preview (does not apply)' }));
+    expect(await screen.findByRole('button', { name: 'Apply these settings…' })).toBeTruthy();
+    expect(calls.some((c) => /\/host\/settings\/(apply|plan)$/.test(c.key))).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Apply these settings…' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Apply host settings' });
+    expect(await screen.findByText('Preview · nothing has been changed yet')).toBeTruthy();
+    expect(screen.getByText('Reversible')).toBeTruthy();
+    expect(screen.getByText(/TLS certificates/)).toBeTruthy();
+    expect(screen.getByText(/mDNS/)).toBeTruthy();
+    expect(screen.getByText(/\/etc\/hosts/)).toBeTruthy();
+    expect(screen.getByText(/ProtectHostname=yes/)).toBeTruthy();
+    expect(screen.queryByLabelText(/password/i)).toBeNull();
+    const planned = calls.find((c) => c.key === 'POST /api/v1/host/settings/plan');
+    expect((planned?.init?.headers as Record<string, string>)['X-CSRF-Token']).toBe('csrf-fixture');
+    expect(JSON.parse(String(planned?.init?.body))).toEqual({ static_hostname: 'nas-01' });
+    expect(calls.some((c) => c.key === 'POST /api/v1/host/settings/apply')).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Apply host settings' }));
+    expect(await screen.findByText('Done')).toBeTruthy();
+    const applied = calls.find((c) => c.key === 'POST /api/v1/host/settings/apply');
+    expect((applied?.init?.headers as Record<string, string>)['X-CSRF-Token']).toBe('csrf-fixture');
+    expect(JSON.parse(String(applied?.init?.body))).toEqual({
+      static_hostname: 'nas-01',
+      token: 'hcp1.plan-token-fixture',
+    });
+    expect(dialog.querySelector('input[type="password"]')).toBeNull();
+  });
+
   it('shows the server refusal of a preview', async () => {
     mock(['system.read', 'host.settings.preview'], {
       'POST /api/v1/host/settings/preview': {

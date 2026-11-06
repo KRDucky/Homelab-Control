@@ -153,6 +153,9 @@ export function App() {
       <HostSettingsPage
         csrf={session.csrf_token}
         canPreview={(session.scopes ?? []).includes('host.settings.preview')}
+        canApply={(session.scopes ?? []).includes('host.settings.apply')}
+        stepUpUntil={session.step_up_until ?? null}
+        auditAvailable={auditCap?.status === 'available'}
         onUnauthorized={signedOut}
       />
     );
