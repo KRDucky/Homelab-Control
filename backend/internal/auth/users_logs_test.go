@@ -60,3 +60,25 @@ func TestServicesFilesNotGrantedByDefaultOrImplied(t *testing.T) {
 		t.Fatal("every other scope together must not imply services.files")
 	}
 }
+
+// M2-6: hostname/timezone apply is never granted by default and is not
+// implied by host.settings.preview or any other scope.
+func TestHostSettingsApplyNotGrantedByDefaultOrImplied(t *testing.T) {
+	if !KnownScopes[ScopeHostSettingsApply] || ScopeHostSettingsApply != "host.settings.apply" {
+		t.Fatal("host.settings.apply must be a known scope")
+	}
+	for _, s := range strings.Split(DefaultScopes, ",") {
+		if s == ScopeHostSettingsApply || s == ScopeHostSettingsPreview {
+			t.Fatalf("default scopes grant %s", s)
+		}
+	}
+	var others []string
+	for s := range KnownScopes {
+		if s != ScopeHostSettingsApply {
+			others = append(others, s)
+		}
+	}
+	if (&Session{Scopes: others}).HasScope(ScopeHostSettingsApply) {
+		t.Fatal("every other scope together must not imply host.settings.apply")
+	}
+}
