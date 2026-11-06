@@ -210,3 +210,10 @@ in `M2-SECURITY-ACCEPTANCE.md`. Current status of the criterion: `M2-2-ACCEPTANC
 Earlier owner validation instructions explicitly record E2 acceptance and W1 review/sign-off on October 27 based on the owner's Ubuntu run, with non-Debian validation deferred. The owner also explicitly authorized the updated Ubuntu U1 baseline and retest in “Final Ubuntu 26.04.1 Acceptance Rerun (U1)”. These sources are conversation instructions, not inferred GitHub review events.
 
 Closure does not retroactively satisfy PR #28's pre-merge condition, enable production `services.operate`, authorize another privileged operation, or authorize M2-3. The evidence index preserves the Ubuntu phase-gap and reused-install caveats. This approval permits a documentation PR; merge remains an owner action.
+
+
+## Continuation through M2-6 (owner, 2026-11-05)
+
+Owner direct project conversation instructions: “continue through M2-4 and through M2-6” and “work with claude on this”. This authorizes collaborative implementation and isolated tests of M2-4, M2-5 and M2-6, following each prerequisite and security/acceptance gate. M2-5 and M2-6 were already made mandatory, not optional. M2-4 includes LVM2 RAID and SSD-cache discovery and selectable Serial/ID (default) or WWN display with independent corroborated identity. M2-5 is the Stage A drive locator with app-state layouts and explicit manual/unverified provenance. M2-6 is hostname/static+pretty and timezone only, using reviewed ADR 0011 typed plan/confirm/apply operations.
+
+The owner previously authorized pushes/merges once satisfied and explicitly adding their DCO signature for M2-3/M2-4. That signature exception does not automatically extend to M2-5/M2-6. No owner design acceptance, new KVM operation, existing VM mutation/deletion, production settings/permissions or M3 approval is inferred. Existing security blockers remain gates; source/license reuse decision D-12 remains unresolved where actual external source is unavailable. New source/helper designs remain review proposals until reviewed; development is not deployment.
