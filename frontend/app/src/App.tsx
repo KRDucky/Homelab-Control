@@ -144,7 +144,8 @@ export function App() {
       />
     );
   else if (route?.id === 'audit') page = <Audit onUnauthorized={signedOut} />;
-  else if (route?.id === 'storage') page = <Storage csrf={session.csrf_token} onUnauthorized={signedOut} />;
+  else if (route?.id === 'storage')
+    page = <Storage csrf={session.csrf_token} scopes={session.scopes ?? []} onUnauthorized={signedOut} />;
   else if (route?.id === 'hardware') page = <Hardware onUnauthorized={signedOut} />;
   else if (route?.id === 'legacy')
     page = <Legacy legacyUrl={session.legacy_url} onUnauthorized={signedOut} />;

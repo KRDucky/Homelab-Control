@@ -128,7 +128,7 @@ func TestStorageSnapshotMigrationFromVersionOnePreservesExistingState(t *testing
 	if e != nil || len(backups) != 2 {
 		t.Fatal("retry did not preserve distinct recovery backups", backups, e)
 	}
-	if version, e := db.Version(context.Background()); e != nil || version != 2 {
+	if version, e := db.Version(context.Background()); e != nil || version != SchemaVersion() {
 		t.Fatal(version, e)
 	}
 	if _, e = db.StorageSnapshots().Save(context.Background(), time.Now(), "boot-A", []byte(`{"nodes":[]}`)); e != nil {
