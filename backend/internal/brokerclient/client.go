@@ -30,7 +30,28 @@ type Client struct {
 // an "uncertain" outcome) is received rather than cut off.
 var opTimeouts = map[string]time.Duration{
 	"services.unit.apply": 75 * time.Second,
+	// M2-3: plan 15 s and apply 55 s in the broker (revalidation including the
+	// boot-pull walk, the root template, read-back).
+	"services.enablement.plan":  20 * time.Second,
+	"services.enablement.apply": 75 * time.Second,
+	// Read-only ops with a 15 s broker timeout (equal deadlines could cut off
+	// the broker's own timeout answer).
+	"services.timers.list":  20 * time.Second,
+	"services.sockets.list": 20 * time.Second,
+	"services.unit.logs":    20 * time.Second,
 }
+
+// deadline is the client deadline for op.
+func (c *Client) deadline(op string) time.Duration {
+	timeout := c.Timeout
+	if t, ok := opTimeouts[op]; ok && t > timeout {
+		timeout = t
+	}
+	return timeout
+}
+
+// DefaultDeadline is the deadline a client made by New uses for op (tests).
+func DefaultDeadline(op string) time.Duration { return New("").deadline(op) }
 
 // New returns a client for the given socket path.
 func New(socket string) *Client { return &Client{Socket: socket, Timeout: 15 * time.Second} }
@@ -54,10 +75,7 @@ func (c *Client) CallWithArgs(ctx context.Context, op string, args any, actor pr
 		}
 		raw = b
 	}
-	timeout := c.Timeout
-	if t, ok := opTimeouts[op]; ok && t > timeout {
-		timeout = t
-	}
+	timeout := c.deadline(op)
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	var d net.Dialer

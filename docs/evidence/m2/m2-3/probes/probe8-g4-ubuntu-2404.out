@@ -1,0 +1,64 @@
+container hc-probe-ubuntu-2404-403934 (ubuntu-2404): systemd state=running
+systemd 255 (255.4-1ubuntu8.18)
+
+## T1 manager load timestamps (us+utc) and the property names this version has
+  UnitsLoadStartTimestamp=Wed 2026-11-04 11:40:29 UTC
+  UnitsLoadStartTimestampMonotonic=25984556224
+  UnitsLoadFinishTimestamp=Wed 2026-11-04 11:40:29 UTC
+  UnitsLoadFinishTimestampMonotonic=25984573936
+  UnitsLoadTimestampMonotonic=0
+  UnitsLoadStartTimestamp=Wed 2026-11-04 11:40:29.039980 UTC
+  UnitsLoadFinishTimestamp=Wed 2026-11-04 11:40:29.057692 UTC
+
+## T2 does daemon-reload update them? (setup reload)
+  UnitsLoadStartTimestamp=Wed 2026-11-04 11:40:29.039980 UTC
+  UnitsLoadFinishTimestamp=Wed 2026-11-04 11:40:29.057692 UTC
+
+## T3 generator, transient and control files vs. the load start
+  ctime 2026-11-04 11:40:29.656363837 +0000  /run/systemd/generator
+  ctime 2026-11-04 11:40:29.688104319 +0000  /run/systemd/transient/hcp-transient.service
+  ctime 2026-11-04 11:40:29.690964730 +0000  /etc/systemd/system.control/hcp-prot.service.d/50-CPUWeight.conf
+  UnitsLoadStartTimestamp=Wed 2026-11-04 11:40:29.039980 UTC
+  UnitsLoadFinishTimestamp=Wed 2026-11-04 11:40:29.057692 UTC
+  hcp-prot: active
+
+## G4 a DEPENDENCY's file edited (hcp-d Wants=hcp-dep; hcp-dep gains Conflicts=hcp-prot.service), no reload
+  loaded hcp-dep: Conflicts=shutdown.target
+  loaded hcp-dep: NeedDaemonReload=yes
+  enable: Created symlink /etc/systemd/system/multi-user.target.wants/hcp-d.service → /etc/systemd/system/hcp-d.service.
+
+## T4 entries under /etc/systemd/system newer than the load start (find -newer is mtime; ctime list)
+  UnitsLoadStartTimestamp=Wed 2026-11-04 11:40:29.039980 UTC
+  UnitsLoadFinishTimestamp=Wed 2026-11-04 11:40:29.057692 UTC
+  2026-11-04+11:40:29.6429497750 f /etc/systemd/system/hcp-a-x.service
+  2026-11-04+11:40:29.6429497750 f /etc/systemd/system/hcp-b.service
+  2026-11-04+11:40:29.6429497750 f /etc/systemd/system/hcp-c.service
+  2026-11-04+11:40:29.6429497750 f /etc/systemd/system/hcp-conflictor.service
+  2026-11-04+11:40:29.6429497750 f /etc/systemd/system/hcp-d.service
+  2026-11-04+11:40:29.6429497750 f /etc/systemd/system/hcp-prot.service
+  2026-11-04+11:40:29.7653223710 l /etc/systemd/system/multi-user.target.wants/hcp-prot.service
+  2026-11-04+11:40:29.9234178980 d /etc/systemd/system
+  2026-11-04+11:40:29.9234178980 f /etc/systemd/system/hcp-dep.service
+  2026-11-04+11:40:29.9333209120 d /etc/systemd/system/multi-user.target.wants
+  2026-11-04+11:40:29.9333209120 l /etc/systemd/system/multi-user.target.wants/hcp-d.service
+container hc-probe-ubuntu-2404-403934 (ubuntu-2404): systemd state=running
+
+## after restart (fresh PID 1)
+systemd 255 (255.4-1ubuntu8.18)
+  UnitsLoadStartTimestamp=Wed 2026-11-04 11:40:30.203199 UTC
+  UnitsLoadFinishTimestamp=Wed 2026-11-04 11:40:30.218470 UTC
+  hcp-prot.service: active=inactive enabled=enabled
+  hcp-a-x.service: active=inactive enabled=disabled
+  hcp-b.service: active=inactive enabled=disabled
+  hcp-c.service: active=inactive enabled=disabled
+  hcp-d.service: active=active enabled=enabled
+  hcp-dep.service: active=active enabled=static
+  hcp-conflictor.service: active=inactive enabled=static
+
+## jobs and conflicts this boot
+  Started hcp-prot.service - probe hcp-prot.service.
+  Stopping hcp-prot.service - probe hcp-prot.service...
+  hcp-prot.service: Deactivated successfully.
+  Stopped hcp-prot.service - probe hcp-prot.service.
+  (end)
+exit 0

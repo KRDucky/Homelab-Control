@@ -1,0 +1,62 @@
+container hc-probe-fedora-44-396795 (fedora-44): systemd state=running
+systemd 259 (259.10-1.fc44)
+
+## T1 manager load timestamps (us+utc) and the property names this version has
+  UnitsLoadStartTimestamp=Wed 2026-11-04 11:39:57 UTC
+  UnitsLoadStartTimestampMonotonic=25952824514
+  UnitsLoadFinishTimestamp=Wed 2026-11-04 11:39:57 UTC
+  UnitsLoadFinishTimestampMonotonic=25952852060
+  UnitsLoadTimestampMonotonic=0
+  UnitsLoadStartTimestamp=Wed 2026-11-04 11:39:57.308270 UTC
+  UnitsLoadFinishTimestamp=Wed 2026-11-04 11:39:57.335816 UTC
+
+## T2 does daemon-reload update them? (setup reload)
+  UnitsLoadStartTimestamp=Wed 2026-11-04 11:39:57.308270 UTC
+  UnitsLoadFinishTimestamp=Wed 2026-11-04 11:39:57.335816 UTC
+
+## T3 generator, transient and control files vs. the load start
+  ctime 2026-11-04 11:39:57.897041019 +0000  /run/systemd/generator
+  ctime 2026-11-04 11:39:57.950696553 +0000  /run/systemd/transient/hcp-transient.service
+  ctime 2026-11-04 11:39:57.954026041 +0000  /etc/systemd/system.control/hcp-prot.service.d/50-CPUWeight.conf
+  UnitsLoadStartTimestamp=Wed 2026-11-04 11:39:57.308270 UTC
+  UnitsLoadFinishTimestamp=Wed 2026-11-04 11:39:57.335816 UTC
+  hcp-prot: active
+
+## G2 existing fragment edited: Wants=hcp-conflictor.service, no reload
+  loaded: Wants=
+  loaded: NeedDaemonReload=yes
+  ctime 2026-11-04 11:39:58.210993931 +0000  /etc/systemd/system/hcp-b.service
+  enable: Created symlink '/etc/systemd/system/multi-user.target.wants/hcp-b.service' → '/etc/systemd/system/hcp-b.service'.
+
+## T4 entries under /etc/systemd/system newer than the load start (find -newer is mtime; ctime list)
+  UnitsLoadStartTimestamp=Wed 2026-11-04 11:39:57.308270 UTC
+  UnitsLoadFinishTimestamp=Wed 2026-11-04 11:39:57.335816 UTC
+  2026-11-04+11:39:57.8844700620 f /etc/systemd/system/hcp-a-x.service
+  2026-11-04+11:39:57.8844700620 f /etc/systemd/system/hcp-c.service
+  2026-11-04+11:39:57.8844700620 f /etc/systemd/system/hcp-conflictor.service
+  2026-11-04+11:39:57.8844700620 f /etc/systemd/system/hcp-prot.service
+  2026-11-04+11:39:58.0225958870 l /etc/systemd/system/multi-user.target.wants/hcp-prot.service
+  2026-11-04+11:39:58.2109939310 d /etc/systemd/system
+  2026-11-04+11:39:58.2109939310 f /etc/systemd/system/hcp-b.service
+  2026-11-04+11:39:58.2221839340 d /etc/systemd/system/multi-user.target.wants
+  2026-11-04+11:39:58.2221839340 l /etc/systemd/system/multi-user.target.wants/hcp-b.service
+container hc-probe-fedora-44-396795 (fedora-44): systemd state=running
+
+## after restart (fresh PID 1)
+systemd 259 (259.10-1.fc44)
+  UnitsLoadStartTimestamp=Wed 2026-11-04 11:39:58.493374 UTC
+  UnitsLoadFinishTimestamp=Wed 2026-11-04 11:39:58.515219 UTC
+  hcp-prot.service: active=inactive enabled=enabled
+  hcp-a-x.service: active=inactive enabled=disabled
+  hcp-b.service: active=active enabled=enabled
+  hcp-c.service: active=inactive enabled=disabled
+  hcp-conflictor.service: active=active enabled=static
+
+## jobs and conflicts this boot
+  Started hcp-prot.service - probe hcp-prot.service.
+  Stopping hcp-prot.service - probe hcp-prot.service...
+  hcp-prot.service: Deactivated successfully.
+  Stopped hcp-prot.service - probe hcp-prot.service.
+  Started hcp-conflictor.service - probe conflictor.
+  (end)
+exit 0

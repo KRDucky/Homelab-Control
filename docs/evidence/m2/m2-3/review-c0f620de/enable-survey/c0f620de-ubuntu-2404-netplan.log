@@ -1,0 +1,62 @@
+container hc-sd-ubuntu-2404-netplan-594253 (ubuntu-2404-netplan): systemd state=running; cgroup 0::/init.scope
+== environment
+Ubuntu 24.04.5 LTS; systemd 255 (255.4-1ubuntu8.18); kernel 7.3.1-1-cachyos
+== install (deb)
+Selecting previously unselected package homelab-control.
+(Reading database ... 10183 files and directories currently installed.)
+Preparing to unpack /opt/hc/pkg.deb ...
+Unpacking homelab-control (0.1.0+dev.1+98+gc0f620de) ...
+Setting up homelab-control (0.1.0+dev.1+98+gc0f620de) ...
+Creating group 'homelab-control' with GID 993.
+Creating user 'homelab-control' (Homelab Control API) with UID 993 and GID 993.
+homelab-control installed but NOT enabled. Create an account with:
+  sudo hlctl user add --file /etc/homelab-control/users.json --username admin
+  sudo chown homelab-control:homelab-control /etc/homelab-control/users.json
+then configure /etc/homelab-control/hc-api.env and run:
+  systemctl enable --now homelab-control-broker.socket homelab-control.service
+PASS  service not enabled on install (disabled)
+PASS  service active (active)
+PASS  runs as homelab-control (homelab-control)
+PASS  no capabilities in effective set (0000000000000000)
+PASS  health (200)
+PASS  login issues __Host- cookie (1)
+PASS  overview under hardening returns hostname (1)
+PASS  overview: filesystems readable (ProtectHome/PrivateDevices) (1)
+PASS  overview: network section ok (1)
+== M2-3 enable survey (plan only)
+SURVEY  debug-shell.service: 200 allowed (189 ms) 
+SURVEY  hc-test-sv-dbus.service: 200 allowed (136 ms) 
+SURVEY  hc-test-sv-netonline.service: 200 allowed (140 ms) 
+SURVEY  hc-test-sv-running.service: 200 allowed (135 ms) 
+SURVEY  homelab-control.service: 403 refused: protected (1 ms) homelab-control.service is protected: Homelab Control's own units: stopping them would end the session that is managing them.
+SURVEY  ssh.service: 403 refused: protected (1 ms) ssh.service is protected: Remote login (SSH): stopping or restarting it can lock you out of the host.
+SURVEY  systemd-boot-check-no-failures.service: 403 refused: protected (1 ms) systemd-boot-check-no-failures.service is protected: Core systemd infrastructure (journal, login, udev, networkd, resolved, power and boot units).
+SURVEY  systemd-confext.service: 403 refused: protected (1 ms) systemd-confext.service is protected: Core systemd infrastructure (journal, login, udev, networkd, resolved, power and boot units).
+SURVEY  systemd-network-generator.service: 403 refused: protected (1 ms) systemd-network-generator.service is protected: Core systemd infrastructure (journal, login, udev, networkd, resolved, power and boot units).
+SURVEY  systemd-pcrlock-file-system.service: 403 refused: protected (1 ms) systemd-pcrlock-file-system.service is protected: Core systemd infrastructure (journal, login, udev, networkd, resolved, power and boot units).
+SURVEY  systemd-pcrlock-firmware-code.service: 403 refused: protected (1 ms) systemd-pcrlock-firmware-code.service is protected: Core systemd infrastructure (journal, login, udev, networkd, resolved, power and boot units).
+SURVEY  systemd-pcrlock-firmware-config.service: 403 refused: protected (1 ms) systemd-pcrlock-firmware-config.service is protected: Core systemd infrastructure (journal, login, udev, networkd, resolved, power and boot units).
+SURVEY  systemd-pcrlock-machine-id.service: 403 refused: protected (1 ms) systemd-pcrlock-machine-id.service is protected: Core systemd infrastructure (journal, login, udev, networkd, resolved, power and boot units).
+SURVEY  systemd-pcrlock-make-policy.service: 403 refused: protected (2 ms) systemd-pcrlock-make-policy.service is protected: Core systemd infrastructure (journal, login, udev, networkd, resolved, power and boot units).
+SURVEY  systemd-pcrlock-secureboot-authority.service: 403 refused: protected (1 ms) systemd-pcrlock-secureboot-authority.service is protected: Core systemd infrastructure (journal, login, udev, networkd, resolved, power and boot units).
+SURVEY  systemd-pcrlock-secureboot-policy.service: 403 refused: protected (1 ms) systemd-pcrlock-secureboot-policy.service is protected: Core systemd infrastructure (journal, login, udev, networkd, resolved, power and boot units).
+SURVEY  systemd-sysext.service: 403 refused: protected (1 ms) systemd-sysext.service is protected: Core systemd infrastructure (journal, login, udev, networkd, resolved, power and boot units).
+SURVEY  systemd-time-wait-sync.service: 403 refused: protected (1 ms) systemd-time-wait-sync.service is protected: Core systemd infrastructure (journal, login, udev, networkd, resolved, power and boot units).
+SURVEY  tally (18 disabled services): {'allowed': 4, 'refused: protected': 14}; slowest plan 189 ms
+PASS  M2-3 enable survey ran (0)
+== journal (last lines)
+homelab-control.service: Deactivated successfully.
+Stopped homelab-control.service - Homelab Control API and web UI (unprivileged).
+Started homelab-control.service - Homelab Control API and web UI (unprivileged).
+2026/11/05 12:20:43 audit checkpoint log=/var/lib/homelab-control/state.db seq=4 hash=3877bd771185bd7163feb816deb3ec5e4f879867df26ffaf2f2fde0fa3e2b75f
+2026/11/05 12:20:43 hc-api v0.1.0-dev.1-98-gc0f620de listening on 127.0.0.1:9180 (tls=false)
+== systemd-analyze security
+→ Overall exposure level for homelab-control.service: 1.6 OK :-)
+== remove + purge
+(Reading database ... 10199 files and directories currently installed.)
+Removing homelab-control (0.1.0+dev.1+98+gc0f620de) ...
+Purging configuration files for homelab-control (0.1.0+dev.1+98+gc0f620de) ...
+State and audit data kept in /var/lib/homelab-control, /var/log/homelab-control and /var/log/homelab-control-broker (remove manually if no longer needed).
+PASS  binaries removed (0)
+PASS  unit removed (0)
+systemd-smoke: 12 passed, 0 failed

@@ -1,0 +1,52 @@
+container hc-sd-ubuntu-2404-267342 (ubuntu-2404): systemd state=running; cgroup 0::/init.scope
+== environment
+Ubuntu 24.04.5 LTS; systemd 255 (255.4-1ubuntu8.18); kernel 7.3.1-1-cachyos
+== install (deb)
+Selecting previously unselected package homelab-control.
+(Reading database ... 9851 files and directories currently installed.)
+Preparing to unpack /opt/hc/pkg.deb ...
+Unpacking homelab-control (0.1.0+dev.1+84+g00fb7f2b) ...
+Setting up homelab-control (0.1.0+dev.1+84+g00fb7f2b) ...
+Creating group 'homelab-control' with GID 997.
+Creating user 'homelab-control' (Homelab Control API) with UID 997 and GID 997.
+homelab-control installed but NOT enabled. Create an account with:
+  sudo hlctl user add --file /etc/homelab-control/users.json --username admin
+  sudo chown homelab-control:homelab-control /etc/homelab-control/users.json
+then configure /etc/homelab-control/hc-api.env and run:
+  systemctl enable --now homelab-control-broker.socket homelab-control.service
+PASS  service not enabled on install (disabled)
+PASS  service active (active)
+PASS  runs as homelab-control (homelab-control)
+PASS  no capabilities in effective set (0000000000000000)
+PASS  health (200)
+PASS  login issues __Host- cookie (1)
+PASS  overview under hardening returns hostname (1)
+PASS  overview: filesystems readable (ProtectHome/PrivateDevices) (1)
+PASS  overview: network section ok (1)
+== M2-3 disable survey (plan only)
+SURVEY  e2scrub_reap.service: 200 allowed (126 ms) 
+SURVEY  systemd-pstore.service: 403 refused: protected (2 ms) systemd-pstore.service is protected: Core systemd infrastructure (journal, login, udev, networkd, resolved, power and boot units).
+SURVEY  hc-test-en-netonline.service enable: 200 succeeded
+SURVEY  hc-test-en-netonline.service (Wants=network-online.target): 200 allowed (98 ms) 
+SURVEY  network-online.target wants: 
+SURVEY  hc-test-en-netonline.service with systemd-networkd-wait-online.service enabled (network-online.target wants: systemd-networkd-wait-online.service): 403 refused: boot pull (B-1) (109 ms) hc-test-en-netonline.service cannot be disabled here: network.target is started at boot only through it (hc-test-en-netonline.service → network-online.target → systemd-networkd-wait-online.service → systemd-networkd.service → network.target
+SURVEY  systemd-networkd-wait-online.service restored: is-enabled disabled (was disabled)
+SURVEY  tally: allowed: 1; refused: protected: 1 (of 2 enabled services)
+PASS  M2-3 disable survey ran (0)
+== journal (last lines)
+homelab-control.service: Deactivated successfully.
+Stopped homelab-control.service - Homelab Control API and web UI (unprivileged).
+Started homelab-control.service - Homelab Control API and web UI (unprivileged).
+2026/11/05 07:26:48 audit checkpoint log=/var/lib/homelab-control/state.db seq=4 hash=a6098f110eaac6eafcaa7568c97d40017b813d7657c57209dca55d69aa559fd2
+2026/11/05 07:26:48 hc-api v0.1.0-dev.1-84-g00fb7f2b listening on 127.0.0.1:9180 (tls=false)
+== systemd-analyze security
+→ Overall exposure level for homelab-control.service: 1.6 OK :-)
+== remove + purge
+(Reading database ... 9867 files and directories currently installed.)
+Removing homelab-control (0.1.0+dev.1+84+g00fb7f2b) ...
+Purging configuration files for homelab-control (0.1.0+dev.1+84+g00fb7f2b) ...
+State and audit data kept in /var/lib/homelab-control, /var/log/homelab-control and /var/log/homelab-control-broker (remove manually if no longer needed).
+PASS  binaries removed (0)
+PASS  unit removed (0)
+systemd-smoke: 12 passed, 0 failed
+exit 0

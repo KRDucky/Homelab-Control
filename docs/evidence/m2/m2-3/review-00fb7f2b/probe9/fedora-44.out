@@ -1,0 +1,18 @@
+systemd 259 (259.10-1.fc44)
+## freshly booted, before installing
+  UnitsLoadStartTimestamp=Thu 2026-11-05 07:26:20.523282 UTC
+  threshold (epoch): 1793863580.521329641 (generator directory 1793863580.521329701)
+  (end of list)
+  /run/systemd/system: 2026-11-05 07:26:20.488039110 +0000 2026-11-05 07:26:20.488039110 +0000; entries: 0
+  /run mount: tmpfs rw,nosuid,nodev,noexec,relatime,mode=755,inode64,huge=advise
+## installing the package (rpm; its scripts run daemon-reload)
+  installed: 0
+  UnitsLoadStartTimestamp=Thu 2026-11-05 07:26:20.523282 UTC
+  UnitsLoadTimestamp=Thu 2026-11-05 07:26:27.708918 UTC
+  threshold (epoch): 1793863587.708918095 (generator directory 1793863587.717107584)
+  (end of list)
+## after the documented first step (systemctl enable --now the broker socket; enable reloads)
+  UnitsLoadStartTimestamp=Thu 2026-11-05 07:26:20.523282 UTC
+  UnitsLoadTimestamp=Thu 2026-11-05 07:26:27.914888 UTC
+  threshold (epoch): 1793863587.914887905 (generator directory 1793863587.922849649)
+  (end of list)

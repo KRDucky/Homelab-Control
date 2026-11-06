@@ -211,6 +211,186 @@ Earlier owner validation instructions explicitly record E2 acceptance and W1 rev
 
 Closure does not retroactively satisfy PR #28's pre-merge condition, enable production `services.operate`, authorize another privileged operation, or authorize M2-3. The evidence index preserves the Ubuntu phase-gap and reused-install caveats. This approval permits a documentation PR; merge remains an owner action.
 
+## M2-3 development authorization (2026-11-04)
+
+**Source:** the owner's instruction "Implement Homelab Control M2-3: Expanded Service Management", 2026-11-04,
+section *Owner authorization*: "M2-2 is complete. I authorize M2-3 development and isolated testing within the
+scope below. Production activation and merge remain separate owner decisions." The instruction states that it
+supersedes older statements that M2-3 is unauthorized, only for its scope (boot-time enable/disable with a
+separate `services.configure` permission, read-only timer and socket views, unit details, a minimal Services
+module registry). It excludes mask/unmask, unit editing or creation, a generic daemon-reload, arbitrary commands,
+production changes and new dependencies, and M2-4, M2-5, M2-6 and M3 (M2-5 and M2-6 remain mandatory before M3).
+
+**Not decided by it:** acceptance of the M2-3 implementation, merge, production activation of
+`services.configure`, and the items below. Implementation and evidence: `M2-3-DESIGN-REVIEW.md`,
+`M2-3-ACCEPTANCE.md`.
+
+### Items for the owner's review of M2-3
+| ID | Question | Implemented proposal (pending) |
+|---|---|---|
+| O-1 (D-10) | How first-party modules are packaged and toggled | Built-in, compiled-in modules behind `internal/modules`; the setting is the root-owned `/etc/homelab-control/modules.json`, not `state.db`, because the broker must enforce it without trusting `hc-api`; no UI/API to change it; invalid file disables all modules. D-10 itself stays **open** |
+| O-2 | Scope for unit-file contents | (Superseded by P-2: `services.files`, 2026-11-05.) Originally reused `services.logs` (existing non-default scope for sensitive content). Alternative: a dedicated scope, e.g. `services.files` |
+| O-3 | Risk class of enable/disable | `disruptive` (step-up always), stricter than the roadmap's "persistent → reversible" |
+| O-4 | `--no-reload` | No manager reload (the excluded generic daemon-reload). The setting is written to disk at once and applied at the next boot **or earlier**, at any later daemon-reload or first load of a target (corrected 2026-11-04, probe 7 P19/P20); host `systemctl status` shows the old value until then |
+| O-5 | Refused constructs | `Also=`, `RequiredBy=`, `UpheldBy=`, `DefaultInstance=`, template instances, `.socket`/`.timer` enablement, SysV/generated/linked/runtime units are refused, not supported; each could be a later, separately reviewed extension |
+
+### Design proposals for the owner's final approval (P-1…P-9) — PROPOSALS, NOT DECISIONS
+Status of every item below: **proposed, not approved.** The owner asked (2026-11-04) for these to be prepared
+for final approval; until the owner approves an item in their own words it is not a decision, and D-10
+remains open. Each item states what the branch implements now, so that approval or rejection has a concrete
+effect. Evidence: `M2-3-DESIGN-REVIEW.md` §1, §1.1, §1.2, §7, §8.
+
+| ID | Proposal | Implemented on the branch now | If approved | If rejected |
+|---|---|---|---|---|
+| P-1 (O-1, D-10) | Root-owned module configuration `/etc/homelab-control/modules.json` | Yes | D-10 can be closed with this mechanism | Choose another source; the broker must still not trust `hc-api` for it |
+| P-2 (O-2) | A separate permission for unit-file contents (e.g. `services.files`), never default, **not implied by** `services.logs` | Yes, after the owner's authorization of 2026-11-05 (contents need `services.files`) | Implement as a focused change (scope, broker registry, API route, OpenAPI, UI gating, tests) | Keep `services.logs`; heuristic redaction stays the only extra control |
+| P-3 (O-3) | Password confirmation (step-up) for every boot-time change (`disruptive`) | Yes | Keep | Re-class as `reversible`; a stolen session could change boot settings without the password |
+| P-4 (O-4) | `--no-reload`, with the measured semantics below | Yes | Keep | Adding a reload is excluded by the M2-3 instruction; it would need its own authorization |
+| P-5 (O-5) | Explicit refusal of unsupported constructs | Yes | Keep the list; extensions reviewed separately | Name constructs to support; each needs its own review |
+| P-6 (new) | Enable (and, since `ad725d43`, disable) fails closed while unit files changed after systemd's last load (§8). Its former second half — refusal whenever runtime unit configuration exists — was replaced under P-8 in `00fb7f2b` | Yes | Keep | The only safe alternative found is to reload (excluded) or to rebuild the boot graph from disk (not feasible here) |
+| P-7 (B-1) | Disable refuses when the affected boot dependency relationships reach a protected unit | Yes, since `ad725d43`/`ae937d8a` (implementation pending owner review) | **Safety objective approved by the owner, 2026-11-05** (below); the implementation is not approved by it | — |
+| P-8 (B-2) | How to treat runtime unit configuration in `/run/systemd/system` | Option 3 since `00fb7f2b` (implementation pending owner review) | **Approach (option 3) approved by the owner, 2026-11-05** (below); the implementation is not approved by it | — |
+| P-9 (new, final review) | Enable is judged against the **next boot**, not against what is running now (boot mode; `M2-3-DESIGN-REVIEW.md` §11) | Yes, since `f8d3af2e`, completed in `eb2fc2d4` (correction for owner review) | Keep | Revert to the M2-2 start walk: enabling can then break a protected unit at the next boot (reproduced) |
+
+### Final decision record for M2-3 (2026-11-05, candidate for KVM Phase A)
+Only what the owner wrote is a decision; everything else is a proposal. An approved **objective** or
+**approach**, or an authorization **to implement**, is not acceptance of the implementation. Branch state:
+product commit named in `M2-3-ACCEPTANCE.md` ("Revisions").
+
+| ID | Subject | Owner decision so far (verbatim below) | Implementation | Still needed from the owner |
+|---|---|---|---|---|
+| D-10 | Module packaging and toggling | **None** (open) | Built-in modules + root-owned file (P-1) | Decide D-10 |
+| P-1 | Root-owned `/etc/homelab-control/modules.json` | None (proposal) | Implemented | Approve or choose another mechanism |
+| P-2 | Separate `services.files` permission for unit-file contents | **Implementation authorized** 2026-11-05 | Implemented (this round) | Accept the implementation |
+| P-3 | Step-up for every boot-time change (`disruptive`) | None (proposal) | Implemented | Approve |
+| P-4 | `--no-reload`, effective at the next reload or boot | None (proposal) | Implemented | Approve |
+| P-5 | Refusal of unsupported constructs | None (proposal) | Implemented | Approve |
+| P-6 | Change gate for unreloaded unit-file changes (both actions) | None (proposal) | Implemented | Approve |
+| P-7 | Disable refuses when boot relations reach a protected unit | **Safety objective approved** 2026-11-05 (not an implementation) | Implemented (R15–R18, R21–R23) | Accept the implementation |
+| P-8 | Runtime unit configuration: option 3 (narrow, fail-closed checks) | **Approach approved** 2026-11-05 (not the implementation) | Implemented (R19, R21–R25) | Accept the implementation |
+| P-9 | Enable judged against the next boot, not the current state | None (proposal; arose from the final review) | Implemented (R20, R23) | Approve and accept |
+
+Recommendations (not decisions): close D-10 with P-1; approve P-3…P-6 and P-9; accept P-2, P-7 and P-8 after
+reviewing `M2-3-DESIGN-REVIEW.md` §10–§12. Trade-offs: P-1 needs root and a restart to change; P-3 asks for the
+password at most every 5 minutes; P-4 can apply before a reboot (any later reload); P-5 leaves static,
+template and socket/timer-enabled units unmanaged; P-6 makes both actions wait for a reload or reboot after
+any unreloaded change; P-7 over-refuses when the unit is the only persistent puller of a protected unit started
+otherwise; P-8/P-9 refuse on hidden or uncertain runtime configuration and do not model udev, D-Bus activation
+or the kernel command line; P-9 changed no decision in the enable survey but plans take up to ~1 s; P-2 is one
+more permission to grant and must be removed before a downgrade.
+
+Separately authorized steps (not part of this record): KVM Phase A; KVM Phase B (systemctl wrapper,
+deliberate broker kill); merge; production activation; DCO.
+
+**P-2 owner authorization (2026-11-05), verbatim:** "I authorize implementing services.files:
+- Never granted by default or implied by services.logs, services.read, services.operate or services.configure.
+- Required in API and broker for unit-file contents.
+- Update capability-aware UI, OpenAPI, scope validation, tests and documentation.
+- Preserve audited reads and bounded output.
+- Explain that redaction is heuristic and this permission may disclose sensitive configuration.
+- Document downgrade compatibility."
+Implemented as prepared (scope below; `M2-3-DESIGN-REVIEW.md` §12); acceptance of the implementation remains the owner's.
+
+**P-2 scope (as implemented).** A new permission `services.files` —
+"read unit file and drop-in contents" — required instead of `services.logs` by exactly one route and one broker
+operation: `GET /api/v1/services/units/{unit}/contents` (`backend/internal/api/server.go`) and
+`services.unit.contents` (`backend/internal/broker/ops/ops.go`; the broker checks the scope itself). Never in
+`DefaultScopes`, not implied by `services.logs`, `services.read` or any other scope. Changed: `auth.KnownScopes`
+and the scope constant; the route and op registry entries; the OpenAPI scope enum and `x-required-scope`; the
+Services module's scope list (`internal/modules`); a separate capability `unit_files` and the UI's unit-file gating and
+explanation (`App.tsx`, `Services.tsx`, `UnitDetailPanel.tsx`); user guide (with downgrade steps), design review and
+threat model; tests (scope never default or implied, capability, guard route/OpenAPI scope consistency, broker
+refusal with every other scope, API 403 with every other scope and no broker call, UI, browser B19–B20, scenario). Unchanged: unprivileged `systemctl cat` as the service account, root-only files never shown, heuristic
+redaction, limits, audit-before-release. No new privileged operation or template.
+*Compatibility:* the contents route exists only on this unmerged branch (not on `main`, not in
+`v0.1.0-dev.1`), so no released client or account changes. On a host running the branch, an account with
+`services.logs` keeps journal logs but loses unit-file contents until granted `services.files`
+(`hlctl user scopes`). A users file containing `services.files` is rejected by builds that do not know it, and
+`hc-api` then does not start (`users file: … unknown scope`) — the same already applies to `services.configure`;
+remove the scope before a downgrade.
+
+**P-8 owner decision (2026-11-05), verbatim:** "I approve investigating and implementing P-8 option 3: replace the
+blanket /run/systemd/system refusal with narrowly scoped, fail-closed checks. This approves the approach, not
+acceptance of the implementation. Preserve P-7's protected-access safety objective."
+Implemented in `00fb7f2b` (`M2-3-DESIGN-REVIEW.md` §1.4, §3.4, §10, including the review of what the relevance
+calculation can miss). Acceptance of the implementation remains the owner's.
+
+**P-8 options as presented before the decision (B-2).** Measured on the GitHub Ubuntu 24.04 runner VM: netplan's
+entries in `/run/systemd/system` make every enable and disable refused. Options:
+1. *Keep refusing* (current): fail closed; the feature is unusable on netplan-based Ubuntu hosts.
+2. *Exclude `/run/systemd/system{,.attached}` like the generator directories*: usable; residual — manual
+   runtime configuration (`systemctl --runtime mask|enable`, tools writing there) is loaded now but absent at
+   the next boot and is not evaluated (for example a runtime mask hiding a conflicting unit from the review).
+3. *Refuse only runtime entries that relate to the review's units* (masks or links naming a unit in the enable
+   start walk or in the disable boot-pull sets): usable where netplan's entries concern only network units the
+   review does not reach; needs design and real-host measurement; still not a guarantee.
+4. *Allow-list known generator-produced runtime entries* (netplan): narrow but distribution-specific and
+   fragile.
+Recommendation for review: option 3, measured on the KVM guests, with option 1 retained until then. The
+choice belongs to the owner.
+
+**P-1 detail.** Validation: strict decoding (`version` 1, known IDs, no unknown fields, size limit); refused if a
+symlink (`O_NOFOLLOW`), not a regular file, not root-owned, or group/world-writable; any error disables every
+optional module (logged). Enforced independently by the broker (`module_disabled`, before the scope check) and
+by `hc-api` (404 identical to unknown routes, before authentication). `/etc/homelab-control` is
+`root:homelab-control 0750` in the packages, so `hc-api` cannot delete the file (deleting it re-enables modules).
+Trade-offs: root and a restart of both units are needed to change it; a process reads it at start only.
+
+**P-2 detail.** Heuristic redaction is not a secrecy guarantee: known gaps are positional secrets
+(`-u user:pass`, `-pSECRET`), quoted header values, URL query strings and secret settings under other names;
+a continuation-line gap was found and fixed (R6). Root-only files are never shown; every read is audited.
+
+**P-3 detail.** A boot-time change is persistent, can take effect before a reboot (P-4) and is observed later,
+when nobody watches the dialog. Cost: one password entry per 5-minute window.
+
+**P-4 detail (measured on systemd 249, 255 and 259; probe 7 P19/P20, probe 8 P24).**
+- *Immediately:* the links are created or removed on disk; `systemctl is-enabled` reports the new state; the
+  running manager's dependency graph is unchanged (`multi-user.target` does not `Want=` a newly enabled unit,
+  still `Wants=` a disabled one); `show -p UnitFileState` is stale; `NeedDaemonReload` may become `yes`.
+- *At a later reload* (by anyone; package installs and updates commonly run one): the manager applies the new
+  links; a later start of the target then starts (or no longer starts) the unit. The first load of a target
+  that was not loaded yet already reads the new links, without a reload.
+- *At reboot:* the new setting is used.
+- *Unchanged:* the running state (no `--now`), and other ways a unit starts (`Requires=`/`Wants=` from other
+  units, socket/timer/path/D-Bus activation, manual starts).
+- Never promised: "takes effect only at the next boot".
+
+**P-5 detail.** Refused, each with a reason in the plan error: `Also=`, `RequiredBy=`, `UpheldBy=`,
+`DefaultInstance=`, specifiers, continuations, resets and unknown keys in `[Install]`; templates and instances;
+`.socket`/`.timer` enablement; SysV, generated, transient, linked, runtime, masked, static, indirect and alias
+states; `Alias=` naming an existing unit; non-symlink files at link paths; unit files on disk that differ from
+systemd's loaded view; links to the unit not described by `[Install]`; runtime links; links pointing elsewhere;
+shared drop-ins with an `[Install]` section; (enable) any unit-file change systemd has not loaded (P-6);
+(disable) `Requisite=` on disk from a protected unit or a shared drop-in.
+
+**P-6 detail.** Measured (probe 8): changes written without a reload — a new shared drop-in, the unit's own
+edited fragment, or **another** unit's edited file — are invisible in systemd's loaded graph but used at the
+next boot; three of the four isolated cases stopped a stand-in protected service. Behaviour: enable is refused
+until the next reload or boot whenever anything in the unit directories changed after the last load, except
+Homelab Control's own journaled enablement changes. Trade-offs: after an administrator's unreloaded change, a
+package that does not reload, runtime unit configuration, or an interrupted Homelab Control operation, enable is
+unavailable until a reload or reboot (disable stays available). Since `ad725d43` the gate applies to **disable as well**
+(its boot-pull check uses the loaded graph); own journaled changes stay excused, but after an interrupted
+operation or another unreloaded change neither enable nor disable is possible until a reload or reboot.
+Measured: a fresh install with the documented first steps is **not** affected (probe 9, all four versions; an earlier rule with a 100 ms margin would have
+been, R14). On systemd 249 the last reload time is the generator directory's change time (measured on 249,
+255 and 259, but not a documented interface). Not yet measured: cloud-image boots (cloud-init, netplan).
+
+**P-7 owner decision (2026-11-05), verbatim:** "I approve the safety objective behind P-7: disable must refuse
+when the affected boot dependency relationships reach a protected unit, including remote-access units. This
+does not approve a particular implementation or broader privileged operations."
+Implemented in `ad725d43` and corrected in `ae937d8a` (`M2-3-DESIGN-REVIEW.md` §1.3, §3.4, §9): the boot graph from `default.target`
+without the unit, through `Requires=`/`Wants=`/`BindsTo=`/`Upholds=`/`Triggers=`; refusal when a unit
+reached only through the disabled unit is protected by any name; fail closed on unknown boot target,
+uninspectable services and walk budget; disable also requires that nothing changed on disk after the last
+load. The implementation, its limits and its over-refusal behaviour remain for the owner's review.
+
+**P-7 background (before the decision).** Measured with a unit test: disabling a unit that `Wants=`/`Requires=`/`BindsTo=`/`Upholds=`
+`wg-quick@wg0.service` is accepted today. A remote-access or other protected unit started only through that
+unit no longer starts at the next boot. A strict rule (refuse whenever such a dependency is protected) would
+also refuse units that merely require an always-started protected unit (for example `dbus.socket`); the
+proposal therefore refuses only when the protected dependency is not itself enabled at boot (`is-enabled` other
+than `enabled`), and needs the owner's choice.
 
 ## Continuation through M2-6 (owner, 2026-11-05)
 

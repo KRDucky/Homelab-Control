@@ -184,3 +184,44 @@ of the `nebula`/`ipsec` rules) or listed above. The limitations above remain.
   reviewed, for every new write op.
 - Not authorized here: enable/disable, mask/unmask, unit-file edits, daemon-reload, any other unit
   type, host shutdown or reboot, arbitrary commands.
+
+## Extension for M2-3 (2026-11-04, proposed for owner acceptance): boot-time enable/disable
+
+The owner authorized M2-3 development and isolated testing on 2026-11-04; acceptance, merge and production
+use are separate decisions. The review of the new write against every element of this ADR is
+`docs/m2/M2-3-DESIGN-REVIEW.md` §3. In short:
+
+- **Op pair** `services.enablement.plan` / `services.enablement.apply`, scope `services.configure` (API and
+  broker), token op `services.enablement` (a start/stop token can never authorize it, nor the reverse).
+- **Risk:** both actions `disruptive`, so the unchanged `Consume` rule requires step-up. This is stricter than
+  the roadmap's "persistent → reversible"; the deviation is listed for the owner.
+- **Supported cases only** (§3.4); everything else — static, indirect, generated, transient, masked, linked,
+  runtime, alias names, template instances, SysV, `Also=`, `RequiredBy=`, `UpheldBy=`, `DefaultInstance=`,
+  specifiers, resets and unparseable `[Install]` — is refused.
+- **Protected-unit policy** extended to persistent changes: canonical ID, aliases, unit file, `[Install]`
+  aliases, `WantedBy=` targets and, for enable, the units the boot-time start would touch (M2-2 start walk).
+- **Locks** `service:<id>` (shared with start/stop) and `unit-files` (host-wide). **Revalidation** with root reads
+  of state, unit-file facts, fresh `is-enabled`, the re-parsed `[Install]` and the walk.
+- **Journal** unchanged in format; the recovery inspector now receives the intent record and describes an
+  interrupted enablement by its boot setting.
+- **Read-back** independent of `systemctl`: root `is-enabled` plus the broker's own `lstat` of every expected
+  link (and its target) and a fresh scan for other links to the unit; partial changes are reported as `failed`
+  with the observed links; no rollback.
+- **Review from disk** (PR #36 review): the fragment, `<id>.d` drop-ins and every link naming the unit are read
+  from disk, as `systemctl` does; a mismatch with systemd's loaded view, or a link `[Install]` does not
+  describe, is refused.
+- **Runtime unit configuration** (B-2, owner-approved approach P-8 option 3): never assumed to exist at the next
+  boot; evaluated only for units the review reaches (runtime-only relations anchor nothing; runtime masks,
+  shadowing unit files, aliases and same-name drop-ins hiding persistent ones on reached units refused; safety
+  settings re-derived from persistent files).
+- **Next boot, not the current state** (final review, `f8d3af2e`, `eb2fc2d4`): the enable review's start walk is not pruned
+  by what is running now, follows `Triggers=` and stop-checks every conflict that may run at the next boot;
+  M2-2's start/stop/restart model (a change *now*) is unchanged.
+- **Unit search path** (final candidate): both actions are refused unless the manager's reported `UnitPath` is
+  exactly the documented system load path (`systemd.unit(5)`, plus the portable-service directories and
+  `/lib/systemd/system`); same-named drop-ins and drop-in masks are compared across the whole drop-in hierarchy.
+- **Unloaded changes** (second review round): enable fails closed while unit files changed after systemd's
+  last load (its boot-time checks use the loaded graph); own journaled changes are excused; disable checks
+  `Requisite=` in unit files on disk. A fixed, target-less root template reads the manager's load timestamps.
+- **Known limitations** added: no manager reload (the setting can take effect before a reboot, at any later
+  reload or first load of a target; status on the host shows the old setting until then); boot-time conditions are not simulated; concurrent root edits on the host are reported, not prevented.

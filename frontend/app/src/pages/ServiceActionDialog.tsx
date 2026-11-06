@@ -6,9 +6,14 @@ import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 
 import { createPortal } from 'react-dom';
 import {
   ApiError,
+  applyEnablement,
   applyServiceAction,
+  planEnablement,
   planServiceAction,
   stepUp,
+  type EnablementAction,
+  type EnablementOutcome,
+  type EnablementPlan,
   type RiskClass,
   type ServiceAction,
   type ServiceOutcome,
@@ -24,11 +29,28 @@ import { explain } from '../useData';
 // result → audit reference. Nothing here claims success that the broker did
 // not verify by reading the unit state back, and nothing offers a rollback.
 
-const verbs: Record<ServiceAction, { label: string; doing: string }> = {
-  start: { label: 'Start', doing: 'Starting' },
-  stop: { label: 'Stop', doing: 'Stopping' },
-  restart: { label: 'Restart', doing: 'Restarting' },
+export type AnyAction = ServiceAction | EnablementAction;
+type AnyPlan = ServicePlan | EnablementPlan;
+type AnyOutcome = ServiceOutcome | EnablementOutcome;
+
+const verbs: Record<AnyAction, { label: string; doing: string; title: string }> = {
+  start: { label: 'Start', doing: 'Starting', title: 'Start' },
+  stop: { label: 'Stop', doing: 'Stopping', title: 'Stop' },
+  restart: { label: 'Restart', doing: 'Restarting', title: 'Restart' },
+  // M2-3: boot-time enablement. Never changes the running state.
+  enable: { label: 'Enable at boot', doing: 'Enabling at boot', title: 'Enable at boot:' },
+  disable: { label: 'Disable at boot', doing: 'Disabling at boot', title: 'Disable at boot:' },
 };
+
+const isEnablementAction = (a: AnyAction): a is EnablementAction => a === 'enable' || a === 'disable';
+const isEnablementPlan = (p: AnyPlan): p is EnablementPlan => 'boot_state' in p;
+const isEnablementOutcome = (o: AnyOutcome): o is EnablementOutcome => 'boot_state_before' in o;
+
+function confirmLabel(plan: AnyPlan): string {
+  if (plan.action === 'enable') return `Enable ${plan.unit} at boot`;
+  if (plan.action === 'disable') return `Disable ${plan.unit} at boot`;
+  return `${verbs[plan.action].label} ${plan.unit}`;
+}
 
 const riskText: Record<RiskClass, { label: string; note: string }> = {
   reversible: { label: 'Reversible', note: 'Can generally be undone.' },
@@ -128,9 +150,9 @@ function Modal({
 
 type Stage =
   | { kind: 'planning' }
-  | { kind: 'preview'; plan: ServicePlan }
-  | { kind: 'running'; plan: ServicePlan }
-  | { kind: 'result'; outcome: ServiceOutcome }
+  | { kind: 'preview'; plan: AnyPlan }
+  | { kind: 'running'; plan: AnyPlan }
+  | { kind: 'result'; outcome: AnyOutcome }
   | { kind: 'refused'; title: string; message: string; retry: boolean };
 
 /** User-facing text for an operation error: the server's own message for
@@ -173,7 +195,7 @@ export function ServiceActionDialog({
   returnFocus,
 }: {
   unit: string;
-  action: ServiceAction;
+  action: AnyAction;
   csrf: string;
   stepUpUntil: string | null;
   onStepUp: (until: string) => void;
@@ -199,7 +221,9 @@ export function ServiceActionDialog({
   const review = useCallback(async () => {
     setStage({ kind: 'planning' });
     try {
-      const plan = await planServiceAction(unit, action, csrf);
+      const plan = isEnablementAction(action)
+        ? await planEnablement(unit, action, csrf)
+        : await planServiceAction(unit, action, csrf);
       setStage({ kind: 'preview', plan });
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) return onUnauthorized();
@@ -232,7 +256,7 @@ export function ServiceActionDialog({
 
   const stepUpValid = stepUpUntil !== null && Date.parse(stepUpUntil) - now > 5_000;
 
-  async function confirm(plan: ServicePlan) {
+  async function confirm(plan: AnyPlan) {
     setPwError('');
     if (plan.step_up_required && !stepUpValid) {
       if (!password) {
@@ -258,7 +282,9 @@ export function ServiceActionDialog({
     }
     setStage({ kind: 'running', plan });
     try {
-      const outcome = await applyServiceAction(plan.unit, plan.action, plan.token, csrf);
+      const outcome = isEnablementPlan(plan)
+        ? await applyEnablement(plan.unit, plan.action, plan.token, csrf)
+        : await applyServiceAction(plan.unit, plan.action, plan.token, csrf);
       setExecuted(true);
       setStage({ kind: 'result', outcome });
     } catch (err) {
@@ -304,7 +330,8 @@ export function ServiceActionDialog({
   if (stage.kind === 'planning') {
     body = (
       <p role="status" className="muted">
-        Reviewing {verb.label.toLowerCase()} {unit}: checking the unit, its dependencies and the policy…
+        Reviewing {verb.label.toLowerCase()} {unit}: checking the unit
+        {isEnablementAction(action) ? ', its unit files' : ''}, its dependencies and the policy…
       </p>
     );
   } else if (stage.kind === 'preview' || stage.kind === 'running') {
@@ -324,8 +351,19 @@ export function ServiceActionDialog({
           <dt>Now</dt>
           <dd>
             {stateText(plan.observed)}
-            {plan.observed.unit_file_state ? `, ${plan.observed.unit_file_state} at boot` : ''}
+            {!isEnablementPlan(plan) && plan.observed.unit_file_state
+              ? `, ${plan.observed.unit_file_state} at boot`
+              : ''}
           </dd>
+          {isEnablementPlan(plan) && (
+            <>
+              <dt>At boot</dt>
+              <dd>
+                {plan.boot_state}
+                {plan.preset ? <span className="muted"> (distribution preset: {plan.preset})</span> : null}
+              </dd>
+            </>
+          )}
           <dt>Risk</dt>
           <dd>
             <RiskBadge risk={plan.risk} /> <span className="muted">{riskText[plan.risk].note}</span>
@@ -337,12 +375,36 @@ export function ServiceActionDialog({
             <li key={c}>{c}</li>
           ))}
         </ul>
+        {isEnablementPlan(plan) && plan.links.length > 0 && (
+          <div className="also">
+            <p>
+              {plan.action === 'enable'
+                ? 'Links systemd creates under /etc/systemd/system:'
+                : 'Links systemd removes from /etc/systemd/system:'}
+            </p>
+            <ul>
+              {plan.links.map((l) => (
+                <li key={l}>
+                  <code>{l}</code>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {isEnablementPlan(plan) &&
+          (plan.notes ?? []).map((n) => (
+            <p key={n} className="footnote" role="note">
+              {n}
+            </p>
+          ))}
         {plan.also_affected && plan.also_affected.length > 0 && (
           <div className="also">
             <p>
-              {plan.action === 'start'
-                ? 'Conflicting units that systemd stops:'
-                : 'Running units systemd stops or restarts together with it:'}
+              {plan.action === 'enable'
+                ? 'When it starts at boot, systemd stops these conflicting units if they are running:'
+                : plan.action === 'start'
+                  ? 'Conflicting units that systemd stops:'
+                  : 'Running units systemd stops or restarts together with it:'}
             </p>
             <ul>
               {plan.also_affected.map((u) => (
@@ -355,7 +417,11 @@ export function ServiceActionDialog({
         )}
         {plan.also_started && plan.also_started.length > 0 && (
           <div className="also">
-            <p>Inactive units systemd starts first because the service depends on them:</p>
+            <p>
+              {plan.action === 'enable'
+                ? 'Units systemd also starts at boot because the service depends on them:'
+                : 'Inactive units systemd starts first because the service depends on them:'}
+            </p>
             <ul>
               {plan.also_started.map((u) => (
                 <li key={u}>
@@ -400,7 +466,10 @@ export function ServiceActionDialog({
         </p>
         {running && (
           <p role="status" className="progress-note" aria-busy="true">
-            {verb.doing} {plan.unit}… waiting for systemd and reading the state back to verify the result.
+            {verb.doing} {plan.unit}…{' '}
+            {isEnablementPlan(plan)
+              ? 'waiting for systemd, then checking the boot setting and the links independently.'
+              : 'waiting for systemd and reading the state back to verify the result.'}
           </p>
         )}
       </>
@@ -421,7 +490,7 @@ export function ServiceActionDialog({
             disabled={running}
             onClick={() => void confirm(plan)}
           >
-            {verb.label} {plan.unit}
+            {confirmLabel(plan)}
           </button>
         )}
       </>
@@ -434,7 +503,64 @@ export function ServiceActionDialog({
         <p className={`op-result op-${o.outcome}`}>
           <strong>{label}</strong> — {o.message}
         </p>
-        {o.observed && (
+        {isEnablementOutcome(o) && (
+          <>
+            <dl className="kv">
+              <dt>At boot</dt>
+              <dd>
+                {o.boot_state_before} → {o.boot_state ?? 'could not be read back'}
+              </dd>
+              {o.exit_code !== undefined && o.exit_code !== 0 && (
+                <>
+                  <dt>systemctl exit status</dt>
+                  <dd>{o.exit_code}</dd>
+                </>
+              )}
+            </dl>
+            {o.links.length > 0 && (
+              <div className="also">
+                <p>Links checked by the privileged helper after the change:</p>
+                <ul>
+                  {o.links.map((l) => (
+                    <li key={l.path}>
+                      <code>{l.path}</code> —{' '}
+                      {!l.present
+                        ? 'absent'
+                        : l.points_to_unit
+                          ? 'present, pointing to the unit file'
+                          : `present, but pointing to ${l.target ?? 'something else'}`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {o.unexpected_links && o.unexpected_links.length > 0 && (
+              <div className="also">
+                <p>Other links to the unit found afterwards that were not part of the review:</p>
+                <ul>
+                  {o.unexpected_links.map((l) => (
+                    <li key={l}>
+                      <code>{l}</code>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {o.reported && o.reported.length > 0 && (
+              <details className="sources">
+                <summary>What systemctl reported</summary>
+                <ul>
+                  {o.reported.map((r) => (
+                    <li key={r}>
+                      <code>{r}</code>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </>
+        )}
+        {!isEnablementOutcome(o) && o.observed && (
           <dl className="kv">
             <dt>Observed state</dt>
             <dd>{stateText(o.observed)}</dd>
@@ -534,7 +660,7 @@ export function ServiceActionDialog({
     >
       <div className="modal-head">
         <h2 id={titleId}>
-          {verb.label} <code>{unit}</code>
+          {verb.title} <code>{unit}</code>
         </h2>
       </div>
       <div className="modal-body">{body}</div>

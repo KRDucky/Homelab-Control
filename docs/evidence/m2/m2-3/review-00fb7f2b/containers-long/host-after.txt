@@ -1,0 +1,158 @@
+242690cc022f4cf2cc115e59f4d5f990d4855f198b38e053ea90a508d961e360  /etc/systemd/system/bluetooth.target.wants/bluetooth.service
+1ad6c472588f703549caa35f3fd51076e30c49492497aecb8f8a8b19026965d1  /etc/systemd/system/getty.target.wants/getty@tty1.service
+fc171c66d77028c174007c32c054f284d986475899f9698af32d5becf3e75d41  /etc/systemd/system/local-fs.target.wants/ananicy-cpp.service
+0b6c15cd0d7e32119d29582b82475bc00231d1058f2856accd0317da6f7fb79a  /etc/systemd/system/multi-user.target.wants/avahi-daemon.service
+2d8948c6af4ae777bec9e0942c582e7ea3f29032884b6b64cd36761a53e0aead  /etc/systemd/system/multi-user.target.wants/bpftune.service
+80d34913c895b2bfc62db6661bd65b0a7b48418f1a6c9d41fbc715b6b3864fbf  /etc/systemd/system/multi-user.target.wants/cachyos-iw-set-regdomain.path
+ee98bbdb6437df80266985835c56f79ea06ac33f3c2053ef65a17f3d1d6d9bf3  /etc/systemd/system/multi-user.target.wants/calibre-server.service
+4a97102825cb02e00058333b0706987887cb7edf42d1d4b8da9a0b2b23870fbd  /etc/systemd/system/multi-user.target.wants/coolercontrold.service
+e6af6227af7ce780492e663b74971942c27a0a86a9562b790e9cdcb1e4ae38a4  /etc/systemd/system/multi-user.target.wants/cups.path
+688b5b978151f2c9e79653f790452ab5bfc6cceb6f303a7eb806d4ecf6afc553  /etc/systemd/system/multi-user.target.wants/cups.service
+feac88646657d88e52f4116e85e0786447357f8f32a99d14af5a876195c902b7  /etc/systemd/system/multi-user.target.wants/dmemcg-booster-system.service
+a12d90fd03761bf79659a185c4a2c40e08934d7ada9e05130e64bd5eb4d634aa  /etc/systemd/system/multi-user.target.wants/docker.service
+98379aef64fb530a22bcd949ead5cefc66c745bc683e5cedb37be371ae25eab8  /etc/systemd/system/multi-user.target.wants/flaresolverr.service
+2df923558cda373f7c36daa86b458d2bf0918a70bdd4c3d14d7505e7f9193d91  /etc/systemd/system/multi-user.target.wants/grub-btrfs-snapper.path
+88ce1c482df3d17da91ecebb6efed91105cacce81e2debeb433b2d3b4a1b4baa  /etc/systemd/system/multi-user.target.wants/NetworkManager.service
+4f263b2a6b66e08319392d5337e96bca25ca3bc134d720a7d091af0d05ed36b2  /etc/systemd/system/multi-user.target.wants/reboot-blackbox.service
+ea2eeaa585de8819d99d82ebb0230651f2b8e63f07a6f169a25b0cbbfe1fc37a  /etc/systemd/system/multi-user.target.wants/remote-fs.target
+13ba97fd1091207257e5023e4793ead0769e94c0aa0274debeb82d10053370f4  /etc/systemd/system/multi-user.target.wants/systemd-oomd.service
+b975caad21103ab3086998b56e0003181e7473819921226bb22d243a4df7e7f6  /etc/systemd/system/multi-user.target.wants/tailscaled.service
+fdface6f4690e4748fbbd5661c02e1967a8750fdb23581d35516174017a3fe39  /etc/systemd/system/multi-user.target.wants/ufw.service
+80d6299a4975e81972b94f16be88ae94ef85923c2682eb49911cfd21c891b655  /etc/systemd/system/multi-user.target.wants/usb-reset.service
+8a816455b4711821c740bfa676e14b5275dde2d8897bfc96b0c93557df1cb7f6  /etc/systemd/system/network-online.target.wants/NetworkManager-wait-online.service
+688b5b978151f2c9e79653f790452ab5bfc6cceb6f303a7eb806d4ecf6afc553  /etc/systemd/system/printer.target.wants/cups.service
+53aa111dadc10bba319e0346e399c607a80ae6ffcded55f3cd3102c6d71995b0  /etc/systemd/system/sockets.target.wants/avahi-daemon.socket
+32f369f7fb74b6f4941db3d6ef00338f3275896541db9846e6f1cf4bbf26aa6b  /etc/systemd/system/sockets.target.wants/cups.socket
+f285e6fd3ded41999b795041cea479029e848e278751c2634507e7d446c7d178  /etc/systemd/system/sockets.target.wants/systemd-oomd.socket
+14ae6557490263b4a29299cb7cbcc26014a75436b3477287f9fb937992b5b8b8  /etc/systemd/system/sockets.target.wants/systemd-resolved-monitor.socket
+0218dde6db19ec0dd6154a5c1fd88c2b38d838ba8bfb3540d67127d31311238d  /etc/systemd/system/sockets.target.wants/systemd-resolved-varlink.socket
+7a011e63f1ba8f65330200f8b9779dbad97bc0004eb389e7a1b4228079ea1adf  /etc/systemd/system/sockets.target.wants/systemd-userdbd.socket
+e19c05cc8c233ab50d81adf5466f1eca9dd561aad8f84da7e36ce1b165dc3713  /etc/systemd/system/sockets.target.wants/virtnetworkd-admin.socket
+8a5cd0a940181088040766e93541f68ca1c81b1d801d88897b5c64bf9aa5bb01  /etc/systemd/system/sockets.target.wants/virtnetworkd-ro.socket
+f5120a390511d67a41e21d5205f5d5e6b50d9d90d3e260ff60f3f72dd0f83bbe  /etc/systemd/system/sockets.target.wants/virtnetworkd.socket
+230c420327f5419d53c18350a5cc621831b85f6bbaac51355f3d44ffafd4ce37  /etc/systemd/system/sockets.target.wants/virtqemud-admin.socket
+46e03ecf0243010181ccf8858eb0ccfe793c970c6a7bf4869bd12b1df8a2b6fc  /etc/systemd/system/sockets.target.wants/virtqemud-ro.socket
+7191ae4acd20f69a23e16d48250a4c59c518746fa92f37ae6e7d0ebf31946346  /etc/systemd/system/sockets.target.wants/virtqemud.socket
+5f554f5801b85a7af8bd58d929e65594522b91bb487bfda8b31df6091db55051  /etc/systemd/system/sockets.target.wants/virtstoraged-admin.socket
+17895b12f57d34bc24b628c9fe47e25af8ba117d6d657940bde2a81ed2081536  /etc/systemd/system/sockets.target.wants/virtstoraged-ro.socket
+b34987dce5d77626292d50eabbc2965a5f49060927f55e337c5a8775b2d9fb5e  /etc/systemd/system/sockets.target.wants/virtstoraged.socket
+6e66096d01f2b41865f2ee25334d595316d425ea433f03e5eef9870676f8b58a  /etc/systemd/system/sysinit.target.wants/systemd-resolved.service
+f15bf67f875fc9d766acc4aa4ba9303824991aaf595b0122c20ba580f0d8b758  /etc/systemd/system/sysinit.target.wants/systemd-timesyncd.service
+bc6b94c9579370fad6e1bda6be0fb440864cf4e7de349136085ce7b7ff983d59  /etc/systemd/system/timers.target.wants/cachyos-rate-mirrors.timer
+699161252ffaa35a0272aae055e51332df694ff4d28c39f8b666d47ecced3397  /etc/systemd/system/timers.target.wants/fstrim.timer
+3a40659caab7d5d8a7927d9847d324a59ae53594772690510130c6e69ca0c0ea  /etc/systemd/system/timers.target.wants/pamac-cleancache.timer
+538dd31a670160b3b3100d1d61ec84d1c99be9159067cbd0bea1a280dd392be3  /etc/systemd/system/timers.target.wants/reflector.timer
+eac801bb93da7be09005bdee0857380e2671992dd77395062560ebe535981b8b  /etc/systemd/system/timers.target.wants/snapper-cleanup.timer
+3dfea4e7b6c533e7e340f276fa9ba188e866f24f46fe5e01d273076687d60fb9  /etc/systemd/system/timers.target.wants/snapper-timeline.timer
+/etc/systemd/system/autovt@.service -> /usr/lib/systemd/system/getty@.service
+/etc/systemd/system/bluetooth.target.wants/bluetooth.service -> /usr/lib/systemd/system/bluetooth.service
+/etc/systemd/system/dbus-org.bluez.service -> /usr/lib/systemd/system/bluetooth.service
+/etc/systemd/system/dbus-org.freedesktop.Avahi.service -> /usr/lib/systemd/system/avahi-daemon.service
+/etc/systemd/system/dbus-org.freedesktop.nm-dispatcher.service -> /usr/lib/systemd/system/NetworkManager-dispatcher.service
+/etc/systemd/system/dbus-org.freedesktop.oom1.service -> /usr/lib/systemd/system/systemd-oomd.service
+/etc/systemd/system/dbus-org.freedesktop.resolve1.service -> /usr/lib/systemd/system/systemd-resolved.service
+/etc/systemd/system/dbus-org.freedesktop.timesync1.service -> /usr/lib/systemd/system/systemd-timesyncd.service
+/etc/systemd/system/display-manager.service -> /usr/lib/systemd/system/sddm.service
+/etc/systemd/system/getty.target.wants/getty@tty1.service -> /usr/lib/systemd/system/getty@.service
+/etc/systemd/system/hibernate.target -> /dev/null
+/etc/systemd/system/hybrid-sleep.target -> /dev/null
+/etc/systemd/system/local-fs.target.wants/ananicy-cpp.service -> /usr/lib/systemd/system/ananicy-cpp.service
+/etc/systemd/system/multi-user.target.wants/avahi-daemon.service -> /usr/lib/systemd/system/avahi-daemon.service
+/etc/systemd/system/multi-user.target.wants/bpftune.service -> /usr/lib/systemd/system/bpftune.service
+/etc/systemd/system/multi-user.target.wants/cachyos-iw-set-regdomain.path -> /usr/lib/systemd/system/cachyos-iw-set-regdomain.path
+/etc/systemd/system/multi-user.target.wants/calibre-server.service -> /etc/systemd/system/calibre-server.service
+/etc/systemd/system/multi-user.target.wants/coolercontrold.service -> /usr/lib/systemd/system/coolercontrold.service
+/etc/systemd/system/multi-user.target.wants/cups.path -> /usr/lib/systemd/system/cups.path
+/etc/systemd/system/multi-user.target.wants/cups.service -> /usr/lib/systemd/system/cups.service
+/etc/systemd/system/multi-user.target.wants/dmemcg-booster-system.service -> /usr/lib/systemd/system/dmemcg-booster-system.service
+/etc/systemd/system/multi-user.target.wants/docker.service -> /usr/lib/systemd/system/docker.service
+/etc/systemd/system/multi-user.target.wants/flaresolverr.service -> /usr/lib/systemd/system/flaresolverr.service
+/etc/systemd/system/multi-user.target.wants/grub-btrfs-snapper.path -> /usr/lib/systemd/system/grub-btrfs-snapper.path
+/etc/systemd/system/multi-user.target.wants/NetworkManager.service -> /usr/lib/systemd/system/NetworkManager.service
+/etc/systemd/system/multi-user.target.wants/reboot-blackbox.service -> /etc/systemd/system/reboot-blackbox.service
+/etc/systemd/system/multi-user.target.wants/remote-fs.target -> /usr/lib/systemd/system/remote-fs.target
+/etc/systemd/system/multi-user.target.wants/systemd-oomd.service -> /usr/lib/systemd/system/systemd-oomd.service
+/etc/systemd/system/multi-user.target.wants/tailscaled.service -> /usr/lib/systemd/system/tailscaled.service
+/etc/systemd/system/multi-user.target.wants/ufw.service -> /usr/lib/systemd/system/ufw.service
+/etc/systemd/system/multi-user.target.wants/usb-reset.service -> /etc/systemd/system/usb-reset.service
+/etc/systemd/system/network-online.target.wants/NetworkManager-wait-online.service -> /usr/lib/systemd/system/NetworkManager-wait-online.service
+/etc/systemd/system/printer.target.wants/cups.service -> /usr/lib/systemd/system/cups.service
+/etc/systemd/system/sleep.target -> /dev/null
+/etc/systemd/system/sockets.target.wants/avahi-daemon.socket -> /usr/lib/systemd/system/avahi-daemon.socket
+/etc/systemd/system/sockets.target.wants/cups.socket -> /usr/lib/systemd/system/cups.socket
+/etc/systemd/system/sockets.target.wants/systemd-oomd.socket -> /usr/lib/systemd/system/systemd-oomd.socket
+/etc/systemd/system/sockets.target.wants/systemd-resolved-monitor.socket -> /usr/lib/systemd/system/systemd-resolved-monitor.socket
+/etc/systemd/system/sockets.target.wants/systemd-resolved-varlink.socket -> /usr/lib/systemd/system/systemd-resolved-varlink.socket
+/etc/systemd/system/sockets.target.wants/systemd-userdbd.socket -> /usr/lib/systemd/system/systemd-userdbd.socket
+/etc/systemd/system/sockets.target.wants/virtnetworkd-admin.socket -> /usr/lib/systemd/system/virtnetworkd-admin.socket
+/etc/systemd/system/sockets.target.wants/virtnetworkd-ro.socket -> /usr/lib/systemd/system/virtnetworkd-ro.socket
+/etc/systemd/system/sockets.target.wants/virtnetworkd.socket -> /usr/lib/systemd/system/virtnetworkd.socket
+/etc/systemd/system/sockets.target.wants/virtqemud-admin.socket -> /usr/lib/systemd/system/virtqemud-admin.socket
+/etc/systemd/system/sockets.target.wants/virtqemud-ro.socket -> /usr/lib/systemd/system/virtqemud-ro.socket
+/etc/systemd/system/sockets.target.wants/virtqemud.socket -> /usr/lib/systemd/system/virtqemud.socket
+/etc/systemd/system/sockets.target.wants/virtstoraged-admin.socket -> /usr/lib/systemd/system/virtstoraged-admin.socket
+/etc/systemd/system/sockets.target.wants/virtstoraged-ro.socket -> /usr/lib/systemd/system/virtstoraged-ro.socket
+/etc/systemd/system/sockets.target.wants/virtstoraged.socket -> /usr/lib/systemd/system/virtstoraged.socket
+/etc/systemd/system/suspend.target -> /dev/null
+/etc/systemd/system/sysinit.target.wants/systemd-resolved.service -> /usr/lib/systemd/system/systemd-resolved.service
+/etc/systemd/system/sysinit.target.wants/systemd-timesyncd.service -> /usr/lib/systemd/system/systemd-timesyncd.service
+/etc/systemd/system/timers.target.wants/cachyos-rate-mirrors.timer -> /usr/lib/systemd/system/cachyos-rate-mirrors.timer
+/etc/systemd/system/timers.target.wants/fstrim.timer -> /usr/lib/systemd/system/fstrim.timer
+/etc/systemd/system/timers.target.wants/pamac-cleancache.timer -> /usr/lib/systemd/system/pamac-cleancache.timer
+/etc/systemd/system/timers.target.wants/reflector.timer -> /usr/lib/systemd/system/reflector.timer
+/etc/systemd/system/timers.target.wants/snapper-cleanup.timer -> /usr/lib/systemd/system/snapper-cleanup.timer
+/etc/systemd/system/timers.target.wants/snapper-timeline.timer -> /usr/lib/systemd/system/snapper-timeline.timer
+ananicy-cpp.service                enabled disabled
+avahi-daemon.service               enabled disabled
+avahi-daemon.socket                enabled disabled
+bluetooth.service                  enabled disabled
+bpftune.service                    enabled disabled
+cachyos-iw-set-regdomain.path      enabled disabled
+cachyos-rate-mirrors.timer         enabled disabled
+calibre-server.service             enabled disabled
+coolercontrold.service             enabled disabled
+cups.path                          enabled disabled
+cups.service                       enabled disabled
+cups.socket                        enabled disabled
+dmemcg-booster-system.service      enabled disabled
+docker.service                     enabled disabled
+flaresolverr.service               enabled disabled
+fstrim.timer                       enabled disabled
+getty@.service                     enabled enabled
+grub-btrfs-snapper.path            enabled disabled
+NetworkManager-dispatcher.service  enabled disabled
+NetworkManager.service             enabled disabled
+NetworkManager-wait-online.service enabled disabled
+pamac-cleancache.timer             enabled disabled
+reboot-blackbox.service            enabled disabled
+reflector.timer                    enabled disabled
+remote-fs.target                   enabled enabled
+sddm.service                       enabled disabled
+snapper-cleanup.timer              enabled disabled
+snapper-timeline.timer             enabled disabled
+systemd-oomd.service               enabled disabled
+systemd-oomd.socket                enabled disabled
+systemd-resolved-monitor.socket    enabled disabled
+systemd-resolved.service           enabled enabled
+systemd-resolved-varlink.socket    enabled disabled
+systemd-timesyncd.service          enabled enabled
+systemd-userdbd.socket             enabled enabled
+tailscaled.service                 enabled disabled
+ufw.service                        enabled disabled
+usb-reset.service                  enabled disabled
+virtnetworkd-admin.socket          enabled disabled
+virtnetworkd-ro.socket             enabled disabled
+virtnetworkd.socket                enabled disabled
+virtqemud-admin.socket             enabled disabled
+virtqemud-ro.socket                enabled disabled
+virtqemud.socket                   enabled disabled
+virtstoraged-admin.socket          enabled disabled
+virtstoraged-ro.socket             enabled disabled
+virtstoraged.socket                enabled disabled
+hc-fedora45-dnf-20261103
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+eno1             DOWN           
+wlan0            DOWN           
+wlan1            UP             192.168.0.19/24 fe80::4357:16f8:4352:2260/64 
+tailscale0       UNKNOWN        100.91.122.45/32 fd7a:115c:a1e0::2101:7a2f/128 fe80::7920:edf:5e9b:4704/64 
+docker0          DOWN           172.17.0.1/16 fe80::7420:31ff:feaf:303d/64 

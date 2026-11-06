@@ -1,0 +1,58 @@
+######## ubuntu-2404 (running)
+systemd 255 (255.4-1ubuntu8.18)
+--- list-timers json
+[{"next":1793778140139353,"left":1793778140139353,"last":0,"passed":0,"unit":"systemd-tmpfiles-clean.timer","activates":"systemd-tmpfiles-clean.service"},{"next":1793800837940294,"left":1793800837940294,"last":0,"passed":0,"unit":"motd-news.timer","activates":"motd-news.service"},{"next":17938368000
+rc=0
+--- list-sockets json
+[{"listen":"0.0.0.0:22","unit":"ssh.socket","activates":"ssh.service"},{"listen":"[::]:22","unit":"ssh.socket","activates":"ssh.service"},{"listen":"audit 1","unit":"systemd-journald-audit.socket","activates":"systemd-journald.service"},{"listen":"/run/dbus/system_bus_socket","unit":"dbus.socket","a
+--- list-units/list-unit-files with pattern after --
+[{"unit":"ssh.service","load":"loaded","active":"inactive","sub":"dead","description":"OpenBSD Secure Shell server"}]
+
+[{"unit_file":"ssh.service","state":"disabled","preset":"enabled"}]
+
+--- is-enabled / show props
+disabled
+not-found
+NRestarts=0
+ExecMainExitTimestamp=
+ExecMainCode=0
+Id=ssh.service
+DropInPaths=
+UnitFilePreset=enabled
+NeedDaemonReload=no
+Transient=no
+--- TimersCalendar
+{ OnUnitActiveUSec=1d ; next_elapse=0 }
+{ OnBootUSec=15min ; next_elapse=3h 14min 55.655597s }
+--- enable --no-reload accepted
+Created symlink /etc/systemd/system/multi-user.target.wants/hc-p5.service → /etc/systemd/system/hc-p5.service.
+rc=0 is-enabled=enabled
+######## ubuntu-2204 (running)
+systemd 249 (249.11-0ubuntu3.23)
+--- list-timers json
+[{"next":1793778140283359,"left":1793778140283359,"last":0,"passed":0,"unit":"systemd-tmpfiles-clean.timer","activates":"systemd-tmpfiles-clean.service"},{"next":1793800020537901,"left":1793800020537901,"last":0,"passed":0,"unit":"motd-news.timer","activates":"motd-news.service"},{"next":17938368000
+rc=0
+--- list-sockets json
+[{"listen":"/run/dbus/system_bus_socket","unit":"dbus.socket","activates":"dbus.service"},{"listen":"/run/initctl","unit":"systemd-initctl.socket","activates":"systemd-initctl.service"},{"listen":"/run/systemd/fsck.progress","unit":"systemd-fsckd.socket","activates":"systemd-fsckd.service"},{"listen
+--- list-units/list-unit-files with pattern after --
+[{"unit":"ssh.service","load":"loaded","active":"active","sub":"running","description":"OpenBSD Secure Shell server"}]
+
+[{"unit_file":"ssh.service","state":"enabled","vendor_preset":"enabled"}]
+
+--- is-enabled / show props
+enabled
+alias
+NRestarts=0
+ExecMainExitTimestamp=n/a
+ExecMainCode=0
+Id=ssh.service
+DropInPaths=
+UnitFilePreset=enabled
+NeedDaemonReload=no
+Transient=no
+--- TimersCalendar
+{ OnUnitActiveUSec=1d ; next_elapse=0 }
+{ OnBootUSec=15min ; next_elapse=3h 14min 55.799604s }
+--- enable --no-reload accepted
+Created symlink /etc/systemd/system/multi-user.target.wants/hc-p5.service → /etc/systemd/system/hc-p5.service.
+rc=0 is-enabled=enabled

@@ -1,0 +1,24 @@
+systemd 255 (255.4-1ubuntu8.18)
+## freshly booted, before installing
+  UnitsLoadStartTimestamp=Wed 2026-11-04 12:06:50.992292 UTC
+  threshold (epoch, before the 100 ms margin): 1793794010.992292000
+  changed: /run/systemd/system
+  (end of list)
+## installing the package (deb; its scripts run daemon-reload)
+  installed: 0
+  UnitsLoadStartTimestamp=Wed 2026-11-04 12:06:50.992292 UTC
+  UnitsLoadTimestamp=Wed 2026-11-04 12:06:52.031454 UTC
+  threshold (epoch, before the 100 ms margin): 1793794012.031454000
+  changed: /usr/lib/systemd/system
+  changed: /usr/lib/systemd/system/homelab-control-broker.service
+  changed: /usr/lib/systemd/system/homelab-control-broker.socket
+  changed: /usr/lib/systemd/system/homelab-control.service
+  (end of list)
+## after the documented first step (systemctl enable --now the broker socket; enable reloads)
+  UnitsLoadStartTimestamp=Wed 2026-11-04 12:06:50.992292 UTC
+  UnitsLoadTimestamp=Wed 2026-11-04 12:06:52.092715 UTC
+  threshold (epoch, before the 100 ms margin): 1793794012.092715000
+  changed: /etc/systemd/system
+  changed: /etc/systemd/system/sockets.target.wants
+  changed: /etc/systemd/system/sockets.target.wants/homelab-control-broker.socket
+  (end of list)

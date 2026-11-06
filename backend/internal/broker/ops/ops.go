@@ -31,6 +31,7 @@ import (
 	"homelab-control/backend/internal/broker/proto"
 	"homelab-control/backend/internal/broker/runner"
 	"homelab-control/backend/internal/broker/writes"
+	"homelab-control/backend/internal/modules"
 )
 
 // Roots lets tests point file-reading ops at a fixture tree. Root is "/" in
@@ -60,11 +61,15 @@ type Env struct {
 	Writes *writes.Framework
 	// Units overrides the systemd controller (tests); nil = systemctl.
 	Units UnitController
+	// Enablement overrides the unit-file controller (tests); nil = systemctl.
+	Enablement EnablementController
 	// RootExec is the root-exec handle. The server sets it in the per-call copy of
 	// Env ONLY for ops whose Privilege is PrivRootExec; it is nil otherwise.
 	RootExec *runner.Root
 	// Actor is the caller as asserted by hc-api (per-call copy).
 	Actor proto.Actor
+	// Modules is the administrator's module setting (zero value: all enabled).
+	Modules modules.Set
 }
 
 // WriteSpec documents a write op for review and the registry snapshot test
@@ -116,6 +121,29 @@ func Registry() map[string]Op {
 			Handle:      unitApply, AuditArgs: writeAuditArgs,
 			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskReversible, RiskDisruptive}, LockDomain: "service:<unit id>",
 				Templates: []runner.RootTemplate{runner.RootSystemctlStart, runner.RootSystemctlStop, runner.RootSystemctlRestart, runner.RootSystemctlShow}}},
+		// M2-3 read-only views (unprivileged children, fixed argv).
+		{Name: "services.timers.list", Scope: "services.read", Privilege: PrivUnprivilegedExec, Timeout: 15 * time.Second,
+			Description: "systemd timer units: schedule, last and next run, activated unit", Handle: timersList},
+		{Name: "services.sockets.list", Scope: "services.read", Privilege: PrivUnprivilegedExec, Timeout: 15 * time.Second,
+			Description: "systemd socket units: listen addresses and activated units", Handle: socketsList},
+		{Name: "services.unit.detail", Scope: "services.read", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second,
+			Description: "One unit from the inventory: identity, unit-file origin, dependencies, last exit and restart counter (args: unit)",
+			Handle:      unitDetail, AuditArgs: viewAuditArgs},
+		{Name: "services.unit.contents", Scope: "services.files", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second,
+			Description: "Read-only, redacted and size-capped unit file and drop-ins of one unit, as the service account can read them (args: unit)",
+			Handle:      unitContents, AuditArgs: viewAuditArgs},
+		// M2-3 boot-time enable/disable (ADR 0011; docs/m2/M2-3-DESIGN-REVIEW.md).
+		// Plan reads [Install] as root in-process; apply is root-exec.
+		{Name: "services.enablement.plan", Scope: "services.configure", Privilege: PrivRootRead, Timeout: 15 * time.Second,
+			Description: "Review enabling or disabling one .service unit at boot: policy, [Install] links, risk and a single-use plan token (args: unit, action)",
+			Handle:      unitEnablementPlan, AuditArgs: enablementAuditArgs,
+			Write: &WriteSpec{Phase: "plan", Risks: []string{RiskDisruptive}, LockDomain: "service:<unit id>+unit-files"}},
+		{Name: "services.enablement.apply", Scope: "services.configure", Privilege: PrivRootExec, Timeout: 55 * time.Second,
+			Description: "Execute a reviewed boot-time enable/disable with its plan token (no --now, no reload); journaled, verified by is-enabled and the links (args: unit, action, token)",
+			Handle:      unitEnablementApply, AuditArgs: enablementAuditArgs,
+			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskDisruptive}, LockDomain: "service:<unit id>+unit-files",
+				Templates: []runner.RootTemplate{runner.RootSystemctlEnable, runner.RootSystemctlDisable, runner.RootSystemctlIsEnabled,
+					runner.RootSystemctlShowInstall, runner.RootSystemctlShow, runner.RootSystemctlShowManager}}},
 		{Name: "operations.journal.list", Scope: "audit.read", Privilege: PrivRootRead, Timeout: 5 * time.Second,
 			Description: "The 100 most recent privileged operations from the broker journal, including interrupted ones", Handle: journalList},
 	}
@@ -150,6 +178,10 @@ type infoResult struct {
 	SystemdBooted bool `json:"systemd_booted"`
 	// WritesAvailable is false when the operation journal could not be opened.
 	WritesAvailable bool `json:"writes_available"`
+	// DisabledModules lists modules the administrator disabled; their ops are
+	// omitted from Ops and refused.
+	DisabledModules []string `json:"disabled_modules,omitempty"`
+	ModulesReason   string   `json:"modules_reason,omitempty"`
 }
 
 func brokerInfo(_ context.Context, env *Env, raw json.RawMessage) (any, error) {
@@ -157,7 +189,11 @@ func brokerInfo(_ context.Context, env *Env, raw json.RawMessage) (any, error) {
 		return nil, err
 	}
 	res := infoResult{Version: env.Version, Protocol: proto.Version}
+	res.DisabledModules, res.ModulesReason = env.Modules.Disabled(), env.Modules.Reason
 	for _, o := range Registry() {
+		if !env.Modules.Enabled(modules.ForOp(o.Name)) {
+			continue
+		}
 		res.Ops = append(res.Ops, OpInfo{Name: o.Name, Scope: o.Scope, Privilege: o.Privilege, Description: o.Description})
 	}
 	sort.Slice(res.Ops, func(i, j int) bool { return res.Ops[i].Name < res.Ops[j].Name })

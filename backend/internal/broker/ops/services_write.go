@@ -229,6 +229,12 @@ type assessor struct {
 	hidden map[string]bool // start dependencies that cannot be queried
 	// visited guards against re-checking a unit for the same direction.
 	stopDone, startDone map[string]bool
+	// boot is set only for the enable review (M2-3): the start is the one at
+	// the NEXT boot, so what is running now proves nothing (nil for M2-2).
+	boot *bootModel
+	// pending: conflicts found during a boot-mode walk, checked once the
+	// walk has collected every unit the change starts at boot.
+	pending []UnitProps
 }
 
 func newAssessor(ctx context.Context, env *Env, p UnitProps) *assessor {
@@ -345,7 +351,7 @@ func (a *assessor) unneeded(u UnitProps) error {
 		return err
 	}
 	for _, d := range ds {
-		if d.StopWhenUnneeded && running(d.ActiveState) && !a.stopDone[d.ID] {
+		if d.StopWhenUnneeded && a.mayRun(d) && !a.stopDone[d.ID] {
 			if err := a.stopping(d, true); err != nil {
 				return err
 			}
@@ -358,7 +364,7 @@ func (a *assessor) unneeded(u UnitProps) error {
 // stopped. An inactive, loaded unit is not affected (systemd stops only
 // running units); one whose state cannot be verified counts as running.
 func (a *assessor) stopCheck(d UnitProps) error {
-	if !running(d.ActiveState) && d.LoadState == "loaded" {
+	if !a.mayRun(d) && d.LoadState == "loaded" {
 		return nil
 	}
 	if d.ID != a.self {
@@ -428,7 +434,7 @@ func (a *assessor) starting(u UnitProps) error {
 	if isolating(u) {
 		return denied("%s triggers units in isolate mode, which would stop other services", u.ID)
 	}
-	if u.ID != a.self && !running(u.ActiveState) {
+	if u.ID != a.self && (a.boot != nil || !running(u.ActiveState)) {
 		a.starts[u.ID] = true
 	}
 	// Conflicts: systemd stops a running conflicting unit, which is a stop
@@ -449,6 +455,10 @@ func (a *assessor) starting(u UnitProps) error {
 		return err
 	}
 	for _, c := range cs {
+		if a.boot != nil {
+			a.pending = append(a.pending, c) // checked by settle, against everything started at boot
+			continue
+		}
 		if running(c.ActiveState) && !a.stopDone[c.ID] {
 			if err := a.stopping(c, true); err != nil {
 				return err
@@ -456,10 +466,15 @@ func (a *assessor) starting(u UnitProps) error {
 		}
 	}
 	// Pulled-in and triggered units. Only inactive ones are walked further:
-	// the dependencies of a running unit are already satisfied. A dangerous
+	// the dependencies of a running unit are already satisfied (M2-2, a start
+	// now). The boot review instead walks everything except the units the
+	// boot target starts anyway, and adds Triggers= (bootModel). A dangerous
 	// unit is refused by name and not walked (its own graph would only hide
 	// the reason).
 	deps := union(u, append(append([]string{}, startKeys...), triggerKeys...)...)
+	if a.boot != nil {
+		deps = a.boot.deps(u, deps)
+	}
 	for _, n := range deps {
 		if servicepolicy.DangerousTarget(n) {
 			return denied("starting %s could pull in %s (shutdown, reboot or recovery mode)", u.ID, n)
@@ -479,8 +494,40 @@ func (a *assessor) starting(u UnitProps) error {
 		return err
 	}
 	for _, d := range ds {
-		if !running(d.ActiveState) {
-			if err := a.starting(d); err != nil {
+		if a.boot != nil {
+			if a.boot.anchored[d.ID] {
+				continue // started at the next boot anyway (persistent boot graph)
+			}
+		} else if running(d.ActiveState) {
+			continue
+		}
+		if err := a.starting(d); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// mayRun reports whether d may be running when a stop reaches it: now (M2-2),
+// or for the boot review whether it may run at the next boot — running now,
+// in the boot graph (persistent or as loaded), or started by the change.
+func (a *assessor) mayRun(d UnitProps) bool {
+	if running(d.ActiveState) {
+		return true
+	}
+	return a.boot != nil && (a.boot.mayRun[d.ID] || a.startDone[d.ID])
+}
+
+// settle applies the stop checks to the conflicts a boot-mode walk found:
+// each one that may run at the next boot is stopped by the change (or its
+// start job removed), with all its propagation. Stop checks can start
+// triggered units, which can add conflicts; repeat until none is left.
+func (a *assessor) settle() error {
+	for len(a.pending) > 0 {
+		c := a.pending[0]
+		a.pending = a.pending[1:]
+		if a.mayRun(c) && !a.stopDone[c.ID] {
+			if err := a.stopping(c, true); err != nil {
 				return err
 			}
 		}
@@ -921,11 +968,37 @@ func journalList(_ context.Context, env *Env, raw json.RawMessage) (any, error) 
 }
 
 // InspectUnit is the writes.Inspector used at broker start to describe the
-// state of units whose operation was interrupted.
+// state of units whose operation was interrupted: the run state for start/
+// stop/restart, the fresh boot-time enablement for enable/disable.
 func InspectUnit(env *Env) writes.Inspector {
-	return func(target string) (json.RawMessage, string) {
+	return func(intent writes.Record) (json.RawMessage, string) {
+		target := intent.Target
 		if !servicepolicy.ValidUnit(target) || (env.Units == nil && env.Runner == nil) {
 			return nil, ""
+		}
+		if intent.Op == enablementOpName {
+			ctx, cancel := context.WithTimeout(context.Background(), showTimeout)
+			defer cancel()
+			st, err := env.enablement().IsEnabled(ctx, env, target)
+			if err != nil {
+				return nil, "unknown (the enablement state could not be read)"
+			}
+			o := UnitObserved{ID: target, UnitFileState: st}
+			b, _ := json.Marshal(o)
+			var before UnitObserved
+			_ = json.Unmarshal(intent.Observed, &before)
+			desc := st + " at boot"
+			if before.UnitFileState != "" {
+				verdict := "unchanged"
+				if st != before.UnitFileState {
+					verdict = "changed"
+				}
+				desc += fmt.Sprintf(" (before the change: %s; requested: %s; %s, not verified)", before.UnitFileState, intent.Action, verdict)
+			}
+			if l, err := scanUnitLinks(env.Roots, systemdUnitDir, []string{target}, ""); err == nil {
+				desc += fmt.Sprintf("; %d link(s) named after the unit under %s", len(l), systemdUnitDir)
+			}
+			return b, desc
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), showTimeout)
 		defer cancel()
