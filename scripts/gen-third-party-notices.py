@@ -35,7 +35,7 @@ REPO = "https://github.com/KRDucky/Homelab-Control---Webmin-Fork"
 # MIT boundary for Homelab Control's own files (must match REUSE.toml, LA-03).
 MIT_PATHS = ["sdk/*", "schemas/*", "themes/*", "frontend/design-system/*",
              "docs/ui/theme.schema.v1.draft.json", "docs/ui/examples/themes/*"]
-DEB_LICENSE = {"MIT": "Expat", "OFL-1.1": "OFL-1.1", "BSD-3-Clause": "BSD-3-clause"}
+DEB_LICENSE = {"MIT": "Expat", "OFL-1.1": "OFL-1.1", "BSD-3-Clause": "BSD-3-clause", "Apache-2.0": "Apache-2.0"}
 
 
 def license_file(pkg_dir):
@@ -99,7 +99,7 @@ def holder(text):
     """First copyright statement of a licence file, without the 'Copyright (c)' prefix."""
     for line in text.splitlines():
         m = re.match(r"\s*Copyright\s+(?:\([cC]\)\s*)?(.*\S)", line)
-        if m:
+        if m and not re.search(r"[\[{]yyyy[\]}]", m.group(1)):  # skip the Apache-2.0 appendix template
             h = m.group(1)
             if "Copyright" in h:  # OFL files repeat the statement per font file
                 h = h.split(")", 1)[0] + ")"
@@ -166,7 +166,7 @@ def render_debian():
         main_text = next(t for f, t in m["files"] if f.upper() in ("LICENSE", "LICENCE", "COPYING"))
         others = [f for f, _ in m["files"] if f.upper() not in ("LICENSE", "LICENCE", "COPYING")]
         out += ["", f"Files: vendor-sources/go/download/{m['path']}/*",
-                f"Copyright: {holder(main_text)}", f"License: {name}",
+                f"Copyright: {m.get('copyright') or holder(main_text)}", f"License: {name}",
                 f"Comment: Go module {m['path']} {m['version']}, compiled into /usr/bin/hc-api and /usr/bin/hlctl"
                 + " (not hc-broker).",
                 " Source (module zip) in the release source archive under vendor-sources/go/download."

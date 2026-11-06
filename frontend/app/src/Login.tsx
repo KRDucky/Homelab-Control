@@ -2,14 +2,25 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useState, type FormEvent } from 'react';
-import { ApiError, login, type SessionInfo } from './api';
+import { useEffect, useState, type FormEvent } from 'react';
+import { ApiError, OIDC_START_PATH, getOIDCStatus, login, type SessionInfo } from './api';
 
 export function Login({ onLogin }: { onLogin: (s: SessionInfo) => void }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() =>
+    new URLSearchParams(window.location.search).get('login') === 'sso_failed'
+      ? 'Single sign-on didn’t complete. Try again, or sign in with your local account.'
+      : null,
+  );
   const [busy, setBusy] = useState(false);
+  const [sso, setSso] = useState(false);
+
+  useEffect(() => {
+    getOIDCStatus()
+      .then((s) => setSso(s.enabled))
+      .catch(() => setSso(false));
+  }, []);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -66,6 +77,11 @@ export function Login({ onLogin }: { onLogin: (s: SessionInfo) => void }) {
         <button type="submit" disabled={busy}>
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
+        {sso && (
+          <a className="login-sso" href={OIDC_START_PATH}>
+            Sign in with single sign-on
+          </a>
+        )}
       </form>
     </main>
   );
