@@ -174,10 +174,10 @@ func TestRootTemplatesAreClosed(t *testing.T) {
 		// PR #36 review (probe 8): manager unit-load timestamps, no target.
 		RootSystemctlShowManager: {"systemctl show --no-pager --timestamp=us+utc --property=UnitsLoadStartTimestamp --property=UnitsLoadStartTimestampMonotonic --property=UnitsLoadTimestamp --property=UnitsLoadTimestampMonotonic --property=UnitPath", nil},
 		// M2-6 (ADR 0008 Amendment 4, proposed).
-		RootHostnamectlSetStatic:     {"hostnamectl set-hostname --static -- nas-01", []string{"nas-01"}},
-		RootHostnamectlSetPretty:     {"hostnamectl set-hostname --pretty -- Lab NAS", []string{"Lab NAS"}},
+		RootHostnamectlSetStatic:     {"hostnamectl --no-ask-password set-hostname --static -- nas-01", []string{"nas-01"}},
+		RootHostnamectlSetPretty:     {"hostnamectl --no-ask-password set-hostname --pretty -- Lab NAS", []string{"Lab NAS"}},
 		RootHostnamectlStatus:        {"hostnamectl --no-ask-password status", nil},
-		RootTimedatectlSetTimezone:   {"timedatectl set-timezone -- Europe/Berlin", []string{"Europe/Berlin"}},
+		RootTimedatectlSetTimezone:   {"timedatectl --no-ask-password set-timezone -- Europe/Berlin", []string{"Europe/Berlin"}},
 		RootTimedatectlStatus:        {"timedatectl --no-ask-password status", nil},
 		RootTimedatectlListTimezones: {"timedatectl --no-ask-password list-timezones", nil},
 	}
