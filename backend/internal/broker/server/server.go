@@ -25,6 +25,7 @@ import (
 	"homelab-control/backend/internal/broker/proto"
 	"homelab-control/backend/internal/broker/runner"
 	"homelab-control/backend/internal/broker/types"
+	"homelab-control/backend/internal/modules"
 )
 
 // Server is the broker.
@@ -141,6 +142,14 @@ func (s *Server) handle(ctx context.Context, c *net.UnixConn) {
 		ev.Outcome = "unknown_op"
 		s.log(ev)
 		s.reply(c, fail(proto.CodeUnknownOp, "no such operation"))
+		return
+	}
+	// Module registry (M2-3, D-10 proposal): ops of a module the administrator
+	// disabled are refused before any scope check or handler runs.
+	if mod := modules.ForOp(op.Name); !s.Env.Modules.Enabled(mod) {
+		ev.Outcome = proto.CodeModuleDisabled
+		s.log(ev)
+		s.reply(c, fail(proto.CodeModuleDisabled, "the "+mod+" module is disabled on this host"))
 		return
 	}
 	// Defence in depth: the API already checked the scope. Root peers

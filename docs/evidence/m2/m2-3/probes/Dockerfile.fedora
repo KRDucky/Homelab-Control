@@ -1,0 +1,5 @@
+FROM fedora:44
+RUN dnf -y install systemd openssh-server python3 procps-ng curl iproute && dnf clean all
+RUN systemctl mask systemd-udevd.service systemd-udevd-kernel.socket systemd-udevd-control.socket systemd-udev-trigger.service getty.target dnf-makecache.timer 2>/dev/null; systemctl enable sshd.service; true
+STOPSIGNAL SIGRTMIN+3
+CMD ["/sbin/init"]

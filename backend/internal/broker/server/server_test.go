@@ -23,6 +23,7 @@ import (
 	"homelab-control/backend/internal/broker/runner"
 	"homelab-control/backend/internal/broker/types"
 	"homelab-control/backend/internal/brokerclient"
+	"homelab-control/backend/internal/modules"
 )
 
 type fixture struct {
@@ -348,5 +349,61 @@ func TestWriteOpsRefusedWithoutScopeEndToEnd(t *testing.T) {
 	}
 	if !strings.Contains(f.audit.String(), `"outcome":"forbidden"`) {
 		t.Fatal("refusals not audited")
+	}
+}
+
+// M2-3 module registry: ops of a disabled module are refused (before the
+// scope check or any handler) and omitted from broker.info; core ops and
+// other modules keep working.
+func TestDisabledModuleOpsRefused(t *testing.T) {
+	f := start(t)
+	set, err := modules.Parse([]byte(`{"version":1,"disabled":["services"]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.srv.Env.Modules = set
+	for _, op := range []string{"services.systemd.list", "services.unit.logs", "services.unit.plan", "services.unit.apply",
+		"services.enablement.plan", "services.enablement.apply", "services.timers.list", "services.unit.detail", "services.unit.contents"} {
+		if _, err := call(t, f, op, "services.read", "services.logs", "services.operate", "services.configure"); code(err) != proto.CodeModuleDisabled {
+			t.Errorf("%s: %v", op, err)
+		}
+	}
+	if !strings.Contains(f.audit.String(), `"outcome":"module_disabled"`) {
+		t.Fatalf("refusal not audited: %s", f.audit)
+	}
+	out, err := call(t, f, "broker.info")
+	if err != nil || strings.Contains(string(out), `"services.`) || !strings.Contains(string(out), `"disabled_modules":["services"]`) {
+		t.Fatalf("broker.info: %v %s", err, out)
+	}
+	if _, err := call(t, f, "legacy.webmin.status", "system.read"); err != nil {
+		t.Fatalf("core op affected: %v", err)
+	}
+	// Fail closed: an invalid setting disables every module.
+	f.srv.Env.Modules = modules.AllDisabled("test")
+	if _, err := call(t, f, "services.systemd.list", "services.read"); code(err) != proto.CodeModuleDisabled {
+		t.Fatalf("fail-closed: %v", err)
+	}
+}
+
+// M2-3: the broker re-checks services.configure; services.operate (or any
+// other scope) never reaches the enablement ops, and unit contents need
+// services.files (no other scope implies it).
+func TestEnablementOpsNeedConfigureScopeEndToEnd(t *testing.T) {
+	f := start(t)
+	for _, op := range []string{"services.enablement.plan", "services.enablement.apply"} {
+		var out json.RawMessage
+		err := brokerclient.New(f.sock).CallWithArgs(context.Background(), op,
+			map[string]string{"unit": "demo.service", "action": "enable", "token": "x"},
+			proto.Actor{User: "tester", Session: "s", Scopes: []string{"services.read", "services.logs", "services.operate", "audit.read"}}, &out)
+		if code(err) != proto.CodeForbidden {
+			t.Errorf("%s without services.configure: %v", op, err)
+		}
+	}
+	var out json.RawMessage
+	err := brokerclient.New(f.sock).CallWithArgs(context.Background(), "services.unit.contents", map[string]string{"unit": "demo.service"},
+		proto.Actor{User: "tester", Scopes: []string{"system.read", "services.read", "hardware.read", "services.logs", "audit.read",
+			"services.operate", "services.configure"}}, &out)
+	if code(err) != proto.CodeForbidden || !strings.Contains(err.Error(), "services.files") {
+		t.Errorf("contents with every scope but services.files: %v", err)
 	}
 }

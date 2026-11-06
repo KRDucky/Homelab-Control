@@ -33,6 +33,9 @@ type fakeUnits struct {
 	acts   []string
 	actFn  func(action servicepolicy.Action, p *UnitProps) (runner.Result, error)
 	showFn func(p *UnitProps) error
+	// manyErr, when set, fails ShowMany (for example a timeout of the
+	// boot-graph walk).
+	manyErr error
 }
 
 func newFake(units ...UnitProps) *fakeUnits {
@@ -75,6 +78,9 @@ func (f *fakeUnits) Show(_ context.Context, _ *Env, unit string) (UnitProps, err
 
 func (f *fakeUnits) ShowMany(_ context.Context, _ *Env, units []string) ([]UnitProps, error) {
 	f.shows.Add(1)
+	if f.manyErr != nil {
+		return nil, f.manyErr
+	}
 	if len(units) == 0 || len(units) > showBatch {
 		return nil, errors.New("batch out of bounds")
 	}

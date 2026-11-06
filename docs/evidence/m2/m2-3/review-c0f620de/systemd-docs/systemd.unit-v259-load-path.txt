@@ -1,0 +1,15 @@
+systemd.unit.xml (github.com/systemd/systemd, tag), table 'Load path when running in system mode':
+/etc/systemd/system.control
+/run/systemd/system.control
+/run/systemd/transient
+/run/systemd/generator.early
+/etc/systemd/system
+/run/systemd/system
+/run/systemd/generator
+/usr/local/lib/systemd/system
+/usr/lib/systemd/system
+/run/systemd/generator.late
+
+Synopsis lines mentioning .attached:
+<member><filename>/etc/systemd/system.attached/*</filename></member>
+<member><filename>/run/systemd/system.attached/*</filename></member>

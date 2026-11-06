@@ -1,0 +1,21 @@
+upstream-perl-tests	completed	success	b1f4c45ab5360fd0ddae40f853d2a098dfae64bc	2026-11-05T05:56:30Z	2026-11-05T05:57:13Z
+check	completed	success	b1f4c45ab5360fd0ddae40f853d2a098dfae64bc	2026-11-05T05:56:30Z	2026-11-05T06:04:31Z
+upgrade-ubuntu	completed	success	b1f4c45ab5360fd0ddae40f853d2a098dfae64bc	2026-11-05T06:04:33Z	2026-11-05T06:04:56Z
+systemd-ubuntu	completed	failure	b1f4c45ab5360fd0ddae40f853d2a098dfae64bc	2026-11-05T06:04:33Z	2026-11-05T06:05:58Z
+browser-e2e	completed	success	b1f4c45ab5360fd0ddae40f853d2a098dfae64bc	2026-11-05T06:04:34Z	2026-11-05T06:08:34Z
+systemd-ubuntu-2604	completed	success	b1f4c45ab5360fd0ddae40f853d2a098dfae64bc	2026-11-05T06:04:33Z	2026-11-05T06:08:51Z
+arch-package	completed	success	b1f4c45ab5360fd0ddae40f853d2a098dfae64bc	2026-11-05T06:04:34Z	2026-11-05T06:05:09Z
+release-dry-run / build (a)	completed	success	b1f4c45ab5360fd0ddae40f853d2a098dfae64bc	2026-11-05T06:04:33Z	2026-11-05T06:06:38Z
+release-dry-run / build (b)	completed	success	b1f4c45ab5360fd0ddae40f853d2a098dfae64bc	2026-11-05T06:04:33Z	2026-11-05T06:07:11Z
+install-matrix (archlinux:latest, zst, pacman -Syu --noconfirm --needed curl util-linux)	completed	success	b1f4c45ab5360fd0ddae40f853d2a098dfae64bc	2026-11-05T06:05:11Z	2026-11-05T06:05:38Z
+install-matrix (debian:stable, deb, apt-get update && apt-get install -y curl)	completed	success	b1f4c45ab5360fd0ddae40f853d2a098dfae64bc	2026-11-05T06:05:11Z	2026-11-05T06:05:42Z
+install-matrix (ubuntu:24.04, deb, apt-get update && apt-get install -y curl)	completed	success	b1f4c45ab5360fd0ddae40f853d2a098dfae64bc	2026-11-05T06:05:11Z	2026-11-05T06:05:44Z
+install-matrix (ubuntu:26.04, deb, apt-get update && apt-get install -y curl)	completed	success	b1f4c45ab5360fd0ddae40f853d2a098dfae64bc	2026-11-05T06:05:11Z	2026-11-05T06:05:45Z
+install-matrix (opensuse/tumbleweed, rpm, zypper -n in curl util-linux shadow findutils)	completed	success	b1f4c45ab5360fd0ddae40f853d2a098dfae64bc	2026-11-05T06:05:11Z	2026-11-05T06:05:41Z
+install-matrix (debian:oldstable, deb, apt-get update && apt-get install -y curl)	completed	success	b1f4c45ab5360fd0ddae40f853d2a098dfae64bc	2026-11-05T06:05:11Z	2026-11-05T06:05:45Z
+install-matrix (ubuntu:22.04, deb, apt-get update && apt-get install -y curl)	completed	success	b1f4c45ab5360fd0ddae40f853d2a098dfae64bc	2026-11-05T06:05:11Z	2026-11-05T06:05:54Z
+install-matrix (fedora:latest, rpm, dnf install -y curl util-linux shadow-utils findutils)	completed	success	b1f4c45ab5360fd0ddae40f853d2a098dfae64bc	2026-11-05T06:05:11Z	2026-11-05T06:05:45Z
+install-matrix (opensuse/leap:latest, rpm, zypper -n in curl util-linux shadow findutils)	completed	success	b1f4c45ab5360fd0ddae40f853d2a098dfae64bc	2026-11-05T06:05:11Z	2026-11-05T06:05:46Z
+release-dry-run / arch (b)	completed	success	b1f4c45ab5360fd0ddae40f853d2a098dfae64bc	2026-11-05T06:07:13Z	2026-11-05T06:07:41Z
+release-dry-run / arch (a)	completed	success	b1f4c45ab5360fd0ddae40f853d2a098dfae64bc	2026-11-05T06:07:13Z	2026-11-05T06:07:48Z
+release-dry-run / verify	completed	success	b1f4c45ab5360fd0ddae40f853d2a098dfae64bc	2026-11-05T06:07:50Z	2026-11-05T06:09:09Z

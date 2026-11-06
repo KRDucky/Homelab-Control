@@ -100,10 +100,16 @@ export function App() {
   // the navigation shows one entry per page.
   const pages = capList.filter((c, i) => capList.findIndex((x) => x.path === c.path) === i);
   const logsCap = capList.find((c) => c.id === 'service_logs');
+  const filesCap = capList.find((c) => c.id === 'unit_files');
   const auditCap = capList.find((c) => c.id === 'audit');
   // Accounts with services.operate can change the host (service start/stop/
   // restart); everyone else has a read-only interface.
-  const canOperate = (session.scopes ?? []).includes('services.operate');
+  const canOperate = (session.scopes ?? []).some(
+    (sc) => sc === 'services.operate' || sc === 'services.configure',
+  );
+  // M2-3 module registry: a module the host administrator disabled has no
+  // navigation; its page says so instead of falling back to another page.
+  const disabledModule = (caps?.modules ?? []).find((m) => !m.enabled && m.path === path);
   const route =
     path === ACCOUNT_PATH || path === '/appearance/themes'
       ? undefined
@@ -115,12 +121,22 @@ export function App() {
   const onThemes = path === '/appearance/themes';
   if (onThemes) page = <ThemeStudio />;
   else if (onAccount) page = <Sessions csrf={session.csrf_token} onUnauthorized={signedOut} />;
+  else if (disabledModule)
+    page = (
+      <div className="page">
+        <h1 className="page-title">{disabledModule.title}</h1>
+        <p className="banner" role="status">
+          This module is disabled on this host. {disabledModule.reason}
+        </p>
+      </div>
+    );
   else if (route && !routeUsable) page = <Unavailable cap={route} />;
   else if (route?.id === 'services')
     page = (
       <Services
         onUnauthorized={signedOut}
         logs={logsCap}
+        files={filesCap}
         csrf={session.csrf_token}
         stepUpUntil={session.step_up_until ?? null}
         auditAvailable={auditCap?.status === 'available'}
@@ -135,8 +151,14 @@ export function App() {
   return (
     <Shell
       pages={pages}
-      currentId={route?.id}
-      title={onThemes ? 'Themes & Theme Studio' : onAccount ? 'Sessions' : (route?.label ?? '')}
+      currentId={disabledModule ? undefined : route?.id}
+      title={
+        onThemes
+          ? 'Themes & Theme Studio'
+          : onAccount
+            ? 'Sessions'
+            : (disabledModule?.title ?? route?.label ?? '')
+      }
       username={session.username}
       accountPath={ACCOUNT_PATH}
       onAccount={onAccount}

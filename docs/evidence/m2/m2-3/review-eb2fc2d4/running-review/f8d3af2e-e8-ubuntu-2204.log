@@ -1,0 +1,120 @@
+container hc-rr-ubuntu-2204-406421 (ubuntu-2204): systemd state=running
+Creating group homelab-control with gid 999.
+Creating user homelab-control (Homelab Control API) with uid 999 and gid 999.
+== environment
+== install (deb)
+== M2-3 boot-time review: running state, runtime and unreloaded configuration (phase pre)
+systemd 249 (249.11-0ubuntu3.23)
+PRODUCT  v0.1.0-dev.1-90-gf8d3af2e
+DECISION U1: enable hc-rr-u1.service: REFUSED (403) plan 0.02s — hc-rr-u1.service cannot be enabled here: 1 unit file(s) or link(s) changed on disk after systemd last loaded its configuration (/etc/systemd/system/hc-rr-u1x.service). Boot-time effects of changes systemd has not loaded cannot be reviewed, and this version does not reload systemd. Review the change again after the next boot or after systemd reloads its configuration.
+EXPECT   U1: REFUSED (unloaded change on disk)
+DECISION E1-stopped: enable hc-rr-e1.service: REFUSED (403) plan 0.21s — starting hc-rr-e1y.service would stop homelab-control-hctest-rr1.service, which is protected: Homelab Control's own units: stopping them would end the session that is managing them.
+EXPECT   E1-stopped: REFUSED (conflict with protected stand-in)
+STATE    E1: e1x=active e1y=inactive stand-in=active
+DECISION E1-running: enable hc-rr-e1.service: REFUSED (403) plan 0.18s — starting hc-rr-e1y.service would stop homelab-control-hctest-rr1.service, which is protected: Homelab Control's own units: stopping them would end the session that is managing them.
+EXPECT   E1-running: REFUSED (conflict with protected stand-in at boot)
+DECISION E2-stopped: enable hc-rr-e2.service: REFUSED (403) plan 0.17s — hc-rr-e2x.service sets FailureAction=reboot, which can reboot or power off the host
+EXPECT   E2-stopped: REFUSED (FailureAction=reboot)
+DECISION E2-running: enable hc-rr-e2.service: REFUSED (403) plan 0.18s — hc-rr-e2x.service sets FailureAction=reboot, which can reboot or power off the host
+EXPECT   E2-running: REFUSED (FailureAction=reboot)
+DECISION E3-running: enable hc-rr-e3.service: REFUSED (403) plan 0.20s — this would stop or restart homelab-control-hctest-rr3.service, which is protected: Homelab Control's own units: stopping them would end the session that is managing them.
+EXPECT   E3-running: REFUSED (stop of bound unit stops protected stand-in)
+STATE    E3: e3z=inactive stand-in=inactive
+DECISION E3-stopped: enable hc-rr-e3.service: REFUSED (403) plan 0.21s — this would stop or restart homelab-control-hctest-rr3.service, which is protected: Homelab Control's own units: stopping them would end the session that is managing them.
+EXPECT   E3-stopped: REFUSED (the bound unit runs at boot)
+DECISION E5: enable hc-rr-e5.service: REFUSED (403) plan 0.21s — starting hc-rr-e5s.service would stop homelab-control-hctest-rr5.service, which is protected: Homelab Control's own units: stopping them would end the session that is managing them.
+EXPECT   E5: REFUSED (triggered service conflicts with protected stand-in)
+STATE    E7e: e7m Conflicts='shutdown.target' DropInPaths='/run/systemd/system/hc-rr-e7m.service.d/10-hc.conf'
+DECISION E7e: enable hc-rr-e7.service: REFUSED (403) plan 0.21s — hc-rr-e7.service cannot be enabled here: the persistent drop-in /usr/lib/systemd/system/hc-rr-e7m.service.d/10-hc.conf of hc-rr-e7m.service applies at the next boot but is hidden by a runtime drop-in until then; its boot-time settings were not evaluated
+EXPECT   E7e: REFUSED (runtime drop-in hides a persistent one)
+STATE    E8: stand-in Conflicts='shutdown.target' DropInPaths='/run/systemd/system.control/homelab-control-hctest-rr8.service.d/50-hc.conf'
+DECISION E8: enable hc-rr-e8.service: ALLOWED, applied (200 succeeded) plan 0.22s starts=None stops=None
+EXPECT   E8: REFUSED (hidden persistent Conflicts= / or loaded conflict)
+STATE    E8b: stand-in Conflicts='hc-rr-e8by.service shutdown.target' DropInPaths='/etc/systemd/system/homelab-control-hctest-rr8b.service.d/50-hc.conf'
+DECISION E8b: enable hc-rr-e8b.service: REFUSED (403) plan 0.23s — starting hc-rr-e8by.service would stop homelab-control-hctest-rr8b.service, which is protected: Homelab Control's own units: stopping them would end the session that is managing them.
+EXPECT   E8b: REFUSED (hidden persistent Conflicts= / or loaded conflict)
+DECISION dpkg: warning: while removing homelab-control, directory '/usr/lib/systemd/system' not empty so not removed
+D1-running: disable hc-rr-d1.service: REFUSED (403) plan 0.12s — hc-rr-d1.service cannot be disabled here: homelab-control-hctest-rrd1.service is started at boot only through it (hc-rr-d1.service → hc-rr-d1m.service → homelab-control-hctest-rrd1.service), and homelab-control-hctest-rrd1.service is protected: Homelab Control's own units: stopping them would end the session that is managing them.. Disabling it would stop that unit from starting at the next boot.
+EXPECT   D1-running: REFUSED (protected stand-in started at boot only through it)
+DECISION D1-stopped: disable hc-rr-d1.service: REFUSED (403) plan 0.11s — hc-rr-d1.service cannot be disabled here: homelab-control-hctest-rrd1.service is started at boot only through it (hc-rr-d1.service → hc-rr-d1m.service → homelab-control-hctest-rrd1.service), and homelab-control-hctest-rrd1.service is protected: Homelab Control's own units: stopping them would end the session that is managing them.. Disabling it would stop that unit from starting at the next boot.
+EXPECT   D1-stopped: REFUSED (same, independent of running state)
+DECISION D1-all-running: disable hc-rr-d1.service: REFUSED (403) plan 0.13s — hc-rr-d1.service cannot be disabled here: homelab-control-hctest-rrd1.service is started at boot only through it (hc-rr-d1.service → hc-rr-d1m.service → homelab-control-hctest-rrd1.service), and homelab-control-hctest-rrd1.service is protected: Homelab Control's own units: stopping them would end the session that is managing them.. Disabling it would stop that unit from starting at the next boot.
+EXPECT   D1-all-running: REFUSED (same)
+STATE    D6: d6 Wants='hc-rr-d6bar.service' d6foo Id='hc-rr-d6bar.service'
+DECISION D6: disable hc-rr-d6.service: REFUSED (403) plan 0.15s — hc-rr-d6.service cannot be disabled here: it pulls in hc-rr-d6bar.service at boot (hc-rr-d6.service → hc-rr-d6bar.service), and hc-rr-d6foo.service resolves to it only until the next boot (runtime alias); at boot that name is a different unit file, which was not evaluated
+EXPECT   D6: REFUSED (runtime alias hides a persistent unit)
+STATE    D7: d7m Wants='' DropInPaths='/run/systemd/system/hc-rr-d7m.service.d/10-hc.conf'
+DECISION D7: disable hc-rr-d7.service: REFUSED (403) plan 0.20s — hc-rr-d7.service cannot be disabled here: it pulls in hc-rr-d7m.service at boot (hc-rr-d7.service → hc-rr-d7m.service), whose persistent drop-in /usr/lib/systemd/system/hc-rr-d7m.service.d/10-hc.conf applies at the next boot but is hidden by a runtime drop-in until then
+EXPECT   D7: REFUSED (runtime drop-in hides a persistent one)
+DECISION S1-enable-alias: enable hc-rr-s1v.service: ALLOWED, applied (200 succeeded) plan 0.22s starts=None stops=None
+EXPECT   S1-enable-alias: ALLOWED (enabling the alias itself)
+DECISION S1-disable-puller: disable hc-rr-s1p.service: REFUSED (403) plan 0.13s — hc-rr-s1p.service cannot be disabled here: homelab-control-hctest-rrs1.service is started at boot only through it (hc-rr-s1p.service → hc-rr-s1v.service → homelab-control-hctest-rrs1.service), and homelab-control-hctest-rrs1.service is protected: Homelab Control's own units: stopping them would end the session that is managing them.. Disabling it would stop that unit from starting at the next boot
+EXPECT   S1-disable-puller: REFUSED (the name resolves at boot to a unit not loaded now)
+INFO     runtime entries before reboot: ['hc-rr-d6cfoo.service', 'hc-rr-d6foo.service', 'hc-rr-d7cm.service.d', 'hc-rr-d7m.service.d', 'hc-rr-e7m.service.d']
+== journal (last lines)
+== systemd-analyze security
+== remove + purge
+systemd-smoke: 11 passed, 0 failed
+== /run is a tmpfs: tmpfs
+container hc-rr-ubuntu-2204-406421 (ubuntu-2204): systemd state=running
+== M2-3 boot-time review (phase post: after a fresh boot)
+INFO     runtime hc-rr entries after boot: []
+BOOT     E1-running (decision REFUSED): hc-rr-e1.service=inactive/disabled hc-rr-e1x.service=inactive/static hc-rr-e1y.service=inactive/static homelab-control-hctest-rr1.service=active/enabled
+BOOT     E1c(control) (decision n/a): hc-rr-e1c.service=active/enabled hc-rr-e1cx.service=active/static hc-rr-e1cy.service=active/static homelab-control-hctest-rr1c.service=inactive/enabled
+BOOT     E2-running (decision REFUSED): hc-rr-e2.service=inactive/disabled hc-rr-e2x.service=inactive/static
+BOOT     E3-stopped (decision REFUSED): hc-rr-e3.service=inactive/disabled hc-rr-e3z.service=active/static homelab-control-hctest-rr3.service=active/enabled
+BOOT     E3c(control) (decision n/a): hc-rr-e3c.service=inactive/enabled hc-rr-e3cz.service=active/static homelab-control-hctest-rr3c.service=active/enabled
+BOOT     E5 (decision REFUSED): hc-rr-e5.service=inactive/disabled hc-rr-e5.socket=inactive/static homelab-control-hctest-rr5.service=active/enabled
+BOOT     E5 after a connection (decision n/a): hc-rr-e5s.service=inactive/static homelab-control-hctest-rr5.service=active/enabled
+BOOT     E7e (decision REFUSED): hc-rr-e7.service=inactive/disabled hc-rr-e7m.service=inactive/static homelab-control-hctest-rr7e.service=active/enabled
+INFO     E7e at boot: e7m Conflicts='homelab-control-hctest-rr7e.service shutdown.target'
+BOOT     E8 (decision ALLOWED-succeeded): hc-rr-e8.service=active/enabled hc-rr-e8y.service=inactive/static homelab-control-hctest-rr8.service=active/enabled
+BOOT     E8b (decision REFUSED): hc-rr-e8b.service=inactive/disabled hc-rr-e8by.service=inactive/static homelab-control-hctest-rr8b.service=active/enabled
+BOOT     D1 (decision n/a): hc-rr-d1.service=active/enabled hc-rr-d1m.service=active/static homelab-control-hctest-rrd1.service=active/static
+BOOT     D6 (decision REFUSED): hc-rr-d6.service=active/enabled hc-rr-d6foo.service=active/static homelab-control-hctest-rrd6.service=active/static
+BOOT     D6c(control, not disabled) (decision n/a): hc-rr-d6c.service=active/enabled hc-rr-d6cfoo.service=active/static homelab-control-hctest-rrd6c.service=active/static
+BOOT     D7 (decision REFUSED): hc-rr-d7.service=active/enabled hc-rr-d7m.service=active/static homelab-control-hctest-rrd7.service=active/static
+BOOT     D7c(control, not disabled) (decision n/a): hc-rr-d7c.service=active/enabled hc-rr-d7cm.service=active/static homelab-control-hctest-rrd7c.service=active/static
+BOOT     S1-disable-puller (decision REFUSED): hc-rr-s1p.service=active/enabled hc-rr-s1v.service=active/enabled homelab-control-hctest-rrs1.service=active/static
+BOOT     S1c(control, not disabled) (decision n/a): hc-rr-s1cp.service=active/enabled hc-rr-s1cv.service=active/enabled homelab-control-hctest-rrs1c.service=active/static
+== journal: conflicts and jobs of hc-rr units at boot
+JOURNAL  Stopping hc-rr E1 protected stand-in...
+JOURNAL  Stopped hc-rr E1 protected stand-in.
+JOURNAL  Started hc-rr E1 conflicts with the stand-in.
+JOURNAL  Stopping hc-rr E1 conflicts with the stand-in...
+JOURNAL  Stopped hc-rr E1 conflicts with the stand-in.
+JOURNAL  Stopping hc-rr E3 protected stand-in...
+JOURNAL  Stopped hc-rr E3 protected stand-in.
+JOURNAL  Stopping hc-rr E3 bound unit...
+JOURNAL  Stopped hc-rr E3 bound unit.
+JOURNAL  Stopping hc-rr E3c protected stand-in...
+JOURNAL  Stopped hc-rr E3c protected stand-in.
+JOURNAL  Stopping hc-rr E3c bound unit...
+JOURNAL  Stopped hc-rr E3c bound unit.
+JOURNAL  Stopping hc-rr D1 running intermediate...
+JOURNAL  Stopped hc-rr D1 running intermediate.
+JOURNAL  Stopping hc-rr D1 running intermediate...
+JOURNAL  Stopping hc-rr E1 running intermediate...
+JOURNAL  Stopping hc-rr E2 running dependency...
+JOURNAL  Stopping hc-rr U1 running dependency...
+JOURNAL  Stopping hc-rr E1 protected stand-in...
+JOURNAL  Stopping hc-rr E1c protected stand-in...
+JOURNAL  Stopping hc-rr E5 protected stand-in...
+JOURNAL  Stopping hc-rr E7e protected stand-in...
+JOURNAL  Stopping hc-rr runtime drop-in...
+JOURNAL  Stopping hc-rr E8b protected stand-in...
+JOURNAL  Stopping hc-rr D1 protected stand-in...
+JOURNAL  Stopping hc-rr U1 protected stand-in...
+JOURNAL  Stopped hc-rr E1c protected stand-in.
+JOURNAL  Stopped hc-rr E5 protected stand-in.
+JOURNAL  Stopped hc-rr E7e protected stand-in.
+JOURNAL  Stopped hc-rr runtime drop-in.
+JOURNAL  Stopped hc-rr E8b protected stand-in.
+JOURNAL  Stopped hc-rr U1 protected stand-in.
+JOURNAL  Stopped hc-rr U1 running dependency.
+JOURNAL  Stopped hc-rr E1 running intermediate.
+JOURNAL  Stopped hc-rr E1 protected stand-in.
+JOURNAL  Stopped hc-rr E2 running dependency.
+JOURNAL  Stopped hc-rr D1 protected stand-in.
+JOURNAL  Stopped hc-rr D1 running intermediate.
+JOURNAL  Started hc-rr E1c conflicts.

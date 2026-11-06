@@ -21,3 +21,42 @@ func TestServicesLogsNotGrantedByDefault(t *testing.T) {
 		}
 	}
 }
+
+// M2-3: persistent service configuration (boot-time enable/disable) is never
+// granted by default and is not implied by services.operate.
+func TestServicesConfigureNotGrantedByDefault(t *testing.T) {
+	if !KnownScopes[ScopeServicesConfigure] || ScopeServicesConfigure != "services.configure" {
+		t.Fatal("services.configure must be a known scope")
+	}
+	for _, s := range strings.Split(DefaultScopes, ",") {
+		if s == ScopeServicesConfigure || s == ScopeServicesOperate || strings.HasSuffix(s, ".configure") || strings.HasSuffix(s, ".operate") {
+			t.Fatalf("default scopes grant %s", s)
+		}
+	}
+	sess := Session{Scopes: []string{ScopeServicesOperate}}
+	if sess.HasScope(ScopeServicesConfigure) {
+		t.Fatal("services.operate must not imply services.configure")
+	}
+}
+
+// M2-3 (owner authorization 2026-11-05): unit-file contents need
+// services.files, never granted by default and implied by no other scope.
+func TestServicesFilesNotGrantedByDefaultOrImplied(t *testing.T) {
+	if !KnownScopes[ScopeServicesFiles] || ScopeServicesFiles != "services.files" {
+		t.Fatal("services.files must be a known scope")
+	}
+	for _, s := range strings.Split(DefaultScopes, ",") {
+		if s == ScopeServicesFiles || strings.HasSuffix(s, ".files") {
+			t.Fatalf("default scopes grant %s", s)
+		}
+	}
+	var others []string
+	for s := range KnownScopes {
+		if s != ScopeServicesFiles {
+			others = append(others, s)
+		}
+	}
+	if (&Session{Scopes: others}).HasScope(ScopeServicesFiles) {
+		t.Fatal("every other scope together must not imply services.files")
+	}
+}

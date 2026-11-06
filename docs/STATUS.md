@@ -1,4 +1,4 @@
-# Current status — M2-2 E2/E4 closed by owner 2026-10-29; M2-3 not authorized
+# Current status — M2-3 implemented for owner review (2026-11-04); not accepted or merged
 
 Current closeout verified against `main` at `d812995e` (CI 40666815912, 21/21). The original PR #28 history below remains dated to its inspection. "Merged" means a merge commit in
 `main`'s first-parent history (PR #27 is the one exception, described below); dates are from the merge-commit
@@ -6,6 +6,36 @@ timestamps. "CI n/n" is the number of GitHub Actions check runs that succeeded o
 head commit, read from GitHub on 2026-10-25 for PRs #5–#24 (it is not a statement about later commits). For
 PRs #25–#28 only each workflow run's overall result is recorded, because the public run pages do not show
 individual job conclusions.
+
+## M2-3: expanded service management (development authorized 2026-11-04; branch, not merged)
+
+The owner authorized M2-3 development and isolated testing on 2026-11-04; acceptance, merge and production
+activation remain separate owner decisions (`docs/m2/OWNER-DECISIONS.md`, owner items O-1…O-5).
+
+- **On the branch `feature/m2-3-expanded-service-management`** (draft PR #36; current product commit
+  `c0f620de`, after five review rounds and the final candidate; findings R1–R26 in `docs/m2/M2-3-DESIGN-REVIEW.md` §7–§11):
+  boot-time enable/disable of `.service` units (scope `services.configure`, never granted by default;
+  `--no-reload`, never `--now`; disruptive with step-up; ADR 0011 plan/apply with separate tokens, locks, root
+  revalidation from disk, journal and independent read-back; both actions refused while unit files changed
+  after systemd's last load; disable refused when it would stop a protected unit from starting at boot);
+  read-only unit detail, redacted unit-file contents (`services.files`), timers and sockets; a minimal
+  compiled-in module registry (root-owned `/etc/homelab-control/modules.json`). ADR 0008 Amendment 3 and the
+  ADR 0011 extension are **proposed**. Owner decision 2026-11-05: the safety objective of P-7 is approved
+  (not its implementation).
+- **Evidence** (`docs/m2/M2-3-ACCEPTANCE.md`, `docs/evidence/m2/m2-3/review-d9946a4a/`): disposable Docker
+  containers (not VMs; SELinux disabled) with Ubuntu 26.04.1, 24.04.5, 22.04.5 and Fedora 44: smoke/M1 71/0,
+  M2-2 with expiry waits 89/0, M2-3 with expiry waits 129–130/0, broker kill 20/0 each, browser 18/18 on
+  Ubuntu 26.04 and Fedora 44. `make check` exit 0. No VM, SELinux-enforcing, Debian, openSUSE or Arch evidence;
+  B-2 (netplan's runtime unit configuration refused every enable/disable on the GitHub runner VM) addressed in
+  product commit `00fb7f2b` with the owner-approved approach P-8 option 3 (implementation for review); evidence
+  `docs/evidence/m2/m2-3/review-00fb7f2b/`. Final safety review (2026-11-05): enable trusted the current
+  running state; reproduced with real container reboots and corrected in `f8d3af2e` and `eb2fc2d4` (evidence
+  `docs/evidence/m2/m2-3/review-eb2fc2d4/`). Final candidate `c0f620de`: `services.files` (P-2, implementation
+  owner-authorized), unit search path and drop-in precedence fail closed (`review-c0f620de/`). Proposals P-1, P-3…P-6
+  and P-9 await owner approval (not decisions); P-7 objective and P-8 approach approved, implementations for review; D-10 open; KVM
+  acceptance not authorized.
+- **Still not authorized:** M2-4 and later; mask/unmask, unit editing or creation, daemon-reload, other privileged
+  writes. M2-5 and M2-6 remain mandatory before M3.
 
 ## M2-2: controlled systemd service management (authorized 2026-10-23; merged 2026-10-26, PR #28, merge commit `a3447efa`)
 

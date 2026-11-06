@@ -1,0 +1,14 @@
+container hc-probe-ubuntu-2204-362726 (ubuntu-2204): systemd state=running
+systemd 249 (249.11-0ubuntu3.23)
+  boot GeneratorsStartTimestamp=Wed 2026-11-04 11:27:46.385953 UTC
+  boot UnitsLoadStartTimestamp=Wed 2026-11-04 11:27:46.388691 UTC
+  boot UnitsLoadFinishTimestamp=Wed 2026-11-04 11:27:46.395974 UTC
+  boot ctime 2026-11-04 11:27:46.386461009 +0000 /run/systemd/generator
+  reload1 GeneratorsStartTimestamp=Wed 2026-11-04 11:27:46.385953 UTC
+  reload1 UnitsLoadStartTimestamp=Wed 2026-11-04 11:27:46.388691 UTC
+  reload1 UnitsLoadFinishTimestamp=Wed 2026-11-04 11:27:46.395974 UTC
+  reload1 ctime 2026-11-04 11:27:48.003443730 +0000 /run/systemd/generator
+  reload2 GeneratorsStartTimestamp=Wed 2026-11-04 11:27:46.385953 UTC
+  reload2 UnitsLoadStartTimestamp=Wed 2026-11-04 11:27:46.388691 UTC
+  reload2 UnitsLoadFinishTimestamp=Wed 2026-11-04 11:27:46.395974 UTC
+  reload2 ctime 2026-11-04 11:27:49.034432709 +0000 /run/systemd/generator

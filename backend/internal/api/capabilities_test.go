@@ -212,3 +212,26 @@ func TestCapabilitiesRequireSession(t *testing.T) {
 		t.Fatalf("%d", rr.Code)
 	}
 }
+
+// Unit files are their own capability (services.files): forbidden for an
+// account with every other scope, available with services.files alone.
+func TestUnitFilesCapabilityNeedsFilesScope(t *testing.T) {
+	fb := m23Fake()
+	fb.results["broker.info"].(map[string]any)["ops"] = append(fb.results["broker.info"].(map[string]any)["ops"].([]map[string]string),
+		map[string]string{"name": "services.unit.contents"})
+	others := []string{auth.ScopeSystemRead, auth.ScopeServicesRead, auth.ScopeHardwareRead, auth.ScopeServicesLogs,
+		auth.ScopeAuditRead, auth.ScopeServicesOperate, auth.ScopeServicesConfigure}
+	c := caps(t, harnessWith(t, fb, others))
+	if c["unit_files"].Status != CapForbidden || !strings.Contains(c["unit_files"].Reason, "services.files") || c["service_logs"].Status != CapAvailable {
+		t.Fatalf("without services.files: %+v / %+v", c["unit_files"], c["service_logs"])
+	}
+	c = caps(t, harnessWith(t, fb, []string{auth.ScopeServicesRead, auth.ScopeServicesFiles}))
+	if c["unit_files"].Status != CapAvailable || c["service_logs"].Status != CapForbidden {
+		t.Fatalf("with services.files: %+v / %+v", c["unit_files"], c["service_logs"])
+	}
+	fb.results["broker.info"] = map[string]any{"version": "t", "systemd_booted": true, "exec_available": []string{"systemctl"},
+		"ops": []map[string]string{{"name": "broker.info"}, {"name": "services.systemd.list"}}}
+	if c := caps(t, harnessWith(t, fb, []string{auth.ScopeServicesRead, auth.ScopeServicesFiles})); c["unit_files"].Status != CapUnavailable {
+		t.Fatalf("broker without the op: %+v", c["unit_files"])
+	}
+}

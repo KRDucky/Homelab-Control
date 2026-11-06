@@ -1,0 +1,164 @@
+[
+ {
+  "step": "B1",
+  "title": "enable preview shows link, boot vs runtime, no reload (may apply before a reboot), risk, no rollback",
+  "result": "Pass",
+  "time_utc": "2026-11-05T05:38:52Z",
+  "ui": "Enable at boot: hc-test-en-ui.service\n\nPreview \u00b7 nothing has been changed yet\n\nUnit\nhc-test-en-ui.service\nNow\ninactive (dead)\nAt boot\ndisabled (distribution preset: enabled)\nRisk\nDisruptive May interr",
+  "observer": "disabled",
+  "note": ""
+ },
+ {
+  "step": "B2",
+  "title": "focus starts on Close in the dialog",
+  "result": "Pass",
+  "time_utc": "2026-11-05T05:38:52Z",
+  "ui": "Close",
+  "observer": "",
+  "note": ""
+ },
+ {
+  "step": "B3",
+  "title": "axe: enable dialog has no violations",
+  "result": "Pass",
+  "time_utc": "2026-11-05T05:38:52Z",
+  "ui": "[]",
+  "observer": "",
+  "note": ""
+ },
+ {
+  "step": "B4",
+  "title": "confirm without password: asks for it, nothing changed",
+  "result": "Pass",
+  "time_utc": "2026-11-05T05:38:52Z",
+  "ui": "Enter your password to confirm this disruptive operation.",
+  "observer": "disabled",
+  "note": ""
+ },
+ {
+  "step": "B5",
+  "title": "enable result is verified; host enabled, link present, NOT started",
+  "result": "Pass",
+  "time_utc": "2026-11-05T05:38:53Z",
+  "ui": "Enable at boot: hc-test-en-ui.service\n\nDone \u2014 The service is enabled at boot. Observed: is-enabled reports \"enabled\"; 1 of 1 expected links present and pointing",
+  "observer": "enabled link inactive",
+  "note": ""
+ },
+ {
+  "step": "B6",
+  "title": "Escape closes the result and returns focus to the unit",
+  "result": "Pass",
+  "time_utc": "2026-11-05T05:38:53Z",
+  "ui": "<code data-unit=\"hc-test-en-ui.service\" tabindex=\"-1\">hc-test-en-ui.service</cod",
+  "observer": "",
+  "note": ""
+ },
+ {
+  "step": "B7",
+  "title": "within 5 minutes no password is asked again",
+  "result": "Pass",
+  "time_utc": "2026-11-05T05:38:53Z",
+  "ui": "password field absent",
+  "observer": "",
+  "note": ""
+ },
+ {
+  "step": "B8",
+  "title": "disable result verified on the host",
+  "result": "Pass",
+  "time_utc": "2026-11-05T05:38:53Z",
+  "ui": "Disable at boot: hc-test-en-ui.service\n\nDone \u2014 The service is disabled at boot. Observed: is-enabled reports \"disabled\";",
+  "observer": "disabled",
+  "note": ""
+ },
+ {
+  "step": "B9",
+  "title": "protected SSH unit (ssh.service): label, no enable/disable control",
+  "result": "Pass",
+  "time_utc": "2026-11-05T05:38:53Z",
+  "ui": "ssh.service\n\t\ninactive (dead)\n\t\ndisabled\n\t\nOpenBSD Secure Shell server\n\t\nLogs\n\t\nDetails\n\t\nProtected\n: Remote login (SSH)",
+  "observer": "disabled",
+  "note": ""
+ },
+ {
+  "step": "B10",
+  "title": "detail panel: path, restarts, unit file redacted (no fixture secret)",
+  "result": "Pass",
+  "time_utc": "2026-11-05T05:38:54Z",
+  "ui": "{'no fixture secret': True, 'value redacted': True, 'restart counter': True, 'unit file path': True}",
+  "observer": "",
+  "note": "Details: hc-test-en-ui.service | Refresh | Close | systemd has no record of the main process running since the manager started. | This unit is installed but was not loaded; systemd loaded its definition only to answer this query. Nothing was changed. | systemd's loaded copy differs from the files on disk (NeedDaemonReload=yes); the dependencies shown are those systemd has loaded. | Unit | hc-test-en-ui.service | Description | M2-3 browser fixture (example) | State | inactive (dead) | At boot | disabled (distribution preset: enabled) | Unit file | /etc/systemd/system/hc-test-en-ui.service | Service type | simple, Restart=no | Automatic restarts | 0 since the manager started | Dependencies (8) | After | basic.targetsysinit.targetsystem.slicesystemd-journald.socket | Before | shutdown.target | Conflicts with | shutdown.target | Requires | sysinit.targetsystem.slice | Unit file |  | 1 line r"
+ },
+ {
+  "step": "B11",
+  "title": "axe: detail panel has no violations",
+  "result": "Pass",
+  "time_utc": "2026-11-05T05:38:54Z",
+  "ui": "[]",
+  "observer": "",
+  "note": ""
+ },
+ {
+  "step": "B12",
+  "title": "ArrowRight selects Timers; fixture timer schedule shown (systemd normalises 'daily')",
+  "result": "Pass",
+  "time_utc": "2026-11-05T05:38:54Z",
+  "ui": "hc-test-en-ui.timer\n\t\nactive (waiting)\n\t\nOnCalendar=*-*-* 00:00:00\n\t\n11/5/2026, 6:00:00 PM\n\t\n\u2014\n\t\nhc-test-en-ui-timer.service\n\t\nyes\n\t\ndisabled",
+  "observer": "{ OnCalendar=*-*-* 00:00:00 ; next_elapse=Fri 2026-11-06 00:00:00 UTC }",
+  "note": ""
+ },
+ {
+  "step": "B13",
+  "title": "End selects Sockets; broker socket path shown",
+  "result": "Pass",
+  "time_utc": "2026-11-05T05:38:54Z",
+  "ui": "homelab-control-broker.socket\n\t\nactive (running)\n\t\n/run/homelab-control/broker.sock\n\t\nhomelab-control-broker.service\n\t\ndisabled",
+  "observer": "",
+  "note": ""
+ },
+ {
+  "step": "B14",
+  "title": "axe: sockets view has no violations",
+  "result": "Pass",
+  "time_utc": "2026-11-05T05:38:54Z",
+  "ui": "[]",
+  "observer": "",
+  "note": ""
+ },
+ {
+  "step": "B15",
+  "title": "phone/laptop \u00d7 Midnight/Daybreak: no overflow, axe clean",
+  "result": "Pass",
+  "time_utc": "2026-11-05T05:38:59Z",
+  "ui": "",
+  "observer": "",
+  "note": ""
+ },
+ {
+  "step": "B16",
+  "title": "nothing changed by the reviewed-but-closed dialog",
+  "result": "Pass",
+  "time_utc": "2026-11-05T05:38:59Z",
+  "ui": "",
+  "observer": "disabled",
+  "note": ""
+ },
+ {
+  "step": "B17",
+  "title": "module disabled: page explains, navigation hides Services",
+  "result": "Pass",
+  "time_utc": "2026-11-05T05:39:01Z",
+  "ui": "Services\n\nThis module is disabled on this host. Disabled by the host administrator in /etc/homelab-control/modules.json.",
+  "observer": "",
+  "note": ""
+ },
+ {
+  "step": "B18",
+  "title": "no page errors or CSP violations",
+  "result": "Pass",
+  "time_utc": "2026-11-05T05:39:01Z",
+  "ui": "[]",
+  "observer": "",
+  "note": ""
+ }
+]

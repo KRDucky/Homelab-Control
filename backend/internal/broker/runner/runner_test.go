@@ -60,13 +60,18 @@ func TestShellMetacharactersRejected(t *testing.T) {
 
 func TestEnvironmentReplaced(t *testing.T) {
 	t.Setenv("HC_SECRET_TOKEN", "leak-me")
+	// systemctl computes its own unit lookup path from these: never inherited
+	// (the review checks PID 1's UnitPath; the client must use the same path).
+	t.Setenv("SYSTEMD_UNIT_PATH", "/tmp/leak-units:")
+	t.Setenv("SYSTEMD_ROOT", "/tmp/leak-root")
 	r := testRunner(t)
 	res, err := r.Run(context.Background(), "env")
 	if err != nil {
 		t.Fatal(err)
 	}
 	out := string(res.Stdout)
-	if strings.Contains(out, "leak-me") || !strings.Contains(out, "LC_ALL=C.UTF-8") || !strings.Contains(out, "SYSTEMD_COLORS=0") {
+	if strings.Contains(out, "leak-me") || strings.Contains(out, "SYSTEMD_UNIT_PATH") || strings.Contains(out, "leak-root") ||
+		!strings.Contains(out, "LC_ALL=C.UTF-8") || !strings.Contains(out, "SYSTEMD_COLORS=0") {
 		t.Fatalf("environment not replaced: %s", out)
 	}
 }
@@ -157,18 +162,42 @@ func TestRootTemplatesAreClosed(t *testing.T) {
 		RootSystemctlStop:    "systemctl --no-ask-password --job-mode=fail stop -- demo.service",
 		RootSystemctlRestart: "systemctl --no-ask-password --job-mode=fail restart -- demo.service",
 		RootSystemctlShow:    "systemctl " + strings.Join(SystemctlShowArgs("demo.service"), " "),
+		// M2-3 (ADR 0008 Amendment 3): no --now, no --runtime, never a reload.
+		RootSystemctlEnable:      "systemctl --no-ask-password --no-reload enable -- demo.service",
+		RootSystemctlDisable:     "systemctl --no-ask-password --no-reload disable -- demo.service",
+		RootSystemctlIsEnabled:   "systemctl is-enabled -- demo.service",
+		RootSystemctlShowInstall: "systemctl show --no-pager --property=Id --property=Names --property=LoadState --property=FragmentPath --property=SourcePath --property=DropInPaths --property=Transient --property=NeedDaemonReload --property=UnitFilePreset -- demo.service",
+		// PR #36 review (probe 8): manager unit-load timestamps, no target.
+		RootSystemctlShowManager: "systemctl show --no-pager --timestamp=us+utc --property=UnitsLoadStartTimestamp --property=UnitsLoadStartTimestampMonotonic --property=UnitsLoadTimestamp --property=UnitsLoadTimestampMonotonic --property=UnitPath",
 	}
 	if len(rootTemplates) != len(want) {
 		t.Fatalf("%d root templates, want %d — new root templates need review", len(rootTemplates), len(want))
 	}
 	for id, w := range want {
-		argv, err := RootArgv(id, "demo.service")
+		targets := []string{"demo.service"}
+		if id == RootSystemctlShowManager {
+			targets = nil
+			if _, err := RootArgv(id, "demo.service"); !errors.Is(err, ErrBadArg) {
+				t.Errorf("%s accepted a target", id)
+			}
+		}
+		argv, err := RootArgv(id, targets...)
 		if err != nil || rootTemplates[id].binary+" "+strings.Join(argv, " ") != w {
 			t.Errorf("%s: %v %v", id, argv, err)
 		}
 	}
-	if _, err := RootArgv("systemctl.enable", "demo.service"); !errors.Is(err, ErrUnknownTemplate) {
-		t.Errorf("unknown template: %v", err)
+	for _, unknown := range []RootTemplate{"systemctl.mask", "systemctl.unmask", "systemctl.daemon-reload", "systemctl.edit", "systemctl.reenable", "systemctl.preset", "systemctl.link"} {
+		if _, err := RootArgv(unknown, "demo.service"); !errors.Is(err, ErrUnknownTemplate) {
+			t.Errorf("unknown template %s: %v", unknown, err)
+		}
+	}
+	for id, tpl := range rootTemplates {
+		for _, a := range tpl.argv {
+			switch a {
+			case "--now", "--runtime", "--force", "--global", "--user", "daemon-reload", "mask", "unmask", "reenable", "preset", "link", "edit":
+				t.Errorf("%s contains forbidden argument %q", id, a)
+			}
+		}
 	}
 	if _, err := RootArgv("sh", "-c id"); !errors.Is(err, ErrUnknownTemplate) {
 		t.Errorf("shell template: %v", err)
@@ -180,14 +209,20 @@ func TestRootTargetValidation(t *testing.T) {
 		"foo@.service", "../x.service", "a/b.service", "x\n.service", "x\x00.service", "foo\\x2d.service",
 		strings.Repeat("a", 101) + ".service", "-.mount", "x.unknowntype"} {
 		for id := range rootTemplates {
-			if _, err := RootArgv(id, bad); !errors.Is(err, ErrBadArg) {
+			if _, err := RootArgv(id, bad); !errors.Is(err, ErrBadArg) && !(id == RootSystemctlShowManager && bad == "") {
 				t.Errorf("%s %q: %v", id, bad, err)
 			}
 		}
 	}
 	// Writes take exactly one .service unit; the read-only query takes any
 	// unit type, at most 32 at a time.
-	for _, id := range []RootTemplate{RootSystemctlStart, RootSystemctlStop, RootSystemctlRestart} {
+	for _, id := range []RootTemplate{RootSystemctlEnable, RootSystemctlDisable} {
+		if _, err := RootArgv(id, "getty@tty1.service"); !errors.Is(err, ErrBadArg) {
+			t.Errorf("%s accepted a template instance", id)
+		}
+	}
+	for _, id := range []RootTemplate{RootSystemctlStart, RootSystemctlStop, RootSystemctlRestart,
+		RootSystemctlEnable, RootSystemctlDisable, RootSystemctlIsEnabled, RootSystemctlShowInstall} {
 		if _, err := RootArgv(id, "x.socket"); !errors.Is(err, ErrBadArg) {
 			t.Errorf("%s accepted a socket", id)
 		}
@@ -220,6 +255,7 @@ func TestRootTargetValidation(t *testing.T) {
 // mapped to echo/env so the exact argv and environment of the child are visible.
 func TestRootRunUsesFixedArgvAndScrubbedEnv(t *testing.T) {
 	t.Setenv("HC_SECRET_TOKEN", "leak-me")
+	t.Setenv("SYSTEMD_UNIT_PATH", "/tmp/leak-me-units:")
 	saved := allowlist
 	allowlist = map[string][]string{"systemctl": {"/usr/bin/echo", "/bin/echo"}}
 	t.Cleanup(func() { allowlist = saved })

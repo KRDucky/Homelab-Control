@@ -1,0 +1,16 @@
+container hc-probe-ubuntu-2604-362724 (ubuntu-2604): systemd state=degraded
+systemd 259 (259.9-0ubuntu0.1)
+  boot GeneratorsStartTimestamp=Wed 2026-11-04 11:27:46.624330 UTC
+  boot UnitsLoadStartTimestamp=Wed 2026-11-04 11:27:46.629154 UTC
+  boot UnitsLoadFinishTimestamp=Wed 2026-11-04 11:27:46.645436 UTC
+  boot ctime 2026-11-04 11:27:46.627623107 +0000 /run/systemd/generator
+  reload1 GeneratorsStartTimestamp=Wed 2026-11-04 11:27:46.624330 UTC
+  reload1 UnitsLoadStartTimestamp=Wed 2026-11-04 11:27:46.629154 UTC
+  reload1 UnitsLoadFinishTimestamp=Wed 2026-11-04 11:27:46.645436 UTC
+  reload1 UnitsLoadTimestamp=Wed 2026-11-04 11:27:49.259209 UTC
+  reload1 ctime 2026-11-04 11:27:49.265559556 +0000 /run/systemd/generator
+  reload2 GeneratorsStartTimestamp=Wed 2026-11-04 11:27:46.624330 UTC
+  reload2 UnitsLoadStartTimestamp=Wed 2026-11-04 11:27:46.629154 UTC
+  reload2 UnitsLoadFinishTimestamp=Wed 2026-11-04 11:27:46.645436 UTC
+  reload2 UnitsLoadTimestamp=Wed 2026-11-04 11:27:50.301110 UTC
+  reload2 ctime 2026-11-04 11:27:50.307637651 +0000 /run/systemd/generator

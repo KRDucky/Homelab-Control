@@ -1,0 +1,7 @@
+Ubuntu 26.04 LTS; systemd 259 (259.5-0ubuntu3); kernel 7.0.0-1017-azure
+   systemd 259 (259.5-0ubuntu3); units=290; failed=1
+m2-service-ops: 86 passed, 0 failed
+INFO  NeedDaemonReload after --no-reload enable: yes (systemd 259 (259.5-0ubuntu3))
+INFO  /run/systemd/system before 6f: []
+m2-3-enablement: 138 passed, 0 failed
+systemd-smoke: 70 passed, 0 failed

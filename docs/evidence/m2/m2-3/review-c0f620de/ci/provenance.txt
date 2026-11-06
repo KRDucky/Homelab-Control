@@ -1,0 +1,6 @@
+CI run 42026882569 (event pull_request, attempt 1): 21/21 jobs success
+PR #36 head: 40801659e44a77749a6a172a8f6564ae1c733419 tree 3eaa5278fd2163322c21aa5e6c4c0166f25b4b45
+merge ref:   71fb621cf7d2a0169fad3e2198851a5b5e0c9009 tree 3eaa5278fd2163322c21aa5e6c4c0166f25b4b45
+merge parents: 81ee254f6fd1fb22531116a390903afd26b3918f 40801659e44a77749a6a172a8f6564ae1c733419  (main on GitHub = 81ee254f6fd1fb22531116a390903afd26b3918f)
+product commit c0f620de; git diff --stat c0f620de 40801659 -- backend frontend schemas packaging cmd: empty
+artifact: gh run download 42026882569 -n build; sha256sum -c SHA256SUMS: hc-api OK, hc-broker OK, hlctl OK
