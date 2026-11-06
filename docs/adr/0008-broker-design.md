@@ -190,17 +190,17 @@ Proposed with the owner's M2-3 development authorization of 2026-11-04 (scope in
 
 Proposed with the owner's 2026-11-06 choice to finish M2-6 apply after the read-only skeleton (PR #40)
 landed on main; **not accepted until the owner accepts M2-6 apply**. Scope:
-`/containers/workspaces/hc-team/shared/m2-6-apply-lead-scope.md` and `docs/m2/M2-6-HOST-SETTINGS-SKELETON.md`
-(deferred apply). This amendment does not authorize NTP, network, users, D-Bus live view, kernel UTS writes,
+`/containers/workspaces/hc-team/shared/m2-6-apply-lead-scope.md` and `docs/m2/M2-6-HOST-SETTINGS-SKELETON.md`.
+This amendment does not authorize NTP, network, users, D-Bus live view, kernel UTS writes,
 or other hostnamectl/timedatectl verbs.
 
 - **Two new allow-listed binaries:** `hostnamectl` and `timedatectl`, resolved like `systemctl` (`/usr/bin`
   then `/bin`), root-owned and not group/world-writable. `TestJournalctlIsTheOnlyNewBinary` is updated.
 - **Six new root templates**, values after `--`, validated again by the runner using
   `hostinfo.ValidStaticHostname` / `ValidPrettyHostname` / `ValidTimezoneName`:
-  - `hostnamectl.set-static` = `hostnamectl set-hostname --static -- <name>`
-  - `hostnamectl.set-pretty` = `hostnamectl set-hostname --pretty -- <name>` (empty name is removal)
-  - `timedatectl.set-timezone` = `timedatectl set-timezone -- <Area/City>`
+  - `hostnamectl.set-static` = `hostnamectl --no-ask-password set-hostname --static -- <name>`
+  - `hostnamectl.set-pretty` = `hostnamectl --no-ask-password set-hostname --pretty -- <name>` (empty name is removal)
+  - `timedatectl.set-timezone` = `timedatectl --no-ask-password set-timezone -- <Area/City>`
   - `hostnamectl.status` = `hostnamectl --no-ask-password status` (read-only, no target)
   - `timedatectl.status` = `timedatectl --no-ask-password status` (read-only, no target)
   - `timedatectl.list-timezones` = `timedatectl --no-ask-password list-timezones` (read-only, no target)

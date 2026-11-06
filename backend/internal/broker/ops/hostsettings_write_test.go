@@ -282,6 +282,29 @@ func TestHostSettingsApplyRequiresRootHandle(t *testing.T) {
 	}
 }
 
+func TestHostSettingsApplyStopsOnFirstFailedField(t *testing.T) {
+	h := newHSEnv(t)
+	h.fake.failSet = "pretty"
+	plan, err := hostSettingsPlan(context.Background(), h.env, hsArgs(ptr("nas-01"), ptr(""), ptr("Etc/UTC")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := hostSettingsApply(context.Background(), h.env, hsApplyArgs(ptr("nas-01"), ptr(""), ptr("Etc/UTC"), plan.(HostSettingsPlan).Token))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := out.(HostSettingsOutcome)
+	if got.Outcome != OutcomeFailed {
+		t.Fatalf("%+v", got)
+	}
+	if strings.Join(h.fake.acts, ",") != "static,pretty" {
+		t.Fatalf("later fields ran after a failure: %v", h.fake.acts)
+	}
+	if h.fake.static != "nas-01" || h.fake.tz != "Europe/Berlin" {
+		t.Fatalf("expected static applied and timezone left unchanged (no rollback): static=%s tz=%s", h.fake.static, h.fake.tz)
+	}
+}
+
 func TestHostSettingsUnchangedRefused(t *testing.T) {
 	h := newHSEnv(t)
 	_, err := hostSettingsPlan(context.Background(), h.env, hsArgs(ptr("fixture-static"), nil, nil))
