@@ -57,6 +57,8 @@ func TestRegistryIsClosed(t *testing.T) {
 		"services.unit.contents":    {PrivUnprivilegedExec, "services.files", ""},
 		"services.enablement.plan":  {PrivRootRead, "services.configure", "plan"},
 		"services.enablement.apply": {PrivRootExec, "services.configure", "apply"},
+		"host.settings.plan":        {PrivUnprivilegedExec, "host.settings.apply", "plan"},
+		"host.settings.apply":       {PrivRootExec, "host.settings.apply", "apply"},
 	}
 	if len(reg) != len(snapshot) {
 		t.Fatalf("registry has %d ops, want %d — new ops need review and this test updated", len(reg), len(snapshot))
@@ -73,7 +75,7 @@ func TestRegistryIsClosed(t *testing.T) {
 		phase := ""
 		if op.Write != nil {
 			phase = op.Write.Phase
-			wantLock := map[string]string{"services.unit": "service:<unit id>", "services.enablement": "service:<unit id>+unit-files"}[strings.TrimSuffix(strings.TrimSuffix(name, ".plan"), ".apply")]
+			wantLock := map[string]string{"services.unit": "service:<unit id>", "services.enablement": "service:<unit id>+unit-files", "host.settings": "host-settings"}[strings.TrimSuffix(strings.TrimSuffix(name, ".plan"), ".apply")]
 			if op.Write.LockDomain != wantLock || len(op.Write.Risks) == 0 || op.AuditArgs == nil {
 				t.Errorf("%s: incomplete write spec %+v", name, op.Write)
 			}
@@ -109,6 +111,16 @@ func TestRegistryIsClosed(t *testing.T) {
 	}
 	if fmt.Sprint(reg["services.enablement.plan"].Write.Risks) != "[disruptive]" || fmt.Sprint(reg["services.enablement.apply"].Write.Risks) != "[disruptive]" {
 		t.Error("enablement must be classified disruptive (step-up)")
+	}
+	got = reg["host.settings.apply"].Write.Templates
+	if fmt.Sprint(got) != "[hostnamectl.set-static hostnamectl.set-pretty timedatectl.set-timezone hostnamectl.status timedatectl.status timedatectl.list-timezones]" {
+		t.Errorf("host.settings apply templates: %v", got)
+	}
+	if fmt.Sprint(reg["host.settings.plan"].Write.Risks) != "[reversible]" || fmt.Sprint(reg["host.settings.apply"].Write.Risks) != "[reversible]" {
+		t.Error("host.settings must stay reversible (no silent step-up)")
+	}
+	if reg["host.settings.plan"].Scope != "host.settings.apply" || reg["host.settings.apply"].Scope != "host.settings.apply" {
+		t.Error("host.settings plan/apply must require host.settings.apply, never host.settings.preview")
 	}
 }
 

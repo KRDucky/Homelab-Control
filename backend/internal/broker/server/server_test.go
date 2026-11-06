@@ -407,3 +407,20 @@ func TestEnablementOpsNeedConfigureScopeEndToEnd(t *testing.T) {
 		t.Errorf("contents with every scope but services.files: %v", err)
 	}
 }
+
+// M2-6: the broker re-checks host.settings.apply; preview, operate and
+// configure never reach the host-settings ops.
+func TestHostSettingsOpsNeedApplyScopeEndToEnd(t *testing.T) {
+	f := start(t)
+	for _, op := range []string{"host.settings.plan", "host.settings.apply"} {
+		var out json.RawMessage
+		err := brokerclient.New(f.sock).CallWithArgs(context.Background(), op,
+			map[string]string{"static_hostname": "nas-01", "token": "x"},
+			proto.Actor{User: "tester", Session: "s", Scopes: []string{
+				"system.read", "host.settings.preview", "services.operate", "services.configure", "audit.read",
+			}}, &out)
+		if code(err) != proto.CodeForbidden {
+			t.Errorf("%s without host.settings.apply: %v", op, err)
+		}
+	}
+}
