@@ -313,3 +313,47 @@ func TestHostSettingsUnchangedRefused(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 }
+
+func TestHostSettingsBusy(t *testing.T) {
+	h := newHSEnv(t)
+	plan, err := hostSettingsPlan(context.Background(), h.env, hsArgs(ptr("nas-01"), nil, nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rel, err := h.env.Writes.Lock(hostSettingsLock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rel()
+	_, err = hostSettingsPlan(context.Background(), h.env, hsArgs(ptr("nas-01"), nil, nil))
+	var pe *proto.Error
+	if !errors.As(err, &pe) || pe.Code != proto.CodeBusy {
+		t.Fatalf("plan on locked host-settings: %v", err)
+	}
+	_, err = hostSettingsApply(context.Background(), h.env, hsApplyArgs(ptr("nas-01"), nil, nil, plan.(HostSettingsPlan).Token))
+	if !errors.As(err, &pe) || pe.Code != proto.CodeBusy {
+		t.Fatalf("apply on locked host-settings: %v", err)
+	}
+	if len(h.fake.acts) != 0 {
+		t.Fatalf("executed while locked: %v", h.fake.acts)
+	}
+}
+
+func TestHostSettingsRejectsServicesUnitToken(t *testing.T) {
+	h := newHSEnv(t)
+	tok, _, err := h.env.Writes.Mint(writes.Binding{
+		Op: serviceOpName, Action: "start", Target: "demo.service",
+		Actor: h.env.Actor.User, Session: h.env.Actor.Session, StateDigest: "other-op", Risk: RiskReversible,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = hostSettingsApply(context.Background(), h.env, hsApplyArgs(ptr("nas-01"), nil, nil, tok))
+	var pe *proto.Error
+	if !errors.As(err, &pe) || pe.Code != proto.CodeInvalidToken {
+		t.Fatalf("services.unit token on host.settings.apply: %v", err)
+	}
+	if len(h.fake.acts) != 0 {
+		t.Fatalf("cross-op token executed: %v", h.fake.acts)
+	}
+}
