@@ -1,6 +1,7 @@
-# Current status — M2 working skeletons on main (2026-11-07); working-skeleton close is docs+tests, not accepted
+# Current status — M2 working skeletons and M3 plugin SDK first checkpoint on main (2026-11-07); not accepted
 
-Reconciled against `origin/main` at `b290f9dc` (PR #52 squash, 2026-11-07). Git first-parent history is the
+Reconciled against `origin/main` at `20ddc2b7` (PR #54 squash `20ddc2b7` on PR #53 `9fc9d8af` on
+`b290f9dc`, 2026-11-07). Git first-parent history is the
 source for merge state. "Merged" means a first-parent commit on `main` (a merge commit, or a squash after
 PR #28); PR #27 is the one earlier exception, described below. Dates are UTC, from those commit timestamps.
 "CI n/n" is the number of GitHub Actions check runs that succeeded out of those run on the PR's
@@ -9,21 +10,25 @@ PRs #25–#28 only each workflow run's overall result is recorded, because the p
 individual job conclusions. CI counts already printed for those PRs were not re-read for this STATUS
 update. This file does not close M2, accept an ADR, or record production or KVM acceptance.
 The working-skeleton close bar (ask_ui `m2-close-m3-d8`) is docs and tests: isolated Playwright+axe for
-layout (on `main` as PRs #48 and #52), `/files`, and host-settings preview. Those last two scripts are
-opt-in, labelled-fixture only, and not in CI. Owner merge of that remaining test/docs fold is required
-before calling working-skeleton close done. M3 Theme/Plugin SDK is authorized for isolated development
-after that (D-8; keep `docs/project/04-ROADMAP.md`). This is not M2 close, not production, not KVM
-acceptance, and not ADR acceptance.
+layout (on `main` as PRs #48 and #52), `/files`, and host-settings preview. Those scripts are opt-in,
+labelled-fixture only, and not in CI. PR #53 (`9fc9d8af`, 2026-11-07) folded the remaining files
+Origin GET + host-settings Playwright checks, putting the working-skeleton close evidence on `main` (not
+accepted). M3 Theme/Plugin SDK is authorized for isolated development after that (D-8; keep
+`docs/project/04-ROADMAP.md`); its first checkpoint is on `main` as PR #54 (`20ddc2b7`). This is not M2
+close, not production, not KVM acceptance, and not ADR acceptance.
 
-## M3 plugin SDK — first checkpoint (development note; not M3 acceptance, not M2 close)
+## M3 plugin SDK — first checkpoint on main (development note; not M3 acceptance, not M2 close)
 
-Isolated development of the plugin half of the M3 Theme/Plugin SDK on a throwaway branch from `origin/main`
-`b290f9dc` (PR #52), not stacked on draft PR #53. Ships the declarative read-only sample plugin:
-`schemas/plugin/v1.json` (MIT), `sdk/plugin/` PDK v1 validator, the in-tree `plugins/sample-readonly/`
-fixture, a compiled-in `overview.sample-card` contribution with browser-local load/unload (new
-`hc.plugins.v1` key; no route, scope, `state.db` row or broker op), and a Proposed ADR 0013
-(plugin isolation / declarative contributions). No executable payload. This is a working note only —
-not M3 acceptance, not a merge, and it does not claim ADR 0010 server persistence is done.
+The plugin half of the M3 Theme/Plugin SDK landed on `main` as PR #54 (squash `20ddc2b7`, on PR #53
+`9fc9d8af`, on `b290f9dc`). It ships the declarative read-only sample plugin: `schemas/plugin/v1.json`
+(MIT), `sdk/plugin/` PDK v1 validator, the in-tree `plugins/sample-readonly/` fixture, a compiled-in
+`overview.sample-card` contribution with browser-local load/unload (new `hc.plugins.v1` key; no route,
+scope, `state.db` row or broker op), and a Proposed ADR 0013 (plugin isolation / declarative
+contributions). No executable payload. This slice folds the closeout nits (component-element render,
+Appearance checkbox event subscription, docs filename) and an opt-in Playwright+axe fixture
+(`tests/e2e/plugin_browser.py`, reusing `TestStorageBrowserFixture`). The checkpoint never reads a
+user-supplied manifest. This is a working note only — not M3 acceptance, not a merge, and it does not
+claim ADR 0010 server persistence is done.
 
 ## M2-3: expanded service management (development authorized 2026-11-04; working skeleton on main, not accepted)
 
@@ -234,6 +239,10 @@ The owner authorized completing the remaining frontend and adding a user Theme D
 - PR #51 (owner 2026-11-07 product-scope catalog fold): squash-merged 2026-11-07 as `4c183eab`.
 - PR #52 (layout selected-bay contrast: inherit signal-ink on filled-button muted/tag): squash-merged
   2026-11-07 as `b290f9dc`.
+- PR #53 (working-skeleton close: files Origin GET + host-settings Playwright, not acceptance):
+  squash-merged 2026-11-07 as `9fc9d8af`.
+- PR #54 (M3 read-only sample plugin SDK first checkpoint, not acceptance): squash-merged 2026-11-07 as
+  `20ddc2b7`.
 
 ## M2 PR-1 (authorized 2026-10-21; D-1, D-6, D-7 approved): merged, read-only
 - PR #11 (planning) merged 2026-10-21 as `6e0f6218`. Its last commit (the D-1/D-6/D-7 record and the D-12
