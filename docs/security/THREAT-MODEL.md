@@ -161,6 +161,29 @@ load of a target) and `systemctl status` on the host shows the old enablement un
 the operator's decision (`services.configure`, never granted by default); redaction can miss secrets in
 unusual syntax; the ADR 0011 limit for a compromised `hc-api` applies unchanged.
 
+## M2-6 additions: hostname and timezone apply (proposed; ADR 0008 Amendment 4, ADR 0011 extension)
+
+New capability: set the static host name, pretty host name (empty = removal) and time zone through closed
+`hostnamectl`/`timedatectl` argv templates, plan → confirm → apply. Preview (`host.settings.preview`) stays
+non-executing and never authorizes plan or apply. Not registered in `modules.json` (core route, like storage).
+Status below is "implemented, tested" only where tests exist on this branch; owner acceptance is pending.
+
+| Threat | Example | Control | Status |
+|---|---|---|---|
+| Elevation of privilege | `hostnamectl set-chassis`, `timedatectl set-ntp` / `set-time`, caller-supplied argv, a shell | Two binaries on the allow-list; six closed templates; values after `--`; runner validators; snapshot tests forbid other verbs | Implemented, tested (unit, template snapshot) |
+| Elevation of privilege | `host.settings.preview` or `system.read` used to plan or apply | Separate scope `host.settings.apply` in `KnownScopes`, not `DefaultScopes`; API `Server.handle` and the broker both check it | Implemented, tested (API 403, broker e2e) |
+| Spoofing / replay | A start token used to set the hostname, or an apply token reused | Token op `host.settings`, action `set`, target `host`; 120 s single-use consume; replay is `invalid_token` | Implemented, tested |
+| Tampering (TOCTOU) | Hostname or timezone changed on the host after review | Digest of observed statuses/values plus requested fields; lock `host-settings`; mismatch is `conflict` and nothing runs | Implemented, tested |
+| Tampering (integrity of results) | UI reports a kernel rename that `ProtectHostname=yes` hid from `hc-api` | Read-back is hostnamectl/timedatectl; notes say the kernel name seen by hc-api may stay at start-time | Implemented, tested |
+| Information disclosure | Requested host names, pretty names, time zones or the plan token in the API audit or the operation journal | Audit args are field names only; journal Observed is statuses and field names; tokens never logged | Implemented, tested |
+| Denial of service | Two applies at once | Exclusive lock `host-settings`; second caller gets `busy` | Implemented, tested (unit) |
+| Denial of service (identity) | Static host name changed without warning about TLS, mDNS or `/etc/hosts` | Plan payload includes that warning when static would change; confirmation required | Implemented, tested |
+
+**Limitations:** packaged `hc-api` cannot observe a kernel UTS rename; Homelab Control does not update
+certificates, mDNS or `/etc/hosts`; NTP, network and users/groups are out of scope; the ADR 0011 limit for
+a compromised `hc-api` applies unchanged (it can request any host-settings change the broker's templates
+allow). Isolated fixtures only; this slice does not run apply against a production or retained host.
+
 ## Residual risks after M1
 1. The legacy Webmin UI at 2.670 still lacks post-2.670 upstream fixes (`docs/upstream/SYNC.md`).
 2. `systemctl` JSON output is not a stable API; parsers are tolerant and tested against systemd 249/255 only.

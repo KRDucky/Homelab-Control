@@ -1,22 +1,30 @@
-# M2-6 host settings — working skeleton (not accepted)
+# M2-6 host settings — working slice (not accepted)
 
-Status 2026-11-06: owner-authorized skeleton-first development (project conversation, 2026-11-05/06). This is a read-only slice. It is not M2-6 acceptance, and it does not authorize any host write.
+Status 2026-11-06: owner-authorized apply after the read-only skeleton (PR #40 on main). The backend implements GET, preview, plan and apply. **This is not M2-6 acceptance.** ADR 0008 Amendment 4 and ADR 0011 M2-6 extension remain **Proposed**. Isolated fixtures only; no production or retained-host apply.
 
 ## What exists
 
 | Route | Scope | What it does |
 |---|---|---|
 | `GET /api/v1/host/settings` | `system.read` (already default; the overview already shows the kernel host name) | Kernel, static and pretty host name and time zone, from unprivileged file reads in `hc-api` |
-| `POST /api/v1/host/settings/preview` | `host.settings.preview` (new; **not** in `DefaultScopes`) | Validates requested values and compares them with the observed ones. **Never changes the host** |
+| `POST /api/v1/host/settings/preview` | `host.settings.preview` (**not** in `DefaultScopes`) | Validates requested values and compares them with the observed ones. **Never changes the host**; this scope never authorizes plan or apply |
+| `POST /api/v1/host/settings/plan` | `host.settings.apply` (**not** in `DefaultScopes`, never implied by preview) | ADR 0011 review: hostnamectl/timedatectl observed values, reversible risk, TLS/mDNS/`/etc/hosts` warning, single-use plan token. Nothing is changed |
+| `POST /api/v1/host/settings/apply` | `host.settings.apply` | Execute the reviewed change with closed `hostnamectl`/`timedatectl` templates; journaled; verified by reading hostnamectl/timedatectl back |
 
 Sources (`backend/internal/hostinfo/hostsettings.go`): `/proc/sys/kernel/hostname`, `/etc/hostname` (first non-comment line), `PRETTY_HOSTNAME` in `/etc/machine-info`, the `/etc/localtime` link target (or `/etc/timezone` when `/etc/localtime` is a copy). Each value is `observed`, `not-set` (the file is absent or empty) or `unavailable` (unknown; no value is guessed). The kernel host name is the one `hc-api` sees: the packaged unit sets `ProtectHostname=yes`, so it is the host name when the service started.
 
 ### Why the preview cannot execute
 
-- It is served by `hc-api`, which cannot spawn processes (`guard` tests). It calls no broker operation; there is no new broker op, no `hostnamectl`/`timedatectl` template and no apply or plan route.
-- It only reads: the current values and, for a time zone, whether `/usr/share/zoneinfo/<name>` is a regular file starting with `TZif` (opened through `os.Root`, so a link cannot leave the database).
-- Every response carries `preview_only: true`, `executed: false`, `host_changed: false`, `apply_available: false` and the notice "Preview only. Nothing was changed on this host…". The UI shows a "Preview only" banner, a "Preview (does not apply)" button and a "Preview result — not applied" table caption.
+- It is served by `hc-api`, which cannot spawn processes (`guard` tests). Preview calls no broker write. Plan and apply are separate routes with scope `host.settings.apply`; `host.settings.preview` never authorizes them.
+- Preview only reads: the current values and, for a time zone, whether `/usr/share/zoneinfo/<name>` is a regular file starting with `TZif` (opened through `os.Root`, so a link cannot leave the database).
+- Every preview response carries `preview_only: true`, `executed: false`, `host_changed: false`. `apply_available` is true when this server's broker has `host.settings.apply` and both binaries; the preview still does not apply.
 - Unsafe-method protections apply as for every POST: session, Origin check, per-session CSRF token, scope. The preview is audited (`host.settings.preview`) with field names only, never the requested values.
+
+### Apply (backend; not accepted)
+
+- Closed templates (values after `--`): `hostnamectl --no-ask-password set-hostname --static|--pretty -- <name>`, `timedatectl --no-ask-password set-timezone -- <Area/City>`, plus read-only status and `list-timezones`. Empty pretty name is removal.
+- Risk class `reversible`; confirmation required; no step-up. Multi-field apply stops on the first failed field; there is no automatic rollback.
+- Honest read-back is hostnamectl/timedatectl. Packaged `hc-api` uses `ProtectHostname=yes`; the kernel host name seen by the API may stay at start-time.
 
 ### Validation policy (preview)
 
@@ -26,12 +34,11 @@ Sources (`backend/internal/hostinfo/hostsettings.go`): `/proc/sys/kernel/hostnam
 
 ## Tests
 
-- Go: `internal/hostinfo/hostsettings_test.go` (fixture reads, not-set vs unavailable, link confinement, validators); `internal/api/hostsettings_test.go` (401/403, Origin and CSRF refusals, separate non-default scope, unavailable collector → 503, preview leaves a hashed copy of the fixture tree unchanged and reports `executed:false`, no apply/plan route, audit has no values, invalid input, unknown current value). `guard` OpenAPI route/scope test covers both routes.
-- Vitest: `frontend/app/src/hostsettings.test.tsx` (observed/not-set/unavailable display, form hidden without the scope, CSRF header on the preview, "not applied" labelling, no apply call, server refusal shown).
+- Go: `internal/hostinfo/hostsettings_test.go` (fixture reads, not-set vs unavailable, link confinement, validators); `internal/api/hostsettings_test.go` (401/403, Origin and CSRF refusals, separate non-default preview and apply scopes, preview leaves a hashed copy of the fixture tree unchanged and reports `executed:false`, preview-only user 403 on plan/apply, audit has no values). Broker: `internal/broker/ops/hostsettings_write_test.go` (isolated fake; replay, conflict, stop on first failed field). `guard` OpenAPI route/scope test covers GET, preview, plan and apply.
+- Vitest/UI: still a later slice (`hc-ui` after the backend SHA).
 - The fixture `backend/internal/hostinfo/testdata/hostsettings/` is synthetic and labelled; its zone files are not real tz data.
 
-## Deferred (each needs its own owner decision and, for writes, an ADR 0011 review)
+## Deferred (each needs its own owner decision)
 
-- Applying changes: broker ops with fixed `hostnamectl set-hostname --static|--pretty` and `timedatectl set-timezone` argv templates, plan → confirm → execute, step-up, operation journal, revalidation, read-back; a separate apply scope (`host.settings.preview` must never authorize it). Warnings about TLS names, mDNS and `/etc/hosts`.
-- Reading through `hostnamed`/`timedated` (D-Bus) or the broker for the host's live view instead of `hc-api`'s namespace; `timedatectl list-timezones` parity.
-- Module-registry entry for host settings (today a core route, like storage), Playwright/axe and mobile checks, distribution and KVM evidence, user documentation.
+- Reading through `hostnamed`/`timedated` (D-Bus) for the host's live view instead of `hc-api`'s namespace.
+- Module-registry entry for host settings (today a core route, like storage), Playwright/axe and mobile checks, distribution and KVM evidence, user documentation, owner acceptance.

@@ -142,8 +142,10 @@ func TestSupplementaryGroupsNeverRoot(t *testing.T) {
 	}
 }
 
-func TestJournalctlIsTheOnlyNewBinary(t *testing.T) {
-	want := map[string]bool{"systemctl": true, "journalctl": true}
+// TestAllowListedBinariesAreClosed is the production allow-list snapshot.
+// New binaries need security review (ADR 0008 Amendment 4).
+func TestAllowListedBinariesAreClosed(t *testing.T) {
+	want := map[string]bool{"systemctl": true, "journalctl": true, "hostnamectl": true, "timedatectl": true}
 	if len(allowlist) != len(want) {
 		t.Fatalf("allow-list changed (%d entries); new binaries need security review", len(allowlist))
 	}
@@ -157,36 +159,46 @@ func TestJournalctlIsTheOnlyNewBinary(t *testing.T) {
 // TestRootTemplatesAreClosed is the root-exec snapshot (ADR 0008 Amendment 2):
 // exactly these templates, each with this exact argv. Changing it requires review.
 func TestRootTemplatesAreClosed(t *testing.T) {
-	want := map[RootTemplate]string{
-		RootSystemctlStart:   "systemctl --no-ask-password --job-mode=fail start -- demo.service",
-		RootSystemctlStop:    "systemctl --no-ask-password --job-mode=fail stop -- demo.service",
-		RootSystemctlRestart: "systemctl --no-ask-password --job-mode=fail restart -- demo.service",
-		RootSystemctlShow:    "systemctl " + strings.Join(SystemctlShowArgs("demo.service"), " "),
+	type snap struct {
+		line    string
+		targets []string
+	}
+	want := map[RootTemplate]snap{
+		RootSystemctlStart:   {"systemctl --no-ask-password --job-mode=fail start -- demo.service", []string{"demo.service"}},
+		RootSystemctlStop:    {"systemctl --no-ask-password --job-mode=fail stop -- demo.service", []string{"demo.service"}},
+		RootSystemctlRestart: {"systemctl --no-ask-password --job-mode=fail restart -- demo.service", []string{"demo.service"}},
+		RootSystemctlShow:    {"systemctl " + strings.Join(SystemctlShowArgs("demo.service"), " "), []string{"demo.service"}},
 		// M2-3 (ADR 0008 Amendment 3): no --now, no --runtime, never a reload.
-		RootSystemctlEnable:      "systemctl --no-ask-password --no-reload enable -- demo.service",
-		RootSystemctlDisable:     "systemctl --no-ask-password --no-reload disable -- demo.service",
-		RootSystemctlIsEnabled:   "systemctl is-enabled -- demo.service",
-		RootSystemctlShowInstall: "systemctl show --no-pager --property=Id --property=Names --property=LoadState --property=FragmentPath --property=SourcePath --property=DropInPaths --property=Transient --property=NeedDaemonReload --property=UnitFilePreset -- demo.service",
+		RootSystemctlEnable:      {"systemctl --no-ask-password --no-reload enable -- demo.service", []string{"demo.service"}},
+		RootSystemctlDisable:     {"systemctl --no-ask-password --no-reload disable -- demo.service", []string{"demo.service"}},
+		RootSystemctlIsEnabled:   {"systemctl is-enabled -- demo.service", []string{"demo.service"}},
+		RootSystemctlShowInstall: {"systemctl show --no-pager --property=Id --property=Names --property=LoadState --property=FragmentPath --property=SourcePath --property=DropInPaths --property=Transient --property=NeedDaemonReload --property=UnitFilePreset -- demo.service", []string{"demo.service"}},
 		// PR #36 review (probe 8): manager unit-load timestamps, no target.
-		RootSystemctlShowManager: "systemctl show --no-pager --timestamp=us+utc --property=UnitsLoadStartTimestamp --property=UnitsLoadStartTimestampMonotonic --property=UnitsLoadTimestamp --property=UnitsLoadTimestampMonotonic --property=UnitPath",
+		RootSystemctlShowManager: {"systemctl show --no-pager --timestamp=us+utc --property=UnitsLoadStartTimestamp --property=UnitsLoadStartTimestampMonotonic --property=UnitsLoadTimestamp --property=UnitsLoadTimestampMonotonic --property=UnitPath", nil},
+		// M2-6 (ADR 0008 Amendment 4, proposed).
+		RootHostnamectlSetStatic:     {"hostnamectl --no-ask-password set-hostname --static -- nas-01", []string{"nas-01"}},
+		RootHostnamectlSetPretty:     {"hostnamectl --no-ask-password set-hostname --pretty -- Lab NAS", []string{"Lab NAS"}},
+		RootHostnamectlStatus:        {"hostnamectl --no-ask-password status", nil},
+		RootTimedatectlSetTimezone:   {"timedatectl --no-ask-password set-timezone -- Europe/Berlin", []string{"Europe/Berlin"}},
+		RootTimedatectlStatus:        {"timedatectl --no-ask-password status", nil},
+		RootTimedatectlListTimezones: {"timedatectl --no-ask-password list-timezones", nil},
 	}
 	if len(rootTemplates) != len(want) {
 		t.Fatalf("%d root templates, want %d — new root templates need review", len(rootTemplates), len(want))
 	}
 	for id, w := range want {
-		targets := []string{"demo.service"}
-		if id == RootSystemctlShowManager {
-			targets = nil
+		if len(w.targets) == 0 {
 			if _, err := RootArgv(id, "demo.service"); !errors.Is(err, ErrBadArg) {
 				t.Errorf("%s accepted a target", id)
 			}
 		}
-		argv, err := RootArgv(id, targets...)
-		if err != nil || rootTemplates[id].binary+" "+strings.Join(argv, " ") != w {
+		argv, err := RootArgv(id, w.targets...)
+		if err != nil || rootTemplates[id].binary+" "+strings.Join(argv, " ") != w.line {
 			t.Errorf("%s: %v %v", id, argv, err)
 		}
 	}
-	for _, unknown := range []RootTemplate{"systemctl.mask", "systemctl.unmask", "systemctl.daemon-reload", "systemctl.edit", "systemctl.reenable", "systemctl.preset", "systemctl.link"} {
+	for _, unknown := range []RootTemplate{"systemctl.mask", "systemctl.unmask", "systemctl.daemon-reload", "systemctl.edit", "systemctl.reenable", "systemctl.preset", "systemctl.link",
+		"hostnamectl.set-chassis", "timedatectl.set-ntp", "timedatectl.set-time"} {
 		if _, err := RootArgv(unknown, "demo.service"); !errors.Is(err, ErrUnknownTemplate) {
 			t.Errorf("unknown template %s: %v", unknown, err)
 		}
@@ -194,7 +206,8 @@ func TestRootTemplatesAreClosed(t *testing.T) {
 	for id, tpl := range rootTemplates {
 		for _, a := range tpl.argv {
 			switch a {
-			case "--now", "--runtime", "--force", "--global", "--user", "daemon-reload", "mask", "unmask", "reenable", "preset", "link", "edit":
+			case "--now", "--runtime", "--force", "--global", "--user", "daemon-reload", "mask", "unmask", "reenable", "preset", "link", "edit",
+				"set-ntp", "set-time", "set-chassis", "set-icon", "set-deployment":
 				t.Errorf("%s contains forbidden argument %q", id, a)
 			}
 		}
@@ -205,14 +218,45 @@ func TestRootTemplatesAreClosed(t *testing.T) {
 }
 
 func TestRootTargetValidation(t *testing.T) {
+	hostWrite := map[RootTemplate]bool{
+		RootHostnamectlSetStatic: true, RootHostnamectlSetPretty: true, RootTimedatectlSetTimezone: true,
+		RootHostnamectlStatus: true, RootTimedatectlStatus: true, RootTimedatectlListTimezones: true,
+	}
 	for _, bad := range []string{"", "-x.service", "--", "--now", "a b.service", "a;b.service", "$(id).service",
 		"foo@.service", "../x.service", "a/b.service", "x\n.service", "x\x00.service", "foo\\x2d.service",
 		strings.Repeat("a", 101) + ".service", "-.mount", "x.unknowntype"} {
 		for id := range rootTemplates {
+			if hostWrite[id] {
+				continue
+			}
 			if _, err := RootArgv(id, bad); !errors.Is(err, ErrBadArg) && !(id == RootSystemctlShowManager && bad == "") {
 				t.Errorf("%s %q: %v", id, bad, err)
 			}
 		}
+	}
+	if _, err := RootArgv(RootHostnamectlSetStatic, "nas-01"); err != nil {
+		t.Errorf("static: %v", err)
+	}
+	if _, err := RootArgv(RootHostnamectlSetStatic, "NAS"); !errors.Is(err, ErrBadArg) {
+		t.Errorf("static accepted uppercase: %v", err)
+	}
+	if _, err := RootArgv(RootHostnamectlSetPretty, ""); err != nil {
+		t.Errorf("empty pretty (removal): %v", err)
+	}
+	if _, err := RootArgv(RootHostnamectlSetPretty, "Lab NAS"); err != nil {
+		t.Errorf("pretty with space: %v", err)
+	}
+	if _, err := RootArgv(RootHostnamectlSetPretty, "a\nb"); !errors.Is(err, ErrBadArg) {
+		t.Errorf("pretty accepted a newline: %v", err)
+	}
+	if _, err := RootArgv(RootTimedatectlSetTimezone, "Europe/Berlin"); err != nil {
+		t.Errorf("timezone: %v", err)
+	}
+	if _, err := RootArgv(RootTimedatectlSetTimezone, "../../etc/passwd"); !errors.Is(err, ErrBadArg) {
+		t.Errorf("timezone accepted a path: %v", err)
+	}
+	if _, err := RootArgv(RootHostnamectlStatus, "x"); !errors.Is(err, ErrBadArg) {
+		t.Errorf("status accepted a target")
 	}
 	// Writes take exactly one .service unit; the read-only query takes any
 	// unit type, at most 32 at a time.
