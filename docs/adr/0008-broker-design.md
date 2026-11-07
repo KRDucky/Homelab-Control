@@ -1,6 +1,6 @@
 # ADR-0008: Privileged broker design (M1)
 
-**Status:** Accepted (2026-10-16, owner) **for the four existing read-only, argument-free M1 operations only**; Amendment 1 (2026-10-21, `services.unit.logs`) and Amendment 2 (2026-10-23, `root-exec`, owner decision D-4) extend it (`broker.info`, `legacy.webmin.status`, `hardware.dmi.identity`, `services.systemd.list`). Amendment 3 (M2-3, proposed) and Amendment 4 (M2-6, proposed) add further templates. Adding or changing an operation requires a new review.
+**Status:** Accepted (2026-10-16, owner) **for the four existing read-only, argument-free M1 operations only**; Amendment 1 (2026-10-21, `services.unit.logs`) and Amendment 2 (2026-10-23, `root-exec`, owner decision D-4) extend it (`broker.info`, `legacy.webmin.status`, `hardware.dmi.identity`, `services.systemd.list`). Amendments 3 (M2-3), 4 (M2-6), and 5 (M4-1b) are **Proposed**. Adding or changing an operation requires a new review.
 > **Owner decision recorded 2026-10-16:** this acceptance is **not** authorization to implement privileged write operations. Any write-capable broker operation needs a separate, explicit owner approval (M2 design: confirmation, locking, audit, rollback).
 
 **Date:** 2026-10-15
@@ -212,3 +212,20 @@ or other hostnamectl/timedatectl verbs.
 - **No new capabilities:** the broker unit is unchanged (`CapabilityBoundingSet=CAP_SETUID CAP_SETGID`).
   hostnamectl/timedatectl talk to hostnamed/timedated as uid 0 on apply; they gain nothing beyond what
   the broker already had. `hc-api` still does not spawn them.
+
+## Amendment 5 (2026-11-07, M4-1b, Proposed): read-only package queries
+
+Proposed for the M4-1b read-only Software Center checkpoint, following owner words recorded in
+`docs/m2/OWNER-DECISIONS.md` and scope in `docs/m4/M4-1B-SOFTWARE-CENTER.md`. This amendment does not
+authorize install, remove, upgrade, repository changes, key import, or metadata refresh.
+
+- **Closed CLI templates only.** Package-manager commands use fixed argv templates and stdlib parsing.
+  Do not add PackageKit, libdnf, libalpm, or Go package-manager libraries.
+- **Read-only and unprivileged.** Query children run as `homelab-control`. Operations use local cached
+  data only, do not access the network, and do not refresh repository metadata. Output is bounded.
+- **Scope.** Add `packages.read` for read operations. Do not add or use `packages.manage`; reserve it
+  for a separately reviewed write ADR. This scope is not implied by another scope or added to defaults.
+- **No write path.** No root template, plan/apply operation, package transaction, or repository mutation
+  is authorized by this amendment. The later write ADR is reserved as 0014 and is not part of this change.
+- **Proposed status.** This amendment remains subject to review and owner acceptance. It does not accept
+  ADR 0008 or authorize M4 acceptance.
