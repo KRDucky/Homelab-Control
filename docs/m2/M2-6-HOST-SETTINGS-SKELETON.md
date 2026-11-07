@@ -26,6 +26,12 @@ Sources (`backend/internal/hostinfo/hostsettings.go`): `/proc/sys/kernel/hostnam
 - Risk class `reversible`; confirmation required; no step-up. Multi-field apply stops on the first failed field; there is no automatic rollback.
 - Honest read-back is hostnamectl/timedatectl. Packaged `hc-api` uses `ProtectHostname=yes`; the kernel host name seen by the API may stay at start-time.
 
+### Apply (UI; not accepted)
+
+- Host settings page keeps the non-executing preview. Apply is offered only when the session has `host.settings.apply`, the preview reports `apply_available` and `valid`, and a preview request is stored. Capability `available` is not the apply gate.
+- Confirm dialog follows the Services plan/confirm/result shape without password re-entry. Backend plans for this op are reversible with `step_up_required` false; a plan that required step-up would need an ADR, not a copied Services password field.
+- Preview `warnings` show on the page as `banner` `role="note"`. TLS/mDNS/`/etc/hosts` text in the confirm dialog comes from the plan payload.
+
 ### Validation policy (preview)
 
 - Static host name: lower-case RFC 1123 labels, 1–64 characters, no trailing dot. Stricter than systemd on purpose; `localhost` is accepted with a warning.
@@ -35,7 +41,7 @@ Sources (`backend/internal/hostinfo/hostsettings.go`): `/proc/sys/kernel/hostnam
 ## Tests
 
 - Go: `internal/hostinfo/hostsettings_test.go` (fixture reads, not-set vs unavailable, link confinement, validators); `internal/api/hostsettings_test.go` (401/403, Origin and CSRF refusals, separate non-default preview and apply scopes, preview leaves a hashed copy of the fixture tree unchanged and reports `executed:false`, preview-only user 403 on plan/apply, audit has no values). Broker: `internal/broker/ops/hostsettings_write_test.go` (isolated fake; replay, conflict, stop on first failed field). `guard` OpenAPI route/scope test covers GET, preview, plan and apply.
-- Vitest/UI: still a later slice (`hc-ui` after the backend SHA).
+- Vitest: `frontend/app/src/hostsettings.test.tsx` (observed display, preview CSRF, Apply gated on scope + `apply_available` + `valid`, no plan/apply from preview, TLS warning from the plan, no password field). Playwright/axe unrun.
 - The fixture `backend/internal/hostinfo/testdata/hostsettings/` is synthetic and labelled; its zone files are not real tz data.
 
 ## Deferred (each needs its own owner decision)

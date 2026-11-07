@@ -727,13 +727,52 @@ export interface HostSettingsPreview {
   preview_only: true;
   executed: false;
   host_changed: false;
-  apply_available: false;
+  apply_available: boolean;
   notice: string;
   valid: boolean;
   collected_at: string;
   current: HostSettings;
   changes: HostSettingChange[];
   warnings: string[];
+}
+
+export interface HostSettingsObserved {
+  static_hostname?: string;
+  static_status: HostSetting['status'];
+  pretty_hostname?: string;
+  pretty_status: HostSetting['status'];
+  timezone?: string;
+  timezone_status: HostSetting['status'];
+  transient_hostname?: string;
+  transient_status?: HostSetting['status'];
+  notes?: string[];
+}
+
+export interface HostSettingsPlan {
+  action: 'set';
+  risk: 'reversible';
+  step_up_required: boolean;
+  confirmation_required: boolean;
+  token: string;
+  expires_at: string;
+  observed: HostSettingsObserved;
+  effect: string;
+  consequences: string[];
+  warnings: string[];
+  changes: HostSettingChange[];
+  fields: HostSettingChange['field'][];
+}
+
+export interface HostSettingsOutcome {
+  operation_id: string;
+  action: 'set';
+  outcome: 'succeeded' | 'failed' | 'uncertain';
+  message: string;
+  fields: HostSettingChange['field'][];
+  observed?: HostSettingsObserved;
+  recovery?: string[];
+  started_at: string;
+  finished_at: string;
 }
 
 export function getHostSettings(): Promise<HostSettingsResponse> {
@@ -746,6 +785,20 @@ export function previewHostSettings(
   csrf: string,
 ): Promise<HostSettingsPreview> {
   return postJSON<HostSettingsPreview>('/api/v1/host/settings/preview', csrf, req);
+}
+
+/** Review a hostname/timezone change. Requires host.settings.apply; preview never authorizes this. */
+export function planHostSettings(req: HostSettingsPreviewRequest, csrf: string): Promise<HostSettingsPlan> {
+  return postJSON<HostSettingsPlan>('/api/v1/host/settings/plan', csrf, req);
+}
+
+/** Execute a reviewed hostname/timezone change. Requires host.settings.apply and the plan token. */
+export function applyHostSettings(
+  req: HostSettingsPreviewRequest,
+  token: string,
+  csrf: string,
+): Promise<HostSettingsOutcome> {
+  return postJSON<HostSettingsOutcome>('/api/v1/host/settings/apply', csrf, { ...req, token });
 }
 
 // M2-5 Stage A: application-owned manual drive-bay layout. Every assignment is
