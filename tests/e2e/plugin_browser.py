@@ -8,10 +8,17 @@ sources are the labelled synthetic fixture only). Plugin enable/disable is
 browser-local (`hc.plugins.v1`); no request is mocked and no host operation is
 run. Flow: sign in, confirm the Overview page shows no sample card, enable
 "Read-only sample plugin" in the Appearance popover, confirm the labelled
-Overview card appears, disable it, confirm it is gone, and confirm Theme Studio
-(`/appearance/themes`) import/export is unchanged. Desktop and mobile axe run
-against the Overview page; any violation or incomplete (skipped) result fails
-closed, and the axe JSON is empty on pass. Not M3 acceptance, not production.
+Overview card appears, run desktop + mobile axe **while the card is loaded**,
+disable the plugin, confirm the card is gone, and confirm Theme Studio
+(`/appearance/themes`) import/export is unchanged.
+
+Accessibility: the whole-document run fails on **violations only**, matching the
+sibling fixtures; incomplete (skipped) results are persisted to
+`axe-incomplete.json` / `axe-mobile-incomplete.json` and their ids printed, so
+known chrome incompletes do not fail the run. The sample-card subtree itself is
+scoped separately and fails closed on violations **or** incomplete (the card is
+the only UI this checkpoint owns). Empty axe JSON on pass. Not M3 acceptance,
+not production.
 
 Usage: plugin_browser.py RUNTIME_DIR EVIDENCE_DIR AXE_MIN_JS
 """
@@ -29,6 +36,9 @@ axe = Path(sys.argv[3])
 checks = []
 password = ""
 
+AXE_OPTIONS = "{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}}"
+CARD_SCOPE = "document.getElementById('sample-plugin-card-title').closest('section')"
+
 
 def check(name, condition):
     if not condition:
@@ -37,13 +47,28 @@ def check(name, condition):
     print("PASS " + name, flush=True)
 
 
-def run_axe(page):
+def fmt_axe(raw):
+    return {
+        "violations": [
+            {"id": v["id"], "impact": v["impact"], "targets": [n["target"] for n in v["nodes"]]}
+            for v in raw["violations"]
+        ],
+        "incomplete": [
+            {"id": v["id"], "impact": v["impact"], "targets": [n["target"] for n in v["nodes"]]}
+            for v in raw["incomplete"]
+        ],
+    }
+
+
+def run_axe(page, scope_js):
     page.evaluate(axe.read_text() + "\n;0")
-    return page.evaluate(
-        "async () => { const r = await axe.run(document, {runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}});"
-        " return {violations: r.violations.map(v=>({id:v.id,impact:v.impact,targets:v.nodes.map(n=>n.target)})),"
-        " incomplete: r.incomplete.map(v=>({id:v.id,impact:v.impact}))}; }"
-    )
+    raw = page.evaluate(f"async () => await axe.run({scope_js}, {AXE_OPTIONS})")
+    return fmt_axe(raw)
+
+
+def report_incomplete(label, incomplete):
+    ids = ", ".join(sorted({i["id"] for i in incomplete})) or "none"
+    print(f"INCOMPLETE {label} {ids}", flush=True)
 
 
 try:
@@ -80,6 +105,29 @@ try:
         check("sample card visible after load", page.get_by_role("heading", name="Read-only sample plugin", exact=True).is_visible())
         check("sample card is labelled example only", page.get_by_text("Sample plugin · example only", exact=True).is_visible())
 
+        # Desktop axe while the sample card is loaded.
+        page.screenshot(path=str(evidence / "desktop.png"), full_page=True)
+        desktop = run_axe(page, "document")
+        (evidence / "axe.json").write_text(json.dumps(desktop["violations"], indent=2))
+        (evidence / "axe-incomplete.json").write_text(json.dumps(desktop["incomplete"], indent=2))
+        report_incomplete("desktop", desktop["incomplete"])
+        check("desktop accessibility", not desktop["violations"])
+
+        # The sample-card subtree is the UI this checkpoint owns: fail closed on it.
+        card = run_axe(page, CARD_SCOPE)
+        (evidence / "axe-card.json").write_text(json.dumps(card, indent=2))
+        check("sample card accessibility", not card["violations"] and not card["incomplete"])
+
+        # Mobile axe while still loaded.
+        page.set_viewport_size({"width": 390, "height": 844})
+        page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
+        page.screenshot(path=str(evidence / "mobile.png"), full_page=True)
+        mobile = run_axe(page, "document")
+        (evidence / "axe-mobile.json").write_text(json.dumps(mobile["violations"], indent=2))
+        (evidence / "axe-mobile-incomplete.json").write_text(json.dumps(mobile["incomplete"], indent=2))
+        report_incomplete("mobile", mobile["incomplete"])
+        check("mobile accessibility", not mobile["violations"])
+
         # Unload: disable it; the card must disappear.
         page.get_by_role("button", name="Appearance", exact=True).click()
         page.get_by_role("checkbox", name="Read-only sample plugin").uncheck()
@@ -91,21 +139,6 @@ try:
         page.get_by_role("heading", name="Theme library", exact=True).wait_for()
         check("Theme Studio import still offered", page.locator("input[type='file'][accept*='.hltheme']").count() == 1)
         check("Theme Studio export still offered", page.get_by_role("button", name="Export .hltheme", exact=True).is_visible())
-
-        # Axe on the Overview page (return to it after the Theme Studio check).
-        page.goto(url + "/")
-        page.locator(".faceplate-host").wait_for()
-        page.screenshot(path=str(evidence / "desktop.png"), full_page=True)
-        desktop = run_axe(page)
-        (evidence / "axe.json").write_text(json.dumps(desktop["violations"], indent=2))
-        check("desktop accessibility", not desktop["violations"] and not desktop["incomplete"])
-
-        page.set_viewport_size({"width": 390, "height": 844})
-        page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
-        page.screenshot(path=str(evidence / "mobile.png"), full_page=True)
-        mobile = run_axe(page)
-        (evidence / "axe-mobile.json").write_text(json.dumps(mobile["violations"], indent=2))
-        check("mobile accessibility", not mobile["violations"] and not mobile["incomplete"])
         check("no page script errors", not errors)
 
         context.close()

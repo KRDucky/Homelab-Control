@@ -63,8 +63,10 @@ removes it; hostile manifest never mounts unknown UI; Theme Studio import/export
 ## Playwright + axe
 
 `tests/e2e/plugin_browser.py` drives the existing Appearance header popover: enable the read-only sample
-plugin, assert the Overview page shows the labelled `h2` card, disable, assert it is gone, and confirm
-Theme Studio (`/appearance/themes`) import/export is unchanged. It reuses the authenticated
-`TestStorageBrowserFixture` (plugin state is browser-local `hc.plugins.v1`), adds no route/API/scope/
-broker op, and runs desktop + mobile axe failing closed on violations or incomplete results (empty axe
-JSON on pass). Opt-in, not in CI.
+plugin, assert the Overview page shows the labelled `h2` card, run desktop + mobile axe **while the card
+is loaded**, disable, assert it is gone, and confirm Theme Studio (`/appearance/themes`) import/export is
+unchanged. It reuses the authenticated `TestStorageBrowserFixture` (plugin state is browser-local
+`hc.plugins.v1`), adds no route/API/scope/broker op. Accessibility fails on **violations only** (incomplete
+results are persisted to `axe-incomplete.json` / `axe-mobile-incomplete.json` and their ids printed), and
+the sample-card subtree itself is scoped and fails closed on violations **or** incomplete. Empty axe JSON
+on pass. Opt-in, not in CI.
