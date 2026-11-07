@@ -2,10 +2,10 @@
 
 | Target | Format | M0 status | Next step |
 |---|---|---|---|
-| Debian stable / Ubuntu LTS | `.deb` (`homelab-control`, replaces `homelab-control-api`) | M1: built; **installed and run under real systemd (PID 1) on Ubuntu 22.04 and 24.04** disposable containers; install test without systemd on both. Debian itself: CI matrix only (mirror unreachable here). Ubuntu 26.04 LTS: CI install test and real-systemd (259.5) container job pass on `da41162a` (run 38852873505) and `738fa37b` (run 38866773032); full M1 suite passes in a KVM VM on the owner's workstation (`docs/evidence/m1/vm-26.04/`). | lintian; source package (M13). |
-| Fedora | binary `.rpm` (`packaging/fedora/build-rpm.sh`) | M1: **built** (rpmbuild on Ubuntu); install test only in CI (`fedora:latest`), not yet run | Source RPM/mock (M13). |
-| openSUSE Leap/Tumbleweed | same binary `.rpm` (zypper) | M1: depends on `/usr/sbin/useradd` (works with openSUSE `shadow`); CI-only, not yet run | OBS build (M13). |
-| Arch / CachyOS | `.pkg.tar.zst` (`packaging/arch/build-pkg.sh`, makepkg) | M1: CI-only (no Arch environment reachable here), not yet run | Run on owner's CachyOS host; AUR/source PKGBUILD (M13). |
+| Debian stable / Ubuntu LTS | `.deb` (`homelab-control`, replaces `homelab-control-api`) | M1: built; **installed and run under real systemd (PID 1) on Ubuntu 22.04 and 24.04** disposable containers; install test without systemd on both. Debian itself: CI matrix only (mirror unreachable here). Ubuntu 26.04 LTS: CI install test and real-systemd (259.5) container job pass on `da41162a` (run 38852873505) and `738fa37b` (run 38866773032); full M1 suite passes in a KVM VM on the owner's workstation (`docs/evidence/m1/vm-26.04/`). | lintian; source package (M14). |
+| Fedora | binary `.rpm` (`packaging/fedora/build-rpm.sh`) | M1: **built** (rpmbuild on Ubuntu); install test only in CI (`fedora:latest`), not yet run | Source RPM/mock (M14). |
+| openSUSE Leap/Tumbleweed | same binary `.rpm` (zypper) | M1: depends on `/usr/sbin/useradd` (works with openSUSE `shadow`); CI-only, not yet run | OBS build (M14). |
+| Arch / CachyOS | `.pkg.tar.zst` (`packaging/arch/build-pkg.sh`, makepkg) | M1: CI-only (no Arch environment reachable here), not yet run | Run on owner's CachyOS host; AUR/source PKGBUILD (M14). |
 
 ## Package contents (all formats)
 `/usr/bin/hc-api`, `/usr/bin/hlctl`, `/usr/lib/homelab-control/hc-broker`, three systemd units
@@ -21,6 +21,6 @@ writes under `/etc/webmin` and uses a different port (9180 default behind TLS pr
 direct TLS) so both can run side by side. Migration of Webmin users/config is out of scope until a
 migration tool with backup and rollback exists.
 
-## Release artifacts (from M13; partially from M1)
+## Release artifacts (from M14; partially from M1)
 Tagged source tarball, SHA256SUMS, SPDX SBOM, NOTICE/LICENSE, changelog (signed tags/artifacts deferred: ADR 0009 Phase 3),
 rollback/uninstall guide (`docs/dev/ROLLBACK.md`). Built only in CI from tags (ADR 0005/0006).
