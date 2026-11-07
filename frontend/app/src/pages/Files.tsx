@@ -128,32 +128,33 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
     [csrf, onUnauthorized],
   );
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(async () => {
     setBusy(true);
-    getFileRoots(csrf)
-      .then((r) => {
-        if (cancelled) return;
-        setBrowseAvailable(r.browse_available);
-        setRoots(r.roots);
-        if (r.browse_available && r.roots[0]) {
-          setRootId(r.roots[0].id);
-          return loadEntries(r.roots[0].id, '');
-        }
-        setBusy(false);
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        if (err instanceof ApiError && err.status === 401) onUnauthorized();
-        setRoots([]);
-        setBrowseAvailable(false);
-        setError(err instanceof ApiError ? err.message : explain(err as Error));
-        setBusy(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+    setError(null);
+    try {
+      const r = await getFileRoots(csrf);
+      setBrowseAvailable(r.browse_available);
+      setRoots(r.roots);
+      const first = r.roots[0];
+      if (r.browse_available && first) {
+        setRootId(first.id);
+        await loadEntries(first.id, '');
+        return;
+      }
+      setBusy(false);
+    } catch (err: unknown) {
+      if (err instanceof ApiError && err.status === 401) onUnauthorized();
+      setRoots([]);
+      setBrowseAvailable(false);
+      setError(err instanceof ApiError ? err.message : explain(err as Error));
+      setBusy(false);
+    }
   }, [csrf, loadEntries, onUnauthorized]);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(t);
+  }, [load]);
 
   const currentRoot = roots?.find((r) => r.id === rootId);
   const parts = path.split('/').filter(Boolean);
