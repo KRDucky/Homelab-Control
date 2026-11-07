@@ -36,8 +36,8 @@ func (debianAdapter) ParseInstalled(text string) ([]Package, error) {
 		if len(f) != 3 {
 			return nil, malformed(i, "expected 3 tab-separated fields")
 		}
-		name, err := cleanField(f[0], maxName)
-		if err != nil || name == "" {
+		name, err := cleanPackageName(f[0])
+		if err != nil {
 			return nil, malformed(i, "invalid package name")
 		}
 		version, err := cleanField(f[1], maxVersion)
@@ -48,11 +48,11 @@ func (debianAdapter) ParseInstalled(text string) ([]Package, error) {
 		if err != nil {
 			return nil, malformed(i, "invalid architecture")
 		}
-		if key := name + "\x00" + arch; seen[key] {
+		key := name + "\x00" + arch + "\x00" + version
+		if seen[key] {
 			continue
-		} else {
-			seen[key] = true
 		}
+		seen[key] = true
 		out = append(out, Package{Name: name, Version: version, Arch: arch, Installed: true})
 	}
 	if len(out) > maxPackages {
@@ -67,6 +67,8 @@ func (debianAdapter) ParseSearch(text string) ([]Package, error) {
 	if err != nil {
 		return nil, err
 	}
+	// apt-cache search reports no arch or repo, so name is the only dedupe key
+	// available (R3: key on name+arch/repo "when present").
 	var out []Package
 	seen := map[string]bool{}
 	for i, ln := range lns {
@@ -77,7 +79,7 @@ func (debianAdapter) ParseSearch(text string) ([]Package, error) {
 		if !ok || name == "" {
 			return nil, malformed(i, "expected \"name - summary\"")
 		}
-		name, err := cleanField(name, maxName)
+		name, err := cleanPackageName(name)
 		if err != nil {
 			return nil, malformed(i, "invalid package name")
 		}
@@ -111,8 +113,8 @@ func (debianAdapter) ParseUpdates(text string) ([]Update, error) {
 			return nil, malformed(i, "expected \"name[/origin] version arch [upgradable from: old]\"")
 		}
 		name, origin, _ := strings.Cut(f[0], "/")
-		name, err := cleanField(name, maxName)
-		if err != nil || name == "" {
+		name, err := cleanPackageName(name)
+		if err != nil {
 			return nil, malformed(i, "invalid package name")
 		}
 		origin, err = cleanField(origin, maxOrigin)
@@ -134,10 +136,10 @@ func (debianAdapter) ParseUpdates(text string) ([]Update, error) {
 		if current, err = cleanField(current, maxVersion); err != nil {
 			return nil, malformed(i, "invalid current version")
 		}
-		if seen[name] {
+		if seen[name+"\x00"+arch] {
 			continue
 		}
-		seen[name] = true
+		seen[name+"\x00"+arch] = true
 		out = append(out, Update{Name: name, Arch: arch, Origin: origin, Current: current, New: newVersion})
 	}
 	if len(out) > maxPackages {
@@ -166,9 +168,129 @@ var debianVendorHosts = []string{
 	"deb.debian.org", "security.debian.org",
 }
 
-// ParseSources parses one-line "deb" stanzas. "deb-src" and commented lines
-// are ignored. "trusted=yes" marks a source unsigned; the default is signed.
+// ParseSources handles both one-line "deb" stanzas and deb822 "*.sources"
+// stanzas (the format Ubuntu 24.04+ and Debian 13 ship by default).
 func (debianAdapter) ParseSources(text string) ([]Source, error) {
+	if isDeb822(text) {
+		return debianParseDeb822(text)
+	}
+	return debianParseOneLine(text)
+}
+
+// isDeb822 reports whether the text is deb822 "*.sources" style (Key: value
+// stanzas) rather than one-line "deb" stanzas.
+func isDeb822(text string) bool {
+	for _, ln := range strings.Split(text, "\n") {
+		ln = strings.TrimSpace(ln)
+		if ln == "" || strings.HasPrefix(ln, "#") {
+			continue
+		}
+		lower := strings.ToLower(ln)
+		for _, key := range []string{"types:", "uris:", "suites:", "components:", "signed-by:"} {
+			if strings.HasPrefix(lower, key) {
+				return true
+			}
+		}
+		return false // first non-comment line decides the format
+	}
+	return false
+}
+
+// debianParseDeb822 parses deb822 stanzas (Types/URIs/Suites/Components/Signed-By/Trusted).
+func debianParseDeb822(text string) ([]Source, error) {
+	lns, err := lines(text)
+	if err != nil {
+		return nil, err
+	}
+	var out []Source
+	seen := map[string]bool{}
+	var types, uris, suites []string
+	var trusted bool
+	inStanza := false
+	flush := func() error {
+		if !inStanza {
+			return nil
+		}
+		isDeb := false
+		for _, t := range types {
+			if t == "deb" {
+				isDeb = true
+			}
+		}
+		for _, uri := range uris {
+			uri, err := cleanField(uri, maxOrigin)
+			if err != nil || uri == "" {
+				return errEmpty("URIs")
+			}
+			if !isDeb {
+				continue
+			}
+			for _, suite := range suites {
+				suite, err := cleanPackageName(suite)
+				if err != nil {
+					return errEmpty("Suites")
+				}
+				key := suite + "\x00" + uri
+				if seen[key] {
+					continue
+				}
+				seen[key] = true
+				out = append(out, Source{
+					Name:       suite,
+					Origin:     stripCredentials(uri),
+					Enabled:    true,
+					Signed:     !trusted,
+					ThirdParty: !vendorHost(hostnameOf(uri), debianVendorHosts),
+				})
+			}
+		}
+		types, uris, suites = nil, nil, nil
+		trusted = false
+		inStanza = false
+		return nil
+	}
+	for i, ln := range lns {
+		ln = strings.TrimSpace(ln)
+		if ln == "" {
+			if err := flush(); err != nil {
+				return nil, malformed(i, err.Error())
+			}
+			continue
+		}
+		if strings.HasPrefix(ln, "#") {
+			continue // comments never end a deb822 stanza
+		}
+		k, v, ok := strings.Cut(ln, ":")
+		if !ok {
+			return nil, malformed(i, "expected \"Key: value\"")
+		}
+		inStanza = true
+		switch strings.ToLower(strings.TrimSpace(k)) {
+		case "types":
+			types = append(types, strings.Fields(strings.TrimSpace(v))...)
+		case "uris":
+			uris = append(uris, strings.Fields(strings.TrimSpace(v))...)
+		case "suites":
+			suites = append(suites, strings.Fields(strings.TrimSpace(v))...)
+		case "trusted", "allow-insecure", "allow-weak":
+			if truthy(strings.TrimSpace(v)) {
+				trusted = true
+			}
+		}
+	}
+	if err := flush(); err != nil {
+		return nil, malformed(len(lns), err.Error())
+	}
+	if len(out) > maxSources {
+		return nil, ErrTooMany
+	}
+	return out, nil
+}
+
+// debianParseOneLine parses one-line "deb" stanzas. "deb-src" and commented
+// lines are ignored. trusted= allow-insecure= allow-weak= mark unsigned; the
+// default is signed.
+func debianParseOneLine(text string) ([]Source, error) {
 	lns, err := lines(text)
 	if err != nil {
 		return nil, err
@@ -198,8 +320,7 @@ func (debianAdapter) ParseSources(text string) ([]Source, error) {
 					break
 				}
 			}
-			optstr := strings.TrimSuffix(strings.TrimPrefix(strings.Join(opts, " "), "["), "]")
-			unsigned = strings.Contains(optstr, "trusted=yes")
+			unsigned = debianUnsigned(strings.Join(opts, " "))
 		}
 		if idx+1 >= len(f) {
 			return nil, malformed(i, "deb stanza missing suite")
@@ -210,8 +331,8 @@ func (debianAdapter) ParseSources(text string) ([]Source, error) {
 		if err != nil || uri == "" {
 			return nil, malformed(i, "invalid URI")
 		}
-		suite, err = cleanField(suite, maxName)
-		if err != nil || suite == "" {
+		suite, err = cleanPackageName(suite)
+		if err != nil {
 			return nil, malformed(i, "invalid suite")
 		}
 		key := suite + "\x00" + uri
@@ -221,10 +342,10 @@ func (debianAdapter) ParseSources(text string) ([]Source, error) {
 		seen[key] = true
 		out = append(out, Source{
 			Name:       suite,
-			Origin:     uri,
+			Origin:     stripCredentials(uri),
 			Enabled:    true,
 			Signed:     !unsigned,
-			ThirdParty: !containsAny(uri, debianVendorHosts),
+			ThirdParty: !vendorHost(hostnameOf(uri), debianVendorHosts),
 		})
 	}
 	if len(out) > maxSources {
@@ -233,11 +354,20 @@ func (debianAdapter) ParseSources(text string) ([]Source, error) {
 	return out, nil
 }
 
-// containsAny reports whether s contains any of subs.
-func containsAny(s string, subs []string) bool {
-	for _, sub := range subs {
-		if strings.Contains(s, sub) {
-			return true
+// debianUnsigned reports whether a one-line deb stanza disables signature
+// verification: trusted=, allow-insecure= or allow-weak= with a truthy value.
+// The default is signed (apt verifies Release signatures unless told not to).
+func debianUnsigned(opts string) bool {
+	for _, tok := range strings.Fields(strings.TrimSuffix(strings.TrimPrefix(opts, "["), "]")) {
+		k, v, ok := strings.Cut(tok, "=")
+		if !ok {
+			continue
+		}
+		switch strings.TrimSpace(k) {
+		case "trusted", "allow-insecure", "allow-weak":
+			if truthy(strings.TrimSpace(v)) {
+				return true
+			}
 		}
 	}
 	return false

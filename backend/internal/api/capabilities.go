@@ -207,7 +207,20 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 	if s.files.BrowseAvailable() {
 		fileMgr.Status, fileMgr.Reason = CapDegraded, "Read-only listing inside allow-listed roots; create, rename, permissions, upload and delete are not available."
 	}
-	caps := []Capability{gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr)}
+	// M4-1b read-only Software Center: hidden when the family has no adapter
+	// or its package manager is absent, and gated by packages.read.
+	packages := Capability{ID: "packages", Label: "Software", Path: "/software", Scope: auth.ScopePackagesRead, Status: CapAvailable}
+	switch {
+	case berr != nil:
+		packages.Status, packages.Reason = CapUnavailable, brokerDownReason
+	case !bi.hasOp("packages.installed"):
+		packages.Status, packages.Reason = CapUnavailable, "The running broker does not provide package queries."
+	case s.packageFamily() == "unknown":
+		packages.Status, packages.Reason = CapUnsupported, "This host's distribution is not a supported package family."
+	case packageFamilyBinary(s.packageFamily()) == "" || !slices.Contains(bi.Exec, packageFamilyBinary(s.packageFamily())):
+		packages.Status, packages.Reason = CapUnsupported, "The package manager for this distribution is not installed."
+	}
+	caps := []Capability{gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages)}
 	// Navigation follows the module registry: a disabled module contributes
 	// no capability (and therefore no navigation entry).
 	resp.Capabilities = caps[:0]

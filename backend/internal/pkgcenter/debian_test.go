@@ -45,14 +45,14 @@ func TestDebianInstalledHostile(t *testing.T) {
 	}
 }
 
-func TestDebianInstalledDuplicates(t *testing.T) {
+func TestDebianInstalledKeepsMultipleVersions(t *testing.T) {
 	a := debianAdapter{}
 	got, err := a.ParseInstalled("apt\t2.7\tamd64\napt\t2.7\tamd64\napt\t2.8\tamd64\n")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 1 || got[0].Version != "2.7" {
-		t.Fatalf("duplicates not deduped: %+v", got)
+	if len(got) != 2 || got[0].Version != "2.7" || got[1].Version != "2.8" {
+		t.Fatalf("multi-version rows lost: %+v", got)
 	}
 }
 

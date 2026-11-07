@@ -111,14 +111,14 @@ func TestFedoraSources(t *testing.T) {
 	}
 }
 
-func TestFedoraSourcesDefaultsSignedEnabled(t *testing.T) {
+func TestFedoraSourcesUnsignedWhenNoGpgcheck(t *testing.T) {
 	a := fedoraAdapter{}
 	got, err := a.ParseSources("[example]\nbaseurl=https://repo.example.com/custom\n")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !got[0].Enabled || !got[0].Signed || !got[0].ThirdParty {
-		t.Fatalf("defaults wrong: %+v", got[0])
+	if !got[0].Enabled || got[0].Signed || !got[0].ThirdParty {
+		t.Fatalf("missing gpgcheck must be unsigned: %+v", got[0])
 	}
 }
 

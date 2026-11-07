@@ -144,7 +144,8 @@ export interface Capability {
     | 'audit'
     | 'storage'
     | 'host_settings'
-    | 'files';
+    | 'files'
+    | 'packages';
   label: string;
   path: string;
   scope: string;
@@ -925,4 +926,72 @@ export function assignBay(id: number, row: number, col: number, persistentID: st
 }
 export function unassignBay(id: number, row: number, col: number, csrf: string) {
   return checkedLayout(sendJSON<DriveLayout>('DELETE', bayPath(id, row, col), csrf));
+}
+
+// ---- M4-1b: read-only Software Center --------------------------------------
+
+export interface SoftwarePackage {
+  name: string;
+  version?: string;
+  arch?: string;
+  origin?: string;
+  installed: boolean;
+  upgradable?: boolean;
+  summary?: string;
+}
+
+export interface SoftwareUpdate {
+  name: string;
+  arch?: string;
+  origin?: string;
+  current: string;
+  new: string;
+}
+
+export interface SoftwareSource {
+  name: string;
+  origin: string;
+  enabled: boolean;
+  signed: boolean;
+  third_party: boolean;
+}
+
+export interface PackageList {
+  packages: SoftwarePackage[];
+  truncated: boolean;
+  source: string;
+}
+
+export interface UpdateList {
+  updates: SoftwareUpdate[];
+  truncated: boolean;
+  source: string;
+  as_of?: string;
+}
+
+export interface SourceList {
+  sources: SoftwareSource[];
+  truncated: boolean;
+  source: string;
+}
+
+// Every packages GET is identifier-bearing (the search query is the caller's;
+// installed/updates/sources are sensitive host data), so each is audited and
+// requires the session CSRF token, the same bar as storage/files/layout.
+export function getPackageSearch(q: string, csrf: string): Promise<PackageList> {
+  return request<PackageList>(`/api/v1/packages/search?q=${encodeURIComponent(q)}`, {
+    headers: { 'X-CSRF-Token': csrf },
+  });
+}
+
+export function getPackagesInstalled(csrf: string): Promise<PackageList> {
+  return request<PackageList>('/api/v1/packages/installed', { headers: { 'X-CSRF-Token': csrf } });
+}
+
+export function getPackagesUpdates(csrf: string): Promise<UpdateList> {
+  return request<UpdateList>('/api/v1/packages/updates', { headers: { 'X-CSRF-Token': csrf } });
+}
+
+export function getPackagesSources(csrf: string): Promise<SourceList> {
+  return request<SourceList>('/api/v1/packages/sources', { headers: { 'X-CSRF-Token': csrf } });
 }

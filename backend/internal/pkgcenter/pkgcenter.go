@@ -19,7 +19,9 @@ package pkgcenter
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -129,8 +131,9 @@ func isUnsafeTextRune(r rune) bool {
 }
 
 // cleanField validates one structural field: valid UTF-8, within max bytes,
-// and free of unsafe text runes. It refuses rather than strips, so hostile or
-// localized output cannot be misparsed. An empty field is returned as "".
+// free of unsafe text runes and free of whitespace (structural fields are
+// never prose). It refuses rather than strips, so hostile or localized output
+// cannot be misparsed. An empty field is returned as "".
 func cleanField(s string, max int) (string, error) {
 	if s == "" {
 		return "", nil
@@ -142,11 +145,91 @@ func cleanField(s string, max int) (string, error) {
 		return "", fmt.Errorf("field exceeds %d bytes", max)
 	}
 	for _, r := range s {
-		if isUnsafeTextRune(r) {
-			return "", errors.New("control or bidi character")
+		if isUnsafeTextRune(r) || unicode.IsSpace(r) {
+			return "", errors.New("control, bidi or whitespace character")
 		}
 	}
 	return s, nil
+}
+
+// packageNameRE is the per-family package/repo name grammar (ADR 0008 R4): a
+// leading alphanumeric (never "-") and a bounded charset with no whitespace.
+var packageNameRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9+._:~@-]*$`)
+
+// cleanPackageName validates a package or repository name as a name, not
+// arbitrary text: structural checks plus the closed charset. Empty is refused.
+func cleanPackageName(s string) (string, error) {
+	if s == "" {
+		return "", errEmpty("name")
+	}
+	v, err := cleanField(s, maxName)
+	if err != nil {
+		return "", err
+	}
+	if !packageNameRE.MatchString(v) {
+		return "", errors.New("invalid package name")
+	}
+	return v, nil
+}
+
+// hostnameOf extracts the lowercased hostname of a URI (scheme, userinfo, port
+// and path are stripped). It is not a URL parser; input is already bounded.
+func hostnameOf(uri string) string {
+	s := uri
+	if i := strings.Index(s, "://"); i >= 0 {
+		s = s[i+3:]
+	}
+	if i := strings.IndexAny(s, "/?#"); i >= 0 {
+		s = s[:i]
+	}
+	if i := strings.LastIndex(s, "@"); i >= 0 {
+		s = s[i+1:]
+	}
+	if i := strings.LastIndex(s, ":"); i >= 0 && strings.LastIndex(s, "]") < i {
+		s = s[:i]
+	}
+	return strings.ToLower(strings.TrimSuffix(s, "."))
+}
+
+// vendorHost reports whether hostname is a vendor host: exact match or a
+// dot-boundary suffix, so `archive.ubuntu.com.evil.example` is not vendor.
+func vendorHost(hostname string, hosts []string) bool {
+	for _, h := range hosts {
+		if hostname == h || strings.HasSuffix(hostname, "."+h) {
+			return true
+		}
+	}
+	return false
+}
+
+// truthy recognises the boolean spellings apt/dnf/zypper/pacman accept.
+func truthy(s string) bool {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "1", "true", "yes", "on":
+		return true
+	}
+	return false
+}
+
+// stripCredentials removes userinfo (user:pass@) and the query/fragment from a
+// repository URL so credentials and tokens never leave the broker (hc-security
+// Q2). File paths and other non-URL origins pass through unchanged.
+func stripCredentials(uri string) string {
+	s := uri
+	if i := strings.IndexAny(s, "?#"); i >= 0 {
+		s = s[:i]
+	}
+	if i := strings.Index(s, "://"); i >= 0 {
+		auth := s[i+3:]
+		end := strings.Index(auth, "/")
+		if end < 0 {
+			end = len(auth)
+		}
+		if at := strings.LastIndex(auth[:end], "@"); at >= 0 {
+			s = s[:i+3] + auth[at+1:]
+		}
+	}
+	return s
 }
 
 // summary strips control/bidi characters from free text, normalizes runs of
