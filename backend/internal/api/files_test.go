@@ -163,8 +163,9 @@ func TestFilesRootsAndEntriesHappyPath(t *testing.T) {
 }
 
 func TestFilesJailEscapeAPI(t *testing.T) {
-	h, _ := filesHarness(t, []string{auth.ScopeFilesRead})
+	h, jail := filesHarness(t, []string{auth.ScopeFilesRead})
 	hdr := filesHeaders(h)
+	before := h.audit.Len()
 	if rr := h.do("GET", "/api/v1/files/entries?root=lab&path=..", "", hdr); rr.Code != http.StatusForbidden {
 		t.Fatalf(".. : %d %s", rr.Code, rr.Body)
 	}
@@ -179,6 +180,12 @@ func TestFilesJailEscapeAPI(t *testing.T) {
 	}
 	if rr := h.do("GET", "/api/v1/files/entries?root=lab&path=readme.txt", "", hdr); rr.Code != http.StatusBadRequest {
 		t.Fatalf("file: %d %s", rr.Code, rr.Body)
+	}
+	if h.audit.Len() != before {
+		t.Fatalf("jail-escape was audited: %s", h.audit.String()[before:])
+	}
+	if strings.Contains(h.audit.String(), jail) {
+		t.Fatalf("audit leaked jail path: %s", h.audit.String())
 	}
 }
 
