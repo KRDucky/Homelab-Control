@@ -65,6 +65,12 @@ const (
 	// by system.read, layout.manage, host.settings.preview, host.settings.apply,
 	// storage.read or services.files (services.files stays unit-file contents).
 	ScopeFilesRead = "files.read"
+	// ScopePackagesRead allows read-only Software Center queries (M4-1b):
+	// search, installed list, pending-update preview and configured sources,
+	// all from the local cache with no network and no writes. Not in
+	// DefaultScopes and implied by no other scope. packages.manage stays
+	// reserved for the separately reviewed write ADR and is not granted here.
+	ScopePackagesRead = "packages.read"
 )
 
 // KnownScopes lists every scope the server understands. Unknown scopes in the
@@ -84,6 +90,7 @@ var KnownScopes = map[string]bool{
 	ScopeHostSettingsApply:   true,
 	ScopeLayoutManage:        true,
 	ScopeFilesRead:           true,
+	ScopePackagesRead:        true,
 }
 
 // DefaultScopes are granted by `hlctl user add` when --scopes is not given.

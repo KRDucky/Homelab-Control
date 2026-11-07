@@ -30,6 +30,18 @@ Appearance checkbox event subscription, docs filename) and an opt-in Playwright+
 user-supplied manifest. This is a working note only — not M3 acceptance, not a merge, and it does not
 claim ADR 0010 server persistence is done.
 
+## M4-1b Software Center — read-only checkpoint (development note; not M4 acceptance)
+
+Read-only Software Center on a throwaway branch from `origin/main` `fea1df0e`: a `modules.json` module
+(ID `packages`, path `/software`, scope `packages.read`) with four audited GET routes
+(`/packages/search`, `/installed`, `/updates`, `/sources`), four unprivileged broker read ops
+(`packages.*`, ADR 0008 Amendment 5 Proposed: closed argv, `LC_ALL=C`, `/dev/null` stdin, cache-only,
+validated query), and a read-only four-tab UI with no Install/Remove/Update/Add-repo control. A missing
+`modules.json` enables every module (default on); an unknown ID invalidates the file. `packages.read`
+is in `KnownScopes`, never default, implied by nothing; `packages.manage` stays reserved for ADR 0014.
+No root template, no plan/apply, no write, no metadata refresh, no repository mutation. Not M4
+acceptance, not a merge, not production; ADR 0008 Amendment 5 remains Proposed.
+
 ## M2-3: expanded service management (development authorized 2026-11-04; working skeleton on main, not accepted)
 
 The owner authorized M2-3 development and isolated testing on 2026-11-04; owner acceptance and production

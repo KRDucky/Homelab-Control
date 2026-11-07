@@ -21,3 +21,22 @@ The checkpoint does not install, remove, or update packages. It does not add or 
 ## Non-goals
 
 This checkpoint does not provide a package transaction, dependency resolver, repository mutation, or live package operation. It does not establish M4 acceptance or authorize changes on a production host or retained VM.
+
+## Implemented in this checkpoint (not acceptance)
+
+The read-only Software Center ships as a `modules.json` module (owner decision; not a core route):
+
+- Module ID `packages` — `APIPrefix /api/v1/packages`, `OpPrefix packages.`, `Path /software`, scope `packages.read`.
+- **Default-on-when-file-missing:** a missing `modules.json` enables every module, so the Software
+  Center is on by default; an invalid file disables every module; an unknown ID invalidates the file
+  (fail closed). This is the existing M2-3 module-loader behaviour, not new.
+- Routes: `GET /packages/search?q=`, `/packages/installed`, `/packages/updates`, `/packages/sources`.
+  Each requires the session CSRF token, checks Origin when present, and writes an audit record with
+  counts only (never package lists or the query text) before the result is released.
+- Broker read ops `packages.installed` / `packages.updates` / `packages.sources` / `packages.search`
+  (ADR 0008 Amendment 5, Proposed): unprivileged `homelab-control`, closed argv templates, replaced
+  environment (`LC_ALL=C`), `/dev/null` stdin, cache-only, bounded output, validated query
+  (charset/length, never leading `-`). Unsupported families and missing tools fail closed with a reason.
+- `packages.read` is in `KnownScopes`, never in `DefaultScopes`, implied by no other scope.
+  `packages.manage` stays reserved for the write ADR (0014) and is not granted here.
+- No root template, no plan/apply, no write, no metadata refresh, no repository mutation.
