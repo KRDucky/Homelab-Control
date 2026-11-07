@@ -13,14 +13,14 @@ Status 2026-11-07: owner `ask_ui` chose the file manager after squash-merging PR
 
 Capability `files` (UI path `/files`) is **degraded** when browsing is available (read-only; writes are not in this slice) and **unavailable** when the allow-list is missing, empty or unsafe. Core routes, like storage and host settings: **not** registered in `modules.json` (`TestRegistryIsClosed` stays `{services}` only).
 
-Setting: root-owned, not group/world-writable `/etc/homelab-control/files.json` (`{"version":1,"roots":[{"id","label","path"}]}`), same trust class as `modules.json`. hc-api flag `-files-config`. Empty, missing, unreadable or unsafe mode fails closed (no browse). Configured paths that are `/`, `/etc`, `/root`, `/proc`, `/sys`, `/home` or a home under `/home`, or that fail canonicalize-inside-jail, are refused.
+Setting: root-owned, not group/world-writable `/etc/homelab-control/files.json` (`{"version":1,"roots":[{"id","label","path"}]}`), same trust class as `modules.json`. hc-api flag `-files-config`. Empty, missing, unreadable or unsafe mode fails closed (no browse). Configured paths that are `/`, `/etc`, `/root`, `/proc`, `/sys`, `/home` or a home under `/home`, or that fail canonicalize-inside-jail, are refused. `forbiddenPath` is that lead list only; do not add `/var` or `/tmp` without a new owner/lead decision. Jail directory ownership and mode are not checked (only the setting file's trust class).
 
 ### Why this cannot execute or leave the jail
 
 - Served by `hc-api`, which cannot spawn (`guard` tests). No broker op. ADR 0008 forbids a generic path-taking file-read.
-- Listing uses in-process `os.Root` plus `O_NOFOLLOW` (same confinement idea as timezone lookup). Symlinks are not followed. `..`, extra slashes and absolute paths are refused before open.
-- Identifier-bearing GETs require Origin and the session CSRF token (same bar as layout/storage). A cookie-only same-site GET is 403 and is not audited.
-- Audit records root id and relative path only, never contents, never the host jail path.
+- Each `List` opens the jail with `O_RDONLY|O_NOFOLLOW|O_DIRECTORY` and walks `RelPath` components with `openat`+`O_NOFOLLOW`. `os.OpenRoot` is not used: it follows a last-component symlink on the stored path. A last-component symlink is never a directory. Intermediate in-jail relative symlinks are also opened with `O_NOFOLLOW` and refused as not a directory (inside-jail, not a filemin ACL-bypass). `..`, extra slashes and absolute paths are refused before open.
+- Identifier-bearing GETs require Origin and the session CSRF token (same bar as layout/storage). A cookie-only same-site GET is 403 and is not audited. Future files GETs must use `filesProtectedGET`.
+- Audit records root id and relative path only, never contents, never the host jail path. Jail-escape refusals (`..`, extra slashes, symlink-out) are not audited.
 
 ### UI (not accepted)
 

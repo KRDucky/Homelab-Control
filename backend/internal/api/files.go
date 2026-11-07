@@ -26,6 +26,7 @@ type filesEntriesResponse struct {
 
 // filesProtectedGET is the layout/storage bar on identifier-bearing GETs:
 // Origin and the session CSRF token before anything is read or audited.
+// Server.handle skips Origin/CSRF for GET; every files GET must use this helper.
 func (s *Server) filesProtectedGET(w http.ResponseWriter, r *http.Request, sess *auth.Session) bool {
 	if !auth.CheckCSRF(sess, r.Header.Get("X-CSRF-Token")) {
 		writeError(w, http.StatusForbidden, "csrf_rejected", "missing or invalid CSRF token")
@@ -96,6 +97,8 @@ func (s *Server) filesListError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusBadRequest, "bad_request", "Path must be a relative path inside the confined root.")
 	case errors.Is(err, filesinfo.ErrEscape):
 		writeError(w, http.StatusForbidden, "forbidden", "Path is outside the confined root.")
+	case errors.Is(err, filesinfo.ErrPermission):
+		writeError(w, http.StatusForbidden, "not_readable", "The path could not be listed.")
 	case errors.Is(err, filesinfo.ErrNotDir):
 		writeError(w, http.StatusBadRequest, "not_a_directory", "Path is not a directory.")
 	case errors.Is(err, filesinfo.ErrTooMany):

@@ -53,9 +53,9 @@ Working notes: [`docs/m2/M2-6-HOST-SETTINGS-SKELETON.md`](m2/M2-6-HOST-SETTINGS-
 ## File manager: read-only listing (development authorized 2026-11-07; not accepted)
 
 Owner `ask_ui` selected the file manager after squash-merging PR #42. Isolated **read-only** listing and
-stat of entries under allow-listed confined roots (`files.read`, never default). `hc-api` uses `os.Root`
-and `O_NOFOLLOW`; there is no broker file operation. No content download, editor, or writes. ADR 0012 is
-**Proposed**. The stacked read-only FileBrowser UI is a checkpoint (development, not acceptance).
+stat of entries under allow-listed confined roots (`files.read`, never default). `hc-api` reopens each
+jail with `openat`+`O_NOFOLLOW`; there is no broker file operation. No content download, editor, or
+writes. ADR 0012 is **Proposed**. The stacked read-only FileBrowser UI is a checkpoint (development, not acceptance).
 This is development, not M2 close, not M2-6 acceptance, and not a merge. Working notes:
 [`docs/m2/FILE-MANAGER-SKELETON.md`](m2/FILE-MANAGER-SKELETON.md).
 
