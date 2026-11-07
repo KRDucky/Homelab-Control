@@ -788,10 +788,7 @@ export function previewHostSettings(
 }
 
 /** Review a hostname/timezone change. Requires host.settings.apply; preview never authorizes this. */
-export function planHostSettings(
-  req: HostSettingsPreviewRequest,
-  csrf: string,
-): Promise<HostSettingsPlan> {
+export function planHostSettings(req: HostSettingsPreviewRequest, csrf: string): Promise<HostSettingsPlan> {
   return postJSON<HostSettingsPlan>('/api/v1/host/settings/plan', csrf, req);
 }
 

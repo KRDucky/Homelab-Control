@@ -238,11 +238,7 @@ export function HostSettingsPage({
             ))}
             {showApply && (
               <p>
-                <button
-                  ref={applyBtn}
-                  type="button"
-                  onClick={() => setApplying(true)}
-                >
+                <button ref={applyBtn} type="button" onClick={() => setApplying(true)}>
                   Apply these settings…
                 </button>
               </p>

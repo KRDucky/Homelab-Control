@@ -164,7 +164,9 @@ describe('host settings', () => {
     render(<App />);
     fireEvent.change(await screen.findByLabelText('Static host name'), { target: { value: 'nas-01' } });
     fireEvent.click(screen.getByRole('button', { name: 'Preview (does not apply)' }));
-    expect((await screen.findAllByText(/Apply is not available from this server right now/)).length).toBeGreaterThan(0);
+    expect(
+      (await screen.findAllByText(/Apply is not available from this server right now/)).length,
+    ).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: /^Apply/ })).toBeNull();
     expect(calls.some((c) => /\/host\/settings\/(apply|plan)$/.test(c.key))).toBe(false);
   });
@@ -203,7 +205,9 @@ describe('host settings', () => {
         ],
       },
       effect: 'This would set the static host name.',
-      consequences: ['Confirmation is required. This class is reversible: it does not require a password re-entry.'],
+      consequences: [
+        'Confirmation is required. This class is reversible: it does not require a password re-entry.',
+      ],
       warnings: [
         'Changing the static host name can invalidate TLS certificates that name this host, mDNS/Avahi names, and entries in /etc/hosts. Homelab Control does not update those.',
       ],
@@ -222,7 +226,12 @@ describe('host settings', () => {
           notice: 'Preview only. Nothing was changed on this host.',
           warnings: ['localhost is accepted with a warning.'],
           changes: [
-            { field: 'static_hostname', current: 'fixture-static', requested: 'nas-01', outcome: 'would-change' },
+            {
+              field: 'static_hostname',
+              current: 'fixture-static',
+              requested: 'nas-01',
+              outcome: 'would-change',
+            },
           ],
         },
       },
