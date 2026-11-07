@@ -8,7 +8,6 @@ import {
   ApiError,
   applyHostSettings,
   planHostSettings,
-  stepUp,
   type HostSetting,
   type HostSettingsObserved,
   type HostSettingsOutcome,
@@ -21,9 +20,10 @@ import { explain } from '../useData';
 import { RiskBadge } from './ServiceActionDialog';
 
 // HCIS privileged-operation flow: preview (nothing changed yet) → confirm
-// (reversible: confirmation required, password re-entry only if the plan
-// says so) → progress → backend-verified result. Success is hostnamectl/
-// timedatectl read-back, never the kernel name seen by hc-api.
+// (reversible: confirmation required; this op does not use password
+// re-entry) → progress → backend-verified result. Success is hostnamectl/
+// timedatectl read-back, never the kernel name seen by hc-api. A plan with
+// step_up_required is refused: that path needs an ADR, not a Services copy.
 
 const labels: Record<'static_hostname' | 'pretty_hostname' | 'timezone', string> = {
   static_hostname: 'Static host name',
@@ -148,6 +148,7 @@ const refusedBeforeRun = new Set([
   'policy_denied',
   'bad_request',
   'forbidden',
+  'step_up_required',
 ]);
 const selfDescribing = new Set(['unavailable', 'audit_unavailable', 'outcome_unknown']);
 
@@ -158,8 +159,6 @@ function secondsLeft(iso: string, now: number): number {
 export function HostSettingsApplyDialog({
   request,
   csrf,
-  stepUpUntil,
-  onStepUp,
   onClose,
   onUnauthorized,
   auditAvailable,
@@ -167,28 +166,32 @@ export function HostSettingsApplyDialog({
 }: {
   request: HostSettingsPreviewRequest;
   csrf: string;
-  stepUpUntil: string | null;
-  onStepUp: (until: string) => void;
   onClose: (changed: boolean) => void;
   onUnauthorized: () => void;
   auditAvailable: boolean;
   returnFocus: () => void;
 }) {
   const [stage, setStage] = useState<Stage>({ kind: 'planning' });
-  const [password, setPassword] = useState('');
-  const [pwError, setPwError] = useState('');
   const [now, setNow] = useState(() => Date.now());
   const [executed, setExecuted] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const pwRef = useRef<HTMLInputElement>(null);
   const titleId = useId();
   const descId = useId();
-  const pwId = useId();
 
   const review = useCallback(async () => {
     setStage({ kind: 'planning' });
     try {
       const plan = await planHostSettings(request, csrf);
+      if (plan.step_up_required) {
+        setStage({
+          kind: 'refused',
+          title: 'Cannot apply host settings',
+          message:
+            'This review requires a password confirmation. Host-settings apply does not use that path.',
+          retry: false,
+        });
+        return;
+      }
       setStage({ kind: 'preview', plan });
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) return onUnauthorized();
@@ -217,31 +220,16 @@ export function HostSettingsApplyDialog({
     if (stage.kind !== 'running') closeRef.current?.focus();
   }, [stage.kind]);
 
-  const stepUpValid = stepUpUntil !== null && Date.parse(stepUpUntil) - now > 5_000;
-
   async function confirm(plan: HostSettingsPlan) {
-    setPwError('');
-    if (plan.step_up_required && !stepUpValid) {
-      if (!password) {
-        setPwError('Enter your password to confirm this operation.');
-        pwRef.current?.focus();
-        return;
-      }
-      try {
-        const r = await stepUp(password, csrf);
-        onStepUp(r.step_up_until);
-      } catch (err) {
-        if (err instanceof ApiError && err.status === 401) return onUnauthorized();
-        setPwError(
-          err instanceof ApiError && err.status === 429
-            ? 'Too many failed attempts; try again later.'
-            : 'The password is not correct.',
-        );
-        pwRef.current?.focus();
-        return;
-      } finally {
-        setPassword('');
-      }
+    if (plan.step_up_required) {
+      setStage({
+        kind: 'refused',
+        title: 'Cannot apply host settings',
+        message:
+          'This review requires a password confirmation. Host-settings apply does not use that path.',
+        retry: false,
+      });
+      return;
     }
     setStage({ kind: 'running', plan });
     try {
@@ -251,12 +239,6 @@ export function HostSettingsApplyDialog({
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) return onUnauthorized();
       const e = err instanceof ApiError ? err : null;
-      if (e?.code === 'step_up_required') {
-        onStepUp(new Date(0).toISOString());
-        setPwError('Your password confirmation has expired. Enter it again.');
-        setStage({ kind: 'preview', plan });
-        return;
-      }
       const titles: Record<string, string> = {
         plan_invalid: 'This review is no longer valid',
         invalid_token: 'This review is no longer valid',
@@ -264,6 +246,7 @@ export function HostSettingsApplyDialog({
         busy: 'Another host-settings operation is in progress',
         policy_denied: 'Not allowed',
         outcome_unknown: 'The result is unknown',
+        step_up_required: 'Cannot apply host settings',
       };
       setStage({
         kind: 'refused',
@@ -298,7 +281,6 @@ export function HostSettingsApplyDialog({
     const plan = stage.plan;
     const left = secondsLeft(plan.expires_at, now);
     const expired = left === 0;
-    const needPw = plan.step_up_required && !stepUpValid;
     body = (
       <>
         <p className="preview-bar">Preview · nothing has been changed yet</p>
@@ -357,32 +339,6 @@ export function HostSettingsApplyDialog({
             {n}
           </p>
         ))}
-        {needPw && !running && (
-          <div className="field">
-            <label htmlFor={pwId}>Re-enter your password to confirm</label>
-            <input
-              ref={pwRef}
-              id={pwId}
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              aria-invalid={pwError ? true : undefined}
-              aria-describedby={pwError ? `${pwId}-err` : undefined}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !expired) void confirm(plan);
-              }}
-            />
-          </div>
-        )}
-        {pwError && (
-          <p id={`${pwId}-err`} className="field-error" role="alert">
-            {pwError}
-          </p>
-        )}
-        {plan.step_up_required && stepUpValid && !running && (
-          <p className="footnote">Your password was confirmed in the last five minutes.</p>
-        )}
         <p className="footnote" aria-live="off">
           {expired
             ? 'This review has expired. Review the operation again to continue.'

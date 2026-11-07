@@ -51,14 +51,12 @@ export function HostSettingsPage({
   csrf,
   canPreview,
   canApply,
-  stepUpUntil = null,
   auditAvailable = false,
   onUnauthorized,
 }: {
   csrf: string;
   canPreview: boolean;
   canApply: boolean;
-  stepUpUntil?: string | null;
   auditAvailable?: boolean;
   onUnauthorized: () => void;
 }) {
@@ -69,7 +67,6 @@ export function HostSettingsPage({
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [applying, setApplying] = useState(false);
-  const [stepUp, setStepUp] = useState<string | null>(stepUpUntil);
   const applyBtn = useRef<HTMLButtonElement>(null);
 
   if (error && !data) {
@@ -235,7 +232,7 @@ export function HostSettingsPage({
               </tbody>
             </table>
             {preview.warnings.map((w) => (
-              <p key={w} className="muted">
+              <p key={w} className="banner" role="note">
                 {w}
               </p>
             ))}
@@ -253,12 +250,10 @@ export function HostSettingsPage({
           </div>
         )}
       </section>
-      {applying && previewReq && (
+      {showApply && applying && previewReq && (
         <HostSettingsApplyDialog
           request={previewReq}
           csrf={csrf}
-          stepUpUntil={stepUp}
-          onStepUp={setStepUp}
           onUnauthorized={onUnauthorized}
           auditAvailable={auditAvailable}
           returnFocus={() => applyBtn.current?.focus()}

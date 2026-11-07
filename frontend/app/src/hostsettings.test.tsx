@@ -169,6 +169,21 @@ describe('host settings', () => {
     expect(calls.some((c) => /\/host\/settings\/(apply|plan)$/.test(c.key))).toBe(false);
   });
 
+  it('does not offer Apply when the preview is not valid, even with apply scope and apply_available', async () => {
+    mock(['system.read', 'host.settings.preview', 'host.settings.apply'], {
+      'POST /api/v1/host/settings/preview': {
+        status: 200,
+        body: { ...preview, apply_available: true, valid: false },
+      },
+    });
+    render(<App />);
+    fireEvent.change(await screen.findByLabelText('Static host name'), { target: { value: 'nas-01' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Preview (does not apply)' }));
+    expect(await screen.findByText('Preview result — not applied')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Apply/ })).toBeNull();
+    expect(calls.some((c) => /\/host\/settings\/(apply|plan)$/.test(c.key))).toBe(false);
+  });
+
   it('plans then applies behind host.settings.apply, shows the TLS warning, and skips step-up', async () => {
     const plan = {
       action: 'set',
@@ -205,6 +220,7 @@ describe('host settings', () => {
           apply_available: true,
           valid: true,
           notice: 'Preview only. Nothing was changed on this host.',
+          warnings: ['localhost is accepted with a warning.'],
           changes: [
             { field: 'static_hostname', current: 'fixture-static', requested: 'nas-01', outcome: 'would-change' },
           ],
@@ -229,6 +245,9 @@ describe('host settings', () => {
     fireEvent.change(await screen.findByLabelText('Static host name'), { target: { value: 'nas-01' } });
     fireEvent.click(screen.getByRole('button', { name: 'Preview (does not apply)' }));
     expect(await screen.findByRole('button', { name: 'Apply these settings…' })).toBeTruthy();
+    const previewWarning = screen.getByText('localhost is accepted with a warning.');
+    expect(previewWarning.className).toContain('banner');
+    expect(previewWarning.getAttribute('role')).toBe('note');
     expect(calls.some((c) => /\/host\/settings\/(apply|plan)$/.test(c.key))).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: 'Apply these settings…' }));
     const dialog = await screen.findByRole('dialog', { name: 'Apply host settings' });
