@@ -67,6 +67,8 @@ func (debianAdapter) ParseSearch(text string) ([]Package, error) {
 	if err != nil {
 		return nil, err
 	}
+	// apt-cache search reports no arch or repo, so name is the only dedupe key
+	// available (R3: key on name+arch/repo "when present").
 	var out []Package
 	seen := map[string]bool{}
 	for i, ln := range lns {
