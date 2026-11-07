@@ -18,7 +18,8 @@ Already settled, and not asked again:
 | D-6 | PR-1 | **Approved 2026-10-21** |
 | D-7 | PR-1 | **Approved 2026-10-21** |
 | D-2, D-3, D-4, D-5 | PR M2-2 (first write) | **Approved 2026-10-23 (option A each)** |
-| D-8, D-9, D-10 | Roadmap shape | Open |
+| D-8 | Roadmap shape after M2 | **Decided 2026-11-07 (keep `docs/project/04-ROADMAP.md`; Theme/Plugin SDK is M3)** |
+| D-9, D-10 | Roadmap shape | Open |
 | D-11 | Before any third-party library or tool adapter (M3+) | Open (policy only) |
 | D-12 | PR M2-5 (drive locator) | Open (HBA Viewer source to be provided) |
 
@@ -146,15 +147,17 @@ Existing scope names stay valid. Specs 03/addon-03 names (`storage.plan`, `stora
 ## D-8 Milestone order after M2
 `docs/project/04-ROADMAP.md` orders M3 Theme/Plugin SDK → M4 Software Center → M5 disk inventory and bay map → … → M11 containers/VMs.
 
-**Recommended, to deliver usable modules sooner:**
+**Owner decision 2026-11-07 (ask_ui `m2-close-m3-d8`):** keep `docs/project/04-ROADMAP.md`. M3 is Theme SDK + plugin SDK (install/preview/switch/remove theme; load/unload read-only sample plugin). Do not rewrite 04-ROADMAP to the M2-ROADMAP storage-first sequence.
+
+**Recommended (not taken), to deliver usable modules sooner:**
 - (a) M2 as in `M2-ROADMAP.md`. This pulls **drive locator Stage A** and the **read-only storage inventory** forward from M5; both are non-privileged.
 - (b) Defer the Theme/Plugin SDK (old M3) until after the first storage and container modules. Modules ship as built-in first-party modules (D-10).
 - (c) Defer the ADR 0003 parity harness to the first milestone that replaces a Webmin parser.
 - (d) Adopt the module milestone sequence in `M2-ROADMAP.md` §4.
 
-**Alternative:** keep 04-ROADMAP as written. Theme/plugin work comes before any module; useful functions arrive later.
+**Alternative (taken 2026-11-07):** keep 04-ROADMAP as written. Theme/plugin work comes before any module; useful functions arrive later.
 
-**Impact:** 04-ROADMAP would be revised in a follow-up docs PR once approved. It is unchanged here.
+**Impact:** 04-ROADMAP stays as written. It is unchanged here.
 
 ## D-9 Host administration in M2
 - **Recommended:** hostname and timezone as an **optional** M2 slice (PR M2-6). These are low-risk, through `hostnamectl`/`timedatectl`, and they exercise the write framework on a second module.
