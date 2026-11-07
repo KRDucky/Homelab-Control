@@ -5,6 +5,7 @@
 import { getOverview } from '../api';
 import { LiveIndicator } from '../ui';
 import { Overview } from '../Overview';
+import { PluginContributions } from '../plugin-ui';
 import { explain, useData } from '../useData';
 
 export function OverviewPage({ onUnauthorized }: { onUnauthorized: () => void }) {
@@ -18,6 +19,7 @@ export function OverviewPage({ onUnauthorized }: { onUnauthorized: () => void })
         </p>
       )}
       {data ? <Overview data={data} /> : !error && <p className="muted">Reading host data…</p>}
+      <PluginContributions slot="overview" />
     </>
   );
 }
