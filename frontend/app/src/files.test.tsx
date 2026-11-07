@@ -73,7 +73,7 @@ const subEntries = {
   ],
 };
 
-let calls: { key: string; init: RequestInit | undefined }[] = [];
+let calls: { key: string; url: string; init: RequestInit | undefined }[] = [];
 
 function mock(scopes: string[], routes: Record<string, { status: number; body: unknown }> = {}) {
   calls = [];
@@ -85,8 +85,9 @@ function mock(scopes: string[], routes: Record<string, { status: number; body: u
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, init?: RequestInit) => {
-      const key = `${init?.method ?? 'GET'} ${url.split('?')[0]}`;
-      calls.push({ key, init });
+      const path = url.split('?')[0] ?? url;
+      const key = `${init?.method ?? 'GET'} ${path}`;
+      calls.push({ key, url, init });
       const r = all[key] ?? { status: 404, body: { error: 'not_found', message: 'nope' } };
       return new Response(JSON.stringify(r.body), { status: r.status });
     }),
@@ -136,8 +137,10 @@ describe('files', () => {
     expect(screen.queryByRole('button', { name: /Download/i })).toBeNull();
     const rootsCall = calls.find((c) => c.key === 'GET /api/v1/files/roots');
     expect((rootsCall?.init?.headers as Record<string, string>)['X-CSRF-Token']).toBe('csrf-fixture');
-    const entriesCall = calls.find((c) => c.key === 'GET /api/v1/files/entries');
-    expect((entriesCall?.init?.headers as Record<string, string>)['X-CSRF-Token']).toBe('csrf-fixture');
+    const firstEntries = calls.find((c) => c.key === 'GET /api/v1/files/entries');
+    expect(firstEntries).toBeTruthy();
+    expect((firstEntries?.init?.headers as Record<string, string>)['X-CSRF-Token']).toBe('csrf-fixture');
+    expect(new URL(firstEntries?.url ?? '', 'http://hc.test').searchParams.get('path')).toBe('');
     expect(calls.some((c) => (c.init?.method ?? 'GET') !== 'GET')).toBe(false);
   });
 
@@ -148,7 +151,7 @@ describe('files', () => {
       vi.fn(async (url: string, init?: RequestInit) => {
         const path = url.split('?')[0] ?? url;
         const key = `${init?.method ?? 'GET'} ${path}`;
-        calls.push({ key, init });
+        calls.push({ key, url, init });
         if (path.endsWith('/auth/session')) {
           return new Response(JSON.stringify(session(['system.read', 'files.read'])), { status: 200 });
         }
