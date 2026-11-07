@@ -124,6 +124,13 @@ button.ghost {
   color: var(--hc-color-text);
   border-color: var(--hc-color-rule);
 }
+/* Filled buttons use --hc-color-signal / --hc-color-signal-ink. .muted and .tag
+   otherwise force --hc-color-muted (text-secondary), which fails WCAG 2.2 AA on
+   the signal fill (selected drive-bay cells). Inherit the button's ink. */
+button:not(.ghost) .muted,
+button:not(.ghost) .tag {
+  color: inherit;
+}
 
 input {
   font: inherit;
