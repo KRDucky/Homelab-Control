@@ -19,7 +19,7 @@ Setting: root-owned, not group/world-writable `/etc/homelab-control/files.json` 
 
 - Served by `hc-api`, which cannot spawn (`guard` tests). No broker op. ADR 0008 forbids a generic path-taking file-read.
 - Each `List` opens the jail with `O_RDONLY|O_NOFOLLOW|O_DIRECTORY` and walks `RelPath` components with `openat`+`O_NOFOLLOW`. `os.OpenRoot` is not used: it follows a last-component symlink on the stored path. A last-component symlink is never a directory. Intermediate in-jail relative symlinks are also opened with `O_NOFOLLOW` and refused as not a directory (inside-jail, not a filemin ACL-bypass). `..`, extra slashes and absolute paths are refused before open.
-- Identifier-bearing GETs require Origin and the session CSRF token (same bar as layout/storage). A cookie-only same-site GET is 403 and is not audited. Future files GETs must use `filesProtectedGET`.
+- Identifier-bearing GETs require the session CSRF token before anything is read or audited (same bar as layout/storage). A cookie-only same-site GET is 403 and is not audited. Same-origin browser GET fetch omits Origin; a present Origin (cross-origin GET) still has to match `originAllowed`. Future files GETs must use `filesProtectedGET`.
 - Audit records root id and relative path only, never contents, never the host jail path. Jail-escape refusals (`..`, extra slashes, symlink-out) are not audited.
 
 ### UI (not accepted)
@@ -38,5 +38,5 @@ Generic broker file op. `modules.json` registration. Production, merge, KVM, M2 
 ## Tests
 
 - Go: jail escape (`..`, extra slashes, symlink out, `O_NOFOLLOW`), missing/empty/unsafe config, oversize directory, 401, 403 without `files.read`, other scopes including `services.files` insufficient, CSRF/Origin on roots and entries, `files.read` in `KnownScopes` not `DefaultScopes`, OpenAPI + guard.
-- Vitest: `frontend/app/src/files.test.tsx` (page gated without `files.read`; New folder / Permissions / Download absent and never posted; CSRF on roots and entries). Playwright/axe unrun. Isolated fixtures only; this slice does not browse the OpenBot host or a retained VM.
-- Opt-in Go fixture `TestFilesBrowserFixture` (`backend/internal/api/files_browser_test.go`, `HC_FILES_BROWSER_DIR`) exists; Playwright remains unrun until evidenced.
+- Vitest: `frontend/app/src/files.test.tsx` (page gated without `files.read`; New folder / Permissions / Download absent and never posted; CSRF on roots and entries). Isolated fixtures only; this slice does not browse the OpenBot host or a retained VM.
+- Opt-in Go fixture `TestFilesBrowserFixture` (`backend/internal/api/files_browser_test.go`, `HC_FILES_BROWSER_DIR`) plus `tests/e2e/files_browser.py`: labelled synthetic jail only (`readme.txt`, `sub/inner.txt`). Skip unless the runtime dir already exists mode 0700; fatal if euid 0. Not in CI. Not live host browse, not M2 close.

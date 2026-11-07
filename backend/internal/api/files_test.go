@@ -96,7 +96,6 @@ func TestFilesCSRFAndOrigin(t *testing.T) {
 	for name, hdr := range map[string]map[string]string{
 		"cookie only":  nil,
 		"wrong token":  {"Origin": testOrigin, "X-CSRF-Token": "nope"},
-		"no origin":    {"X-CSRF-Token": h.csrf},
 		"cross origin": {"Origin": "http://evil.test", "X-CSRF-Token": h.csrf},
 	} {
 		for _, path := range []string{"/api/v1/files/roots", "/api/v1/files/entries?root=lab&path=sub"} {
@@ -115,6 +114,13 @@ func TestFilesCSRFAndOrigin(t *testing.T) {
 	}
 	if h.audit.Len() != before {
 		t.Fatalf("refused reads were audited: %s", h.audit.String()[before:])
+	}
+	// Same-origin browser GET fetch omits Origin; CSRF is the bar (layout/storage).
+	for _, path := range []string{"/api/v1/files/roots", "/api/v1/files/entries?root=lab&path=sub"} {
+		rr := h.do("GET", path, "", map[string]string{"X-CSRF-Token": h.csrf})
+		if rr.Code != http.StatusOK {
+			t.Fatalf("no origin %s: %d %s", path, rr.Code, rr.Body)
+		}
 	}
 }
 
