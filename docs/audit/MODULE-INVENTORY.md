@@ -25,21 +25,21 @@ Notable gap: upstream Webmin has **no ZFS, Btrfs, mergerfs, SnapRAID, Docker/Pod
 | `adsl-client` | net | ADSL Client | Drop from default build | Obsolete for homelab targets / demo |
 | `apache` | servers | Apache Webserver | Replace | M10 reverse-proxy manager (Caddy/Nginx/Traefik adapters); apache legacy-only |
 | `at` | system | Scheduled Commands | Bridge (later) | Scheduled jobs view; write paths need broker ops + audit |
-| `backup-config` | webmin | Backup Configuration Files | Keep in legacy UI | M12 backups (Restic/Borg/ZFS send) are new; backup-config needed for legacy migration |
-| `bacula-backup` | system | Bacula Backup System | Keep in legacy UI | M12 backups (Restic/Borg/ZFS send) are new; backup-config needed for legacy migration |
+| `backup-config` | webmin | Backup Configuration Files | Keep in legacy UI | M13 backups (Restic/Borg/ZFS send) are new; backup-config needed for legacy migration |
+| `bacula-backup` | system | Bacula Backup System | Keep in legacy UI | M13 backups (Restic/Borg/ZFS send) are new; backup-config needed for legacy migration |
 | `bandwidth` | net | Bandwidth Monitoring | Drop from default build | Obsolete for homelab targets / demo |
 | `bind8` | servers | BIND DNS Server | Keep in legacy UI | No new-UI plan in v1 roadmap |
 | `bsdexports` | net | NFS Exports | Drop from default build | Non-Linux or obsolete |
 | `bsdfdisk` | hardware | Partitions on Local Disks | Drop from default build | Non-Linux or obsolete |
 | `change-user` | webmin | Change Language and Theme | Legacy admin | Webmin's own user/ACL/config/RPC administration; not mapped to the new RBAC |
-| `cluster-copy` | cluster | Cluster Copy Files | Drop from default build | Multi-host is M12+ and will not reuse Webmin RPC |
-| `cluster-cron` | cluster | Cluster Cron Jobs | Drop from default build | Multi-host is M12+ and will not reuse Webmin RPC |
-| `cluster-passwd` | cluster | Cluster Change Passwords | Drop from default build | Multi-host is M12+ and will not reuse Webmin RPC |
+| `cluster-copy` | cluster | Cluster Copy Files | Drop from default build | Multi-host is M13+ and will not reuse Webmin RPC |
+| `cluster-cron` | cluster | Cluster Cron Jobs | Drop from default build | Multi-host is M13+ and will not reuse Webmin RPC |
+| `cluster-passwd` | cluster | Cluster Change Passwords | Drop from default build | Multi-host is M13+ and will not reuse Webmin RPC |
 | `cluster-shell` | cluster | Cluster Shell Commands | Never bridged | Arbitrary command execution / root file access / outbound fetch by design |
-| `cluster-software` | cluster | Cluster Software Packages | Drop from default build | Multi-host is M12+ and will not reuse Webmin RPC |
-| `cluster-useradmin` | cluster | Cluster Users and Groups | Drop from default build | Multi-host is M12+ and will not reuse Webmin RPC |
-| `cluster-usermin` | cluster | Cluster Usermin Servers | Drop from default build | Multi-host is M12+ and will not reuse Webmin RPC |
-| `cluster-webmin` | cluster | Cluster Webmin Servers | Drop from default build | Multi-host is M12+ and will not reuse Webmin RPC |
+| `cluster-software` | cluster | Cluster Software Packages | Drop from default build | Multi-host is M13+ and will not reuse Webmin RPC |
+| `cluster-useradmin` | cluster | Cluster Users and Groups | Drop from default build | Multi-host is M13+ and will not reuse Webmin RPC |
+| `cluster-usermin` | cluster | Cluster Usermin Servers | Drop from default build | Multi-host is M13+ and will not reuse Webmin RPC |
+| `cluster-webmin` | cluster | Cluster Webmin Servers | Drop from default build | Multi-host is M13+ and will not reuse Webmin RPC |
 | `cpan` | — | Perl Modules | Never bridged | Arbitrary command execution / root file access / outbound fetch by design |
 | `cron` | system | Scheduled Cron Jobs | Bridge (later) | Scheduled jobs view; write paths need broker ops + audit |
 | `custom` | — | Custom Commands | Never bridged | Arbitrary command execution / root file access / outbound fetch by design |
@@ -57,7 +57,7 @@ Notable gap: upstream Webmin has **no ZFS, Btrfs, mergerfs, SnapRAID, Docker/Pod
 | `firewall6` | net | Linux Firewall (ip6tables) | Replace | Networking/firewall with timed-rollback safeguard |
 | `firewalld` | net | FirewallD | Replace | Networking/firewall with timed-rollback safeguard |
 | `format` | hardware | Partitions on Local Disks | Replace | M5/M6 disk inventory + partition planner (typed adapter; lsblk/udev identity, never /dev/sdX) |
-| `fsdump` | system | Filesystem Backup | Keep in legacy UI | M12 backups (Restic/Borg/ZFS send) are new; backup-config needed for legacy migration |
+| `fsdump` | system | Filesystem Backup | Keep in legacy UI | M13 backups (Restic/Borg/ZFS send) are new; backup-config needed for legacy migration |
 | `grub2` | hardware | GRUB 2 Boot Loader | Keep in legacy UI | No new-UI plan in v1 roadmap |
 | `hardware-info` | hardware | Hardware Information | Bridge (read-only) | M1 candidate: new in 2.670, read-only by nature; reference for M5 inventory |
 | `heartbeat` | cluster | Heartbeat Monitor | Keep in legacy UI | No new-UI plan in v1 roadmap |

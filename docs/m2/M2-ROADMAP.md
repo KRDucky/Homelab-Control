@@ -104,19 +104,20 @@ See `M2-PR1-PROPOSAL.md`. **No privileged writes.** Decisions: D-1, D-6, D-7.
 | Storage fixtures and loop devices | — | M2-4 onward (no real host disks; CLAUDE.md) |
 | Existing CI | Unchanged; nothing is weakened | — |
 
-## 4. After M2: proposed module milestones (D-8)
-Each milestone delivers complete modules (backend, API, UI, tests, docs), read-only first and then writes behind the M2 framework. The old roadmap numbers are given for traceability; the theme/plugin SDK (old M3) is proposed to follow M5.
+## 4. After M2: proposed module milestones (D-8) — historical
+
+This §4 sequence is the 2026-10-21 proposal. **D-8 (2026-11-07) kept `docs/project/04-ROADMAP.md`**; M3 remains Theme SDK + plugin SDK. Each milestone in the proposal would have delivered complete modules (backend, API, UI, tests, docs), read-only first and then writes behind the M2 framework. The 04-ROADMAP numbers in the right column are current (after the 2026-11-07 M11 networking insert); the theme/plugin SDK stays M3.
 
 | Proposed | Content | Old roadmap |
 |---|---|---|
 | **M3 Storage, read-only** | ZFS, mdadm, LVM2, Btrfs, ext4/XFS/F2FS details, mergerfs, SnapRAID status, SMART/NVMe; drive locator Stage B | parts of M5, M7, M8 (read) |
 | **M4 Software Center** | Package search/install/remove with transaction preview per family; updates and repositories only after separate owner approval | M4 |
-| **M5 Containers** | Docker Engine, containers, Compose projects, images, networks, volumes, Buildx | M11 (part) |
+| **M5 Containers** | Docker Engine, containers, Compose projects, images, networks, volumes, Buildx | 04-ROADMAP **M12** (was M11 before the 2026-11-07 insert) |
 | **M6 Storage configuration** | Mounts, ext4/XFS/F2FS create and grow, LVM, mdadm, ZFS datasets/snapshots, Btrfs subvolumes, mergerfs pools, SnapRAID config/sync/scrub; coordinated storage workflows; destructive ops gated by VM evidence | M6, M7, M8 |
 | **M7 File sharing** | SMB, SFTP, NFS, WebDAV, FTP/FTPS, then iSCSI target; share workflows | addon A1–A5 |
-| **M8 Virtualization** | libvirt VMs, networks, storage pools; VM-on-pool workflow | M11 (part) |
+| **M8 Virtualization** | libvirt VMs, networks, storage pools; VM-on-pool workflow | 04-ROADMAP **M12** (was M11 before the 2026-11-07 insert) |
 | **M9 Hardware and replacement** | Drive locator Stages C and D, guided disk replacement and SnapRAID recovery feasibility, Thunderbolt | M9 + new |
-| **M10+** | Unchanged from 04-ROADMAP: reverse proxy/ACME/DDNS, identity/Tailscale/cooling/UPS, backups/monitoring, theme/plugin SDK (moved), distro release hardening | M3, M10–M13 |
+| **M10+** | Unchanged from 04-ROADMAP: reverse proxy/ACME/DDNS, identity/Tailscale/cooling/UPS, backups/monitoring, theme/plugin SDK (M3, not moved), distro release hardening | M3, M10–M14 |
 
 Users and groups administration gets its own milestone once identity work (PAM, still deferred) is scheduled.
 
