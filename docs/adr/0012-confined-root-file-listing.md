@@ -33,4 +33,4 @@ and reads as root would be that design.
 - A later write slice needs its own owner authorization, ADR 0011 plan/confirm/apply, a separate
   `files.operate` / `files.configure` / `files.destroy` scope, and reviewed jailed verbs — not a generic
   path-taking root file op.
-- Frontend FileBrowser is a later stacked slice.
+- The read-only FileBrowser port is on `/files` as a checkpoint (not accepted); writes, download, and content remain out.
