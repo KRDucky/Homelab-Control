@@ -53,6 +53,15 @@ var registry = []Module{
 		OpPrefix:    "services.",
 		Path:        "/services",
 	},
+	{
+		ID:          "packages",
+		Title:       "Software",
+		Description: "read-only Software Center: package search, installed list, pending-update preview and configured sources from the local cache",
+		Scopes:      []string{"packages.read"},
+		APIPrefix:   "/api/v1/packages",
+		OpPrefix:    "packages.",
+		Path:        "/software",
+	},
 }
 
 // All returns the registered modules.

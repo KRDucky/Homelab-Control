@@ -145,7 +145,11 @@ func TestSupplementaryGroupsNeverRoot(t *testing.T) {
 // TestAllowListedBinariesAreClosed is the production allow-list snapshot.
 // New binaries need security review (ADR 0008 Amendment 4).
 func TestAllowListedBinariesAreClosed(t *testing.T) {
-	want := map[string]bool{"systemctl": true, "journalctl": true, "hostnamectl": true, "timedatectl": true}
+	want := map[string]bool{
+		"systemctl": true, "journalctl": true, "hostnamectl": true, "timedatectl": true,
+		// M4-1b (ADR 0008 Amendment 5, Proposed): read-only package managers.
+		"dpkg-query": true, "apt-cache": true, "apt": true, "rpm": true, "dnf": true, "zypper": true, "pacman": true,
+	}
 	if len(allowlist) != len(want) {
 		t.Fatalf("allow-list changed (%d entries); new binaries need security review", len(allowlist))
 	}
@@ -509,5 +513,66 @@ func TestTimeoutKillsGrandchildInGroup(t *testing.T) {
 			t.Fatalf("grandchild %d still alive %v after cancel: %+v", pid, time.Since(start), st)
 		}
 		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// TestPackageQueriesAreClosed is the package-query snapshot (ADR 0008
+// Amendment 5, Proposed): exactly these read templates, each with a fixed argv
+// and no write/refresh/root verb. Changing it requires review.
+func TestPackageQueriesAreClosed(t *testing.T) {
+	want := map[PackageQuery]bool{
+		PkgDebianInstalled: true, PkgDebianSearch: true, PkgDebianUpdates: true,
+		PkgFedoraInstalled: true, PkgFedoraSearch: true, PkgFedoraUpdates: true,
+		PkgSUSEInstalled: true, PkgSUSESearch: true, PkgSUSEUpdates: true, PkgSUSESources: true,
+		PkgArchInstalled: true, PkgArchSearch: true, PkgArchUpdates: true,
+	}
+	if len(packageQueries) != len(want) {
+		t.Fatalf("%d package queries, want %d — new templates need review", len(packageQueries), len(want))
+	}
+	for id, tpl := range packageQueries {
+		if !want[id] {
+			t.Errorf("unexpected package query %q", id)
+		}
+		if _, ok := allowlist[tpl.binary]; !ok {
+			t.Errorf("%s: binary %q not in allow-list", id, tpl.binary)
+		}
+		if tpl.queryAt < -1 || tpl.queryAt >= len(tpl.argv) {
+			t.Errorf("%s: invalid query slot %d", id, tpl.queryAt)
+		}
+		for _, a := range tpl.argv {
+			banned := map[string]bool{"install": true, "remove": true, "purge": true, "upgrade": true, "dist-upgrade": true,
+				"autoremove": true, "makecache": true, "refresh": true, "update": true, "in": true, "rm": true,
+				"addrepo": true, "add-repo": true, "-Sy": true, "-Syy": true, "-S": true, "-R": true, "-U": true, "--sync": true}
+			if banned[a] {
+				t.Errorf("%s contains forbidden argument %q", id, a)
+			}
+		}
+	}
+	for id, tpl := range packageQueries {
+		if tpl.queryAt < 0 {
+			if _, err := PackageQueryArgv(id, "nginx"); !errors.Is(err, ErrBadArg) {
+				t.Errorf("%s accepted a query", id)
+			}
+		} else if _, err := PackageQueryArgv(id, "nginx"); err != nil {
+			t.Errorf("%s refused a query: %v", id, err)
+		}
+	}
+	for _, unknown := range []PackageQuery{"debian.remove", "arch.install", "generic.refresh"} {
+		if _, err := PackageQueryArgv(unknown, ""); !errors.Is(err, ErrUnknownTemplate) {
+			t.Errorf("unknown %s: %v", unknown, err)
+		}
+	}
+}
+
+func TestValidPackageQuery(t *testing.T) {
+	for _, good := range []string{"nginx", "libssl3", "gcc-12", "c++", "python3.11", "a"} {
+		if !ValidPackageQuery(good) {
+			t.Errorf("query %q should be valid", good)
+		}
+	}
+	for _, bad := range []string{"", "-o", "--config", "-", "--", "a b", "a;b", "$(id)", "`id`", "a|b", "a>b", "a*b", "a?b", "a/b", "a\\b", "a\x00b", strings.Repeat("a", 65), "é", "a\nb", "a\tb"} {
+		if ValidPackageQuery(bad) {
+			t.Errorf("query %q should be rejected", bad)
+		}
 	}
 }

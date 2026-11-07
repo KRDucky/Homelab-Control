@@ -17,6 +17,7 @@ import { Audit } from './pages/Audit';
 import { Hardware } from './pages/Hardware';
 import { Storage } from './pages/Storage';
 import { FilesPage } from './pages/Files';
+import { Software } from './pages/Software';
 import { HostSettingsPage } from './pages/HostSettings';
 import { Legacy } from './pages/Legacy';
 import { OverviewPage } from './pages/OverviewPage';
@@ -171,6 +172,7 @@ export function App() {
   else if (route?.id === 'legacy')
     page = <Legacy legacyUrl={session.legacy_url} onUnauthorized={signedOut} />;
   else if (route?.id === 'overview') page = <OverviewPage onUnauthorized={signedOut} />;
+  else if (route?.id === 'packages') page = <Software csrf={session.csrf_token} onUnauthorized={signedOut} />;
 
   return (
     <Shell

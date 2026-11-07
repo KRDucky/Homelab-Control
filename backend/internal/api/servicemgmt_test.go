@@ -280,8 +280,16 @@ func TestDisabledModuleRoutes404(t *testing.T) {
 			t.Errorf("capability %s of a disabled module listed", c.ID)
 		}
 	}
-	if len(cr.Modules) != 1 || cr.Modules[0].Enabled || cr.Modules[0].Reason == "" {
+	if len(cr.Modules) != 2 {
 		t.Fatalf("modules: %+v", cr.Modules)
+	}
+	for _, m := range cr.Modules {
+		if m.ID == "services" && (m.Enabled || m.Reason == "") {
+			t.Errorf("services module not disabled: %+v", m)
+		}
+		if m.ID == "packages" && !m.Enabled {
+			t.Errorf("packages module should stay enabled: %+v", m)
+		}
 	}
 	// Core routes are unaffected.
 	if rr := h.do("GET", "/api/v1/host/overview", "", nil); rr.Code != 200 {
