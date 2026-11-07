@@ -268,8 +268,7 @@ function SoftwareSources({ sources }: { sources: SourceList }) {
         ]}
       />
       <p className="footnote">
-        {sources.source}. Third-party and unsigned sources (for example Arch AUR packages) are flagged and
-        never used automatically.
+        {sources.source}. Third-party and unsigned sources are flagged and never used automatically.
       </p>
     </>
   );
