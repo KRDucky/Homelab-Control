@@ -35,7 +35,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, storage.read, host.settings.preview, layout.manage] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, storage.read, host.settings.preview, host.settings.apply, layout.manage] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
@@ -730,29 +730,75 @@ components:
         timezone: { $ref: '#/components/schemas/HostSetting' }
     HostSettingsPreview:
       type: object
-      description: A comparison of requested and observed values. Nothing was applied; preview_only is always true and executed, host_changed and apply_available are always false.
+      description: A comparison of requested and observed values. Nothing was applied; preview_only is always true and executed and host_changed are always false. apply_available is true when this server's broker has host.settings.apply and hostnamectl and timedatectl.
       required: [preview_only, executed, host_changed, apply_available, notice, valid, collected_at, current, changes, warnings]
       properties:
         preview_only: { type: boolean, const: true }
         executed: { type: boolean, const: false }
         host_changed: { type: boolean, const: false }
-        apply_available: { type: boolean, const: false }
+        apply_available: { type: boolean, description: 'True when the broker has host.settings.apply, writes are available, and hostnamectl and timedatectl are on the allow-list. Preview still never applies.' }
         notice: { type: string }
         valid: { type: boolean }
         collected_at: { type: string, format: date-time }
         current: { $ref: '#/components/schemas/HostSettings' }
         changes:
           type: array
-          items:
-            type: object
-            required: [field, current, requested, outcome]
-            properties:
-              field: { type: string, enum: [static_hostname, pretty_hostname, timezone] }
-              current: { type: string }
-              requested: { type: string }
-              outcome: { type: string, enum: [unchanged, would-change, invalid, cannot-compare] }
-              reason: { type: string }
+          items: { $ref: '#/components/schemas/HostSettingChange' }
         warnings: { type: array, items: { type: string } }
+    HostSettingChange:
+      type: object
+      required: [field, current, requested, outcome]
+      properties:
+        field: { type: string, enum: [static_hostname, pretty_hostname, timezone] }
+        current: { type: string }
+        requested: { type: string }
+        outcome: { type: string, enum: [unchanged, would-change, invalid, cannot-compare] }
+        reason: { type: string }
+    HostSettingsObserved:
+      type: object
+      description: hostnamectl/timedatectl status as the broker reports it. This is not the kernel hostname seen by hc-api (ProtectHostname=yes).
+      required: [static_status, pretty_status, timezone_status]
+      properties:
+        static_hostname: { type: string }
+        static_status: { type: string, enum: [observed, not-set, unavailable] }
+        pretty_hostname: { type: string }
+        pretty_status: { type: string, enum: [observed, not-set, unavailable] }
+        timezone: { type: string }
+        timezone_status: { type: string, enum: [observed, not-set, unavailable] }
+        transient_hostname: { type: string }
+        transient_status: { type: string, enum: [observed, not-set, unavailable] }
+        notes: { type: array, items: { type: string } }
+    HostSettingsPlan:
+      type: object
+      description: 'Review of a hostname and/or timezone change (M2-6, ADR 0011). Nothing is changed. Risk is reversible: confirmation is required, password re-entry is not.'
+      required: [action, risk, step_up_required, confirmation_required, token, expires_at, observed, effect, consequences, warnings, changes, fields]
+      properties:
+        action: { type: string, enum: [set] }
+        risk: { type: string, enum: [reversible] }
+        step_up_required: { type: boolean }
+        confirmation_required: { type: boolean }
+        token: { type: string, description: 'Single-use plan token, valid 120 s, bound to this session, user, action set, target host and the observed hostnamectl/timedatectl state plus the requested fields. Not a credential on its own.' }
+        expires_at: { type: string, format: date-time }
+        observed: { $ref: '#/components/schemas/HostSettingsObserved' }
+        effect: { type: string }
+        consequences: { type: array, items: { type: string } }
+        warnings: { type: array, items: { type: string }, description: 'Includes the TLS, mDNS and /etc/hosts warning when the static host name would change' }
+        changes: { type: array, items: { $ref: '#/components/schemas/HostSettingChange' } }
+        fields: { type: array, items: { type: string, enum: [static_hostname, pretty_hostname, timezone] } }
+    HostSettingsOutcome:
+      type: object
+      description: 'Result of host.settings.apply. succeeded means every requested field matches hostnamectl/timedatectl after the change. The kernel hostname seen by hc-api may stay at start-time (ProtectHostname=yes).'
+      required: [operation_id, action, outcome, message, fields, started_at, finished_at]
+      properties:
+        operation_id: { type: string }
+        action: { type: string, enum: [set] }
+        outcome: { type: string, enum: [succeeded, failed, uncertain], description: 'succeeded/failed are verified by reading hostnamectl/timedatectl back; uncertain means it could not be verified' }
+        message: { type: string }
+        fields: { type: array, items: { type: string, enum: [static_hostname, pretty_hostname, timezone] } }
+        observed: { $ref: '#/components/schemas/HostSettingsObserved' }
+        recovery: { type: array, items: { type: string } }
+        started_at: { type: string, format: date-time }
+        finished_at: { type: string, format: date-time }
     Hardware:
       type: object
       required: [inventory, identity]
@@ -928,7 +974,7 @@ paths:
         '503': { description: Host settings cannot be observed, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /host/settings/preview:
     post:
-      summary: 'Preview hostname and time zone changes. Never changes the host: there is no apply endpoint, no plan token and no broker operation. Omitted fields are not requested; an empty pretty_hostname previews removing it.'
+      summary: 'Preview hostname and time zone changes. Never changes the host: no plan token and no broker write. host.settings.preview never authorizes plan or apply. Omitted fields are not requested; an empty pretty_hostname previews removing it.'
       security: [{ session: [] }]
       x-required-scope: host.settings.preview
       requestBody:
@@ -949,6 +995,57 @@ paths:
         '403': { description: Missing scope, or CSRF/Origin rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '415': { description: Not application/json, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: Host settings cannot be observed, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /host/settings/plan:
+    post:
+      summary: 'Review setting the static host name, pretty host name and/or time zone (broker op host.settings.plan): observed hostnamectl/timedatectl values, reversible risk, TLS/mDNS//etc/hosts warning and a single-use plan token. Nothing is changed. host.settings.preview never authorizes this.'
+      security: [{ session: [] }]
+      x-required-scope: host.settings.apply
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                static_hostname: { type: string, maxLength: 64 }
+                pretty_hostname: { type: string, maxLength: 255 }
+                timezone: { type: string, maxLength: 128 }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/HostSettingsPlan' } } } }
+        '400': { description: Invalid JSON, no field requested, invalid values, unknown time zone, or nothing would change, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: No session, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing scope host.settings.apply, or CSRF/Origin rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: 'busy: another host-settings operation is in progress', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '415': { description: Not application/json, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'Broker, hostnamectl/timedatectl or the operation journal unavailable, or the review could not be audited (no token issued)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /host/settings/apply:
+    post:
+      summary: 'Execute a reviewed hostname/timezone change with its plan token (broker op host.settings.apply). Confirmation is required; password re-entry is not (reversible). The result is verified by reading hostnamectl/timedatectl back, not the kernel hostname seen by hc-api (ProtectHostname=yes). There is no rollback.'
+      security: [{ session: [] }]
+      x-required-scope: host.settings.apply
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [token]
+              properties:
+                static_hostname: { type: string, maxLength: 64 }
+                pretty_hostname: { type: string, maxLength: 255 }
+                timezone: { type: string, maxLength: 128 }
+                token: { type: string, description: Single-use plan token from POST /host/settings/plan }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/HostSettingsOutcome' } } } }
+        '400': { description: Invalid JSON, no field requested, or malformed token, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: No session, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing scope host.settings.apply, or CSRF/Origin rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: 'conflict: host settings changed since review; or busy', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '415': { description: Not application/json, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '502': { description: 'outcome_unknown: the privileged helper did not return a result', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Broker or journal unavailable, or the apply could not be audited (nothing executed), content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /capabilities:
     get:
       summary: What this server can show this user right now (drives navigation)

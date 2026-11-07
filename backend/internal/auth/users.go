@@ -47,10 +47,13 @@ const (
 	// services.operate or services.configure (no scope implies another).
 	ScopeServicesFiles = "services.files"
 	// ScopeHostSettingsPreview allows previewing hostname and timezone
-	// changes (M2-6 skeleton). A preview never changes the host, and this
-	// scope will never authorize applying changes: that needs its own scope
-	// and an ADR 0011 review. Not in DefaultScopes.
+	// changes (M2-6). A preview never changes the host, and this scope never
+	// authorizes plan or apply. Not in DefaultScopes.
 	ScopeHostSettingsPreview = "host.settings.preview"
+	// ScopeHostSettingsApply allows plan → confirm → execute of hostname and
+	// timezone changes (M2-6, ADR 0011). Not in DefaultScopes and never
+	// implied by host.settings.preview or system.read.
+	ScopeHostSettingsApply = "host.settings.apply"
 	// ScopeLayoutManage allows editing the application-owned manual drive-bay
 	// layout in state.db (M2-5 Stage A, D-7). It changes no host state. Not in
 	// DefaultScopes; storage.read does not imply it, and it does not imply
@@ -72,6 +75,7 @@ var KnownScopes = map[string]bool{
 	ScopeServicesConfigure:   true,
 	ScopeServicesFiles:       true,
 	ScopeHostSettingsPreview: true,
+	ScopeHostSettingsApply:   true,
 	ScopeLayoutManage:        true,
 }
 

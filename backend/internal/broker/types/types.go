@@ -384,3 +384,58 @@ type SocketList struct {
 	Truncated bool         `json:"truncated"`
 	Source    string       `json:"source"`
 }
+
+// HostSettingsObserved is hostnamectl/timedatectl status as the broker
+// reports it. Status is observed, not-set or unavailable. Values are omitted
+// unless Status is observed. This is not the kernel hostname seen by hc-api
+// (ProtectHostname=yes).
+type HostSettingsObserved struct {
+	StaticHostname    string   `json:"static_hostname,omitempty"`
+	StaticStatus      string   `json:"static_status"`
+	PrettyHostname    string   `json:"pretty_hostname,omitempty"`
+	PrettyStatus      string   `json:"pretty_status"`
+	Timezone          string   `json:"timezone,omitempty"`
+	TimezoneStatus    string   `json:"timezone_status"`
+	TransientHostname string   `json:"transient_hostname,omitempty"`
+	TransientStatus   string   `json:"transient_status,omitempty"`
+	Notes             []string `json:"notes,omitempty"`
+}
+
+// HostSettingsPlan is the result of host.settings.plan (M2-6, ADR 0011).
+type HostSettingsPlan struct {
+	Action               string               `json:"action"`
+	Risk                 string               `json:"risk"`
+	StepUpRequired       bool                 `json:"step_up_required"`
+	ConfirmationRequired bool                 `json:"confirmation_required"`
+	Token                string               `json:"token"`
+	ExpiresAt            time.Time            `json:"expires_at"`
+	Observed             HostSettingsObserved `json:"observed"`
+	Effect               string               `json:"effect"`
+	Consequences         []string             `json:"consequences"`
+	Warnings             []string             `json:"warnings"`
+	Changes              []HostSettingChange  `json:"changes"`
+	Fields               []string             `json:"fields"`
+}
+
+// HostSettingChange is one requested field in a host-settings plan or outcome.
+type HostSettingChange struct {
+	Field     string `json:"field"`
+	Current   string `json:"current"`
+	Requested string `json:"requested"`
+	Outcome   string `json:"outcome"`
+	Reason    string `json:"reason,omitempty"`
+}
+
+// HostSettingsOutcome is the result of host.settings.apply. "succeeded" means
+// every requested field matches hostnamectl/timedatectl after the change.
+type HostSettingsOutcome struct {
+	OperationID string                `json:"operation_id"`
+	Action      string                `json:"action"`
+	Outcome     string                `json:"outcome"`
+	Message     string                `json:"message"`
+	Fields      []string              `json:"fields"`
+	Observed    *HostSettingsObserved `json:"observed,omitempty"`
+	Recovery    []string              `json:"recovery,omitempty"`
+	StartedAt   time.Time             `json:"started_at"`
+	FinishedAt  time.Time             `json:"finished_at"`
+}
