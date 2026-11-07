@@ -50,6 +50,15 @@ func TestFamilyQueryClosed(t *testing.T) {
 			}
 		}
 	}
+	// Only SUSE executes a tool for sources; the other families read files.
+	if q, ok := familyQuery("suse", "sources"); !ok || q != runner.PkgSUSESources {
+		t.Errorf("suse sources missing or wrong: %v %v", q, ok)
+	}
+	for _, family := range []string{"debian", "fedora", "arch"} {
+		if _, ok := familyQuery(family, "sources"); ok {
+			t.Errorf("%s sources unexpectedly has a package query", family)
+		}
+	}
 	if _, ok := familyQuery("unknown", "installed"); ok {
 		t.Error("unknown family has a package query")
 	}

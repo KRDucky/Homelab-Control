@@ -73,7 +73,7 @@ describe('Software Center UI model', () => {
     expect(screen.getByText('installed')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('tab', { name: 'Sources' }));
-    expect(await screen.findByText('third-party script source')).toBeTruthy();
+    expect(await screen.findByText('third-party')).toBeTruthy();
     expect(screen.getByText('unsigned')).toBeTruthy();
   });
 

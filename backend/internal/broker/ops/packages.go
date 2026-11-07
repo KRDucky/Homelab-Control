@@ -58,7 +58,7 @@ func familyQuery(family, kind string) (runner.PackageQuery, bool) {
 	m := map[string]map[string]runner.PackageQuery{
 		pkgcenter.FamilyDebian: {"installed": runner.PkgDebianInstalled, "updates": runner.PkgDebianUpdates, "search": runner.PkgDebianSearch},
 		pkgcenter.FamilyFedora: {"installed": runner.PkgFedoraInstalled, "updates": runner.PkgFedoraUpdates, "search": runner.PkgFedoraSearch},
-		pkgcenter.FamilySUSE:   {"installed": runner.PkgSUSEInstalled, "updates": runner.PkgSUSEUpdates, "search": runner.PkgSUSESearch},
+		pkgcenter.FamilySUSE:   {"installed": runner.PkgSUSEInstalled, "updates": runner.PkgSUSEUpdates, "search": runner.PkgSUSESearch, "sources": runner.PkgSUSESources},
 		pkgcenter.FamilyArch:   {"installed": runner.PkgArchInstalled, "updates": runner.PkgArchUpdates, "search": runner.PkgArchSearch},
 	}
 	k, ok := m[family]
@@ -117,6 +117,9 @@ func runPackageErr(err error, binary string) error {
 }
 
 func runPackageQuery(ctx context.Context, env *Env, q runner.PackageQuery, query, binary string) (runner.Result, error) {
+	if binary == "" {
+		return runner.Result{}, &proto.Error{Code: proto.CodeUnavailable, Message: "unsupported package query"}
+	}
 	if env.Runner == nil || !env.Runner.Available(binary) {
 		return runner.Result{}, &proto.Error{Code: proto.CodeUnavailable, Message: binary + " is not installed; this host does not provide a usable package manager"}
 	}
@@ -125,7 +128,7 @@ func runPackageQuery(ctx context.Context, env *Env, q runner.PackageQuery, query
 		return runner.Result{}, runPackageErr(err, binary)
 	}
 	if res.ExitCode != 0 {
-		return runner.Result{}, &proto.Error{Code: proto.CodeUnavailable, Message: binary + " failed: " + clean(res.Stderr, 200)}
+		return runner.Result{}, &proto.Error{Code: proto.CodeUnavailable, Message: fmt.Sprintf("%s failed (exit %d)", binary, res.ExitCode)}
 	}
 	return res, nil
 }
@@ -190,6 +193,17 @@ func packagesSearch(ctx context.Context, env *Env, raw json.RawMessage) (any, er
 // readSourcesText reads fixed paths and globs under env.Roots and joins them.
 // Missing files are skipped; unreadable files fail the op (never a silent
 // empty list).
+// skipSourceFile reports whether a leftover editor/package-manager backup file
+// should be skipped (e.g. .save, .distUpgrade, .dpkg-old).
+func skipSourceFile(name string) bool {
+	for _, suffix := range []string{".save", ".distUpgrade", ".bak", ".old", ".dpkg-new", ".dpkg-old", ".dpkg-dist", ".rpmsave", ".rpmnew", "~"} {
+		if strings.HasSuffix(name, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
 func readSourcesText(env *Env, fixed []string, globs []string) (string, error) {
 	var b strings.Builder
 	for _, p := range fixed {
@@ -210,6 +224,9 @@ func readSourcesText(env *Env, fixed []string, globs []string) (string, error) {
 		}
 		sort.Strings(matches)
 		for _, m := range matches {
+			if skipSourceFile(filepath.Base(m)) {
+				continue
+			}
 			data, err := readFixed(m, 4<<20)
 			if err == nil {
 				if b.Len() > 0 {
@@ -233,7 +250,10 @@ func packagesSources(ctx context.Context, env *Env, raw json.RawMessage) (any, e
 	var text, label string
 	switch a.Family {
 	case pkgcenter.FamilySUSE:
-		q, _ := familyQuery(a.Family, "sources")
+		q, ok := familyQuery(a.Family, "sources")
+		if !ok {
+			return nil, &proto.Error{Code: proto.CodeUnavailable, Message: "unsupported: this family has no source query"}
+		}
 		res, err := runPackageQuery(ctx, env, q, "", packageBinary(q))
 		if err != nil {
 			return nil, err
@@ -276,8 +296,10 @@ func packageBinary(q runner.PackageQuery) string {
 		return "dnf"
 	case runner.PkgSUSEInstalled, runner.PkgSUSESearch, runner.PkgSUSEUpdates, runner.PkgSUSESources:
 		return "zypper"
-	default:
+	case runner.PkgArchInstalled, runner.PkgArchSearch, runner.PkgArchUpdates:
 		return "pacman"
+	default:
+		return ""
 	}
 }
 

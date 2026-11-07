@@ -166,9 +166,123 @@ var debianVendorHosts = []string{
 	"deb.debian.org", "security.debian.org",
 }
 
-// ParseSources parses one-line "deb" stanzas. "deb-src" and commented lines
-// are ignored. "trusted=yes" marks a source unsigned; the default is signed.
+// ParseSources handles both one-line "deb" stanzas and deb822 "*.sources"
+// stanzas (the format Ubuntu 24.04+ and Debian 13 ship by default).
 func (debianAdapter) ParseSources(text string) ([]Source, error) {
+	if isDeb822(text) {
+		return debianParseDeb822(text)
+	}
+	return debianParseOneLine(text)
+}
+
+// isDeb822 reports whether the text is deb822 "*.sources" style (Key: value
+// stanzas) rather than one-line "deb" stanzas.
+func isDeb822(text string) bool {
+	for _, ln := range strings.Split(text, "\n") {
+		ln = strings.TrimSpace(ln)
+		if ln == "" || strings.HasPrefix(ln, "#") {
+			continue
+		}
+		for _, key := range []string{"Types:", "URIs:", "Suites:", "Components:", "Signed-By:"} {
+			if strings.HasPrefix(ln, key) {
+				return true
+			}
+		}
+		return false // first non-comment line decides the format
+	}
+	return false
+}
+
+// debianParseDeb822 parses deb822 stanzas (Types/URIs/Suites/Components/Signed-By/Trusted).
+func debianParseDeb822(text string) ([]Source, error) {
+	lns, err := lines(text)
+	if err != nil {
+		return nil, err
+	}
+	var out []Source
+	seen := map[string]bool{}
+	var types, uris, suites []string
+	var trusted bool
+	inStanza := false
+	flush := func() error {
+		if !inStanza {
+			return nil
+		}
+		isDeb := false
+		for _, t := range types {
+			if t == "deb" {
+				isDeb = true
+			}
+		}
+		for _, uri := range uris {
+			uri, err := cleanField(uri, maxOrigin)
+			if err != nil || uri == "" {
+				return errEmpty("URIs")
+			}
+			if !isDeb {
+				continue
+			}
+			for _, suite := range suites {
+				suite, err := cleanPackageName(suite)
+				if err != nil {
+					return errEmpty("Suites")
+				}
+				key := suite + "\x00" + uri
+				if seen[key] {
+					continue
+				}
+				seen[key] = true
+				out = append(out, Source{
+					Name:       suite,
+					Origin:     stripCredentials(uri),
+					Enabled:    true,
+					Signed:     !trusted,
+					ThirdParty: !vendorHost(hostnameOf(uri), debianVendorHosts),
+				})
+			}
+		}
+		types, uris, suites = nil, nil, nil
+		trusted = false
+		inStanza = false
+		return nil
+	}
+	for i, ln := range lns {
+		ln = strings.TrimSpace(ln)
+		if ln == "" || strings.HasPrefix(ln, "#") {
+			if err := flush(); err != nil {
+				return nil, malformed(i, err.Error())
+			}
+			continue
+		}
+		k, v, ok := strings.Cut(ln, ":")
+		if !ok {
+			return nil, malformed(i, "expected \"Key: value\"")
+		}
+		inStanza = true
+		switch strings.TrimSpace(k) {
+		case "Types":
+			types = append(types, strings.Fields(strings.TrimSpace(v))...)
+		case "URIs":
+			uris = append(uris, strings.Fields(strings.TrimSpace(v))...)
+		case "Suites":
+			suites = append(suites, strings.Fields(strings.TrimSpace(v))...)
+		case "Trusted":
+			trusted = truthy(strings.TrimSpace(v))
+		}
+	}
+	if err := flush(); err != nil {
+		return nil, malformed(len(lns), err.Error())
+	}
+	if len(out) > maxSources {
+		return nil, ErrTooMany
+	}
+	return out, nil
+}
+
+// debianParseOneLine parses one-line "deb" stanzas. "deb-src" and commented
+// lines are ignored. trusted= allow-insecure= allow-weak= mark unsigned; the
+// default is signed.
+func debianParseOneLine(text string) ([]Source, error) {
 	lns, err := lines(text)
 	if err != nil {
 		return nil, err
@@ -220,7 +334,7 @@ func (debianAdapter) ParseSources(text string) ([]Source, error) {
 		seen[key] = true
 		out = append(out, Source{
 			Name:       suite,
-			Origin:     uri,
+			Origin:     stripCredentials(uri),
 			Enabled:    true,
 			Signed:     !unsigned,
 			ThirdParty: !vendorHost(hostnameOf(uri), debianVendorHosts),

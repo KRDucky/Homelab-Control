@@ -201,7 +201,7 @@ func (fedoraAdapter) ParseSources(text string) ([]Source, error) {
 			cur.enabled = v == "1" || v == "true" || v == "yes"
 		case "gpgcheck":
 			cur.signed = truthy(v)
-		case "baseurl", "metalink":
+		case "baseurl", "metalink", "mirrorlist":
 			cur.origin = v
 		}
 	}
@@ -238,7 +238,7 @@ func (b *sourceBuilder) finish() (Source, error) {
 	}
 	return Source{
 		Name:       name,
-		Origin:     origin,
+		Origin:     stripCredentials(origin),
 		Enabled:    b.enabled,
 		Signed:     b.signed,
 		ThirdParty: !vendorHost(hostnameOf(origin), fedoraVendorHosts),
