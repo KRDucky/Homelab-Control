@@ -557,6 +557,26 @@ func TestPackageQueriesAreClosed(t *testing.T) {
 			t.Errorf("%s refused a query: %v", id, err)
 		}
 	}
+	// Cache-only (ADR 0008 Amendment 5): network-capable tools must carry their
+	// no-refresh flag. apt-cache/dpkg-query/rpm/pacman -Q/-Ss/-Qu are local.
+	for id, want := range map[PackageQuery]string{
+		PkgFedoraSearch:    "-C",
+		PkgFedoraUpdates:   "-C",
+		PkgSUSEInstalled:   "--no-refresh",
+		PkgSUSESearch:      "--no-refresh",
+		PkgSUSEUpdates:     "--no-refresh",
+		PkgSUSESources:     "--no-refresh",
+	} {
+		found := false
+		for _, a := range packageQueries[id].argv {
+			if a == want {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("%s: missing cache-only flag %q", id, want)
+		}
+	}
 	for _, unknown := range []PackageQuery{"debian.remove", "arch.install", "generic.refresh"} {
 		if _, err := PackageQueryArgv(unknown, ""); !errors.Is(err, ErrUnknownTemplate) {
 			t.Errorf("unknown %s: %v", unknown, err)

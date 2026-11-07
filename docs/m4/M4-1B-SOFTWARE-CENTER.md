@@ -36,7 +36,9 @@ The read-only Software Center ships as a `modules.json` module (owner decision; 
 - Broker read ops `packages.installed` / `packages.updates` / `packages.sources` / `packages.search`
   (ADR 0008 Amendment 5, Proposed): unprivileged `homelab-control`, closed argv templates, replaced
   environment (`LC_ALL=C`), `/dev/null` stdin, cache-only, bounded output, validated query
-  (charset/length, never leading `-`). Unsupported families and missing tools fail closed with a reason.
+  (charset/length, never leading `-`). Cache-only is explicit in the templates: `dnf -C` and
+  `zypper --no-refresh` (apt-cache/dpkg-query/rpm/pacman queries read the local cache by default).
+  Unsupported families and missing tools fail closed with a reason.
 - `packages.read` is in `KnownScopes`, never in `DefaultScopes`, implied by no other scope.
   `packages.manage` stays reserved for the write ADR (0014) and is not granted here.
 - No root template, no plan/apply, no write, no metadata refresh, no repository mutation.

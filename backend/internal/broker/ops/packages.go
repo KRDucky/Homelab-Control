@@ -292,17 +292,17 @@ func sourceLabel(q runner.PackageQuery) string {
 	case runner.PkgFedoraInstalled:
 		return "rpm -qa (run as homelab-control)"
 	case runner.PkgFedoraSearch:
-		return "dnf repoquery (run as homelab-control, local cache)"
+		return "dnf -C repoquery (run as homelab-control, cache-only)"
 	case runner.PkgFedoraUpdates:
-		return "dnf check-update (run as homelab-control, local cache)"
+		return "dnf -C check-update (run as homelab-control, cache-only)"
 	case runner.PkgSUSEInstalled:
-		return "zypper -x search --installed-only (run as homelab-control)"
+		return "zypper --no-refresh -x search --installed-only (run as homelab-control)"
 	case runner.PkgSUSESearch:
-		return "zypper -x search (run as homelab-control, local cache)"
+		return "zypper --no-refresh -x search (run as homelab-control, cache-only)"
 	case runner.PkgSUSEUpdates:
-		return "zypper -x list-updates (run as homelab-control, local cache)"
+		return "zypper --no-refresh -x list-updates (run as homelab-control, cache-only)"
 	case runner.PkgSUSESources:
-		return "zypper -x lr (run as homelab-control)"
+		return "zypper --no-refresh -x lr (run as homelab-control)"
 	case runner.PkgArchInstalled:
 		return "pacman -Q (run as homelab-control)"
 	case runner.PkgArchSearch:
