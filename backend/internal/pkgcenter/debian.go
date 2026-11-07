@@ -185,8 +185,9 @@ func isDeb822(text string) bool {
 		if ln == "" || strings.HasPrefix(ln, "#") {
 			continue
 		}
-		for _, key := range []string{"Types:", "URIs:", "Suites:", "Components:", "Signed-By:"} {
-			if strings.HasPrefix(ln, key) {
+		lower := strings.ToLower(ln)
+		for _, key := range []string{"types:", "uris:", "suites:", "components:", "signed-by:"} {
+			if strings.HasPrefix(lower, key) {
 				return true
 			}
 		}
@@ -250,11 +251,14 @@ func debianParseDeb822(text string) ([]Source, error) {
 	}
 	for i, ln := range lns {
 		ln = strings.TrimSpace(ln)
-		if ln == "" || strings.HasPrefix(ln, "#") {
+		if ln == "" {
 			if err := flush(); err != nil {
 				return nil, malformed(i, err.Error())
 			}
 			continue
+		}
+		if strings.HasPrefix(ln, "#") {
+			continue // comments never end a deb822 stanza
 		}
 		k, v, ok := strings.Cut(ln, ":")
 		if !ok {

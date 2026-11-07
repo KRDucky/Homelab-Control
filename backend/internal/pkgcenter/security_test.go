@@ -261,4 +261,28 @@ func TestDebianDeb822Sources(t *testing.T) {
 	if len(m) != 2 || m[0].Name != "bookworm" || m[1].Name != "bookworm-updates" {
 		t.Fatalf("multi-suite deb822: %+v", m)
 	}
+	// S3: a mid-stanza comment does not end the stanza; Trusted/Allow-Insecure
+	// after the comment still mark the source unsigned.
+	ct, err := a.ParseSources("Types: deb\nURIs: http://mirror.internal/debian\nSuites: bookworm\nComponents: main\n# internal mirror, no keyring\nTrusted: yes\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ct) != 1 || ct[0].Signed {
+		t.Fatalf("comment before Trusted must stay unsigned: %+v", ct)
+	}
+	ci, err := a.ParseSources("Types: deb\nURIs: http://mirror.internal/debian\nSuites: bookworm\n# internal mirror\nAllow-Insecure: yes\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ci) != 1 || ci[0].Signed {
+		t.Fatalf("comment before Allow-Insecure must stay unsigned: %+v", ci)
+	}
+	// S3: a lowercase first field still routes to the deb822 parser.
+	lo, err := a.ParseSources("types: deb\nURIs: https://deb.debian.org/debian\nSuites: bookworm\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(lo) != 1 || lo[0].Name != "bookworm" || !lo[0].Signed || lo[0].ThirdParty {
+		t.Fatalf("lowercase types: deb822: %+v", lo)
+	}
 }
