@@ -55,7 +55,8 @@ Working notes: [`docs/m2/M2-6-HOST-SETTINGS-SKELETON.md`](m2/M2-6-HOST-SETTINGS-
 Owner `ask_ui` selected the file manager after squash-merging PR #42. Isolated **read-only** listing and
 stat of entries under allow-listed confined roots (`files.read`, never default). `hc-api` uses `os.Root`
 and `O_NOFOLLOW`; there is no broker file operation. No content download, editor, or writes. ADR 0012 is
-**Proposed**. This is development, not M2 close, not M2-6 acceptance, and not a merge. Working notes:
+**Proposed**. The stacked read-only FileBrowser UI is a checkpoint (development, not acceptance).
+This is development, not M2 close, not M2-6 acceptance, and not a merge. Working notes:
 [`docs/m2/FILE-MANAGER-SKELETON.md`](m2/FILE-MANAGER-SKELETON.md).
 
 ## M2-2: controlled systemd service management (authorized 2026-10-23; merged 2026-10-26, PR #28, merge commit `a3447efa`)
