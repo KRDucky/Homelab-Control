@@ -217,3 +217,73 @@ func TestRelPath(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestParseRefusesTrailingJSON(t *testing.T) {
+	d := jail(t)
+	one := `{"version":1,"roots":[{"id":"lab","label":"Lab","path":"` + d + `"}]}`
+	if _, err := Parse([]byte(one + "\n")); err != nil {
+		t.Fatalf("whitespace after one value: %v", err)
+	}
+	if _, err := Parse([]byte(one + `{"version":1}`)); err == nil {
+		t.Fatal("concatenated JSON values accepted")
+	}
+	if _, err := Parse([]byte(one + ` true`)); err == nil {
+		t.Fatal("trailing JSON value accepted")
+	}
+}
+
+func TestListRefusesJailReplacedWithSymlink(t *testing.T) {
+	parent := t.TempDir()
+	d := filepath.Join(parent, "jail")
+	if err := os.Mkdir(d, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(d, "readme.txt"), []byte("hello"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Parse([]byte(`{"version":1,"roots":[{"id":"lab","label":"Lab","path":"` + d + `"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.List("lab", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(d); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("/", d); err != nil {
+		t.Fatal(err)
+	}
+	ents, err := s.List("lab", "")
+	if err == nil {
+		t.Fatalf("listed through jail replaced by symlink to /: %+v", ents)
+	}
+	for _, e := range ents {
+		if e.Name == "etc" || e.Name == "root" || e.Name == "proc" {
+			t.Fatalf("listed host / through swapped jail: %+v", ents)
+		}
+	}
+}
+
+func TestListPermissionIsNotEscape(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses DAC")
+	}
+	d := jail(t)
+	locked := filepath.Join(d, "locked")
+	if err := os.Mkdir(locked, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
+	s, err := Parse([]byte(`{"version":1,"roots":[{"id":"lab","label":"Lab","path":"` + d + `"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = s.List("lab", "locked")
+	if errors.Is(err, ErrEscape) {
+		t.Fatalf("permission mapped to path outside jail: %v", err)
+	}
+	if !errors.Is(err, ErrPermission) {
+		t.Fatalf("got %v", err)
+	}
+}
