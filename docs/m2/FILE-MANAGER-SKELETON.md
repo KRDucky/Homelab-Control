@@ -22,9 +22,14 @@ Setting: root-owned, not group/world-writable `/etc/homelab-control/files.json` 
 - Identifier-bearing GETs require Origin and the session CSRF token (same bar as layout/storage). A cookie-only same-site GET is 403 and is not audited. Future files GETs must use `filesProtectedGET`.
 - Audit records root id and relative path only, never contents, never the host jail path. Jail-escape refusals (`..`, extra slashes, symlink-out) are not audited.
 
+### UI (not accepted)
+
+- `/files` is a read-only HCIS FileBrowser port (tree + table + breadcrumbs). Paths, owners and modes are mono. Identifiers and labels only; host paths are never shown.
+- New folder, Permissions and Download from the reference mock are hidden and never posted. Preview never downloads content. Capability `files` stays degraded while browsing is available; `CapAvailable` is not a write gate.
+
 ## Non-goals (this checkpoint)
 
-Frontend/FileBrowser (later, stacked). Download, editor, archive extract. mkdir/rename/chmod/upload/delete.
+Download, editor, archive extract. mkdir/rename/chmod/upload/delete.
 `files.operate` / `files.configure` / `files.destroy`. Bridging Webmin `filemin`. Samba/NFS/WebDAV/iSCSI shares (M7).
 Generic broker file op. `modules.json` registration. Production, merge, KVM, M2 close.
 
@@ -33,4 +38,4 @@ Generic broker file op. `modules.json` registration. Production, merge, KVM, M2 
 ## Tests
 
 - Go: jail escape (`..`, extra slashes, symlink out, `O_NOFOLLOW`), missing/empty/unsafe config, oversize directory, 401, 403 without `files.read`, other scopes including `services.files` insufficient, CSRF/Origin on roots and entries, `files.read` in `KnownScopes` not `DefaultScopes`, OpenAPI + guard.
-- Vitest/Playwright/axe: later (`hc-ui`). Isolated fixtures only; this slice does not browse the OpenBot host or a retained VM.
+- Vitest: `frontend/app/src/files.test.tsx` (page gated without `files.read`; New folder / Permissions / Download absent and never posted; CSRF on roots and entries). Playwright/axe unrun. Isolated fixtures only; this slice does not browse the OpenBot host or a retained VM.
