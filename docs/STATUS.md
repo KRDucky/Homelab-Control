@@ -1,27 +1,30 @@
-# Current status — M2-3 implemented for owner review (2026-11-04); not accepted or merged
+# Current status — M2-3 through file-manager working skeletons on main (2026-11-07); not accepted, not M2 close
 
-Current closeout verified against `main` at `d812995e` (CI 40666815912, 21/21). The original PR #28 history below remains dated to its inspection. "Merged" means a merge commit in
-`main`'s first-parent history (PR #27 is the one exception, described below); dates are from the merge-commit
-timestamps. "CI n/n" is the number of GitHub Actions check runs that succeeded out of those run on the PR's
+Reconciled against `origin/main` at `8f8d918e` (PR #46 squash, 2026-11-07). Git first-parent history is the
+source for merge state. "Merged" means a first-parent commit on `main` (a merge commit, or a squash after
+PR #28); PR #27 is the one earlier exception, described below. Dates are UTC, from those commit timestamps.
+"CI n/n" is the number of GitHub Actions check runs that succeeded out of those run on the PR's
 head commit, read from GitHub on 2026-10-25 for PRs #5–#24 (it is not a statement about later commits). For
 PRs #25–#28 only each workflow run's overall result is recorded, because the public run pages do not show
-individual job conclusions.
+individual job conclusions. CI counts already printed for those PRs were not re-read for this STATUS
+update. This file does not close M2, accept an ADR, or record production or KVM acceptance.
+M2 remaining work is working-skeleton closeout (this STATUS reconcile, Playwright/axe gaps), and M3 Theme/Plugin SDK is authorized for isolated development after that (D-8, 2026-11-07 ask_ui `m2-close-m3-d8`; keep `docs/project/04-ROADMAP.md`); this is not M2 close, not production, not KVM acceptance, and not ADR acceptance.
 
-## M2-3: expanded service management (development authorized 2026-11-04; branch, not merged)
+## M2-3: expanded service management (development authorized 2026-11-04; working skeleton on main, not accepted)
 
-The owner authorized M2-3 development and isolated testing on 2026-11-04; acceptance, merge and production
-activation remain separate owner decisions (`docs/m2/OWNER-DECISIONS.md`, owner items O-1…O-5).
+The owner authorized M2-3 development and isolated testing on 2026-11-04; owner acceptance and production
+activation remain separate owner decisions (`docs/m2/OWNER-DECISIONS.md`, owner items O-1…O-5). The working
+skeleton is on `main` as PR #36 (`a548f52f`, 2026-11-06). This is not M2-3 acceptance, not production, not
+KVM acceptance, and not M2 close.
 
-- **On the branch `feature/m2-3-expanded-service-management`** (draft PR #36; current product commit
-  `c0f620de`, after five review rounds and the final candidate; findings R1–R26 in `docs/m2/M2-3-DESIGN-REVIEW.md` §7–§11):
-  boot-time enable/disable of `.service` units (scope `services.configure`, never granted by default;
-  `--no-reload`, never `--now`; disruptive with step-up; ADR 0011 plan/apply with separate tokens, locks, root
-  revalidation from disk, journal and independent read-back; both actions refused while unit files changed
-  after systemd's last load; disable refused when it would stop a protected unit from starting at boot);
-  read-only unit detail, redacted unit-file contents (`services.files`), timers and sockets; a minimal
-  compiled-in module registry (root-owned `/etc/homelab-control/modules.json`). ADR 0008 Amendment 3 and the
-  ADR 0011 extension are **proposed**. Owner decision 2026-11-05: the safety objective of P-7 is approved
-  (not its implementation).
+- **On `main` (PR #36, `a548f52f`):** boot-time enable/disable of `.service` units (scope `services.configure`,
+  never granted by default; `--no-reload`, never `--now`; disruptive with step-up; ADR 0011 plan/apply with
+  separate tokens, locks, root revalidation from disk, journal and independent read-back; both actions refused
+  while unit files changed after systemd's last load; disable refused when it would stop a protected unit from
+  starting at boot); read-only unit detail, redacted unit-file contents (`services.files`), timers and sockets;
+  a minimal compiled-in module registry (root-owned `/etc/homelab-control/modules.json`). Findings R1–R26:
+  `docs/m2/M2-3-DESIGN-REVIEW.md` §7–§11. ADR 0008 Amendment 3 and the ADR 0011 M2-3 extension remain
+  **Proposed**. Owner decision 2026-11-05: the safety objective of P-7 is approved (not its implementation).
 - **Evidence** (`docs/m2/M2-3-ACCEPTANCE.md`, `docs/evidence/m2/m2-3/review-d9946a4a/`): disposable Docker
   containers (not VMs; SELinux disabled) with Ubuntu 26.04.1, 24.04.5, 22.04.5 and Fedora 44: smoke/M1 71/0,
   M2-2 with expiry waits 89/0, M2-3 with expiry waits 129–130/0, broker kill 20/0 each, browser 18/18 on
@@ -30,33 +33,60 @@ activation remain separate owner decisions (`docs/m2/OWNER-DECISIONS.md`, owner 
   product commit `00fb7f2b` with the owner-approved approach P-8 option 3 (implementation for review); evidence
   `docs/evidence/m2/m2-3/review-00fb7f2b/`. Final safety review (2026-11-05): enable trusted the current
   running state; reproduced with real container reboots and corrected in `f8d3af2e` and `eb2fc2d4` (evidence
-  `docs/evidence/m2/m2-3/review-eb2fc2d4/`). Final candidate `c0f620de`: `services.files` (P-2, implementation
-  owner-authorized), unit search path and drop-in precedence fail closed (`review-c0f620de/`). Proposals P-1, P-3…P-6
-  and P-9 await owner approval (not decisions); P-7 objective and P-8 approach approved, implementations for review; D-10 open; KVM
-  acceptance not authorized.
-- **Still not authorized:** mask/unmask, unit editing or creation, daemon-reload, other privileged writes, and M3.
-  M2-4, M2-5 and M2-6 were authorized for collaborative development and isolated testing on 2026-11-05
-  (`docs/m2/OWNER-DECISIONS.md`, "Continuation through M2-6"), each behind its own gates; they remain mandatory before M3.
+  `docs/evidence/m2/m2-3/review-eb2fc2d4/`). Review-branch final candidate `c0f620de`: `services.files` (P-2,
+  implementation owner-authorized), unit search path and drop-in precedence fail closed (`review-c0f620de/`).
+  This STATUS update does not re-run that evidence against `a548f52f`. Proposals P-1, P-3…P-6 and P-9 await
+  owner approval (not decisions); P-7 objective and P-8 approach approved, implementations for review; D-10
+  open; KVM acceptance not authorized.
+- **Still not authorized:** mask/unmask, unit editing or creation, daemon-reload, and other privileged writes
+  outside the working skeletons listed below. M3 product, acceptance, and production are not granted;
+  isolated Theme/Plugin SDK development is authorized after skeleton closeout (ask_ui `m2-close-m3-d8`).
+  M2-4, M2-5 and M2-6 development and isolated testing were authorized on 2026-11-05
+  (`docs/m2/OWNER-DECISIONS.md`, "Continuation through M2-6"); their working skeletons are on `main`
+  (below). Owner acceptance, production activation, and M2 close remain pending.
 
-## M2-6: hostname and timezone apply (development authorized 2026-11-05; not accepted)
+## M2-4: read-only storage inventory (development authorized 2026-11-05; working skeleton on main, not accepted)
 
-Owner-authorized collaborative development of hostname (static and pretty) and timezone apply after the
-read-only skeleton (PR #40 on `main`). Draft PR #41 (`hc-go/m2-6-host-settings-apply`) implements ADR 0011
-`POST /host/settings/plan` and `/apply` (scope `host.settings.apply`, never default) with closed
-`hostnamectl`/`timedatectl` templates. Preview stays non-executing. Draft PR #42
-(`hc-ui/m2-6-host-settings-apply`) adds the apply UI: plan → confirm → result behind
-`host.settings.apply` and `apply_available`; preview never posts plan or apply. ADR 0008
-Amendment 4 and the ADR 0011 M2-6 extension remain **Proposed**. Isolated fixtures only; no
-production or retained-host apply. This is development, not M2-6 acceptance, and not a merge.
-Working notes: [`docs/m2/M2-6-HOST-SETTINGS-SKELETON.md`](m2/M2-6-HOST-SETTINGS-SKELETON.md).
+Working skeleton on `main` as PR #37 (`058f4725`, 2026-11-06). Read-only storage discovery and ownership
+graph (`GET /api/v1/storage`, scope `storage.read`, never default). No storage-configuration writes.
+Scope notes: [`docs/m2/M2-4-STORAGE-SCOPE.md`](m2/M2-4-STORAGE-SCOPE.md). That document still records a
+native LVM/signature collector as pending and fixture-tested parsers only; this STATUS update does not
+claim live RAID/cache completeness, distro coverage, or KVM acceptance. Not M2 close.
 
-## File manager: read-only listing (development authorized 2026-11-07; not accepted)
+## M2-5: manual drive-layout skeleton (development authorized 2026-11-05; working skeleton on main, not accepted)
+
+Stage A manual chassis/bay layout in app state (no host writes, no new broker op). D-12 (HBA Viewer
+reuse) remains open. Contract: [`docs/m2/M2-5-STAGE-A-CONTRACT.md`](m2/M2-5-STAGE-A-CONTRACT.md). The
+slice entered `main` through PR #40 (`1f885993`, 2026-11-06), whose squash includes the M2-5 handoff
+commit labelled `#39`. There is no separate first-parent commit for PR #39. Not accepted, not production,
+not KVM acceptance, not M2 close.
+
+## OIDC login (working skeleton on main, not accepted)
+
+PR #38 (`7a121dbd`, 2026-11-06) on `main`. One configured OpenID Connect provider can sign in to an
+existing local account; scopes stay on the local account. Notes: [`docs/security/OIDC-SSO.md`](security/OIDC-SSO.md)
+(not tested against a real provider; not accepted).
+
+## M2-6: hostname and timezone apply (development authorized 2026-11-05; working skeleton on main, not accepted)
+
+Owner-authorized collaborative development of hostname (static and pretty) and timezone apply. On `main`:
+read-only skeleton PR #40 (`1f885993`, 2026-11-06); apply backend PR #41 (`4c3c30a7`, 2026-11-07);
+apply UI PR #42 (`90453f0a`, 2026-11-07). ADR 0011 `POST /host/settings/plan` and `/apply` (scope
+`host.settings.apply`, never default) with closed `hostnamectl`/`timedatectl` templates. Preview stays
+non-executing and never posts plan or apply. ADR 0008 Amendment 4 and the ADR 0011 M2-6 extension remain
+**Proposed**. Isolated fixtures only; no production or retained-host apply. This is a working skeleton, not
+M2-6 acceptance, not production, not KVM acceptance, and not M2 close. Working notes:
+[`docs/m2/M2-6-HOST-SETTINGS-SKELETON.md`](m2/M2-6-HOST-SETTINGS-SKELETON.md).
+
+## File manager: read-only listing (development authorized 2026-11-07; working skeleton on main, not accepted)
 
 Owner `ask_ui` selected the file manager after squash-merging PR #42. Isolated **read-only** listing and
 stat of entries under allow-listed confined roots (`files.read`, never default). `hc-api` reopens each
 jail with `openat`+`O_NOFOLLOW`; there is no broker file operation. No content download, editor, or
-writes. ADR 0012 is **Proposed**. The stacked read-only FileBrowser UI is a checkpoint (development, not acceptance).
-This is development, not M2 close, not M2-6 acceptance, and not a merge. Working notes:
+writes. On `main`: backend PR #43 (`5da0ac90`, 2026-11-07); read-only UI PR #45 (`519e1c52`, 2026-11-07,
+`frontend/app/src/pages/Files.tsx`, route `/files`); docs nit PR #46 (`8f8d918e`, 2026-11-07). ADR 0012
+is **Proposed**. New folder, Permissions, and Download stay hidden. This is a working skeleton, not M2
+close, not M2-6 acceptance, not production, and not KVM acceptance. Working notes:
 [`docs/m2/FILE-MANAGER-SKELETON.md`](m2/FILE-MANAGER-SKELETON.md).
 
 ## M2-2: controlled systemd service management (authorized 2026-10-23; merged 2026-10-26, PR #28, merge commit `a3447efa`)
@@ -80,9 +110,10 @@ head; `a3447efa` is the merge commit, whose tree is identical to `987ba011`'s. `
   applied to aliases, unit files, template bases and, transitively, dependencies; outcomes verified by
   reading the unit state back. Design: ADR 0011 and ADR 0008 Amendment 2. Results:
   `docs/m2/M2-2-ACCEPTANCE.md`. User guide: `docs/user/SERVICE-MANAGEMENT.md`.
-- **Still not authorized:** M2-3 and later milestones; enable/disable, mask/unmask, unit-file editing,
-  daemon-reload, other unit types, host shutdown or reboot, arbitrary commands, storage, Docker,
-  packages, users and groups, third-party modules.
+- **Still not authorized by M2-2 itself (2026-10-26):** later milestones, enable/disable, mask/unmask,
+  unit-file editing, daemon-reload, other unit types, host shutdown or reboot, arbitrary commands, storage,
+  Docker, packages, users and groups, third-party modules. Later development authorizations and working
+  skeletons on `main` are in the M2-3 through file-manager sections above; they are not M2-2 scope.
 - **Acceptance evidence, by source** (details and exact gaps: `docs/m2/M2-2-ACCEPTANCE.md`,
   `docs/evidence/m2/`):
   - **Local and disposable containers (no VM), on `970341e6`:** `make check`; Go tests as non-root;
@@ -161,6 +192,19 @@ The owner authorized completing the remaining frontend and adding a user Theme D
   to the PR head `987ba011`). No evidence is linked in its description (other locations not verified) and no
   review was submitted on its page (review elsewhere not verified). Main ci #85 (run 40292176133) concluded
   success overall; see the M2-2 section above for what that does and does not establish.
+- PR #36 (M2-3 expanded service management working skeleton): squash-merged 2026-11-06 as `a548f52f`.
+  Working skeleton on `main`; not owner acceptance, not production, not KVM acceptance.
+- PR #37 (M2-4 read-only storage inventory working skeleton): squash-merged 2026-11-06 as `058f4725`.
+- PR #38 (OIDC login working skeleton): squash-merged 2026-11-06 as `7a121dbd`.
+- PR #40 (M2-6 read-only host-settings skeleton; squash includes the M2-5 layout handoff labelled `#39`):
+  squash-merged 2026-11-06 as `1f885993`. PR #39 has no separate first-parent commit on `main`.
+- PR #41 (M2-6 host-settings apply backend working skeleton): squash-merged 2026-11-07 as `4c3c30a7`.
+- PR #42 (M2-6 host-settings apply UI working skeleton): squash-merged 2026-11-07 as `90453f0a`.
+- PR #43 (file-manager read-only confined listing working skeleton): squash-merged 2026-11-07 as
+  `5da0ac90`.
+- PR #45 (file-manager read-only UI, `/files`, `Files.tsx`): squash-merged 2026-11-07 as `519e1c52`.
+- PR #46 (docs: FileBrowser port is on `/files`; ADR 0012 still Proposed): squash-merged 2026-11-07 as
+  `8f8d918e`.
 
 ## M2 PR-1 (authorized 2026-10-21; D-1, D-6, D-7 approved): merged, read-only
 - PR #11 (planning) merged 2026-10-21 as `6e0f6218`. Its last commit (the D-1/D-6/D-7 record and the D-12
@@ -195,7 +239,7 @@ The owner authorized completing the remaining frontend and adding a user Theme D
 - **Authorization at the time of PR-1:** no privileged host writes. Since 2026-10-23 M2-2 (service
   start/stop/restart, plan/confirm/execute, `root-exec`) is authorized; see the M2-2 section above.
   PAM/TOTP, storage configuration, Docker/VM management and Webmin migration remain unauthorized.
-  D-8…D-12 are open (`docs/m2/OWNER-DECISIONS.md`).
+  D-8…D-12 were open at that date; D-8 was decided 2026-11-07 (`docs/m2/OWNER-DECISIONS.md`).
 
 ## HCIS UI migration (merged steps 1–3; each step is a separate, approved PR)
 - **Design documents:** the HCIS design system (PR #14) and the font licensing policy (PR #16) changed no
@@ -258,7 +302,10 @@ The owner authorized completing the remaining frontend and adding a user Theme D
 - Browser-local theme import/export, Studio and TDK are implemented and merged (PR #24). Themes are colours only, with a fixed built-in base; preferences remain separate. Server-wide persistence remains future work.
 
 
-## Working, verified (read-only except M2-2 service operations) — M1 evidence in `docs/evidence/m1/README.md`; M2 PR-1 and HCIS records in `docs/project/09-PROJECT-MEMORY.md`
+## Working, verified (M1 / M2 PR-1 / M2-2 baseline) — M1 evidence in `docs/evidence/m1/README.md`; M2 PR-1 and HCIS records in `docs/project/09-PROJECT-MEMORY.md`
+
+Later working skeletons on `main` (M2-3 through file-manager, OIDC) are described in the sections above.
+They are not owner-accepted and are not added to this M1/M2-2 inventory.
 - **hc-api** (unprivileged): sessions/CSRF/RBAC from M0; scopes `services.read`, `hardware.read` (M1) and
   `services.logs`, `audit.read` (M2 PR-1) and `services.operate` (M2-2), none granted by default; `/capabilities`, `/services`,
   `/hardware`, `/legacy/webmin`, `/services/units/{unit}/logs`, `/auth/sessions` (list, revoke own
@@ -296,8 +343,8 @@ The owner authorized completing the remaining frontend and adding a user Theme D
   - No signing keys are current prerequisites.
 
 - **2026-10-21 (M2 readiness):** M2 PR-1 authorized; D-1 (`modernc.org/sqlite`), D-6 (persistent sessions)
-  and D-7 (new scopes not granted by default) approved. D-2…D-5 and D-8…D-12 were open at that date; D-2…D-5 were approved on 2026-10-23 (below) and
-  D-8…D-12 remain open (`docs/m2/OWNER-DECISIONS.md`).
+  and D-7 (new scopes not granted by default) approved. D-2…D-5 and D-8…D-12 were open at that date; D-2…D-5 were approved on 2026-10-23 (below);
+  D-8 was decided 2026-11-07 (keep `docs/project/04-ROADMAP.md`; Theme/Plugin SDK is M3); D-9…D-12 remain open (`docs/m2/OWNER-DECISIONS.md`).
 - **2026-10-21/22 (HCIS):** HCIS adopted as the UI design direction; density names, the OLED theme and the
   font licensing policy decided 2026-10-22. Migration step 1 approved 2026-10-22; steps 2 and 3 authorized
   2026-10-23 (`docs/ui/hcis/README.md`, project memory). The owner authorized the remaining frontend and TDK on 2026-10-25 (UI continuation above).
@@ -314,7 +361,19 @@ The owner authorized completing the remaining frontend and adding a user Theme D
   is unknown, and ci #85 then concluded success.
 
 - **2026-10-27 (later owner validation instructions):** E2 accepted on the owner's Ubuntu KVM run; W1 owner review/sign-off accepted. Non-Debian validation was still deferred.
-- **2026-10-29:** owner approved closing E2/E4 on the final combined-main KVM evidence and preparing this documentation PR. Production permission remains a separate decision; M2-3 remains unauthorized. See [decision register](m2/OWNER-DECISIONS.md).
+- **2026-10-29:** owner approved closing E2/E4 on the final combined-main KVM evidence and preparing this documentation PR. Production permission remains a separate decision; M2-3 remains unauthorized *as of that date*. See [decision register](m2/OWNER-DECISIONS.md).
+- **2026-11-04:** M2-3 development and isolated testing authorized; owner acceptance and production
+  activation remain separate (`docs/m2/OWNER-DECISIONS.md`, "M2-3 development authorization").
+- **2026-11-05:** continuation through M2-4, M2-5 and M2-6 authorized for collaborative development and
+  isolated tests. No owner design acceptance, KVM, production settings, or M3 inferred
+  (`docs/m2/OWNER-DECISIONS.md`, "Continuation through M2-6").
+- **2026-11-06/07 (first-parent on `main`):** working skeletons squash-merged as PRs #36, #37, #38, #40,
+  #41, #42, #43, #45 and #46 (SHAs in Merged work). Not M2 close. ADR 0012, ADR 0008 Amendment 4, and the
+  ADR 0011 M2-6 extension stay **Proposed**.
+- **2026-11-07 (ask_ui `m2-close-m3-d8`):** D-8 decided: keep `docs/project/04-ROADMAP.md`; M3 is Theme SDK
+  + plugin SDK. M2 remaining work is working-skeleton closeout (STATUS reconcile, Playwright/axe gaps);
+  M3 Theme/Plugin SDK is authorized for isolated development after that. Not M2 close, not production,
+  not KVM acceptance, not ADR acceptance.
 
 ## Verified on the owner's workstation VM (2026-10-16, product code `738fa37b`)
 Ubuntu 26.04.1 KVM guest, systemd 259.5 (`dev/vm/`, evidence `docs/evidence/m1/vm-26.04/`):
@@ -363,7 +422,9 @@ No licence/release blocker remains for Phase 1 prereleases (LA-13 closed 2026-10
 - Ubuntu 22.04 under real systemd: not verified (CI covers 24.04 runner and 26.04 container; VM covers 26.04).
 - PAM login deferred; upstream pin 2.670; licence decided (ADR 0005: GPL-3.0-or-later core, MIT SDK/schemas/themes/tokens); one unsigned development prerelease, v0.1.0-dev.1, published 2026-10-21 (ADR 0009), and none since.
 - The login throttle is in memory (sessions are persisted since PR #13); no TLS management; govulncheck runs in CI only (v1.9.0 on Go 1.26.10).
-- No storage-management or configuration-management operations exist. The only privileged host-changing
-  operation is starting, stopping and restarting systemd `.service` units (M2-2, scope `services.operate`),
-  and a service's start or stop has that service's own effects. Homelab Control also writes its own state
-  database, audit logs and operation journal.
+- No storage-configuration writes exist (M2-4 is read-only inventory). Privileged host-changing working
+  skeletons on `main` are M2-2 start/stop/restart (scope `services.operate`), M2-3 boot-time enable/disable
+  (scope `services.configure`), and M2-6 hostname/timezone apply (scope `host.settings.apply`). Those later
+  skeletons are not owner-accepted, not production, and not KVM acceptance. File-manager listing is
+  read-only (`files.read`). Homelab Control also writes its own state database, audit logs and operation
+  journal. This is not M2 close.
