@@ -8,6 +8,7 @@ head commit, read from GitHub on 2026-10-25 for PRs #5–#24 (it is not a statem
 PRs #25–#28 only each workflow run's overall result is recorded, because the public run pages do not show
 individual job conclusions. CI counts already printed for those PRs were not re-read for this STATUS
 update. This file does not close M2, accept an ADR, or record production or KVM acceptance.
+M2 remaining work is working-skeleton closeout (this STATUS reconcile, Playwright/axe gaps), and M3 Theme/Plugin SDK is authorized for isolated development after that (D-8, 2026-11-07 ask_ui `m2-close-m3-d8`; keep `docs/project/04-ROADMAP.md`); this is not M2 close, not production, not KVM acceptance, and not ADR acceptance.
 
 ## M2-3: expanded service management (development authorized 2026-11-04; working skeleton on main, not accepted)
 
@@ -236,7 +237,7 @@ The owner authorized completing the remaining frontend and adding a user Theme D
 - **Authorization at the time of PR-1:** no privileged host writes. Since 2026-10-23 M2-2 (service
   start/stop/restart, plan/confirm/execute, `root-exec`) is authorized; see the M2-2 section above.
   PAM/TOTP, storage configuration, Docker/VM management and Webmin migration remain unauthorized.
-  D-8…D-12 are open (`docs/m2/OWNER-DECISIONS.md`).
+  D-8…D-12 were open at that date; D-8 was decided 2026-11-07 (`docs/m2/OWNER-DECISIONS.md`).
 
 ## HCIS UI migration (merged steps 1–3; each step is a separate, approved PR)
 - **Design documents:** the HCIS design system (PR #14) and the font licensing policy (PR #16) changed no
@@ -340,8 +341,8 @@ They are not owner-accepted and are not added to this M1/M2-2 inventory.
   - No signing keys are current prerequisites.
 
 - **2026-10-21 (M2 readiness):** M2 PR-1 authorized; D-1 (`modernc.org/sqlite`), D-6 (persistent sessions)
-  and D-7 (new scopes not granted by default) approved. D-2…D-5 and D-8…D-12 were open at that date; D-2…D-5 were approved on 2026-10-23 (below) and
-  D-8…D-12 remain open (`docs/m2/OWNER-DECISIONS.md`).
+  and D-7 (new scopes not granted by default) approved. D-2…D-5 and D-8…D-12 were open at that date; D-2…D-5 were approved on 2026-10-23 (below);
+  D-8 was decided 2026-11-07 (keep `docs/project/04-ROADMAP.md`; Theme/Plugin SDK is M3); D-9…D-12 remain open (`docs/m2/OWNER-DECISIONS.md`).
 - **2026-10-21/22 (HCIS):** HCIS adopted as the UI design direction; density names, the OLED theme and the
   font licensing policy decided 2026-10-22. Migration step 1 approved 2026-10-22; steps 2 and 3 authorized
   2026-10-23 (`docs/ui/hcis/README.md`, project memory). The owner authorized the remaining frontend and TDK on 2026-10-25 (UI continuation above).
@@ -367,6 +368,10 @@ They are not owner-accepted and are not added to this M1/M2-2 inventory.
 - **2026-11-06/07 (first-parent on `main`):** working skeletons squash-merged as PRs #36, #37, #38, #40,
   #41, #42, #43, #45 and #46 (SHAs in Merged work). Not M2 close. ADR 0012, ADR 0008 Amendment 4, and the
   ADR 0011 M2-6 extension stay **Proposed**.
+- **2026-11-07 (ask_ui `m2-close-m3-d8`):** D-8 decided: keep `docs/project/04-ROADMAP.md`; M3 is Theme SDK
+  + plugin SDK. M2 remaining work is working-skeleton closeout (STATUS reconcile, Playwright/axe gaps);
+  M3 Theme/Plugin SDK is authorized for isolated development after that. Not M2 close, not production,
+  not KVM acceptance, not ADR acceptance.
 
 ## Verified on the owner's workstation VM (2026-10-16, product code `738fa37b`)
 Ubuntu 26.04.1 KVM guest, systemd 259.5 (`dev/vm/`, evidence `docs/evidence/m1/vm-26.04/`):
