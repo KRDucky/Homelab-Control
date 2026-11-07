@@ -15,7 +15,8 @@
 | [0011](0011-write-operation-authorization.md) | Write-operation authorization: plan → confirm → execute, step-up, protected units | **Accepted** 2026-10-23 (D-2…D-5, option A); first use: service start/stop/restart (M2-2); M2-3 enablement extension **Proposed**; M2-6 hostname/timezone extension **Proposed** |
 | [0012](0012-confined-root-file-listing.md) | Confined-root file listing in unprivileged hc-api (`os.Root`, `files.read`) | **Proposed** 2026-11-07 (file-manager first checkpoint; no broker op) |
 | [0013](0013-plugin-isolation-declarative-contributions.md) | Plugin isolation and declarative contributions (`.hlplugin` single JSON file) | **Proposed** 2026-11-07 (M3 plugin SDK first checkpoint; no executable payload) |
-| 0014 | Package transaction authorization | Reserved for a later write ADR; not written |
+| 0014 | Package transaction authorization | Reserved for a later package-transaction write ADR; not written |
 
 Spec 02 also lists ADRs that belong to later milestones and are **not written yet**: package-source
 trust (M4), storage resource identifiers (M5), UI theming architecture (M3).
+Package-source and key trust is a distinct later ADR, not 0014, and is still not written.

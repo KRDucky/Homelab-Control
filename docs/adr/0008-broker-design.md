@@ -223,6 +223,14 @@ authorize install, remove, upgrade, repository changes, key import, or metadata 
   Do not add PackageKit, libdnf, libalpm, or Go package-manager libraries.
 - **Read-only and unprivileged.** Query children run as `homelab-control`. Operations use local cached
   data only, do not access the network, and do not refresh repository metadata. Output is bounded.
+- **Validated query input.** Bound the accepted character set and length. Reject values that begin with
+  `-`. Pass a validated query only in a fixed argv slot or after `--`.
+- **Fixed execution environment.** Replace the child environment, including setting `LC_ALL=C`, and use
+  `/dev/null` for stdin.
+- **Unsupported families fail closed.** If a family's tool cannot run unprivileged and cache-only, report
+  `unsupported: <reason>`. Do not add a root template as a workaround.
+- **API audit before release.** Write the API audit record before releasing the result. Record counts only,
+  not package lists or query text.
 - **Scope.** Add `packages.read` for read operations. Do not add or use `packages.manage`; reserve it
   for a separately reviewed write ADR. This scope is not implied by another scope or added to defaults.
 - **No write path.** No root template, plan/apply operation, package transaction, or repository mutation
