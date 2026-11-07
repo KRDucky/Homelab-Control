@@ -149,6 +149,11 @@ func TestSignedFailsClosed(t *testing.T) {
 	if arch("[core]\nSigLevel=Optional TrustAll\nServer=https://geo.mirror.pkgbuild.com/$repo/os/$arch\n") {
 		t.Error("arch SigLevel=Optional must be unsigned")
 	}
+	for _, sig := range []string{"PackageNever", "DatabaseNever"} {
+		if arch("[core]\nSigLevel=" + sig + "\nServer=https://geo.mirror.pkgbuild.com/$repo/os/$arch\n") {
+			t.Errorf("arch SigLevel=%s must be unsigned", sig)
+		}
+	}
 	if !arch("[options]\nSigLevel=Required DatabaseOptional\n[core]\nServer=https://geo.mirror.pkgbuild.com/$repo/os/$arch\n") {
 		t.Error("arch Required DatabaseOptional must be signed")
 	}
@@ -230,6 +235,16 @@ func TestDebianDeb822Sources(t *testing.T) {
 	}
 	if u[0].Signed {
 		t.Fatalf("Trusted: yes must be unsigned: %+v", u[0])
+	}
+	// Allow-Insecure / Allow-Weak and a case-folded allow-insecure are unsigned.
+	for _, field := range []string{"Allow-Insecure: yes", "Allow-Weak: yes", "allow-insecure: yes"} {
+		w, err := a.ParseSources("Types: deb\nURIs: https://deb.debian.org/debian\nSuites: bookworm\n" + field + "\n")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if w[0].Signed {
+			t.Fatalf("deb822 %q must be unsigned: %+v", field, w[0])
+		}
 	}
 	c, err := a.ParseSources("Types: deb\nURIs: https://user:pass@archive.ubuntu.com/ubuntu?token=x\nSuites: noble\n")
 	if err != nil {

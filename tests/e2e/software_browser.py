@@ -112,7 +112,7 @@ try:
 
         # Sources.
         page.get_by_role("tab", name="Sources", exact=True).click()
-        check("third-party source flagged", page.get_by_text("third-party script source", exact=True).is_visible())
+        check("third-party source flagged", page.get_by_text("third-party", exact=True).is_visible())
         check("unsigned source flagged", page.get_by_text("unsigned", exact=True).is_visible())
 
         # Axe on the Software page (sources tab).
