@@ -225,8 +225,7 @@ export function HostSettingsApplyDialog({
       setStage({
         kind: 'refused',
         title: 'Cannot apply host settings',
-        message:
-          'This review requires a password confirmation. Host-settings apply does not use that path.',
+        message: 'This review requires a password confirmation. Host-settings apply does not use that path.',
         retry: false,
       });
       return;
@@ -307,15 +306,19 @@ export function HostSettingsApplyDialog({
             {plan.changes.map((c) => (
               <tr key={c.field}>
                 <th scope="row">{labels[c.field]}</th>
-                <td>{c.current ? <span className="mono">{c.current}</span> : <span className="muted">Not set</span>}</td>
+                <td>
+                  {c.current ? (
+                    <span className="mono">{c.current}</span>
+                  ) : (
+                    <span className="muted">Not set</span>
+                  )}
+                </td>
                 <td>
                   <span className="mono">{c.requested}</span>
                 </td>
                 <td>
                   <StatusPill
-                    tone={
-                      c.outcome === 'invalid' ? 'crit' : c.outcome === 'would-change' ? 'notice' : 'info'
-                    }
+                    tone={c.outcome === 'invalid' ? 'crit' : c.outcome === 'would-change' ? 'notice' : 'info'}
                     label={outcomeText[c.outcome]}
                   />
                   {c.reason && <span className="muted"> {c.reason}</span>}
@@ -346,8 +349,8 @@ export function HostSettingsApplyDialog({
         </p>
         {running && (
           <p role="status" className="progress-note" aria-busy="true">
-            Applying host settings… waiting for hostnamectl and timedatectl, then reading them back to
-            verify the result.
+            Applying host settings… waiting for hostnamectl and timedatectl, then reading them back to verify
+            the result.
           </p>
         )}
       </>
