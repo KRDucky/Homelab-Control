@@ -1,6 +1,6 @@
-# Current status — M2-3 through file-manager working skeletons on main (2026-11-07); not accepted, not M2 close
+# Current status — M2 working skeletons on main (2026-11-07); working-skeleton close is docs+tests, not accepted
 
-Reconciled against `origin/main` at `8f8d918e` (PR #46 squash, 2026-11-07). Git first-parent history is the
+Reconciled against `origin/main` at `b290f9dc` (PR #52 squash, 2026-11-07). Git first-parent history is the
 source for merge state. "Merged" means a first-parent commit on `main` (a merge commit, or a squash after
 PR #28); PR #27 is the one earlier exception, described below. Dates are UTC, from those commit timestamps.
 "CI n/n" is the number of GitHub Actions check runs that succeeded out of those run on the PR's
@@ -8,7 +8,12 @@ head commit, read from GitHub on 2026-10-25 for PRs #5–#24 (it is not a statem
 PRs #25–#28 only each workflow run's overall result is recorded, because the public run pages do not show
 individual job conclusions. CI counts already printed for those PRs were not re-read for this STATUS
 update. This file does not close M2, accept an ADR, or record production or KVM acceptance.
-M2 remaining work is working-skeleton closeout (this STATUS reconcile, Playwright/axe gaps), and M3 Theme/Plugin SDK is authorized for isolated development after that (D-8, 2026-11-07 ask_ui `m2-close-m3-d8`; keep `docs/project/04-ROADMAP.md`); this is not M2 close, not production, not KVM acceptance, and not ADR acceptance.
+The working-skeleton close bar (ask_ui `m2-close-m3-d8`) is docs and tests: isolated Playwright+axe for
+layout (on `main` as PRs #48 and #52), `/files`, and host-settings preview. Those last two scripts are
+opt-in, labelled-fixture only, and not in CI. Owner merge of that remaining test/docs fold is required
+before calling working-skeleton close done. M3 Theme/Plugin SDK is authorized for isolated development
+after that (D-8; keep `docs/project/04-ROADMAP.md`). This is not M2 close, not production, not KVM
+acceptance, and not ADR acceptance.
 
 ## M2-3: expanded service management (development authorized 2026-11-04; working skeleton on main, not accepted)
 
@@ -74,8 +79,10 @@ read-only skeleton PR #40 (`1f885993`, 2026-11-06); apply backend PR #41 (`4c3c3
 apply UI PR #42 (`90453f0a`, 2026-11-07). ADR 0011 `POST /host/settings/plan` and `/apply` (scope
 `host.settings.apply`, never default) with closed `hostnamectl`/`timedatectl` templates. Preview stays
 non-executing and never posts plan or apply. ADR 0008 Amendment 4 and the ADR 0011 M2-6 extension remain
-**Proposed**. Isolated fixtures only; no production or retained-host apply. This is a working skeleton, not
-M2-6 acceptance, not production, not KVM acceptance, and not M2 close. Working notes:
+**Proposed**. Isolated fixtures only; no production or retained-host apply. Opt-in Playwright+axe
+(`TestHostSettingsBrowserFixture`, `tests/e2e/host_settings_browser.py`) is preview-only against a copy of
+`testdata/hostsettings`; it has no broker and never runs `hostnamectl` or `timedatectl`. Not in CI. This is
+a working skeleton, not M2-6 acceptance, not production, not KVM acceptance, and not M2 close. Working notes:
 [`docs/m2/M2-6-HOST-SETTINGS-SKELETON.md`](m2/M2-6-HOST-SETTINGS-SKELETON.md).
 
 ## File manager: read-only listing (development authorized 2026-11-07; working skeleton on main, not accepted)
@@ -84,9 +91,13 @@ Owner `ask_ui` selected the file manager after squash-merging PR #42. Isolated *
 stat of entries under allow-listed confined roots (`files.read`, never default). `hc-api` reopens each
 jail with `openat`+`O_NOFOLLOW`; there is no broker file operation. No content download, editor, or
 writes. On `main`: backend PR #43 (`5da0ac90`, 2026-11-07); read-only UI PR #45 (`519e1c52`, 2026-11-07,
-`frontend/app/src/pages/Files.tsx`, route `/files`); docs nit PR #46 (`8f8d918e`, 2026-11-07). ADR 0012
-is **Proposed**. New folder, Permissions, and Download stay hidden. This is a working skeleton, not M2
-close, not M2-6 acceptance, not production, and not KVM acceptance. Working notes:
+`frontend/app/src/pages/Files.tsx`, route `/files`); docs nit PR #46 (`8f8d918e`, 2026-11-07); opt-in
+Playwright script PR #50 (`8bdc574a`) and Go fixture PR #49 (`0e7abb59`). Identifier-bearing GETs require
+the session CSRF token; a present Origin still has to match `originAllowed` (same-origin GET fetch omits
+Origin). ADR 0012 is **Proposed**. New folder, Permissions, and Download stay hidden. Opt-in Playwright+axe
+(`TestFilesBrowserFixture`, `tests/e2e/files_browser.py`) is a labelled synthetic jail only; not live host
+browse; not in CI. This is a working skeleton, not M2 close, not M2-6 acceptance, not production, and not
+KVM acceptance. Working notes:
 [`docs/m2/FILE-MANAGER-SKELETON.md`](m2/FILE-MANAGER-SKELETON.md).
 
 ## M2-2: controlled systemd service management (authorized 2026-10-23; merged 2026-10-26, PR #28, merge commit `a3447efa`)
@@ -205,6 +216,14 @@ The owner authorized completing the remaining frontend and adding a user Theme D
 - PR #45 (file-manager read-only UI, `/files`, `Files.tsx`): squash-merged 2026-11-07 as `519e1c52`.
 - PR #46 (docs: FileBrowser port is on `/files`; ADR 0012 still Proposed): squash-merged 2026-11-07 as
   `8f8d918e`.
+- PR #47 (STATUS first-parent reconcile and D-8 Theme/Plugin SDK): squash-merged 2026-11-07 as
+  `9ffc69ba`.
+- PR #50 (opt-in `/files` Playwright + axe script): squash-merged 2026-11-07 as `8bdc574a`.
+- PR #48 (layout browser axe and mobile checks): squash-merged 2026-11-07 as `94874da5`.
+- PR #49 (opt-in files Go browser fixture): squash-merged 2026-11-07 as `0e7abb59`.
+- PR #51 (owner 2026-11-07 product-scope catalog fold): squash-merged 2026-11-07 as `4c183eab`.
+- PR #52 (layout selected-bay contrast: inherit signal-ink on filled-button muted/tag): squash-merged
+  2026-11-07 as `b290f9dc`.
 
 ## M2 PR-1 (authorized 2026-10-21; D-1, D-6, D-7 approved): merged, read-only
 - PR #11 (planning) merged 2026-10-21 as `6e0f6218`. Its last commit (the D-1/D-6/D-7 record and the D-12
@@ -368,12 +387,14 @@ They are not owner-accepted and are not added to this M1/M2-2 inventory.
   isolated tests. No owner design acceptance, KVM, production settings, or M3 inferred
   (`docs/m2/OWNER-DECISIONS.md`, "Continuation through M2-6").
 - **2026-11-06/07 (first-parent on `main`):** working skeletons squash-merged as PRs #36, #37, #38, #40,
-  #41, #42, #43, #45 and #46 (SHAs in Merged work). Not M2 close. ADR 0012, ADR 0008 Amendment 4, and the
-  ADR 0011 M2-6 extension stay **Proposed**.
+  #41, #42, #43, #45 and #46, then STATUS/D-8 #47, `/files` Playwright #50, layout axe #48, files Go
+  fixture #49, catalog fold #51, and layout contrast #52 (SHAs in Merged work). Not M2 close. ADR 0012,
+  ADR 0008 Amendment 4, and the ADR 0011 M2-6 extension stay **Proposed**.
 - **2026-11-07 (ask_ui `m2-close-m3-d8`):** D-8 decided: keep `docs/project/04-ROADMAP.md`; M3 is Theme SDK
-  + plugin SDK. M2 remaining work is working-skeleton closeout (STATUS reconcile, Playwright/axe gaps);
-  M3 Theme/Plugin SDK is authorized for isolated development after that. Not M2 close, not production,
-  not KVM acceptance, not ADR acceptance.
+  + plugin SDK. Working-skeleton close is docs+tests (layout, `/files`, and host-settings preview
+  Playwright/axe; this STATUS reconcile). Isolated `/files` and host-settings preview scripts are opt-in
+  and not in CI. M3 Theme/Plugin SDK is authorized for isolated development after owner merge of that
+  remaining fold. Not M2 close, not production, not KVM acceptance, not ADR acceptance.
 
 ## Verified on the owner's workstation VM (2026-10-16, product code `738fa37b`)
 Ubuntu 26.04.1 KVM guest, systemd 259.5 (`dev/vm/`, evidence `docs/evidence/m1/vm-26.04/`):
