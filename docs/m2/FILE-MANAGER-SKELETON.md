@@ -39,3 +39,4 @@ Generic broker file op. `modules.json` registration. Production, merge, KVM, M2 
 
 - Go: jail escape (`..`, extra slashes, symlink out, `O_NOFOLLOW`), missing/empty/unsafe config, oversize directory, 401, 403 without `files.read`, other scopes including `services.files` insufficient, CSRF/Origin on roots and entries, `files.read` in `KnownScopes` not `DefaultScopes`, OpenAPI + guard.
 - Vitest: `frontend/app/src/files.test.tsx` (page gated without `files.read`; New folder / Permissions / Download absent and never posted; CSRF on roots and entries). Playwright/axe unrun. Isolated fixtures only; this slice does not browse the OpenBot host or a retained VM.
+- Opt-in Go fixture `TestFilesBrowserFixture` (`backend/internal/api/files_browser_test.go`, `HC_FILES_BROWSER_DIR`) exists; Playwright remains unrun until evidenced.
