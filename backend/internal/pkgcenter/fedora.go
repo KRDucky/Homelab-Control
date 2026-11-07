@@ -34,8 +34,8 @@ func (fedoraAdapter) ParseInstalled(text string) ([]Package, error) {
 		if len(f) != 3 {
 			return nil, malformed(i, "expected 3 tab-separated fields")
 		}
-		name, err := cleanField(f[0], maxName)
-		if err != nil || name == "" {
+		name, err := cleanPackageName(f[0])
+		if err != nil {
 			return nil, malformed(i, "invalid package name")
 		}
 		version, err := cleanField(f[1], maxVersion)
@@ -46,11 +46,11 @@ func (fedoraAdapter) ParseInstalled(text string) ([]Package, error) {
 		if err != nil {
 			return nil, malformed(i, "invalid architecture")
 		}
-		if key := name + "\x00" + arch; seen[key] {
+		key := name + "\x00" + arch + "\x00" + version
+		if seen[key] {
 			continue
-		} else {
-			seen[key] = true
 		}
+		seen[key] = true
 		out = append(out, Package{Name: name, Version: version, Arch: arch, Installed: true})
 	}
 	if len(out) > maxPackages {
@@ -77,8 +77,8 @@ func (fedoraAdapter) ParseSearch(text string) ([]Package, error) {
 		if len(f) != 5 {
 			return nil, malformed(i, "expected 5 tab-separated fields")
 		}
-		name, err := cleanField(f[0], maxName)
-		if err != nil || name == "" {
+		name, err := cleanPackageName(f[0])
+		if err != nil {
 			return nil, malformed(i, "invalid package name")
 		}
 		version, err := cleanField(f[1], maxVersion)
@@ -93,11 +93,11 @@ func (fedoraAdapter) ParseSearch(text string) ([]Package, error) {
 		if err != nil {
 			return nil, malformed(i, "invalid repository")
 		}
-		if key := name + "\x00" + arch; seen[key] {
+		key := name + "\x00" + arch + "\x00" + repo
+		if seen[key] {
 			continue
-		} else {
-			seen[key] = true
 		}
+		seen[key] = true
 		out = append(out, Package{Name: name, Version: version, Arch: arch, Origin: repo, Summary: summary(f[4])})
 	}
 	if len(out) > maxPackages {
@@ -127,8 +127,8 @@ func (fedoraAdapter) ParseUpdates(text string) ([]Update, error) {
 		if !ok {
 			return nil, malformed(i, "expected name.arch in first field")
 		}
-		name, err := cleanField(name, maxName)
-		if err != nil || name == "" {
+		name, err := cleanPackageName(name)
+		if err != nil {
 			return nil, malformed(i, "invalid package name")
 		}
 		arch, err = cleanField(arch, maxArch)
@@ -143,10 +143,10 @@ func (fedoraAdapter) ParseUpdates(text string) ([]Update, error) {
 		if err != nil {
 			return nil, malformed(i, "invalid repository")
 		}
-		if seen[name] {
+		if seen[name+"\x00"+arch] {
 			continue
 		}
-		seen[name] = true
+		seen[name+"\x00"+arch] = true
 		out = append(out, Update{Name: name, Arch: arch, Origin: repo, New: newVersion})
 	}
 	if len(out) > maxPackages {
@@ -163,7 +163,7 @@ var fedoraVendorHosts = []string{
 }
 
 // ParseSources parses .repo INI sections: [id], enabled=, gpgcheck=,
-// baseurl=/metalink=. Missing gpgcheck means signed (distro default).
+// baseurl=/metalink=. Missing gpgcheck means unsigned (fail closed).
 func (fedoraAdapter) ParseSources(text string) ([]Source, error) {
 	lns, err := lines(text)
 	if err != nil {
@@ -187,7 +187,7 @@ func (fedoraAdapter) ParseSources(text string) ([]Source, error) {
 				}
 			}
 			id := strings.TrimSuffix(strings.TrimPrefix(ln, "["), "]")
-			cur = &sourceBuilder{name: id, enabled: true, signed: true}
+			cur = &sourceBuilder{name: id, enabled: true, signed: false}
 			continue
 		}
 		k, v, ok := strings.Cut(ln, "=")
@@ -200,7 +200,7 @@ func (fedoraAdapter) ParseSources(text string) ([]Source, error) {
 		case "enabled":
 			cur.enabled = v == "1" || v == "true" || v == "yes"
 		case "gpgcheck":
-			cur.signed = v == "1" || v == "true" || v == "yes"
+			cur.signed = truthy(v)
 		case "baseurl", "metalink":
 			cur.origin = v
 		}
@@ -228,8 +228,8 @@ type sourceBuilder struct {
 }
 
 func (b *sourceBuilder) finish() (Source, error) {
-	name, err := cleanField(b.name, maxName)
-	if err != nil || name == "" {
+	name, err := cleanPackageName(b.name)
+	if err != nil {
 		return Source{}, errEmpty("repository id")
 	}
 	origin, err := cleanField(b.origin, maxOrigin)
@@ -241,6 +241,6 @@ func (b *sourceBuilder) finish() (Source, error) {
 		Origin:     origin,
 		Enabled:    b.enabled,
 		Signed:     b.signed,
-		ThirdParty: !containsAny(origin, fedoraVendorHosts),
+		ThirdParty: !vendorHost(hostnameOf(origin), fedoraVendorHosts),
 	}, nil
 }
