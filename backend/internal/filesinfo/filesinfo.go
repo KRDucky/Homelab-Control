@@ -4,8 +4,9 @@
 
 // Package filesinfo lists directory entries under administrator-allow-listed
 // confined roots (file-manager first checkpoint). hc-api stays unprivileged
-// and does not spawn: listing uses os.Root plus O_NOFOLLOW. There is no
-// broker operation (ADR 0008 forbids a generic path-taking file-read).
+// and does not spawn: each List opens the jail with O_NOFOLLOW|O_DIRECTORY
+// and walks RelPath components with openat+O_NOFOLLOW. There is no broker
+// operation (ADR 0008 forbids a generic path-taking file-read).
 package filesinfo
 
 import (
@@ -23,6 +24,8 @@ import (
 	"syscall"
 	"time"
 	"unicode/utf8"
+
+	"golang.org/x/sys/unix"
 )
 
 // DefaultPath is the administrator's confined-root allow-list.
@@ -45,6 +48,7 @@ var (
 	ErrUnknownRoot = errors.New("unknown file root")
 	ErrBadPath     = errors.New("path is not a confined relative path")
 	ErrEscape      = errors.New("path is outside the confined root")
+	ErrPermission  = errors.New("path is not readable")
 	ErrNotDir      = errors.New("path is not a directory")
 	ErrTooMany     = errors.New("directory has too many entries")
 )
@@ -152,7 +156,9 @@ func Parse(b []byte) (Set, error) {
 	if err := dec.Decode(&f); err != nil {
 		return Set{}, fmt.Errorf("file-roots setting: %w", err)
 	}
-	if dec.More() {
+	// More() is the array/object iterator and does not reject a second
+	// top-level JSON value. A second Decode must be io.EOF.
+	if err := dec.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
 		return Set{}, errors.New("file-roots setting: trailing data")
 	}
 	if f.Version != 1 {
@@ -297,7 +303,8 @@ func RelPath(p string) (string, error) {
 }
 
 // List returns metadata for entries of root id at relative path. It never
-// follows a symlink (O_NOFOLLOW) and never reads file contents.
+// follows a symlink (O_NOFOLLOW) and never reads file contents. The jail is
+// reopened each call with O_NOFOLLOW so a post-Load symlink swap is refused.
 func (s Set) List(id, rel string) ([]Entry, error) {
 	r, ok := s.root(id)
 	if !ok {
@@ -310,53 +317,80 @@ func (s Set) List(id, rel string) ([]Entry, error) {
 	if err != nil {
 		return nil, err
 	}
-	jail, err := os.OpenRoot(r.Path)
+	jail, err := os.OpenFile(r.Path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_DIRECTORY, 0)
 	if err != nil {
-		return nil, ErrUnavailable
+		return nil, mapOpenErr(err)
 	}
 	defer jail.Close()
-	// Lstat first: os.Root follows relative in-jail symlinks; this checkpoint
-	// does not. A symlink is never listed as a directory.
-	st, err := jail.Lstat(rel)
-	if err != nil {
-		return nil, mapOpenErr(err)
+	dir := jail
+	if rel != "." {
+		d, err := walkRel(jail, rel)
+		if err != nil {
+			return nil, mapOpenErr(err)
+		}
+		defer d.Close()
+		dir = d
 	}
-	if st.Mode()&os.ModeSymlink != 0 || !st.IsDir() {
-		return nil, ErrNotDir
-	}
-	f, err := jail.OpenFile(rel, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_DIRECTORY, 0)
-	if err != nil {
-		return nil, mapOpenErr(err)
-	}
-	defer f.Close()
-	ents, err := f.ReadDir(MaxEntries + 1)
+	ents, err := dir.ReadDir(MaxEntries + 1)
 	if err != nil && !errors.Is(err, io.EOF) {
 		return nil, err
 	}
 	if len(ents) > MaxEntries {
 		return nil, ErrTooMany
 	}
+	dfd := int(dir.Fd())
 	out := make([]Entry, 0, len(ents))
 	for _, de := range ents {
 		name := de.Name()
 		if name == "" || name == "." || name == ".." {
 			continue
 		}
-		info, err := de.Info()
+		e, err := statEntry(dfd, name)
 		if err != nil {
 			continue
 		}
-		out = append(out, entryFrom(info))
+		out = append(out, e)
 	}
 	return out, nil
+}
+
+// walkRel opens each RelPath component from jail with openat+O_NOFOLLOW.
+// A last-component symlink is never a directory. Intermediate names use
+// the same flags, so they are not followed either.
+func walkRel(jail *os.File, rel string) (*os.File, error) {
+	cur := jail
+	owned := false
+	for _, name := range strings.Split(rel, "/") {
+		next, err := openatDir(cur, name)
+		if owned {
+			_ = cur.Close()
+		}
+		if err != nil {
+			return nil, err
+		}
+		cur = next
+		owned = true
+	}
+	return cur, nil
+}
+
+func openatDir(parent *os.File, name string) (*os.File, error) {
+	fd, err := unix.Openat(int(parent.Fd()), name, unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_DIRECTORY|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return nil, err
+	}
+	return os.NewFile(uintptr(fd), name), nil
 }
 
 func mapOpenErr(err error) error {
 	if errors.Is(err, syscall.ELOOP) || errors.Is(err, syscall.ENOTDIR) {
 		return ErrNotDir
 	}
-	if errors.Is(err, fs.ErrNotExist) {
+	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ENOENT) {
 		return ErrUnknownRoot
+	}
+	if errors.Is(err, syscall.EACCES) || errors.Is(err, syscall.EPERM) || errors.Is(err, fs.ErrPermission) {
+		return ErrPermission
 	}
 	var pe *os.PathError
 	if errors.As(err, &pe) {
@@ -365,23 +399,59 @@ func mapOpenErr(err error) error {
 			return ErrEscape
 		}
 	}
-	return ErrEscape
+	// Unexpected errors must not look like a successful jail denial of "..".
+	return err
 }
 
-func entryFrom(info os.FileInfo) Entry {
-	e := Entry{
-		Name:  info.Name(),
-		Dir:   info.IsDir(),
-		Size:  info.Size(),
-		Owner: "0",
-		Mode:  info.Mode().String(),
-		Mtime: info.ModTime().UTC().Format(time.RFC3339),
+func statEntry(dirfd int, name string) (Entry, error) {
+	var st unix.Stat_t
+	if err := unix.Fstatat(dirfd, name, &st, unix.AT_SYMLINK_NOFOLLOW); err != nil {
+		return Entry{}, err
 	}
-	if st, ok := info.Sys().(*syscall.Stat_t); ok {
-		e.Owner = fmt.Sprintf("%d:%d", st.Uid, st.Gid)
-		if info.Mode()&os.ModeSymlink != 0 {
-			e.Dir = false
-		}
+	return entryFromStat(name, &st), nil
+}
+
+func entryFromStat(name string, st *unix.Stat_t) Entry {
+	mode := unixMode(uint32(st.Mode))
+	sec, nsec := st.Mtim.Unix()
+	e := Entry{
+		Name:  name,
+		Dir:   mode.IsDir(),
+		Size:  int64(st.Size),
+		Owner: fmt.Sprintf("%d:%d", st.Uid, st.Gid),
+		Mode:  mode.String(),
+		Mtime: time.Unix(sec, nsec).UTC().Format(time.RFC3339),
+	}
+	if mode&os.ModeSymlink != 0 {
+		e.Dir = false
 	}
 	return e
+}
+
+func unixMode(m uint32) os.FileMode {
+	mode := os.FileMode(m & 0o777)
+	switch m & syscall.S_IFMT {
+	case syscall.S_IFBLK:
+		mode |= os.ModeDevice
+	case syscall.S_IFCHR:
+		mode |= os.ModeDevice | os.ModeCharDevice
+	case syscall.S_IFDIR:
+		mode |= os.ModeDir
+	case syscall.S_IFIFO:
+		mode |= os.ModeNamedPipe
+	case syscall.S_IFLNK:
+		mode |= os.ModeSymlink
+	case syscall.S_IFSOCK:
+		mode |= os.ModeSocket
+	}
+	if m&syscall.S_ISUID != 0 {
+		mode |= os.ModeSetuid
+	}
+	if m&syscall.S_ISGID != 0 {
+		mode |= os.ModeSetgid
+	}
+	if m&syscall.S_ISVTX != 0 {
+		mode |= os.ModeSticky
+	}
+	return mode
 }

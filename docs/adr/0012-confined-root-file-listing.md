@@ -20,9 +20,10 @@ and reads as root would be that design.
 2. **Confined roots** come from root-owned, not group/world-writable `/etc/homelab-control/files.json`
    (same trust class as `modules.json`). Missing, empty, unreadable or unsafe mode fails closed. `/`,
    `/etc`, `/root`, `/proc`, `/sys` and other users' homes are refused.
-3. **`os.Root` + `O_NOFOLLOW`.** Canonicalize the jail; relative paths must stay inside it. Symlinks are
-   not followed. `hc-api` still does not spawn. There is **no** new broker operation and **no** ADR 0008
-   amendment.
+3. **`openat` + `O_NOFOLLOW`.** Canonicalize the jail at load. Each list reopens it with
+   `O_RDONLY|O_NOFOLLOW|O_DIRECTORY` and walks relative components with `openat`+`O_NOFOLLOW` so a
+   post-load last-component symlink swap is refused. `hc-api` still does not spawn. There is **no**
+   new broker operation and **no** ADR 0008 amendment.
 4. **Scope `files.read`**, in `KnownScopes`, not `DefaultScopes`, implied by no other scope including
    `services.files`. Core routes: not registered in `modules.json`.
 5. **CSRF + Origin** on identifier-bearing GETs. Audit records root id and relative path only.
