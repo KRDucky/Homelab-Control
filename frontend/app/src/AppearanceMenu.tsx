@@ -100,6 +100,17 @@ export function AppearanceMenu({
 }) {
   const [open, setOpen] = useState(false);
   const [sampleLoaded, setSampleLoaded] = useState(() => isContributionEnabled('overview.sample-card'));
+  // Keep the checkbox in sync with any load/unload (this menu or another tab), the same way
+  // PluginContributions subscribes to hc-plugins-change and storage.
+  useEffect(() => {
+    const sync = () => setSampleLoaded(isContributionEnabled('overview.sample-card'));
+    window.addEventListener('hc-plugins-change', sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener('hc-plugins-change', sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
   const wrap = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const panelId = useId();
@@ -183,10 +194,7 @@ export function AppearanceMenu({
                   type="checkbox"
                   name={`${n}-sample-plugin`}
                   checked={sampleLoaded}
-                  onChange={(e) => {
-                    setContributionEnabled('overview.sample-card', e.target.checked);
-                    setSampleLoaded(e.target.checked);
-                  }}
+                  onChange={(e) => setContributionEnabled('overview.sample-card', e.target.checked)}
                 />
                 <span className="choice-label">Read-only sample plugin</span>
                 <span className="choice-hint">

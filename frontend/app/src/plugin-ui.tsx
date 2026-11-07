@@ -65,7 +65,7 @@ export function PluginContributions({ slot }: { slot: 'overview' }) {
     <>
       {ids.map((id) => {
         const Component = CONTRIBUTION_COMPONENTS[id];
-        return <div key={id}>{Component()}</div>;
+        return <Component key={id} />;
       })}
     </>
   );
