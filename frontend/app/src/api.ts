@@ -143,7 +143,8 @@ export interface Capability {
     | 'legacy'
     | 'audit'
     | 'storage'
-    | 'host_settings';
+    | 'host_settings'
+    | 'files';
   label: string;
   path: string;
   scope: string;
@@ -799,6 +800,44 @@ export function applyHostSettings(
   csrf: string,
 ): Promise<HostSettingsOutcome> {
   return postJSON<HostSettingsOutcome>('/api/v1/host/settings/apply', csrf, { ...req, token });
+}
+
+// File manager (read-only checkpoint): confined-root listing. files.read is never
+// default. Identifier-bearing GETs need the session CSRF token (same bar as layout).
+// Host paths are never returned. There is no content download and no write.
+
+export interface FileRoot {
+  id: string;
+  label: string;
+}
+
+export interface FileEntry {
+  name: string;
+  dir: boolean;
+  size: number;
+  owner: string;
+  mode: string;
+  mtime: string;
+}
+
+export interface FileRootsResponse {
+  roots: FileRoot[];
+  browse_available: boolean;
+}
+
+export interface FileEntriesResponse {
+  root: string;
+  path: string;
+  entries: FileEntry[];
+}
+
+export function getFileRoots(csrf: string): Promise<FileRootsResponse> {
+  return request<FileRootsResponse>('/api/v1/files/roots', { headers: { 'X-CSRF-Token': csrf } });
+}
+
+export function getFileEntries(root: string, path: string, csrf: string): Promise<FileEntriesResponse> {
+  const q = new URLSearchParams({ root, path });
+  return request<FileEntriesResponse>(`/api/v1/files/entries?${q}`, { headers: { 'X-CSRF-Token': csrf } });
 }
 
 // M2-5 Stage A: application-owned manual drive-bay layout. Every assignment is
