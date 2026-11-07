@@ -20,7 +20,7 @@ Already settled, and not asked again:
 | D-2, D-3, D-4, D-5 | PR M2-2 (first write) | **Approved 2026-10-23 (option A each)** |
 | D-8 | Roadmap shape after M2 | **Decided 2026-11-07 (keep `docs/project/04-ROADMAP.md`; Theme/Plugin SDK is M3)** |
 | D-9, D-10 | Roadmap shape | Open |
-| D-11 | Before any third-party library or tool adapter (M3+) | Open (policy only) |
+| D-11 | Before package-manager read adapters (M4-1b) | **Decided 2026-11-07 (package-manager CLIs only; existing Docker/libvirt/ZFS/storcli wording remains)** |
 | D-12 | PR M2-5 (drive locator) | Open (HBA Viewer source to be provided) |
 
 ---
@@ -180,6 +180,7 @@ Does **not** reopen D-8. M3 remains Theme SDK + plugin SDK. Product scope, not i
 
 ## D-11 Third-party integration libraries (policy for later milestones)
 Not needed for M2; recorded so it is not decided ad hoc.
+- **Owner decision 2026-11-07 (`m4-1b-owner-words`):** package-manager CLIs are allowed as closed argv templates with stdlib parsing. Do not use PackageKit, libdnf, libalpm, or Go package-manager libraries. This decision covers package-manager read operations only; it does not authorize package writes or change the existing Docker, libvirt, ZFS, or storcli entries below.
 - **Docker:** Engine API over the Unix socket with stdlib `net/http`; no SDK.
 - **libvirt:**
   - `virsh` argv templates with XML/`--print-xml` parsing (stdlib), or
