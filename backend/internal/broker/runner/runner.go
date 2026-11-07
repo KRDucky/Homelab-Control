@@ -505,17 +505,17 @@ type packageQuery struct {
 
 var packageQueries = map[PackageQuery]packageQuery{
 	PkgDebianInstalled: {"dpkg-query", []string{"-W", "-f", "${binary:Package}\\t${Version}\\t${Architecture}\\n"}, -1},
-	PkgDebianSearch:    {"apt-cache", []string{"search", ""}, 1},
+	PkgDebianSearch:    {"apt-cache", []string{"search", "--", ""}, 2},
 	PkgDebianUpdates:   {"apt", []string{"list", "--upgradable"}, -1},
 	PkgFedoraInstalled: {"rpm", []string{"-qa", "--queryformat", "%{NAME}\\t%{VERSION}-%{RELEASE}\\t%{ARCH}\\n"}, -1},
-	PkgFedoraSearch:    {"dnf", []string{"repoquery", "--queryformat", "%{NAME}\\t%{VERSION}-%{RELEASE}\\t%{ARCH}\\t%{REPONAME}\\t%{SUMMARY}\\n", ""}, 3},
+	PkgFedoraSearch:    {"dnf", []string{"repoquery", "--queryformat", "%{NAME}\\t%{VERSION}-%{RELEASE}\\t%{ARCH}\\t%{REPONAME}\\t%{SUMMARY}\\n", "--", ""}, 4},
 	PkgFedoraUpdates:   {"dnf", []string{"check-update"}, -1},
 	PkgSUSEInstalled:   {"zypper", []string{"-x", "search", "--installed-only"}, -1},
-	PkgSUSESearch:      {"zypper", []string{"-x", "search", ""}, 2},
+	PkgSUSESearch:      {"zypper", []string{"-x", "search", "--", ""}, 3},
 	PkgSUSEUpdates:     {"zypper", []string{"-x", "list-updates"}, -1},
 	PkgSUSESources:     {"zypper", []string{"-x", "lr"}, -1},
 	PkgArchInstalled:   {"pacman", []string{"-Q"}, -1},
-	PkgArchSearch:      {"pacman", []string{"-Ss", ""}, 1},
+	PkgArchSearch:      {"pacman", []string{"-Ss", "--", ""}, 2},
 	PkgArchUpdates:     {"pacman", []string{"-Qu"}, -1},
 }
 
