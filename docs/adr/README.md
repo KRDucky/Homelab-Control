@@ -13,6 +13,7 @@
 | [0009](0009-release-pipeline-and-signing.md) | Release pipeline, corresponding source and signing | **Accepted** 2026-10-16, **revised** 2026-10-19: Phase 1 unsigned prereleases; attestations optional; signing deferred. No workflow yet |
 | [0010](0010-theme-document-format.md) | Theme document format (`.hltheme` single JSON file) | **Accepted in principle** 2026-10-16; browser-local implementation authorized 2026-10-25 |
 | [0011](0011-write-operation-authorization.md) | Write-operation authorization: plan → confirm → execute, step-up, protected units | **Accepted** 2026-10-23 (D-2…D-5, option A); first use: service start/stop/restart (M2-2); M2-3 enablement extension **Proposed**; M2-6 hostname/timezone extension **Proposed** |
+| [0012](0012-confined-root-file-listing.md) | Confined-root file listing in unprivileged hc-api (`os.Root`, `files.read`) | **Proposed** 2026-11-07 (file-manager first checkpoint; no broker op) |
 
 Spec 02 also lists ADRs that belong to later milestones and are **not written yet**: plugin isolation
 (M3), package-source trust (M4), storage resource identifiers (M5), UI theming architecture (M3).

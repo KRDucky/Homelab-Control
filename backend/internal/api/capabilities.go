@@ -202,7 +202,12 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 	case s.hostSettingsApplyAvailable(r.Context(), sess):
 		hostSettings.Status, hostSettings.Reason = CapAvailable, ""
 	}
-	caps := []Capability{gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings)}
+	fileMgr := Capability{ID: "files", Label: "Files", Path: "/files", Scope: auth.ScopeFilesRead, Status: CapUnavailable,
+		Reason: "No browseable file roots are configured on this server."}
+	if s.files.BrowseAvailable() {
+		fileMgr.Status, fileMgr.Reason = CapDegraded, "Read-only listing inside allow-listed roots; create, rename, permissions, upload and delete are not available."
+	}
+	caps := []Capability{gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr)}
 	// Navigation follows the module registry: a disabled module contributes
 	// no capability (and therefore no navigation entry).
 	resp.Capabilities = caps[:0]

@@ -184,6 +184,24 @@ certificates, mDNS or `/etc/hosts`; NTP, network and users/groups are out of sco
 a compromised `hc-api` applies unchanged (it can request any host-settings change the broker's templates
 allow). Isolated fixtures only; this slice does not run apply against a production or retained host.
 
+## File manager: confined-root listing (proposed; ADR 0012)
+
+New capability: unprivileged metadata listing of directory entries under administrator allow-listed
+confined roots. Scope `files.read` (never default, never implied by `services.files`). No content
+download, no writes, no filemin, no broker file op (ADR 0008 unchanged). ADR 0012 remains **Proposed**,
+not Accepted.
+
+| Threat | Example | Control | Status |
+|---|---|---|---|
+| Tampering (jail escape) | `..`, extra slashes, last-component symlink to `/`, jail directory replaced with a symlink after load | `RelPath` before open; each `List` opens the jail with `O_RDONLY\|O_NOFOLLOW\|O_DIRECTORY` and walks relative components with `openat`+`O_NOFOLLOW`; a last-component symlink is never a directory | Implemented, tested (unit; isolated temp jails) |
+| Tampering (config) | Missing, empty, world-writable or symlinked `files.json`; root `/`, `/etc`, `/root`, `/proc`, `/sys`, `/home` | Same trust class as `modules.json`; fail closed (no browse); `forbiddenPath` is the lead list | Implemented, tested |
+| Tampering (CSRF) | Cookie-only GET of `path=` | CSRF token then Origin on identifier-bearing files GETs (`filesProtectedGET`); refusals not audited | Implemented, tested |
+| Information disclosure | Host jail path or file bytes in the API or audit | Public roots are id+label; entries are metadata; audit is `root=<id> path=<rel>`; jail-escape refusals are not audited | Implemented, tested |
+| Elevation of privilege | Bridging filemin or a path-taking broker file-read | No filemin; no broker file op; hc-api does not spawn | Implemented, tested |
+
+Jail directory mode is not enforced (only `files.json`). Isolated fixtures only; this slice does not
+browse a production or OpenBot host.
+
 ## Residual risks after M1
 1. The legacy Webmin UI at 2.670 still lacks post-2.670 upstream fixes (`docs/upstream/SYNC.md`).
 2. `systemctl` JSON output is not a stable API; parsers are tolerant and tested against systemd 249/255 only.
