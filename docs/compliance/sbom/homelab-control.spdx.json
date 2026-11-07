@@ -1,15 +1,15 @@
 {
   "SPDXID": "SPDXRef-DOCUMENT",
   "creationInfo": {
-    "comment": "Inputs sha256 67ed627e6fcc46c721dfd9360a330601da28328a15974365dc2598b5ba0c7e0a over frontend/app/package-lock.json, backend/go.mod, backend/go.sum, backend/go-deps-allowlist.json, compat/webmin.lock, scripts/gen-sbom.py. Build toolchain (CI): Go 1.26.10, Node.js 22, npm lockfileVersion 3, Vite 8.3.4, TypeScript 6.0.3. Package-payload inventories are produced per build by scripts/package-inventory.sh.",
-    "created": "2026-11-06T06:34:28Z",
+    "comment": "Inputs sha256 6b16a630cab5edc804babab3efc74bbe5abbfc025df3cf392d321fec56464836 over frontend/app/package-lock.json, backend/go.mod, backend/go.sum, backend/go-deps-allowlist.json, compat/webmin.lock, scripts/gen-sbom.py. Build toolchain (CI): Go 1.26.10, Node.js 22, npm lockfileVersion 3, Vite 8.3.4, TypeScript 6.0.3. Package-payload inventories are produced per build by scripts/package-inventory.sh.",
+    "created": "2026-11-07T06:42:41Z",
     "creators": [
       "Person: Ian comings",
       "Tool: homelab-control-gen-sbom-1.0"
     ]
   },
   "dataLicense": "CC0-1.0",
-  "documentNamespace": "https://github.com/KRDucky/Homelab-Control---Webmin-Fork/spdx/67ed627e6fcc46c721dfd9360a330601da28328a15974365dc2598b5ba0c7e0a",
+  "documentNamespace": "https://github.com/KRDucky/Homelab-Control---Webmin-Fork/spdx/6b16a630cab5edc804babab3efc74bbe5abbfc025df3cf392d321fec56464836",
   "name": "homelab-control-source-sbom",
   "packages": [
     {

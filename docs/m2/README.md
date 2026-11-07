@@ -19,6 +19,7 @@ authorized. The documents below are dated planning snapshots; current status is 
 | [M2-3-DESIGN-REVIEW.md](M2-3-DESIGN-REVIEW.md) | M2-3 design, systemd probes and ADR 0011 review of boot-time enable/disable |
 | [M2-3-ACCEPTANCE.md](M2-3-ACCEPTANCE.md) | M2-3 results and evidence, separated from owner acceptance |
 | [CAPABILITY-MATRIX.md](CAPABILITY-MATRIX.md) | Per-technology discovery, lifecycle, privileges, backend, risks, dependencies, distro notes, milestone |
+| [FILE-MANAGER-SKELETON.md](FILE-MANAGER-SKELETON.md) | Read-only file-manager first checkpoint (not accepted) |
 
 **Summary:**
 - **PR-1 authorized 2026-10-21** (D-1, D-6, D-7 approved). It is read-only: durable state, audit, sessions and service logs.
