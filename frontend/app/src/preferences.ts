@@ -119,15 +119,19 @@ export function usePreferences() {
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) setPrefs(parsePreferences(e.newValue));
+      if (e.key === STORAGE_KEY || e.key === null) {
+        // Prefer localStorage: a real other-tab write is already committed, and some test
+        // environments drop StorageEvent.newValue.
+        setPrefs(loadPreferences());
+        return;
+      }
+      applyPreferences(loadPreferences());
     };
     const onThemes = () => applyPreferences(loadPreferences());
     window.addEventListener('hc-themes-change', onThemes);
-    window.addEventListener('storage', onThemes);
     window.addEventListener('storage', onStorage);
     return () => {
       window.removeEventListener('storage', onStorage);
-      window.removeEventListener('storage', onThemes);
       window.removeEventListener('hc-themes-change', onThemes);
     };
   }, []);
