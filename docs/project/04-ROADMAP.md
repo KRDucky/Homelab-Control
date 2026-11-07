@@ -20,7 +20,7 @@ Times are rough effort bands for a small team with AI assistance, not delivery g
 | M13 | Backups, monitoring, alerts, automation, multi-host exploration | Verified restore workflows, notification tests, resilience |
 | M14 | Native distro releases and hardening | Debian/Ubuntu, Fedora, openSUSE, Arch package test matrix and signed releases |
 
-> **Proposed revision (2026-10-21, not yet approved):** `docs/m2/M2-ROADMAP.md` §4 proposes a module-oriented order after M2: storage read-only, software center, containers, storage configuration, file sharing, virtualization, hardware and replacement; the theme/plugin SDK moves after the first modules. This table stays authoritative until the owner decides (D-8 in `docs/m2/OWNER-DECISIONS.md`).
+> **D-8 decided 2026-11-07 (ask_ui `m2-close-m3-d8`):** this table remains the post-M2 order; M3 is Theme SDK + plugin SDK.
 >
 > **Owner 2026-11-07 catalog extensions** (product scope, not implementation, not moved into M3): exFAT, ZoneFS, Ceph logical options (after M8, unslotted backlog — no table row), disk identity split, compose/env editor, Kubernetes optional. Details: [`05-FEATURE-CATALOG.md`](05-FEATURE-CATALOG.md), [`../m2/CAPABILITY-MATRIX.md`](../m2/CAPABILITY-MATRIX.md).
 >
