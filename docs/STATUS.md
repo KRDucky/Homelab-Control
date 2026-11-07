@@ -38,10 +38,12 @@ KVM acceptance, and not M2 close.
   This STATUS update does not re-run that evidence against `a548f52f`. Proposals P-1, P-3…P-6 and P-9 await
   owner approval (not decisions); P-7 objective and P-8 approach approved, implementations for review; D-10
   open; KVM acceptance not authorized.
-- **Still not authorized:** mask/unmask, unit editing or creation, daemon-reload, other privileged writes
-  outside the working skeletons listed below, and M3. M2-4, M2-5 and M2-6 development and isolated testing
-  were authorized on 2026-11-05 (`docs/m2/OWNER-DECISIONS.md`, "Continuation through M2-6"); their working
-  skeletons are on `main` (below). Owner acceptance, production activation, and M2 close remain pending.
+- **Still not authorized:** mask/unmask, unit editing or creation, daemon-reload, and other privileged writes
+  outside the working skeletons listed below. M3 product, acceptance, and production are not granted;
+  isolated Theme/Plugin SDK development is authorized after skeleton closeout (ask_ui `m2-close-m3-d8`).
+  M2-4, M2-5 and M2-6 development and isolated testing were authorized on 2026-11-05
+  (`docs/m2/OWNER-DECISIONS.md`, "Continuation through M2-6"); their working skeletons are on `main`
+  (below). Owner acceptance, production activation, and M2 close remain pending.
 
 ## M2-4: read-only storage inventory (development authorized 2026-11-05; working skeleton on main, not accepted)
 
