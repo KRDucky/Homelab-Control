@@ -11,7 +11,7 @@ manual/unverified provenance, unassign, reload. One real server refusal checks
 that an error is never shown as a saved change. Runtime credentials/state MUST
 NOT be copied into evidence or Git.
 
-Usage: layout_browser.py RUNTIME_DIR EVIDENCE_DIR
+Usage: layout_browser.py RUNTIME_DIR EVIDENCE_DIR AXE_MIN_JS
 """
 import json
 import os
@@ -22,6 +22,7 @@ from playwright.sync_api import sync_playwright
 
 runtime = Path(sys.argv[1])
 evidence = Path(sys.argv[2])
+axe = Path(sys.argv[3])
 checks = []
 password = ""
 CHASSIS = "Example chassis (synthetic)"
@@ -128,6 +129,18 @@ try:
         check("UI shows server error, not success", page.get_by_text("Drive assigned (manual, unverified).", exact=True).count() == 0)
         check("nothing persisted by the failed UI action", stored() == [])
         page.screenshot(path=str(evidence / "error-not-success.png"), full_page=True)
+        page.evaluate(axe.read_text() + "\n;0")
+        violations = page.evaluate("async () => (await axe.run(document, {runOnly: {type:'tag', values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations.map(v => ({id:v.id,impact:v.impact,targets:v.nodes.map(n=>n.target)}))")
+        (evidence / "axe.json").write_text(json.dumps(violations, indent=2))
+        check("desktop accessibility", not violations)
+        page.set_viewport_size({"width":390,"height":844})
+        page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
+        page.screenshot(path=str(evidence / "mobile.png"), full_page=True)
+        check("mobile layout has no document overflow", page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1"))
+        page.evaluate(axe.read_text() + "\n;0")
+        mobile = page.evaluate("async () => (await axe.run(document, {runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations.map(v=>({id:v.id,impact:v.impact,targets:v.nodes.map(n=>n.target)}))")
+        (evidence / "axe-mobile.json").write_text(json.dumps(mobile, indent=2))
+        check("mobile accessibility", not mobile)
         check("no page script errors", not errors)
         context.close()
         browser.close()
