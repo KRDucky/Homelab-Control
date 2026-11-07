@@ -35,7 +35,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, storage.read, host.settings.preview, host.settings.apply, layout.manage] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, storage.read, host.settings.preview, host.settings.apply, layout.manage, files.read] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
@@ -369,7 +369,7 @@ components:
       type: object
       required: [id, label, path, scope, status]
       properties:
-        id: { type: string, enum: [overview, services, hardware, legacy, audit, service_logs, unit_files, storage, host_settings] }
+        id: { type: string, enum: [overview, services, hardware, legacy, audit, service_logs, unit_files, storage, host_settings, files] }
         label: { type: string }
         path: { type: string }
         scope: { type: string }
@@ -1212,6 +1212,84 @@ paths:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/OperationList' } } } }
         '403': { description: Missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: Broker or operation journal unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /files/roots:
+    get:
+      summary: Allow-listed file-manager roots (identifiers only). files.read is never granted by default.
+      description: >
+        Inventory of confined roots from root-owned /etc/homelab-control/files.json.
+        Host paths are never returned. Missing, empty or unsafe config yields browse_available false.
+        Identifier-bearing GET: Origin and X-CSRF-Token are required (same bar as /storage/layout).
+        Audit records root counts only.
+      security: [{ session: [] }]
+      x-required-scope: files.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [roots, browse_available]
+                properties:
+                  browse_available: { type: boolean }
+                  roots:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, label]
+                      additionalProperties: false
+                      properties:
+                        id: { type: string }
+                        label: { type: string }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing files.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /files/entries:
+    get:
+      summary: List directory entries under one confined root (metadata only; no content).
+      description: >
+        Relative path inside an allow-listed jail. Empty path is the jail root.
+        Uses in-process os.Root and O_NOFOLLOW; hc-api does not spawn; there is no broker file op.
+        Jail escapes (.., extra slashes, symlink out) are refused. Audit records root id and relative path only,
+        never contents and never the host jail path. Origin and X-CSRF-Token are required.
+      security: [{ session: [] }]
+      x-required-scope: files.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+        - { name: root, in: query, required: true, schema: { type: string, pattern: '^[a-z][a-z0-9_-]{0,31}$' } }
+        - { name: path, in: query, required: false, schema: { type: string }, description: Relative path inside the jail; empty is the jail root }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [root, path, entries]
+                properties:
+                  root: { type: string }
+                  path: { type: string }
+                  entries:
+                    type: array
+                    items:
+                      type: object
+                      required: [name, dir, size, owner, mode, mtime]
+                      additionalProperties: false
+                      properties:
+                        name: { type: string }
+                        dir: { type: boolean }
+                        size: { type: integer }
+                        owner: { type: string, description: 'uid:gid; never a host path' }
+                        mode: { type: string, description: 'Go FileMode.String, for example -rw-r--r--' }
+                        mtime: { type: string, format: date-time }
+        '400': { description: Malformed path or not a directory, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing files.read, Origin/CSRF rejected, or jail escape, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Unknown root or path, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: No browseable roots, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /storage:
     get:
       summary: Audited read-only storage metadata graph; no device or mountpoint probes

@@ -28,6 +28,7 @@ import (
 	"homelab-control/backend/internal/auth"
 	"homelab-control/backend/internal/broker/proto"
 	"homelab-control/backend/internal/brokerclient"
+	"homelab-control/backend/internal/filesinfo"
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
 	"homelab-control/backend/internal/modules"
@@ -50,6 +51,7 @@ func main() {
 	brokerSocket := flag.String("broker-socket", proto.DefaultSocket, "privileged broker socket (empty disables broker features)")
 	allowRoot := flag.Bool("i-understand-running-as-root-is-unsupported", false, "permit running as root (development containers only)")
 	modulesFile := flag.String("modules-config", modules.DefaultPath, "administrator's module setting (root-owned; missing = all modules enabled)")
+	filesFile := flag.String("files-config", filesinfo.DefaultPath, "allow-listed file-manager roots (root-owned; missing/empty = no browse)")
 	oidcConfig := flag.String("oidc-config", "", "single sign-on provider setting (mode 0600, may hold the client secret); empty disables OIDC")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
@@ -161,6 +163,13 @@ func main() {
 		log.Printf("modules disabled by %s: %v", *modulesFile, d)
 	}
 	srv.WithModules(mods)
+	files := filesinfo.LoadOrFailClosed(*filesFile, !*devHTTP)
+	if files.Reason != "" {
+		log.Print(files.Reason)
+	} else if files.BrowseAvailable() {
+		log.Printf("file-manager roots from %s: %d", *filesFile, len(files.PublicRoots()))
+	}
+	srv.WithFiles(files)
 	if webui.FS() == nil {
 		log.Print("warning: UI not embedded; serving API only")
 	}
