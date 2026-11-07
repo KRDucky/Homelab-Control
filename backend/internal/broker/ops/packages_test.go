@@ -64,6 +64,18 @@ func TestFamilyQueryClosed(t *testing.T) {
 	}
 }
 
+// packageBinary must never fall through to pacman for an empty or unknown
+// query (the SUSE sources bug): unknown kinds fail closed, not with a wrong
+// binary check.
+func TestPackageBinaryNeverFallsThrough(t *testing.T) {
+	if b := packageBinary(""); b != "" {
+		t.Errorf("empty query fell through to binary %q", b)
+	}
+	if b := packageBinary(runner.PkgSUSESources); b != "zypper" {
+		t.Errorf("suse sources binary = %q, want zypper", b)
+	}
+}
+
 func TestPackagesUnsupportedFamily(t *testing.T) {
 	_, err := packagesInstalled(context.Background(), &Env{Roots: Roots{Root: t.TempDir()}}, json.RawMessage(`{"family":"unknown"}`))
 	var pe *proto.Error
