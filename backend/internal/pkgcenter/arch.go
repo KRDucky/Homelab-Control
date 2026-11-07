@@ -246,8 +246,11 @@ func (archAdapter) ParseSources(text string) ([]Source, error) {
 // default (empty or "Required DatabaseOptional") is signed.
 func archSigned(sig string) bool {
 	for _, tok := range strings.Fields(strings.ToLower(sig)) {
-		switch tok {
-		case "never", "optional", "packageoptional":
+		switch {
+		case strings.Contains(tok, "never"):
+			// Never, PackageNever, DatabaseNever → unsigned.
+			return false
+		case tok == "optional" || tok == "packageoptional":
 			return false
 		}
 	}

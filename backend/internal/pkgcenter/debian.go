@@ -261,15 +261,17 @@ func debianParseDeb822(text string) ([]Source, error) {
 			return nil, malformed(i, "expected \"Key: value\"")
 		}
 		inStanza = true
-		switch strings.TrimSpace(k) {
-		case "Types":
+		switch strings.ToLower(strings.TrimSpace(k)) {
+		case "types":
 			types = append(types, strings.Fields(strings.TrimSpace(v))...)
-		case "URIs":
+		case "uris":
 			uris = append(uris, strings.Fields(strings.TrimSpace(v))...)
-		case "Suites":
+		case "suites":
 			suites = append(suites, strings.Fields(strings.TrimSpace(v))...)
-		case "Trusted":
-			trusted = truthy(strings.TrimSpace(v))
+		case "trusted", "allow-insecure", "allow-weak":
+			if truthy(strings.TrimSpace(v)) {
+				trusted = true
+			}
 		}
 	}
 	if err := flush(); err != nil {
