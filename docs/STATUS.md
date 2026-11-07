@@ -10,6 +10,16 @@ individual job conclusions. CI counts already printed for those PRs were not re-
 update. This file does not close M2, accept an ADR, or record production or KVM acceptance.
 M2 remaining work is working-skeleton closeout (this STATUS reconcile, Playwright/axe gaps), and M3 Theme/Plugin SDK is authorized for isolated development after that (D-8, 2026-11-07 ask_ui `m2-close-m3-d8`; keep `docs/project/04-ROADMAP.md`); this is not M2 close, not production, not KVM acceptance, and not ADR acceptance.
 
+## M3 plugin SDK — first checkpoint (development note; not M3 acceptance, not M2 close)
+
+Isolated development of the plugin half of the M3 Theme/Plugin SDK on a throwaway branch from `origin/main`
+`b290f9dc` (PR #52), not stacked on draft PR #53. Ships the declarative read-only sample plugin:
+`schemas/plugin/v1.json` (MIT), `sdk/plugin/` PDK v1 validator, the in-tree `plugins/sample-readonly/`
+fixture, a compiled-in `overview.sample-card` contribution with browser-local load/unload (new
+`hc.plugins.v1` key; no route, scope, `state.db` row or broker op), and a Proposed ADR 0013
+(plugin isolation / declarative contributions). No executable payload. This is a working note only —
+not M3 acceptance, not a merge, and it does not claim ADR 0010 server persistence is done.
+
 ## M2-3: expanded service management (development authorized 2026-11-04; working skeleton on main, not accepted)
 
 The owner authorized M2-3 development and isolated testing on 2026-11-04; owner acceptance and production
