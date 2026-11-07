@@ -43,10 +43,12 @@ activation remain separate owner decisions (`docs/m2/OWNER-DECISIONS.md`, owner 
 Owner-authorized collaborative development of hostname (static and pretty) and timezone apply after the
 read-only skeleton (PR #40 on `main`). Draft PR #41 (`hc-go/m2-6-host-settings-apply`) implements ADR 0011
 `POST /host/settings/plan` and `/apply` (scope `host.settings.apply`, never default) with closed
-`hostnamectl`/`timedatectl` templates. Preview stays non-executing. ADR 0008 Amendment 4 and the ADR 0011
-M2-6 extension remain **Proposed**. Isolated fixtures only; no production or retained-host apply, no
-frontend in this slice. This is not M2-6 acceptance and not a merge. Working notes:
-[`docs/m2/M2-6-HOST-SETTINGS-SKELETON.md`](m2/M2-6-HOST-SETTINGS-SKELETON.md).
+`hostnamectl`/`timedatectl` templates. Preview stays non-executing. Draft PR #42
+(`hc-ui/m2-6-host-settings-apply`) adds the apply UI: plan → confirm → result behind
+`host.settings.apply` and `apply_available`; preview never posts plan or apply. ADR 0008
+Amendment 4 and the ADR 0011 M2-6 extension remain **Proposed**. Isolated fixtures only; no
+production or retained-host apply. This is development, not M2-6 acceptance, and not a merge.
+Working notes: [`docs/m2/M2-6-HOST-SETTINGS-SKELETON.md`](m2/M2-6-HOST-SETTINGS-SKELETON.md).
 
 ## M2-2: controlled systemd service management (authorized 2026-10-23; merged 2026-10-26, PR #28, merge commit `a3447efa`)
 
