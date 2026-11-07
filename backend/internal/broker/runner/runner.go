@@ -40,6 +40,15 @@ var allowlist = map[string][]string{
 	"journalctl":  {"/usr/bin/journalctl", "/bin/journalctl"},
 	"hostnamectl": {"/usr/bin/hostnamectl", "/bin/hostnamectl"},
 	"timedatectl": {"/usr/bin/timedatectl", "/bin/timedatectl"},
+	// M4-1b (ADR 0008 Amendment 5, Proposed): read-only package-manager
+	// queries, cache-only, closed argv templates. No write command here.
+	"dpkg-query": {"/usr/bin/dpkg-query"},
+	"apt-cache":  {"/usr/bin/apt-cache"},
+	"apt":        {"/usr/bin/apt"},
+	"rpm":        {"/usr/bin/rpm", "/bin/rpm"},
+	"dnf":        {"/usr/bin/dnf"},
+	"zypper":     {"/usr/bin/zypper"},
+	"pacman":     {"/usr/bin/pacman", "/usr/bin/pacman.static"},
 }
 
 // argRE limits fixed arguments to a conservative character set; arguments
@@ -461,6 +470,109 @@ func ClassFromMessage(msg string) string {
 		return "exec"
 	}
 	return ""
+}
+
+// PackageQuery identifies one fixed package-manager read command (ADR 0008
+// Amendment 5, Proposed). The argv is compile-time constant; the only caller
+// input is a validated search query placed in the query slot. No write,
+// refresh, root or network command is represented here.
+type PackageQuery string
+
+// The closed package-manager read templates. Format strings carry literal
+// backslash escapes (\t, \n) that the tool interprets; the runner never uses
+// a shell, so no metacharacter is ever evaluated.
+const (
+	PkgDebianInstalled PackageQuery = "debian.installed"
+	PkgDebianSearch    PackageQuery = "debian.search"
+	PkgDebianUpdates   PackageQuery = "debian.updates"
+	PkgFedoraInstalled PackageQuery = "fedora.installed"
+	PkgFedoraSearch    PackageQuery = "fedora.search"
+	PkgFedoraUpdates   PackageQuery = "fedora.updates"
+	PkgSUSEInstalled   PackageQuery = "suse.installed"
+	PkgSUSESearch      PackageQuery = "suse.search"
+	PkgSUSEUpdates     PackageQuery = "suse.updates"
+	PkgSUSESources     PackageQuery = "suse.sources"
+	PkgArchInstalled   PackageQuery = "arch.installed"
+	PkgArchSearch      PackageQuery = "arch.search"
+	PkgArchUpdates     PackageQuery = "arch.updates"
+)
+
+type packageQuery struct {
+	binary  string
+	argv    []string // fixed argv; the query slot is a placeholder replaced at run time
+	queryAt int      // index of the query slot in argv; -1 = no query
+}
+
+var packageQueries = map[PackageQuery]packageQuery{
+	PkgDebianInstalled: {"dpkg-query", []string{"-W", "-f", "${binary:Package}\\t${Version}\\t${Architecture}\\n"}, -1},
+	PkgDebianSearch:    {"apt-cache", []string{"search", ""}, 1},
+	PkgDebianUpdates:   {"apt", []string{"list", "--upgradable"}, -1},
+	PkgFedoraInstalled: {"rpm", []string{"-qa", "--queryformat", "%{NAME}\\t%{VERSION}-%{RELEASE}\\t%{ARCH}\\n"}, -1},
+	PkgFedoraSearch:    {"dnf", []string{"repoquery", "--queryformat", "%{NAME}\\t%{VERSION}-%{RELEASE}\\t%{ARCH}\\t%{REPONAME}\\t%{SUMMARY}\\n", ""}, 3},
+	PkgFedoraUpdates:   {"dnf", []string{"check-update"}, -1},
+	PkgSUSEInstalled:   {"zypper", []string{"-x", "search", "--installed-only"}, -1},
+	PkgSUSESearch:      {"zypper", []string{"-x", "search", ""}, 2},
+	PkgSUSEUpdates:     {"zypper", []string{"-x", "list-updates"}, -1},
+	PkgSUSESources:     {"zypper", []string{"-x", "lr"}, -1},
+	PkgArchInstalled:   {"pacman", []string{"-Q"}, -1},
+	PkgArchSearch:      {"pacman", []string{"-Ss", ""}, 1},
+	PkgArchUpdates:     {"pacman", []string{"-Qu"}, -1},
+}
+
+// packageQueryRE is the grammar for a caller-supplied search query: ASCII
+// alphanumeric start (never "-"), then a bounded set with no whitespace,
+// shell metacharacters, NUL or option-leading dash. ".." is refused as well.
+var packageQueryRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9+._-]{0,63}$`)
+
+// ValidPackageQuery reports whether a search query is safe to place in a
+// package-query template slot.
+func ValidPackageQuery(q string) bool {
+	return packageQueryRE.MatchString(q)
+}
+
+// PackageQueryArgv returns the exact argv (without the binary) a template
+// produces for a query, or an error. Exposed for tests and audit records.
+func PackageQueryArgv(q PackageQuery, query string) ([]string, error) {
+	tpl, ok := packageQueries[q]
+	if !ok {
+		return nil, fmt.Errorf("%q: %w", q, ErrUnknownTemplate)
+	}
+	argv := append([]string{}, tpl.argv...)
+	if tpl.queryAt >= 0 {
+		if !ValidPackageQuery(query) {
+			return nil, fmt.Errorf("query %q: %w", query, ErrBadArg)
+		}
+		argv[tpl.queryAt] = query
+	} else if query != "" {
+		return nil, fmt.Errorf("query: %w", ErrBadArg)
+	}
+	return argv, nil
+}
+
+// RunPackageQuery executes a fixed package-manager read command. The binary is
+// the template's allow-listed path, re-checked at use time; the environment is
+// replaced (LC_ALL=C); stdin is /dev/null; output is capped; the process group
+// is killed when ctx expires; the child runs as the unprivileged service user.
+func (r *Runner) RunPackageQuery(ctx context.Context, q PackageQuery, query string) (Result, error) {
+	tpl, ok := packageQueries[q]
+	if !ok {
+		return Result{}, fmt.Errorf("%q: %w", q, ErrUnknownTemplate)
+	}
+	argv, err := PackageQueryArgv(q, query)
+	if err != nil {
+		return Result{}, err
+	}
+	path, ok := r.paths[tpl.binary]
+	if !ok {
+		if _, known := allowlist[tpl.binary]; known {
+			return Result{}, fmt.Errorf("%s: %w", tpl.binary, os.ErrNotExist)
+		}
+		return Result{}, fmt.Errorf("%q: %w", tpl.binary, ErrNotAllowed)
+	}
+	if err := checkBinary(path, r.skipOwnerCheck); err != nil {
+		return Result{}, err
+	}
+	return r.exec(ctx, path, argv, &syscall.Credential{Uid: r.identity.UID, Gid: r.identity.GID})
 }
 
 // Root runs the fixed root argv templates (root-exec class). The broker

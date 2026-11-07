@@ -9,6 +9,8 @@ package types
 import (
 	"regexp"
 	"time"
+
+	"homelab-control/backend/internal/pkgcenter"
 )
 
 // Privilege describes how an op touches the host.
@@ -118,6 +120,30 @@ type UnitList struct {
 	Counts         map[string]int `json:"counts"`
 	Truncated      bool           `json:"truncated"`
 	Source         string         `json:"source"`
+}
+
+// PackageList is the result of a packages installed/search read op (M4-1b).
+type PackageList struct {
+	Packages  []pkgcenter.Package `json:"packages"`
+	Truncated bool                `json:"truncated"`
+	Source    string              `json:"source"`
+}
+
+// UpdateList is the result of packages.updates: pending upgrades read from the
+// local cache, labelled with the local metadata refresh time (never a network
+// refresh).
+type UpdateList struct {
+	Updates   []pkgcenter.Update `json:"updates"`
+	Truncated bool               `json:"truncated"`
+	Source    string             `json:"source"`
+	AsOf      string             `json:"as_of,omitempty"`
+}
+
+// SourceList is the result of packages.sources: configured repositories.
+type SourceList struct {
+	Sources   []pkgcenter.Source `json:"sources"`
+	Truncated bool               `json:"truncated"`
+	Source    string             `json:"source"`
 }
 
 // LogsUnitRE is the unit-name grammar accepted by services.unit.logs: no

@@ -59,6 +59,11 @@ func TestRegistryIsClosed(t *testing.T) {
 		"services.enablement.apply": {PrivRootExec, "services.configure", "apply"},
 		"host.settings.plan":        {PrivUnprivilegedExec, "host.settings.apply", "plan"},
 		"host.settings.apply":       {PrivRootExec, "host.settings.apply", "apply"},
+		// M4-1b (ADR 0008 Amendment 5, Proposed): read-only package queries.
+		"packages.installed": {PrivUnprivilegedExec, "packages.read", ""},
+		"packages.updates":   {PrivUnprivilegedExec, "packages.read", ""},
+		"packages.sources":   {PrivUnprivilegedExec, "packages.read", ""},
+		"packages.search":    {PrivUnprivilegedExec, "packages.read", ""},
 	}
 	if len(reg) != len(snapshot) {
 		t.Fatalf("registry has %d ops, want %d — new ops need review and this test updated", len(reg), len(snapshot))
