@@ -16,6 +16,7 @@ import { Login } from './Login';
 import { Audit } from './pages/Audit';
 import { Hardware } from './pages/Hardware';
 import { Storage } from './pages/Storage';
+import { FilesPage } from './pages/Files';
 import { HostSettingsPage } from './pages/HostSettings';
 import { Legacy } from './pages/Legacy';
 import { OverviewPage } from './pages/OverviewPage';
@@ -155,6 +156,14 @@ export function App() {
         canPreview={(session.scopes ?? []).includes('host.settings.preview')}
         canApply={(session.scopes ?? []).includes('host.settings.apply')}
         auditAvailable={auditCap?.status === 'available'}
+        onUnauthorized={signedOut}
+      />
+    );
+  else if (route?.id === 'files')
+    page = (
+      <FilesPage
+        csrf={session.csrf_token}
+        canRead={(session.scopes ?? []).includes('files.read')}
         onUnauthorized={signedOut}
       />
     );
