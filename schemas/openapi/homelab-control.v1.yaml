@@ -842,6 +842,63 @@ components:
                   level: { type: string, enum: [ok, warn, info] }
                   message: { type: string }
         fallback: { type: object }
+    PackageList:
+      type: object
+      required: [packages, truncated, source]
+      properties:
+        truncated: { type: boolean }
+        source: { type: string }
+        packages:
+          type: array
+          items:
+            type: object
+            required: [name, installed]
+            additionalProperties: false
+            properties:
+              name: { type: string }
+              version: { type: string }
+              arch: { type: string }
+              origin: { type: string }
+              installed: { type: boolean }
+              upgradable: { type: boolean }
+              summary: { type: string }
+    UpdateList:
+      type: object
+      required: [updates, truncated, source]
+      properties:
+        truncated: { type: boolean }
+        source: { type: string }
+        as_of: { type: string, description: RFC3339 mtime of the local metadata cache; never a network refresh }
+        updates:
+          type: array
+          items:
+            type: object
+            required: [name, new]
+            additionalProperties: false
+            properties:
+              name: { type: string }
+              arch: { type: string }
+              origin: { type: string }
+              current: { type: string }
+              new: { type: string }
+    SourceList:
+      type: object
+      required: [sources, truncated, source]
+      properties:
+        truncated: { type: boolean }
+        source: { type: string }
+        sources:
+          type: array
+          items:
+            type: object
+            required: [name, origin, enabled, signed, third_party]
+            additionalProperties: false
+            properties:
+              name: { type: string }
+              origin: { type: string }
+              enabled: { type: boolean }
+              signed: { type: boolean }
+              third_party: { type: boolean }
 paths:
   /health:
     get:
@@ -1290,6 +1347,78 @@ paths:
         '403': { description: Missing files.read, Origin/CSRF rejected, or jail escape, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '404': { description: Unknown root or path, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: No browseable roots, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /packages/search:
+    get:
+      summary: Search the local package cache (read-only; scope packages.read).
+      description: >
+        Search the package-manager cache of the host's distribution family. Cache-only: never
+        contacts repositories or refreshes metadata. The query is bounded and validated before it
+        reaches the broker (no leading dash, no shell metacharacters, 1-64 ASCII characters).
+        Audit records counts and query length only, never the query text or package lists.
+        Origin and X-CSRF-Token are required.
+      security: [{ session: [] }]
+      x-required-scope: packages.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+        - { name: q, in: query, required: true, schema: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9+._-]{0,63}$' } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/PackageList' } } } }
+        '400': { description: Invalid query, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing packages.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Broker down, unsupported family, missing tool, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /packages/installed:
+    get:
+      summary: Installed packages of the host's distribution family (read-only; scope packages.read).
+      description: >
+        Installed package list from the local package database, run unprivileged with a closed argv
+        template and cache-only. Never contacts repositories. Audit records counts only, never
+        package lists. Origin and X-CSRF-Token are required.
+      security: [{ session: [] }]
+      x-required-scope: packages.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/PackageList' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing packages.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Broker down, unsupported family, missing tool, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /packages/updates:
+    get:
+      summary: Pending upgrades from the local cache (read-only; scope packages.read).
+      description: >
+        Pending upgrade list with old and new versions from the local metadata cache, labelled with
+        the cache mtime (as_of). Never contacts repositories or refreshes metadata. Audit records
+        counts only, never package lists. Origin and X-CSRF-Token are required.
+      security: [{ session: [] }]
+      x-required-scope: packages.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/UpdateList' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing packages.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Broker down, unsupported family, missing cache or tool, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /packages/sources:
+    get:
+      summary: Configured repositories and package sources (read-only; scope packages.read).
+      description: >
+        Configured source view with enabled, signed and third-party flags. Read-only: never adds,
+        removes or changes repositories. Audit records counts only, never source lists. Origin and
+        X-CSRF-Token are required.
+      security: [{ session: [] }]
+      x-required-scope: packages.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/SourceList' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing packages.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Broker down, unsupported family, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /storage:
     get:
       summary: Audited read-only storage metadata graph; no device or mountpoint probes

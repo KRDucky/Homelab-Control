@@ -87,11 +87,11 @@ func (suseAdapter) ParseInstalled(text string) ([]Package, error) {
 			if !ok {
 				continue
 			}
-			if key := p.Name + "\x00" + p.Arch; seen[key] {
+			key := p.Name + "\x00" + p.Arch + "\x00" + p.Version
+			if seen[key] {
 				continue
-			} else {
-				seen[key] = true
 			}
+			seen[key] = true
 			out = append(out, p)
 		}
 	}
@@ -118,11 +118,11 @@ func (suseAdapter) ParseSearch(text string) ([]Package, error) {
 			if !ok {
 				continue
 			}
-			if key := p.Name + "\x00" + p.Arch; seen[key] {
+			key := p.Name + "\x00" + p.Arch + "\x00" + p.Origin
+			if seen[key] {
 				continue
-			} else {
-				seen[key] = true
 			}
+			seen[key] = true
 			out = append(out, p)
 		}
 	}
@@ -138,8 +138,8 @@ func (s suseSolvable) packageOf(installed bool) (Package, bool, error) {
 	if s.Kind != "" && s.Kind != "package" {
 		return Package{}, false, nil
 	}
-	name, err := cleanField(s.Name, maxName)
-	if err != nil || name == "" {
+	name, err := cleanPackageName(s.Name)
+	if err != nil {
 		return Package{}, false, errEmpty("name")
 	}
 	version, err := cleanField(s.Edition, maxVersion)
@@ -177,8 +177,8 @@ func (suseAdapter) ParseUpdates(text string) ([]Update, error) {
 			if u.Kind != "" && u.Kind != "package" {
 				continue
 			}
-			name, err := cleanField(u.Name, maxName)
-			if err != nil || name == "" {
+			name, err := cleanPackageName(u.Name)
+			if err != nil {
 				return nil, errEmpty("name")
 			}
 			cur, err := cleanField(u.EditionOld, maxVersion)
@@ -197,10 +197,10 @@ func (suseAdapter) ParseUpdates(text string) ([]Update, error) {
 			if err != nil {
 				return nil, err
 			}
-			if seen[name] {
+			if seen[name+"\x00"+arch] {
 				continue
 			}
-			seen[name] = true
+			seen[name+"\x00"+arch] = true
 			out = append(out, Update{Name: name, Arch: arch, Origin: repo, Current: cur, New: next})
 		}
 	}
@@ -224,8 +224,8 @@ func (suseAdapter) ParseSources(text string) ([]Source, error) {
 	seen := map[string]bool{}
 	for _, l := range doc.Lists {
 		for _, r := range l.Repos {
-			name, err := cleanField(r.Alias, maxName)
-			if err != nil || name == "" {
+			name, err := cleanPackageName(r.Alias)
+			if err != nil {
 				return nil, errEmpty("alias")
 			}
 			origin, err := cleanField(r.URL, maxOrigin)
@@ -239,10 +239,10 @@ func (suseAdapter) ParseSources(text string) ([]Source, error) {
 			seen[key] = true
 			out = append(out, Source{
 				Name:       name,
-				Origin:     origin,
+				Origin:     stripCredentials(origin),
 				Enabled:    r.Enabled == "1" || r.Enabled == "true",
-				Signed:     r.GPGCheck != "0" && r.GPGCheck != "false",
-				ThirdParty: !containsAny(origin, suseVendorHosts),
+				Signed:     truthy(r.GPGCheck),
+				ThirdParty: !vendorHost(hostnameOf(origin), suseVendorHosts),
 			})
 		}
 	}

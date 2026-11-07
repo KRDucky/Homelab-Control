@@ -35,8 +35,8 @@ func (archAdapter) ParseInstalled(text string) ([]Package, error) {
 		if len(f) != 2 {
 			return nil, malformed(i, "expected \"name version\"")
 		}
-		name, err := cleanField(f[0], maxName)
-		if err != nil || name == "" {
+		name, err := cleanPackageName(f[0])
+		if err != nil {
 			return nil, malformed(i, "invalid package name")
 		}
 		version, err := cleanField(f[1], maxVersion)
@@ -89,19 +89,19 @@ func (archAdapter) ParseSearch(text string) ([]Package, error) {
 		if err != nil {
 			return nil, malformed(i, "invalid repository")
 		}
-		name, err = cleanField(name, maxName)
-		if err != nil || name == "" {
+		name, err = cleanPackageName(name)
+		if err != nil {
 			return nil, malformed(i, "invalid package name")
 		}
 		version, err := cleanField(f[1], maxVersion)
 		if err != nil {
 			return nil, malformed(i, "invalid version")
 		}
-		if key := name; seen[key] {
-			cur = nil // a duplicate header ends the previous description
+		if key := name + "\x00" + repo; seen[key] {
+			cur = nil // a duplicate (same name+repo) header ends the previous description
 			continue
 		}
-		seen[name] = true
+		seen[name+"\x00"+repo] = true
 		installed := false
 		for _, flag := range f[2:] {
 			if flag == "[installed]" {
@@ -133,8 +133,8 @@ func (archAdapter) ParseUpdates(text string) ([]Update, error) {
 		if !ok {
 			return nil, malformed(i, "expected \"name old -> new\"")
 		}
-		name, err := cleanField(name, maxName)
-		if err != nil || name == "" {
+		name, err := cleanPackageName(name)
+		if err != nil {
 			return nil, malformed(i, "invalid package name")
 		}
 		cur, next, ok := strings.Cut(rest, " -> ")
@@ -169,8 +169,9 @@ var archVendorRepos = map[string]bool{
 	"core-testing": true, "extra-testing": true, "multilib-testing": true, "community-testing": true,
 }
 
-// ParseSources parses /etc/pacman.conf [repo] sections. [options] is skipped;
-// commented sections are skipped. SigLevel "Never" means unsigned.
+// ParseSources parses /etc/pacman.conf [repo] sections. [options] is folded
+// so a global SigLevel applies to every repo; SigLevel "Never" or "Optional"
+// means not positively signed.
 func (archAdapter) ParseSources(text string) ([]Source, error) {
 	lns, err := lines(text)
 	if err != nil {
@@ -179,7 +180,8 @@ func (archAdapter) ParseSources(text string) ([]Source, error) {
 	var out []Source
 	seen := map[string]bool{}
 	var cur *archSourceBuilder
-	skip := false
+	globalSig := ""
+	inOptions := false
 	for i, ln := range lns {
 		ln = strings.TrimSpace(ln)
 		if ln == "" || strings.HasPrefix(ln, "#") {
@@ -195,24 +197,25 @@ func (archAdapter) ParseSources(text string) ([]Source, error) {
 				}
 			}
 			name := strings.TrimSuffix(strings.TrimPrefix(ln, "["), "]")
-			if name == "options" {
-				cur = nil
-				skip = true
-				continue
+			inOptions = name == "options"
+			cur = nil
+			if !inOptions {
+				cur = &archSourceBuilder{name: name, signed: archSigned(globalSig)}
 			}
-			skip = false
-			cur = &archSourceBuilder{name: name, signed: true}
-			continue
-		}
-		if skip {
 			continue
 		}
 		k, v, ok := strings.Cut(ln, "=")
-		if !ok || cur == nil {
+		if !ok || (cur == nil && !inOptions) {
 			return nil, malformed(i, "expected key=value inside a [section]")
 		}
 		k = strings.TrimSpace(k)
 		v = strings.TrimSpace(v)
+		if inOptions {
+			if k == "SigLevel" {
+				globalSig = v
+			}
+			continue
+		}
 		switch k {
 		case "Server":
 			cur.origin = v
@@ -221,7 +224,7 @@ func (archAdapter) ParseSources(text string) ([]Source, error) {
 				cur.origin = v
 			}
 		case "SigLevel":
-			cur.signed = !strings.Contains(v, "Never")
+			cur.signed = archSigned(v)
 		}
 	}
 	if cur != nil {
@@ -238,6 +241,40 @@ func (archAdapter) ParseSources(text string) ([]Source, error) {
 	return out, nil
 }
 
+// archSigned reports whether a SigLevel value requires package signatures.
+// "Never", "Optional" or "PackageOptional" means not positively signed; the
+// default (empty or "Required DatabaseOptional") is signed.
+func archSigned(sig string) bool {
+	for _, tok := range strings.Fields(strings.ToLower(sig)) {
+		switch {
+		case strings.Contains(tok, "never"):
+			// Never, PackageNever, DatabaseNever → unsigned.
+			return false
+		case tok == "optional" || tok == "packageoptional":
+			return false
+		}
+	}
+	return true
+}
+
+// archVendorHosts are the official Arch hosts; mirrors on pkgbuild.com are
+// covered by the dot-boundary suffix.
+var archVendorHosts = []string{"archlinux.org", "pkgbuild.com"}
+
+// archThirdParty reports whether an Arch repo is third-party. A non-vendor
+// repo name is third-party; a vendor-named repo with an explicit URL must also
+// point at a vendor host (a `[core]` Server of http://evil.example/ is not
+// vendor). Include-only repos (no URL) fall back to the name heuristic.
+func archThirdParty(name, origin string) bool {
+	if !archVendorRepos[name] {
+		return true
+	}
+	if strings.Contains(origin, "://") {
+		return !vendorHost(hostnameOf(origin), archVendorHosts)
+	}
+	return false
+}
+
 type archSourceBuilder struct {
 	name   string
 	origin string
@@ -245,8 +282,8 @@ type archSourceBuilder struct {
 }
 
 func (b *archSourceBuilder) finish() (Source, error) {
-	name, err := cleanField(b.name, maxName)
-	if err != nil || name == "" || name == "options" {
+	name, err := cleanPackageName(b.name)
+	if err != nil || name == "options" {
 		return Source{}, errEmpty("repository name")
 	}
 	origin, err := cleanField(b.origin, maxOrigin)
@@ -255,9 +292,9 @@ func (b *archSourceBuilder) finish() (Source, error) {
 	}
 	return Source{
 		Name:       name,
-		Origin:     origin,
+		Origin:     stripCredentials(origin),
 		Enabled:    true,
 		Signed:     b.signed,
-		ThirdParty: !archVendorRepos[name],
+		ThirdParty: archThirdParty(name, origin),
 	}, nil
 }
