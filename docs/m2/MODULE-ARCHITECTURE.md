@@ -39,7 +39,7 @@ Each module is a Go package pair plus a UI package, registered in one module reg
 | Resource types | Contribution to the shared resource graph (spec 02): nodes and typed edges with provenance and confidence |
 | Lock domains | Declared per op; storage ops lock **device identities** (§3), not module-local names |
 | UI | Route set and nav entry shown only when the module is enabled and its probe says available; otherwise a single "not available — why / how to install" card |
-| Enable/disable | Owner setting in `state.db`. Disabling hides routes and refuses its ops; it never uninstalls host software or touches data |
+| Enable/disable | Owner setting in root-owned `/etc/homelab-control/modules.json` (O-1), not `state.db`. Disabling hides routes and refuses its ops; it never uninstalls host software or touches data |
 
 **Distribution adapters.** Package names, service names, config paths and SELinux/AppArmor/firewall specifics come from a per-family adapter (Debian/Ubuntu, Fedora, openSUSE, Arch) selected from `os-release` `ID`/`ID_LIKE`. They are detected, never hardcoded to Ubuntu. Package installs go through the Software Center module, with no silent repositories (spec 06).
 
