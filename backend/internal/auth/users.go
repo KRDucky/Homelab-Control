@@ -59,6 +59,12 @@ const (
 	// DefaultScopes; storage.read does not imply it, and it does not imply
 	// storage.read (assigning a drive additionally requires storage.read).
 	ScopeLayoutManage = "layout.manage"
+	// ScopeFilesRead allows listing and statting entries under administrator
+	// allow-listed confined roots (file-manager first checkpoint). It never
+	// grants content download or writes. Not in DefaultScopes and not implied
+	// by system.read, layout.manage, host.settings.preview, host.settings.apply,
+	// storage.read or services.files (services.files stays unit-file contents).
+	ScopeFilesRead = "files.read"
 )
 
 // KnownScopes lists every scope the server understands. Unknown scopes in the
@@ -77,6 +83,7 @@ var KnownScopes = map[string]bool{
 	ScopeHostSettingsPreview: true,
 	ScopeHostSettingsApply:   true,
 	ScopeLayoutManage:        true,
+	ScopeFilesRead:           true,
 }
 
 // DefaultScopes are granted by `hlctl user add` when --scopes is not given.

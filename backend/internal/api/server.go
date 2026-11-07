@@ -31,6 +31,7 @@ import (
 
 	"homelab-control/backend/internal/audit"
 	"homelab-control/backend/internal/auth"
+	"homelab-control/backend/internal/filesinfo"
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
 	"homelab-control/backend/internal/modules"
@@ -79,6 +80,9 @@ type Server struct {
 	// mods is the administrator's module setting (M2-3). Routes of a
 	// disabled module answer exactly like unknown routes.
 	mods modules.Set
+	// files is the administrator's confined-root allow-list (file manager).
+	// The zero value has no roots (fail closed, no browse).
+	files filesinfo.Set
 	// oidc is the optional single sign-on provider (nil = disabled).
 	oidc *oidclogin.Flow
 }
@@ -104,6 +108,9 @@ func New(cfg Config, users *auth.Store, audit *audit.Logger, collector *hostinfo
 
 // WithModules applies the administrator's module setting (M2-3).
 func (s *Server) WithModules(m modules.Set) *Server { s.mods = m; return s }
+
+// WithFiles applies the administrator's confined-root allow-list.
+func (s *Server) WithFiles(f filesinfo.Set) *Server { s.files = f; return s }
 
 // Sessions exposes the session manager (tests).
 func (s *Server) Sessions() *auth.SessionManager { return s.sessions }
@@ -151,6 +158,8 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/operations", auth.ScopeAuditRead, s.handleOperations)
 	s.handle("GET /api/v1/hardware", auth.ScopeHardwareRead, s.handleHardware)
 	s.handle("GET /api/v1/storage", auth.ScopeStorageRead, s.handleStorage)
+	s.handle("GET /api/v1/files/roots", auth.ScopeFilesRead, s.handleFilesRoots)
+	s.handle("GET /api/v1/files/entries", auth.ScopeFilesRead, s.handleFilesEntries)
 	// M2-5 Stage A: application-owned manual drive-bay layout (no host writes).
 	s.handle("GET /api/v1/storage/layout", auth.ScopeStorageRead, s.handleLayout)
 	s.handle("POST /api/v1/storage/layout/chassis", auth.ScopeLayoutManage, s.handleLayoutCreate)

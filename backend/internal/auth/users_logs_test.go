@@ -82,3 +82,25 @@ func TestHostSettingsApplyNotGrantedByDefaultOrImplied(t *testing.T) {
 		t.Fatal("every other scope together must not imply host.settings.apply")
 	}
 }
+
+// File-manager first checkpoint: files.read is never default and is implied
+// by no other scope, including services.files.
+func TestFilesReadNotGrantedByDefaultOrImplied(t *testing.T) {
+	if !KnownScopes[ScopeFilesRead] || ScopeFilesRead != "files.read" {
+		t.Fatal("files.read must be a known scope")
+	}
+	for _, s := range strings.Split(DefaultScopes, ",") {
+		if s == ScopeFilesRead || strings.HasSuffix(s, ".files") {
+			t.Fatalf("default scopes grant %s", s)
+		}
+	}
+	var others []string
+	for s := range KnownScopes {
+		if s != ScopeFilesRead {
+			others = append(others, s)
+		}
+	}
+	if (&Session{Scopes: others}).HasScope(ScopeFilesRead) {
+		t.Fatal("every other scope together must not imply files.read")
+	}
+}

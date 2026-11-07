@@ -16,7 +16,8 @@ func TestRegistryIsClosed(t *testing.T) {
 		t.Fatalf("registry: %+v (new modules need review)", all)
 	}
 	for path, want := range map[string]string{"/api/v1/services": "services", "/api/v1/services/units/{unit}/plan": "services",
-		"/api/v1/servicesx": "", "/api/v1/audit": "", "/api/v1/operations": "", "/api/v1/capabilities": "", "/": ""} {
+		"/api/v1/servicesx": "", "/api/v1/audit": "", "/api/v1/operations": "", "/api/v1/capabilities": "",
+		"/api/v1/files": "", "/api/v1/files/roots": "", "/api/v1/files/entries": "", "/": ""} {
 		if got := ForRoute(path); got != want {
 			t.Errorf("ForRoute(%q) = %q, want %q", path, got, want)
 		}
