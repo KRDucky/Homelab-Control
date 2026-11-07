@@ -197,3 +197,53 @@ func TestPackageNameCharset(t *testing.T) {
 		}
 	}
 }
+
+// Q2: repository URLs must not leak userinfo or query tokens.
+func TestStripCredentials(t *testing.T) {
+	for in, want := range map[string]string{
+		"https://user:pass@host/path?token=x": "https://host/path",
+		"https://user:pass@host/path":         "https://host/path",
+		"https://host/path?token=x":           "https://host/path",
+		"https://host/path":                   "https://host/path",
+		"/etc/pacman.d/mirrorlist":            "/etc/pacman.d/mirrorlist",
+	} {
+		if got := stripCredentials(in); got != want {
+			t.Errorf("stripCredentials(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// F1: deb822 .sources must parse (or at least not fail the whole list) and
+// must apply the same signed/third-party/credential rules.
+func TestDebianDeb822Sources(t *testing.T) {
+	a := debianAdapter{}
+	got, err := a.ParseSources("Types: deb\nURIs: https://deb.debian.org/debian\nSuites: bookworm\nComponents: main\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Name != "bookworm" || got[0].Origin != "https://deb.debian.org/debian" || !got[0].Signed || got[0].ThirdParty {
+		t.Fatalf("deb822: %+v", got)
+	}
+	u, err := a.ParseSources("Types: deb\nURIs: https://deb.debian.org/debian\nSuites: bookworm\nTrusted: yes\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u[0].Signed {
+		t.Fatalf("Trusted: yes must be unsigned: %+v", u[0])
+	}
+	c, err := a.ParseSources("Types: deb\nURIs: https://user:pass@archive.ubuntu.com/ubuntu?token=x\nSuites: noble\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c[0].Origin != "https://archive.ubuntu.com/ubuntu" || c[0].ThirdParty {
+		t.Fatalf("deb822 credentials not stripped: %+v", c[0])
+	}
+	// Multi-suite URI produces one row per suite.
+	m, err := a.ParseSources("Types: deb\nURIs: https://deb.debian.org/debian\nSuites: bookworm bookworm-updates\nComponents: main\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(m) != 2 || m[0].Name != "bookworm" || m[1].Name != "bookworm-updates" {
+		t.Fatalf("multi-suite deb822: %+v", m)
+	}
+}

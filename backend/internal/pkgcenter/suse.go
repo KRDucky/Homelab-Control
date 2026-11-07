@@ -239,7 +239,7 @@ func (suseAdapter) ParseSources(text string) ([]Source, error) {
 			seen[key] = true
 			out = append(out, Source{
 				Name:       name,
-				Origin:     origin,
+				Origin:     stripCredentials(origin),
 				Enabled:    r.Enabled == "1" || r.Enabled == "true",
 				Signed:     truthy(r.GPGCheck),
 				ThirdParty: !vendorHost(hostnameOf(origin), suseVendorHosts),

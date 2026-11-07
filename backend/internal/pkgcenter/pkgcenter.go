@@ -211,6 +211,27 @@ func truthy(s string) bool {
 	return false
 }
 
+// stripCredentials removes userinfo (user:pass@) and the query/fragment from a
+// repository URL so credentials and tokens never leave the broker (hc-security
+// Q2). File paths and other non-URL origins pass through unchanged.
+func stripCredentials(uri string) string {
+	s := uri
+	if i := strings.IndexAny(s, "?#"); i >= 0 {
+		s = s[:i]
+	}
+	if i := strings.Index(s, "://"); i >= 0 {
+		auth := s[i+3:]
+		end := strings.Index(auth, "/")
+		if end < 0 {
+			end = len(auth)
+		}
+		if at := strings.LastIndex(auth[:end], "@"); at >= 0 {
+			s = s[:i+3] + auth[at+1:]
+		}
+	}
+	return s
+}
+
 // summary strips control/bidi characters from free text, normalizes runs of
 // whitespace to a single space, and bounds it to maxSummaryRunes characters.
 func summary(s string) string {

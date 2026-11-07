@@ -52,6 +52,11 @@ export function Software({ csrf, onUnauthorized }: { csrf: string; onUnauthorize
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // Search does not fetch until a non-empty query is submitted (hc-ui nit 1);
+    // the render shows an empty state, so nothing is reset here.
+    if (tab === 'search' && submitted === '') {
+      return;
+    }
     let cancelled = false;
     const fetchTab = async () => {
       setLoading(true);
@@ -109,50 +114,66 @@ export function Software({ csrf, onUnauthorized }: { csrf: string; onUnauthorize
             id={`software-tab-${t.id}`}
             aria-selected={tab === t.id}
             aria-controls={`software-panel-${t.id}`}
-            onClick={() => setTab(t.id)}
+            onClick={() => {
+              setTab(t.id);
+              setData(null);
+              setError(null);
+              setLoading(false);
+            }}
           >
             {t.label}
           </button>
         ))}
       </div>
-      <div
-        role="tabpanel"
-        id={`software-panel-${tab}`}
-        aria-labelledby={`software-tab-${tab}`}
-        className="software-panel"
-      >
-        {tab === 'search' && (
-          <form className="inline-field grow" onSubmit={onSearch}>
-            <label htmlFor="software-query">Search packages</label>
-            <input
-              id="software-query"
-              value={query}
-              maxLength={64}
-              placeholder="package name"
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <button type="submit">Search</button>
-          </form>
-        )}
-        {loading && <p className="muted">Reading the local package cache…</p>}
-        {!loading && error && (
-          <p className="banner" role="alert">
-            {explain(error)}
-          </p>
-        )}
-        {!loading && !error && data && tab === 'search' && isPackageList(data) && (
-          <SoftwarePackages packages={data.packages} source={data.source} />
-        )}
-        {!loading && !error && data && tab === 'installed' && isPackageList(data) && (
-          <SoftwarePackages packages={data.packages} source={data.source} />
-        )}
-        {!loading && !error && data && tab === 'updates' && isUpdateList(data) && (
-          <SoftwareUpdates updates={data} />
-        )}
-        {!loading && !error && data && tab === 'sources' && isSourceList(data) && (
-          <SoftwareSources sources={data} />
-        )}
-      </div>
+      {TABS.map((t) => (
+        <div
+          key={t.id}
+          role="tabpanel"
+          id={`software-panel-${t.id}`}
+          aria-labelledby={`software-tab-${t.id}`}
+          className="software-panel"
+          hidden={tab !== t.id}
+        >
+          {tab === t.id && (
+            <>
+              {t.id === 'search' && (
+                <form className="inline-field grow" onSubmit={onSearch}>
+                  <label htmlFor="software-query">Search packages</label>
+                  <input
+                    id="software-query"
+                    value={query}
+                    maxLength={64}
+                    placeholder="package name"
+                    onChange={(e) => setQuery(e.target.value)}
+                  />
+                  <button type="submit">Search</button>
+                </form>
+              )}
+              {t.id === 'search' && !loading && !error && submitted === '' && (
+                <p className="empty">Enter a package name to search the local cache.</p>
+              )}
+              {loading && <p className="muted">Reading the local package cache…</p>}
+              {!loading && error && (
+                <p className="banner" role="alert">
+                  {explain(error)}
+                </p>
+              )}
+              {!loading && !error && data && t.id === 'search' && isPackageList(data) && (
+                <SoftwarePackages packages={data.packages} source={data.source} />
+              )}
+              {!loading && !error && data && t.id === 'installed' && isPackageList(data) && (
+                <SoftwarePackages packages={data.packages} source={data.source} />
+              )}
+              {!loading && !error && data && t.id === 'updates' && isUpdateList(data) && (
+                <SoftwareUpdates updates={data} />
+              )}
+              {!loading && !error && data && t.id === 'sources' && isSourceList(data) && (
+                <SoftwareSources sources={data} />
+              )}
+            </>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
@@ -240,7 +261,7 @@ function SoftwareSources({ sources }: { sources: SourceList }) {
             render: (s) => (
               <>
                 {!s.signed && <span className="tag">unsigned</span>}
-                {s.third_party && <span className="tag">third-party script source</span>}
+                {s.third_party && <span className="tag">third-party</span>}
               </>
             ),
           },

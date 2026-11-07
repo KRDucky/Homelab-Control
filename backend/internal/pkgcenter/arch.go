@@ -289,7 +289,7 @@ func (b *archSourceBuilder) finish() (Source, error) {
 	}
 	return Source{
 		Name:       name,
-		Origin:     origin,
+		Origin:     stripCredentials(origin),
 		Enabled:    true,
 		Signed:     b.signed,
 		ThirdParty: archThirdParty(name, origin),
