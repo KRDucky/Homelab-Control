@@ -159,6 +159,15 @@ Existing scope names stay valid. Specs 03/addon-03 names (`storage.plan`, `stora
 
 **Impact:** 04-ROADMAP stays as written. It is unchanged here.
 
+## Product-scope answers (owner, 2026-11-07)
+
+Does **not** reopen D-8. M3 remains Theme SDK + plugin SDK. Product scope, not implementation authorization, not M2 close.
+
+- **Identity split:** display/label = serial then WWN; persist/write-target = strongest tier (`wwn:`, `nvme-uuid:`, `serial:`). `/dev/disk/by-id/` is refused for bay assignment. Destructive ops re-verify identity at execution and type-confirm the **label serial**. M2-5 Stage A stored-key contract unchanged.
+- **Networking slot:** later-row insert immediately before the former M11. New **M11** is port-use tracker (read-only first), LACP/bonding detect, firewall WebUI for the **active** backend, installed-tooling gate. Former M11–M13 become M12–M14.
+- **Ceph:** after M8, unslotted backlog; no 04-ROADMAP row. Cluster create separately reviewed.
+- **Module enable/disable:** root-owned `/etc/homelab-control/modules.json` (O-1), not `state.db`.
+
 ## D-9 Host administration in M2
 - **Recommended:** hostname and timezone as an **optional** M2 slice (PR M2-6). These are low-risk, through `hostnamectl`/`timedatectl`, and they exercise the write framework on a second module.
 - Users and groups move to their own milestone: lockout, sudo and UID/GID ownership risks, and they are tied to identity work (PAM is still deferred).
