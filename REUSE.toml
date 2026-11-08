@@ -1,0 +1,15 @@
+version = 1
+
+# Default for Extensions, including the extracted React component.
+[[annotations]]
+path = "**"
+precedence = "closest"
+SPDX-FileCopyrightText = "2026 The Homelab Control Authors"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+# Declarative sample metadata and documentation only. Never include ui/ here.
+[[annotations]]
+path = ["plugins/sample-readonly/manifest.hlplugin", "plugins/sample-readonly/README.md"]
+precedence = "closest"
+SPDX-FileCopyrightText = "2026 The Homelab Control Authors"
+SPDX-License-Identifier = "MIT"
