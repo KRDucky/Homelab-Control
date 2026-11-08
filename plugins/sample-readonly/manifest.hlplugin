@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "dev.homelab-control.sample-readonly",
+  "name": "Read-only sample plugin",
+  "version": "1.0.0",
+  "license": "MIT",
+  "contributions": [
+    "overview.sample-card"
+  ]
+}

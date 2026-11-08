@@ -60,3 +60,72 @@ func TestServicesFilesNotGrantedByDefaultOrImplied(t *testing.T) {
 		t.Fatal("every other scope together must not imply services.files")
 	}
 }
+
+// M2-6: hostname/timezone apply is never granted by default and is not
+// implied by host.settings.preview or any other scope.
+func TestHostSettingsApplyNotGrantedByDefaultOrImplied(t *testing.T) {
+	if !KnownScopes[ScopeHostSettingsApply] || ScopeHostSettingsApply != "host.settings.apply" {
+		t.Fatal("host.settings.apply must be a known scope")
+	}
+	for _, s := range strings.Split(DefaultScopes, ",") {
+		if s == ScopeHostSettingsApply || s == ScopeHostSettingsPreview {
+			t.Fatalf("default scopes grant %s", s)
+		}
+	}
+	var others []string
+	for s := range KnownScopes {
+		if s != ScopeHostSettingsApply {
+			others = append(others, s)
+		}
+	}
+	if (&Session{Scopes: others}).HasScope(ScopeHostSettingsApply) {
+		t.Fatal("every other scope together must not imply host.settings.apply")
+	}
+}
+
+// File-manager first checkpoint: files.read is never default and is implied
+// by no other scope, including services.files.
+func TestFilesReadNotGrantedByDefaultOrImplied(t *testing.T) {
+	if !KnownScopes[ScopeFilesRead] || ScopeFilesRead != "files.read" {
+		t.Fatal("files.read must be a known scope")
+	}
+	for _, s := range strings.Split(DefaultScopes, ",") {
+		if s == ScopeFilesRead || strings.HasSuffix(s, ".files") {
+			t.Fatalf("default scopes grant %s", s)
+		}
+	}
+	var others []string
+	for s := range KnownScopes {
+		if s != ScopeFilesRead {
+			others = append(others, s)
+		}
+	}
+	if (&Session{Scopes: others}).HasScope(ScopeFilesRead) {
+		t.Fatal("every other scope together must not imply files.read")
+	}
+}
+
+// M4-1b: read-only Software Center needs packages.read, never granted by
+// default and implied by no other scope. packages.manage stays reserved.
+func TestPackagesReadNotGrantedByDefaultOrImplied(t *testing.T) {
+	if !KnownScopes[ScopePackagesRead] || ScopePackagesRead != "packages.read" {
+		t.Fatal("packages.read must be a known scope")
+	}
+	if KnownScopes["packages.manage"] {
+		t.Fatal("packages.manage must stay unreserved")
+	}
+	for _, s := range strings.Split(DefaultScopes, ",") {
+		if s == ScopePackagesRead || strings.HasPrefix(s, "packages.") {
+			t.Fatalf("default scopes grant %s", s)
+		}
+	}
+	var others []string
+	for s := range KnownScopes {
+		if s != ScopePackagesRead {
+			others = append(others, s)
+		}
+	}
+	if (&Session{Scopes: others}).HasScope(ScopePackagesRead) {
+		t.Fatal("every other scope together must not imply packages.read")
+	}
+}

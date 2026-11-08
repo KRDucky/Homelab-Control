@@ -28,9 +28,11 @@ import (
 	"homelab-control/backend/internal/auth"
 	"homelab-control/backend/internal/broker/proto"
 	"homelab-control/backend/internal/brokerclient"
+	"homelab-control/backend/internal/filesinfo"
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
 	"homelab-control/backend/internal/modules"
+	"homelab-control/backend/internal/oidclogin"
 	"homelab-control/backend/internal/state"
 	"homelab-control/backend/internal/webui"
 )
@@ -49,6 +51,8 @@ func main() {
 	brokerSocket := flag.String("broker-socket", proto.DefaultSocket, "privileged broker socket (empty disables broker features)")
 	allowRoot := flag.Bool("i-understand-running-as-root-is-unsupported", false, "permit running as root (development containers only)")
 	modulesFile := flag.String("modules-config", modules.DefaultPath, "administrator's module setting (root-owned; missing = all modules enabled)")
+	filesFile := flag.String("files-config", filesinfo.DefaultPath, "allow-listed file-manager roots (root-owned; missing/empty = no browse)")
+	oidcConfig := flag.String("oidc-config", "", "single sign-on provider setting (mode 0600, may hold the client secret); empty disables OIDC")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
@@ -127,11 +131,25 @@ func main() {
 			extra = append(extra, o)
 		}
 	}
+	users := auth.NewStore(uf)
 	srv := api.New(api.Config{SecureCookies: useTLS || *behindTLSProxy, AllowedOrigins: extra, LegacyURL: *legacyURL},
-		auth.NewStore(uf), al, hostinfo.NewCollector(*legacyURL), webui.FS()).
+		users, al, hostinfo.NewCollector(*legacyURL), webui.FS()).
 		WithHardware(hwinfo.New())
 	if db != nil {
-		srv.WithSessionStore(db.Sessions()).WithAuditPager(db.Audit())
+		srv.WithSessionStore(db.Sessions()).WithAuditPager(db.Audit()).WithStorageSnapshots(db.StorageSnapshots()).WithLayouts(db.Layouts())
+	}
+	if *oidcConfig != "" {
+		oc, err := oidclogin.LoadConfig(*oidcConfig)
+		if err != nil {
+			log.Fatalf("oidc config: %v", err)
+		}
+		for _, b := range oc.Accounts {
+			if u, ok := users.Lookup(b.Username); !ok || u.Disabled {
+				log.Printf("warning: oidc subject %q is bound to %q, which is not an enabled local account; that login will be refused", b.Subject, b.Username)
+			}
+		}
+		srv.WithOIDC(oidclogin.New(*oc, nil))
+		log.Printf("oidc single sign-on enabled for issuer %s (%d bound accounts)", oc.Issuer, len(oc.Accounts))
 	}
 	if *brokerSocket != "" {
 		srv.WithBroker(brokerclient.New(*brokerSocket))
@@ -145,6 +163,13 @@ func main() {
 		log.Printf("modules disabled by %s: %v", *modulesFile, d)
 	}
 	srv.WithModules(mods)
+	files := filesinfo.LoadOrFailClosed(*filesFile, !*devHTTP)
+	if files.Reason != "" {
+		log.Print(files.Reason)
+	} else if files.BrowseAvailable() {
+		log.Printf("file-manager roots from %s: %d", *filesFile, len(files.PublicRoots()))
+	}
+	srv.WithFiles(files)
 	if webui.FS() == nil {
 		log.Print("warning: UI not embedded; serving API only")
 	}

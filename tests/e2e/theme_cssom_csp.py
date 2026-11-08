@@ -22,7 +22,7 @@ import json
 import os
 import sys
 
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError, sync_playwright
 
 BASE = os.environ.get("HC_E2E_URL", "http://127.0.0.1:9180").rstrip("/")
 BROWSERS = [b.strip() for b in os.environ.get("HC_CSP_BROWSERS", "chromium").split(",") if b.strip()]
@@ -94,9 +94,24 @@ PROBE = """async () => {
 def run(p, name):
     browser = getattr(p, name).launch()
     try:
-        page = browser.new_page()
-        page.add_init_script(f"({LISTEN})()")
-        resp = page.goto(BASE + "/", wait_until="load")
+        resp = None
+        for attempt in range(1, 4):
+            page = browser.new_page()
+            loaded = False
+            try:
+                page.add_init_script(f"({LISTEN})()")
+                print(f"== {name}: loading sign-in page (attempt {attempt}/3)", flush=True)
+                resp = page.goto(BASE + "/", wait_until="load")
+                loaded = True
+                break
+            except PlaywrightTimeoutError:
+                if attempt == 3:
+                    raise
+            finally:
+                if not loaded:
+                    page.close()
+        if resp is None:
+            raise RuntimeError(f"{name}: page navigation returned no response")
         csp = resp.headers.get("content-security-policy", "")
         r = page.evaluate(PROBE)
         r["browser"], r["version"], r["csp"] = name, browser.version, csp

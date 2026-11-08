@@ -1,15 +1,15 @@
 {
   "SPDXID": "SPDXRef-DOCUMENT",
   "creationInfo": {
-    "comment": "Inputs sha256 295449fc711cd020848113a2f69c1809231a9f8e8ab38c127639a2f5c92817c8 over frontend/app/package-lock.json, backend/go.mod, backend/go.sum, backend/go-deps-allowlist.json, compat/webmin.lock, scripts/gen-sbom.py. Build toolchain (CI): Go 1.26.10, Node.js 22, npm lockfileVersion 3, Vite 8.3.4, TypeScript 6.0.3. Package-payload inventories are produced per build by scripts/package-inventory.sh.",
-    "created": "2026-10-23T06:47:23Z",
+    "comment": "Inputs sha256 6b16a630cab5edc804babab3efc74bbe5abbfc025df3cf392d321fec56464836 over frontend/app/package-lock.json, backend/go.mod, backend/go.sum, backend/go-deps-allowlist.json, compat/webmin.lock, scripts/gen-sbom.py. Build toolchain (CI): Go 1.26.10, Node.js 22, npm lockfileVersion 3, Vite 8.3.4, TypeScript 6.0.3. Package-payload inventories are produced per build by scripts/package-inventory.sh.",
+    "created": "2026-11-07T06:42:41Z",
     "creators": [
       "Person: Ian comings",
       "Tool: homelab-control-gen-sbom-1.0"
     ]
   },
   "dataLicense": "CC0-1.0",
-  "documentNamespace": "https://github.com/KRDucky/Homelab-Control---Webmin-Fork/spdx/295449fc711cd020848113a2f69c1809231a9f8e8ab38c127639a2f5c92817c8",
+  "documentNamespace": "https://github.com/KRDucky/Homelab-Control---Webmin-Fork/spdx/6b16a630cab5edc804babab3efc74bbe5abbfc025df3cf392d321fec56464836",
   "name": "homelab-control-source-sbom",
   "packages": [
     {
@@ -221,6 +221,60 @@
       "licenseDeclared": "MIT",
       "name": "github.com/ncruces/go-strftime",
       "versionInfo": "v1.0.0"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-go-github.com-coreos-go-oidc-v3-v3.21.0",
+      "comment": "Compiled into hc-api and hlctl (not hc-broker); source in the release source archive under vendor-sources/go/download. go.sum h1:wZo4Q9Pum8dYEj0eMUPrqR+kvuGkeUplbLpNCkBqoWM=. OIDC ID token verification and discovery (ADR 0006 amendment 3). Linked into hc-api, and into hlctl because it imports internal/api; NOTICE (CoreOS) reproduced in third-party notices.",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "https://proxy.golang.org/github.com/coreos/go-oidc/v3/@v/v3.21.0.zip",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:golang/github.com/coreos/go-oidc/v3@v3.21.0",
+          "referenceType": "purl"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "Apache-2.0",
+      "name": "github.com/coreos/go-oidc/v3",
+      "versionInfo": "v3.21.0"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-go-github.com-go-jose-go-jose-v4-v4.1.7",
+      "comment": "Compiled into hc-api and hlctl (not hc-broker); source in the release source archive under vendor-sources/go/download. go.sum h1:Nac/98uT5LPkfbiFuYa8ktf62a2VxwQ4xbq1GK8pV5E=. JWS/JWK for go-oidc (amendment 3). v4.1.7 chosen over go-oidc's minimum v4.1.4 for the GHSA fixes released in v4.1.5\u2013v4.1.7; v4.1.8+ adds ML-DSA (not needed).",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "https://proxy.golang.org/github.com/go-jose/go-jose/v4/@v/v4.1.7.zip",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:golang/github.com/go-jose/go-jose/v4@v4.1.7",
+          "referenceType": "purl"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "Apache-2.0",
+      "name": "github.com/go-jose/go-jose/v4",
+      "versionInfo": "v4.1.7"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-go-golang.org-x-oauth2-v0.37.0",
+      "comment": "Compiled into hc-api and hlctl (not hc-broker); source in the release source archive under vendor-sources/go/download. go.sum h1:JUlcxA8oAtauLfiH8FX2/FkAWHAdi0QtGCGc+hofE98=. OAuth 2.0 authorization-code exchange with PKCE (amendment 3). Its cloud.google.com/go/compute/metadata requirement is outside the pruned module graph and not linked.",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "https://proxy.golang.org/golang.org/x/oauth2/@v/v0.37.0.zip",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:golang/golang.org/x/oauth2@v0.37.0",
+          "referenceType": "purl"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseConcluded": "BSD-3-Clause",
+      "licenseDeclared": "BSD-3-Clause",
+      "name": "golang.org/x/oauth2",
+      "versionInfo": "v0.37.0"
     },
     {
       "SPDXID": "SPDXRef-Package-npm--asamuzakjp-css-color-7.1.5",
@@ -6246,6 +6300,21 @@
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
       "relationshipType": "OPTIONAL_DEPENDENCY_OF",
       "spdxElementId": "SPDXRef-Package-go-github.com-ncruces-go-strftime-v1.0.0"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-go-github.com-coreos-go-oidc-v3-v3.21.0",
+      "relationshipType": "CONTAINS",
+      "spdxElementId": "SPDXRef-Package-homelab-control"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-go-github.com-go-jose-go-jose-v4-v4.1.7",
+      "relationshipType": "CONTAINS",
+      "spdxElementId": "SPDXRef-Package-homelab-control"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-go-golang.org-x-oauth2-v0.37.0",
+      "relationshipType": "CONTAINS",
+      "spdxElementId": "SPDXRef-Package-homelab-control"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",

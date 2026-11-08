@@ -9,6 +9,8 @@ package types
 import (
 	"regexp"
 	"time"
+
+	"homelab-control/backend/internal/pkgcenter"
 )
 
 // Privilege describes how an op touches the host.
@@ -118,6 +120,30 @@ type UnitList struct {
 	Counts         map[string]int `json:"counts"`
 	Truncated      bool           `json:"truncated"`
 	Source         string         `json:"source"`
+}
+
+// PackageList is the result of a packages installed/search read op (M4-1b).
+type PackageList struct {
+	Packages  []pkgcenter.Package `json:"packages"`
+	Truncated bool                `json:"truncated"`
+	Source    string              `json:"source"`
+}
+
+// UpdateList is the result of packages.updates: pending upgrades read from the
+// local cache, labelled with the local metadata refresh time (never a network
+// refresh).
+type UpdateList struct {
+	Updates   []pkgcenter.Update `json:"updates"`
+	Truncated bool               `json:"truncated"`
+	Source    string             `json:"source"`
+	AsOf      string             `json:"as_of,omitempty"`
+}
+
+// SourceList is the result of packages.sources: configured repositories.
+type SourceList struct {
+	Sources   []pkgcenter.Source `json:"sources"`
+	Truncated bool               `json:"truncated"`
+	Source    string             `json:"source"`
 }
 
 // LogsUnitRE is the unit-name grammar accepted by services.unit.logs: no
@@ -383,4 +409,59 @@ type SocketList struct {
 	Sockets   []SocketInfo `json:"sockets"`
 	Truncated bool         `json:"truncated"`
 	Source    string       `json:"source"`
+}
+
+// HostSettingsObserved is hostnamectl/timedatectl status as the broker
+// reports it. Status is observed, not-set or unavailable. Values are omitted
+// unless Status is observed. This is not the kernel hostname seen by hc-api
+// (ProtectHostname=yes).
+type HostSettingsObserved struct {
+	StaticHostname    string   `json:"static_hostname,omitempty"`
+	StaticStatus      string   `json:"static_status"`
+	PrettyHostname    string   `json:"pretty_hostname,omitempty"`
+	PrettyStatus      string   `json:"pretty_status"`
+	Timezone          string   `json:"timezone,omitempty"`
+	TimezoneStatus    string   `json:"timezone_status"`
+	TransientHostname string   `json:"transient_hostname,omitempty"`
+	TransientStatus   string   `json:"transient_status,omitempty"`
+	Notes             []string `json:"notes,omitempty"`
+}
+
+// HostSettingsPlan is the result of host.settings.plan (M2-6, ADR 0011).
+type HostSettingsPlan struct {
+	Action               string               `json:"action"`
+	Risk                 string               `json:"risk"`
+	StepUpRequired       bool                 `json:"step_up_required"`
+	ConfirmationRequired bool                 `json:"confirmation_required"`
+	Token                string               `json:"token"`
+	ExpiresAt            time.Time            `json:"expires_at"`
+	Observed             HostSettingsObserved `json:"observed"`
+	Effect               string               `json:"effect"`
+	Consequences         []string             `json:"consequences"`
+	Warnings             []string             `json:"warnings"`
+	Changes              []HostSettingChange  `json:"changes"`
+	Fields               []string             `json:"fields"`
+}
+
+// HostSettingChange is one requested field in a host-settings plan or outcome.
+type HostSettingChange struct {
+	Field     string `json:"field"`
+	Current   string `json:"current"`
+	Requested string `json:"requested"`
+	Outcome   string `json:"outcome"`
+	Reason    string `json:"reason,omitempty"`
+}
+
+// HostSettingsOutcome is the result of host.settings.apply. "succeeded" means
+// every requested field matches hostnamectl/timedatectl after the change.
+type HostSettingsOutcome struct {
+	OperationID string                `json:"operation_id"`
+	Action      string                `json:"action"`
+	Outcome     string                `json:"outcome"`
+	Message     string                `json:"message"`
+	Fields      []string              `json:"fields"`
+	Observed    *HostSettingsObserved `json:"observed,omitempty"`
+	Recovery    []string              `json:"recovery,omitempty"`
+	StartedAt   time.Time             `json:"started_at"`
+	FinishedAt  time.Time             `json:"finished_at"`
 }

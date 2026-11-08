@@ -19,6 +19,8 @@ const PATHS = {
   sidebar: 'M3 4h14v12H3zM8 4v12',
   eye: 'M2 10s3-5.5 8-5.5S18 10 18 10s-3 5.5-8 5.5S2 10 2 10zM10 7.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z',
   close: 'M5 5l10 10M15 5 5 15',
+  folder: 'M2.5 5.5c0-.6.4-1 1-1H8l1.5 2h7c.6 0 1 .4 1 1v8c0 .6-.4 1-1 1h-13c-.6 0-1-.4-1-1z',
+  file: 'M5 2.5h6.5L15 6v11.5H5zM11.5 2.5V6H15',
 } as const;
 
 export type IconName = keyof typeof PATHS;
@@ -49,6 +51,9 @@ export const NAV_ICONS: Record<string, IconName> = {
   overview: 'overview',
   services: 'system',
   hardware: 'hardware',
+  storage: 'hardware',
+  host_settings: 'system',
+  files: 'folder',
   legacy: 'external',
   audit: 'audit',
 };

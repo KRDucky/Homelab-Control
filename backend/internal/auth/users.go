@@ -21,6 +21,8 @@ import (
 // is defined in docs/project/03-SECURITY-AND-OPERATIONS.md; M0 only grants and
 // uses system.read.
 const (
+	// ScopeStorageRead allows storage metadata and identifying labels. Never granted by default.
+	ScopeStorageRead  = "storage.read"
 	ScopeSystemRead   = "system.read"   // overview, legacy Webmin status
 	ScopeServicesRead = "services.read" // systemd unit list (M1)
 	ScopeHardwareRead = "hardware.read" // hardware inventory incl. DMI serials (M1)
@@ -44,20 +46,51 @@ const (
 	// Not in DefaultScopes and not implied by services.logs, services.read,
 	// services.operate or services.configure (no scope implies another).
 	ScopeServicesFiles = "services.files"
+	// ScopeHostSettingsPreview allows previewing hostname and timezone
+	// changes (M2-6). A preview never changes the host, and this scope never
+	// authorizes plan or apply. Not in DefaultScopes.
+	ScopeHostSettingsPreview = "host.settings.preview"
+	// ScopeHostSettingsApply allows plan → confirm → execute of hostname and
+	// timezone changes (M2-6, ADR 0011). Not in DefaultScopes and never
+	// implied by host.settings.preview or system.read.
+	ScopeHostSettingsApply = "host.settings.apply"
+	// ScopeLayoutManage allows editing the application-owned manual drive-bay
+	// layout in state.db (M2-5 Stage A, D-7). It changes no host state. Not in
+	// DefaultScopes; storage.read does not imply it, and it does not imply
+	// storage.read (assigning a drive additionally requires storage.read).
+	ScopeLayoutManage = "layout.manage"
+	// ScopeFilesRead allows listing and statting entries under administrator
+	// allow-listed confined roots (file-manager first checkpoint). It never
+	// grants content download or writes. Not in DefaultScopes and not implied
+	// by system.read, layout.manage, host.settings.preview, host.settings.apply,
+	// storage.read or services.files (services.files stays unit-file contents).
+	ScopeFilesRead = "files.read"
+	// ScopePackagesRead allows read-only Software Center queries (M4-1b):
+	// search, installed list, pending-update preview and configured sources,
+	// all from the local cache with no network and no writes. Not in
+	// DefaultScopes and implied by no other scope. packages.manage stays
+	// reserved for the separately reviewed write ADR and is not granted here.
+	ScopePackagesRead = "packages.read"
 )
 
 // KnownScopes lists every scope the server understands. Unknown scopes in the
 // users file are rejected at load time so typos cannot silently grant nothing
 // (or, in later milestones, the wrong thing). All M1 scopes are read-only.
 var KnownScopes = map[string]bool{
-	ScopeSystemRead:        true,
-	ScopeServicesRead:      true,
-	ScopeHardwareRead:      true,
-	ScopeServicesLogs:      true,
-	ScopeAuditRead:         true,
-	ScopeServicesOperate:   true,
-	ScopeServicesConfigure: true,
-	ScopeServicesFiles:     true,
+	ScopeStorageRead:         true,
+	ScopeSystemRead:          true,
+	ScopeServicesRead:        true,
+	ScopeHardwareRead:        true,
+	ScopeServicesLogs:        true,
+	ScopeAuditRead:           true,
+	ScopeServicesOperate:     true,
+	ScopeServicesConfigure:   true,
+	ScopeServicesFiles:       true,
+	ScopeHostSettingsPreview: true,
+	ScopeHostSettingsApply:   true,
+	ScopeLayoutManage:        true,
+	ScopeFilesRead:           true,
+	ScopePackagesRead:        true,
 }
 
 // DefaultScopes are granted by `hlctl user add` when --scopes is not given.

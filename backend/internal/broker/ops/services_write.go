@@ -973,6 +973,16 @@ func journalList(_ context.Context, env *Env, raw json.RawMessage) (any, error) 
 func InspectUnit(env *Env) writes.Inspector {
 	return func(intent writes.Record) (json.RawMessage, string) {
 		target := intent.Target
+		if intent.Op == hostSettingsOpName {
+			ctx, cancel := context.WithTimeout(context.Background(), showTimeout)
+			defer cancel()
+			obs, err := env.hostSettings().Status(ctx, env)
+			if err != nil {
+				return nil, "unknown (hostnamectl/timedatectl could not be read)"
+			}
+			b, _ := json.Marshal(statusOnly(obs))
+			return b, "host settings after interruption: static=" + obs.StaticStatus + " pretty=" + obs.PrettyStatus + " timezone=" + obs.TimezoneStatus
+		}
 		if !servicepolicy.ValidUnit(target) || (env.Units == nil && env.Runner == nil) {
 			return nil, ""
 		}

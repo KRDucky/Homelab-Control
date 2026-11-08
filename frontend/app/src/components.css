@@ -331,3 +331,108 @@
 .cell-content {
   min-width: 0;
 }
+
+/* Read-only FileBrowser port (HCIS). Writes from the reference mock are omitted. */
+.files-browser {
+  display: grid;
+  grid-template-columns: 13rem 1fr;
+  border: 1px solid var(--hc-color-border-subtle);
+  border-radius: var(--hc-radius-lg);
+  overflow: hidden;
+  background: var(--hc-color-surface-raised);
+  min-height: 16rem;
+  margin-bottom: var(--hc-stack-gap);
+}
+.files-tree {
+  border-right: 1px solid var(--hc-color-border-subtle);
+  background: var(--hc-color-surface-sunken);
+  padding: var(--hc-space-2);
+  overflow: auto;
+}
+.files-tree ul {
+  list-style: none;
+  margin: 0;
+  padding-left: var(--hc-space-3);
+}
+.files-tree > ul {
+  padding-left: 0;
+}
+.files-tree button {
+  font: inherit;
+  font-size: var(--hc-font-size-sm);
+  background: none;
+  border: 0;
+  color: var(--hc-color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--hc-space-1);
+  padding: 2px var(--hc-space-1);
+  border-radius: var(--hc-radius-sm);
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+}
+.files-tree button:hover {
+  background: var(--hc-color-surface-hover);
+}
+.files-tree button[aria-current='true'] {
+  background: var(--hc-color-surface-selected);
+  font-weight: 600;
+}
+.files-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.files-path {
+  display: flex;
+  align-items: center;
+  gap: var(--hc-space-2);
+  padding: var(--hc-space-2) var(--hc-space-3);
+  border-bottom: 1px solid var(--hc-color-border-subtle);
+}
+.files-crumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--hc-space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.files-crumbs li + li::before {
+  content: '/';
+  color: var(--hc-color-text-secondary);
+  margin-right: var(--hc-space-1);
+}
+.files-crumbs button {
+  font: inherit;
+  background: none;
+  border: 0;
+  color: var(--hc-color-text-link);
+  cursor: pointer;
+  padding: 0;
+}
+.files-name {
+  display: flex;
+  align-items: center;
+  gap: var(--hc-space-1);
+  flex-wrap: nowrap;
+}
+.files-name button {
+  font: inherit;
+  background: none;
+  border: 0;
+  color: var(--hc-color-text-link);
+  cursor: pointer;
+  padding: 0;
+}
+@media (max-width: 40rem) {
+  .files-browser {
+    grid-template-columns: 1fr;
+  }
+  .files-tree {
+    border-right: 0;
+    border-bottom: 1px solid var(--hc-color-border-subtle);
+  }
+}

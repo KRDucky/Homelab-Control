@@ -6,6 +6,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Icon } from './icons';
 import { navigate } from './router';
 import { activeTheme, activateTheme } from './theme';
+import { isContributionEnabled, setContributionEnabled } from './plugin';
 import type { Preferences } from './preferences';
 
 type Option<V extends string> = { id: V; label: string; hint?: string };
@@ -98,6 +99,18 @@ export function AppearanceMenu({
   onReset: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [sampleLoaded, setSampleLoaded] = useState(() => isContributionEnabled('overview.sample-card'));
+  // Keep the checkbox in sync with any load/unload (this menu or another tab), the same way
+  // PluginContributions subscribes to hc-plugins-change and storage.
+  useEffect(() => {
+    const sync = () => setSampleLoaded(isContributionEnabled('overview.sample-card'));
+    window.addEventListener('hc-plugins-change', sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener('hc-plugins-change', sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
   const wrap = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const panelId = useId();
@@ -173,6 +186,23 @@ export function AppearanceMenu({
           >
             Themes & Theme Studio
           </button>
+          <fieldset className="choice">
+            <legend>Sample plugin</legend>
+            <div className="choice-list">
+              <label className={sampleLoaded ? 'on' : ''}>
+                <input
+                  type="checkbox"
+                  name={`${n}-sample-plugin`}
+                  checked={sampleLoaded}
+                  onChange={(e) => setContributionEnabled('overview.sample-card', e.target.checked)}
+                />
+                <span className="choice-label">Read-only sample plugin</span>
+                <span className="choice-hint">
+                  Example only — shows a labelled Overview card; declarative and never runs code.
+                </span>
+              </label>
+            </div>
+          </fieldset>
           <Choice
             legend="Density"
             name={`${n}-density`}
