@@ -89,6 +89,18 @@ test('components are limited to static presentational React', async () => {
     [(d) => body(d, 'export function SampleOverviewCard', 'export default function SampleOverviewCard'), /one `export function SampleOverviewCard`|only type imports/],
     [(d) => write(d, card, read(d, card) + '\nconst leaked = 1;\n'), /only type imports/],
     [(d) => body(d, 'return (', 'return ((('), /does not parse/],
+    // Reflective routes to Function (Codex review of 9a322fb3).
+    [(d) => body(d, 'return (', "[].filter.constructor('return window')();\n  return ("), /'constructor' is not allowed/],
+    [(d) => body(d, 'return (', "(async () => {}).constructor('return 1');\n  return ("), /'constructor' is not allowed/],
+    [(d) => body(d, 'return (', "const f = [].filter;\n  f['constructor']('return 1')();\n  return ("), /computed member access/],
+    [(d) => body(d, 'return (', "const k = 'con' + 'structor';\n  ({} as Record<string, unknown>)[k];\n  return ("), /computed member access/],
+    [(d) => body(d, 'return (', "const { ['con' + 'structor']: C } = [].filter;\n  void C;\n  return ("), /computed property names/],
+    [(d) => body(d, 'return (', "const { 'constructor': C } = [].filter;\n  void C;\n  return ("), /string 'constructor'/],
+    [(d) => body(d, 'return (', "const { constructor: C } = [].filter;\n  void C;\n  return ("), /'constructor' is not allowed/],
+    [(d) => body(d, 'return (', "Reflect.get([].filter, 'x');\n  return ("), /'Reflect' is not allowed/],
+    [(d) => body(d, 'return (', "Object.getPrototypeOf([].filter);\n  return ("), /'getPrototypeOf' is not allowed/],
+    [(d) => body(d, 'return (', "[].filter.call([], () => true);\n  return ("), /'call' is not allowed/],
+    [(d) => body(d, 'return (', "void `constructor`;\n  return ("), /string 'constructor'/],
   ];
   for (const [edit, pattern] of cases) await rejects(edit, pattern);
 });

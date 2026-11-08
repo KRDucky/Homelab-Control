@@ -35,6 +35,9 @@ const DENIED = new Set([
   'localStorage', 'sessionStorage', 'indexedDB', 'caches', 'cookieStore', 'cookie', 'setTimeout', 'setInterval',
   'queueMicrotask', 'postMessage', 'innerHTML', 'outerHTML', 'insertAdjacentHTML', 'dangerouslySetInnerHTML',
   'srcDoc', 'srcdoc',
+  // Reflective routes back to Function, e.g. [].filter.constructor('return window')().
+  'constructor', 'prototype', '__proto__', 'Reflect', 'Proxy', 'getPrototypeOf', 'setPrototypeOf',
+  'getOwnPropertyDescriptor', 'getOwnPropertyDescriptors', 'defineProperty', 'defineProperties', 'apply', 'call', 'bind',
 ]);
 
 function fail(message) {
@@ -88,6 +91,13 @@ export function checkComponent(rel, source, exportName) {
     if (ts.isJsxAttribute(node) && DENIED.has(node.name.getText(file)))
       fail(`${rel}: JSX attribute '${node.name.getText(file)}' is not allowed.`);
     if (ts.isTaggedTemplateExpression(node)) fail(`${rel}: tagged templates are not allowed.`);
+    // Names can also be built from strings: x['constructor'], { ['con' + 'structor']: C } = x,
+    // { 'constructor': C } = x. Computed access and computed keys are refused outright, and no string
+    // literal may spell a denied name.
+    if (ts.isElementAccessExpression(node)) fail(`${rel}: computed member access (x[...]) is not allowed.`);
+    if (ts.isComputedPropertyName(node)) fail(`${rel}: computed property names are not allowed.`);
+    if ((ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) && DENIED.has(node.text))
+      fail(`${rel}: the string '${node.text}' is not allowed in a contribution.`);
     ts.forEachChild(node, visit);
   };
   visit(file);
