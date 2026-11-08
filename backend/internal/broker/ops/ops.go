@@ -70,6 +70,9 @@ type Env struct {
 	Actor proto.Actor
 	// Modules is the administrator's module setting (zero value: all enabled).
 	Modules modules.Set
+	// HostSettings overrides the hostnamectl/timedatectl controller (tests);
+	// nil = hostnamectl and timedatectl.
+	HostSettings HostSettingsController
 }
 
 // WriteSpec documents a write op for review and the registry snapshot test
@@ -146,6 +149,28 @@ func Registry() map[string]Op {
 					runner.RootSystemctlShowInstall, runner.RootSystemctlShow, runner.RootSystemctlShowManager}}},
 		{Name: "operations.journal.list", Scope: "audit.read", Privilege: PrivRootRead, Timeout: 5 * time.Second,
 			Description: "The 100 most recent privileged operations from the broker journal, including interrupted ones", Handle: journalList},
+		// M2-6 (ADR 0011 extension, proposed): hostname and timezone.
+		// Plan is unprivileged hostnamectl/timedatectl status; apply is root-exec.
+		{Name: "host.settings.plan", Scope: "host.settings.apply", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second,
+			Description: "Review setting the static host name, pretty host name and/or time zone: observed hostnamectl/timedatectl values, reversible risk, TLS/mDNS//etc/hosts warning and a single-use plan token",
+			Handle:      hostSettingsPlan, AuditArgs: hostSettingsAuditArgs,
+			Write: &WriteSpec{Phase: "plan", Risks: []string{RiskReversible}, LockDomain: "host-settings"}},
+		{Name: "host.settings.apply", Scope: "host.settings.apply", Privilege: PrivRootExec, Timeout: 55 * time.Second,
+			Description: "Execute a reviewed hostname/timezone change with its plan token; journaled, verified by reading hostnamectl/timedatectl back (args: requested fields and token)",
+			Handle:      hostSettingsApply, AuditArgs: hostSettingsAuditArgs,
+			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskReversible}, LockDomain: "host-settings",
+				Templates: []runner.RootTemplate{runner.RootHostnamectlSetStatic, runner.RootHostnamectlSetPretty, runner.RootTimedatectlSetTimezone,
+					runner.RootHostnamectlStatus, runner.RootTimedatectlStatus, runner.RootTimedatectlListTimezones}}},
+		// M4-1b (ADR 0008 Amendment 5, Proposed): read-only Software Center
+		// queries, cache-only, unprivileged closed argv templates. No write.
+		{Name: "packages.installed", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second,
+			Description: "Installed packages of one distribution family, from the local package database (args: family)", Handle: packagesInstalled},
+		{Name: "packages.updates", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second,
+			Description: "Pending upgrades with old and new versions from the local cache, labelled with the metadata refresh time (args: family)", Handle: packagesUpdates},
+		{Name: "packages.sources", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second,
+			Description: "Configured repositories and package sources with third-party and unsigned flags (args: family)", Handle: packagesSources},
+		{Name: "packages.search", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second,
+			Description: "Search the local package cache of one family (args: family, q)", Handle: packagesSearch, AuditArgs: packagesAuditArgs},
 	}
 	m := make(map[string]Op, len(ops))
 	for _, o := range ops {
@@ -198,7 +223,7 @@ func brokerInfo(_ context.Context, env *Env, raw json.RawMessage) (any, error) {
 	}
 	sort.Slice(res.Ops, func(i, j int) bool { return res.Ops[i].Name < res.Ops[j].Name })
 	res.WritesAvailable = env.Writes != nil
-	for _, b := range []string{"systemctl", "journalctl"} {
+	for _, b := range []string{"systemctl", "journalctl", "hostnamectl", "timedatectl", "dpkg-query", "apt-cache", "apt", "rpm", "dnf", "zypper", "pacman"} {
 		if env.Runner != nil && env.Runner.Available(b) {
 			res.Exec = append(res.Exec, b)
 		}

@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+import type { StorageInventory } from './storageModel';
+
 // Typed client for the Homelab Control v1 API (schemas/openapi/homelab-control.v1.yaml).
 
 export interface SessionInfo {
@@ -111,6 +113,14 @@ export function login(username: string, password: string): Promise<SessionInfo> 
   });
 }
 
+/** Whether single sign-on is configured. Start is a plain navigation to
+ * OIDC_START_PATH (a fetch or form POST cannot follow the provider redirect). */
+export const OIDC_START_PATH = '/api/v1/auth/oidc/start';
+
+export function getOIDCStatus(): Promise<{ enabled: boolean }> {
+  return request<{ enabled: boolean }>('/api/v1/auth/oidc');
+}
+
 export function logout(csrf: string): Promise<undefined> {
   return request<undefined>('/api/v1/auth/logout', { method: 'POST', headers: { 'X-CSRF-Token': csrf } });
 }
@@ -124,7 +134,18 @@ export function getOverview(): Promise<Overview> {
 export type CapabilityStatus = 'available' | 'degraded' | 'unavailable' | 'unsupported' | 'forbidden';
 
 export interface Capability {
-  id: 'overview' | 'services' | 'service_logs' | 'unit_files' | 'hardware' | 'legacy' | 'audit';
+  id:
+    | 'overview'
+    | 'services'
+    | 'service_logs'
+    | 'unit_files'
+    | 'hardware'
+    | 'legacy'
+    | 'audit'
+    | 'storage'
+    | 'host_settings'
+    | 'files'
+    | 'packages';
   label: string;
   path: string;
   scope: string;
@@ -660,4 +681,317 @@ export function applyEnablement(
   csrf: string,
 ): Promise<EnablementOutcome> {
   return postJSON<EnablementOutcome>(`${unitPath(unit)}/enablement/apply`, csrf, { action, token });
+}
+
+// The session CSRF token is required on this GET: a read is audited and may
+// save a snapshot, so a same-site page (another port on this host) must not be
+// able to trigger it with a cookie-bearing image or no-cors request.
+export function getStorage(csrf: string): Promise<StorageInventory> {
+  return request<StorageInventory>('/api/v1/storage', { headers: { 'X-CSRF-Token': csrf } });
+}
+
+// M2-6 skeleton: read-only host settings and a non-executing preview.
+export interface HostSetting {
+  value?: string;
+  status: 'observed' | 'not-set' | 'unavailable';
+  source: string;
+  note?: string;
+}
+
+export interface HostSettings {
+  kernel_hostname: HostSetting;
+  static_hostname: HostSetting;
+  pretty_hostname: HostSetting;
+  timezone: HostSetting;
+}
+
+export interface HostSettingsResponse {
+  collected_at: string;
+  read_only: true;
+  settings: HostSettings;
+}
+
+export interface HostSettingsPreviewRequest {
+  static_hostname?: string;
+  pretty_hostname?: string;
+  timezone?: string;
+}
+
+export interface HostSettingChange {
+  field: 'static_hostname' | 'pretty_hostname' | 'timezone';
+  current: string;
+  requested: string;
+  outcome: 'unchanged' | 'would-change' | 'invalid' | 'cannot-compare';
+  reason?: string;
+}
+
+export interface HostSettingsPreview {
+  preview_only: true;
+  executed: false;
+  host_changed: false;
+  apply_available: boolean;
+  notice: string;
+  valid: boolean;
+  collected_at: string;
+  current: HostSettings;
+  changes: HostSettingChange[];
+  warnings: string[];
+}
+
+export interface HostSettingsObserved {
+  static_hostname?: string;
+  static_status: HostSetting['status'];
+  pretty_hostname?: string;
+  pretty_status: HostSetting['status'];
+  timezone?: string;
+  timezone_status: HostSetting['status'];
+  transient_hostname?: string;
+  transient_status?: HostSetting['status'];
+  notes?: string[];
+}
+
+export interface HostSettingsPlan {
+  action: 'set';
+  risk: 'reversible';
+  step_up_required: boolean;
+  confirmation_required: boolean;
+  token: string;
+  expires_at: string;
+  observed: HostSettingsObserved;
+  effect: string;
+  consequences: string[];
+  warnings: string[];
+  changes: HostSettingChange[];
+  fields: HostSettingChange['field'][];
+}
+
+export interface HostSettingsOutcome {
+  operation_id: string;
+  action: 'set';
+  outcome: 'succeeded' | 'failed' | 'uncertain';
+  message: string;
+  fields: HostSettingChange['field'][];
+  observed?: HostSettingsObserved;
+  recovery?: string[];
+  started_at: string;
+  finished_at: string;
+}
+
+export function getHostSettings(): Promise<HostSettingsResponse> {
+  return request<HostSettingsResponse>('/api/v1/host/settings');
+}
+
+/** Compares requested values with the host's. The server never applies them. */
+export function previewHostSettings(
+  req: HostSettingsPreviewRequest,
+  csrf: string,
+): Promise<HostSettingsPreview> {
+  return postJSON<HostSettingsPreview>('/api/v1/host/settings/preview', csrf, req);
+}
+
+/** Review a hostname/timezone change. Requires host.settings.apply; preview never authorizes this. */
+export function planHostSettings(req: HostSettingsPreviewRequest, csrf: string): Promise<HostSettingsPlan> {
+  return postJSON<HostSettingsPlan>('/api/v1/host/settings/plan', csrf, req);
+}
+
+/** Execute a reviewed hostname/timezone change. Requires host.settings.apply and the plan token. */
+export function applyHostSettings(
+  req: HostSettingsPreviewRequest,
+  token: string,
+  csrf: string,
+): Promise<HostSettingsOutcome> {
+  return postJSON<HostSettingsOutcome>('/api/v1/host/settings/apply', csrf, { ...req, token });
+}
+
+// File manager (read-only checkpoint): confined-root listing. files.read is never
+// default. Identifier-bearing GETs need the session CSRF token (same bar as layout).
+// Host paths are never returned. There is no content download and no write.
+
+export interface FileRoot {
+  id: string;
+  label: string;
+}
+
+export interface FileEntry {
+  name: string;
+  dir: boolean;
+  size: number;
+  owner: string;
+  mode: string;
+  mtime: string;
+}
+
+export interface FileRootsResponse {
+  roots: FileRoot[];
+  browse_available: boolean;
+}
+
+export interface FileEntriesResponse {
+  root: string;
+  path: string;
+  entries: FileEntry[];
+}
+
+export function getFileRoots(csrf: string): Promise<FileRootsResponse> {
+  return request<FileRootsResponse>('/api/v1/files/roots', { headers: { 'X-CSRF-Token': csrf } });
+}
+
+export function getFileEntries(root: string, path: string, csrf: string): Promise<FileEntriesResponse> {
+  const q = new URLSearchParams({ root, path });
+  return request<FileEntriesResponse>(`/api/v1/files/entries?${q}`, { headers: { 'X-CSRF-Token': csrf } });
+}
+
+// M2-5 Stage A: application-owned manual drive-bay layout. Every assignment is
+// the administrator's statement (manual, unverified); nothing touches the host.
+export type ChassisKind = 'server' | 'shelf' | 'external' | 'desktop';
+export type CellKind =
+  'hdd-3.5' | 'ssd-2.5' | 'nvme-m2' | 'nvme-u2' | 'tray' | 'empty' | 'disabled' | 'reserved';
+export interface LayoutAssignment {
+  identity: string;
+  provenance: 'manual';
+  confidence: 'unverified';
+  assigned_by: string;
+  assigned_at: string;
+}
+export interface LayoutCell {
+  row: number;
+  col: number;
+  kind: CellKind;
+  label: string;
+  assignment?: LayoutAssignment;
+}
+export interface Chassis {
+  id: number;
+  name: string;
+  kind: ChassisKind;
+  rows: number;
+  cols: number;
+  created_at: string;
+  updated_at: string;
+  cells: LayoutCell[];
+}
+export interface ChassisSpec {
+  name: string;
+  kind: ChassisKind;
+  rows: number;
+  cols: number;
+  cells?: { row: number; col: number; kind: CellKind; label: string }[];
+}
+export interface DriveLayout {
+  chassis: Chassis[];
+}
+
+function sendJSON<T>(
+  method: 'POST' | 'PUT' | 'DELETE',
+  path: string,
+  csrf: string,
+  body?: unknown,
+): Promise<T> {
+  if (body === undefined) return request<T>(path, { method, headers: { 'X-CSRF-Token': csrf } });
+  return request<T>(path, {
+    method,
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+    body: JSON.stringify(body),
+  });
+}
+const layoutBase = '/api/v1/storage/layout';
+const bayPath = (id: number, row: number, col: number) =>
+  `${layoutBase}/chassis/${id}/bays/${row}/${col}/assignment`;
+
+// A malformed answer is an error for this panel only; the Storage page stays usable.
+async function checkedLayout(p: Promise<DriveLayout>): Promise<DriveLayout> {
+  const layout = await p;
+  if (!layout || !Array.isArray(layout.chassis)) throw new Error('invalid drive-bay layout response');
+  return layout;
+}
+// Like getStorage: the layout holds stored serial/WWN identities, so each read
+// is audited and requires the session CSRF token.
+export function getLayout(csrf: string): Promise<DriveLayout> {
+  return checkedLayout(request<DriveLayout>(layoutBase, { headers: { 'X-CSRF-Token': csrf } }));
+}
+export function createChassis(spec: ChassisSpec, csrf: string): Promise<DriveLayout> {
+  return checkedLayout(sendJSON<DriveLayout>('POST', `${layoutBase}/chassis`, csrf, spec));
+}
+export function updateChassis(id: number, spec: ChassisSpec, csrf: string): Promise<DriveLayout> {
+  return checkedLayout(sendJSON<DriveLayout>('PUT', `${layoutBase}/chassis/${id}`, csrf, spec));
+}
+export function deleteChassis(id: number, csrf: string): Promise<DriveLayout> {
+  return checkedLayout(sendJSON<DriveLayout>('DELETE', `${layoutBase}/chassis/${id}`, csrf));
+}
+/** The drive is named only by its persistent identity, never a kernel name. */
+export function assignBay(id: number, row: number, col: number, persistentID: string, csrf: string) {
+  return checkedLayout(
+    sendJSON<DriveLayout>('PUT', bayPath(id, row, col), csrf, { persistent_id: persistentID }),
+  );
+}
+export function unassignBay(id: number, row: number, col: number, csrf: string) {
+  return checkedLayout(sendJSON<DriveLayout>('DELETE', bayPath(id, row, col), csrf));
+}
+
+// ---- M4-1b: read-only Software Center --------------------------------------
+
+export interface SoftwarePackage {
+  name: string;
+  version?: string;
+  arch?: string;
+  origin?: string;
+  installed: boolean;
+  upgradable?: boolean;
+  summary?: string;
+}
+
+export interface SoftwareUpdate {
+  name: string;
+  arch?: string;
+  origin?: string;
+  current: string;
+  new: string;
+}
+
+export interface SoftwareSource {
+  name: string;
+  origin: string;
+  enabled: boolean;
+  signed: boolean;
+  third_party: boolean;
+}
+
+export interface PackageList {
+  packages: SoftwarePackage[];
+  truncated: boolean;
+  source: string;
+}
+
+export interface UpdateList {
+  updates: SoftwareUpdate[];
+  truncated: boolean;
+  source: string;
+  as_of?: string;
+}
+
+export interface SourceList {
+  sources: SoftwareSource[];
+  truncated: boolean;
+  source: string;
+}
+
+// Every packages GET is identifier-bearing (the search query is the caller's;
+// installed/updates/sources are sensitive host data), so each is audited and
+// requires the session CSRF token, the same bar as storage/files/layout.
+export function getPackageSearch(q: string, csrf: string): Promise<PackageList> {
+  return request<PackageList>(`/api/v1/packages/search?q=${encodeURIComponent(q)}`, {
+    headers: { 'X-CSRF-Token': csrf },
+  });
+}
+
+export function getPackagesInstalled(csrf: string): Promise<PackageList> {
+  return request<PackageList>('/api/v1/packages/installed', { headers: { 'X-CSRF-Token': csrf } });
+}
+
+export function getPackagesUpdates(csrf: string): Promise<UpdateList> {
+  return request<UpdateList>('/api/v1/packages/updates', { headers: { 'X-CSRF-Token': csrf } });
+}
+
+export function getPackagesSources(csrf: string): Promise<SourceList> {
+  return request<SourceList>('/api/v1/packages/sources', { headers: { 'X-CSRF-Token': csrf } });
 }

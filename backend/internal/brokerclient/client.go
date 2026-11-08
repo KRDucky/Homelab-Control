@@ -34,11 +34,20 @@ var opTimeouts = map[string]time.Duration{
 	// boot-pull walk, the root template, read-back).
 	"services.enablement.plan":  20 * time.Second,
 	"services.enablement.apply": 75 * time.Second,
+	// M2-6: apply 55 s in the broker (revalidation, sequential hostnamectl/
+	// timedatectl templates, read-back).
+	"host.settings.apply": 75 * time.Second,
 	// Read-only ops with a 15 s broker timeout (equal deadlines could cut off
 	// the broker's own timeout answer).
 	"services.timers.list":  20 * time.Second,
 	"services.sockets.list": 20 * time.Second,
 	"services.unit.logs":    20 * time.Second,
+	// M4-1b: package queries have a 30 s broker timeout (cache-only reads can
+	// scan a large local package DB), so clients wait longer than that.
+	"packages.installed": 40 * time.Second,
+	"packages.updates":   40 * time.Second,
+	"packages.sources":   40 * time.Second,
+	"packages.search":    40 * time.Second,
 }
 
 // deadline is the client deadline for op.

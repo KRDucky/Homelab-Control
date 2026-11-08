@@ -18,8 +18,9 @@ Already settled, and not asked again:
 | D-6 | PR-1 | **Approved 2026-10-21** |
 | D-7 | PR-1 | **Approved 2026-10-21** |
 | D-2, D-3, D-4, D-5 | PR M2-2 (first write) | **Approved 2026-10-23 (option A each)** |
-| D-8, D-9, D-10 | Roadmap shape | Open |
-| D-11 | Before any third-party library or tool adapter (M3+) | Open (policy only) |
+| D-8 | Roadmap shape after M2 | **Decided 2026-11-07 (keep `docs/project/04-ROADMAP.md`; Theme/Plugin SDK is M3)** |
+| D-9, D-10 | Roadmap shape | Open |
+| D-11 | Before package-manager read adapters (M4-1b) | **Decided 2026-11-07 for package-manager CLIs only; Docker/libvirt/ZFS/storcli remain Recommended (not decided)** |
 | D-12 | PR M2-5 (drive locator) | Open (HBA Viewer source to be provided) |
 
 ---
@@ -146,15 +147,26 @@ Existing scope names stay valid. Specs 03/addon-03 names (`storage.plan`, `stora
 ## D-8 Milestone order after M2
 `docs/project/04-ROADMAP.md` orders M3 Theme/Plugin SDK → M4 Software Center → M5 disk inventory and bay map → … → M11 containers/VMs.
 
-**Recommended, to deliver usable modules sooner:**
+**Owner decision 2026-11-07 (ask_ui `m2-close-m3-d8`):** keep `docs/project/04-ROADMAP.md`. M3 is Theme SDK + plugin SDK (install/preview/switch/remove theme; load/unload read-only sample plugin). Do not rewrite 04-ROADMAP to the M2-ROADMAP storage-first sequence.
+
+**Recommended (not taken), to deliver usable modules sooner:**
 - (a) M2 as in `M2-ROADMAP.md`. This pulls **drive locator Stage A** and the **read-only storage inventory** forward from M5; both are non-privileged.
 - (b) Defer the Theme/Plugin SDK (old M3) until after the first storage and container modules. Modules ship as built-in first-party modules (D-10).
 - (c) Defer the ADR 0003 parity harness to the first milestone that replaces a Webmin parser.
 - (d) Adopt the module milestone sequence in `M2-ROADMAP.md` §4.
 
-**Alternative:** keep 04-ROADMAP as written. Theme/plugin work comes before any module; useful functions arrive later.
+**Alternative (taken 2026-11-07):** keep 04-ROADMAP as written. Theme/plugin work comes before any module; useful functions arrive later.
 
-**Impact:** 04-ROADMAP would be revised in a follow-up docs PR once approved. It is unchanged here.
+**Impact:** 04-ROADMAP stays as written. It is unchanged here.
+
+## Product-scope answers (owner, 2026-11-07)
+
+Does **not** reopen D-8. M3 remains Theme SDK + plugin SDK. Product scope, not implementation authorization, not M2 close.
+
+- **Identity split:** display/label = serial then WWN; persist/write-target = strongest tier (`wwn:`, `nvme-uuid:`, `serial:`). `/dev/disk/by-id/` is refused for bay assignment. Destructive ops re-verify identity at execution and type-confirm the **label serial**. M2-5 Stage A stored-key contract unchanged.
+- **Networking slot:** later-row insert immediately before the former M11. New **M11** is port-use tracker (read-only first), LACP/bonding detect, firewall WebUI for the **active** backend, installed-tooling gate. Former M11–M13 become M12–M14.
+- **Ceph:** after M8, unslotted backlog; no 04-ROADMAP row. Cluster create separately reviewed.
+- **Module enable/disable:** root-owned `/etc/homelab-control/modules.json` (O-1), not `state.db`.
 
 ## D-9 Host administration in M2
 - **Recommended:** hostname and timezone as an **optional** M2 slice (PR M2-6). These are low-risk, through `hostnamectl`/`timedatectl`, and they exercise the write framework on a second module.
@@ -168,6 +180,7 @@ Existing scope names stay valid. Specs 03/addon-03 names (`storage.plan`, `stora
 
 ## D-11 Third-party integration libraries (policy for later milestones)
 Not needed for M2; recorded so it is not decided ad hoc.
+- **Owner decision 2026-11-07 (`m4-1b-owner-words`):** package-manager CLIs are allowed as closed argv templates with stdlib parsing. Do not use PackageKit, libdnf, libalpm, or Go package-manager libraries. This decision covers package-manager read operations only; it does not authorize package writes or change the existing Docker, libvirt, ZFS, or storcli entries below.
 - **Docker:** Engine API over the Unix socket with stdlib `net/http`; no SDK.
 - **libvirt:**
   - `virsh` argv templates with XML/`--print-xml` parsing (stdlib), or
@@ -179,6 +192,15 @@ Not needed for M2; recorded so it is not decided ad hoc.
 - the stdlib approach for Docker;
 - `virsh` first for libvirt, re-evaluated at the virtualization milestone;
 - `storcli` optional.
+
+## M4-1b owner words (2026-11-07)
+
+**Source:** owner ask_ui `m4-1b-owner-words`.
+
+- The first checkpoint is read-only. Package install, repository, and update writes need separate approval.
+- Package-manager CLIs may use closed argv templates with stdlib parsing. Do not use PackageKit, libdnf, libalpm, or Go package-manager libraries.
+- Use `packages.read` for the read checkpoint. Leave `packages.manage` unused until the write ADR.
+- The Software Center is a `modules.json` module. The owner chose this over the lead's core-route recommendation; do not restore a core route.
 
 ## D-12 Source of the "HBA Viewer" concept and reuse terms
 **Owner direction (2026-10-21):** reuse the existing HBA Viewer concept inside Homelab Control rather than
@@ -391,3 +413,9 @@ unit no longer starts at the next boot. A strict rule (refuse whenever such a de
 also refuse units that merely require an always-started protected unit (for example `dbus.socket`); the
 proposal therefore refuses only when the protected dependency is not itself enabled at boot (`is-enabled` other
 than `enabled`), and needs the owner's choice.
+
+## Continuation through M2-6 (owner, 2026-11-05)
+
+Owner direct project conversation instructions: “continue through M2-4 and through M2-6” and “work with claude on this”. This authorizes collaborative implementation and isolated tests of M2-4, M2-5 and M2-6, following each prerequisite and security/acceptance gate. M2-5 and M2-6 were already made mandatory, not optional. M2-4 includes LVM2 RAID and SSD-cache discovery and selectable Serial/ID (default) or WWN display with independent corroborated identity. M2-5 is the Stage A drive locator with app-state layouts and explicit manual/unverified provenance. M2-6 is hostname/static+pretty and timezone only, using reviewed ADR 0011 typed plan/confirm/apply operations.
+
+The owner previously authorized pushes/merges once satisfied and explicitly adding their DCO signature for M2-3/M2-4. That signature exception does not automatically extend to M2-5/M2-6. No owner design acceptance, new KVM operation, existing VM mutation/deletion, production settings/permissions or M3 approval is inferred. Existing security blockers remain gates; source/license reuse decision D-12 remains unresolved where actual external source is unavailable. New source/helper designs remain review proposals until reviewed; development is not deployment.

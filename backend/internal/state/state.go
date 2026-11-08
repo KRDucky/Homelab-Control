@@ -19,6 +19,7 @@ package state
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -71,6 +72,48 @@ var migrations = []migration{
 			hash     TEXT NOT NULL
 		) STRICT`,
 		`CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT`,
+	}},
+	{2, "bounded storage graph snapshots", []string{
+		`CREATE TABLE storage_snapshots (
+   id INTEGER PRIMARY KEY AUTOINCREMENT,
+   collected_at TEXT NOT NULL,
+   boot_id TEXT NOT NULL,
+   graph BLOB NOT NULL CHECK(length(graph) <= 8388608)
+  ) STRICT`,
+	}},
+	{3, "manual drive-bay layout (M2-5 Stage A)", []string{
+		// Application-owned statements by an administrator; never host state.
+		// No cascades: removing a chassis or cell that holds an assignment is
+		// refused by the foreign keys as well as by the store.
+		`CREATE TABLE layout_chassis (
+			id         INTEGER PRIMARY KEY AUTOINCREMENT,
+			name       TEXT NOT NULL CHECK(length(name) BETWEEN 1 AND 64),
+			kind       TEXT NOT NULL CHECK(kind IN ('server','shelf','external','desktop')),
+			row_count  INTEGER NOT NULL CHECK(row_count BETWEEN 1 AND 24),
+			col_count  INTEGER NOT NULL CHECK(col_count BETWEEN 1 AND 24),
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL
+		) STRICT`,
+		`CREATE TABLE layout_cells (
+			chassis_id INTEGER NOT NULL REFERENCES layout_chassis(id),
+			row_index  INTEGER NOT NULL CHECK(row_index BETWEEN 0 AND 23),
+			col_index  INTEGER NOT NULL CHECK(col_index BETWEEN 0 AND 23),
+			kind       TEXT NOT NULL CHECK(kind IN ('hdd-3.5','ssd-2.5','nvme-m2','nvme-u2','tray','empty','disabled','reserved')),
+			label      TEXT NOT NULL DEFAULT '' CHECK(length(label) <= 64),
+			PRIMARY KEY (chassis_id, row_index, col_index)
+		) STRICT`,
+		`CREATE TABLE layout_assignments (
+			chassis_id  INTEGER NOT NULL,
+			row_index   INTEGER NOT NULL,
+			col_index   INTEGER NOT NULL,
+			identity    TEXT NOT NULL UNIQUE CHECK(length(identity) BETWEEN 1 AND 512),
+			provenance  TEXT NOT NULL CHECK(provenance = 'manual'),
+			confidence  TEXT NOT NULL CHECK(confidence = 'unverified'),
+			assigned_by TEXT NOT NULL,
+			assigned_at TEXT NOT NULL,
+			PRIMARY KEY (chassis_id, row_index, col_index),
+			FOREIGN KEY (chassis_id, row_index, col_index) REFERENCES layout_cells(chassis_id, row_index, col_index)
+		) STRICT`,
 	}},
 }
 
@@ -235,7 +278,13 @@ func (d *DB) migrate(ctx context.Context) error {
 	}
 	if cur > 0 {
 		// Consistent copy of the existing database before any change.
-		b := fmt.Sprintf("%s.bak-v%d-%s", d.path, cur, time.Now().UTC().Format("20060102T150405Z"))
+		// A failed migration may be retried in the same second. Preserve the
+		// earlier recovery copy and choose a new unpredictable backup name.
+		nonce := make([]byte, 8)
+		if _, err := rand.Read(nonce); err != nil {
+			return fmt.Errorf("name migration backup: %w", err)
+		}
+		b := fmt.Sprintf("%s.bak-v%d-%s-%x", d.path, cur, time.Now().UTC().Format("20060102T150405Z"), nonce)
 		if _, err := d.sql.ExecContext(ctx, `VACUUM INTO ?`, b); err != nil {
 			return fmt.Errorf("backup before migration: %w", err)
 		}

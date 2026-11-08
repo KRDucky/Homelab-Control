@@ -15,14 +15,19 @@ Times are rough effort bands for a small team with AI assistance, not delivery g
 | M8 | mergerfs + SnapRAID adapters | Branch/parity config discovery, validation, scheduled status/scrub, combined planner |
 | M9 | Guided drive replacement | Technology-specific preflight, identity confirmation, VM-verified procedures |
 | M10 | Reverse proxy, ACME, DDNS | Caddy/Nginx/Traefik adapters, TLS, Cloudflare DNS, safe config reload |
-| M11 | Identity, Tailscale, cooling, UPS, containers, virtualization | Supported capability adapters and permissions; hardware safety checks |
-| M12 | Backups, monitoring, alerts, automation, multi-host exploration | Verified restore workflows, notification tests, resilience |
-| M13 | Native distro releases and hardening | Debian/Ubuntu, Fedora, openSUSE, Arch package test matrix and signed releases |
+| M11 | Port-use tracker, LACP/bonding detect, firewall WebUI (active backend) | Read-only port map; bonding detect; firewall UI for the installed **active** backend; installed-tooling gate |
+| M12 | Identity, Tailscale, cooling, UPS, containers, virtualization | Supported capability adapters and permissions; hardware safety checks |
+| M13 | Backups, monitoring, alerts, automation, multi-host exploration | Verified restore workflows, notification tests, resilience |
+| M14 | Native distro releases and hardening | Debian/Ubuntu, Fedora, openSUSE, Arch package test matrix and signed releases |
 
-> **Proposed revision (2026-10-21, not yet approved):** `docs/m2/M2-ROADMAP.md` §4 proposes a module-oriented order after M2: storage read-only, software center, containers, storage configuration, file sharing, virtualization, hardware and replacement; the theme/plugin SDK moves after the first modules. This table stays authoritative until the owner decides (D-8 in `docs/m2/OWNER-DECISIONS.md`).
+> **D-8 decided 2026-11-07 (ask_ui `m2-close-m3-d8`):** this table remains the post-M2 order; M3 is Theme SDK + plugin SDK.
+>
+> **Owner 2026-11-07 catalog extensions** (product scope, not implementation, not moved into M3): exFAT, ZoneFS, Ceph logical options (after M8, unslotted backlog — no table row), disk identity split, compose/env editor, Kubernetes optional. Details: [`05-FEATURE-CATALOG.md`](05-FEATURE-CATALOG.md), [`../m2/CAPABILITY-MATRIX.md`](../m2/CAPABILITY-MATRIX.md).
+>
+> **2026-11-07 owner slot (later-row insert only):** new **M11** is port-use tracker (read-only first), LACP/bonding detect, and firewall WebUI for the **active** backend, with the installed-tooling gate. Former M11–M13 become M12–M14. D-8 still keeps **M3** as Theme SDK + plugin SDK.
 
 ## Priority and dependencies
-M0–M4 establish the foundation. M5 precedes M6–M9 because all disk operations require trustworthy identity. M10 can run in parallel with later storage work once M2–M4 are stable. Release packaging must be exercised from M0, not deferred until M13.
+M0–M4 establish the foundation. M5 precedes M6–M9 because all disk operations require trustworthy identity. M10 can run in parallel with later storage work once M2–M4 are stable. Release packaging must be exercised from M0, not deferred until M14.
 
 ## Reporting format per milestone
 Goal; code changes; architecture decisions; tests run with evidence; unsupported cases; security impact; regressions; packaging results; blockers; next proposed milestone. Stop for approval.

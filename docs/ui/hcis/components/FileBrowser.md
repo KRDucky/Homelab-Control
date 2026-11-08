@@ -2,9 +2,9 @@
 
 A folder tree plus a sortable, selectable file table with owner and mode.
 
-**Status: Proposed (HCIS).** Not in the app or the planning docs yet; a reference design for future work.
+**Status: Proposed (HCIS).** Writes, download and content are still not in the app. The read-only port is at `/files` (`frontend/app/src/pages/Files.tsx`); New folder, Permissions and Download stay hidden.
 
-Source: none in the repository.
+Source: `frontend/app/src/pages/Files.tsx`.
 
 ## When to use
 

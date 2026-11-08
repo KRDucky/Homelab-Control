@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import type { Capability } from './api';
 import { CommandPalette } from './CommandPalette';
 import { AppearanceMenu } from './AppearanceMenu';
@@ -124,7 +124,7 @@ export function Shell({
   children: ReactNode;
 }) {
   const { prefs, update, reset } = usePreferences();
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.title = title ? `${title} · Homelab Control` : 'Homelab Control';
   }, [title]);
   const narrow = useMedia(NARROW);

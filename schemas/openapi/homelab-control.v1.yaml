@@ -9,7 +9,7 @@ info:
   description: >
     Versioned management API. M0 exposes authentication and a read-only host overview only.
     All non-GET requests require an Origin header matching the server and the session's
-    X-CSRF-Token. Every endpoint except /health and /auth/login requires a session cookie.
+    X-CSRF-Token. Every endpoint except /health, /auth/login and /auth/oidc* requires a session cookie.
 servers:
   - url: /api/v1
 components:
@@ -35,7 +35,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, storage.read, host.settings.preview, host.settings.apply, layout.manage, files.read] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
@@ -47,6 +47,227 @@ components:
         status: { type: string, enum: [ok, partial, unavailable] }
         sources: { type: array, items: { type: string } }
         errors: { type: array, items: { type: string } }
+    StorageEvidence:
+      type: object
+      required: [source, confidence]
+      properties:
+        source: { type: string }
+        confidence: { type: string }
+    StorageIdentifier:
+      type: object
+      required: [kind, value, source, ambiguous]
+      properties:
+        kind: { type: string }
+        value: { type: string }
+        source: { type: string }
+        ambiguous: { type: boolean }
+        scope: { type: string, enum: [device, controller], description: "controller marks an NVMe controller serial shared by its namespaces" }
+      description: >-
+        Kinds include wwn (NAA/EUI designators only), nvme-uuid, t10-vendor-id and nvme-vendor-id
+        (vendor-derived, not world-wide names), wwid-unclassified, serial, controller-serial, partuuid,
+        dm-uuid, md-uuid and by-id.
+    StorageMDState:
+      type: object
+      required: [level, members, source]
+      description: Raw Linux md sysfs runtime attributes; never summarized as healthy.
+      properties:
+        level: { type: string }
+        array_state: { type: string }
+        raid_disks: { type: integer, minimum: 0 }
+        degraded: { type: integer, minimum: 0 }
+        sync_action: { type: string }
+        sync_completed: { type: string }
+        mismatch_count: { type: integer, minimum: 0 }
+        source: { type: string }
+        members:
+          type: array
+          items:
+            type: object
+            properties:
+              device_number: { type: string, description: Volatile kernel major/minor observation }
+              slot: { type: string }
+              state: { type: string }
+    StorageNode:
+      type: object
+      required: [id, kind, name, identity_status, evidence]
+      properties:
+        id: { type: string, description: Snapshot-local node key; not a persistent disk identifier }
+        kind: { type: string }
+        name: { type: string }
+        persistent_id: { type: string }
+        identifiers: { type: array, items: { $ref: '#/components/schemas/StorageIdentifier' } }
+        identity_status: { type: string, enum: [observed, ambiguous, unavailable, snapshot-local] }
+        device_number: { type: string, description: Volatile kernel major/minor observation }
+        disk_seq: { type: string, description: "Kernel per-boot disk sequence number (sysfs diskseq; a partition reports its disk's). Detects device-number reuse; not a persistent identity" }
+        size_bytes: { type: integer, minimum: 0 }
+        filesystem_type: { type: string }
+        signature_uuid: { type: string, description: "UUID reported by an observed signature (signature nodes only; for LVM2_member, the PV UUID)" }
+        mountpoint: { type: string }
+        mount_root: { type: string }
+        mount_view: { type: string, enum: [service, host] }
+        md: { $ref: '#/components/schemas/StorageMDState' }
+        evidence: { type: array, items: { $ref: '#/components/schemas/StorageEvidence' } }
+        notes: { type: array, items: { type: string } }
+    StorageEdge:
+      type: object
+      required: [from, to, kind, evidence]
+      properties:
+        from: { type: string }
+        to: { type: string }
+        kind: { type: string, description: "Relationship. possibly-used-by is a provisional disk-to-PV candidate (confidence provisional) and is not a claim of use" }
+        evidence: { $ref: '#/components/schemas/StorageEvidence' }
+    StorageClaim:
+      type: object
+      required: [node, technology, evidence]
+      properties:
+        node: { type: string }
+        technology: { type: string }
+        evidence: { $ref: '#/components/schemas/StorageEvidence' }
+    StorageLVMVolume:
+      type: object
+      required: [uuid, name, vg_uuid, vg_name, health, segments]
+      properties:
+        uuid: { type: string }
+        name: { type: string }
+        vg_uuid: { type: string }
+        vg_name: { type: string }
+        parent: { type: string, description: "lv_parent name; joined only within one VG of one report" }
+        size_bytes: { type: integer, minimum: 0 }
+        attributes: { type: string, description: "lv_attr; runtime characters are ? in metadata-only mode" }
+        health: { type: string, description: "unknown when not reported or in metadata-only mode" }
+        kernel_join: { type: string, enum: [joined, no-kernel-node, ambiguous, not-checked] }
+        sync_action: { type: string }
+        sync_percent: { type: number, minimum: 0, maximum: 100 }
+        cache_total_blocks: { type: integer, minimum: 0 }
+        cache_used_blocks: { type: integer, minimum: 0 }
+        cache_dirty_blocks: { type: integer, minimum: 0 }
+        origin_uuid: { type: string }
+        pool_uuid: { type: string }
+        data_uuid: { type: string }
+        metadata_uuid: { type: string }
+        segments:
+          type: array
+          items:
+            type: object
+            required: [type]
+            properties:
+              type: { type: string }
+              start_bytes: { type: integer, minimum: 0 }
+              size_bytes: { type: integer, minimum: 0 }
+              cache_mode: { type: string }
+              cache_policy: { type: string }
+              devices: { type: string, description: Display evidence only, never an executable target }
+              metadata_devices: { type: string }
+    StorageLVMPhysicalVolume:
+      type: object
+      required: [uuid, missing, missing_state, ambiguous, segments]
+      properties:
+        uuid: { type: string }
+        name: { type: string, description: "Display evidence only; never used to join or target a device" }
+        vg_uuid: { type: string }
+        vg_name: { type: string }
+        size_bytes: { type: integer, minimum: 0 }
+        device_size_bytes: { type: integer, minimum: 0 }
+        device_number: { type: string, description: "LVM pv_major:pv_minor (absent for 0:0/-1, i.e. no device). A separate observation from sysfs that only nominates a candidate disk; see device_link" }
+        attributes: { type: string }
+        missing: { type: boolean, description: "True only when LVM reported pv_missing" }
+        missing_state: { type: string, enum: [present, missing, missing-from-attr, not-reported], description: "missing-from-attr: pv_missing absent and pv_attr bit 3 is m" }
+        ambiguous: { type: boolean, description: "PV UUID reported on more than one device or flagged duplicate in pv_attr; no device association" }
+        device_link: { type: string, enum: [verified, provisional, withheld, no-device], description: "verified needs a matching LVM2_member signature UUID, equal sizes and an unchanged later sysfs observation in the same boot; provisional means uncontradicted but uncorroborated; withheld means observations disagree" }
+        device_link_reason: { type: string }
+        segments:
+          type: array
+          items:
+            type: object
+            properties:
+              start_extent: { type: integer, minimum: 0 }
+              size_extents: { type: integer, minimum: 0 }
+              lv_uuid: { type: string }
+    StorageGraph:
+      type: object
+      required: [nodes, edges, claims, status, notes]
+      properties:
+        boot_id: { type: string, description: Observed kernel boot identifier; absent when unavailable }
+        lvm:
+          type: object
+          required: [mode, source, volumes, physical_volumes]
+          properties:
+            mode: { type: string, enum: [metadata-only, live], description: "Stated by the collector; metadata-only reports carry no runtime health" }
+            source: { type: string }
+            volumes: { type: array, items: { $ref: '#/components/schemas/StorageLVMVolume' } }
+            physical_volumes: { type: array, items: { $ref: '#/components/schemas/StorageLVMPhysicalVolume' } }
+        nodes: { type: array, items: { $ref: '#/components/schemas/StorageNode' } }
+        edges: { type: array, items: { $ref: '#/components/schemas/StorageEdge' } }
+        claims: { type: array, items: { $ref: '#/components/schemas/StorageClaim' } }
+        status: { type: string, enum: [ok, partial, unavailable] }
+        notes: { type: array, items: { type: string } }
+    LayoutAssignment:
+      type: object
+      description: "An administrator's manual statement, never verified by hardware: provenance is always manual and confidence always unverified. Keyed by a persistent identity (wwn:, nvme-uuid: or serial:), never a kernel name or device number."
+      required: [identity, provenance, confidence, assigned_by, assigned_at]
+      properties:
+        identity: { type: string, maxLength: 512 }
+        provenance: { type: string, enum: [manual] }
+        confidence: { type: string, enum: [unverified] }
+        assigned_by: { type: string }
+        assigned_at: { type: string, format: date-time }
+    LayoutCell:
+      type: object
+      required: [row, col, kind, label]
+      properties:
+        row: { type: integer, minimum: 0, maximum: 23 }
+        col: { type: integer, minimum: 0, maximum: 23 }
+        kind: { type: string, enum: [hdd-3.5, ssd-2.5, nvme-m2, nvme-u2, tray, empty, disabled, reserved] }
+        label: { type: string, maxLength: 64 }
+        assignment: { $ref: '#/components/schemas/LayoutAssignment' }
+    Chassis:
+      type: object
+      required: [id, name, kind, rows, cols, created_at, updated_at, cells]
+      properties:
+        id: { type: integer }
+        name: { type: string, maxLength: 64 }
+        kind: { type: string, enum: [server, shelf, external, desktop] }
+        rows: { type: integer, minimum: 1, maximum: 24 }
+        cols: { type: integer, minimum: 1, maximum: 24 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        cells: { type: array, items: { $ref: '#/components/schemas/LayoutCell' } }
+    ChassisSpec:
+      type: object
+      additionalProperties: false
+      required: [name, kind, rows, cols]
+      description: Unlisted positions default to an unlabelled hdd-3.5 bay. At most 32 chassis.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 64 }
+        kind: { type: string, enum: [server, shelf, external, desktop] }
+        rows: { type: integer, minimum: 1, maximum: 24 }
+        cols: { type: integer, minimum: 1, maximum: 24 }
+        cells:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [row, col, kind]
+            properties:
+              row: { type: integer, minimum: 0, maximum: 23 }
+              col: { type: integer, minimum: 0, maximum: 23 }
+              kind: { type: string, enum: [hdd-3.5, ssd-2.5, nvme-m2, nvme-u2, tray, empty, disabled, reserved] }
+              label: { type: string, maxLength: 64 }
+    DriveLayout:
+      type: object
+      required: [chassis]
+      description: Stored manual layout only. Bay states (present, missing, mismatch, vacant) are computed by joining persistent identities with a current /storage observation.
+      properties:
+        chassis: { type: array, items: { $ref: '#/components/schemas/Chassis' } }
+    StorageInventory:
+      type: object
+      required: [collected_at, read_only, graph, snapshot_persisted]
+      properties:
+        collected_at: { type: string, format: date-time }
+        read_only: { type: boolean, const: true }
+        snapshot_persisted: { type: boolean }
+        snapshot_id: { type: string, description: Historical observation ID; not authorization for a target }
+        graph: { $ref: '#/components/schemas/StorageGraph' }
     Overview:
       type: object
       required: [collected_at, system, cpu, memory, filesystems, network, legacy_webmin]
@@ -148,7 +369,7 @@ components:
       type: object
       required: [id, label, path, scope, status]
       properties:
-        id: { type: string, enum: [overview, services, hardware, legacy, audit, service_logs, unit_files] }
+        id: { type: string, enum: [overview, services, hardware, legacy, audit, service_logs, unit_files, storage, host_settings, files] }
         label: { type: string }
         path: { type: string }
         scope: { type: string }
@@ -490,6 +711,94 @@ components:
               identifier: { type: string, maxLength: 64 }
               message: { type: string, maxLength: 4096, description: Control characters removed; capped at 4 KiB }
               truncated: { type: boolean }
+    HostSetting:
+      type: object
+      description: One observed host setting. value is present only when status is observed; unavailable means unknown, never a default.
+      required: [status, source]
+      properties:
+        value: { type: string }
+        status: { type: string, enum: [observed, not-set, unavailable] }
+        source: { type: string, description: File the value was read from }
+        note: { type: string }
+    HostSettings:
+      type: object
+      required: [kernel_hostname, static_hostname, pretty_hostname, timezone]
+      properties:
+        kernel_hostname: { $ref: '#/components/schemas/HostSetting' }
+        static_hostname: { $ref: '#/components/schemas/HostSetting' }
+        pretty_hostname: { $ref: '#/components/schemas/HostSetting' }
+        timezone: { $ref: '#/components/schemas/HostSetting' }
+    HostSettingsPreview:
+      type: object
+      description: A comparison of requested and observed values. Nothing was applied; preview_only is always true and executed and host_changed are always false. apply_available is true when this server's broker has host.settings.apply and hostnamectl and timedatectl.
+      required: [preview_only, executed, host_changed, apply_available, notice, valid, collected_at, current, changes, warnings]
+      properties:
+        preview_only: { type: boolean, const: true }
+        executed: { type: boolean, const: false }
+        host_changed: { type: boolean, const: false }
+        apply_available: { type: boolean, description: 'True when the broker has host.settings.apply, writes are available, and hostnamectl and timedatectl are on the allow-list. Preview still never applies.' }
+        notice: { type: string }
+        valid: { type: boolean }
+        collected_at: { type: string, format: date-time }
+        current: { $ref: '#/components/schemas/HostSettings' }
+        changes:
+          type: array
+          items: { $ref: '#/components/schemas/HostSettingChange' }
+        warnings: { type: array, items: { type: string } }
+    HostSettingChange:
+      type: object
+      required: [field, current, requested, outcome]
+      properties:
+        field: { type: string, enum: [static_hostname, pretty_hostname, timezone] }
+        current: { type: string }
+        requested: { type: string }
+        outcome: { type: string, enum: [unchanged, would-change, invalid, cannot-compare] }
+        reason: { type: string }
+    HostSettingsObserved:
+      type: object
+      description: hostnamectl/timedatectl status as the broker reports it. This is not the kernel hostname seen by hc-api (ProtectHostname=yes).
+      required: [static_status, pretty_status, timezone_status]
+      properties:
+        static_hostname: { type: string }
+        static_status: { type: string, enum: [observed, not-set, unavailable] }
+        pretty_hostname: { type: string }
+        pretty_status: { type: string, enum: [observed, not-set, unavailable] }
+        timezone: { type: string }
+        timezone_status: { type: string, enum: [observed, not-set, unavailable] }
+        transient_hostname: { type: string }
+        transient_status: { type: string, enum: [observed, not-set, unavailable] }
+        notes: { type: array, items: { type: string } }
+    HostSettingsPlan:
+      type: object
+      description: 'Review of a hostname and/or timezone change (M2-6, ADR 0011). Nothing is changed. Risk is reversible: confirmation is required, password re-entry is not.'
+      required: [action, risk, step_up_required, confirmation_required, token, expires_at, observed, effect, consequences, warnings, changes, fields]
+      properties:
+        action: { type: string, enum: [set] }
+        risk: { type: string, enum: [reversible] }
+        step_up_required: { type: boolean }
+        confirmation_required: { type: boolean }
+        token: { type: string, description: 'Single-use plan token, valid 120 s, bound to this session, user, action set, target host and the observed hostnamectl/timedatectl state plus the requested fields. Not a credential on its own.' }
+        expires_at: { type: string, format: date-time }
+        observed: { $ref: '#/components/schemas/HostSettingsObserved' }
+        effect: { type: string }
+        consequences: { type: array, items: { type: string } }
+        warnings: { type: array, items: { type: string }, description: 'Includes the TLS, mDNS and /etc/hosts warning when the static host name would change' }
+        changes: { type: array, items: { $ref: '#/components/schemas/HostSettingChange' } }
+        fields: { type: array, items: { type: string, enum: [static_hostname, pretty_hostname, timezone] } }
+    HostSettingsOutcome:
+      type: object
+      description: 'Result of host.settings.apply. succeeded means every requested field matches hostnamectl/timedatectl after the change. The kernel hostname seen by hc-api may stay at start-time (ProtectHostname=yes).'
+      required: [operation_id, action, outcome, message, fields, started_at, finished_at]
+      properties:
+        operation_id: { type: string }
+        action: { type: string, enum: [set] }
+        outcome: { type: string, enum: [succeeded, failed, uncertain], description: 'succeeded/failed are verified by reading hostnamectl/timedatectl back; uncertain means it could not be verified' }
+        message: { type: string }
+        fields: { type: array, items: { type: string, enum: [static_hostname, pretty_hostname, timezone] } }
+        observed: { $ref: '#/components/schemas/HostSettingsObserved' }
+        recovery: { type: array, items: { type: string } }
+        started_at: { type: string, format: date-time }
+        finished_at: { type: string, format: date-time }
     Hardware:
       type: object
       required: [inventory, identity]
@@ -533,6 +842,63 @@ components:
                   level: { type: string, enum: [ok, warn, info] }
                   message: { type: string }
         fallback: { type: object }
+    PackageList:
+      type: object
+      required: [packages, truncated, source]
+      properties:
+        truncated: { type: boolean }
+        source: { type: string }
+        packages:
+          type: array
+          items:
+            type: object
+            required: [name, installed]
+            additionalProperties: false
+            properties:
+              name: { type: string }
+              version: { type: string }
+              arch: { type: string }
+              origin: { type: string }
+              installed: { type: boolean }
+              upgradable: { type: boolean }
+              summary: { type: string }
+    UpdateList:
+      type: object
+      required: [updates, truncated, source]
+      properties:
+        truncated: { type: boolean }
+        source: { type: string }
+        as_of: { type: string, description: RFC3339 mtime of the local metadata cache; never a network refresh }
+        updates:
+          type: array
+          items:
+            type: object
+            required: [name, new]
+            additionalProperties: false
+            properties:
+              name: { type: string }
+              arch: { type: string }
+              origin: { type: string }
+              current: { type: string }
+              new: { type: string }
+    SourceList:
+      type: object
+      required: [sources, truncated, source]
+      properties:
+        truncated: { type: boolean }
+        source: { type: string }
+        sources:
+          type: array
+          items:
+            type: object
+            required: [name, origin, enabled, signed, third_party]
+            additionalProperties: false
+            properties:
+              name: { type: string }
+              origin: { type: string }
+              enabled: { type: boolean }
+              signed: { type: boolean }
+              third_party: { type: boolean }
 paths:
   /health:
     get:
@@ -562,6 +928,30 @@ paths:
         '403': { description: Origin rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '415': { description: Not JSON, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '429': { description: Throttled, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /auth/oidc:
+    get:
+      summary: Whether single sign-on (one administrator-configured OIDC provider) is enabled
+      security: []
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, required: [enabled], properties: { enabled: { type: boolean } } } } } }
+  /auth/oidc/start:
+    get:
+      summary: 'Begin single sign-on: sets a browser-binding cookie (HttpOnly, SameSite=Lax) and redirects to the provider (authorization code + PKCE S256, state, nonce)'
+      security: []
+      responses:
+        '303': { description: 'Redirect to the provider, or to /?login=sso_failed when the provider is unavailable' }
+        '404': { description: Single sign-on is not configured, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /auth/oidc/callback:
+    get:
+      summary: 'Provider redirect target. Verifies the one-use state, browser binding, code exchange and ID token, then issues the ordinary session of the explicitly bound local account. Never grants a password step-up.'
+      security: []
+      parameters:
+        - { name: state, in: query, schema: { type: string, maxLength: 256 } }
+        - { name: code, in: query, schema: { type: string, maxLength: 4096 } }
+        - { name: error, in: query, schema: { type: string }, description: Provider error; not logged or reflected }
+      responses:
+        '303': { description: 'Redirect to / with the session cookie set, or to /?login=sso_failed (fixed targets; no caller-supplied return URL)' }
+        '404': { description: Single sign-on is not configured, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /auth/logout:
     post:
       summary: Destroy the current session
@@ -619,6 +1009,100 @@ paths:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Overview' } } } }
         '401': { description: No session, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: Missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /host/settings:
+    get:
+      summary: Read-only host name (kernel, static, pretty) and time zone, from unprivileged file reads (M2-6 skeleton)
+      security: [{ session: [] }]
+      x-required-scope: system.read
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [collected_at, read_only, settings]
+                properties:
+                  collected_at: { type: string, format: date-time }
+                  read_only: { type: boolean, const: true }
+                  settings: { $ref: '#/components/schemas/HostSettings' }
+        '401': { description: No session, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Host settings cannot be observed, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /host/settings/preview:
+    post:
+      summary: 'Preview hostname and time zone changes. Never changes the host: no plan token and no broker write. host.settings.preview never authorizes plan or apply. Omitted fields are not requested; an empty pretty_hostname previews removing it.'
+      security: [{ session: [] }]
+      x-required-scope: host.settings.preview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                static_hostname: { type: string, maxLength: 64 }
+                pretty_hostname: { type: string, maxLength: 255 }
+                timezone: { type: string, maxLength: 128 }
+      responses:
+        '200': { description: 'Preview (valid tells whether every requested value is acceptable)', content: { application/json: { schema: { $ref: '#/components/schemas/HostSettingsPreview' } } } }
+        '400': { description: Invalid JSON or no field requested, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: No session, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing scope, or CSRF/Origin rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '415': { description: Not application/json, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Host settings cannot be observed, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /host/settings/plan:
+    post:
+      summary: 'Review setting the static host name, pretty host name and/or time zone (broker op host.settings.plan): observed hostnamectl/timedatectl values, reversible risk, TLS/mDNS//etc/hosts warning and a single-use plan token. Nothing is changed. host.settings.preview never authorizes this.'
+      security: [{ session: [] }]
+      x-required-scope: host.settings.apply
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                static_hostname: { type: string, maxLength: 64 }
+                pretty_hostname: { type: string, maxLength: 255 }
+                timezone: { type: string, maxLength: 128 }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/HostSettingsPlan' } } } }
+        '400': { description: Invalid JSON, no field requested, invalid values, unknown time zone, or nothing would change, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: No session, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing scope host.settings.apply, or CSRF/Origin rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: 'busy: another host-settings operation is in progress', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '415': { description: Not application/json, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'Broker, hostnamectl/timedatectl or the operation journal unavailable, or the review could not be audited (no token issued)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /host/settings/apply:
+    post:
+      summary: 'Execute a reviewed hostname/timezone change with its plan token (broker op host.settings.apply). Confirmation is required; password re-entry is not (reversible). The result is verified by reading hostnamectl/timedatectl back, not the kernel hostname seen by hc-api (ProtectHostname=yes). There is no rollback.'
+      security: [{ session: [] }]
+      x-required-scope: host.settings.apply
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [token]
+              properties:
+                static_hostname: { type: string, maxLength: 64 }
+                pretty_hostname: { type: string, maxLength: 255 }
+                timezone: { type: string, maxLength: 128 }
+                token: { type: string, description: Single-use plan token from POST /host/settings/plan }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/HostSettingsOutcome' } } } }
+        '400': { description: Invalid JSON, no field requested, or malformed token, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: No session, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing scope host.settings.apply, or CSRF/Origin rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: 'conflict: host settings changed since review; or busy', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '415': { description: Not application/json, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '502': { description: 'outcome_unknown: the privileged helper did not return a result', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Broker or journal unavailable, or the apply could not be audited (nothing executed), content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /capabilities:
     get:
       summary: What this server can show this user right now (drives navigation)
@@ -785,6 +1269,261 @@ paths:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/OperationList' } } } }
         '403': { description: Missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: Broker or operation journal unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /files/roots:
+    get:
+      summary: Allow-listed file-manager roots (identifiers only). files.read is never granted by default.
+      description: >
+        Inventory of confined roots from root-owned /etc/homelab-control/files.json.
+        Host paths are never returned. Missing, empty or unsafe config yields browse_available false.
+        Identifier-bearing GET: Origin and X-CSRF-Token are required (same bar as /storage/layout).
+        Audit records root counts only.
+      security: [{ session: [] }]
+      x-required-scope: files.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [roots, browse_available]
+                properties:
+                  browse_available: { type: boolean }
+                  roots:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, label]
+                      additionalProperties: false
+                      properties:
+                        id: { type: string }
+                        label: { type: string }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing files.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /files/entries:
+    get:
+      summary: List directory entries under one confined root (metadata only; no content).
+      description: >
+        Relative path inside an allow-listed jail. Empty path is the jail root.
+        Uses in-process os.Root and O_NOFOLLOW; hc-api does not spawn; there is no broker file op.
+        Jail escapes (.., extra slashes, symlink out) are refused. Audit records root id and relative path only,
+        never contents and never the host jail path. Origin and X-CSRF-Token are required.
+      security: [{ session: [] }]
+      x-required-scope: files.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+        - { name: root, in: query, required: true, schema: { type: string, pattern: '^[a-z][a-z0-9_-]{0,31}$' } }
+        - { name: path, in: query, required: false, schema: { type: string }, description: Relative path inside the jail; empty is the jail root }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [root, path, entries]
+                properties:
+                  root: { type: string }
+                  path: { type: string }
+                  entries:
+                    type: array
+                    items:
+                      type: object
+                      required: [name, dir, size, owner, mode, mtime]
+                      additionalProperties: false
+                      properties:
+                        name: { type: string }
+                        dir: { type: boolean }
+                        size: { type: integer }
+                        owner: { type: string, description: 'uid:gid; never a host path' }
+                        mode: { type: string, description: 'Go FileMode.String, for example -rw-r--r--' }
+                        mtime: { type: string, format: date-time }
+        '400': { description: Malformed path or not a directory, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing files.read, Origin/CSRF rejected, or jail escape, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Unknown root or path, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: No browseable roots, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /packages/search:
+    get:
+      summary: Search the local package cache (read-only; scope packages.read).
+      description: >
+        Search the package-manager cache of the host's distribution family. Cache-only: never
+        contacts repositories or refreshes metadata. The query is bounded and validated before it
+        reaches the broker (no leading dash, no shell metacharacters, 1-64 ASCII characters).
+        Audit records counts and query length only, never the query text or package lists.
+        Origin and X-CSRF-Token are required.
+      security: [{ session: [] }]
+      x-required-scope: packages.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+        - { name: q, in: query, required: true, schema: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9+._-]{0,63}$' } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/PackageList' } } } }
+        '400': { description: Invalid query, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing packages.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Broker down, unsupported family, missing tool, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /packages/installed:
+    get:
+      summary: Installed packages of the host's distribution family (read-only; scope packages.read).
+      description: >
+        Installed package list from the local package database, run unprivileged with a closed argv
+        template and cache-only. Never contacts repositories. Audit records counts only, never
+        package lists. Origin and X-CSRF-Token are required.
+      security: [{ session: [] }]
+      x-required-scope: packages.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/PackageList' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing packages.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Broker down, unsupported family, missing tool, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /packages/updates:
+    get:
+      summary: Pending upgrades from the local cache (read-only; scope packages.read).
+      description: >
+        Pending upgrade list with old and new versions from the local metadata cache, labelled with
+        the cache mtime (as_of). Never contacts repositories or refreshes metadata. Audit records
+        counts only, never package lists. Origin and X-CSRF-Token are required.
+      security: [{ session: [] }]
+      x-required-scope: packages.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/UpdateList' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing packages.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Broker down, unsupported family, missing cache or tool, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /packages/sources:
+    get:
+      summary: Configured repositories and package sources (read-only; scope packages.read).
+      description: >
+        Configured source view with enabled, signed and third-party flags. Read-only: never adds,
+        removes or changes repositories. Audit records counts only, never source lists. Origin and
+        X-CSRF-Token are required.
+      security: [{ session: [] }]
+      x-required-scope: packages.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/SourceList' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing packages.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Broker down, unsupported family, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /storage:
+    get:
+      summary: Audited read-only storage metadata graph; no device or mountpoint probes
+      description: Partial observations explicitly report missing signature and technology membership information. No caller-selected paths, commands or writes. A missing claim does not mean a device is unused. storage.read is never granted by default. Because each read is audited and may save a bounded snapshot, the session X-CSRF-Token header is required (a cookie alone is refused with 403 csrf_rejected, before collection, audit or save).
+      security: [{ session: [] }]
+      parameters:
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      x-required-scope: storage.read
+      responses:
+        '200': { description: Observed inventory with provenance and limitations, content: { application/json: { schema: { $ref: '#/components/schemas/StorageInventory' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing storage.read permission or missing/invalid CSRF token, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Metadata or durable access audit unavailable, or collection busy, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /storage/layout:
+    get:
+      summary: Stored manual drive-bay layout (M2-5 Stage A). Application state only; no collection or host access.
+      description: Assignments carry stored serial/WWN identities, so each read is access-audited (counts only, never identifiers) and the layout is released only after the audit record is written. The session X-CSRF-Token header is required; a cookie alone is refused with 403 csrf_rejected before the layout is read or audited.
+      security: [{ session: [] }]
+      x-required-scope: storage.read
+      parameters:
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DriveLayout' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing storage.read permission or missing/invalid CSRF token, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: State database or durable access audit unavailable (nothing is returned when the access cannot be audited), content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /storage/layout/chassis:
+    post:
+      summary: Create a manually labelled chassis grid (application state only; audited).
+      security: [{ session: [] }]
+      x-required-scope: layout.manage
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ChassisSpec' } } }
+      responses:
+        '201': { description: Created; the full layout is returned, content: { application/json: { schema: { $ref: '#/components/schemas/DriveLayout' } } } }
+        '400': { description: Invalid body or limits exceeded, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing layout.manage, or Origin/CSRF rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'State database or audit unavailable, or the change could not be audited (nothing changed when the requested record fails)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /storage/layout/chassis/{id}:
+    put:
+      summary: Replace a chassis' name, kind, size and cells. Refused (409) when an assigned bay would leave the grid or stop being a bay.
+      security: [{ session: [] }]
+      x-required-scope: layout.manage
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ChassisSpec' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DriveLayout' } } } }
+        '400': { description: Invalid body or limits exceeded, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: No such chassis, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Would drop or invalidate an existing assignment, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing layout.manage, or Origin/CSRF rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'State database or audit unavailable, or the change could not be audited (nothing changed when the requested record fails)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    delete:
+      summary: Delete a chassis. Refused (409) while any of its bays has an assignment.
+      security: [{ session: [] }]
+      x-required-scope: layout.manage
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DriveLayout' } } } }
+        '404': { description: No such chassis, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Chassis still has assignments, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing layout.manage, or Origin/CSRF rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'State database or audit unavailable, or the change could not be audited (nothing changed when the requested record fails)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /storage/layout/chassis/{id}/bays/{row}/{col}/assignment:
+    put:
+      summary: "Record a manual, unverified assignment of a drive to a bay. Also requires storage.read. The drive is confirmed against a fresh observation: exactly one whole disk whose observed, unambiguous persistent identity (wwn:, nvme-uuid: or serial:) equals persistent_id. An occupied bay or an identity already assigned elsewhere is refused (409); nothing is overwritten or moved."
+      security: [{ session: [] }]
+      x-required-scope: layout.manage
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: row, in: path, required: true, schema: { type: integer, minimum: 0, maximum: 23 } }
+        - { name: col, in: path, required: true, schema: { type: integer, minimum: 0, maximum: 23 } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, additionalProperties: false, required: [persistent_id], properties: { persistent_id: { type: string, maxLength: 512 } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DriveLayout' } } } }
+        '400': { description: Invalid body or identity tier not assignable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: No such bay, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: 'Bay occupied or not a bay, identity assigned elsewhere, or drive not currently observed as exactly one whole disk with an unambiguous identity', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing layout.manage or storage.read, or Origin/CSRF rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'State database or audit unavailable, or the change could not be audited (nothing changed when the requested record fails)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    delete:
+      summary: Remove a bay's assignment (works while the drive is missing).
+      security: [{ session: [] }]
+      x-required-scope: layout.manage
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: row, in: path, required: true, schema: { type: integer, minimum: 0, maximum: 23 } }
+        - { name: col, in: path, required: true, schema: { type: integer, minimum: 0, maximum: 23 } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DriveLayout' } } } }
+        '404': { description: No assignment at that bay, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing layout.manage, or Origin/CSRF rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'State database or audit unavailable, or the change could not be audited (nothing changed when the requested record fails)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /hardware:
     get:
       summary: Hardware inventory (read-only). Degrades instead of failing when the broker is down.

@@ -1,6 +1,6 @@
-# M2 implementation roadmap (proposed)
+# M2 implementation roadmap
 
-**Date:** 2026-10-21 · **Status:** proposal for owner approval (D-8). **No PR in this roadmap is authorized yet.**
+**Original proposal:** 2026-10-21. **Owner update 2026-11-05:** collaborative development through M2-6 is authorized, with each slice’s review and acceptance gates preserved. M2-5/M2-6 are required, not optional. This does not authorize production or retained-VM changes, waive security blockers, or settle the separate post-M2 ordering proposal D-8.
 The first PR (PR-1) is specified in `M2-PR1-PROPOSAL.md`.
 
 ## 1. Reconciliation with existing specs and the owner's candidate sequence
@@ -9,7 +9,7 @@ The first PR (PR-1) is specified in `M2-PR1-PROPOSAL.md`.
 | M2.1 Security and persistence foundation | M2 = "Core API, RBAC, resource graph, jobs/audit"; ADR 0001/0002/0004/0008 M2 items | **Keep, but ship it with user-visible function** (PR-1: durable state, audit, service logs, session management) instead of an infrastructure-only phase |
 | M2.2 First privileged service operation | Not assigned to a milestone (feature catalogue "Services") | **Adopt** as PR M2-2. It is the smallest real write and proves the plan/apply framework the spec's "jobs" item needs |
 | M2.3 Expanded service management | — | **Adopt** as PR M2-3: enable/disable, timers and sockets, unit detail |
-| M2.4 Host administration (accounts, groups, host config) | Identity is a core feature without a milestone | **Split** (D-9): hostname and timezone optional in M2 (PR M2-6); users and groups in their own later milestone |
+| M2.4 Host administration (accounts, groups, host config) | Identity is a core feature without a milestone | **Split** (D-9): hostname and timezone required in M2 (PR M2-6); users and groups in their own later milestone |
 | M2.5 Storage integration | Disk inventory and bay map = M5; storage adapters M7–M8 | **Read-only part only, pulled forward:** storage inventory graph (PR M2-4, "resource graph" of spec M2) and drive locator Stage A (PR M2-5). Storage writes stay out of M2 |
 
 **What M2 delivers to the user:**
@@ -18,12 +18,12 @@ The first PR (PR-1) is specified in `M2-PR1-PROPOSAL.md`.
 - an audit viewer;
 - a storage inventory showing what owns each disk;
 - a visual drive locator;
-- optionally, hostname and timezone settings.
+- hostname and timezone settings (required before M3).
 
 ## 2. M2 PR sequence
 Dependencies: PR-1 → M2-2 → M2-3; PR-1 → M2-4 → M2-5; M2-2 → M2-6. M2-4/M2-5 can proceed in parallel with M2-2/M2-3.
 
-**Mandatory:** PR-1, M2-2, M2-3, M2-4. **Optional:** M2-5 (recommended; high value, no privilege), M2-6 (D-9).
+**Mandatory before M3:** PR-1, M2-2, M2-3, M2-4, M2-5 and M2-6, plus the separately authorized file manager. The owner made M2-5/M2-6 required on 2026-11-03 and authorized continuing through them on 2026-11-05. Development and isolated tests do not authorize production activation or retained-VM changes.
 
 ### PR-1 — Durable state, audit trail and service logs (read-only)
 See `M2-PR1-PROPOSAL.md`. **No privileged writes.** Decisions: D-1, D-6, D-7.
@@ -70,7 +70,7 @@ See `M2-PR1-PROPOSAL.md`. **No privileged writes.** Decisions: D-1, D-6, D-7.
 | **User-visible** | Storage page: what is on each disk, who owns it, what is mounted where |
 | **Exclusions** | Any write; technology-specific detail views (M3) |
 
-### PR M2-5 (optional, recommended) — Physical drive locator, Stage A (reusing the HBA Viewer concept, D-12)
+### PR M2-5 (required; owner continuation authorized 2026-11-05) — Physical drive locator, Stage A (reusing the HBA Viewer concept, D-12)
 | | |
 |---|---|
 | **Objective** | Usable visual drive locator without enterprise hardware |
@@ -81,13 +81,14 @@ See `M2-PR1-PROPOSAL.md`. **No privileged writes.** Decisions: D-1, D-6, D-7.
 | **User-visible** | "Where is this disk?", with location shown on the Storage page |
 | **Exclusions** | Stage B integration with technology modules, enclosure discovery (C), LEDs (D) |
 
-### PR M2-6 (optional, D-9) — Host settings: hostname and timezone
+### PR M2-6 (required; owner continuation authorized 2026-11-05; D-9) — Host settings: hostname and timezone
 | | |
 |---|---|
 | **Scope** | Read current values; set hostname (static and pretty) and timezone through `hostnamectl`/`timedatectl` argv templates; validation (RFC 1123 hostname, timezone in `timedatectl list-timezones`) |
 | **Prerequisites** | M2-2 framework |
 | **Security** | `reversible` class; confirmation; warns that hostname affects TLS names and mDNS |
 | **Exclusions** | Network configuration, NTP servers, users and groups |
+| **Status** | Apply backend implemented, **not accepted** (2026-11-06): `GET /host/settings`, non-executing `POST /host/settings/preview`, ADR 0011 `POST /host/settings/plan` and `/apply` (`host.settings.apply`). See [`M2-6-HOST-SETTINGS-SKELETON.md`](M2-6-HOST-SETTINGS-SKELETON.md) |
 
 ## 3. Testing requirements
 | Test | Mandatory before the first privileged write (M2-2) | Introduced later |
@@ -103,22 +104,23 @@ See `M2-PR1-PROPOSAL.md`. **No privileged writes.** Decisions: D-1, D-6, D-7.
 | Storage fixtures and loop devices | — | M2-4 onward (no real host disks; CLAUDE.md) |
 | Existing CI | Unchanged; nothing is weakened | — |
 
-## 4. After M2: proposed module milestones (D-8)
-Each milestone delivers complete modules (backend, API, UI, tests, docs), read-only first and then writes behind the M2 framework. The old roadmap numbers are given for traceability; the theme/plugin SDK (old M3) is proposed to follow M5.
+## 4. After M2: proposed module milestones (D-8) — historical
+
+This §4 sequence is the 2026-10-21 proposal. **D-8 (2026-11-07) kept `docs/project/04-ROADMAP.md`**; M3 remains Theme SDK + plugin SDK. Each milestone in the proposal would have delivered complete modules (backend, API, UI, tests, docs), read-only first and then writes behind the M2 framework. The 04-ROADMAP numbers in the right column are current (after the 2026-11-07 M11 networking insert); the theme/plugin SDK stays M3.
 
 | Proposed | Content | Old roadmap |
 |---|---|---|
 | **M3 Storage, read-only** | ZFS, mdadm, LVM2, Btrfs, ext4/XFS/F2FS details, mergerfs, SnapRAID status, SMART/NVMe; drive locator Stage B | parts of M5, M7, M8 (read) |
 | **M4 Software Center** | Package search/install/remove with transaction preview per family; updates and repositories only after separate owner approval | M4 |
-| **M5 Containers** | Docker Engine, containers, Compose projects, images, networks, volumes, Buildx | M11 (part) |
+| **M5 Containers** | Docker Engine, containers, Compose projects, images, networks, volumes, Buildx | 04-ROADMAP **M12** (was M11 before the 2026-11-07 insert) |
 | **M6 Storage configuration** | Mounts, ext4/XFS/F2FS create and grow, LVM, mdadm, ZFS datasets/snapshots, Btrfs subvolumes, mergerfs pools, SnapRAID config/sync/scrub; coordinated storage workflows; destructive ops gated by VM evidence | M6, M7, M8 |
 | **M7 File sharing** | SMB, SFTP, NFS, WebDAV, FTP/FTPS, then iSCSI target; share workflows | addon A1–A5 |
-| **M8 Virtualization** | libvirt VMs, networks, storage pools; VM-on-pool workflow | M11 (part) |
+| **M8 Virtualization** | libvirt VMs, networks, storage pools; VM-on-pool workflow | 04-ROADMAP **M12** (was M11 before the 2026-11-07 insert) |
 | **M9 Hardware and replacement** | Drive locator Stages C and D, guided disk replacement and SnapRAID recovery feasibility, Thunderbolt | M9 + new |
-| **M10+** | Unchanged from 04-ROADMAP: reverse proxy/ACME/DDNS, identity/Tailscale/cooling/UPS, backups/monitoring, theme/plugin SDK (moved), distro release hardening | M3, M10–M13 |
+| **M10+** | Unchanged from 04-ROADMAP: reverse proxy/ACME/DDNS, identity/Tailscale/cooling/UPS, backups/monitoring, theme/plugin SDK (M3, not moved), distro release hardening | M3, M10–M14 |
 
 Users and groups administration gets its own milestone once identity work (PAM, still deferred) is scheduled.
 
 ## 5. Mandatory vs optional summary
-- **Mandatory for M2 close:** PR-1, M2-2, M2-3, M2-4, plus the security checklist and VM evidence.
-- **Optional enhancements:** M2-5 drive locator Stage A (recommended), M2-6 host settings, TOTP step-up (D-3 option B).
+- **Mandatory for M2 close:** PR-1, M2-2, M2-3, M2-4, M2-5 and M2-6, the separately authorized file manager, and their security checklists and required evidence.
+- **Optional enhancements:** TOTP step-up (D-3 option B). M2-5/M2-6 are required by the owner.

@@ -124,6 +124,13 @@ button.ghost {
   color: var(--hc-color-text);
   border-color: var(--hc-color-rule);
 }
+/* Filled buttons use --hc-color-signal / --hc-color-signal-ink. .muted and .tag
+   otherwise force --hc-color-muted (text-secondary), which fails WCAG 2.2 AA on
+   the signal fill (selected drive-bay cells). Inherit the button's ink. */
+button:not(.ghost) .muted,
+button:not(.ghost) .tag {
+  color: inherit;
+}
 
 input {
   font: inherit;
@@ -167,6 +174,11 @@ input {
 .login-plate button {
   margin-top: var(--hc-space-4);
   padding: var(--hc-space-3);
+}
+.login-sso {
+  justify-self: center;
+  margin-top: var(--hc-space-2);
+  font-size: var(--hc-font-size-sm);
 }
 .form-error {
   margin: var(--hc-space-2) 0 0;

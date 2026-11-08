@@ -15,6 +15,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io/fs"
@@ -30,9 +31,12 @@ import (
 
 	"homelab-control/backend/internal/audit"
 	"homelab-control/backend/internal/auth"
+	"homelab-control/backend/internal/filesinfo"
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
 	"homelab-control/backend/internal/modules"
+	"homelab-control/backend/internal/oidclogin"
+	"homelab-control/backend/internal/storageinfo"
 	"homelab-control/backend/internal/version"
 )
 
@@ -52,19 +56,23 @@ type Config struct {
 
 // Server wires handlers, sessions and collectors.
 type Server struct {
-	cfg       Config
-	users     *auth.Store
-	sessions  *auth.SessionManager
-	throttle  *auth.Throttle
-	audit     *audit.Logger
-	collector *hostinfo.Collector
-	ui        fs.FS
-	loginSem  chan struct{}
-	mux       *http.ServeMux
-	overview  overviewCache
-	broker    Broker
-	hw        *hwinfo.Collector
-	bstate    brokerState
+	storageCollect   func(context.Context) (storageinfo.Graph, error)
+	storageSem       chan struct{}
+	storageSnapshots StorageSnapshotStore
+	layouts          LayoutStore
+	cfg              Config
+	users            *auth.Store
+	sessions         *auth.SessionManager
+	throttle         *auth.Throttle
+	audit            *audit.Logger
+	collector        *hostinfo.Collector
+	ui               fs.FS
+	loginSem         chan struct{}
+	mux              *http.ServeMux
+	overview         overviewCache
+	broker           Broker
+	hw               *hwinfo.Collector
+	bstate           brokerState
 
 	persistentSessions bool
 	auditPager         AuditPager
@@ -72,6 +80,11 @@ type Server struct {
 	// mods is the administrator's module setting (M2-3). Routes of a
 	// disabled module answer exactly like unknown routes.
 	mods modules.Set
+	// files is the administrator's confined-root allow-list (file manager).
+	// The zero value has no roots (fail closed, no browse).
+	files filesinfo.Set
+	// oidc is the optional single sign-on provider (nil = disabled).
+	oidc *oidclogin.Flow
 }
 
 type overviewCache struct {
@@ -87,12 +100,17 @@ func New(cfg Config, users *auth.Store, audit *audit.Logger, collector *hostinfo
 		audit: audit, collector: collector, ui: ui, loginSem: make(chan struct{}, 4), mux: http.NewServeMux(),
 		stepups: auth.NewStepUps(),
 	}
+	s.storageCollect = func(ctx context.Context) (storageinfo.Graph, error) { return storageinfo.Collect(ctx, "/") }
+	s.storageSem = make(chan struct{}, 1)
 	s.routes()
 	return s
 }
 
 // WithModules applies the administrator's module setting (M2-3).
 func (s *Server) WithModules(m modules.Set) *Server { s.mods = m; return s }
+
+// WithFiles applies the administrator's confined-root allow-list.
+func (s *Server) WithFiles(f filesinfo.Set) *Server { s.files = f; return s }
 
 // Sessions exposes the session manager (tests).
 func (s *Server) Sessions() *auth.SessionManager { return s.sessions }
@@ -110,12 +128,20 @@ const scopePublic = ""
 func (s *Server) routes() {
 	s.handle("GET /api/v1/health", scopePublic, s.handleHealth)
 	s.handle("POST /api/v1/auth/login", scopePublic, s.handleLogin)
+	s.handle("GET /api/v1/auth/oidc", scopePublic, s.handleOIDCStatus)
+	s.handle("GET /api/v1/auth/oidc/start", scopePublic, s.handleOIDCStart)
+	s.handle("GET /api/v1/auth/oidc/callback", scopePublic, s.handleOIDCCallback)
 	s.handle("POST /api/v1/auth/logout", sessionOnly, s.handleLogout)
 	s.handle("GET /api/v1/auth/session", sessionOnly, s.handleSession)
 	s.handle("GET /api/v1/auth/sessions", sessionOnly, s.handleListSessions)
 	s.handle("POST /api/v1/auth/sessions/{id}/revoke", sessionOnly, s.handleRevokeSession)
 	s.handle("GET /api/v1/audit", auth.ScopeAuditRead, s.handleAudit)
 	s.handle("GET /api/v1/host/overview", auth.ScopeSystemRead, s.handleOverview)
+	// M2-6: read-only host settings, non-executing preview, and ADR 0011 plan/apply.
+	s.handle("GET /api/v1/host/settings", auth.ScopeSystemRead, s.handleHostSettings)
+	s.handle("POST /api/v1/host/settings/preview", auth.ScopeHostSettingsPreview, s.handleHostSettingsPreview)
+	s.handle("POST /api/v1/host/settings/plan", auth.ScopeHostSettingsApply, s.handleHostSettingsPlan)
+	s.handle("POST /api/v1/host/settings/apply", auth.ScopeHostSettingsApply, s.handleHostSettingsApply)
 	s.handle("GET /api/v1/capabilities", sessionOnly, s.handleCapabilities)
 	s.handle("GET /api/v1/services", auth.ScopeServicesRead, s.handleServices)
 	s.handle("GET /api/v1/services/units/{unit}/logs", auth.ScopeServicesLogs, s.handleUnitLogs)
@@ -131,6 +157,21 @@ func (s *Server) routes() {
 	s.handle("POST /api/v1/services/units/{unit}/enablement/apply", auth.ScopeServicesConfigure, s.handleEnablementApply)
 	s.handle("GET /api/v1/operations", auth.ScopeAuditRead, s.handleOperations)
 	s.handle("GET /api/v1/hardware", auth.ScopeHardwareRead, s.handleHardware)
+	s.handle("GET /api/v1/storage", auth.ScopeStorageRead, s.handleStorage)
+	s.handle("GET /api/v1/files/roots", auth.ScopeFilesRead, s.handleFilesRoots)
+	s.handle("GET /api/v1/files/entries", auth.ScopeFilesRead, s.handleFilesEntries)
+	// M2-5 Stage A: application-owned manual drive-bay layout (no host writes).
+	s.handle("GET /api/v1/storage/layout", auth.ScopeStorageRead, s.handleLayout)
+	s.handle("POST /api/v1/storage/layout/chassis", auth.ScopeLayoutManage, s.handleLayoutCreate)
+	s.handle("PUT /api/v1/storage/layout/chassis/{id}", auth.ScopeLayoutManage, s.handleLayoutUpdate)
+	s.handle("DELETE /api/v1/storage/layout/chassis/{id}", auth.ScopeLayoutManage, s.handleLayoutDelete)
+	s.handle("PUT /api/v1/storage/layout/chassis/{id}/bays/{row}/{col}/assignment", auth.ScopeLayoutManage, s.handleLayoutAssign)
+	s.handle("DELETE /api/v1/storage/layout/chassis/{id}/bays/{row}/{col}/assignment", auth.ScopeLayoutManage, s.handleLayoutUnassign)
+	// M4-1b: read-only Software Center (modules.json module, no writes).
+	s.handle("GET /api/v1/packages/search", auth.ScopePackagesRead, s.handlePackagesSearch)
+	s.handle("GET /api/v1/packages/installed", auth.ScopePackagesRead, s.handlePackagesInstalled)
+	s.handle("GET /api/v1/packages/updates", auth.ScopePackagesRead, s.handlePackagesUpdates)
+	s.handle("GET /api/v1/packages/sources", auth.ScopePackagesRead, s.handlePackagesSources)
 	s.handle("GET /api/v1/legacy/webmin", auth.ScopeSystemRead, s.handleLegacy)
 	s.mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "unknown API route")

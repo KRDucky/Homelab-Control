@@ -1,6 +1,6 @@
 # ADR-0008: Privileged broker design (M1)
 
-**Status:** Accepted (2026-10-16, owner) **for the four existing read-only, argument-free M1 operations only**; Amendment 1 (2026-10-21, `services.unit.logs`) and Amendment 2 (2026-10-23, `root-exec`, owner decision D-4) extend it (`broker.info`, `legacy.webmin.status`, `hardware.dmi.identity`, `services.systemd.list`). Adding or changing an operation requires a new review.
+**Status:** Accepted (2026-10-16, owner) **for the four existing read-only, argument-free M1 operations only**; Amendment 1 (2026-10-21, `services.unit.logs`) and Amendment 2 (2026-10-23, `root-exec`, owner decision D-4) extend it (`broker.info`, `legacy.webmin.status`, `hardware.dmi.identity`, `services.systemd.list`). Amendments 3 (M2-3), 4 (M2-6), and 5 (M4-1b) are **Proposed**. Adding or changing an operation requires a new review.
 > **Owner decision recorded 2026-10-16:** this acceptance is **not** authorization to implement privileged write operations. Any write-capable broker operation needs a separate, explicit owner approval (M2 design: confirmation, locking, audit, rollback).
 
 **Date:** 2026-10-15
@@ -185,3 +185,55 @@ Proposed with the owner's M2-3 development authorization of 2026-11-04 (scope in
   module. Journal recovery is unaffected.
 - **No new capabilities:** the broker unit is unchanged (`CapabilityBoundingSet=CAP_SETUID CAP_SETGID`); PID 1
   writes the symlinks over D-Bus (§1 P2).
+
+## Amendment 4 (2026-11-06, M2-6, proposed for owner acceptance): hostnamectl/timedatectl templates
+
+Proposed with the owner's 2026-11-06 choice to finish M2-6 apply after the read-only skeleton (PR #40)
+landed on main; **not accepted until the owner accepts M2-6 apply**. Scope:
+`/containers/workspaces/hc-team/shared/m2-6-apply-lead-scope.md` and `docs/m2/M2-6-HOST-SETTINGS-SKELETON.md`.
+This amendment does not authorize NTP, network, users, D-Bus live view, kernel UTS writes,
+or other hostnamectl/timedatectl verbs.
+
+- **Two new allow-listed binaries:** `hostnamectl` and `timedatectl`, resolved like `systemctl` (`/usr/bin`
+  then `/bin`), root-owned and not group/world-writable. `TestAllowListedBinariesAreClosed` is the allow-list snapshot.
+- **Six new root templates**, values after `--`, validated again by the runner using
+  `hostinfo.ValidStaticHostname` / `ValidPrettyHostname` / `ValidTimezoneName`:
+  - `hostnamectl.set-static` = `hostnamectl --no-ask-password set-hostname --static -- <name>`
+  - `hostnamectl.set-pretty` = `hostnamectl --no-ask-password set-hostname --pretty -- <name>` (empty name is removal)
+  - `timedatectl.set-timezone` = `timedatectl --no-ask-password set-timezone -- <Area/City>`
+  - `hostnamectl.status` = `hostnamectl --no-ask-password status` (read-only, no target)
+  - `timedatectl.status` = `timedatectl --no-ask-password status` (read-only, no target)
+  - `timedatectl.list-timezones` = `timedatectl --no-ask-password list-timezones` (read-only, no target)
+  No `set-chassis`, `set-icon`, `set-deployment`, `set-ntp`, `set-time` or `set-local-rtc` exists;
+  `TestRootTemplatesAreClosed` fails on any of them.
+- The handle still reaches only root-exec ops; `host.settings.apply` is the third one.
+  `internal/broker/ops/hostsettings_write.go` joins the reviewed root-exec files (`TestRootExecConfined`).
+  `host.settings.plan` is `unprivileged-exec` (status and list-timezones as `homelab-control`).
+- **No new capabilities:** the broker unit is unchanged (`CapabilityBoundingSet=CAP_SETUID CAP_SETGID`).
+  hostnamectl/timedatectl talk to hostnamed/timedated as uid 0 on apply; they gain nothing beyond what
+  the broker already had. `hc-api` still does not spawn them.
+
+## Amendment 5 (2026-11-07, M4-1b, Proposed): read-only package queries
+
+Proposed for the M4-1b read-only Software Center checkpoint, following owner words recorded in
+`docs/m2/OWNER-DECISIONS.md` and scope in `docs/m4/M4-1B-SOFTWARE-CENTER.md`. This amendment does not
+authorize install, remove, upgrade, repository changes, key import, or metadata refresh.
+
+- **Closed CLI templates only.** Package-manager commands use fixed argv templates and stdlib parsing.
+  Do not add PackageKit, libdnf, libalpm, or Go package-manager libraries.
+- **Read-only and unprivileged.** Query children run as `homelab-control`. Operations use local cached
+  data only, do not access the network, and do not refresh repository metadata. Output is bounded.
+- **Validated query input.** Bound the accepted character set and length. Reject values that begin with
+  `-`. Pass a validated query only in a fixed argv slot or after `--`.
+- **Fixed execution environment.** Replace the child environment, including setting `LC_ALL=C`, and use
+  `/dev/null` for stdin.
+- **Unsupported families fail closed.** If a family's tool cannot run unprivileged and cache-only, report
+  `unsupported: <reason>`. Do not add a root template as a workaround.
+- **API audit before release.** Write the API audit record before releasing the result. Record counts only,
+  not package lists or query text.
+- **Scope.** Add `packages.read` for read operations. Do not add or use `packages.manage`; reserve it
+  for a separately reviewed write ADR. This scope is not implied by another scope or added to defaults.
+- **No write path.** No root template, plan/apply operation, package transaction, or repository mutation
+  is authorized by this amendment. The later write ADR is reserved as 0014 and is not part of this change.
+- **Proposed status.** This amendment remains subject to review and owner acceptance. It does not accept
+  ADR 0008 or authorize M4 acceptance.

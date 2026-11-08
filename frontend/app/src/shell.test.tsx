@@ -193,10 +193,11 @@ describe('appearance menu', () => {
     render(<App />);
     await screen.findByRole('button', { name: 'Appearance' });
     const value = JSON.stringify({ schemaVersion: 1, theme: 'graphite', density: 'spacious' });
+    localStorage.setItem(STORAGE_KEY, value);
     act(() => {
       window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY, newValue: value }));
     });
-    expect(html.getAttribute('data-hc-theme')).toBe('graphite');
+    await waitFor(() => expect(html.getAttribute('data-hc-theme')).toBe('graphite'));
     expect(html.getAttribute('data-hc-density')).toBe('spacious');
   });
 });

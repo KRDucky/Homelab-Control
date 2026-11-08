@@ -29,6 +29,22 @@ keyrings (Secret Service) are not available; TPMs are present on some hardware o
   string representation.
 - **M0 specifics:** password hashes in `users.json` (0600, refused if broader); audit log 0600 JSONL;
   session IDs never stored raw; no other secrets exist yet.
+- **Exception: OIDC client secret (Proposed; supervisor design disposition and implementation
+  review, 2026-11-06; not an owner acceptance).** The optional OIDC `client_secret`
+  (`docs/security/OIDC-SSO.md`) authenticates hc-api itself to the identity provider. It is used only by
+  the unprivileged hc-api, for the token exchange. It is not a secret for a host operation run by the
+  broker, so the broker-owned rule above does not cover it. Limits on this exception:
+  - It lives only in the operator's `oidc.json`. hc-api refuses to load the file if it is a symlink,
+    not a regular file, or readable or writable by group or other (the same check as `users.json`).
+    Ownership by `homelab-control` is a documented install requirement; it is not checked at load.
+  - It is never stored in the state database, never logged, audited or returned by an API, and never
+    included in an export. ID, access and refresh tokens and authorization codes are not stored at all.
+  - The broker secret store and broker operations are unchanged. No broker op reads this file.
+  - A public client (PKCE, no secret) remains supported. Account access still comes only from explicit
+    subject → local-account bindings.
+
+  This exception covers no other credential. A host-operation secret (ACME, DNS, backup, Tailscale)
+  still follows the broker-owned rule.
 
 ## Options Considered
 | Option | Pros | Cons |
