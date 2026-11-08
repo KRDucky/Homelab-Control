@@ -30,8 +30,8 @@ refused at parse time and can never mount UI.
 From the repository root:
 
 ```sh
-node sdk/plugin/tdk.mjs validate plugins/sample-readonly/manifest.hlplugin
-node sdk/plugin/tdk.mjs validate plugins/sample-readonly/manifest.hlplugin --json
+node sdk/plugin/tdk.mjs validate sdk/plugin/examples/sample-readonly.hlplugin
+node sdk/plugin/tdk.mjs validate sdk/plugin/examples/sample-readonly.hlplugin --json
 node sdk/plugin/tdk.mjs contributions
 node sdk/plugin/tdk.mjs create my-plugin.hlplugin local.example "My plugin"
 ```
@@ -58,7 +58,7 @@ alone cannot detect duplicate keys, so an editor's green schema check does not r
 import { parsePlugin } from './sdk/plugin/runtime.mjs';
 import { readFileSync } from 'node:fs';
 
-const plugin = parsePlugin(readFileSync('plugins/sample-readonly/manifest.hlplugin', 'utf8'));
+const plugin = parsePlugin(readFileSync('sdk/plugin/examples/sample-readonly.hlplugin', 'utf8'));
 console.log(plugin.id, plugin.contributions);
 ```
 
