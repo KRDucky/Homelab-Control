@@ -15,7 +15,7 @@ LDFLAGS := -s -w -buildid= -X homelab-control/backend/internal/version.Version=$
 OUT := build
 
 .PHONY: all deps frontend backend build test test-go test-frontend test-release lint fmt check security \
-        verify-upstream repro-check deb rpm systemd-smoke e2e clean
+        verify-upstream verify-extensions repro-check deb rpm systemd-smoke e2e clean
 
 all: build
 
@@ -73,6 +73,9 @@ security:
 
 verify-upstream:
 	scripts/verify-upstream.sh
+
+verify-extensions:
+	scripts/verify-extensions.sh
 
 check: lint test security
 
