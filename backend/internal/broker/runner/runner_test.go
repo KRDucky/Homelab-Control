@@ -560,12 +560,12 @@ func TestPackageQueriesAreClosed(t *testing.T) {
 	// Cache-only (ADR 0008 Amendment 5): network-capable tools must carry their
 	// no-refresh flag. apt-cache/dpkg-query/rpm/pacman -Q/-Ss/-Qu are local.
 	for id, want := range map[PackageQuery]string{
-		PkgFedoraSearch:    "-C",
-		PkgFedoraUpdates:   "-C",
-		PkgSUSEInstalled:   "--no-refresh",
-		PkgSUSESearch:      "--no-refresh",
-		PkgSUSEUpdates:     "--no-refresh",
-		PkgSUSESources:     "--no-refresh",
+		PkgFedoraSearch:  "-C",
+		PkgFedoraUpdates: "-C",
+		PkgSUSEInstalled: "--no-refresh",
+		PkgSUSESearch:    "--no-refresh",
+		PkgSUSEUpdates:   "--no-refresh",
+		PkgSUSESources:   "--no-refresh",
 	} {
 		found := false
 		for _, a := range packageQueries[id].argv {
