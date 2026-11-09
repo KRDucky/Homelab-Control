@@ -909,7 +909,11 @@ def main():
     check("module disabled: enablement plan 404", 404, st)
     st, cps = call("GET", "/api/v1/capabilities")
     check("module disabled: capabilities omit services", False, any(c.get("id") == "services" for c in cps.get("capabilities", [])))
-    check("module disabled: listed as disabled", [False], [m.get("enabled") for m in cps.get("modules", [])])
+    # Look modules up by ID: the registry has grown beyond services (packages, M4-1b), and only the
+    # disabled module may be listed as disabled.
+    mods = cps.get("modules", [])
+    check("module disabled: services listed as disabled", [False], [m.get("enabled") for m in mods if m.get("id") == "services"])
+    check("module disabled: no other module disabled", ["services"], [m.get("id") for m in mods if not m.get("enabled")])
     info = sh("hlctl", "broker", "info")
     check("module disabled: broker.info lists no services ops", False, "services.systemd.list" in info)
     with open(MODULES, "w") as f:

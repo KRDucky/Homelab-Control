@@ -23,15 +23,6 @@ const UNSAFE_TEXT = /[<>\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/;
 export const CONTRIBUTION_IDS = ['overview.sample-card'];
 /** Browser-local enabled-contribution store. A new key: never reuses `hc.preferences.v1`. */
 export const PLUGIN_STORAGE = 'hc.plugins.v1';
-/** In-tree labelled sample, compiled into the app. Mirrors `plugins/sample-readonly/manifest.hlplugin`. */
-export const SAMPLE_PLUGIN = Object.freeze({
-    schemaVersion: 1,
-    id: 'dev.homelab-control.sample-readonly',
-    name: 'Read-only sample plugin',
-    version: '1.0.0',
-    license: 'MIT',
-    contributions: ['overview.sample-card'],
-});
 /** Strict JSON scanner: reject duplicate decoded keys, prototype keys, excess work and surrogates. */
 export function strictParse(text) {
     if (new TextEncoder().encode(text).length > 65536)

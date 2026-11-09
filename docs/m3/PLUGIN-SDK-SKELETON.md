@@ -30,9 +30,11 @@ React in `frontend/app/src/plugin-ui.tsx`; when loaded, the Overview page shows 
 and unloading hides it. Unknown IDs are refused at parse time and never mount UI (no `eval`, no dynamic
 `import()`, no Go `plugin` package, no spawn).
 
-## In-tree sample
+## Sample (imported from Extensions)
 
-`plugins/sample-readonly/` — a labelled fixture/example manifest plus README. It is **not** a live
+`extensions/plugins/sample-readonly/` — a labelled fixture/example manifest, README and the
+`SampleOverviewCard` component, imported from the pinned Homelab-Control-Extensions subtree
+(`extensions.lock`) and compiled in through the generated `frontend/app/src/extensions.generated.ts`. It is **not** a live
 host plugin and is **not** registered in `modules.json`; `TestRegistryIsClosed` stays `{services}`
 only. First-party modules stay compiled-in (D-10).
 

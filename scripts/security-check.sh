@@ -20,6 +20,10 @@ bad() {
 step "Upstream provenance"
 scripts/verify-upstream.sh || bad
 
+step "Extensions import (pinned subtree, no edits, no package or module manifests)"
+scripts/verify-extensions.sh || bad
+node scripts/build-extensions.mjs --check || bad
+
 step "Go static guards (no process execution, all API routes wrapped)"
 (cd backend && go test -count=1 ./internal/guard/) || bad
 

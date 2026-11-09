@@ -1,0 +1,7 @@
+# Pinned Homelab Control Extensions import. Machine-readable; consumed by scripts/verify-extensions.sh.
+# Update only via scripts/sync-extensions.sh in a reviewed PR. The prefix is never patched in core:
+# changes go to the Extensions repository first, then a new pin is imported here.
+remote=https://github.com/KRDucky/Homelab-Control-Extensions.git
+commit=a8fadbee780ae4411e4ae680b8969602db1d63e6
+tree=281fd0afb21aad133f29c58555bc2982d49650b2
+prefix=extensions
