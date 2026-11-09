@@ -9,6 +9,8 @@ import react from '@vitejs/plugin-react';
 // The dev server proxies /api to a locally running hc-api (see docs/dev/DEVELOPMENT.md).
 export default defineConfig({
   plugins: [react()],
+  // extensions/ (the pinned Extensions subtree) has no node_modules: resolve React from this app.
+  resolve: { dedupe: ['react', 'react-dom'] },
   server: {
     port: 5173,
     strictPort: true,

@@ -3,10 +3,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { CONTRIBUTION_IDS, parsePlugin, SAMPLE_PLUGIN } from './runtime.mjs';
+import { CONTRIBUTION_IDS, parsePlugin } from './runtime.mjs';
 const dir = mkdtempSync(join(tmpdir(), 'hc-pdk-'));
 const cli = new URL('./tdk.mjs', import.meta.url);
 const run = (...args) => spawnSync(process.execPath, [cli.pathname, ...args], { encoding: 'utf8' });
@@ -22,11 +22,11 @@ test('standalone create, validate and overwrite protection', () => {
   assert.equal(run('validate', file, '--json').status, 0);
 });
 
-test('the in-tree sample and SDK example are valid fixtures', () => {
-  assert.deepEqual({ ...parsePlugin(JSON.stringify(SAMPLE_PLUGIN)) }, SAMPLE_PLUGIN);
-  const sample = new URL('../../plugins/sample-readonly/manifest.hlplugin', import.meta.url).pathname;
-  assert.equal(run('validate', sample).status, 0);
+// The imported Extensions sample is validated by scripts/build-extensions.mjs --check.
+test('the SDK example is a valid fixture', () => {
   const example = new URL('./examples/sample-readonly.hlplugin', import.meta.url).pathname;
+  const doc = parsePlugin(readFileSync(example, 'utf8'));
+  assert.deepEqual({ ...parsePlugin(JSON.stringify(doc)) }, { ...doc });
   assert.equal(run('validate', example).status, 0);
 });
 

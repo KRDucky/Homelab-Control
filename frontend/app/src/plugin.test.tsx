@@ -5,7 +5,6 @@ import { act, cleanup, render, screen } from '@testing-library/react';
 import {
   CONTRIBUTION_IDS,
   PLUGIN_STORAGE,
-  SAMPLE_PLUGIN,
   isContributionEnabled,
   loadPlugin,
   parsePlugin,
@@ -15,6 +14,12 @@ import {
   unloadPlugin,
 } from './plugin';
 import { PluginContributions } from './plugin-ui';
+import { EXTENSION_COMPONENTS, EXTENSION_PLUGINS } from './extensions.generated';
+
+// The sample now comes from the pinned Extensions import (extensions/plugins/sample-readonly).
+const found = EXTENSION_PLUGINS.find((p) => p.id === 'dev.homelab-control.sample-readonly');
+if (!found) throw new Error('sample plugin missing from the Extensions import');
+const SAMPLE_PLUGIN = found;
 
 afterEach(() => {
   cleanup();
@@ -59,9 +64,14 @@ describe('plugin manifest input boundary', () => {
     expect(() => parsePlugin(JSON.stringify({ ...base, extra: 'field' }))).toThrow();
     expect(() => parsePlugin(JSON.stringify({ ...base, schemaVersion: 2 }))).toThrow();
   });
-  it('round trips the in-tree sample and exposes exactly one contribution ID', () => {
+  it('round trips the imported sample and exposes exactly one contribution ID', () => {
     expect(parsePlugin(valid)).toEqual(SAMPLE_PLUGIN);
     expect(CONTRIBUTION_IDS).toEqual(['overview.sample-card']);
+  });
+  it('imports exactly the sample and maps every known contribution ID to a component', () => {
+    expect(EXTENSION_PLUGINS.map((p) => p.id)).toEqual(['dev.homelab-control.sample-readonly']);
+    expect(Object.keys(EXTENSION_COMPONENTS)).toEqual([...CONTRIBUTION_IDS]);
+    expect(Object.isFrozen(EXTENSION_PLUGINS) && Object.isFrozen(EXTENSION_COMPONENTS)).toBe(true);
   });
 });
 

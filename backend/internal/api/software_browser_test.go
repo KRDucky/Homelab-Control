@@ -45,7 +45,7 @@ func softwareBrokerResults() map[string]any {
 	return map[string]any{
 		"broker.info": map[string]any{"version": "fixture", "systemd_booted": true,
 			"exec_available": []string{"dpkg-query", "apt-cache", "apt"},
-			"ops": []map[string]string{{"name": "broker.info"}, {"name": "packages.installed"}, {"name": "packages.updates"}, {"name": "packages.sources"}, {"name": "packages.search"}}},
+			"ops":            []map[string]string{{"name": "broker.info"}, {"name": "packages.installed"}, {"name": "packages.updates"}, {"name": "packages.sources"}, {"name": "packages.search"}}},
 		"packages.installed": types.PackageList{Packages: []pkgcenter.Package{{
 			Name: "nginx", Version: "1.2.3", Arch: "amd64", Installed: true,
 		}}, Truncated: false, Source: "labelled fixture"},
