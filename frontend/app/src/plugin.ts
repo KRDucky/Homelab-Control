@@ -37,16 +37,6 @@ export interface PluginDocument {
 /** Browser-local enabled-contribution store. A new key: never reuses `hc.preferences.v1`. */
 export const PLUGIN_STORAGE = 'hc.plugins.v1';
 
-/** In-tree labelled sample, compiled into the app. Mirrors `plugins/sample-readonly/manifest.hlplugin`. */
-export const SAMPLE_PLUGIN: PluginDocument = Object.freeze({
-  schemaVersion: 1,
-  id: 'dev.homelab-control.sample-readonly',
-  name: 'Read-only sample plugin',
-  version: '1.0.0',
-  license: 'MIT',
-  contributions: ['overview.sample-card'] as ContributionId[],
-});
-
 /** Strict JSON scanner: reject duplicate decoded keys, prototype keys, excess work and surrogates. */
 export function strictParse(text: string): unknown {
   if (new TextEncoder().encode(text).length > 65536) throw new Error('Plugin exceeds 64 KiB.');

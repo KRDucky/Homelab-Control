@@ -21,7 +21,7 @@ close, not production, not KVM acceptance, and not ADR acceptance.
 
 The plugin half of the M3 Theme/Plugin SDK landed on `main` as PR #54 (squash `20ddc2b7`, on PR #53
 `9fc9d8af`, on `b290f9dc`). It ships the declarative read-only sample plugin: `schemas/plugin/v1.json`
-(MIT), `sdk/plugin/` PDK v1 validator, the in-tree `plugins/sample-readonly/` fixture, a compiled-in
+(MIT), `sdk/plugin/` PDK v1 validator, the labelled sample fixture (now imported from Extensions as `extensions/plugins/sample-readonly/`), a compiled-in
 `overview.sample-card` contribution with browser-local load/unload (new `hc.plugins.v1` key; no route,
 scope, `state.db` row or broker op), and a Proposed ADR 0013 (plugin isolation / declarative
 contributions). No executable payload. This slice folds the closeout nits (component-element render,
