@@ -1,0 +1,5 @@
+{"kind":"StatefulSetList","items":[
+ {"metadata":{"name":"db","namespace":"demo","uid":"8baaaac8-7b93-5507-a501-c2acfda7cdaa"},
+  "spec":{"replicas":1,"selector":{"matchLabels":{"app":"db"}},"template":{"metadata":{"labels":{"app":"db"}},
+   "spec":{"containers":[{"name":"db","image":"example.invalid/db:16","ports":[{"containerPort":5432,"name":"pg"}]}]}}},
+  "status":{"replicas":1,"readyReplicas":1}}]}

@@ -1,0 +1,1 @@
+{"kind":"IngressClassList","items":[{"metadata":{"name":"traefik","uid":"6682f5c9-d10b-5b0a-b966-87f8c8845e65","annotations":{"ingressclass.kubernetes.io/is-default-class":"true"}},"spec":{"controller":"traefik.io/ingress-controller"}}]}
