@@ -103,7 +103,8 @@ export function App() {
   const capList = caps?.capabilities ?? [];
   // Several capabilities can share a page (service logs live on /services);
   // the navigation shows one entry per page.
-  const pages = capList.filter((c, i) => capList.findIndex((x) => x.path === c.path) === i);
+  const visible = capList.filter((c) => c.status !== 'forbidden');
+  const pages = visible.filter((c, i) => visible.findIndex((x) => x.path === c.path) === i);
   const logsCap = capList.find((c) => c.id === 'service_logs');
   const filesCap = capList.find((c) => c.id === 'unit_files');
   const auditCap = capList.find((c) => c.id === 'audit');

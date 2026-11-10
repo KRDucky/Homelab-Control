@@ -211,14 +211,14 @@ describe('shell navigation', () => {
     await within(nav).findByRole('link', { name: /Overview/ });
     expect(within(nav).getByRole('link', { name: /Hardware/ }).textContent).toContain('Limited');
     expect(within(nav).queryByRole('link', { name: /Audit/ })).toBeNull();
-    expect(within(nav).getByText(/No permission: No audit.read./)).toBeTruthy();
+    expect(within(nav).queryByText(/No permission: No audit.read./)).toBeNull();
     expect(document.querySelector('.shell')?.getAttribute('data-sidebar')).toBe('expanded');
 
     fireEvent.click(within(nav).getByRole('button', { name: 'Collapse sidebar' }));
     expect(document.querySelector('.shell')?.getAttribute('data-sidebar')).toBe('rail');
     expect(stored()).toMatchObject({ sidebar: 'collapsed' });
-    // In the rail, the unavailable module is focusable so its reason can be read.
-    expect(within(nav).getByText('Audit').closest('.nav-item')?.getAttribute('tabindex')).toBe('0');
+    // Forbidden sections remain hidden in the icon rail.
+    expect(within(nav).queryByText('Audit')).toBeNull();
     fireEvent.click(within(nav).getByRole('button', { name: 'Expand sidebar' }));
     expect(document.querySelector('.shell')?.getAttribute('data-sidebar')).toBe('expanded');
   });
