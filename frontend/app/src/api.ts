@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { StorageInventory } from './storageModel';
+import type { ContainerRuntime } from './plugin';
 
 // Typed client for the Homelab Control v1 API (schemas/openapi/homelab-control.v1.yaml).
 
@@ -1208,3 +1209,98 @@ export const previewPlatform = (
   },
   csrf: string,
 ) => postJSON<PlatformPreview>(`${traefikPath}/platform-preview`, csrf, body);
+
+// --- Container identity & permissions (CORE; read-only previews) ---
+
+export type IdentityMode = 'image' | 'inherit' | 'custom';
+export type IdentityLayer = 'unset' | 'image' | 'platform' | 'application' | 'profile' | 'override';
+
+export interface IdentitySettings {
+  uid?: number;
+  gid?: number;
+  umask?: string;
+  supplementalGroups?: number[];
+}
+
+export interface IdentityProfile {
+  id: string;
+  name: string;
+  description: string;
+  umask?: string;
+  groupRoles: string[];
+  readOnlyVolumes: boolean;
+}
+
+export interface IdentityIssue {
+  severity: 'blocker' | 'warning' | 'info';
+  code: string;
+  field?: string;
+  message: string;
+}
+
+export interface IdentityPreview {
+  schemaVersion: 1;
+  mode: IdentityMode;
+  platform: { id: string; kind: string; mode: string; mappingKnown: boolean };
+  resolved: {
+    uid: { value: number | null; source: IdentityLayer; host?: number };
+    gid: { value: number | null; source: IdentityLayer; host?: number };
+    umask: {
+      value: string | null;
+      source: IdentityLayer;
+      effect?: { files: string; directories: string; explanation: string };
+    };
+    supplementalGroups: { value: number[]; source: IdentityLayer; host?: number[]; names?: string[] };
+  };
+  mechanism: { identity: string; umask: string; supplementalGroups: boolean; declared: boolean };
+  compose?: { environment?: Record<string, string>; user?: string; group_add?: string[] };
+  kubernetes?: {
+    podSecurityContext?: { supplementalGroups?: number[] };
+    containerSecurityContext?: {
+      runAsUser?: number;
+      runAsGroup?: number;
+      runAsNonRoot?: boolean;
+      allowPrivilegeEscalation?: boolean;
+    };
+    env?: Array<{ name: string; value: string }>;
+  };
+  volumes: Array<{
+    name: string;
+    target: string;
+    access: 'ro' | 'rw';
+    status: 'compatible' | 'incompatible' | 'unverified';
+    reason: string;
+    proposals?: string[];
+  }>;
+  issues: IdentityIssue[];
+  verification: 'not-reported' | 'observed-match' | 'observed-mismatch';
+  applied: false;
+  deployable: false;
+}
+
+export const getIdentityProfiles = (csrf: string) =>
+  request<{
+    schemaVersion: 1;
+    profiles: IdentityProfile[];
+    privilegedGroupNames: string[];
+    modes: IdentityMode[];
+  }>('/api/v1/containers/identity/profiles', { headers: { 'X-CSRF-Token': csrf } });
+
+export const previewIdentity = (
+  body: {
+    platform: string;
+    mode: IdentityMode;
+    runtime: ContainerRuntime;
+    application?: IdentitySettings;
+    profile?: string;
+    override?: IdentitySettings;
+    acknowledgePrivilegedGroups?: number[];
+    workload?: string;
+  },
+  csrf: string,
+) =>
+  postJSON<{ platform: PlatformView; preview: IdentityPreview; runtime: ContainerRuntime }>(
+    '/api/v1/containers/identity/preview',
+    csrf,
+    body,
+  );
