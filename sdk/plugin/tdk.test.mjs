@@ -30,6 +30,27 @@ test('the SDK example is a valid fixture', () => {
   assert.equal(run('validate', example).status, 0);
 });
 
+test('runtime.container declarations are validated strictly', () => {
+  const example = new URL('./examples/container-identity.hlplugin', import.meta.url).pathname;
+  assert.equal(run('validate', example).status, 0);
+  const rt = { supportedPlatforms: ['docker'], deploymentMethods: ['compose'], identity: { configurable: true, method: 'runtime-user', umask: { method: 'none' }, supplementalGroups: true }, privileged: false, capabilities: [], volumes: [] };
+  const doc = (container) => JSON.stringify({ ...valid, runtime: { container } });
+  assert.doesNotThrow(() => parsePlugin(doc(rt)));
+  for (const bad of [
+    { ...rt, script: 'x' },
+    { ...rt, supportedPlatforms: ['lxc'] },
+    { ...rt, supportedPlatforms: ['kubernetes'] },
+    { ...rt, identity: { ...rt.identity, uidVariable: 'PUID' } },
+    { ...rt, identity: { ...rt.identity, configurable: false } },
+    { ...rt, identity: { ...rt.identity, method: 'fixed', configurable: false, fixedUid: 0, fixedGid: 0 } },
+    { ...rt, identity: { ...rt.identity, umask: { method: 'none', variable: 'UMASK' } } },
+    { ...rt, capabilities: ['CAP_NET_ADMIN'] },
+    { ...rt, volumes: [{ name: 'x', target: '/a/../b', access: 'rw' }] },
+  ])
+    assert.throws(() => parsePlugin(doc(bad)), JSON.stringify(bad));
+  assert.throws(() => parsePlugin(JSON.stringify({ ...valid, runtime: { container: rt, extra: 1 } })));
+});
+
 test('malicious and malformed inputs fail closed in the SDK runtime and CLI', () => {
   const file = join(dir, 'invalid.hlplugin');
   const hostile = [
