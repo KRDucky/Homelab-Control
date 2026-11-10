@@ -1,0 +1,12 @@
+[
+ {"Id":"1111111111111111111111111111111111111111111111111111111111111111","Names":["wiki_app_1"],"Image":"example.invalid/wiki:1","State":"running",
+  "Labels":{"io.podman.compose.project":"wiki","io.podman.compose.service":"app","com.docker.compose.project":"wiki","com.docker.compose.service":"app","traefik.enable":"true","PODMAN_SECRET_EXAMPLE":"must-not-leak"},
+  "Ports":[{"host_ip":"","container_port":8000,"host_port":18000,"range":1,"protocol":"tcp"}],"Networks":["hc-traefik-test"],"Pod":"","PodName":"","IsInfra":false},
+ {"Id":"2222222222222222222222222222222222222222222222222222222222222222","Names":["music_api_1"],"Image":"example.invalid/music:2","State":"exited",
+  "Labels":{"io.podman.compose.project":"music","io.podman.compose.service":"api"},
+  "Ports":[{"host_ip":"","container_port":5000,"host_port":0,"range":2,"protocol":"tcp"}],"Networks":["music_default"],"Pod":"","PodName":"","IsInfra":false},
+ {"Id":"3333333333333333333333333333333333333333333333333333333333333333","Names":["photos-pod-infra"],"Image":"localhost/podman-pause:5","State":"running",
+  "Labels":{},"Ports":[],"Networks":[],"Pod":"aaaa","PodName":"photos","IsInfra":true},
+ {"Id":"4444444444444444444444444444444444444444444444444444444444444444","Names":["photos-web"],"Image":"example.invalid/photos:3","State":"running",
+  "Labels":{"traefik.http.middlewares.auth.basicauth.users":"secret-hash"},"Ports":[],"Networks":[],"Pod":"aaaa","PodName":"photos","IsInfra":false}
+]

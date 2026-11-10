@@ -1,0 +1,4 @@
+{"kind":"ServiceList","items":[
+ {"metadata":{"name":"notes","namespace":"demo","uid":"bfd3f79c-ab3b-5239-8ac8-25ce070be716"},"spec":{"type":"ClusterIP","selector":{"app.kubernetes.io/name":"notes"},"ports":[{"name":"http","port":80,"targetPort":"http","protocol":"TCP"}]}},
+ {"metadata":{"name":"gallery","namespace":"demo","uid":"57dd5331-971a-5cb4-b6b0-2ddb6d063549"},"spec":{"selector":{"app":"gallery"},"ports":[{"port":3000,"targetPort":3000}]}},
+ {"metadata":{"name":"db","namespace":"demo","uid":"5cdc88cd-6092-5f01-9e03-a09ece04ce59"},"spec":{"type":"ClusterIP","selector":{"app":"db"},"ports":[{"name":"pg","port":5432,"targetPort":5432}]}}]}

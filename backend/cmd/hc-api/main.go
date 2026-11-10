@@ -28,12 +28,19 @@ import (
 	"homelab-control/backend/internal/auth"
 	"homelab-control/backend/internal/broker/proto"
 	"homelab-control/backend/internal/brokerclient"
+	"homelab-control/backend/internal/composediscovery"
+	"homelab-control/backend/internal/dockerbroker"
 	"homelab-control/backend/internal/filesinfo"
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
 	"homelab-control/backend/internal/modules"
 	"homelab-control/backend/internal/oidclogin"
+	"homelab-control/backend/internal/platform"
+	"homelab-control/backend/internal/platform/composeadapter"
+	"homelab-control/backend/internal/platform/kubernetes"
+	"homelab-control/backend/internal/platform/podman"
 	"homelab-control/backend/internal/state"
+	"homelab-control/backend/internal/traefikclient"
 	"homelab-control/backend/internal/webui"
 )
 
@@ -45,6 +52,12 @@ func main() {
 	tlsCert := flag.String("tls-cert", "", "TLS certificate (PEM)")
 	tlsKey := flag.String("tls-key", "", "TLS private key (PEM)")
 	behindTLSProxy := flag.Bool("behind-tls-proxy", false, "TLS is terminated by a trusted reverse proxy on this host; sets Secure cookies")
+	metadataSocket := flag.String("docker-metadata-socket", "", "fixed private metadata broker Unix socket; default disabled")
+	metadataToken := flag.String("docker-metadata-token-file", "", "private metadata service credential; never browser-visible")
+	metadataUID := flag.Uint("docker-metadata-server-uid", 0, "expected server UID in CORE's user namespace (host UID 1000 maps to 0)")
+	metadataRouting := flag.String("docker-metadata-routing-config", "", "read-only administrator-approved preview context JSON")
+	composeFixture := flag.Bool("compose-discovery-fixture", false, "development-only demonstration Compose metadata; no Docker access")
+	platformFixtures := flag.Bool("platform-fixtures", false, "development-only labeled Podman and K3s demonstration platforms; no runtime access")
 	devHTTP := flag.Bool("dev-insecure-http", false, "allow plain HTTP; only permitted on loopback addresses")
 	origins := flag.String("allowed-origins", "", "comma-separated extra origins allowed for unsafe requests")
 	legacyURL := flag.String("legacy-url", "", "URL of the legacy Webmin UI to link to (optional)")
@@ -53,6 +66,8 @@ func main() {
 	modulesFile := flag.String("modules-config", modules.DefaultPath, "administrator's module setting (root-owned; missing = all modules enabled)")
 	filesFile := flag.String("files-config", filesinfo.DefaultPath, "allow-listed file-manager roots (root-owned; missing/empty = no browse)")
 	oidcConfig := flag.String("oidc-config", "", "single sign-on provider setting (mode 0600, may hold the client secret); empty disables OIDC")
+	traefikOrigin := flag.String("traefik-helper-origin", "", "fixed private Traefik extension origin; empty disables integration")
+	traefikTokenFile := flag.String("traefik-helper-token-file", "", "private extension token file; never returned to browser")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
@@ -151,6 +166,73 @@ func main() {
 		srv.WithOIDC(oidclogin.New(*oc, nil))
 		log.Printf("oidc single sign-on enabled for issuer %s (%d bound accounts)", oc.Issuer, len(oc.Accounts))
 	}
+	if *traefikOrigin != "" || *traefikTokenFile != "" {
+		if *traefikOrigin == "" || *traefikTokenFile == "" {
+			log.Fatal("Traefik requires both helper origin and token file")
+		}
+		token, err := traefikclient.LoadToken(*traefikTokenFile)
+		if err != nil {
+			log.Fatal("Traefik helper token is unavailable or unsafe")
+		}
+		client, err := traefikclient.New(*traefikOrigin, token)
+		if err != nil {
+			log.Fatal("Traefik helper configuration is invalid")
+		}
+		srv.WithTraefik(client)
+	}
+	// Container platforms are registered only from these startup flags; no API
+	// can add a socket, API endpoint or credential.
+	var registrations []platform.Registration
+	if *metadataSocket != "" || *metadataToken != "" || *metadataRouting != "" {
+		if *composeFixture || *metadataSocket == "" || *metadataToken == "" || *metadataUID > 0xffffffff {
+			log.Fatal("metadata broker configuration is incomplete or conflicts with fixture mode")
+		}
+		token, err := traefikclient.LoadToken(*metadataToken)
+		if err != nil {
+			log.Fatal("private metadata credential unavailable")
+		}
+		routing := composediscovery.Context{Networks: []string{}, Entrypoints: []string{}, Resolvers: []string{}}
+		if *metadataRouting != "" {
+			routing, err = dockerbroker.LoadRouting(*metadataRouting)
+			if err != nil {
+				log.Fatal("metadata preview context invalid")
+			}
+		}
+		client, err := dockerbroker.NewClient(*metadataSocket, token, uint32(*metadataUID), routing)
+		if err != nil {
+			log.Fatal("private metadata transport unavailable")
+		}
+		srv.WithComposeDiscovery(client)
+		registrations = append(registrations, composePlatform("docker-local", "Docker (rootless)", "docker-metadata-broker:"+*metadataSocket, client,
+			composeadapter.Options{Kind: platform.KindDocker, Distribution: platform.DistDockerEngine, Mode: platform.ModeRootless, Auth: platform.AuthBrokerPeerToken, Transport: "unix-metadata-broker", EndpointLabel: "Local rootless Docker metadata broker"}))
+	}
+	if *composeFixture {
+		if !*devHTTP {
+			log.Fatal("Compose fixture requires loopback development HTTP mode")
+		}
+		srv.WithComposeDiscovery(composediscovery.Fixture{})
+		registrations = append(registrations, composePlatform("docker-fixture", "Docker (demonstration)", "fixture:docker", composediscovery.Fixture{},
+			composeadapter.Options{Kind: platform.KindDocker, Distribution: platform.DistDockerEngine, Mode: platform.ModeRootless, Auth: platform.AuthFixture, Transport: "fixture", EndpointLabel: "Demonstration Docker data"}))
+	}
+	if *platformFixtures {
+		if !*devHTTP {
+			log.Fatal("platform fixtures require loopback development HTTP mode")
+		}
+		registrations = append(registrations, composePlatform("podman-fixture", "Podman (demonstration)", "fixture:podman", podman.Fixture{},
+			composeadapter.Options{Kind: platform.KindPodman, Distribution: platform.DistPodman, Mode: platform.ModeRootless, Auth: platform.AuthFixture, Transport: "fixture", EndpointLabel: "Demonstration Podman data", Warnings: podman.Warnings(platform.ModeRootless)}))
+		k3s, err := kubernetes.NewFixture()
+		if err != nil {
+			log.Fatal("K3s fixture invalid")
+		}
+		registrations = append(registrations, platform.Registration{ID: "k3s-fixture", DisplayName: "K3s (demonstration)", ConnectionRef: "fixture:k3s", Adapter: k3s})
+	}
+	if len(registrations) > 0 {
+		registry, err := platform.NewRegistry(registrations...)
+		if err != nil {
+			log.Fatal("container platform registry configuration is invalid")
+		}
+		srv.WithPlatforms(registry)
+	}
 	if *brokerSocket != "" {
 		srv.WithBroker(brokerclient.New(*brokerSocket))
 	}
@@ -233,4 +315,12 @@ func validateLegacyURL(raw string) error {
 		return errors.New("must not contain credentials")
 	}
 	return nil
+}
+
+func composePlatform(id, name, ref string, p composediscovery.Provider, o composeadapter.Options) platform.Registration {
+	a, err := composeadapter.New(p, o)
+	if err != nil {
+		log.Fatal("container platform adapter configuration is invalid")
+	}
+	return platform.Registration{ID: id, DisplayName: name, ConnectionRef: ref, Adapter: a}
 }

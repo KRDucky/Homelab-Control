@@ -1,0 +1,81 @@
+[
+  {
+    "Id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "Names": [
+      "/notes-web-1"
+    ],
+    "State": "running",
+    "Command": "PRIVATE-COMMAND",
+    "Labels": {
+      "com.docker.compose.project": "notes",
+      "com.docker.compose.service": "web",
+      "com.docker.compose.oneoff": "False",
+      "com.docker.compose.project.config_files": "/UNTRUSTED/compose.yaml",
+      "traefik.enable": "true",
+      "traefik.http.routers.notes.rule": "Host(`notes.example.com`)",
+      "traefik.http.middlewares.auth.basicauth.users": "PRIVATE-HASH",
+      "unrelated.secret": "PRIVATE-VALUE"
+    },
+    "Ports": [
+      {
+        "PrivatePort": 8080,
+        "PublicPort": 18080,
+        "Type": "tcp"
+      },
+      {
+        "PrivatePort": 8080,
+        "PublicPort": 28080,
+        "Type": "tcp"
+      },
+      {
+        "PrivatePort": 53,
+        "Type": "udp"
+      }
+    ],
+    "NetworkSettings": {
+      "Networks": {
+        "hc-traefik-test": {
+          "IPAddress": "172.20.0.4",
+          "NetworkID": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "notes_default": {}
+      }
+    }
+  },
+  {
+    "Id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "Names": [
+      "/standalone"
+    ],
+    "State": "exited",
+    "Labels": {},
+    "Ports": [
+      {
+        "PrivatePort": 3000,
+        "PublicPort": 43000,
+        "Type": "tcp"
+      }
+    ],
+    "NetworkSettings": {
+      "Networks": {
+        "bridge": {}
+      }
+    }
+  },
+  {
+    "Id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "Names": [
+      "/notes-job-1"
+    ],
+    "State": "exited",
+    "Labels": {
+      "com.docker.compose.project": "notes",
+      "com.docker.compose.service": "job",
+      "com.docker.compose.oneoff": "True"
+    },
+    "Ports": [],
+    "NetworkSettings": {
+      "Networks": {}
+    }
+  }
+]

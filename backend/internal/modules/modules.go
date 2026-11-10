@@ -62,6 +62,7 @@ var registry = []Module{
 		OpPrefix:    "packages.",
 		Path:        "/software",
 	},
+	{ID: "networking", Title: "Networking", Description: "Reverse Proxy: read-only Traefik inventory, diagnostics and label previews", Scopes: []string{"networking.proxy.read"}, APIPrefix: "/api/v1/networking", Path: "/networking/reverse-proxy/traefik"},
 }
 
 // All returns the registered modules.
@@ -92,7 +93,7 @@ func ForRoute(path string) string {
 // ForOp returns the module owning a broker op ("" for core ops).
 func ForOp(op string) string {
 	for _, m := range registry {
-		if strings.HasPrefix(op, m.OpPrefix) {
+		if m.OpPrefix != "" && strings.HasPrefix(op, m.OpPrefix) {
 			return m.ID
 		}
 	}

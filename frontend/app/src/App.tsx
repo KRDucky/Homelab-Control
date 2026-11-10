@@ -17,6 +17,7 @@ import { Audit } from './pages/Audit';
 import { Hardware } from './pages/Hardware';
 import { Storage } from './pages/Storage';
 import { FilesPage } from './pages/Files';
+import { Traefik } from './pages/Traefik';
 import { Software } from './pages/Software';
 import { HostSettingsPage } from './pages/HostSettings';
 import { Legacy } from './pages/Legacy';
@@ -103,7 +104,8 @@ export function App() {
   const capList = caps?.capabilities ?? [];
   // Several capabilities can share a page (service logs live on /services);
   // the navigation shows one entry per page.
-  const pages = capList.filter((c, i) => capList.findIndex((x) => x.path === c.path) === i);
+  const visible = capList.filter((c) => c.status !== 'forbidden');
+  const pages = visible.filter((c, i) => visible.findIndex((x) => x.path === c.path) === i);
   const logsCap = capList.find((c) => c.id === 'service_logs');
   const filesCap = capList.find((c) => c.id === 'unit_files');
   const auditCap = capList.find((c) => c.id === 'audit');
@@ -172,6 +174,7 @@ export function App() {
   else if (route?.id === 'legacy')
     page = <Legacy legacyUrl={session.legacy_url} onUnauthorized={signedOut} />;
   else if (route?.id === 'overview') page = <OverviewPage onUnauthorized={signedOut} />;
+  else if (route?.id === 'traefik') page = <Traefik csrf={session.csrf_token} onUnauthorized={signedOut} />;
   else if (route?.id === 'packages') page = <Software csrf={session.csrf_token} onUnauthorized={signedOut} />;
 
   return (
@@ -188,12 +191,14 @@ export function App() {
       username={session.username}
       accountPath={ACCOUNT_PATH}
       onAccount={onAccount}
-      helperReason={caps?.broker.status === 'unavailable' ? caps.broker.reason : undefined}
+      helperReason={
+        route?.id !== 'traefik' && caps?.broker.status === 'unavailable' ? caps.broker.reason : undefined
+      }
       onSignOut={() => void signOut()}
       canOperate={canOperate}
       version={session.version}
     >
-      {caps?.broker.status === 'unavailable' && path !== '/' && routeUsable && (
+      {caps?.broker.status === 'unavailable' && route?.id !== 'traefik' && path !== '/' && routeUsable && (
         <p className="banner" role="status">
           {caps.broker.reason}
         </p>

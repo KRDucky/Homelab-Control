@@ -31,12 +31,15 @@ import (
 
 	"homelab-control/backend/internal/audit"
 	"homelab-control/backend/internal/auth"
+	"homelab-control/backend/internal/composediscovery"
 	"homelab-control/backend/internal/filesinfo"
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
 	"homelab-control/backend/internal/modules"
 	"homelab-control/backend/internal/oidclogin"
+	"homelab-control/backend/internal/platform"
 	"homelab-control/backend/internal/storageinfo"
+	"homelab-control/backend/internal/traefikclient"
 	"homelab-control/backend/internal/version"
 )
 
@@ -56,6 +59,9 @@ type Config struct {
 
 // Server wires handlers, sessions and collectors.
 type Server struct {
+	traefik          traefikclient.Helper
+	discovery        composediscovery.Provider
+	platforms        *platform.Registry
 	storageCollect   func(context.Context) (storageinfo.Graph, error)
 	storageSem       chan struct{}
 	storageSnapshots StorageSnapshotStore
@@ -126,6 +132,14 @@ func (s *Server) cookieName() string {
 const scopePublic = ""
 
 func (s *Server) routes() {
+	s.handle("GET /api/v1/networking/reverse-proxy/traefik/inventory", auth.ScopeNetworkingProxyRead, s.handleTraefikInventory)
+	s.handle("GET /api/v1/networking/reverse-proxy/traefik/diagnostics", auth.ScopeNetworkingProxyRead, s.handleTraefikDiagnostics)
+	s.handle("POST /api/v1/networking/reverse-proxy/traefik/labels", auth.ScopeNetworkingProxyRead, s.handleTraefikLabels)
+	s.handle("GET /api/v1/networking/reverse-proxy/traefik/applications", auth.ScopeComposeRead, s.handleComposeDiscovery)
+	s.handle("POST /api/v1/networking/reverse-proxy/traefik/compose-preview", auth.ScopeNetworkingProxyRead, s.handleComposePreview)
+	s.handle("POST /api/v1/networking/reverse-proxy/traefik/platform-preview", auth.ScopeNetworkingProxyRead, s.handlePlatformPreview)
+	s.handle("GET /api/v1/platforms", auth.ScopePlatformsRead, s.handlePlatforms)
+	s.handle("GET /api/v1/platforms/{id}/inventory", auth.ScopePlatformsRead, s.handlePlatformInventory)
 	s.handle("GET /api/v1/health", scopePublic, s.handleHealth)
 	s.handle("POST /api/v1/auth/login", scopePublic, s.handleLogin)
 	s.handle("GET /api/v1/auth/oidc", scopePublic, s.handleOIDCStatus)

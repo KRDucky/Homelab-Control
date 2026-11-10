@@ -1,0 +1,84 @@
+/* SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+ * SPDX-License-Identifier: GPL-3.0-or-later */
+.proxy-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--hc-space-4);
+  flex-wrap: wrap;
+}
+.proxy-tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 1.5rem 0;
+}
+.proxy-tabs [aria-current='page'] {
+  font-weight: 700;
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.proxy-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  gap: var(--hc-space-4);
+  margin: 1.5rem 0;
+}
+.proxy-card {
+  border: 1px solid var(--hc-color-rule);
+  border-radius: var(--hc-radius-md);
+  padding: var(--hc-space-4);
+}
+.proxy-card h2 {
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+}
+.proxy-card strong {
+  font-size: 1.75rem;
+}
+.proxy-config {
+  margin-top: 2rem;
+}
+.proxy-form {
+  max-width: 48rem;
+  display: grid;
+  gap: var(--hc-space-4);
+}
+.proxy-form fieldset,
+.proxy-form details {
+  display: grid;
+  gap: 0.65rem;
+  padding: var(--hc-space-4);
+  border: 1px solid var(--hc-color-rule);
+  border-radius: var(--hc-radius-md);
+}
+.proxy-form input,
+.proxy-form select {
+  width: 100%;
+}
+.proxy-diff {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 350px), 1fr));
+  gap: var(--hc-space-4);
+}
+.traefik-page pre {
+  overflow: auto;
+  max-height: 28rem;
+}
+
+.proxy-review-summary {
+  display: grid;
+  grid-template-columns: minmax(9rem, 1fr) minmax(0, 2fr);
+  gap: var(--hc-space-3);
+  max-width: 48rem;
+}
+.proxy-review-summary dt {
+  font-weight: 600;
+}
+.proxy-review-summary dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.proxy-form input[type='checkbox'] {
+  width: auto;
+}
