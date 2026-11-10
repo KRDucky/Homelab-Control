@@ -1,0 +1,5 @@
+{"kind":"APIGroupList","apiVersion":"v1","groups":[
+ {"name":"apps","versions":[{"groupVersion":"apps/v1","version":"v1"}]},
+ {"name":"networking.k8s.io","versions":[{"groupVersion":"networking.k8s.io/v1","version":"v1"}]},
+ {"name":"traefik.io","versions":[{"groupVersion":"traefik.io/v1alpha1","version":"v1alpha1"}]},
+ {"name":"helm.cattle.io","versions":[{"groupVersion":"helm.cattle.io/v1","version":"v1"}]}]}
