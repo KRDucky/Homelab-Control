@@ -145,7 +145,8 @@ export interface Capability {
     | 'storage'
     | 'host_settings'
     | 'files'
-    | 'packages';
+    | 'packages'
+    | 'traefik';
   label: string;
   path: string;
   scope: string;
@@ -165,6 +166,7 @@ export interface ModuleStatus {
 }
 
 export interface Capabilities {
+  compose_discovery?: { status: CapabilityStatus; reason: string };
   broker: { status: 'available' | 'unavailable'; version?: string; reason?: string };
   capabilities: Capability[];
   modules?: ModuleStatus[];
@@ -995,3 +997,214 @@ export function getPackagesUpdates(csrf: string): Promise<UpdateList> {
 export function getPackagesSources(csrf: string): Promise<SourceList> {
   return request<SourceList>('/api/v1/packages/sources', { headers: { 'X-CSRF-Token': csrf } });
 }
+
+// Read-only Traefik helper integration. The browser never receives helper credentials.
+export interface TraefikResource {
+  rule?: string;
+  service?: string;
+  entrypoints?: string[];
+  tls?: boolean;
+  name: string;
+  provider: string;
+  status: string;
+}
+export interface TraefikInventory {
+  schemaVersion: number;
+  routers: TraefikResource[];
+  services: TraefikResource[];
+  middlewares: TraefikResource[];
+}
+export interface TraefikDiagnostics {
+  schemaVersion: number;
+  status: string;
+  checks: { resource: string; status: string; count?: number; code?: string; hint?: string }[];
+}
+export interface TraefikModel {
+  name: string;
+  host: string;
+  port: number;
+  entrypoint: string;
+  protocol: 'http' | 'https';
+  upstreamScheme: 'http' | 'https';
+  tls?: { certificateResolver?: string };
+}
+const traefikPath = '/api/v1/networking/reverse-proxy/traefik';
+export const getTraefikInventory = (csrf: string) =>
+  request<TraefikInventory>(`${traefikPath}/inventory`, { headers: { 'X-CSRF-Token': csrf } });
+export const getTraefikDiagnostics = (csrf: string) =>
+  request<TraefikDiagnostics>(`${traefikPath}/diagnostics`, { headers: { 'X-CSRF-Token': csrf } });
+export const previewTraefikLabels = (model: TraefikModel, csrf: string) =>
+  postJSON<{ labels: Record<string, string> }>(`${traefikPath}/labels`, csrf, model);
+
+export interface ComposeService {
+  replicaCount?: number;
+  unsupportedNetworking?: boolean;
+  unsupportedDeployment?: boolean;
+  id: string;
+  compose: boolean;
+  project?: string;
+  service?: string;
+  container: string;
+  state: string;
+  ports: { port: number; protocol: string }[];
+  networks: string[];
+  traefikLabels: Record<string, string>;
+  hiddenTraefikSettings: boolean;
+}
+export interface ComposeCatalog {
+  source: string;
+  fixture: boolean;
+  services: ComposeService[];
+  traefik: { networks: string[]; entrypoints: string[]; resolvers: string[]; dockerProvider: boolean | null };
+}
+export interface ProxySummary {
+  application: string;
+  targetService: string;
+  container: string;
+  hostname: string;
+  internalPort: number;
+  protocol: string;
+  upstreamScheme: string;
+  certificateResolver: string;
+  network: string;
+  entrypoint: string;
+}
+export interface ComposeProposal {
+  summary?: ProxySummary;
+  schemaVersion: number;
+  source: string;
+  fixture: boolean;
+  project: string;
+  service: string;
+  existing: { labels: Record<string, string>; networks: string[] };
+  proposed: { labels: Record<string, string>; networks: string[] };
+  changes: { path: string[]; before: string | null; after: string }[];
+  warnings: { code: string; message: string }[];
+  blockers: { code: string; message: string }[];
+  applyAvailable: boolean;
+  sourceFileVerified: boolean;
+  preservedFields: string[];
+}
+export const getComposeApplications = (csrf: string) =>
+  request<ComposeCatalog>(`${traefikPath}/applications`, { headers: { 'X-CSRF-Token': csrf } });
+export const previewCompose = (
+  body: { serviceId: string; network: string; model: TraefikModel; confirmUnverifiedPort?: boolean },
+  csrf: string,
+) => postJSON<ComposeProposal>(`${traefikPath}/compose-preview`, csrf, body);
+
+// Container platform registry (CORE). Connection details never reach the browser.
+export type PlatformCapability =
+  | 'workloads.read'
+  | 'services.read'
+  | 'ports.read'
+  | 'networks.read'
+  | 'namespaces.read'
+  | 'health.read'
+  | 'routing.preview.compose-labels'
+  | 'routing.preview.kubernetes-ingress'
+  | 'routing.preview.traefik-ingressroute'
+  | 'routing.preview.gateway-httproute'
+  | 'routing.apply';
+export interface PlatformView {
+  id: string;
+  displayName: string;
+  kind: 'docker' | 'podman' | 'kubernetes';
+  distribution: string;
+  mode: 'rootless' | 'rootful' | 'cluster';
+  authentication: string;
+  endpoint: { transport: string; label: string; fingerprint: string };
+  fixture: boolean;
+  capabilities: {
+    declared: PlatformCapability[];
+    detected: PlatformCapability[];
+    unsupported: { capability: PlatformCapability; reason: string }[];
+  };
+  health: { status: string; checkedAt?: string; reason: string };
+  policy: { readScope: string; previewScope: string; apply: string };
+}
+export interface PlatformRef {
+  platform: string;
+  kind: string;
+  namespace?: string;
+  name: string;
+  uid: string;
+}
+export interface PlatformPort {
+  port: number;
+  protocol: string;
+  name?: string;
+  target?: string;
+}
+export interface PlatformWorkload {
+  ref: PlatformRef;
+  group?: string;
+  component?: string;
+  state: string;
+  replicas: number;
+  readyReplicas: number;
+  ports: PlatformPort[];
+  networks: string[];
+  services: PlatformRef[];
+  routingLabels: Record<string, string>;
+  hiddenRouting: boolean;
+  issues: string[];
+}
+export interface PlatformService {
+  ref: PlatformRef;
+  type: string;
+  ports: PlatformPort[];
+  selects: PlatformRef[];
+}
+export interface PlatformInventory {
+  platform: string;
+  fixture: boolean;
+  distribution: string;
+  version?: string;
+  workloads: PlatformWorkload[];
+  services: PlatformService[];
+  networks: { ref: PlatformRef; traefikAttached: boolean }[];
+  namespaces: string[];
+  routing: { kind: string; available: boolean | null; classes: string[]; detail: string }[];
+  entrypoints: string[];
+  resolvers: string[];
+  capabilities: PlatformView['capabilities'];
+}
+export interface PlatformPreview {
+  schemaVersion: number;
+  platform: PlatformView;
+  target: PlatformCapability;
+  format: 'compose-labels' | 'kubernetes-manifests';
+  workload: PlatformRef;
+  service?: PlatformRef;
+  compose?: ComposeProposal;
+  manifests?: unknown[];
+  warnings: { code: string; message: string }[];
+  blockers: { code: string; message: string }[];
+  applyAvailable: boolean;
+  deployable: boolean;
+  validation: { check: string; status: string }[];
+}
+/** Stable selection key, identical to the server's Ref.Key(). */
+export const platformRefKey = (r: PlatformRef) =>
+  `${r.platform}/${r.kind}/${r.namespace || '-'}/${r.name}/${r.uid}`;
+export const getPlatforms = (csrf: string) =>
+  request<{ platforms: PlatformView[]; autoSelected: string | null }>('/api/v1/platforms', {
+    headers: { 'X-CSRF-Token': csrf },
+  });
+export const getPlatformInventory = (id: string, csrf: string) =>
+  request<{ platform: PlatformView; inventory: PlatformInventory }>(
+    `/api/v1/platforms/${encodeURIComponent(id)}/inventory`,
+    { headers: { 'X-CSRF-Token': csrf } },
+  );
+export const previewPlatform = (
+  body: {
+    platform: string;
+    target: PlatformCapability;
+    workload: string;
+    service?: string;
+    network?: string;
+    routeClass?: string;
+    model: TraefikModel;
+  },
+  csrf: string,
+) => postJSON<PlatformPreview>(`${traefikPath}/platform-preview`, csrf, body);

@@ -49,6 +49,7 @@ export function Icon({ name }: { name: IconName }) {
 /** Navigation icon for a capability id; unknown modules get the neutral "unknown" glyph. */
 export const NAV_ICONS: Record<string, IconName> = {
   overview: 'overview',
+  traefik: 'system',
   services: 'system',
   hardware: 'hardware',
   storage: 'hardware',
