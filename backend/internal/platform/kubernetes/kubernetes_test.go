@@ -249,3 +249,51 @@ func TestKubernetesFailsClosed(t *testing.T) {
 		}
 	}
 }
+
+// Identity is reported from the pod template only (observed, never desired),
+// with container scope overriding pod scope, and invalid values fail closed.
+func TestObservedIdentityFromPodTemplate(t *testing.T) {
+	a, err := NewFixture()
+	if err != nil {
+		t.Fatal(err)
+	}
+	inv, err := a.Inventory(context.Background(), "k3s-fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, w := range inv.Workloads {
+		switch w.Ref.Name {
+		case "notes":
+			if w.Identity != nil {
+				t.Fatal("no securityContext must mean no reported identity", w.Identity)
+			}
+		case "gallery":
+			o := w.Identity
+			if o == nil || *o.UID != 3100 || *o.GID != 3000 || len(o.SupplementalGroups) != 2 || o.SupplementalGroups[1] != 5000 || o.Source != "kubernetes-pod-template" || o.Varies {
+				t.Fatalf("%+v", o)
+			}
+		}
+	}
+	neg := int64(-1)
+	big := int64(4294967295)
+	one, two := int64(1), int64(2)
+	for name, tc := range map[string]struct {
+		pod *securityContext
+		cs  []podContainer
+		ok  bool
+	}{
+		"negative uid":             {&securityContext{RunAsUser: &neg}, nil, false},
+		"reserved uid":             {&securityContext{RunAsGroup: &big}, nil, false},
+		"negative group":           {&securityContext{SupplementalGroups: []int64{5, -3}}, nil, false},
+		"container groups invalid": {nil, []podContainer{{SecurityContext: &securityContext{SupplementalGroups: []int64{5}}}}, false},
+		"varying containers":       {&securityContext{RunAsUser: &one}, []podContainer{{SecurityContext: &securityContext{RunAsUser: &one}}, {SecurityContext: &securityContext{RunAsUser: &two}}}, true},
+	} {
+		o, err := observedIdentity(tc.pod, tc.cs)
+		if (err == nil) != tc.ok {
+			t.Fatal(name, err)
+		}
+		if name == "varying containers" && (!o.Varies || *o.UID != 1) {
+			t.Fatal(name, o)
+		}
+	}
+}

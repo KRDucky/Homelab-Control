@@ -165,6 +165,25 @@ type Workload struct {
 	Issues        []string          `json:"issues"`
 	// Selector is server-side only (Kubernetes pod template labels).
 	Selector map[string]string `json:"-"`
+	// Identity is what the platform reports about the workload's process
+	// identity. Nil means the platform (or its metadata source) does not
+	// report it; it is never inferred. Desired identity settings live in
+	// CORE's containeridentity model, never here.
+	Identity *ObservedIdentity `json:"identity,omitempty"`
+}
+
+// ObservedIdentity is platform-reported identity. For Kubernetes it is the
+// identity declared in the running pod template (pod scope, overridden by a
+// uniform container scope); fields that are not set there stay nil because
+// the image's USER then applies and the API does not report it.
+type ObservedIdentity struct {
+	UID                *uint32  `json:"uid,omitempty"`
+	GID                *uint32  `json:"gid,omitempty"`
+	SupplementalGroups []uint32 `json:"supplementalGroups,omitempty"`
+	// Varies is true when containers in the pod declare different identities;
+	// UID/GID then hold only the pod-level values.
+	Varies bool   `json:"varies,omitempty"`
+	Source string `json:"source"`
 }
 
 type Service struct {
