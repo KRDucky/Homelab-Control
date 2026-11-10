@@ -21,6 +21,16 @@ import (
 // is defined in docs/project/03-SECURITY-AND-OPERATIONS.md; M0 only grants and
 // uses system.read.
 const (
+	// ScopeNetworkingProxyRead allows Traefik inspection and pure label previews, never apply. Not granted by default.
+	ScopeNetworkingProxyRead = "networking.proxy.read"
+	ScopeComposeRead         = "docker.compose.read"
+	// ScopePlatformsRead lists administrator-registered container platforms
+	// (no connection details). Each platform additionally requires its own
+	// family scope: docker.compose.read, podman.read or kubernetes.read. No
+	// platform scope implies another. Not granted by default.
+	ScopePlatformsRead  = "platforms.read"
+	ScopePodmanRead     = "podman.read"
+	ScopeKubernetesRead = "kubernetes.read"
 	// ScopeStorageRead allows storage metadata and identifying labels. Never granted by default.
 	ScopeStorageRead  = "storage.read"
 	ScopeSystemRead   = "system.read"   // overview, legacy Webmin status
@@ -77,6 +87,11 @@ const (
 // users file are rejected at load time so typos cannot silently grant nothing
 // (or, in later milestones, the wrong thing). All M1 scopes are read-only.
 var KnownScopes = map[string]bool{
+	ScopeNetworkingProxyRead: true,
+	ScopeComposeRead:         true,
+	ScopePlatformsRead:       true,
+	ScopePodmanRead:          true,
+	ScopeKubernetesRead:      true,
 	ScopeStorageRead:         true,
 	ScopeSystemRead:          true,
 	ScopeServicesRead:        true,

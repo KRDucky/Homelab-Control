@@ -12,16 +12,19 @@ import (
 
 func TestRegistryIsClosed(t *testing.T) {
 	all := All()
-	if len(all) != 2 || all[0].ID != "services" || all[0].APIPrefix != "/api/v1/services" || all[0].OpPrefix != "services." {
+	if len(all) != 3 || all[0].ID != "services" || all[0].APIPrefix != "/api/v1/services" || all[0].OpPrefix != "services." {
 		t.Fatalf("registry: %+v (new modules need review)", all)
 	}
 	if all[1].ID != "packages" || all[1].APIPrefix != "/api/v1/packages" || all[1].OpPrefix != "packages." || all[1].Path != "/software" || len(all[1].Scopes) != 1 || all[1].Scopes[0] != "packages.read" {
 		t.Fatalf("packages module: %+v (new modules need review)", all[1])
 	}
+	if all[2].ID != "networking" || all[2].OpPrefix != "" {
+		t.Fatalf("networking registry: %+v", all[2])
+	}
 	for path, want := range map[string]string{"/api/v1/services": "services", "/api/v1/services/units/{unit}/plan": "services",
 		"/api/v1/servicesx": "", "/api/v1/audit": "", "/api/v1/operations": "", "/api/v1/capabilities": "",
 		"/api/v1/files": "", "/api/v1/files/roots": "", "/api/v1/files/entries": "", "/": "",
-		"/api/v1/packages": "packages", "/api/v1/packages/search": "packages", "/api/v1/packagesx": ""} {
+		"/api/v1/networking/reverse-proxy/traefik/inventory": "networking", "/api/v1/networkingx": "", "/api/v1/packages": "packages", "/api/v1/packages/search": "packages", "/api/v1/packagesx": ""} {
 		if got := ForRoute(path); got != want {
 			t.Errorf("ForRoute(%q) = %q, want %q", path, got, want)
 		}
@@ -78,7 +81,7 @@ func TestLoadFailsClosed(t *testing.T) {
 		t.Fatal("symlinked setting must fail closed")
 	}
 	_ = os.WriteFile(p, []byte(`{"version":1,"disabled":["nope"]}`), 0o644)
-	if s := LoadOrFailClosed(p, false); s.Enabled("services") || len(s.Disabled()) != 2 {
+	if s := LoadOrFailClosed(p, false); s.Enabled("services") || len(s.Disabled()) != 3 {
 		t.Fatal("invalid setting must disable every module")
 	}
 }
