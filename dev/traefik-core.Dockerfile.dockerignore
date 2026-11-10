@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+.git
+compat
+.dev
+work
+build
+**/node_modules
+**/dist
+**/.env*
+**/*.tsbuildinfo
+
+!backend/internal/webui/dist/
+!backend/internal/webui/dist/README.md
