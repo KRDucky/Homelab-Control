@@ -4,7 +4,7 @@
 
 import { activeTheme, applyTheme } from './theme';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 
 /*
  * Appearance and layout preferences (HCIS step 3; docs/ui/06 §6.5, ADR 0010).
@@ -117,7 +117,10 @@ export function usePreferences() {
     applyPreferences(prefs);
   }, [prefs]);
 
-  useEffect(() => {
+  // Subscribe in a layout effect: it runs in the same commit that shows the UI, so a storage
+  // event dispatched once the shell is visible (another tab, or a test) cannot fall into the gap
+  // before a passive effect would have attached the listener.
+  useLayoutEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === STORAGE_KEY || e.key === null) {
         // Prefer localStorage: a real other-tab write is already committed, and some test

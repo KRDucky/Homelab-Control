@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Icon } from './icons';
 import { navigate } from './router';
 import { activeTheme, activateTheme } from './theme';
@@ -102,7 +102,8 @@ export function AppearanceMenu({
   const [sampleLoaded, setSampleLoaded] = useState(() => isContributionEnabled('overview.sample-card'));
   // Keep the checkbox in sync with any load/unload (this menu or another tab), the same way
   // PluginContributions subscribes to hc-plugins-change and storage.
-  useEffect(() => {
+  // Layout effect: listening from the same commit that renders the menu (see usePreferences).
+  useLayoutEffect(() => {
     const sync = () => setSampleLoaded(isContributionEnabled('overview.sample-card'));
     window.addEventListener('hc-plugins-change', sync);
     window.addEventListener('storage', sync);
