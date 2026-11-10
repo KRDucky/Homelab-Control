@@ -32,6 +32,7 @@ import (
 	"homelab-control/backend/internal/audit"
 	"homelab-control/backend/internal/auth"
 	"homelab-control/backend/internal/composediscovery"
+	"homelab-control/backend/internal/containeridentity"
 	"homelab-control/backend/internal/filesinfo"
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
@@ -62,6 +63,7 @@ type Server struct {
 	traefik          traefikclient.Helper
 	discovery        composediscovery.Provider
 	platforms        *platform.Registry
+	identity         *containeridentity.Config
 	storageCollect   func(context.Context) (storageinfo.Graph, error)
 	storageSem       chan struct{}
 	storageSnapshots StorageSnapshotStore
@@ -140,6 +142,8 @@ func (s *Server) routes() {
 	s.handle("POST /api/v1/networking/reverse-proxy/traefik/platform-preview", auth.ScopeNetworkingProxyRead, s.handlePlatformPreview)
 	s.handle("GET /api/v1/platforms", auth.ScopePlatformsRead, s.handlePlatforms)
 	s.handle("GET /api/v1/platforms/{id}/inventory", auth.ScopePlatformsRead, s.handlePlatformInventory)
+	s.handle("GET /api/v1/containers/identity/profiles", auth.ScopePlatformsRead, s.handleIdentityProfiles)
+	s.handle("POST /api/v1/containers/identity/preview", auth.ScopePlatformsRead, s.handleIdentityPreview)
 	s.handle("GET /api/v1/health", scopePublic, s.handleHealth)
 	s.handle("POST /api/v1/auth/login", scopePublic, s.handleLogin)
 	s.handle("GET /api/v1/auth/oidc", scopePublic, s.handleOIDCStatus)

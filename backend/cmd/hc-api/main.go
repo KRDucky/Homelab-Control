@@ -29,6 +29,7 @@ import (
 	"homelab-control/backend/internal/broker/proto"
 	"homelab-control/backend/internal/brokerclient"
 	"homelab-control/backend/internal/composediscovery"
+	"homelab-control/backend/internal/containeridentity"
 	"homelab-control/backend/internal/dockerbroker"
 	"homelab-control/backend/internal/filesinfo"
 	"homelab-control/backend/internal/hostinfo"
@@ -58,6 +59,7 @@ func main() {
 	metadataRouting := flag.String("docker-metadata-routing-config", "", "read-only administrator-approved preview context JSON")
 	composeFixture := flag.Bool("compose-discovery-fixture", false, "development-only demonstration Compose metadata; no Docker access")
 	platformFixtures := flag.Bool("platform-fixtures", false, "development-only labeled Podman and K3s demonstration platforms; no runtime access")
+	identityConfig := flag.String("container-identity-config", "", "optional private JSON with per-platform container identity defaults, ID maps, group tables and roles")
 	devHTTP := flag.Bool("dev-insecure-http", false, "allow plain HTTP; only permitted on loopback addresses")
 	origins := flag.String("allowed-origins", "", "comma-separated extra origins allowed for unsafe requests")
 	legacyURL := flag.String("legacy-url", "", "URL of the legacy Webmin UI to link to (optional)")
@@ -232,6 +234,20 @@ func main() {
 			log.Fatal("container platform registry configuration is invalid")
 		}
 		srv.WithPlatforms(registry)
+		if *identityConfig != "" {
+			cfg, err := containeridentity.LoadConfig(*identityConfig)
+			if err != nil {
+				log.Fatal("container identity configuration invalid")
+			}
+			for id := range cfg.Platforms {
+				if !registry.Has(id) {
+					log.Fatal("container identity configuration names an unregistered platform")
+				}
+			}
+			srv.WithContainerIdentity(cfg)
+		}
+	} else if *identityConfig != "" {
+		log.Fatal("container identity configuration requires a registered container platform")
 	}
 	if *brokerSocket != "" {
 		srv.WithBroker(brokerclient.New(*brokerSocket))

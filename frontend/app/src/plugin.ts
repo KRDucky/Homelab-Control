@@ -32,6 +32,30 @@ export interface PluginDocument {
   version: string;
   license: string;
   contributions: ContributionId[];
+  /** Optional, declarative container runtime support. It grants nothing; CORE validates it again. */
+  runtime?: { container: ContainerRuntime };
+}
+
+/**
+ * `runtime.container`: what a plugin's container image supports. Mirrors the CORE parser in
+ * `backend/internal/containeridentity/manifest.go`; both refuse unknown keys and inconsistencies.
+ */
+export interface ContainerRuntime {
+  supportedPlatforms: Array<'docker' | 'podman' | 'kubernetes'>;
+  deploymentMethods: Array<'compose' | 'kubernetes-manifest'>;
+  identity: {
+    configurable: boolean;
+    method: 'env' | 'runtime-user' | 'fixed';
+    uidVariable?: string;
+    gidVariable?: string;
+    fixedUid?: number;
+    fixedGid?: number;
+    umask: { method: 'env' | 'entrypoint' | 'none'; variable?: string };
+    supplementalGroups: boolean;
+  };
+  privileged: boolean;
+  capabilities: string[];
+  volumes: Array<{ name: string; target: string; access: 'ro' | 'rw' }>;
 }
 
 /** Browser-local enabled-contribution store. A new key: never reuses `hc.preferences.v1`. */
@@ -138,7 +162,7 @@ function isObject(x: unknown): x is Record<string, unknown> {
 export function parsePlugin(text: string): PluginDocument {
   const d = strictParse(text);
   if (!isObject(d)) throw new Error('Expected a plugin object.');
-  const allowed = ['schemaVersion', 'id', 'name', 'version', 'license', 'contributions'];
+  const allowed = ['schemaVersion', 'id', 'name', 'version', 'license', 'contributions', 'runtime'];
   for (const key of Object.keys(d))
     if (!allowed.includes(key))
       throw new Error(
@@ -161,7 +185,121 @@ export function parsePlugin(text: string): PluginDocument {
     if (typeof id !== 'string' || !(CONTRIBUTION_IDS as readonly string[]).includes(id))
       throw new Error(`Unknown contribution ID: ${String(id)}.`);
   }
+  if ('runtime' in d) {
+    if (!isObject(d.runtime)) throw new Error('runtime must be an object.');
+    exactKeys(d.runtime, ['container'], [], 'runtime');
+    parseContainerRuntime(d.runtime.container);
+  }
   return d as unknown as PluginDocument;
+}
+
+const ENV_NAME = /^[A-Z][A-Z0-9_]{0,63}$/;
+const CAP_NAME = /^[A-Z][A-Z_]{1,31}$/;
+const VOLUME_NAME = /^[a-z][a-z0-9-]{0,31}$/;
+const MAX_ID = 4294967294;
+
+function exactKeys(o: Record<string, unknown>, required: string[], optional: string[], where: string) {
+  for (const k of Object.keys(o))
+    if (!required.includes(k) && !optional.includes(k)) throw new Error(`Unknown key in ${where}: ${k}.`);
+  for (const k of required) if (!(k in o)) throw new Error(`Missing ${where}.${k}.`);
+}
+
+function stringSet(v: unknown, allowed: readonly string[], field: string): string[] {
+  if (
+    !Array.isArray(v) ||
+    v.length === 0 ||
+    new Set(v).size !== v.length ||
+    !v.every((x) => allowed.includes(x))
+  )
+    throw new Error(`${field} must be a non-empty list of unique known values.`);
+  return v as string[];
+}
+
+function cleanAbsolute(p: unknown): boolean {
+  if (typeof p !== 'string' || !p.startsWith('/') || p === '/' || p.length > 200) return false;
+  const parts = p.slice(1).split('/');
+  return parts.every((x) => x !== '' && x !== '.' && x !== '..');
+}
+
+/** Validates `runtime.container` with the same rules as CORE. */
+export function parseContainerRuntime(v: unknown): ContainerRuntime {
+  if (!isObject(v)) throw new Error('runtime.container must be an object.');
+  exactKeys(
+    v,
+    ['supportedPlatforms', 'deploymentMethods', 'identity', 'privileged', 'capabilities', 'volumes'],
+    [],
+    'runtime.container',
+  );
+  const platforms = stringSet(v.supportedPlatforms, ['docker', 'podman', 'kubernetes'], 'supportedPlatforms');
+  const methods = stringSet(v.deploymentMethods, ['compose', 'kubernetes-manifest'], 'deploymentMethods');
+  if (methods.includes('kubernetes-manifest') !== platforms.includes('kubernetes'))
+    throw new Error('kubernetes-manifest deployment and the kubernetes platform must be declared together.');
+  if (typeof v.privileged !== 'boolean') throw new Error('privileged must be a boolean.');
+  const caps = v.capabilities;
+  if (
+    !Array.isArray(caps) ||
+    caps.length > 16 ||
+    !caps.every((c) => typeof c === 'string' && CAP_NAME.test(c) && !c.startsWith('CAP_'))
+  )
+    throw new Error('capabilities must be Linux capability names without the CAP_ prefix.');
+  const vols = v.volumes;
+  if (!Array.isArray(vols) || vols.length > 16) throw new Error('At most 16 volumes.');
+  const names = new Set<string>();
+  for (const vol of vols) {
+    if (!isObject(vol)) throw new Error('Each volume must be an object.');
+    exactKeys(vol, ['name', 'target', 'access'], [], 'volume');
+    if (
+      typeof vol.name !== 'string' ||
+      !VOLUME_NAME.test(vol.name) ||
+      names.has(vol.name) ||
+      !cleanAbsolute(vol.target) ||
+      (vol.access !== 'ro' && vol.access !== 'rw')
+    )
+      throw new Error('Volumes need a unique name, a clean absolute target and access ro or rw.');
+    names.add(vol.name);
+  }
+  const id = v.identity;
+  if (!isObject(id)) throw new Error('identity must be an object.');
+  exactKeys(
+    id,
+    ['configurable', 'method', 'umask', 'supplementalGroups'],
+    ['uidVariable', 'gidVariable', 'fixedUid', 'fixedGid'],
+    'identity',
+  );
+  if (typeof id.configurable !== 'boolean' || typeof id.supplementalGroups !== 'boolean')
+    throw new Error('identity.configurable and identity.supplementalGroups must be booleans.');
+  if (id.method !== 'env' && id.method !== 'runtime-user' && id.method !== 'fixed')
+    throw new Error('identity.method must be env, runtime-user or fixed.');
+  if (id.configurable === (id.method === 'fixed'))
+    throw new Error('identity.configurable must be false exactly when identity.method is fixed.');
+  const hasVars = 'uidVariable' in id || 'gidVariable' in id;
+  if (id.method === 'env') {
+    if (
+      typeof id.uidVariable !== 'string' ||
+      typeof id.gidVariable !== 'string' ||
+      !ENV_NAME.test(id.uidVariable) ||
+      !ENV_NAME.test(id.gidVariable) ||
+      id.uidVariable === id.gidVariable
+    )
+      throw new Error('The env method requires distinct uidVariable and gidVariable.');
+  } else if (hasVars) throw new Error('uidVariable/gidVariable are only valid with the env method.');
+  const hasFixed = 'fixedUid' in id || 'fixedGid' in id;
+  if (id.method === 'fixed') {
+    for (const n of [id.fixedUid, id.fixedGid])
+      if (!Number.isInteger(n) || (n as number) < 0 || (n as number) > MAX_ID)
+        throw new Error('fixedUid/fixedGid must be valid IDs.');
+    if (id.fixedUid === 0) throw new Error('A fixed identity of UID 0 (root) is not accepted.');
+  } else if (hasFixed) throw new Error('fixedUid/fixedGid are only valid with the fixed method.');
+  const um = id.umask;
+  if (!isObject(um)) throw new Error('identity.umask must be an object.');
+  exactKeys(um, ['method'], ['variable'], 'identity.umask');
+  if (um.method === 'env' || um.method === 'entrypoint') {
+    if (typeof um.variable !== 'string' || !ENV_NAME.test(um.variable))
+      throw new Error('identity.umask.variable is required.');
+  } else if (um.method === 'none') {
+    if ('variable' in um) throw new Error('identity.umask.variable is only valid with env or entrypoint.');
+  } else throw new Error('identity.umask.method must be env, entrypoint or none.');
+  return v as unknown as ContainerRuntime;
 }
 
 // --- Browser-only persistence below (not part of the SDK runtime). ---

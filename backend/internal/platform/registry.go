@@ -135,6 +135,16 @@ func (r *Registry) Len() int {
 	return len(r.entries)
 }
 
+// Has reports whether an administrator registered the platform ID. It is
+// for startup configuration checks only, never for authorization.
+func (r *Registry) Has(id string) bool {
+	if r == nil {
+		return false
+	}
+	_, ok := r.byID[id]
+	return ok
+}
+
 // Visible lists only platforms whose platform-specific scope the caller holds.
 func (r *Registry) Visible(has Scopes) []PublicView {
 	out := []PublicView{}
@@ -238,6 +248,18 @@ const (
 // resource carries this platform's ID, names and counts are bounded, and the
 // adapter cannot claim capabilities it did not declare (or apply at all).
 func validateInventory(inv *Inventory, id string, d Descriptor, declared []Capability) error {
+	for _, w := range inv.Workloads {
+		if o := w.Identity; o != nil {
+			if len(o.SupplementalGroups) > 64 || o.Source == "" || len(o.Source) > 64 {
+				return ErrUnavailable
+			}
+			for _, v := range append([]*uint32{o.UID, o.GID}, nil) {
+				if v != nil && *v == 4294967295 {
+					return ErrUnavailable
+				}
+			}
+		}
+	}
 	if inv.Platform != id || inv.Fixture != d.Fixture || len(inv.Workloads) > maxWorkloads || len(inv.Services) > maxServices || len(inv.Networks) > maxNetworks || len(inv.Namespaces) > maxNetworks {
 		return ErrUnavailable
 	}
