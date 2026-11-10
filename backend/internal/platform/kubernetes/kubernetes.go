@@ -149,10 +149,8 @@ type workloadItem struct {
 				Labels map[string]string `json:"labels"`
 			} `json:"metadata"`
 			Spec struct {
-				Containers []struct {
-					Name  string          `json:"name"`
-					Ports []containerPort `json:"ports"`
-				} `json:"containers"`
+				SecurityContext *securityContext `json:"securityContext"`
+				Containers      []podContainer   `json:"containers"`
 			} `json:"spec"`
 		} `json:"template"`
 	} `json:"spec"`
@@ -444,6 +442,11 @@ func (a *Adapter) collectNamespace(ctx context.Context, id, ns string, gateway, 
 				}
 			}
 			slices.SortFunc(w.Ports, func(x, y platform.Port) int { return x.Port - y.Port })
+			ident, err := observedIdentity(it.Spec.Template.Spec.SecurityContext, it.Spec.Template.Spec.Containers)
+			if err != nil {
+				return platform.ErrUnavailable
+			}
+			w.Identity = ident
 			st.workloads = append(st.workloads, w)
 		}
 	}
@@ -606,3 +609,94 @@ func (a *Adapter) Inventory(ctx context.Context, id string) (platform.Inventory,
 
 var _ platform.Adapter = (*Adapter)(nil)
 var _ platform.Previewer = (*Adapter)(nil)
+
+// securityContext holds the identity fields of a Pod or container security
+// context. supplementalGroups is valid only at pod scope in the Kubernetes API.
+type securityContext struct {
+	RunAsUser          *int64  `json:"runAsUser"`
+	RunAsGroup         *int64  `json:"runAsGroup"`
+	SupplementalGroups []int64 `json:"supplementalGroups"`
+}
+
+func idOK(v *int64) (*uint32, bool) {
+	if v == nil {
+		return nil, true
+	}
+	if *v < 0 || *v > 4294967294 {
+		return nil, false
+	}
+	u := uint32(*v)
+	return &u, true
+}
+
+// observedIdentity reports the identity declared in a pod template. Values
+// absent from the template stay nil (the image's USER applies, which the API
+// does not report). Out-of-range values make the inventory fail closed.
+type podContainer struct {
+	Name            string           `json:"name"`
+	Ports           []containerPort  `json:"ports"`
+	SecurityContext *securityContext `json:"securityContext"`
+}
+
+func observedIdentity(pod *securityContext, containers []podContainer) (*platform.ObservedIdentity, error) {
+	o := &platform.ObservedIdentity{Source: "kubernetes-pod-template"}
+	if pod != nil {
+		var ok1, ok2 bool
+		if o.UID, ok1 = idOK(pod.RunAsUser); !ok1 {
+			return nil, errBadIdentity
+		}
+		if o.GID, ok2 = idOK(pod.RunAsGroup); !ok2 {
+			return nil, errBadIdentity
+		}
+		if len(pod.SupplementalGroups) > 64 {
+			return nil, errBadIdentity
+		}
+		for _, g := range pod.SupplementalGroups {
+			v, ok := idOK(&g)
+			if !ok {
+				return nil, errBadIdentity
+			}
+			o.SupplementalGroups = append(o.SupplementalGroups, *v)
+		}
+	}
+	// A container-level runAsUser/runAsGroup overrides the pod level. Report
+	// it only when every container agrees; otherwise mark the pod as varying.
+	var cu, cg *uint32
+	for i, c := range containers {
+		sc := c.SecurityContext
+		var u, g *uint32
+		if sc != nil {
+			var ok1, ok2 bool
+			if u, ok1 = idOK(sc.RunAsUser); !ok1 {
+				return nil, errBadIdentity
+			}
+			if g, ok2 = idOK(sc.RunAsGroup); !ok2 {
+				return nil, errBadIdentity
+			}
+			if len(sc.SupplementalGroups) > 0 {
+				return nil, errBadIdentity // not valid at container scope
+			}
+		}
+		if i == 0 {
+			cu, cg = u, g
+		} else if !eqU(cu, u) || !eqU(cg, g) {
+			o.Varies = true
+		}
+	}
+	if !o.Varies {
+		if cu != nil {
+			o.UID = cu
+		}
+		if cg != nil {
+			o.GID = cg
+		}
+	}
+	if o.UID == nil && o.GID == nil && o.SupplementalGroups == nil && !o.Varies {
+		return nil, nil
+	}
+	return o, nil
+}
+
+func eqU(a, b *uint32) bool { return (a == nil && b == nil) || (a != nil && b != nil && *a == *b) }
+
+var errBadIdentity = platform.ErrUnavailable

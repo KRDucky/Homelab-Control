@@ -24,6 +24,15 @@ components:
       in: header
       name: X-CSRF-Token
   schemas:
+    ContainerIdentitySettings:
+      type: object
+      additionalProperties: false
+      description: One configuration layer. Absent fields are not set by this layer; supplementalGroups [] explicitly means no extra groups.
+      properties:
+        uid: { type: integer, minimum: 0, maximum: 4294967294 }
+        gid: { type: integer, minimum: 0, maximum: 4294967294 }
+        umask: { type: string, pattern: '^0?[0-7]{3}$' }
+        supplementalGroups: { type: array, maxItems: 32, items: { type: integer, minimum: 0, maximum: 4294967294 } }
     Error:
       type: object
       required: [error, message]
@@ -1124,6 +1133,49 @@ paths:
         '403': { description: Missing scope or invalid CSRF/Origin }
         '404': { description: Unknown or unauthorized platform }
         '503': { description: Platform metadata or audit unavailable }
+  /containers/identity/profiles:
+    get:
+      summary: Reusable container identity and permission profiles
+      x-required-scope: platforms.read
+      security: [{ session: [], csrf: [] }]
+      description: Lists the built-in profiles (UMASK and group roles only; never host UIDs/GIDs), the identity modes (image, inherit, custom) and the host group names treated as privileged. Requires at least one registered platform. Read-only; audited.
+      responses:
+        '200': { description: Profiles, modes and privileged group names }
+        '400': { description: Query parameters unsupported }
+        '401': { description: Session required }
+        '403': { description: Missing scope or invalid CSRF/Origin }
+        '503': { description: No platform registered or audit unavailable }
+  /containers/identity/preview:
+    post:
+      summary: Resolve and preview PUID/PGID, UMASK and supplemental groups for one platform (never applies)
+      x-required-scope: platforms.read
+      security: [{ session: [], csrf: [] }]
+      description: Also requires the selected platform's family scope; unknown and unauthorized platforms both return 404. The plugin's runtime.container declaration states how the image accepts identity; nothing is inferred. Resolution order (lowest to highest) is image, platform defaults (administrator configuration), application, profile, per-container override; supplemental groups are replaced, never merged. Returns the effective values with their source layer, host IDs after the configured user-namespace map, Docker/Podman Compose fields or Kubernetes pod/container security contexts, volume compatibility (unverified unless trusted host metadata exists; proposals are never executed), blockers and warnings, and a comparison with platform-reported identity when a workload reference is given. Root identities, unsupported mechanisms and unacknowledged privileged groups are blocked, not rendered. applied and deployable are always false.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [platform, mode, runtime]
+              properties:
+                platform: { type: string, pattern: '^[a-z][a-z0-9-]{1,39}$' }
+                mode: { enum: [image, inherit, custom] }
+                runtime: { type: object, description: The plugin manifest runtime.container declaration (schemas/plugin/v1.json) }
+                application: { $ref: '#/components/schemas/ContainerIdentitySettings' }
+                profile: { type: string, maxLength: 64 }
+                override: { $ref: '#/components/schemas/ContainerIdentitySettings' }
+                acknowledgePrivilegedGroups: { type: array, maxItems: 32, items: { type: integer, minimum: 0, maximum: 4294967294 } }
+                workload: { type: string, maxLength: 512, description: Optional server-issued workload reference key from this platform's inventory }
+      responses:
+        '200': { description: Platform view, resolved identity preview and validated runtime declaration }
+        '400': { description: Invalid request or runtime declaration, or unknown workload }
+        '401': { description: Session required }
+        '403': { description: Missing scope or invalid CSRF/Origin }
+        '404': { description: Unknown or unauthorized platform }
+        '415': { description: Expected application/json }
+        '503': { description: No platform registered, platform metadata or audit unavailable }
   /health:
     get:
       summary: Liveness (public, no host data)

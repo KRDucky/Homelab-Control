@@ -5,5 +5,5 @@
   "status":{"replicas":2,"readyReplicas":2}},
  {"metadata":{"name":"gallery","namespace":"demo","uid":"b09798dd-8a32-5639-91ba-3a72989481cf"},
   "spec":{"replicas":1,"selector":{"matchLabels":{"app":"gallery"}},"template":{"metadata":{"labels":{"app":"gallery"}},
-   "spec":{"containers":[{"name":"web","image":"example.invalid/gallery:1","ports":[{"containerPort":3000}]}]}}},
+   "spec":{"securityContext":{"runAsUser":3000,"runAsGroup":3000,"supplementalGroups":[44,5000]},"containers":[{"name":"web","image":"example.invalid/gallery:1","securityContext":{"runAsUser":3100},"ports":[{"containerPort":3000}]}]}}},
   "status":{"replicas":1,"readyReplicas":0}}]}
