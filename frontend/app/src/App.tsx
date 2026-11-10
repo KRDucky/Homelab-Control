@@ -17,6 +17,7 @@ import { Audit } from './pages/Audit';
 import { Hardware } from './pages/Hardware';
 import { Storage } from './pages/Storage';
 import { FilesPage } from './pages/Files';
+import { Traefik } from './pages/Traefik';
 import { Software } from './pages/Software';
 import { HostSettingsPage } from './pages/HostSettings';
 import { Legacy } from './pages/Legacy';
@@ -173,6 +174,7 @@ export function App() {
   else if (route?.id === 'legacy')
     page = <Legacy legacyUrl={session.legacy_url} onUnauthorized={signedOut} />;
   else if (route?.id === 'overview') page = <OverviewPage onUnauthorized={signedOut} />;
+  else if (route?.id === 'traefik') page = <Traefik csrf={session.csrf_token} onUnauthorized={signedOut} />;
   else if (route?.id === 'packages') page = <Software csrf={session.csrf_token} onUnauthorized={signedOut} />;
 
   return (
@@ -189,12 +191,14 @@ export function App() {
       username={session.username}
       accountPath={ACCOUNT_PATH}
       onAccount={onAccount}
-      helperReason={caps?.broker.status === 'unavailable' ? caps.broker.reason : undefined}
+      helperReason={
+        route?.id !== 'traefik' && caps?.broker.status === 'unavailable' ? caps.broker.reason : undefined
+      }
       onSignOut={() => void signOut()}
       canOperate={canOperate}
       version={session.version}
     >
-      {caps?.broker.status === 'unavailable' && path !== '/' && routeUsable && (
+      {caps?.broker.status === 'unavailable' && route?.id !== 'traefik' && path !== '/' && routeUsable && (
         <p className="banner" role="status">
           {caps.broker.reason}
         </p>
