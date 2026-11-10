@@ -192,7 +192,8 @@ describe('capability-aware navigation', () => {
     expect(within(nav).queryByRole('link', { name: /Services/ })).toBeNull();
     expect(within(nav).getByText(/Unavailable: Helper is down/)).toBeTruthy();
     expect(within(nav).queryByRole('link', { name: /Hardware/ })).toBeNull();
-    expect(within(nav).getByText(/No permission/)).toBeTruthy();
+    expect(within(nav).queryByText(/No permission/)).toBeNull();
+    expect(within(nav).queryByText('Hardware')).toBeNull();
     expect(within(nav).getByRole('link', { name: /Legacy Webmin/ }).textContent).toContain('Limited');
     expect(screen.getByText('Privileged helper not running')).toBeTruthy();
   });

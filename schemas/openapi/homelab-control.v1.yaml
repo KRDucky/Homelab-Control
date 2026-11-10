@@ -35,7 +35,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, storage.read, host.settings.preview, host.settings.apply, layout.manage, files.read] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, storage.read, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
@@ -899,7 +899,231 @@ components:
               enabled: { type: boolean }
               signed: { type: boolean }
               third_party: { type: boolean }
+    TraefikResource:
+      type: object
+      additionalProperties: false
+      required: [name, provider, status]
+      properties:
+        name: { type: string, maxLength: 280 }
+        provider: { type: string, maxLength: 280 }
+        status: { type: string, maxLength: 280 }
+        rule: { type: string, maxLength: 262, description: Only sanitized single-host Host rules; absent means unknown }
+        service: { type: string, maxLength: 280 }
+        entrypoints: { type: array, maxItems: 32, items: { type: string, maxLength: 63 } }
+        tls: { type: boolean, description: Absent means unknown rather than HTTP }
+    TraefikInventory:
+      type: object
+      required: [schemaVersion, routers, services, middlewares]
+      properties:
+        schemaVersion: { const: 1 }
+        routers: { type: array, maxItems: 5000, items: { $ref: '#/components/schemas/TraefikResource' } }
+        services: { type: array, maxItems: 5000, items: { $ref: '#/components/schemas/TraefikResource' } }
+        middlewares: { type: array, maxItems: 5000, items: { $ref: '#/components/schemas/TraefikResource' } }
+    TraefikDiagnostics:
+      type: object
+      required: [schemaVersion, status, checks]
+      properties:
+        schemaVersion: { const: 1 }
+        status: { enum: [available, degraded, unavailable] }
+        checks:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items:
+            type: object
+            required: [resource, status]
+            properties:
+              resource: { enum: [routers, services, middlewares] }
+              status: { enum: [available, unavailable] }
+              count: { type: integer, minimum: 0, maximum: 5000 }
+              code: { type: string }
+              hint: { type: string }
+    TraefikModel:
+      type: object
+      additionalProperties: false
+      required: [name, host, port, entrypoint, protocol, upstreamScheme]
+      properties:
+        name: { type: string, pattern: '^[a-z][a-z0-9-]{0,62}$' }
+        host: { type: string, maxLength: 253, description: 'Lowercase dotted DNS hostname; each label is validated.' }
+        port: { type: integer, minimum: 1, maximum: 65535 }
+        entrypoint: { type: string, pattern: '^[a-z][a-z0-9-]{0,62}$' }
+        protocol: { enum: [http, https] }
+        upstreamScheme: { enum: [http, https] }
+        tls:
+          type: object
+          additionalProperties: false
+          properties:
+            certificateResolver: { type: string, pattern: '^[a-z][a-z0-9-]{0,62}$' }
+      allOf:
+        - if:
+            properties: { protocol: { const: https } }
+          then: { required: [tls] }
+          else: { not: { required: [tls] } }
+    TraefikPreview:
+      type: object
+      required: [labels]
+      properties:
+        labels: { type: object, additionalProperties: { type: string } }
 paths:
+  /networking/reverse-proxy/traefik/inventory:
+    get:
+      summary: Read-only Traefik inventory; no configuration is applied
+      x-required-scope: networking.proxy.read
+      security: [{ session: [], csrf: [] }]
+      description: Requires the session CSRF token on GET and POST. A present Origin must match; POST requires Origin. Requires an audit logger and configured helper. No browser-selected helper destination or helper credentials.
+      responses:
+        '200':
+          description: Read-only response
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TraefikInventory' }
+        '400': { description: Invalid or oversized model or unsupported query parameters }
+        '401': { description: Session required }
+        '403': { description: Missing permission or invalid CSRF/Origin }
+        '404': { description: Networking module disabled }
+        '415': { description: Expected JSON for preview }
+        '502': { description: Helper unreachable or response invalid }
+        '503': { description: Helper unconfigured or audit unavailable }
+  /networking/reverse-proxy/traefik/diagnostics:
+    get:
+      summary: Read-only Traefik diagnostics; no configuration is applied
+      x-required-scope: networking.proxy.read
+      security: [{ session: [], csrf: [] }]
+      description: Requires the session CSRF token on GET and POST. A present Origin must match; POST requires Origin. Requires an audit logger and configured helper. No browser-selected helper destination or helper credentials.
+      responses:
+        '200':
+          description: Read-only response
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TraefikDiagnostics' }
+        '400': { description: Invalid or oversized model or unsupported query parameters }
+        '401': { description: Session required }
+        '403': { description: Missing permission or invalid CSRF/Origin }
+        '404': { description: Networking module disabled }
+        '415': { description: Expected JSON for preview }
+        '502': { description: Helper unreachable or response invalid }
+        '503': { description: Helper unconfigured or audit unavailable }
+  /networking/reverse-proxy/traefik/labels:
+    post:
+      summary: Read-only Traefik labels; no configuration is applied
+      x-required-scope: networking.proxy.read
+      security: [{ session: [], csrf: [] }]
+      description: Requires the session CSRF token on GET and POST. A present Origin must match; POST requires Origin. Requires an audit logger and configured helper. No browser-selected helper destination or helper credentials.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TraefikModel' }
+      responses:
+        '200':
+          description: Read-only response
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TraefikPreview' }
+        '400': { description: Invalid or oversized model or unsupported query parameters }
+        '401': { description: Session required }
+        '403': { description: Missing permission or invalid CSRF/Origin }
+        '404': { description: Networking module disabled }
+        '415': { description: Expected JSON for preview }
+        '502': { description: Helper unreachable or response invalid }
+        '503': { description: Helper unconfigured or audit unavailable }
+  /networking/reverse-proxy/traefik/applications:
+    get:
+      summary: Read-only Compose discovery catalog (disabled by default)
+      x-required-scope: docker.compose.read
+      security: [{ session: [], csrf: [] }]
+      description: Requires CSRF, allowed Origin when present, audit and configured Traefik integration. Default disabled. Uses an explicitly configured authenticated Unix metadata broker or an opt-in loopback development fixture. The broker is independently authorized by peer identity and service token; no raw Docker socket is granted to CORE. Source paths are never inferred from labels. Catalog does not require the Traefik helper. Discovery failures are safe 503 responses. No mutation methods exist.
+      responses:
+        '200': { description: Explicitly identified fixture catalog with internal TCP ports, networks and safe routing labels }
+        '401': { description: Session required }
+        '403': { description: Missing scope or invalid CSRF/Origin }
+        '503': { description: Discovery disabled or audit unavailable }
+  /networking/reverse-proxy/traefik/compose-preview:
+    post:
+      summary: Validated labels and network patch proposal; never applies changes
+      x-required-scope: networking.proxy.read
+      security: [{ session: [], csrf: [] }]
+      description: Also requires docker.compose.read. Server selects discovery metadata by serviceId; network and entrypoint must be confirmed. Requires live inventory to check conflicts. Returns blockers for unsupported provider, missing internal ports/networks and conflicting labels. No full Compose file or credentials returned; unrelated fields are preserved by key-level patch design.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [serviceId, network, model]
+              properties:
+                confirmUnverifiedPort: { type: boolean, default: false, description: Required confirmation for an explicitly supplied port when no internal TCP port is known; preview remains blocked as unverified }
+                serviceId: { type: string }
+                network: { type: string }
+                model: { $ref: '#/components/schemas/TraefikModel' }
+      responses:
+        '200': { description: Backend-validated summary, existing and proposed routing labels/networks, key changes, warnings and blockers; applyAvailable and sourceFileVerified are always false }
+        '400': { description: Invalid model or unknown service/network/resolver }
+        '401': { description: Session required }
+        '403': { description: Missing either scope or invalid CSRF/Origin }
+        '415': { description: JSON required }
+        '502': { description: Inventory unavailable; conflict checks fail closed }
+        '503': { description: Discovery or audit unavailable }
+  /networking/reverse-proxy/traefik/platform-preview:
+    post:
+      summary: Platform-native routing preview (Compose labels or Kubernetes resources); never applies changes
+      x-required-scope: networking.proxy.read
+      security: [{ session: [], csrf: [] }]
+      description: Also requires platforms.read and the selected platform's family scope (docker.compose.read, podman.read or kubernetes.read). The platform, workload and Service are selected by server-issued references from the platform inventory; endpoints, sockets and credentials can never be supplied. The target must be a capability detected for that platform; Compose labels are never generated for Kubernetes. Requires live Traefik inventory for conflict checks. applyAvailable and deployable are always false; provider, placement, conflicts at apply time, TLS issuance and reachability are listed as not verified.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [platform, target, workload, model]
+              properties:
+                platform: { type: string, pattern: '^[a-z][a-z0-9-]{1,39}$' }
+                target: { type: string, enum: [routing.preview.compose-labels, routing.preview.kubernetes-ingress, routing.preview.traefik-ingressroute, routing.preview.gateway-httproute] }
+                workload: { type: string, maxLength: 512, description: Workload reference key from the platform inventory }
+                service: { type: string, maxLength: 512, description: Kubernetes Service reference key; must be empty for Compose platforms }
+                network: { type: string, description: Confirmed Traefik network (Compose platforms only) }
+                routeClass: { type: string, maxLength: 128, description: Detected IngressClass or Gateway (namespace/name); empty selects the only candidate }
+                confirmUnverifiedPort: { type: boolean, default: false }
+                model: { $ref: '#/components/schemas/TraefikModel' }
+      responses:
+        '200': { description: Preview with platform identity, native workload/Service references, compose proposal or manifests, warnings, blockers and validation items; applyAvailable and deployable are false }
+        '400': { description: Invalid request, unsupported target or unknown selection }
+        '401': { description: Session required }
+        '403': { description: Missing scope or invalid CSRF/Origin }
+        '404': { description: Unknown or unauthorized platform, or networking module disabled }
+        '415': { description: JSON required }
+        '502': { description: Traefik inventory unavailable; conflict checks fail closed }
+        '503': { description: No registry, platform metadata or audit unavailable }
+  /platforms:
+    get:
+      summary: Administrator-registered container platforms visible to the caller
+      x-required-scope: platforms.read
+      security: [{ session: [], csrf: [] }]
+      description: Lists only platforms whose family scope the caller holds (docker.compose.read, podman.read, kubernetes.read). Returns kind, distribution, mode, authentication mechanism, a non-secret endpoint label and fingerprint, declared/detected/unsupported capabilities, last health and the authorization policy. Never returns socket paths, API URLs, tokens, kubeconfigs or certificates. autoSelected is set when exactly one visible platform can produce routing previews. Registrations come from startup configuration only; there is no create/update/delete API.
+      responses:
+        '200': { description: Visible platforms and optional auto-selection }
+        '400': { description: Query parameters unsupported }
+        '401': { description: Session required }
+        '403': { description: Missing scope or invalid CSRF/Origin }
+        '503': { description: No platform registered or audit unavailable }
+  /platforms/{id}/inventory:
+    get:
+      summary: Bounded, validated read-only inventory of one platform
+      x-required-scope: platforms.read
+      security: [{ session: [], csrf: [] }]
+      description: Also requires the platform's family scope; unknown and unauthorized platforms both return 404. Every resource carries the platform ID and its native kind and identity. Inventory is validated by CORE independently of the adapter; malformed metadata fails closed. Audited per platform.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, pattern: '^[a-z][a-z0-9-]{1,39}$' } }
+      responses:
+        '200': { description: Platform view and normalized inventory (workloads, Services, networks/namespaces, routing providers, capabilities) }
+        '400': { description: Query parameters unsupported }
+        '401': { description: Session required }
+        '403': { description: Missing scope or invalid CSRF/Origin }
+        '404': { description: Unknown or unauthorized platform }
+        '503': { description: Platform metadata or audit unavailable }
   /health:
     get:
       summary: Liveness (public, no host data)

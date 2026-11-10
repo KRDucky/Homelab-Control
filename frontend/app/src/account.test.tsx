@@ -189,8 +189,9 @@ describe('audit', () => {
     });
     render(<App />);
     const nav = await screen.findByRole('navigation', { name: 'Main' });
-    await within(nav).findByText('Audit');
+    await within(nav).findByText('Overview');
+    expect(within(nav).queryByText('Audit')).toBeNull();
     expect(within(nav).queryByRole('link', { name: /Audit/ })).toBeNull();
-    expect(within(nav).getByText(/audit.read permission/)).toBeTruthy();
+    expect(within(nav).queryByText(/audit.read permission/)).toBeNull();
   });
 });

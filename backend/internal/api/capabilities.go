@@ -119,6 +119,10 @@ type moduleStatus struct {
 }
 
 type capabilitiesResponse struct {
+	ComposeDiscovery struct {
+		Status string `json:"status"`
+		Reason string `json:"reason"`
+	} `json:"compose_discovery"`
 	Modules []moduleStatus `json:"modules"`
 	Broker  struct {
 		Status  string `json:"status"` // available | unavailable
@@ -132,6 +136,12 @@ const brokerDownReason = "The privileged helper (homelab-control-broker) is not 
 
 func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess *auth.Session, _ string) {
 	var resp capabilitiesResponse
+	resp.ComposeDiscovery.Status, resp.ComposeDiscovery.Reason = CapUnavailable, "Metadata source is not configured."
+	if !sess.HasScope(auth.ScopeComposeRead) {
+		resp.ComposeDiscovery.Status, resp.ComposeDiscovery.Reason = CapForbidden, "Compose discovery requires docker.compose.read."
+	} else if s.discovery != nil {
+		resp.ComposeDiscovery.Status, resp.ComposeDiscovery.Reason = CapDegraded, "Metadata source is configured; catalog requests verify connectivity."
+	}
 	bi, berr := s.brokerInfo(r.Context(), sess)
 	if berr == nil {
 		resp.Broker.Status, resp.Broker.Version = CapAvailable, bi.Version
@@ -220,7 +230,11 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 	case packageFamilyBinary(s.packageFamily()) == "" || !slices.Contains(bi.Exec, packageFamilyBinary(s.packageFamily())):
 		packages.Status, packages.Reason = CapUnsupported, "The package manager for this distribution is not installed."
 	}
-	caps := []Capability{gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages)}
+	traefik := Capability{ID: "traefik", Label: "Networking → Reverse Proxy → Traefik", Path: "/networking/reverse-proxy/traefik", Scope: auth.ScopeNetworkingProxyRead, Status: CapAvailable}
+	if s.traefik == nil {
+		traefik.Status, traefik.Reason = CapUnavailable, "Traefik extension is not configured."
+	}
+	caps := []Capability{gate(traefik), gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages)}
 	// Navigation follows the module registry: a disabled module contributes
 	// no capability (and therefore no navigation entry).
 	resp.Capabilities = caps[:0]

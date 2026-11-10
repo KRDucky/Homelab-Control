@@ -1,0 +1,1 @@
+{"kind":"IngressRouteList","items":[{"metadata":{"name":"dash","namespace":"demo","uid":"0e99da87-09bb-5efb-9819-79b730e26876"},"spec":{"routes":[{"match":"Host(`dash.example.test`)"}]}}]}

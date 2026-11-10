@@ -1,0 +1,1 @@
+{"kind":"IngressList","items":[{"metadata":{"name":"wiki","namespace":"demo","uid":"763b3649-2602-5f88-b96f-cfa61eb24030"},"spec":{"ingressClassName":"traefik","rules":[{"host":"wiki.example.test"}]}}]}

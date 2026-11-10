@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "routing": {
+    "networks": ["hc-traefik-test"],
+    "entrypoints": ["web"],
+    "resolvers": [],
+    "dockerProvider": false
+  }
+}
