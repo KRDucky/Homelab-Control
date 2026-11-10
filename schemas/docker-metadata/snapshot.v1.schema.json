@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:homecontrol:docker-metadata:snapshot:v1",
+  "title": "HomeControl metadata-only broker snapshot v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "source",
+    "services"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "source": {
+      "const": "docker-rootless"
+    },
+    "services": {
+      "type": "array",
+      "maxItems": 500,
+      "items": {
+        "$ref": "#/$defs/service"
+      }
+    }
+  },
+  "$defs": {
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "compose",
+        "container",
+        "state",
+        "ports",
+        "networks",
+        "traefikLabels",
+        "hiddenTraefikSettings"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "compose": {
+          "type": "boolean"
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$"
+        },
+        "service": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$"
+        },
+        "container": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$"
+        },
+        "state": {
+          "enum": [
+            "created",
+            "running",
+            "paused",
+            "restarting",
+            "removing",
+            "exited",
+            "dead"
+          ]
+        },
+        "replicaCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 500
+        },
+        "unsupportedDeployment": {
+          "type": "boolean"
+        },
+        "unsupportedNetworking": {
+          "type": "boolean"
+        },
+        "ports": {
+          "type": "array",
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "port",
+              "protocol"
+            ],
+            "properties": {
+              "port": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              },
+              "protocol": {
+                "const": "tcp"
+              }
+            }
+          }
+        },
+        "networks": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$"
+          }
+        },
+        "traefikLabels": {
+          "type": "object",
+          "maxProperties": 512,
+          "propertyNames": {
+            "pattern": "^traefik\\.(enable|docker\\.network|http\\.routers\\.[a-z][a-z0-9-]{0,62}\\.(rule|entrypoints|service|tls|tls\\.certresolver)|http\\.services\\.[a-z][a-z0-9-]{0,62}\\.loadbalancer\\.server\\.(port|scheme))$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 280
+          }
+        },
+        "hiddenTraefikSettings": {
+          "type": "boolean"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "compose": {
+                "const": true
+              }
+            },
+            "required": [
+              "compose"
+            ]
+          },
+          "then": {
+            "required": [
+              "project",
+              "service"
+            ]
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "project"
+                  ]
+                },
+                {
+                  "required": [
+                    "service"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}
