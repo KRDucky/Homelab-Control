@@ -28,6 +28,60 @@ afterEach(() => {
 
 const valid = JSON.stringify(SAMPLE_PLUGIN);
 
+describe('plugin manifest runtime.container', () => {
+  const rt = {
+    supportedPlatforms: ['docker', 'podman', 'kubernetes'],
+    deploymentMethods: ['compose', 'kubernetes-manifest'],
+    identity: {
+      configurable: true,
+      method: 'env',
+      uidVariable: 'PUID',
+      gidVariable: 'PGID',
+      umask: { method: 'env', variable: 'UMASK' },
+      supplementalGroups: true,
+    },
+    privileged: false,
+    capabilities: [],
+    volumes: [{ name: 'config', target: '/config', access: 'rw' }],
+  };
+  const doc = (container: unknown) => JSON.stringify({ ...SAMPLE_PLUGIN, runtime: { container } });
+  it('accepts a declared env identity and fixed identities', () => {
+    expect(parsePlugin(doc(rt)).runtime?.container.identity.method).toBe('env');
+    const fixed = {
+      ...rt,
+      identity: {
+        configurable: false,
+        method: 'fixed',
+        fixedUid: 65532,
+        fixedGid: 65532,
+        umask: { method: 'none' },
+        supplementalGroups: false,
+      },
+    };
+    expect(parsePlugin(doc(fixed)).runtime?.container.identity.fixedUid).toBe(65532);
+    // Manifests without runtime keep working unchanged.
+    expect(parsePlugin(valid).runtime).toBeUndefined();
+  });
+  it('refuses inconsistent or unsafe declarations', () => {
+    for (const bad of [
+      { ...rt, payload: 'x' },
+      { ...rt, deploymentMethods: ['compose'] },
+      { ...rt, identity: { ...rt.identity, gidVariable: 'PUID' } },
+      { ...rt, identity: { ...rt.identity, uidVariable: 'puid' } },
+      { ...rt, identity: { ...rt.identity, method: 'magic' } },
+      { ...rt, identity: { ...rt.identity, fixedUid: 1 } },
+      { ...rt, identity: { ...rt.identity, umask: { method: 'env' } } },
+      { ...rt, privileged: 'no' },
+      { ...rt, volumes: [{ name: 'config', target: 'config', access: 'rw' }] },
+      { ...rt, volumes: [rt.volumes[0], rt.volumes[0]] },
+    ])
+      expect(() => parsePlugin(doc(bad)), JSON.stringify(bad)).toThrow();
+    expect(() =>
+      parsePlugin(JSON.stringify({ ...SAMPLE_PLUGIN, runtime: { container: rt, hooks: [] } })),
+    ).toThrow();
+  });
+});
+
 describe('plugin manifest input boundary', () => {
   it('rejects duplicate keys, polluted keys and invalid grammar', () => {
     for (const s of [

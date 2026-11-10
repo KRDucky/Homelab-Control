@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "dev.homelab-control.container-identity-example",
+  "name": "Container identity example",
+  "version": "1.0.0",
+  "license": "MIT",
+  "contributions": ["overview.sample-card"],
+  "runtime": {
+    "container": {
+      "supportedPlatforms": ["docker", "podman", "kubernetes"],
+      "deploymentMethods": ["compose", "kubernetes-manifest"],
+      "identity": {
+        "configurable": true,
+        "method": "env",
+        "uidVariable": "PUID",
+        "gidVariable": "PGID",
+        "umask": { "method": "env", "variable": "UMASK" },
+        "supplementalGroups": true
+      },
+      "privileged": false,
+      "capabilities": [],
+      "volumes": [
+        { "name": "config", "target": "/config", "access": "rw" },
+        { "name": "media", "target": "/media", "access": "ro" }
+      ]
+    }
+  }
+}

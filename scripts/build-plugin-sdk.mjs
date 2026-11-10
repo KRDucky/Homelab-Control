@@ -53,6 +53,62 @@ const schema = {
       uniqueItems: true,
       items: { enum: contributionIds },
     },
+    runtime: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['container'],
+      description: 'Optional declarative container runtime support. Grants nothing; CORE validates it again.',
+      properties: {
+        container: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['supportedPlatforms', 'deploymentMethods', 'identity', 'privileged', 'capabilities', 'volumes'],
+          properties: {
+            supportedPlatforms: { type: 'array', minItems: 1, uniqueItems: true, items: { enum: ['docker', 'podman', 'kubernetes'] } },
+            deploymentMethods: { type: 'array', minItems: 1, uniqueItems: true, items: { enum: ['compose', 'kubernetes-manifest'] } },
+            identity: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['configurable', 'method', 'umask', 'supplementalGroups'],
+              properties: {
+                configurable: { type: 'boolean' },
+                method: { enum: ['env', 'runtime-user', 'fixed'] },
+                uidVariable: { type: 'string', pattern: '^[A-Z][A-Z0-9_]{0,63}$' },
+                gidVariable: { type: 'string', pattern: '^[A-Z][A-Z0-9_]{0,63}$' },
+                fixedUid: { type: 'integer', minimum: 1, maximum: 4294967294 },
+                fixedGid: { type: 'integer', minimum: 0, maximum: 4294967294 },
+                umask: {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: ['method'],
+                  properties: {
+                    method: { enum: ['env', 'entrypoint', 'none'] },
+                    variable: { type: 'string', pattern: '^[A-Z][A-Z0-9_]{0,63}$' },
+                  },
+                },
+                supplementalGroups: { type: 'boolean' },
+              },
+            },
+            privileged: { type: 'boolean' },
+            capabilities: { type: 'array', maxItems: 16, items: { type: 'string', pattern: '^(?!CAP_)[A-Z][A-Z_]{1,31}$' } },
+            volumes: {
+              type: 'array',
+              maxItems: 16,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['name', 'target', 'access'],
+                properties: {
+                  name: { type: 'string', pattern: '^[a-z][a-z0-9-]{0,31}$' },
+                  target: { type: 'string', pattern: '^/', maxLength: 200 },
+                  access: { enum: ['ro', 'rw'] },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   },
 };
 output('schemas/plugin/v1.json', JSON.stringify(schema, null, 2) + '\n');
