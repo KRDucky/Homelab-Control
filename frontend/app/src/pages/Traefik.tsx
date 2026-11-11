@@ -127,6 +127,8 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
       protocol,
       upstreamScheme: data.get('upstreamScheme') === 'https' ? 'https' : 'http',
     };
+    const path = String(data.get('path') ?? '').trim();
+    if (path) model.path = path;
     if (protocol === 'https')
       model.tls = data.get('resolver') ? { certificateResolver: String(data.get('resolver')) } : {};
     try {
@@ -214,15 +216,15 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
           <section>
             <h2>Manage your proxy hosts</h2>
             <p>
-              Select an application, configure its hostname and review a backend-validated labels and network
-              proposal.
+              Select a Docker Compose or Kubernetes workload, set hostname and optional path, then review
+              file YAML, Compose labels, or Kubernetes manifests. Nothing is applied.
             </p>
             <button type="button" onClick={() => setSection('Proxy Hosts')}>
               View Proxy Hosts
             </button>
             <p className="muted">
-              Certificates management is planned. Complex routing rules, path routing, middleware assignment
-              and TLS options are not supported by this single-host preview model.
+              Certificates management is planned. Middleware assignment and multiple hostnames are not in
+              this preview model. Path prefix is optional.
             </p>
             {warnings > 0 && (
               <p className="banner">
@@ -474,6 +476,15 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
                       maxLength={253}
                       pattern={'[a-z0-9.\\-]+\\.[a-z0-9\\-]+'}
                     />
+                    <label htmlFor="proxy-path">Path prefix (optional)</label>
+                    <input
+                      id="proxy-path"
+                      name="path"
+                      placeholder="/app"
+                      maxLength={201}
+                      pattern={'/[A-Za-z0-9._~/-]*'}
+                    />
+                    <p className="muted">Leave empty for the whole host. Example: /app</p>
                     <label htmlFor="proxy-protocol">Incoming protocol</label>
                     <select
                       id="proxy-protocol"
@@ -528,9 +539,9 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
                       ))}
                     </select>
                     <p className="muted">
-                      Only confirmed Traefik networks and entrypoints are selectable. Multiple hostnames, path
-                      routing, middleware selection, independent service names and TLS options require a
-                      future validated model.
+                      Only confirmed Traefik networks and entrypoints are selectable. Multiple hostnames,
+                      middleware selection, independent service names and extra TLS options require a future
+                      validated model.
                     </p>
                   </details>
                   <button
@@ -557,6 +568,8 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
                 <dd>{proposal.summary?.application ?? proposal.project}</dd>
                 <dt>Public hostname</dt>
                 <dd>{proposal.summary?.hostname ?? unknown}</dd>
+                <dt>Path prefix</dt>
+                <dd>{proposal.summary?.path || '/'}</dd>
                 <dt>Target container/service</dt>
                 <dd>
                   {proposal.summary
@@ -579,9 +592,19 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
                 <dd>{proposal.summary?.network ?? unknown}</dd>
               </dl>
               <p>
-                Labels and network patch only. Compose source has not been loaded or verified. Unrelated
-                settings are preserved by individual-key changes, never by replacing a service.
+                File YAML is for Traefik&apos;s file provider. Compose labels are for a Docker provider.
+                Source files are not loaded. Apply is unavailable.
               </p>
+              {proposal.fileYAML && (
+                <>
+                  <h3>File provider YAML</h3>
+                  <p className="muted">
+                    Copy into the dynamic directory (for example /config/dynamic). This preview does not
+                    write files.
+                  </p>
+                  <pre aria-label="File provider YAML">{proposal.fileYAML}</pre>
+                </>
+              )}
               {proposal.blockers.map((v, i) => (
                 <p className="banner" key={`b${i}`}>
                   <strong>Blocked:</strong> {v.message}

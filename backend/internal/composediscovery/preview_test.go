@@ -115,3 +115,18 @@ func TestHostAndPathPrefixIsHostnameDuplicate(t *testing.T) {
 		t.Fatal(p, err)
 	}
 }
+
+func TestFileYAMLWhenDockerProviderDisabled(t *testing.T) {
+	s, r := fixtureRequest()
+	r.Model.Path = "/notes"
+	p, err := Build(s, traefikclient.Inventory{}, r)
+	if err != nil || !has(p.Blockers, "provider_disabled") || !has(p.Warnings, "file_provider") {
+		t.Fatal(p, err)
+	}
+	if p.FileYAML == "" || !strings.Contains(p.FileYAML, "PathPrefix(`/notes`)") || !strings.Contains(p.FileYAML, "url: http://") {
+		t.Fatal(p.FileYAML)
+	}
+	if p.ApplyAvailable {
+		t.Fatal("apply leaked")
+	}
+}

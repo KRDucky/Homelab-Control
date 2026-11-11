@@ -1028,6 +1028,7 @@ export interface TraefikModel {
   protocol: 'http' | 'https';
   upstreamScheme: 'http' | 'https';
   tls?: { certificateResolver?: string };
+  path?: string;
 }
 const traefikPath = '/api/v1/networking/reverse-proxy/traefik';
 export const getTraefikInventory = (csrf: string) =>
@@ -1063,6 +1064,7 @@ export interface ProxySummary {
   targetService: string;
   container: string;
   hostname: string;
+  path?: string;
   internalPort: number;
   protocol: string;
   upstreamScheme: string;
@@ -1079,6 +1081,8 @@ export interface ComposeProposal {
   service: string;
   existing: { labels: Record<string, string>; networks: string[] };
   proposed: { labels: Record<string, string>; networks: string[] };
+  file?: Record<string, unknown>;
+  fileYAML?: string;
   changes: { path: string[]; before: string | null; after: string }[];
   warnings: { code: string; message: string }[];
   blockers: { code: string; message: string }[];
