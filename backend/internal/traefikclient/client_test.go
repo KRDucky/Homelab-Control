@@ -43,6 +43,22 @@ func TestModelValidation(t *testing.T) {
 	if e != nil || p.Labels["traefik.http.routers.demo.tls.certresolver"] != "staging" {
 		t.Fatal(p, e)
 	}
+	m.Path = "/app"
+	p, e = m.Labels()
+	if e != nil || p.Labels["traefik.http.routers.demo.rule"] != "Host(`demo.localhost`) && PathPrefix(`/app`)" {
+		t.Fatal(p, e)
+	}
+	file, err := m.File("webapp-a")
+	if err != nil || !strings.Contains(file.YAML, "url: https://webapp-a:8080") || !strings.Contains(file.YAML, "PathPrefix(`/app`)") {
+		t.Fatal(file, err)
+	}
+	if _, err = m.File("../etc"); err == nil {
+		t.Fatal("accepted unsafe backend")
+	}
+	m.Path = "../etc"
+	if _, e = m.Labels(); e == nil {
+		t.Fatal("accepted path traversal")
+	}
 }
 func TestClientFixedContractAndRedaction(t *testing.T) {
 	calls := []string{}

@@ -110,6 +110,16 @@ func TestIngressAndIngressRoutePreviews(t *testing.T) {
 	if strings.Contains(got, "traefik.enable") || strings.Contains(got, "loadbalancer") {
 		t.Fatal("Compose labels generated for Kubernetes")
 	}
+	req.Model.Path = "/notes"
+	p, err = a.Preview(context.Background(), inv, req, traefikclient.Inventory{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ = json.Marshal(p.Manifests[0])
+	if !strings.Contains(string(b), `"path":"/notes"`) {
+		t.Fatal(string(b))
+	}
+	req.Model.Path = ""
 	req.Target = platform.CapPreviewIngressRoute
 	req.Model.UpstreamScheme = "https"
 	p, err = a.Preview(context.Background(), inv, req, traefikclient.Inventory{})

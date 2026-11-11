@@ -142,10 +142,14 @@ func (a *Adapter) Preview(ctx context.Context, inv platform.Inventory, req platf
 				ann["traefik.ingress.kubernetes.io/router.tls.certresolver"] = resolver
 			}
 		}
+		path := m.Path
+		if path == "" {
+			path = "/"
+		}
 		manifest = map[string]any{"apiVersion": "networking.k8s.io/v1", "kind": "Ingress",
 			"metadata": map[string]any{"name": m.Name, "namespace": ns, "labels": labels, "annotations": ann},
 			"spec": map[string]any{"ingressClassName": class, "rules": []any{map[string]any{"host": m.Host, "http": map[string]any{"paths": []any{
-				map[string]any{"path": "/", "pathType": "Prefix", "backend": map[string]any{"service": map[string]any{"name": service.Ref.Name, "port": map[string]any{"number": m.Port}}}}}}}}}}
+				map[string]any{"path": path, "pathType": "Prefix", "backend": map[string]any{"service": map[string]any{"name": service.Ref.Name, "port": map[string]any{"number": m.Port}}}}}}}}}}
 	case platform.CapPreviewIngressRoute:
 		if st.names[ns+"/IngressRoute/"+m.Name] {
 			block("name_duplicate", "An IngressRoute with this name already exists in the namespace.")
@@ -153,7 +157,11 @@ func (a *Adapter) Preview(ctx context.Context, inv platform.Inventory, req platf
 		if m.UpstreamScheme == "https" {
 			backend["scheme"] = "https"
 		}
-		spec := map[string]any{"entryPoints": []any{m.Entrypoint}, "routes": []any{map[string]any{"match": "Host(`" + m.Host + "`)", "kind": "Rule", "services": []any{backend}}}}
+		match := "Host(`" + m.Host + "`)"
+		if m.Path != "" {
+			match += " && PathPrefix(`" + m.Path + "`)"
+		}
+		spec := map[string]any{"entryPoints": []any{m.Entrypoint}, "routes": []any{map[string]any{"match": match, "kind": "Rule", "services": []any{backend}}}}
 		if m.Protocol == "https" {
 			tls := map[string]any{}
 			if resolver != "" {
@@ -176,10 +184,14 @@ func (a *Adapter) Preview(ctx context.Context, inv platform.Inventory, req platf
 		if gwNS != ns {
 			warn("gateway_cross_namespace", "The Gateway is in another namespace; its listeners must allow routes from this namespace.")
 		}
+		rule := map[string]any{"backendRefs": []any{backend}}
+		if m.Path != "" {
+			rule["matches"] = []any{map[string]any{"path": map[string]any{"type": "PathPrefix", "value": m.Path}}}
+		}
 		manifest = map[string]any{"apiVersion": "gateway.networking.k8s.io/v1", "kind": "HTTPRoute",
 			"metadata": map[string]any{"name": m.Name, "namespace": ns, "labels": labels},
 			"spec": map[string]any{"parentRefs": []any{map[string]any{"name": gwName, "namespace": gwNS}}, "hostnames": []any{m.Host},
-				"rules": []any{map[string]any{"backendRefs": []any{backend}}}}}
+				"rules": []any{rule}}}
 	}
 	out.Manifests = append(out.Manifests, manifest)
 	return out, nil
