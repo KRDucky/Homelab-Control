@@ -31,10 +31,12 @@ const sections = [
 type Section = (typeof sections)[number];
 const unknown = 'Unknown';
 function hostsOf(rule?: string): string[] {
-  return rule ? [...rule.matchAll(/Host\(`([a-z0-9.-]+)`\)/g)].map((m) => m[1]) : [];
+  return rule ? [...rule.matchAll(/Host\(`([a-z0-9.-]+)`\)/g)].flatMap((m) => (m[1] ? [m[1]] : [])) : [];
 }
 function pathsOf(rule?: string): string[] {
-  return rule ? [...rule.matchAll(/Path(?:Prefix)?\(`(\/[A-Za-z0-9._~/-]*)`\)/g)].map((m) => m[1]) : [];
+  return rule
+    ? [...rule.matchAll(/Path(?:Prefix)?\(`(\/[A-Za-z0-9._~/-]*)`\)/g)].flatMap((m) => (m[1] ? [m[1]] : []))
+    : [];
 }
 function routeHeadline(rule?: string): string {
   const hosts = hostsOf(rule);
