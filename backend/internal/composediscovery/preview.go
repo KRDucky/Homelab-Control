@@ -32,7 +32,7 @@ func safeValue(k, v string) bool {
 	}
 	switch {
 	case strings.HasSuffix(k, ".rule"):
-		return hostRule.MatchString(v)
+		return traefikclient.SanitizeRule(v) == v && v != ""
 	case strings.HasSuffix(k, ".port"):
 		n, err := strconv.Atoi(v)
 		return err == nil && n >= 1 && n <= 65535
@@ -100,6 +100,7 @@ type ProxySummary struct {
 	TargetService       string `json:"targetService"`
 	Container           string `json:"container"`
 	Hostname            string `json:"hostname"`
+	Path                string `json:"path,omitempty"`
 	InternalPort        int    `json:"internalPort"`
 	Protocol            string `json:"protocol"`
 	UpstreamScheme      string `json:"upstreamScheme"`
@@ -108,23 +109,23 @@ type ProxySummary struct {
 	Entrypoint          string `json:"entrypoint"`
 }
 type Proposal struct {
-	Summary            ProxySummary  `json:"summary"`
-	SchemaVersion      int           `json:"schemaVersion"`
-	Source             string        `json:"source"`
-	Fixture            bool          `json:"fixture"`
-	Project            string        `json:"project"`
-	Service            string        `json:"service"`
-	Existing           Configuration `json:"existing"`
-	Proposed           Configuration `json:"proposed"`
-	Changes            []Change      `json:"changes"`
-	Warnings           []Issue       `json:"warnings"`
-	Blockers           []Issue       `json:"blockers"`
-	ApplyAvailable     bool          `json:"applyAvailable"`
-	SourceFileVerified bool          `json:"sourceFileVerified"`
-	PreservedFields    []string      `json:"preservedFields"`
+	Summary            ProxySummary   `json:"summary"`
+	SchemaVersion      int            `json:"schemaVersion"`
+	Source             string         `json:"source"`
+	Fixture            bool           `json:"fixture"`
+	Project            string         `json:"project"`
+	Service            string         `json:"service"`
+	Existing           Configuration  `json:"existing"`
+	Proposed           Configuration  `json:"proposed"`
+	File               map[string]any `json:"file,omitempty"`
+	FileYAML           string         `json:"fileYAML,omitempty"`
+	Changes            []Change       `json:"changes"`
+	Warnings           []Issue        `json:"warnings"`
+	Blockers           []Issue        `json:"blockers"`
+	ApplyAvailable     bool           `json:"applyAvailable"`
+	SourceFileVerified bool           `json:"sourceFileVerified"`
+	PreservedFields    []string       `json:"preservedFields"`
 }
-
-var hostRule = regexp.MustCompile("^Host\\(`([a-z0-9.-]+)`\\)$")
 
 func Build(s Snapshot, inventory traefikclient.Inventory, req Request) (Proposal, error) {
 	labels, err := req.Model.Labels()
@@ -160,9 +161,15 @@ func Build(s Snapshot, inventory traefikclient.Inventory, req Request) (Proposal
 	if req.Model.TLS != nil {
 		resolver = req.Model.TLS.CertificateResolver
 	}
-	out.Summary = ProxySummary{selected.Project, selected.Service, selected.Container, req.Model.Host, req.Model.Port, req.Model.Protocol, req.Model.UpstreamScheme, resolver, req.Network, req.Model.Entrypoint}
+	out.Summary = ProxySummary{selected.Project, selected.Service, selected.Container, req.Model.Host, req.Model.Path, req.Model.Port, req.Model.Protocol, req.Model.UpstreamScheme, resolver, req.Network, req.Model.Entrypoint}
 	warn := func(code, message string) { out.Warnings = append(out.Warnings, Issue{code, message}) }
 	block := func(code, message string) { out.Blockers = append(out.Blockers, Issue{code, message}) }
+	if file, err := req.Model.File(selected.Service); err != nil {
+		block("backend_unverified", "Compose service name is not a usable backend hostname for file-provider YAML.")
+	} else {
+		out.File = file.File
+		out.FileYAML = file.YAML
+	}
 	if s.Fixture {
 		warn("fixture", "Demonstration discovery data; these are not your Docker applications.")
 	}
@@ -212,6 +219,7 @@ func Build(s Snapshot, inventory traefikclient.Inventory, req Request) (Proposal
 		block("provider_unknown", "Docker provider availability is unknown; labels may not be consumed.")
 	} else if !*s.Traefik.DockerProvider {
 		block("provider_disabled", "Traefik Docker provider is disabled. Preview only; these labels will not configure the current file-provider fixture.")
+		warn("file_provider", "Copy the file YAML into Traefik's dynamic directory. Docker labels are not consumed; Apply is unavailable.")
 	}
 	if req.Model.Protocol == "https" {
 		warn("tls_review", "Incoming TLS is independent of upstream encryption. Review certificates and entrypoint TLS options before any future application.")
@@ -237,8 +245,7 @@ func Build(s Snapshot, inventory traefikclient.Inventory, req Request) (Proposal
 	for _, service := range s.Services {
 		for k, v := range service.Labels {
 			if strings.HasPrefix(k, "traefik.http.routers.") && strings.HasSuffix(k, ".rule") {
-				m := hostRule.FindStringSubmatch(v)
-				if len(m) == 2 && m[1] == req.Model.Host && (service.ID != selected.ID || k != "traefik.http.routers."+req.Model.Name+".rule") {
+				if slices.Contains(traefikclient.ComparableHosts(v), req.Model.Host) && (service.ID != selected.ID || k != "traefik.http.routers."+req.Model.Name+".rule") {
 					block("hostname_duplicate", "Another discovered service already has this hostname label.")
 				}
 				if k == "traefik.http.routers."+req.Model.Name+".rule" && service.ID != selected.ID {

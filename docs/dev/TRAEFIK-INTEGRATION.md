@@ -23,7 +23,8 @@ CORE routes beneath `/api/v1/networking/reverse-proxy/traefik`:
 | --- | --- | --- |
 | `/inventory` | GET | schemaVersion=1, routers/services/middlewares identity/status arrays |
 | `/diagnostics` | GET | schemaVersion=1, safe per-resource status/code/hint checks |
-| `/labels` | POST | validated string-label preview mapping |
+| `/labels` | POST | validated string-label preview mapping (optional PathPrefix) |
+| `/compose-preview` | POST | labels plus file-provider YAML (`fileYAML`); Apply stays unavailable |
 
 Every route requires the session and dedicated scope. GET/HEAD additionally requires
 `X-CSRF-Token`; a present Origin must match. POST uses shared Origin/CSRF protection.
