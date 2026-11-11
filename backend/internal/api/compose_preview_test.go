@@ -166,3 +166,38 @@ func TestCOREMetadataBrokerIntegrationAuthorizationAndFailure(t *testing.T) {
 		t.Fatal(rr.Code)
 	}
 }
+
+func TestTraefikFileApplyWritesGeneratedYAML(t *testing.T) {
+	dir := t.TempDir()
+	read := harnessWith(t, nil, []string{auth.ScopeNetworkingProxyRead, auth.ScopeComposeRead})
+	read.srv.WithTraefik(&fakeTraefik{}).WithComposeDiscovery(composediscovery.Fixture{})
+	headers := packagesHeaders(read)
+	headers["Content-Type"] = "application/json"
+	if rr := read.do("POST", proxyPath+"/file-apply", composeBody, headers); rr.Code != 403 {
+		t.Fatal("read scopes must not apply", rr.Code, rr.Body)
+	}
+	h := harnessWith(t, nil, []string{auth.ScopeNetworkingProxyRead, auth.ScopeNetworkingProxyApply, auth.ScopeComposeRead})
+	h.srv.WithTraefik(&fakeTraefik{}).WithComposeDiscovery(composediscovery.Fixture{})
+	headers = packagesHeaders(h)
+	headers["Content-Type"] = "application/json"
+	if rr := h.do("POST", proxyPath+"/compose-preview", composeBody, headers); rr.Code != 200 || !strings.Contains(rr.Body.String(), `"applyAvailable":false`) {
+		t.Fatal("apply stays off without a dynamic dir", rr.Code, rr.Body)
+	}
+	if rr := h.do("POST", proxyPath+"/file-apply", composeBody, headers); rr.Code != 503 {
+		t.Fatal("missing dir", rr.Code, rr.Body)
+	}
+	h.srv.WithTraefikDynamicDir(dir)
+	if rr := h.do("POST", proxyPath+"/compose-preview", composeBody, headers); rr.Code != 200 || !strings.Contains(rr.Body.String(), `"applyAvailable":true`) {
+		t.Fatal(rr.Code, rr.Body)
+	}
+	if rr := h.do("POST", proxyPath+"/file-apply", composeBody, headers); rr.Code != 200 || !strings.Contains(rr.Body.String(), `"wrote":"notes.yml"`) {
+		t.Fatal(rr.Code, rr.Body)
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "notes.yml"))
+	if err != nil || !strings.Contains(string(b), "Host(`notes.example.com`)") || !strings.Contains(string(b), "url: http://web:8080") {
+		t.Fatal(string(b), err)
+	}
+	if rr := h.do("POST", proxyPath+"/apply", composeBody, headers); rr.Code != 404 {
+		t.Fatal("label apply must stay missing", rr.Code)
+	}
+}

@@ -7,6 +7,7 @@ import {
   getTraefikDiagnostics,
   getComposeApplications,
   previewCompose,
+  applyComposeFile,
   getPlatforms,
   type PlatformView,
   type TraefikInventory,
@@ -60,6 +61,13 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
   const [platforms, setPlatforms] = useState<PlatformView[]>([]);
   const [platformId, setPlatformId] = useState('');
   const [busy, setBusy] = useState(false);
+  const [wrote, setWrote] = useState('');
+  const previewBody = useRef<{
+    serviceId: string;
+    network: string;
+    model: TraefikModel;
+    confirmUnverifiedPort?: boolean;
+  } | null>(null);
   const previewVersion = useRef(0);
   useEffect(() => {
     let cancelled = false;
@@ -115,6 +123,7 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
   async function generate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setProposal(null);
+    setWrote('');
     setError(null);
     setBusy(true);
     const version = previewVersion.current;
@@ -131,20 +140,33 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
     if (path) model.path = path;
     if (protocol === 'https')
       model.tls = data.get('resolver') ? { certificateResolver: String(data.get('resolver')) } : {};
+    const body = {
+      serviceId,
+      network: String(data.get('network')),
+      model,
+      ...(data.get('confirmUnverifiedPort') === 'on' ? { confirmUnverifiedPort: true } : {}),
+    };
+    previewBody.current = body;
     try {
-      const result = await previewCompose(
-        {
-          serviceId,
-          network: String(data.get('network')),
-          model,
-          ...(data.get('confirmUnverifiedPort') === 'on' ? { confirmUnverifiedPort: true } : {}),
-        },
-        csrf,
-      );
+      const result = await previewCompose(body, csrf);
       if (version === previewVersion.current) setProposal(result);
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) onUnauthorized();
       setError(e instanceof Error ? e : new Error('Preview failed'));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function writeFileYAML() {
+    if (!previewBody.current) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await applyComposeFile(previewBody.current, csrf);
+      setWrote(result.wrote);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) onUnauthorized();
+      setError(e instanceof Error ? e : new Error('File YAML could not be written'));
     } finally {
       setBusy(false);
     }
@@ -345,6 +367,7 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
                   onChange={() => {
                     previewVersion.current++;
                     setProposal(null);
+                    setWrote('');
                   }}
                   className="proxy-form"
                 >
@@ -593,14 +616,14 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
               </dl>
               <p>
                 File YAML is for Traefik&apos;s file provider. Compose labels are for a Docker provider.
-                Source files are not loaded. Apply is unavailable.
+                Source files are not loaded. Docker-label Apply stays unavailable.
               </p>
               {proposal.fileYAML && (
                 <>
                   <h3>File provider YAML</h3>
                   <p className="muted">
-                    Copy into the dynamic directory (for example /config/dynamic). This preview does not
-                    write files.
+                    Copy into the dynamic directory (for example /config/dynamic), or write it when Apply
+                    file YAML is available.
                   </p>
                   <pre aria-label="File provider YAML">{proposal.fileYAML}</pre>
                 </>
@@ -642,7 +665,16 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
                   <pre>{JSON.stringify(proposal, null, 2)}</pre>
                 </details>
               </details>
-              <p>No apply or deployment operation is available.</p>
+              {proposal.applyAvailable ? (
+                <>
+                  <button type="button" disabled={busy} onClick={() => void writeFileYAML()}>
+                    {busy ? 'Writing file YAML…' : 'Write file YAML'}
+                  </button>
+                  {wrote ? <p>Wrote {wrote} into Traefik&apos;s dynamic directory.</p> : null}
+                </>
+              ) : (
+                <p>No apply or deployment operation is available.</p>
+              )}
             </section>
           )}
         </section>
