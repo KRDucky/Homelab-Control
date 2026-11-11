@@ -21,9 +21,15 @@ import (
 // is defined in docs/project/03-SECURITY-AND-OPERATIONS.md; M0 only grants and
 // uses system.read.
 const (
-	// ScopeNetworkingProxyRead allows Traefik inspection and pure label previews, never apply. Not granted by default.
+	// ScopeNetworkingProxyRead allows Traefik inspection and pure label previews.
+	// It never authorizes writing dynamic YAML. Not granted by default.
 	ScopeNetworkingProxyRead = "networking.proxy.read"
-	ScopeComposeRead         = "docker.compose.read"
+	// ScopeNetworkingProxyApply writes CORE-generated file-provider YAML into an
+	// administrator-configured Traefik dynamic directory. It never enables the
+	// Docker provider, ACME, or Compose label apply. Not granted by default and
+	// never implied by networking.proxy.read.
+	ScopeNetworkingProxyApply = "networking.proxy.apply"
+	ScopeComposeRead          = "docker.compose.read"
 	// ScopePlatformsRead lists administrator-registered container platforms
 	// (no connection details). Each platform additionally requires its own
 	// family scope: docker.compose.read, podman.read or kubernetes.read. No
@@ -87,25 +93,26 @@ const (
 // users file are rejected at load time so typos cannot silently grant nothing
 // (or, in later milestones, the wrong thing). All M1 scopes are read-only.
 var KnownScopes = map[string]bool{
-	ScopeNetworkingProxyRead: true,
-	ScopeComposeRead:         true,
-	ScopePlatformsRead:       true,
-	ScopePodmanRead:          true,
-	ScopeKubernetesRead:      true,
-	ScopeStorageRead:         true,
-	ScopeSystemRead:          true,
-	ScopeServicesRead:        true,
-	ScopeHardwareRead:        true,
-	ScopeServicesLogs:        true,
-	ScopeAuditRead:           true,
-	ScopeServicesOperate:     true,
-	ScopeServicesConfigure:   true,
-	ScopeServicesFiles:       true,
-	ScopeHostSettingsPreview: true,
-	ScopeHostSettingsApply:   true,
-	ScopeLayoutManage:        true,
-	ScopeFilesRead:           true,
-	ScopePackagesRead:        true,
+	ScopeNetworkingProxyRead:  true,
+	ScopeNetworkingProxyApply: true,
+	ScopeComposeRead:          true,
+	ScopePlatformsRead:        true,
+	ScopePodmanRead:           true,
+	ScopeKubernetesRead:       true,
+	ScopeStorageRead:          true,
+	ScopeSystemRead:           true,
+	ScopeServicesRead:         true,
+	ScopeHardwareRead:         true,
+	ScopeServicesLogs:         true,
+	ScopeAuditRead:            true,
+	ScopeServicesOperate:      true,
+	ScopeServicesConfigure:    true,
+	ScopeServicesFiles:        true,
+	ScopeHostSettingsPreview:  true,
+	ScopeHostSettingsApply:    true,
+	ScopeLayoutManage:         true,
+	ScopeFilesRead:            true,
+	ScopePackagesRead:         true,
 }
 
 // DefaultScopes are granted by `hlctl user add` when --scopes is not given.
