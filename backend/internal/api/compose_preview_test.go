@@ -198,6 +198,51 @@ func TestTraefikFileApplyWritesGeneratedYAML(t *testing.T) {
 		t.Fatal(string(b), err)
 	}
 	if rr := h.do("POST", proxyPath+"/apply", composeBody, headers); rr.Code != 404 {
-		t.Fatal("label apply must stay missing", rr.Code)
+		t.Fatal("generic apply stays missing", rr.Code)
+	}
+}
+
+type dockerProviderOn struct{}
+
+func (dockerProviderOn) Snapshot(ctx context.Context) (composediscovery.Snapshot, error) {
+	s, err := (composediscovery.Fixture{}).Snapshot(ctx)
+	on := true
+	s.Traefik.DockerProvider = &on
+	return s, err
+}
+
+func TestTraefikComposeApplyPatchesLabels(t *testing.T) {
+	dir := t.TempDir()
+	compose := "name: example-notes\nservices:\n  web:\n    image: x\n"
+	if err := os.WriteFile(filepath.Join(dir, "compose.yaml"), []byte(compose), 0644); err != nil {
+		t.Fatal(err)
+	}
+	read := harnessWith(t, nil, []string{auth.ScopeNetworkingProxyRead, auth.ScopeComposeRead})
+	read.srv.WithTraefik(&fakeTraefik{}).WithComposeDiscovery(dockerProviderOn{}).WithComposeApplyDir(dir)
+	headers := packagesHeaders(read)
+	headers["Content-Type"] = "application/json"
+	if rr := read.do("POST", proxyPath+"/compose-apply", composeBody, headers); rr.Code != 403 {
+		t.Fatal("read scopes must not apply labels", rr.Code, rr.Body)
+	}
+	h := harnessWith(t, nil, []string{auth.ScopeNetworkingProxyRead, auth.ScopeNetworkingProxyApply, auth.ScopeComposeRead})
+	h.srv.WithTraefik(&fakeTraefik{}).WithComposeDiscovery(dockerProviderOn{})
+	headers = packagesHeaders(h)
+	headers["Content-Type"] = "application/json"
+	if rr := h.do("POST", proxyPath+"/compose-apply", composeBody, headers); rr.Code != 503 {
+		t.Fatal("missing compose dir", rr.Code, rr.Body)
+	}
+	h.srv.WithComposeApplyDir(dir)
+	if rr := h.do("POST", proxyPath+"/compose-preview", composeBody, headers); rr.Code != 200 || !strings.Contains(rr.Body.String(), `"labelApplyAvailable":true`) {
+		t.Fatal(rr.Code, rr.Body)
+	}
+	if rr := h.do("POST", proxyPath+"/compose-apply", composeBody, headers); rr.Code != 200 || !strings.Contains(rr.Body.String(), `"wrote":"compose.yaml"`) {
+		t.Fatal(rr.Code, rr.Body)
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "compose.yaml"))
+	if err != nil || !strings.Contains(string(b), "Host(`notes.example.com`)") || !strings.Contains(string(b), "image: x") {
+		t.Fatal(string(b), err)
+	}
+	if rr := h.do("POST", proxyPath+"/apply", composeBody, headers); rr.Code != 404 {
+		t.Fatal("generic apply stays missing", rr.Code)
 	}
 }

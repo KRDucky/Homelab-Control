@@ -1087,6 +1087,7 @@ export interface ComposeProposal {
   warnings: { code: string; message: string }[];
   blockers: { code: string; message: string }[];
   applyAvailable: boolean;
+  labelApplyAvailable: boolean;
   sourceFileVerified: boolean;
   preservedFields: string[];
 }
@@ -1100,6 +1101,15 @@ export const applyComposeFile = (
   body: { serviceId: string; network: string; model: TraefikModel; confirmUnverifiedPort?: boolean },
   csrf: string,
 ) => postJSON<{ wrote: string; applyAvailable: boolean }>(`${traefikPath}/file-apply`, csrf, body);
+export const applyComposeLabels = (
+  body: { serviceId: string; network: string; model: TraefikModel; confirmUnverifiedPort?: boolean },
+  csrf: string,
+) =>
+  postJSON<{ wrote: string; added: number; labelApplyAvailable: boolean; recreated: boolean }>(
+    `${traefikPath}/compose-apply`,
+    csrf,
+    body,
+  );
 
 // Container platform registry (CORE). Connection details never reach the browser.
 export type PlatformCapability =

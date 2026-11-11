@@ -118,3 +118,53 @@ func containsHost(hosts []string, host string) bool {
 	}
 	return false
 }
+
+// LabelApplyReady is true when Traefik's Docker provider is on and remaining
+// blockers are an update of the same Docker-provider router/hostname.
+func LabelApplyReady(blockers []Issue, name, host string, inventory traefikclient.Inventory, dockerProvider *bool) bool {
+	if name == "" || host == "" || dockerProvider == nil || !*dockerProvider {
+		return false
+	}
+	for _, b := range blockers {
+		switch b.Code {
+		case "provider_disabled":
+			return false
+		case "router_duplicate":
+			if dockerRouter(inventory, name) {
+				continue
+			}
+			return false
+		case "hostname_duplicate":
+			if dockerHostOwned(inventory, name, host) {
+				continue
+			}
+			return false
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func dockerRouter(inventory traefikclient.Inventory, name string) bool {
+	for _, r := range inventory.Routers {
+		if r.Provider == "docker" && strings.TrimSuffix(r.Name, "@"+r.Provider) == name {
+			return true
+		}
+	}
+	return false
+}
+
+func dockerHostOwned(inventory traefikclient.Inventory, name, host string) bool {
+	owned := false
+	for _, r := range inventory.Routers {
+		if !containsHost(traefikclient.ComparableHosts(r.Rule), host) {
+			continue
+		}
+		if r.Provider != "docker" || strings.TrimSuffix(r.Name, "@"+r.Provider) != name {
+			return false
+		}
+		owned = true
+	}
+	return owned
+}
