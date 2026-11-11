@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -70,6 +71,7 @@ func main() {
 	oidcConfig := flag.String("oidc-config", "", "single sign-on provider setting (mode 0600, may hold the client secret); empty disables OIDC")
 	traefikOrigin := flag.String("traefik-helper-origin", "", "fixed private Traefik extension origin; empty disables integration")
 	traefikTokenFile := flag.String("traefik-helper-token-file", "", "private extension token file; never returned to browser")
+	traefikDynamicDir := flag.String("traefik-dynamic-dir", "", "administrator Traefik file-provider directory for CORE-generated YAML; empty disables file apply")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
@@ -181,6 +183,17 @@ func main() {
 			log.Fatal("Traefik helper configuration is invalid")
 		}
 		srv.WithTraefik(client)
+	}
+	if *traefikDynamicDir != "" {
+		abs, err := filepath.Abs(*traefikDynamicDir)
+		if err != nil {
+			log.Fatal("Traefik dynamic directory is invalid")
+		}
+		info, err := os.Stat(abs)
+		if err != nil || !info.IsDir() {
+			log.Fatal("Traefik dynamic directory is missing or not a directory")
+		}
+		srv.WithTraefikDynamicDir(abs)
 	}
 	// Container platforms are registered only from these startup flags; no API
 	// can add a socket, API endpoint or credential.

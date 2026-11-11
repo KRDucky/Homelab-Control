@@ -26,7 +26,7 @@ func TestOpenAPIMatchesRoutes(t *testing.T) {
 		"auth.ScopeServicesOperate": "services.operate", "auth.ScopeServicesConfigure": "services.configure",
 		"auth.ScopeStorageRead": "storage.read", "auth.ScopeHostSettingsPreview": "host.settings.preview",
 		"auth.ScopeHostSettingsApply": "host.settings.apply", "auth.ScopeLayoutManage": "layout.manage",
-		"auth.ScopeFilesRead": "files.read", "auth.ScopePackagesRead": "packages.read", "auth.ScopeComposeRead": "docker.compose.read", "auth.ScopeNetworkingProxyRead": "networking.proxy.read", "auth.ScopePlatformsRead": "platforms.read"}
+		"auth.ScopeFilesRead": "files.read", "auth.ScopePackagesRead": "packages.read", "auth.ScopeComposeRead": "docker.compose.read", "auth.ScopeNetworkingProxyRead": "networking.proxy.read", "auth.ScopeNetworkingProxyApply": "networking.proxy.apply", "auth.ScopePlatformsRead": "platforms.read"}
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "../api/server.go", nil, 0)
 	if err != nil {

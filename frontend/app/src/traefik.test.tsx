@@ -9,6 +9,7 @@ import {
   getTraefikDiagnostics,
   getComposeApplications,
   previewCompose,
+  applyComposeFile,
   getPlatforms,
 } from './api';
 vi.mock('./api', async (original) => ({
@@ -17,6 +18,7 @@ vi.mock('./api', async (original) => ({
   getTraefikDiagnostics: vi.fn(),
   getComposeApplications: vi.fn(),
   previewCompose: vi.fn(),
+  applyComposeFile: vi.fn(),
   getPlatforms: vi.fn(),
 }));
 const unauthorized = vi.fn();
@@ -268,6 +270,36 @@ it('shows selected networks and permits explicitly confirmed unknown internal po
     ),
   );
 });
+it('writes file YAML when applyAvailable and keeps Docker-label apply hidden', async () => {
+  const preview = vi.mocked(previewCompose).getMockImplementation();
+  if (!preview) throw new Error('fixture preview missing');
+  const p = await preview(
+    {
+      serviceId: 'notes',
+      network: 'private',
+      model: {
+        name: 'notes',
+        host: 'notes.example.com',
+        port: 8080,
+        entrypoint: 'web',
+        protocol: 'http',
+        upstreamScheme: 'http',
+      },
+    },
+    'csrf',
+  );
+  p.applyAvailable = true;
+  vi.mocked(previewCompose).mockResolvedValue(p);
+  vi.mocked(applyComposeFile).mockResolvedValue({ wrote: 'notes.yml', applyAvailable: true });
+  await open();
+  fireEvent.click(screen.getByRole('button', { name: 'Preview configuration' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Write file YAML' }));
+  await waitFor(() => expect(applyComposeFile).toHaveBeenCalled());
+  expect(await screen.findByText(/Wrote notes.yml/)).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Apply' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Deploy' })).toBeNull();
+});
+
 it('uses backend summary and keeps raw configuration collapsed', async () => {
   const preview = vi.mocked(previewCompose).getMockImplementation();
   if (!preview) throw new Error('fixture preview missing');

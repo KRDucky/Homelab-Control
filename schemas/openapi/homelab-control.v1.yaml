@@ -1067,13 +1067,41 @@ paths:
                 network: { type: string }
                 model: { $ref: '#/components/schemas/TraefikModel' }
       responses:
-        '200': { description: Backend-validated summary, existing and proposed routing labels/networks, key changes, warnings and blockers; applyAvailable and sourceFileVerified are always false }
+        '200': { description: Backend-validated summary, existing and proposed routing labels/networks, key changes, warnings and blockers; applyAvailable is true only when a Traefik dynamic directory is configured and file-apply blockers are clear }
         '400': { description: Invalid model or unknown service/network/resolver }
         '401': { description: Session required }
         '403': { description: Missing either scope or invalid CSRF/Origin }
         '415': { description: JSON required }
         '502': { description: Inventory unavailable; conflict checks fail closed }
         '503': { description: Discovery or audit unavailable }
+  /networking/reverse-proxy/traefik/file-apply:
+    post:
+      summary: Write CORE-generated file-provider YAML into the administrator Traefik dynamic directory
+      x-required-scope: networking.proxy.apply
+      security: [{ session: [], csrf: [] }]
+      description: Also requires docker.compose.read and networking.proxy.read is not sufficient. The body is the same as compose-preview. CORE writes <name>.yml only; dynamic.yml is reserved. Docker labels, ACME, and Compose file edits are not applied. Preview blockers other than a disabled Docker provider reject the write.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [serviceId, network, model]
+              properties:
+                confirmUnverifiedPort: { type: boolean, default: false }
+                serviceId: { type: string }
+                network: { type: string }
+                model: { $ref: '#/components/schemas/TraefikModel' }
+      responses:
+        '200': { description: wrote filename; applyAvailable true }
+        '400': { description: Invalid model or unknown service/network/resolver }
+        '401': { description: Session required }
+        '403': { description: Missing apply or compose scope, or invalid CSRF/Origin }
+        '409': { description: Preview blockers prevent the write }
+        '415': { description: JSON required }
+        '502': { description: Inventory unavailable }
+        '503': { description: Dynamic directory, discovery, or audit unavailable }
   /networking/reverse-proxy/traefik/platform-preview:
     post:
       summary: Platform-native routing preview (Compose labels or Kubernetes resources); never applies changes
