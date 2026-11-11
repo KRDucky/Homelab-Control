@@ -60,27 +60,28 @@ type Config struct {
 
 // Server wires handlers, sessions and collectors.
 type Server struct {
-	traefik          traefikclient.Helper
-	discovery        composediscovery.Provider
-	platforms        *platform.Registry
-	identity         *containeridentity.Config
-	storageCollect   func(context.Context) (storageinfo.Graph, error)
-	storageSem       chan struct{}
-	storageSnapshots StorageSnapshotStore
-	layouts          LayoutStore
-	cfg              Config
-	users            *auth.Store
-	sessions         *auth.SessionManager
-	throttle         *auth.Throttle
-	audit            *audit.Logger
-	collector        *hostinfo.Collector
-	ui               fs.FS
-	loginSem         chan struct{}
-	mux              *http.ServeMux
-	overview         overviewCache
-	broker           Broker
-	hw               *hwinfo.Collector
-	bstate           brokerState
+	traefik           traefikclient.Helper
+	traefikDynamicDir string
+	discovery         composediscovery.Provider
+	platforms         *platform.Registry
+	identity          *containeridentity.Config
+	storageCollect    func(context.Context) (storageinfo.Graph, error)
+	storageSem        chan struct{}
+	storageSnapshots  StorageSnapshotStore
+	layouts           LayoutStore
+	cfg               Config
+	users             *auth.Store
+	sessions          *auth.SessionManager
+	throttle          *auth.Throttle
+	audit             *audit.Logger
+	collector         *hostinfo.Collector
+	ui                fs.FS
+	loginSem          chan struct{}
+	mux               *http.ServeMux
+	overview          overviewCache
+	broker            Broker
+	hw                *hwinfo.Collector
+	bstate            brokerState
 
 	persistentSessions bool
 	auditPager         AuditPager
@@ -139,6 +140,7 @@ func (s *Server) routes() {
 	s.handle("POST /api/v1/networking/reverse-proxy/traefik/labels", auth.ScopeNetworkingProxyRead, s.handleTraefikLabels)
 	s.handle("GET /api/v1/networking/reverse-proxy/traefik/applications", auth.ScopeComposeRead, s.handleComposeDiscovery)
 	s.handle("POST /api/v1/networking/reverse-proxy/traefik/compose-preview", auth.ScopeNetworkingProxyRead, s.handleComposePreview)
+	s.handle("POST /api/v1/networking/reverse-proxy/traefik/file-apply", auth.ScopeNetworkingProxyApply, s.handleTraefikFileApply)
 	s.handle("POST /api/v1/networking/reverse-proxy/traefik/platform-preview", auth.ScopeNetworkingProxyRead, s.handlePlatformPreview)
 	s.handle("GET /api/v1/platforms", auth.ScopePlatformsRead, s.handlePlatforms)
 	s.handle("GET /api/v1/platforms/{id}/inventory", auth.ScopePlatformsRead, s.handlePlatformInventory)

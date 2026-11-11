@@ -105,6 +105,27 @@ func TestFilesReadNotGrantedByDefaultOrImplied(t *testing.T) {
 	}
 }
 
+// Traefik file-provider write is never default and is not implied by read.
+func TestNetworkingProxyApplyNotGrantedByDefaultOrImplied(t *testing.T) {
+	if !KnownScopes[ScopeNetworkingProxyApply] || ScopeNetworkingProxyApply != "networking.proxy.apply" {
+		t.Fatal("networking.proxy.apply must be a known scope")
+	}
+	for _, s := range strings.Split(DefaultScopes, ",") {
+		if s == ScopeNetworkingProxyApply || s == ScopeNetworkingProxyRead {
+			t.Fatalf("default scopes grant %s", s)
+		}
+	}
+	var others []string
+	for s := range KnownScopes {
+		if s != ScopeNetworkingProxyApply {
+			others = append(others, s)
+		}
+	}
+	if (&Session{Scopes: others}).HasScope(ScopeNetworkingProxyApply) {
+		t.Fatal("every other scope together must not imply networking.proxy.apply")
+	}
+}
+
 // M4-1b: read-only Software Center needs packages.read, never granted by
 // default and implied by no other scope. packages.manage stays reserved.
 func TestPackagesReadNotGrantedByDefaultOrImplied(t *testing.T) {

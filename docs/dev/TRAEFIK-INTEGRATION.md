@@ -24,7 +24,8 @@ CORE routes beneath `/api/v1/networking/reverse-proxy/traefik`:
 | `/inventory` | GET | schemaVersion=1, routers/services/middlewares identity/status arrays |
 | `/diagnostics` | GET | schemaVersion=1, safe per-resource status/code/hint checks |
 | `/labels` | POST | validated string-label preview mapping (optional PathPrefix) |
-| `/compose-preview` | POST | labels plus file-provider YAML (`fileYAML`); Apply stays unavailable |
+| `/compose-preview` | POST | labels plus file-provider YAML (`fileYAML`); `applyAvailable` when `-traefik-dynamic-dir` is set |
+| `/file-apply` | POST | writes CORE-generated `<name>.yml` into that directory; requires `networking.proxy.apply` |
 
 Every route requires the session and dedicated scope. GET/HEAD additionally requires
 `X-CSRF-Token`; a present Origin must match. POST uses shared Origin/CSRF protection.
@@ -46,8 +47,9 @@ Incoming HTTP/TLS and upstream HTTP/HTTPS are explicit independent fields. HTTPS
 requires a TLS object, with optional existing certificate resolver. No automatic
 redirect, entrypoint creation, certificate provisioning or verification bypass. An
 explicit resolver reference can trigger issuance if the owner later applies labels.
-Router TLS may replace entrypoint defaults: review options separately. There is no
-apply endpoint, Docker socket mount, Compose editor or privileged broker operation.
+Router TLS may replace entrypoint defaults: review options separately. File apply
+writes CORE-generated YAML into `-traefik-dynamic-dir` only. There is no Docker-label
+apply, Docker socket mount, Compose editor or privileged broker operation.
 
 ## Build and tests
 

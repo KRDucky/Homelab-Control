@@ -1096,6 +1096,10 @@ export const previewCompose = (
   body: { serviceId: string; network: string; model: TraefikModel; confirmUnverifiedPort?: boolean },
   csrf: string,
 ) => postJSON<ComposeProposal>(`${traefikPath}/compose-preview`, csrf, body);
+export const applyComposeFile = (
+  body: { serviceId: string; network: string; model: TraefikModel; confirmUnverifiedPort?: boolean },
+  csrf: string,
+) => postJSON<{ wrote: string; applyAvailable: boolean }>(`${traefikPath}/file-apply`, csrf, body);
 
 // Container platform registry (CORE). Connection details never reach the browser.
 export type PlatformCapability =
