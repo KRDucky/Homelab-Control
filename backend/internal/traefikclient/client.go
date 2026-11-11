@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -152,10 +151,8 @@ func (c *Client) Inventory(ctx context.Context) (Inventory, error) {
 		}
 		for i := range rows {
 			r := &rows[i]
-			if len(r.Rule) > 262 || (r.Rule != "" && !regexp.MustCompile("^Host\\(`[a-z0-9.-]+`\\)$").MatchString(r.Rule)) {
-				r.Rule = ""
-			}
-			if !regexp.MustCompile(`^[a-zA-Z0-9_.@-]{0,280}$`).MatchString(r.Service) {
+			r.Rule = SanitizeRule(r.Rule)
+			if !serviceID.MatchString(r.Service) {
 				r.Service = ""
 			}
 			if len(r.Entrypoints) > 32 {
