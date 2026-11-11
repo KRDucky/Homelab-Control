@@ -30,6 +30,18 @@ const sections = [
 ] as const;
 type Section = (typeof sections)[number];
 const unknown = 'Unknown';
+function hostsOf(rule?: string): string[] {
+  return rule ? [...rule.matchAll(/Host\(`([a-z0-9.-]+)`\)/g)].map((m) => m[1]) : [];
+}
+function pathsOf(rule?: string): string[] {
+  return rule ? [...rule.matchAll(/Path(?:Prefix)?\(`(\/[A-Za-z0-9._~/-]*)`\)/g)].map((m) => m[1]) : [];
+}
+function routeHeadline(rule?: string): string {
+  const hosts = hostsOf(rule);
+  if (hosts.length) return hosts.join(', ');
+  const paths = pathsOf(rule);
+  return paths.length ? paths.join(', ') : unknown;
+}
 export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: () => void }) {
   const [inventory, setInventory] = useState<TraefikInventory | null>(null);
   const [diagnostics, setDiagnostics] = useState<TraefikDiagnostics | null>(null);
@@ -96,7 +108,7 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
   // Steps are numbered after the optional "Select platform" step.
   const firstStep = platforms.length > 0 ? 2 : 1;
   const warnings =
-    (inventory?.routers.filter((r) => !r.rule || r.tls === undefined).length ?? 0) +
+    (inventory?.routers.filter((r) => !r.rule).length ?? 0) +
     (catalog?.traefik.dockerProvider === false ? 1 : 0);
   async function generate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -246,9 +258,9 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
                 label: 'Hostname',
                 render: (r) => (
                   <>
-                    <span>{r.rule?.match(/^Host\(`([a-z0-9.-]+)`\)$/)?.[1] ?? unknown}</span>
+                    <span>{routeHeadline(r.rule)}</span>
                     <br />
-                    <small className="muted">{r.name}</small>
+                    <small className="muted">{r.rule ? `${r.name} · ${r.rule}` : r.name}</small>
                   </>
                 ),
               },
@@ -265,9 +277,7 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
                 id: 'warnings',
                 label: 'Configuration warnings',
                 render: (r) =>
-                  !r.rule || r.tls === undefined
-                    ? 'Incomplete inventory details'
-                    : 'Target application and port unverified',
+                  !r.rule ? 'Incomplete inventory details' : 'Target application and port unverified',
               },
             ]}
           />
