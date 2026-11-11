@@ -38,8 +38,10 @@ func TestConsolidateRepeatedRouterWarnings(t *testing.T) {
 		{Name: "fixture-router@file", Provider: "file"},
 		{Name: "hc-api@file", Provider: "file"},
 		{Name: "complex@file", Provider: "file", Rule: "PathPrefix(`/x`)"},
+		{Name: "api@file", Provider: "file", Rule: "PathPrefix(`/api`)"},
 		{Name: "other@file", Provider: "file", Rule: "Host(`a.example.com`) || Host(`b.example.com`)"},
 		{Name: "plain@file", Provider: "file", Rule: "Host(`plain.example.com`)"},
+		{Name: "app@file", Provider: "file", Rule: "Host(`app.isolated.test`) && PathPrefix(`/app`)"},
 	}
 	raw := build(t, routers)
 	if n := len(byCode(raw)[CodeHostUnverified]); n != 3 {
@@ -57,7 +59,7 @@ func TestConsolidateRepeatedRouterWarnings(t *testing.T) {
 	if len(m[CodeHostUnverified]) != 1 || m[CodeHostUnverified][0] != "3 live routers (fixture-router@file, hc-api@file, ping@internal) lack routing rules; hostname conflicts cannot be fully verified." {
 		t.Fatalf("%q", m[CodeHostUnverified])
 	}
-	if len(m[CodeComplexRule]) != 1 || !strings.HasPrefix(m[CodeComplexRule][0], "2 live routers (complex@file, other@file) have routing rules that this single-host model cannot compare") {
+	if len(m[CodeComplexRule]) != 1 || !strings.HasPrefix(m[CodeComplexRule][0], "2 live routers (api@file, complex@file) have routing rules that this single-host model cannot compare") {
 		t.Fatalf("%q", m[CodeComplexRule])
 	}
 	// Every other warning is kept, in order.

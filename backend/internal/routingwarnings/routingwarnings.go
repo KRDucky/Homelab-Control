@@ -14,7 +14,6 @@ package routingwarnings
 
 import (
 	"fmt"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -29,9 +28,6 @@ const (
 	MaxNamedRouters = 5
 )
 
-// singleHost mirrors the single-host rule composediscovery.Build compares.
-var singleHost = regexp.MustCompile("^Host\\(`([a-z0-9.-]+)`\\)$")
-
 // Consolidate returns warnings with each host_unverified and complex_rule group
 // reduced to one entry at the position of its first occurrence, naming the
 // routers from inventory. Other warnings keep their order; exact duplicates of
@@ -42,7 +38,7 @@ func Consolidate(warnings []composediscovery.Issue, inventory traefikclient.Inve
 		switch {
 		case r.Rule == "":
 			ruleless = append(ruleless, r.Name)
-		case !singleHost.MatchString(r.Rule):
+		case len(traefikclient.ComparableHosts(r.Rule)) == 0:
 			complexRules = append(complexRules, r.Name)
 		}
 	}
