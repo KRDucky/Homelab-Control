@@ -84,6 +84,36 @@ async function open() {
   fireEvent.change(screen.getByLabelText('Internal application port'), { target: { value: '8080' } });
   fireEvent.change(screen.getByLabelText('Public hostname'), { target: { value: 'notes.example.com' } });
 }
+it('shows Host and PathPrefix file-provider routes instead of Unknown', async () => {
+  vi.mocked(getTraefikInventory).mockResolvedValue({
+    schemaVersion: 1,
+    routers: [
+      {
+        name: 'app-http@file',
+        provider: 'file',
+        status: 'enabled',
+        rule: 'Host(`app.isolated.test`) && PathPrefix(`/app`)',
+        tls: false,
+      },
+      {
+        name: 'hc-api@file',
+        provider: 'file',
+        status: 'enabled',
+        rule: 'PathPrefix(`/api`)',
+      },
+    ],
+    services: [],
+    middlewares: [],
+  });
+  render(<Traefik csrf="csrf" onUnauthorized={unauthorized} />);
+  await screen.findByText('available');
+  fireEvent.click(screen.getByRole('button', { name: 'Proxy Hosts' }));
+  expect(screen.getByText('app.isolated.test')).toBeTruthy();
+  expect(screen.getByText('app-http@file · Host(`app.isolated.test`) && PathPrefix(`/app`)')).toBeTruthy();
+  expect(screen.getByText('/api')).toBeTruthy();
+  expect(screen.getByText('hc-api@file · PathPrefix(`/api`)')).toBeTruthy();
+});
+
 it('renders overview, real inventory tabs and honest unknown fields', async () => {
   render(<Traefik csrf="csrf" onUnauthorized={unauthorized} />);
   await screen.findByText('available');

@@ -98,3 +98,20 @@ func TestConflictsTLSAndRedaction(t *testing.T) {
 		t.Fatal("leaked unrelated or sensitive label")
 	}
 }
+
+func TestHostAndPathPrefixIsHostnameDuplicate(t *testing.T) {
+	s, r := fixtureRequest()
+	r.Model.Host = "app.isolated.test"
+	p, err := Build(s, traefikclient.Inventory{Routers: []traefikclient.Resource{
+		{Name: "app-http@file", Provider: "file", Rule: "Host(`app.isolated.test`) && PathPrefix(`/app`)"},
+	}}, r)
+	if err != nil || !has(p.Blockers, "hostname_duplicate") {
+		t.Fatal(p, err)
+	}
+	p, err = Build(s, traefikclient.Inventory{Routers: []traefikclient.Resource{
+		{Name: "hc-api@file", Provider: "file", Rule: "PathPrefix(`/api`)"},
+	}}, r)
+	if err != nil || has(p.Blockers, "hostname_duplicate") || !has(p.Warnings, "complex_rule") {
+		t.Fatal(p, err)
+	}
+}

@@ -223,14 +223,14 @@ func Build(s Snapshot, inventory traefikclient.Inventory, req Request) (Proposal
 		if strings.TrimSuffix(router.Name, "@"+router.Provider) == req.Model.Name {
 			block("router_duplicate", "Router name already exists in Traefik inventory.")
 		}
+		hosts := traefikclient.ComparableHosts(router.Rule)
 		if router.Rule == "" {
 			warn("host_unverified", "Some live routers lack routing rules; hostname conflicts cannot be fully verified.")
 			continue
 		}
-		m := hostRule.FindStringSubmatch(router.Rule)
-		if len(m) == 2 && m[1] == req.Model.Host {
+		if slices.Contains(hosts, req.Model.Host) {
 			block("hostname_duplicate", "Hostname already exists in Traefik inventory.")
-		} else if len(m) == 0 {
+		} else if len(hosts) == 0 {
 			warn("complex_rule", "A live routing rule cannot be compared by this single-host model; review conflicts manually.")
 		}
 	}

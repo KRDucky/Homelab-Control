@@ -127,6 +127,61 @@ func TestClientRejectsInjectedLabelsAndCancelledRequests(t *testing.T) {
 		t.Fatal("cancellation ignored")
 	}
 }
+func TestSanitizeRuleMatchesHelper(t *testing.T) {
+	keep := []string{
+		"Host(`app.isolated.test`) && PathPrefix(`/app`)",
+		"Host(`fixture.localhost`) && Path(`/ping`)",
+		"PathPrefix(`/api`)",
+		"PathPrefix(`/dashboard`) || PathPrefix(`/debug`)",
+		"Host(`app.isolated.test`) && Path(`/`)",
+		"Host(`a.example.com`) || Host(`b.example.com`)",
+		"Host(`plain.example.com`)",
+	}
+	for _, rule := range keep {
+		if SanitizeRule(rule) != rule {
+			t.Fatal(rule)
+		}
+	}
+	if got := ComparableHosts("Host(`app.isolated.test`) && PathPrefix(`/app`)"); len(got) != 1 || got[0] != "app.isolated.test" {
+		t.Fatal(got)
+	}
+	if got := ComparableHosts("PathPrefix(`/api`)"); len(got) != 0 {
+		t.Fatal(got)
+	}
+	drop := []string{
+		"Headers(`Authorization`,`PRIVATE`)",
+		"HostRegexp(`.*\\.evil`)",
+		"PathPrefix(`/../etc`)",
+		"Query(`q`,`x`)",
+		"Host(`a.example.com`) && Headers(`X`,`y`)",
+		"Host(`x`) || Host(`evil.test",
+	}
+	for _, rule := range drop {
+		if SanitizeRule(rule) != "" {
+			t.Fatal(rule)
+		}
+	}
+}
+
+func TestInventoryKeepsFileProviderRules(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"schemaVersion":1,"routers":[{"name":"app-http@file","provider":"file","status":"enabled","rule":"Host(` + "`app.isolated.test`" + `) && PathPrefix(` + "`/app`" + `)"},{"name":"hc-api@file","provider":"file","status":"enabled","rule":"PathPrefix(` + "`/api`" + `)"},{"name":"evil@file","provider":"file","status":"enabled","rule":"Headers(` + "`Authorization`" + `,` + "`PRIVATE`" + `)"}],"services":[],"middlewares":[]}`))
+	}))
+	defer ts.Close()
+	c, err := New(ts.URL, testToken)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inv, err := c.Inventory(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if inv.Routers[0].Rule != "Host(`app.isolated.test`) && PathPrefix(`/app`)" || inv.Routers[1].Rule != "PathPrefix(`/api`)" || inv.Routers[2].Rule != "" {
+		t.Fatal(inv.Routers)
+	}
+}
+
 func TestConfigurationAndPrivateSecret(t *testing.T) {
 	for _, url := range []string{"file:///tmp/x", "http://u:p@host", "http://host/path", "http://host/?x=1"} {
 		if _, e := New(url, testToken); e == nil {
