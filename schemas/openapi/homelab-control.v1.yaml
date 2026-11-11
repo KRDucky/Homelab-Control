@@ -1067,7 +1067,7 @@ paths:
                 network: { type: string }
                 model: { $ref: '#/components/schemas/TraefikModel' }
       responses:
-        '200': { description: Backend-validated summary, existing and proposed routing labels/networks, key changes, warnings and blockers; applyAvailable is true only when a Traefik dynamic directory is configured and file-apply blockers are clear }
+        '200': { description: Backend-validated summary, existing and proposed routing labels/networks, key changes, warnings and blockers; applyAvailable is true only when a Traefik dynamic directory is configured and file-apply blockers are clear; labelApplyAvailable is true when an allowlisted Compose file matches and the Docker provider is enabled }
         '400': { description: Invalid model or unknown service/network/resolver }
         '401': { description: Session required }
         '403': { description: Missing either scope or invalid CSRF/Origin }
@@ -1102,6 +1102,34 @@ paths:
         '415': { description: JSON required }
         '502': { description: Inventory unavailable }
         '503': { description: Dynamic directory, discovery, or audit unavailable }
+  /networking/reverse-proxy/traefik/compose-apply:
+    post:
+      summary: Write Safe Traefik labels into the selected application's allowlisted Compose file
+      x-required-scope: networking.proxy.apply
+      security: [{ session: [], csrf: [] }]
+      description: Also requires docker.compose.read. The body is the same as compose-preview. CORE patches services.<name>.labels in a compose.yaml under -compose-apply-dir. List or flow-style labels are rejected. CORE does not recreate containers or mount docker.sock. Recreate the Compose service after a successful write so Traefik's Docker provider reloads labels.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [serviceId, network, model]
+              properties:
+                confirmUnverifiedPort: { type: boolean, default: false }
+                serviceId: { type: string }
+                network: { type: string }
+                model: { $ref: '#/components/schemas/TraefikModel' }
+      responses:
+        '200': { description: wrote filename, added key count, labelApplyAvailable true, recreated false }
+        '400': { description: Invalid model or unknown service/network/resolver }
+        '401': { description: Session required }
+        '403': { description: Missing apply or compose scope, or invalid CSRF/Origin }
+        '409': { description: Preview blockers, missing compose file, label conflict, or unsupported labels form }
+        '415': { description: JSON required }
+        '502': { description: Inventory unavailable }
+        '503': { description: Compose apply directory, discovery, or audit unavailable }
   /networking/reverse-proxy/traefik/platform-preview:
     post:
       summary: Platform-native routing preview (Compose labels or Kubernetes resources); never applies changes

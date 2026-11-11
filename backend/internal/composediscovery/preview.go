@@ -109,22 +109,23 @@ type ProxySummary struct {
 	Entrypoint          string `json:"entrypoint"`
 }
 type Proposal struct {
-	Summary            ProxySummary   `json:"summary"`
-	SchemaVersion      int            `json:"schemaVersion"`
-	Source             string         `json:"source"`
-	Fixture            bool           `json:"fixture"`
-	Project            string         `json:"project"`
-	Service            string         `json:"service"`
-	Existing           Configuration  `json:"existing"`
-	Proposed           Configuration  `json:"proposed"`
-	File               map[string]any `json:"file,omitempty"`
-	FileYAML           string         `json:"fileYAML,omitempty"`
-	Changes            []Change       `json:"changes"`
-	Warnings           []Issue        `json:"warnings"`
-	Blockers           []Issue        `json:"blockers"`
-	ApplyAvailable     bool           `json:"applyAvailable"`
-	SourceFileVerified bool           `json:"sourceFileVerified"`
-	PreservedFields    []string       `json:"preservedFields"`
+	Summary             ProxySummary   `json:"summary"`
+	SchemaVersion       int            `json:"schemaVersion"`
+	Source              string         `json:"source"`
+	Fixture             bool           `json:"fixture"`
+	Project             string         `json:"project"`
+	Service             string         `json:"service"`
+	Existing            Configuration  `json:"existing"`
+	Proposed            Configuration  `json:"proposed"`
+	File                map[string]any `json:"file,omitempty"`
+	FileYAML            string         `json:"fileYAML,omitempty"`
+	Changes             []Change       `json:"changes"`
+	Warnings            []Issue        `json:"warnings"`
+	Blockers            []Issue        `json:"blockers"`
+	ApplyAvailable      bool           `json:"applyAvailable"`
+	LabelApplyAvailable bool           `json:"labelApplyAvailable"`
+	SourceFileVerified  bool           `json:"sourceFileVerified"`
+	PreservedFields     []string       `json:"preservedFields"`
 }
 
 func Build(s Snapshot, inventory traefikclient.Inventory, req Request) (Proposal, error) {
