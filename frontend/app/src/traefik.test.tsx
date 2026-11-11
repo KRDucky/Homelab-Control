@@ -10,6 +10,7 @@ import {
   getComposeApplications,
   previewCompose,
   applyComposeFile,
+  applyComposeLabels,
   getPlatforms,
 } from './api';
 vi.mock('./api', async (original) => ({
@@ -19,6 +20,7 @@ vi.mock('./api', async (original) => ({
   getComposeApplications: vi.fn(),
   previewCompose: vi.fn(),
   applyComposeFile: vi.fn(),
+  applyComposeLabels: vi.fn(),
   getPlatforms: vi.fn(),
 }));
 const unauthorized = vi.fn();
@@ -69,6 +71,7 @@ beforeEach(() => {
     warnings: [{ code: 'file_provider', message: 'Copy the file YAML into Traefik\'s dynamic directory.' }],
     fileYAML: "http:\n  routers:\n    proxy-host:\n      rule: 'Host(`notes.example.com`)'\n      service: web",
     applyAvailable: false,
+    labelApplyAvailable: false,
     sourceFileVerified: false,
     preservedFields: ['environment'],
   });
@@ -270,6 +273,42 @@ it('shows selected networks and permits explicitly confirmed unknown internal po
     ),
   );
 });
+it('applies compose labels when labelApplyAvailable', async () => {
+  const preview = vi.mocked(previewCompose).getMockImplementation();
+  if (!preview) throw new Error('fixture preview missing');
+  const p = await preview(
+    {
+      serviceId: 'notes',
+      network: 'private',
+      model: {
+        name: 'notes',
+        host: 'notes.example.com',
+        port: 8080,
+        entrypoint: 'web',
+        protocol: 'http',
+        upstreamScheme: 'http',
+      },
+    },
+    'csrf',
+  );
+  p.labelApplyAvailable = true;
+  p.applyAvailable = false;
+  vi.mocked(previewCompose).mockResolvedValue(p);
+  vi.mocked(applyComposeLabels).mockResolvedValue({
+    wrote: 'compose.yaml',
+    added: 5,
+    labelApplyAvailable: true,
+    recreated: false,
+  });
+  await open();
+  fireEvent.click(screen.getByRole('button', { name: 'Preview configuration' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Apply labels' }));
+  await waitFor(() => expect(applyComposeLabels).toHaveBeenCalled());
+  expect(await screen.findByText(/Wrote Traefik labels into compose.yaml/)).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Write file YAML' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Deploy' })).toBeNull();
+});
+
 it('writes file YAML when applyAvailable and keeps Docker-label apply hidden', async () => {
   const preview = vi.mocked(previewCompose).getMockImplementation();
   if (!preview) throw new Error('fixture preview missing');

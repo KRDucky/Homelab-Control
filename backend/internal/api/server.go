@@ -62,6 +62,7 @@ type Config struct {
 type Server struct {
 	traefik           traefikclient.Helper
 	traefikDynamicDir string
+	composeApplyDir   string
 	discovery         composediscovery.Provider
 	platforms         *platform.Registry
 	identity          *containeridentity.Config
@@ -141,6 +142,7 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/networking/reverse-proxy/traefik/applications", auth.ScopeComposeRead, s.handleComposeDiscovery)
 	s.handle("POST /api/v1/networking/reverse-proxy/traefik/compose-preview", auth.ScopeNetworkingProxyRead, s.handleComposePreview)
 	s.handle("POST /api/v1/networking/reverse-proxy/traefik/file-apply", auth.ScopeNetworkingProxyApply, s.handleTraefikFileApply)
+	s.handle("POST /api/v1/networking/reverse-proxy/traefik/compose-apply", auth.ScopeNetworkingProxyApply, s.handleTraefikComposeApply)
 	s.handle("POST /api/v1/networking/reverse-proxy/traefik/platform-preview", auth.ScopeNetworkingProxyRead, s.handlePlatformPreview)
 	s.handle("GET /api/v1/platforms", auth.ScopePlatformsRead, s.handlePlatforms)
 	s.handle("GET /api/v1/platforms/{id}/inventory", auth.ScopePlatformsRead, s.handlePlatformInventory)
