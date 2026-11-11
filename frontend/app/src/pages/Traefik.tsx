@@ -8,6 +8,7 @@ import {
   getComposeApplications,
   previewCompose,
   applyComposeFile,
+  applyComposeLabels,
   getPlatforms,
   type PlatformView,
   type TraefikInventory,
@@ -62,6 +63,7 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
   const [platformId, setPlatformId] = useState('');
   const [busy, setBusy] = useState(false);
   const [wrote, setWrote] = useState('');
+  const [labelsWrote, setLabelsWrote] = useState('');
   const previewBody = useRef<{
     serviceId: string;
     network: string;
@@ -124,6 +126,7 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
     event.preventDefault();
     setProposal(null);
     setWrote('');
+    setLabelsWrote('');
     setError(null);
     setBusy(true);
     const version = previewVersion.current;
@@ -171,6 +174,20 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
       setBusy(false);
     }
   }
+  async function writeComposeLabels() {
+    if (!previewBody.current) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await applyComposeLabels(previewBody.current, csrf);
+      setLabelsWrote(result.wrote);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) onUnauthorized();
+      setError(e instanceof Error ? e : new Error('Compose labels could not be written'));
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <div className="page traefik-page">
       <p className="muted" aria-label="Feature location">
@@ -195,7 +212,8 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
         </button>
       </div>
       <p className="banner" role="status">
-        Preview only. No Compose files, networks or containers are changed.
+        Preview generates labels. Apply writes them into the selected Compose file. Recreate that service
+        separately so Traefik reloads them.
       </p>
       <nav aria-label="Traefik sections" className="proxy-tabs">
         {sections.map((item) => (
@@ -268,6 +286,8 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
                 previewVersion.current++;
                 setAdding(!adding);
                 setProposal(null);
+                setWrote('');
+                setLabelsWrote('');
               }}
             >
               {adding ? 'Close configuration' : 'Add Proxy Host'}
@@ -368,6 +388,7 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
                     previewVersion.current++;
                     setProposal(null);
                     setWrote('');
+                    setLabelsWrote('');
                   }}
                   className="proxy-form"
                 >
@@ -615,8 +636,8 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
                 <dd>{proposal.summary?.network ?? unknown}</dd>
               </dl>
               <p>
-                File YAML is for Traefik&apos;s file provider. Compose labels are for a Docker provider.
-                Source files are not loaded. Docker-label Apply stays unavailable.
+                Apply labels writes Traefik keys into the selected Compose service. Recreate that service so
+                Traefik&apos;s Docker provider sees them. File YAML is the file-provider fallback.
               </p>
               {proposal.fileYAML && (
                 <>
@@ -665,7 +686,19 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
                   <pre>{JSON.stringify(proposal, null, 2)}</pre>
                 </details>
               </details>
-              {proposal.applyAvailable ? (
+              {proposal.labelApplyAvailable ? (
+                <>
+                  <button type="button" disabled={busy} onClick={() => void writeComposeLabels()}>
+                    {busy ? 'Applying labels…' : 'Apply labels'}
+                  </button>
+                  {labelsWrote ? (
+                    <p>
+                      Wrote Traefik labels into {labelsWrote}. Recreate the Compose service so Traefik
+                      reloads them.
+                    </p>
+                  ) : null}
+                </>
+              ) : proposal.applyAvailable ? (
                 <>
                   <button type="button" disabled={busy} onClick={() => void writeFileYAML()}>
                     {busy ? 'Writing file YAML…' : 'Write file YAML'}
@@ -712,8 +745,9 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
                 : 'Disabled'}
           </p>
           <p>
-            Configuration apply, direct Docker access, certificate management and service deployment are
-            unavailable. Application discovery uses the configured CORE metadata provider.
+            Compose-label apply writes Traefik keys into an allowlisted Compose file. CORE has no Docker
+            socket. Certificate management stays unavailable. Application discovery uses the configured CORE
+            metadata provider.
           </p>
         </section>
       )}

@@ -26,6 +26,7 @@ CORE routes beneath `/api/v1/networking/reverse-proxy/traefik`:
 | `/labels` | POST | validated string-label preview mapping (optional PathPrefix) |
 | `/compose-preview` | POST | labels plus file-provider YAML (`fileYAML`); `applyAvailable` when `-traefik-dynamic-dir` is set |
 | `/file-apply` | POST | writes CORE-generated `<name>.yml` into that directory; requires `networking.proxy.apply` |
+| `/compose-apply` | POST | patches Safe Traefik labels into an allowlisted Compose file; requires `networking.proxy.apply`; does not recreate containers |
 
 Every route requires the session and dedicated scope. GET/HEAD additionally requires
 `X-CSRF-Token`; a present Origin must match. POST uses shared Origin/CSRF protection.
@@ -48,8 +49,9 @@ requires a TLS object, with optional existing certificate resolver. No automatic
 redirect, entrypoint creation, certificate provisioning or verification bypass. An
 explicit resolver reference can trigger issuance if the owner later applies labels.
 Router TLS may replace entrypoint defaults: review options separately. File apply
-writes CORE-generated YAML into `-traefik-dynamic-dir` only. There is no Docker-label
-apply, Docker socket mount, Compose editor or privileged broker operation.
+writes CORE-generated YAML into `-traefik-dynamic-dir` only. Compose-label apply
+(`-compose-apply-dir`) patches Safe Traefik keys on `services.<name>.labels` in an
+allowlisted compose.yaml. CORE does not mount docker.sock or recreate containers.
 
 ## Build and tests
 
