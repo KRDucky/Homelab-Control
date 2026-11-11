@@ -64,7 +64,8 @@ beforeEach(() => {
     proposed: { labels: { 'traefik.enable': 'true' }, networks: ['private'] },
     changes: [],
     blockers: [{ code: 'provider_disabled', message: 'Docker provider is disabled.' }],
-    warnings: [],
+    warnings: [{ code: 'file_provider', message: 'Copy the file YAML into Traefik\'s dynamic directory.' }],
+    fileYAML: "http:\n  routers:\n    proxy-host:\n      rule: 'Host(`notes.example.com`)'\n      service: web",
     applyAvailable: false,
     sourceFileVerified: false,
     preservedFields: ['environment'],
@@ -158,9 +159,23 @@ it('selects internal ports and previews backend proposal without mutation', asyn
     ),
   );
   expect(await screen.findByText('Docker provider is disabled.')).toBeTruthy();
+  expect(screen.getByLabelText('File provider YAML').textContent).toContain('Host(`notes.example.com`)');
   expect(screen.getByLabelText('Compose labels').textContent).toContain('traefik.enable');
   expect(screen.getByText('Proposed Reverse Proxy Configuration')).toBeTruthy();
   expect(screen.getByText('Advanced Details').parentElement?.hasAttribute('open')).toBe(false);
+});
+it('includes optional path prefix in the compose preview model', async () => {
+  await open();
+  fireEvent.change(screen.getByLabelText('Path prefix (optional)'), { target: { value: '/app' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Preview configuration' }));
+  await waitFor(() =>
+    expect(previewCompose).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: expect.objectContaining({ path: '/app', host: 'notes.example.com' }),
+      }),
+      'csrf',
+    ),
+  );
 });
 it('associates protocol label and separates incoming TLS from upstream HTTP', async () => {
   await open();

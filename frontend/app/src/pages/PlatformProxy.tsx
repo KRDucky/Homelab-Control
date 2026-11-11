@@ -99,6 +99,8 @@ export function PlatformProxy({
       protocol,
       upstreamScheme: data.get('upstreamScheme') === 'https' ? 'https' : 'http',
     };
+    const path = String(data.get('path') ?? '').trim();
+    if (path) model.path = path;
     if (protocol === 'https')
       model.tls = data.get('resolver') ? { certificateResolver: String(data.get('resolver')) } : {};
     try {
@@ -240,6 +242,14 @@ export function PlatformProxy({
             required
             maxLength={253}
             pattern={'[a-z0-9.\\-]+\\.[a-z0-9\\-]+'}
+          />
+          <label htmlFor="platform-path">Path prefix (optional)</label>
+          <input
+            id="platform-path"
+            name="path"
+            placeholder="/app"
+            maxLength={201}
+            pattern={'/[A-Za-z0-9._~/-]*'}
           />
           <label htmlFor="platform-protocol">Incoming protocol</label>
           <select
