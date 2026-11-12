@@ -63,6 +63,7 @@ var registry = []Module{
 		Path:        "/software",
 	},
 	{ID: "networking", Title: "Networking", Description: "Reverse Proxy: read-only Traefik inventory, diagnostics and label previews", Scopes: []string{"networking.proxy.read"}, APIPrefix: "/api/v1/networking", Path: "/networking/reverse-proxy/traefik"},
+	{ID: "mergerfs", Title: "MergerFS", Description: "read-only MergerFS pool inventory and optional SnapRAID configuration from the local host", Scopes: []string{"mergerfs.read"}, APIPrefix: "/api/v1/mergerfs", Path: "/storage/mergerfs"},
 }
 
 // All returns the registered modules.
