@@ -177,13 +177,14 @@ func Collect(ctx context.Context, osRoot, snapraidPath, family string) (Snapshot
 	}
 	var snap Snapshot
 	snap.Tooling = ProbeTooling(family)
-	pools, _ := collectMounts(osRoot)
-	if pools == nil {
-		pools = []Pool{}
-	}
-	// mergerfs.present prefers the binary gate; a parsed mount without the
-	// binary is still listed (empty pools without a binary is not a fake page).
-	if snap.Tooling.RequiredInstalled("mergerfs") || len(pools) > 0 {
+	pools, err := collectMounts(osRoot)
+	if err != nil {
+		// A mount inventory that cannot be parsed must not read as a healthy
+		// empty pool list; report it honestly with fixed text (no error string).
+		snap.MergerFS = MergerFS{Present: false, Reason: "mount inventory could not be read", Pools: []Pool{}}
+	} else if snap.Tooling.RequiredInstalled("mergerfs") || len(pools) > 0 {
+		// mergerfs.present prefers the binary gate; a parsed mount without the
+		// binary is still listed (empty pools without a binary is not a fake page).
 		snap.MergerFS = MergerFS{Present: true, Pools: pools}
 	} else {
 		snap.MergerFS = MergerFS{Present: false, Reason: "mergerfs is not installed", Pools: []Pool{}}

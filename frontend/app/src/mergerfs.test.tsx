@@ -126,8 +126,31 @@ describe('MergerFS read-only page', () => {
       }),
     );
     render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
-    expect(await screen.findByText(/Software Center module to be enabled/)).toBeTruthy();
+    const offer = await screen.findByText(/Software Center module must be enabled/);
+    expect(offer.textContent).toContain('mergerfs');
     expect(screen.queryByRole('link', { name: 'Install mergerfs' })).toBeNull();
+  });
+
+  it('shows observed pools together with the install offer when the binary is missing', async () => {
+    vi.mocked(getMergerFS).mockResolvedValue(
+      inventory({
+        mergerfsInstalled: false,
+        snapraidInstalled: true,
+        mergerfsPresent: true,
+        snapraidPresent: false,
+      }),
+    );
+    render(
+      <MergerFS
+        csrf={csrf}
+        scopes={['packages.read']}
+        packagesEnabled={true}
+        onUnauthorized={onUnauthorized}
+      />,
+    );
+    expect(await screen.findByText('/mnt/media')).toBeTruthy();
+    expect(screen.getByText('observed')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Install mergerfs' })).toBeTruthy();
   });
 
   it('shows the optional-missing SnapRAID offer with an Add CTA', async () => {

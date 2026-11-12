@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -19,6 +20,9 @@ const DefaultSnapRAIDPath = "/etc/snapraid.conf"
 
 // snapraidMaxBytes caps a single snapraid.conf (it is parsed whole).
 const snapraidMaxBytes = 256 << 10
+
+// snapraidNameRE is the SnapRAID data-disk name grammar.
+var snapraidNameRE = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,32}$`)
 
 // SnapRAID is the optional SnapRAID half of the response. Absence of a
 // config is normal (SnapRAID is optional), not an error.
@@ -63,11 +67,11 @@ func ReadSnapRAID(path string) SnapRAID {
 	return out
 }
 
-// ParseSnapRAIDConfig parses the recognised subset of snapraid.conf: data,
-// parity/2-parity/3-parity/..., and content keys with exactly one absolute
-// path value. Comments and blank lines are skipped; unknown keys are ignored.
-// Trailing garbage after a recognised key, a missing value, or a non-absolute
-// path is an error.
+// ParseSnapRAIDConfig parses the recognised subset of snapraid.conf: data
+// (`data NAME PATH` with NAME [A-Za-z0-9_.-]{1,32}), parity/2-parity/…
+// (comma-separated absolute paths), and content (one absolute path). Comments
+// and blank lines are skipped; unknown keys are ignored. Trailing garbage, a
+// missing value, a non-absolute path, or a bad name is an error.
 func ParseSnapRAIDConfig(text string) (SnapRAID, error) {
 	out := SnapRAID{Data: []string{}, Parity: []string{}, Content: []string{}}
 	for i, line := range strings.Split(text, "\n") {
@@ -80,20 +84,35 @@ func ParseSnapRAIDConfig(text string) (SnapRAID, error) {
 			continue
 		}
 		key := fields[0]
-		if key == "data" || key == "parity" || key == "content" || isParityKey(key) {
+		switch {
+		case key == "data":
+			if len(fields) != 3 {
+				return SnapRAID{}, fmt.Errorf("line %d: data requires a name and one absolute path", i+1)
+			}
+			if !snapraidNameRE.MatchString(fields[1]) {
+				return SnapRAID{}, fmt.Errorf("line %d: invalid data name", i+1)
+			}
+			if !strings.HasPrefix(fields[2], "/") {
+				return SnapRAID{}, fmt.Errorf("line %d: data path must be absolute", i+1)
+			}
+			out.Data = append(out.Data, fields[2])
+		case key == "content":
 			if len(fields) != 2 {
-				return SnapRAID{}, fmt.Errorf("line %d: %s requires exactly one absolute path", i+1, key)
+				return SnapRAID{}, fmt.Errorf("line %d: content requires one absolute path", i+1)
 			}
 			if !strings.HasPrefix(fields[1], "/") {
-				return SnapRAID{}, fmt.Errorf("line %d: %s path must be absolute", i+1, key)
+				return SnapRAID{}, fmt.Errorf("line %d: content path must be absolute", i+1)
 			}
-			switch {
-			case key == "data":
-				out.Data = append(out.Data, fields[1])
-			case key == "content":
-				out.Content = append(out.Content, fields[1])
-			default:
-				out.Parity = append(out.Parity, fields[1])
+			out.Content = append(out.Content, fields[1])
+		case key == "parity" || isParityKey(key):
+			if len(fields) != 2 {
+				return SnapRAID{}, fmt.Errorf("line %d: %s requires an absolute path list", i+1, key)
+			}
+			for _, part := range strings.Split(fields[1], ",") {
+				if !strings.HasPrefix(part, "/") {
+					return SnapRAID{}, fmt.Errorf("line %d: %s path must be absolute", i+1, key)
+				}
+				out.Parity = append(out.Parity, part)
 			}
 		}
 		// Unknown keys are ignored; includes are never followed.

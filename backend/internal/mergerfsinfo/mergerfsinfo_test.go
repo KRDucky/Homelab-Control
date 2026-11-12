@@ -83,6 +83,26 @@ func TestCollectNoMountsNoConfig(t *testing.T) {
 	}
 }
 
+func TestCollectParseFailureFailsClosed(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "proc", "self"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "proc", "self", "mountinfo"), []byte("garbage\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	snap, err := Collect(context.Background(), dir, filepath.Join(dir, "missing.conf"), "debian")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snap.MergerFS.Present || snap.MergerFS.Reason != "mount inventory could not be read" {
+		t.Fatalf("mergerfs must fail closed: %+v", snap.MergerFS)
+	}
+	if len(snap.MergerFS.Pools) != 0 {
+		t.Fatalf("mergerfs pools: %+v", snap.MergerFS.Pools)
+	}
+}
+
 func TestProbeToolingPresent(t *testing.T) {
 	dir := t.TempDir()
 	for _, name := range []string{"mergerfs", "snapraid"} {
@@ -130,10 +150,9 @@ func TestProbeToolingMissingAndPackageNames(t *testing.T) {
 
 func TestParseSnapRAIDConfig(t *testing.T) {
 	cfg := `# Example data
-data /mnt/disk1
-data /mnt/disk2
-parity /mnt/parity1
-2-parity /mnt/parity2
+data d1 /mnt/disk1
+data d2 /mnt/disk2
+parity /mnt/parity1,/mnt/parity2
 3-parity /mnt/parity3
 content /var/snapraid/content
 autosave 500
@@ -146,17 +165,19 @@ nohidden
 	if len(out.Data) != 2 || len(out.Parity) != 3 || len(out.Content) != 1 {
 		t.Fatalf("%+v", out)
 	}
-	if out.Data[1] != "/mnt/disk2" || out.Parity[2] != "/mnt/parity3" || out.Content[0] != "/var/snapraid/content" {
+	if out.Data[1] != "/mnt/disk2" || out.Parity[0] != "/mnt/parity1" || out.Parity[1] != "/mnt/parity2" || out.Parity[2] != "/mnt/parity3" || out.Content[0] != "/var/snapraid/content" {
 		t.Fatalf("%+v", out)
 	}
 }
 
 func TestParseSnapRAIDConfigRejectsGarbage(t *testing.T) {
 	for _, bad := range []string{
-		"data /mnt/disk1 extra\n",
-		"data\n",
-		"data relative/path\n",
-		"parity /mnt/disk1 /mnt/disk2\n",
+		"data d1\n",                  // missing path
+		"data d1 relative/path\n",    // non-absolute path
+		"data d1 /mnt/disk1 extra\n", // trailing garbage
+		"data bad/name /mnt/disk1\n", // invalid name charset
+		"parity relative\n",          // non-absolute
+		"parity /mnt/p1 extra\n",     // trailing garbage
 	} {
 		if _, err := ParseSnapRAIDConfig(bad); err == nil {
 			t.Fatalf("accepted %q", bad)
@@ -167,7 +188,7 @@ func TestParseSnapRAIDConfigRejectsGarbage(t *testing.T) {
 func TestReadSnapRAIDRefusesSymlinkAndOversize(t *testing.T) {
 	dir := t.TempDir()
 	real := filepath.Join(dir, "real.conf")
-	if err := os.WriteFile(real, []byte("data /mnt/disk1\n"), 0o644); err != nil {
+	if err := os.WriteFile(real, []byte("data d1 /mnt/disk1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	link := filepath.Join(dir, "link.conf")
