@@ -96,33 +96,51 @@ func FindComposeFile(root, project, service string) (string, error) {
 	return matches[0], nil
 }
 
-// PatchServiceLabels inserts or updates SafeLabels on services.<service>.labels.
-// Other keys are left untouched. List or flow-style labels are rejected.
+// PatchServiceLabels inserts or updates SafeLabels on services.<service>.labels
+// in the file at path. Other keys are left untouched. List or flow-style labels
+// are rejected. It is a thin wrapper over PatchLabelsText that adds file I/O.
 func PatchServiceLabels(path, service string, labels map[string]string) (int, error) {
-	if !dockerName.MatchString(service) {
-		return 0, ErrComposeApply
-	}
-	safe := SafeLabels(labels)
-	if len(safe) == 0 || len(safe) != len(labels) {
-		return 0, ErrComposeApply
-	}
 	raw, err := os.ReadFile(path)
 	if err != nil || len(raw) == 0 || len(raw) > maxComposeBytes || strings.ContainsRune(string(raw), 0) {
 		return 0, ErrComposeApply
 	}
-	text := strings.ReplaceAll(string(raw), "\r\n", "\n")
+	patched, added, err := PatchLabelsText(string(raw), service, labels)
+	if err != nil {
+		return 0, err
+	}
+	if err = writeAtomic(path, patched); err != nil {
+		return 0, err
+	}
+	return added, nil
+}
+
+// PatchLabelsText patches compose YAML text in memory (no file I/O). It is the
+// shared core used by both the local file apply and the Arcane API apply, so
+// the two paths apply identical SafeLabels rules.
+func PatchLabelsText(text, service string, labels map[string]string) (string, int, error) {
+	if !dockerName.MatchString(service) {
+		return "", 0, ErrComposeApply
+	}
+	safe := SafeLabels(labels)
+	if len(safe) == 0 || len(safe) != len(labels) {
+		return "", 0, ErrComposeApply
+	}
+	if text == "" || len(text) > maxComposeBytes || strings.ContainsRune(text, 0) {
+		return "", 0, ErrComposeApply
+	}
+	text = strings.ReplaceAll(text, "\r\n", "\n")
 	lines := strings.Split(text, "\n")
 	svcIdx, svcIndent, err := findServiceLine(lines, service)
 	if err != nil {
-		return 0, err
+		return "", 0, err
 	}
 	childIndent := svcIndent + 2
 	labelIdx, labelEnd, labelKeyIndent, form, existing, err := findLabelsBlock(lines, svcIdx, svcIndent, childIndent)
 	if err != nil {
-		return 0, err
+		return "", 0, err
 	}
 	if form != "map" && form != "missing" {
-		return 0, ErrComposeLabelsForm
+		return "", 0, ErrComposeLabelsForm
 	}
 	added := 0
 	keys := make([]string, 0, len(safe))
@@ -135,7 +153,7 @@ func PatchServiceLabels(path, service string, labels map[string]string) (int, er
 		v := safe[k]
 		if prior, ok := existing[k]; ok {
 			if unquoteYAML(prior) != v {
-				return 0, ErrComposeLabelConflict
+				return "", 0, ErrComposeLabelConflict
 			}
 			continue
 		}
@@ -143,7 +161,7 @@ func PatchServiceLabels(path, service string, labels map[string]string) (int, er
 		insert = append(insert, strings.Repeat(" ", labelKeyIndent)+k+": "+yamlQuote(v))
 	}
 	if added == 0 {
-		return 0, nil
+		return text, 0, nil
 	}
 	var out []string
 	if form == "missing" {
@@ -162,10 +180,7 @@ func PatchServiceLabels(path, service string, labels map[string]string) (int, er
 	if !strings.HasSuffix(body, "\n") {
 		body += "\n"
 	}
-	if err = writeAtomic(path, body); err != nil {
-		return 0, err
-	}
-	return added, nil
+	return body, added, nil
 }
 
 func composeIdentity(path string) (string, []string, error) {

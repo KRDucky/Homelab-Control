@@ -132,6 +132,10 @@ func (d *Docker) Snapshot(ctx context.Context) (Snapshot, error) {
 			return Snapshot{}, ErrDockerUnavailable
 		}
 		s := Service{ID: row.ID, Container: name, State: row.State, Ports: []Port{}, Networks: []string{}, Labels: map[string]string{}, OfficialTraefik: OfficialTraefikImage(row.Image)}
+		if len(row.Image) > 512 {
+			return Snapshot{}, ErrDockerUnavailable
+		}
+		s.Image = row.Image
 		project, service := row.Labels["com.docker.compose.project"], row.Labels["com.docker.compose.service"]
 		if (project != "" || service != "") && (!dockerName.MatchString(project) || !dockerName.MatchString(service)) {
 			return Snapshot{}, ErrDockerUnavailable
@@ -166,6 +170,9 @@ func (d *Docker) Snapshot(ctx context.Context) (Snapshot, error) {
 		for _, p := range row.Ports {
 			if p.PrivatePort < 1 || p.PrivatePort > 65535 || (p.Type != "tcp" && p.Type != "udp" && p.Type != "sctp") {
 				return Snapshot{}, ErrDockerUnavailable
+			}
+			if p.Type == "tcp" && p.PublicPort >= 1 && p.PublicPort <= 65535 {
+				s.PublishedPorts = append(s.PublishedPorts, p.PublicPort)
 			}
 			key := strconv.Itoa(p.PrivatePort) + "/" + p.Type
 			if !portSeen[key] {
