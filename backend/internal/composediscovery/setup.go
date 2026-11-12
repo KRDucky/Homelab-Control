@@ -21,7 +21,8 @@ const officialCompose = `# SPDX-FileCopyrightText: 2026 The Homelab Control Auth
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # HomeControl easy-setup. Official Traefik image only. Host 80/443 stay free.
-# CORE does not mount docker.sock and does not start this stack.
+# Traefik mounts the host Docker socket (rootless default shown) for its Docker
+# provider. Starting this project is a Compose-module job once that module exists.
 name: homelab-traefik
 services:
   traefik:
@@ -78,7 +79,8 @@ providers:
 `
 
 // WriteOfficialSetup writes official Traefik compose + static config. It does
-// not start containers and does not bind host 80/443.
+// not start containers and does not bind host 80/443. A future Compose module
+// starts this project over docker.sock or the rootless Docker socket.
 func WriteOfficialSetup(dir string) ([]string, error) {
 	abs, err := confinedDir(dir)
 	if err != nil {

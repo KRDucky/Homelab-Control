@@ -307,13 +307,16 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
                 <>
                   <p>
                     No Traefik container found. Write official Traefik compose to get started. Host ports 80
-                    and 443 stay free. CORE does not start the stack.
+                    and 443 stay free.
                   </p>
                   <button type="button" disabled={busy} onClick={() => void writeOfficialSetup()}>
                     {busy ? 'Writing compose…' : 'Write Traefik compose'}
                   </button>
                   {setupWrote ? (
-                    <p>Wrote {setupWrote}. Start the stack with docker compose from that directory.</p>
+                    <p>
+                      Wrote {setupWrote}. A Docker Compose module will start this stack when it exists; until
+                      then start it with docker compose from that directory.
+                    </p>
                   ) : null}
                 </>
               ) : (
@@ -740,7 +743,7 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
                   {labelsWrote ? (
                     <p>
                       Wrote Traefik labels into {labelsWrote}. Recreate the Compose service so Traefik reloads
-                      them.
+                      them. A Docker Compose module will own recreate when it exists.
                     </p>
                   ) : null}
                 </>
