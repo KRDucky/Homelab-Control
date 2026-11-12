@@ -4,6 +4,8 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
+	"homelab-control/backend/internal/arcanediscovery"
 	"homelab-control/backend/internal/auth"
 	"homelab-control/backend/internal/composediscovery"
 	"homelab-control/backend/internal/routingwarnings"
@@ -91,6 +93,17 @@ func (s *Server) WithTraefikDynamicDir(dir string) *Server {
 
 func (s *Server) WithComposeApplyDir(dir string) *Server {
 	s.composeApplyDir = dir
+	return s
+}
+
+// WithArcane enables the read-only Arcane manager API path for Traefik
+// compose-label apply. url is the operator override (empty derives the URL from
+// a detected host-published 3552 port); env is the Arcane environment id
+// ("0" by default). apiKey is read from ARCANE_API_KEY at startup, never logged.
+func (s *Server) WithArcane(apiKey, url, env string) *Server {
+	s.arcaneKey = apiKey
+	s.arcaneURL = url
+	s.arcaneEnv = env
 	return s
 }
 
@@ -191,8 +204,8 @@ func (s *Server) handleTraefikComposeApply(w http.ResponseWriter, r *http.Reques
 	if !s.traefikReady(w, r, sess) {
 		return
 	}
-	if s.composeApplyDir == "" {
-		writeError(w, 503, "compose_apply_unavailable", "Compose apply directory is not configured.")
+	if s.composeApplyDir == "" && s.arcaneKey == "" {
+		writeError(w, 503, "compose_apply_unavailable", "Compose apply is not configured: no apply directory and no Arcane API key.")
 		return
 	}
 	req, ok := s.decodeComposeRequest(w, r)
@@ -216,6 +229,58 @@ func (s *Server) handleTraefikComposeApply(w http.ResponseWriter, r *http.Reques
 	}
 	out.Warnings = routingwarnings.Consolidate(out.Warnings, inventory)
 	s.markFileApply(&out, inventory, snapshot, req.Model.Name)
+
+	// The blocker gate is shared by the file and Arcane paths.
+	blockersOK := composediscovery.LabelApplyReady(out.Blockers, req.Model.Name, out.Summary.Hostname, inventory, snapshot.Traefik.DockerProvider)
+	// Arcane is enabled by configuration (ARCANE_API_KEY) plus a resolvable base
+	// URL (-arcane-url, or derived from a detected host-published 3552). Docker
+	// detection only pre-fills the URL; it never auto-enables the path.
+	arcane := arcanediscovery.Detect(snapshot)
+	arcaneAvailable := s.arcaneKey != "" && blockersOK && (s.arcaneURL != "" || arcane.URL != "")
+
+	if !out.LabelApplyAvailable && !arcaneAvailable {
+		writeError(w, 409, "compose_apply_blocked", "Compose labels cannot be written until preview blockers are resolved.")
+		return
+	}
+
+	// Try Arcane first; fall back to the local file apply when Arcane does not
+	// own the project, the key is missing, or the API call fails.
+	if arcaneAvailable {
+		url := s.arcaneURL
+		if url == "" {
+			url = arcane.URL
+		}
+		if client, cerr := arcanediscovery.New(url, s.arcaneKey, s.arcaneEnv); cerr == nil {
+			res, aerr := client.ApplyLabels(r.Context(), out.Project, out.Service, out.Proposed.Labels)
+			switch {
+			case aerr == nil:
+				if err = s.auditLog("networking.compose.labels.apply", sess.Username, r, "applied", "arcane compose labels wrote"); err != nil {
+					writeError(w, 503, "audit_unavailable", "Traefik access could not be audited.")
+					return
+				}
+				writeJSON(w, 200, map[string]any{
+					"wrote":               res.Wrote,
+					"added":               res.Added,
+					"labelApplyAvailable": true,
+					"recreated":           false,
+					"via":                 "arcane",
+				})
+				return
+			case errors.Is(aerr, composediscovery.ErrComposeLabelConflict):
+				writeError(w, 409, "compose_apply_blocked", "Existing Compose labels differ from the proposal.")
+				return
+			case errors.Is(aerr, composediscovery.ErrComposeLabelsForm):
+				writeError(w, 409, "compose_apply_blocked", "Compose labels must be a YAML mapping.")
+				return
+			default:
+				s.auditLog("networking.compose.labels.apply", sess.Username, r, "failed", "arcane apply unavailable; falling back to file apply")
+			}
+		} else {
+			s.auditLog("networking.compose.labels.apply", sess.Username, r, "failed", "arcane configuration invalid")
+		}
+	}
+
+	// File fallback (today's path).
 	if !out.LabelApplyAvailable {
 		writeError(w, 409, "compose_apply_blocked", "Compose labels cannot be written until preview blockers are resolved.")
 		return

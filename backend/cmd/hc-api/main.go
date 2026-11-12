@@ -74,6 +74,8 @@ func main() {
 	traefikDynamicDir := flag.String("traefik-dynamic-dir", "", "administrator Traefik file-provider directory for CORE-generated YAML; empty disables file apply")
 	composeApplyDir := flag.String("compose-apply-dir", "", "allowlisted directory of Compose files for Traefik label apply; empty disables compose-label apply")
 	traefikSetupDir := flag.String("traefik-setup-dir", "", "allowlisted directory for official Traefik easy-setup compose; empty disables easy-setup writes")
+	arcaneURL := flag.String("arcane-url", "", "optional Arcane manager API base URL; empty derives from a detected host-published 3552 port")
+	arcaneEnv := flag.String("arcane-env", "0", "Arcane environment id for compose-label apply (default 0)")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
@@ -218,6 +220,12 @@ func main() {
 			log.Fatal("Traefik setup directory is missing or not a directory")
 		}
 		srv.WithTraefikSetupDir(abs)
+	}
+	// Arcane is enabled by the ARCANE_API_KEY environment (the URL is optional:
+	// without -arcane-url it is derived from a detected host-published 3552 port).
+	// Detection only pre-fills the URL; it never enables the path.
+	if key := os.Getenv("ARCANE_API_KEY"); key != "" {
+		srv.WithArcane(key, *arcaneURL, *arcaneEnv)
 	}
 	// Container platforms are registered only from these startup flags; no API
 	// can add a socket, API endpoint or credential.
