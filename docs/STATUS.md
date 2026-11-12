@@ -42,6 +42,19 @@ is in `KnownScopes`, never default, implied by nothing; `packages.manage` stays 
 No root template, no plan/apply, no write, no metadata refresh, no repository mutation. Not M4
 acceptance, not a merge, not production; ADR 0008 Amendment 5 remains Proposed.
 
+## M8 first checkpoint: MergerFS + optional SnapRAID (read-only; not M8 acceptance)
+
+One read-only page at `/storage/mergerfs` (module id `mergerfs`, scope `mergerfs.read`, never default
+and implied by nothing) probes the required `mergerfs` and optional `snapraid` binaries (unprivileged
+`os.Stat` of well-known paths, no `os/exec`, no `packages.installed`), then shows observed
+`fuse.mergerfs` pools parsed from bounded `/proc/self/mountinfo` and, when a `snapraid.conf` is
+readable, an optional SnapRAID section (`data`/`parity`/`content` paths only). A missing required
+package hides pools and offers a Software Center search link (`/software?q=…`, when the packages
+module is enabled and the session has `packages.read`); no POST install or `packages.manage` exists.
+SnapRAID is never implied by a mergerfs pool. No pool create, mount, policy write, or
+snapraid sync/diff/fix path exists; there are no broker ops. This is a checkpoint, not M8 acceptance,
+not a merge, not production.
+
 ## M2-3: expanded service management (development authorized 2026-11-04; working skeleton on main, not accepted)
 
 The owner authorized M2-3 development and isolated testing on 2026-11-04; owner acceptance and production

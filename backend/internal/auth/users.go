@@ -87,6 +87,11 @@ const (
 	// DefaultScopes and implied by no other scope. packages.manage stays
 	// reserved for the separately reviewed write ADR and is not granted here.
 	ScopePackagesRead = "packages.read"
+	// ScopeMergerFSRead allows the read-only MergerFS + optional SnapRAID
+	// inventory (M8 first checkpoint): observed fuse.mergerfs pools and a
+	// parsed snapraid.conf, with no writes and no broker ops. Not in
+	// DefaultScopes and implied by nothing, including storage.read.
+	ScopeMergerFSRead = "mergerfs.read"
 )
 
 // KnownScopes lists every scope the server understands. Unknown scopes in the
@@ -113,6 +118,7 @@ var KnownScopes = map[string]bool{
 	ScopeLayoutManage:         true,
 	ScopeFilesRead:            true,
 	ScopePackagesRead:         true,
+	ScopeMergerFSRead:         true,
 }
 
 // DefaultScopes are granted by `hlctl user add` when --scopes is not given.

@@ -44,7 +44,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, storage.read, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, storage.read, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
@@ -378,7 +378,7 @@ components:
       type: object
       required: [id, label, path, scope, status]
       properties:
-        id: { type: string, enum: [overview, services, hardware, legacy, audit, service_logs, unit_files, storage, host_settings, files] }
+        id: { type: string, enum: [overview, services, hardware, legacy, audit, service_logs, unit_files, storage, host_settings, files, mergerfs] }
         label: { type: string }
         path: { type: string }
         scope: { type: string }
@@ -402,7 +402,7 @@ components:
             type: object
             required: [id, title, description, path, enabled, scopes]
             properties:
-              id: { type: string, enum: [services] }
+              id: { type: string, enum: [services, mergerfs] }
               title: { type: string }
               path: { type: string, description: Page of the module in the web UI }
               description: { type: string }
@@ -908,6 +908,60 @@ components:
               enabled: { type: boolean }
               signed: { type: boolean }
               third_party: { type: boolean }
+    MergerFSInventory:
+      type: object
+      required: [tooling, mergerfs, snapraid]
+      properties:
+        tooling:
+          type: object
+          required: [family, required, optional]
+          properties:
+            family: { type: string, enum: [debian, fedora, suse, arch, unknown] }
+            required:
+              type: array
+              items:
+                type: object
+                required: [id, package, installed, binary]
+                properties:
+                  id: { type: string }
+                  package: { type: string }
+                  installed: { type: boolean }
+                  binary: { type: string }
+            optional:
+              type: array
+              items:
+                type: object
+                required: [id, package, installed, binary]
+                properties:
+                  id: { type: string }
+                  package: { type: string }
+                  installed: { type: boolean }
+                  binary: { type: string }
+        mergerfs:
+          type: object
+          required: [present, reason, pools]
+          properties:
+            present: { type: boolean }
+            reason: { type: string }
+            pools:
+              type: array
+              items:
+                type: object
+                required: [mountpoint, branches, options]
+                properties:
+                  mountpoint: { type: string }
+                  branches: { type: array, items: { type: string } }
+                  options: { type: array, items: { type: string } }
+        snapraid:
+          type: object
+          required: [present, reason, configPath, data, parity, content]
+          properties:
+            present: { type: boolean }
+            reason: { type: string }
+            configPath: { type: string }
+            data: { type: array, items: { type: string } }
+            parity: { type: array, items: { type: string } }
+            content: { type: array, items: { type: string } }
     TraefikResource:
       type: object
       additionalProperties: false
@@ -1772,6 +1826,26 @@ paths:
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: Missing packages.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: Broker down, unsupported family, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /mergerfs:
+    get:
+      summary: Read-only MergerFS pool inventory and optional SnapRAID configuration (scope mergerfs.read).
+      description: >
+        Parses bounded /proc/self/mountinfo for fuse.mergerfs mounts (mountpoint, colon-separated
+        absolute branches, mergerfs-relevant options only) and one configured snapraid.conf
+        (data/parity/content absolute paths only; includes never followed; listed paths never opened).
+        No pool create, mount, policy write, or snapraid sync/diff/fix path exists. A missing
+        snapraid.conf is normal (SnapRAID is optional), not an error. Origin and X-CSRF-Token are
+        required; audit records counts only, never branch or data paths.
+      security: [{ session: [] }]
+      x-required-scope: mergerfs.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/MergerFSInventory' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing mergerfs.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Collection busy, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /storage:
     get:
       summary: Audited read-only storage metadata graph; no device or mountpoint probes
