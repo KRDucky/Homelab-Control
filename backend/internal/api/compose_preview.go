@@ -48,7 +48,10 @@ func (s *Server) handleComposeDiscovery(w http.ResponseWriter, r *http.Request, 
 		writeError(w, 503, "discovery_unavailable", "Compose discovery is unavailable; verify the private metadata service.")
 		return
 	}
-	s.traefikResult(w, r, sess, "networking.compose.discovery.read", composediscovery.View(snapshot), err)
+	composediscovery.AttachInstance(&snapshot)
+	catalog := composediscovery.View(snapshot)
+	catalog.SetupAvailable = s.traefikSetupDir != "" && !snapshot.Traefik.Instance.Present
+	s.traefikResult(w, r, sess, "networking.compose.discovery.read", catalog, nil)
 }
 func (s *Server) handleComposePreview(w http.ResponseWriter, r *http.Request, sess *auth.Session, _ string) {
 	if !s.composeReady(w, r, sess) {
@@ -88,6 +91,11 @@ func (s *Server) WithTraefikDynamicDir(dir string) *Server {
 
 func (s *Server) WithComposeApplyDir(dir string) *Server {
 	s.composeApplyDir = dir
+	return s
+}
+
+func (s *Server) WithTraefikSetupDir(dir string) *Server {
+	s.traefikSetupDir = dir
 	return s
 }
 
@@ -241,5 +249,58 @@ func (s *Server) handleTraefikComposeApply(w http.ResponseWriter, r *http.Reques
 		"added":               added,
 		"labelApplyAvailable": true,
 		"recreated":           false,
+	})
+}
+
+func (s *Server) handleTraefikSetup(w http.ResponseWriter, r *http.Request, sess *auth.Session, _ string) {
+	if !s.composeReady(w, r, sess) {
+		return
+	}
+	if s.traefikSetupDir == "" {
+		writeError(w, 503, "setup_unavailable", "Traefik easy-setup directory is not configured.")
+		return
+	}
+	media, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || media != "application/json" {
+		writeError(w, 415, "expected_json", "Expected application/json.")
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 64)
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	var body struct{}
+	if err = dec.Decode(&body); err != nil {
+		writeError(w, 400, "invalid_model", "Easy-setup accepts an empty JSON object.")
+		return
+	}
+	var extra any
+	if dec.Decode(&extra) != io.EOF {
+		writeError(w, 400, "invalid_model", "Expected one empty JSON object.")
+		return
+	}
+	snapshot, err := s.discovery.Snapshot(r.Context())
+	if err != nil {
+		writeError(w, 503, "discovery_unavailable", "Compose discovery is unavailable.")
+		return
+	}
+	composediscovery.AttachInstance(&snapshot)
+	if snapshot.Traefik.Instance.Present {
+		writeError(w, 409, "traefik_present", "An official Traefik container is already present. Use the existing instance.")
+		return
+	}
+	wrote, err := composediscovery.WriteOfficialSetup(s.traefikSetupDir)
+	if err != nil {
+		s.auditLog("networking.compose.setup.apply", sess.Username, r, "failed", "official compose write failed")
+		writeError(w, 503, "setup_unavailable", "Official Traefik compose could not be written.")
+		return
+	}
+	if err = s.auditLog("networking.compose.setup.apply", sess.Username, r, "applied", "official compose wrote"); err != nil {
+		writeError(w, 503, "audit_unavailable", "Traefik access could not be audited.")
+		return
+	}
+	writeJSON(w, 200, map[string]any{
+		"wrote":    wrote,
+		"started":  false,
+		"httpPort": composediscovery.SetupHTTPPort,
 	})
 }

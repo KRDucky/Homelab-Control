@@ -77,6 +77,7 @@ func cloneRouting(c Context) Context {
 
 type dockerContainer struct {
 	ID     string `json:"Id"`
+	Image  string `json:"Image"`
 	Names  []string
 	State  string
 	Labels map[string]string
@@ -130,7 +131,7 @@ func (d *Docker) Snapshot(ctx context.Context) (Snapshot, error) {
 		default:
 			return Snapshot{}, ErrDockerUnavailable
 		}
-		s := Service{ID: row.ID, Container: name, State: row.State, Ports: []Port{}, Networks: []string{}, Labels: map[string]string{}}
+		s := Service{ID: row.ID, Container: name, State: row.State, Ports: []Port{}, Networks: []string{}, Labels: map[string]string{}, OfficialTraefik: OfficialTraefikImage(row.Image)}
 		project, service := row.Labels["com.docker.compose.project"], row.Labels["com.docker.compose.service"]
 		if (project != "" || service != "") && (!dockerName.MatchString(project) || !dockerName.MatchString(service)) {
 			return Snapshot{}, ErrDockerUnavailable
@@ -189,5 +190,6 @@ func (d *Docker) Snapshot(ctx context.Context) (Snapshot, error) {
 	}
 	slices.SortFunc(out.Services, func(a, b Service) int { return strings.Compare(a.ID, b.ID) })
 	CountReplicas(out.Services)
+	AttachInstance(&out)
 	return out, nil
 }

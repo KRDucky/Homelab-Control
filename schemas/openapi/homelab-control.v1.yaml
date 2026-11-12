@@ -1041,9 +1041,9 @@ paths:
       summary: Read-only Compose discovery catalog (disabled by default)
       x-required-scope: docker.compose.read
       security: [{ session: [], csrf: [] }]
-      description: Requires CSRF, allowed Origin when present, audit and configured Traefik integration. Default disabled. Uses an explicitly configured authenticated Unix metadata broker or an opt-in loopback development fixture. The broker is independently authorized by peer identity and service token; no raw Docker socket is granted to CORE. Source paths are never inferred from labels. Catalog does not require the Traefik helper. Discovery failures are safe 503 responses. No mutation methods exist.
+      description: Requires CSRF, allowed Origin when present, audit and configured Traefik integration. Default disabled. Uses an explicitly configured authenticated Unix metadata broker or an opt-in loopback development fixture. The broker is independently authorized by peer identity and service token; no raw Docker socket is granted to CORE. Source paths are never inferred from labels. Catalog does not require the Traefik helper. Includes detected Traefik instance and setupAvailable. Discovery failures are safe 503 responses. No mutation methods exist.
       responses:
-        '200': { description: Explicitly identified fixture catalog with internal TCP ports, networks and safe routing labels }
+        '200': { description: Catalog with internal TCP ports, networks, safe routing labels, Traefik instance detection, and setupAvailable when easy-setup is configured and no Traefik is present }
         '401': { description: Session required }
         '403': { description: Missing scope or invalid CSRF/Origin }
         '503': { description: Discovery disabled or audit unavailable }
@@ -1130,6 +1130,27 @@ paths:
         '415': { description: JSON required }
         '502': { description: Inventory unavailable }
         '503': { description: Compose apply directory, discovery, or audit unavailable }
+  /networking/reverse-proxy/traefik/setup:
+    post:
+      summary: Write official Traefik compose when no Traefik container is present
+      x-required-scope: networking.proxy.apply
+      security: [{ session: [], csrf: [] }]
+      description: Also requires docker.compose.read. The Traefik helper is not required. Body is an empty JSON object. CORE writes official Traefik compose.yaml and traefik.yml under -traefik-setup-dir when discovery finds no official Traefik image or Compose service named traefik. Host 80/443 stay free (HTTP 8880). CORE does not start containers or mount docker.sock. started is always false. If Traefik is already present the write is rejected so the existing instance can be configured.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        '200': { description: wrote filenames, started false, httpPort 8880 }
+        '400': { description: Body is not an empty JSON object }
+        '401': { description: Session required }
+        '403': { description: Missing apply or compose scope, or invalid CSRF/Origin }
+        '409': { description: An official Traefik container is already present }
+        '415': { description: JSON required }
+        '503': { description: Setup directory, discovery, or audit unavailable }
   /networking/reverse-proxy/traefik/platform-preview:
     post:
       summary: Platform-native routing preview (Compose labels or Kubernetes resources); never applies changes

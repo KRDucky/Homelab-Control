@@ -24,6 +24,9 @@ type Service struct {
 	State                 string   `json:"state"`
 	Ports                 []Port   `json:"ports"`
 	Networks              []string `json:"networks"`
+	// OfficialTraefik is true when the container image is the official Traefik
+	// image. HomeControl CORE/plugin/browser images are never Traefik.
+	OfficialTraefik bool `json:"officialTraefik,omitempty"`
 	// Labels stays server-side. Browser views contain safe routing labels only.
 	Labels map[string]string `json:"-"`
 }
@@ -32,6 +35,7 @@ type Context struct {
 	Entrypoints    []string `json:"entrypoints"`
 	Resolvers      []string `json:"resolvers"`
 	DockerProvider *bool    `json:"dockerProvider"`
+	Instance       Instance `json:"instance"`
 }
 type Snapshot struct {
 	Source   string    `json:"source"`
