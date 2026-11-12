@@ -51,10 +51,11 @@ type ServiceView struct {
 	HiddenTraefikSettings bool              `json:"hiddenTraefikSettings"`
 }
 type Catalog struct {
-	Source   string        `json:"source"`
-	Fixture  bool          `json:"fixture"`
-	Services []ServiceView `json:"services"`
-	Traefik  Context       `json:"traefik"`
+	Source         string        `json:"source"`
+	Fixture        bool          `json:"fixture"`
+	Services       []ServiceView `json:"services"`
+	Traefik        Context       `json:"traefik"`
+	SetupAvailable bool          `json:"setupAvailable"`
 }
 
 func View(s Snapshot) Catalog {
@@ -175,6 +176,9 @@ func Build(s Snapshot, inventory traefikclient.Inventory, req Request) (Proposal
 		warn("fixture", "Demonstration discovery data; these are not your Docker applications.")
 	}
 	warn("source_unverified", "Compose source is not loaded. This is a labels/network patch proposal, not a complete file diff.")
+	if IsTraefikProxy(*selected) {
+		block("traefik_proxy", "This container is Traefik itself. Configure applications behind it.")
+	}
 	if selected.UnsupportedDeployment {
 		block("unsupported_deployment", "One-off or unsupported deployment configuration requires manual review.")
 	}

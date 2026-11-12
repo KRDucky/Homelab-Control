@@ -194,3 +194,26 @@ func TestDockerMultipleProjectsReplicasMissingPortsAndNetworking(t *testing.T) {
 		t.Fatal(p, e)
 	}
 }
+
+func TestDockerMarksOfficialTraefikImage(t *testing.T) {
+	var rows []map[string]any
+	if json.Unmarshal([]byte(dockerFixture(t)), &rows) != nil {
+		t.Fatal("fixture")
+	}
+	rows[0]["Image"] = "homecontrol/traefik-core:compose-apply"
+	rows[1]["Image"] = "docker.io/library/traefik:v3.3"
+	b, _ := json.Marshal(rows)
+	s, e := fixtureDocker(t, string(b)).Snapshot(context.Background())
+	if e != nil {
+		t.Fatal(e)
+	}
+	if s.Services[0].OfficialTraefik || s.Services[0].Container != "notes-web-1" {
+		t.Fatal(s.Services[0])
+	}
+	if !s.Services[1].OfficialTraefik || s.Services[1].Container != "standalone" {
+		t.Fatal(s.Services[1])
+	}
+	if !s.Traefik.Instance.Present || s.Traefik.Instance.Container != "standalone" {
+		t.Fatal(s.Traefik.Instance)
+	}
+}
