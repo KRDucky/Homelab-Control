@@ -467,13 +467,13 @@ reference.
 
 The full blocker list, B1–B5, is in `docs/m2/M2-READINESS.md`; B5 (root child processes) is not repeated here.
 
-No licence/release blocker remains for Phase 1 prereleases (LA-13 closed 2026-10-21). CI and releases build with the same exact Go version (1.26.10, `packaging/release/toolchain.env`); govulncheck is pinned (v1.9.0).
+No licence/release blocker remains for Phase 1 prereleases (LA-13 closed 2026-10-21). CI and releases build with the same exact Go version (1.26.11, `packaging/release/toolchain.env`); govulncheck is pinned (v1.9.0).
 
 ## Not done / limits
 - Earlier M1 evidence (d1077e4a) was never committed and is withdrawn (see evidence README).
 - Ubuntu 22.04 under real systemd: not verified (CI covers 24.04 runner and 26.04 container; VM covers 26.04).
 - PAM login deferred; upstream pin 2.670; licence decided (ADR 0005: GPL-3.0-or-later core, MIT SDK/schemas/themes/tokens); one unsigned development prerelease, v0.1.0-dev.1, published 2026-10-21 (ADR 0009), and none since.
-- The login throttle is in memory (sessions are persisted since PR #13); no TLS management; govulncheck runs in CI only (v1.9.0 on Go 1.26.10).
+- The login throttle is in memory (sessions are persisted since PR #13); no TLS management; govulncheck runs in CI only (v1.9.0 on Go 1.26.11).
 - No storage-configuration writes exist (M2-4 is read-only inventory). Privileged host-changing working
   skeletons on `main` are M2-2 start/stop/restart (scope `services.operate`), M2-3 boot-time enable/disable
   (scope `services.configure`), and M2-6 hostname/timezone apply (scope `host.settings.apply`). Those later

@@ -11,6 +11,7 @@ import {
   previewCompose,
   applyComposeFile,
   applyComposeLabels,
+  applyTraefikSetup,
   getPlatforms,
 } from './api';
 vi.mock('./api', async (original) => ({
@@ -21,6 +22,7 @@ vi.mock('./api', async (original) => ({
   previewCompose: vi.fn(),
   applyComposeFile: vi.fn(),
   applyComposeLabels: vi.fn(),
+  applyTraefikSetup: vi.fn(),
   getPlatforms: vi.fn(),
 }));
 const unauthorized = vi.fn();
@@ -68,8 +70,9 @@ beforeEach(() => {
     proposed: { labels: { 'traefik.enable': 'true' }, networks: ['private'] },
     changes: [],
     blockers: [{ code: 'provider_disabled', message: 'Docker provider is disabled.' }],
-    warnings: [{ code: 'file_provider', message: 'Copy the file YAML into Traefik\'s dynamic directory.' }],
-    fileYAML: "http:\n  routers:\n    proxy-host:\n      rule: 'Host(`notes.example.com`)'\n      service: web",
+    warnings: [{ code: 'file_provider', message: "Copy the file YAML into Traefik's dynamic directory." }],
+    fileYAML:
+      "http:\n  routers:\n    proxy-host:\n      rule: 'Host(`notes.example.com`)'\n      service: web",
     applyAvailable: false,
     labelApplyAvailable: false,
     sourceFileVerified: false,
@@ -374,4 +377,85 @@ it('uses backend summary and keeps raw configuration collapsed', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Preview configuration' }));
   expect(await screen.findByText('validated.example.com')).toBeTruthy();
   expect(screen.getByText('Advanced Details').parentElement?.hasAttribute('open')).toBe(false);
+});
+
+it('shows a detected Traefik container and keeps compose write hidden', async () => {
+  vi.mocked(getComposeApplications).mockResolvedValue({
+    source: 'docker-rootless',
+    fixture: false,
+    services: [
+      {
+        id: 'notes',
+        compose: true,
+        project: 'notes',
+        service: 'web',
+        container: 'notes-web-1',
+        state: 'running',
+        ports: [{ port: 8080, protocol: 'tcp' }],
+        networks: ['private'],
+        traefikLabels: {},
+        hiddenTraefikSettings: false,
+      },
+      {
+        id: 'traefik',
+        compose: true,
+        project: 'hc-traefik-live',
+        service: 'traefik',
+        container: 'hc-traefik-fixture',
+        state: 'running',
+        ports: [],
+        networks: ['private'],
+        traefikLabels: {},
+        hiddenTraefikSettings: false,
+      },
+    ],
+    traefik: {
+      networks: ['private'],
+      entrypoints: ['web'],
+      resolvers: [],
+      dockerProvider: true,
+      instance: {
+        present: true,
+        running: true,
+        container: 'hc-traefik-fixture',
+        project: 'hc-traefik-live',
+        service: 'traefik',
+      },
+    },
+    setupAvailable: false,
+  });
+  render(<Traefik csrf="csrf" onUnauthorized={unauthorized} />);
+  expect(await screen.findByText(/Traefik detected: hc-traefik-fixture \(running\)/)).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Write Traefik compose' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Deploy' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Proxy Hosts' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Add Proxy Host' }));
+  expect(screen.getByLabelText('Docker Compose application').textContent).toContain('notes');
+  expect(screen.getByLabelText('Docker Compose application').textContent).not.toContain('hc-traefik-live');
+});
+
+it('writes official Traefik compose when no instance is present', async () => {
+  vi.mocked(getComposeApplications).mockResolvedValue({
+    source: 'docker-rootless',
+    fixture: false,
+    services: [],
+    traefik: {
+      networks: ['private'],
+      entrypoints: ['web'],
+      resolvers: [],
+      dockerProvider: false,
+      instance: { present: false, running: false },
+    },
+    setupAvailable: true,
+  });
+  vi.mocked(applyTraefikSetup).mockResolvedValue({
+    wrote: ['compose.yaml', 'traefik.yml'],
+    started: false,
+    httpPort: '8880',
+  });
+  render(<Traefik csrf="csrf" onUnauthorized={unauthorized} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Write Traefik compose' }));
+  await waitFor(() => expect(applyTraefikSetup).toHaveBeenCalledWith('csrf'));
+  expect(await screen.findByText(/Wrote compose.yaml, traefik.yml/)).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Deploy' })).toBeNull();
 });

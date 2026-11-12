@@ -9,6 +9,7 @@ import {
   previewCompose,
   applyComposeFile,
   applyComposeLabels,
+  applyTraefikSetup,
   getPlatforms,
   type PlatformView,
   type TraefikInventory,
@@ -16,6 +17,7 @@ import {
   type TraefikModel,
   type ComposeCatalog,
   type ComposeProposal,
+  type ComposeService,
 } from '../api';
 import { DataTable } from '../DataTable';
 import { explain } from '../useData';
@@ -46,6 +48,9 @@ function routeHeadline(rule?: string): string {
   const paths = pathsOf(rule);
   return paths.length ? paths.join(', ') : unknown;
 }
+function isTraefikProxy(s: ComposeService): boolean {
+  return s.officialTraefik === true || (s.compose && s.service?.toLowerCase() === 'traefik');
+}
 export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: () => void }) {
   const [inventory, setInventory] = useState<TraefikInventory | null>(null);
   const [diagnostics, setDiagnostics] = useState<TraefikDiagnostics | null>(null);
@@ -64,6 +69,7 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
   const [busy, setBusy] = useState(false);
   const [wrote, setWrote] = useState('');
   const [labelsWrote, setLabelsWrote] = useState('');
+  const [setupWrote, setSetupWrote] = useState('');
   const previewBody = useRef<{
     serviceId: string;
     network: string;
@@ -111,7 +117,8 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
       cancelled = true;
     };
   }, [csrf, onUnauthorized, revision]);
-  const services = catalog?.services.filter((s) => s.compose && s.project === application) ?? [];
+  const proxiedApps = catalog?.services.filter((s) => s.compose && !isTraefikProxy(s)) ?? [];
+  const services = proxiedApps.filter((s) => s.project === application);
   const selected = services.find((s) => s.id === serviceId);
   const tcpPorts = selected?.ports.filter((p) => p.protocol === 'tcp') ?? [];
   const platform = platforms.find((p) => p.id === platformId);
@@ -188,6 +195,20 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
       setBusy(false);
     }
   }
+  async function writeOfficialSetup() {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await applyTraefikSetup(csrf);
+      setSetupWrote(result.wrote.join(', '));
+      setRevision((n) => n + 1);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) onUnauthorized();
+      setError(e instanceof Error ? e : new Error('Official Traefik compose could not be written'));
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <div className="page traefik-page">
       <p className="muted" aria-label="Feature location">
@@ -256,15 +277,15 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
           <section>
             <h2>Manage your proxy hosts</h2>
             <p>
-              Select a Docker Compose or Kubernetes workload, set hostname and optional path, then review
-              file YAML, Compose labels, or Kubernetes manifests. Nothing is applied.
+              Select a Docker Compose or Kubernetes workload, set hostname and optional path, then review file
+              YAML, Compose labels, or Kubernetes manifests. Nothing is applied.
             </p>
             <button type="button" onClick={() => setSection('Proxy Hosts')}>
               View Proxy Hosts
             </button>
             <p className="muted">
-              Certificates management is planned. Middleware assignment and multiple hostnames are not in
-              this preview model. Path prefix is optional.
+              Certificates management is planned. Middleware assignment and multiple hostnames are not in this
+              preview model. Path prefix is optional.
             </p>
             {warnings > 0 && (
               <p className="banner">
@@ -273,6 +294,36 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
               </p>
             )}
           </section>
+          {catalog && (
+            <section>
+              <h2>Traefik instance</h2>
+              {catalog.traefik.instance?.present ? (
+                <p>
+                  Traefik detected: {catalog.traefik.instance.container}
+                  {catalog.traefik.instance.running ? ' (running)' : ' (stopped)'}. Configure proxy hosts for
+                  your applications.
+                </p>
+              ) : catalog.setupAvailable ? (
+                <>
+                  <p>
+                    No Traefik container found. Write official Traefik compose to get started. Host ports 80
+                    and 443 stay free.
+                  </p>
+                  <button type="button" disabled={busy} onClick={() => void writeOfficialSetup()}>
+                    {busy ? 'Writing compose…' : 'Write Traefik compose'}
+                  </button>
+                  {setupWrote ? (
+                    <p>
+                      Wrote {setupWrote}. Start it with docker compose from that directory, or with Arcane or
+                      Dockhand if one is on the host.
+                    </p>
+                  ) : null}
+                </>
+              ) : (
+                <p>No Traefik container found. Easy-setup is not configured on this CORE.</p>
+              )}
+            </section>
+          )}
         </>
       )}
       {section === 'Proxy Hosts' && (
@@ -405,13 +456,11 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
                       }}
                     >
                       <option value="">Select an application</option>
-                      {[...new Set(catalog.services.filter((s) => s.compose).map((s) => s.project))].map(
-                        (project) => (
-                          <option key={project} value={project}>
-                            {project}
-                          </option>
-                        ),
-                      )}
+                      {[...new Set(proxiedApps.map((s) => s.project))].map((project) => (
+                        <option key={project} value={project}>
+                          {project}
+                        </option>
+                      ))}
                     </select>
                     <label htmlFor="proxy-service">Service / container</label>
                     <select
@@ -643,8 +692,8 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
                 <>
                   <h3>File provider YAML</h3>
                   <p className="muted">
-                    Copy into the dynamic directory (for example /config/dynamic), or write it when Apply
-                    file YAML is available.
+                    Copy into the dynamic directory (for example /config/dynamic), or write it when Apply file
+                    YAML is available.
                   </p>
                   <pre aria-label="File provider YAML">{proposal.fileYAML}</pre>
                 </>
@@ -693,8 +742,8 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
                   </button>
                   {labelsWrote ? (
                     <p>
-                      Wrote Traefik labels into {labelsWrote}. Recreate the Compose service so Traefik
-                      reloads them.
+                      Wrote Traefik labels into {labelsWrote}. Recreate the Compose service so Traefik reloads
+                      them (docker compose, or Arcane/Dockhand if one is on the host).
                     </p>
                   ) : null}
                 </>
@@ -743,6 +792,14 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
               : catalog.traefik.dockerProvider
                 ? 'Enabled'
                 : 'Disabled'}
+          </p>
+          <p>
+            Traefik container:{' '}
+            {catalog?.traefik.instance?.present
+              ? `${catalog.traefik.instance.container}${catalog.traefik.instance.running ? ' (running)' : ' (stopped)'}`
+              : catalog
+                ? 'Not found'
+                : unknown}
           </p>
           <p>
             Compose-label apply writes Traefik keys into an allowlisted Compose file. CORE has no Docker

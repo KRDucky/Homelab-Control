@@ -246,3 +246,67 @@ func TestTraefikComposeApplyPatchesLabels(t *testing.T) {
 		t.Fatal("generic apply stays missing", rr.Code)
 	}
 }
+
+type traefikPresent struct{}
+
+func (traefikPresent) Snapshot(ctx context.Context) (composediscovery.Snapshot, error) {
+	s, err := (composediscovery.Fixture{}).Snapshot(ctx)
+	s.Services = append(s.Services, composediscovery.Service{
+		ID: "fixture-traefik", Compose: true, Project: "hc-traefik-live", Service: "traefik",
+		Container: "hc-traefik-fixture", State: "running", Ports: []composediscovery.Port{},
+		Networks: []string{"hc-traefik-test"}, Labels: map[string]string{},
+	})
+	return s, err
+}
+
+func TestTraefikSetupWritesComposeWhenMissing(t *testing.T) {
+	dir := t.TempDir()
+	read := harnessWith(t, nil, []string{auth.ScopeNetworkingProxyRead, auth.ScopeComposeRead})
+	read.srv.WithComposeDiscovery(composediscovery.Fixture{}).WithTraefikSetupDir(dir)
+	headers := packagesHeaders(read)
+	headers["Content-Type"] = "application/json"
+	if rr := read.do("POST", proxyPath+"/setup", "{}", headers); rr.Code != 403 {
+		t.Fatal("read scopes must not write setup", rr.Code, rr.Body)
+	}
+	h := harnessWith(t, nil, []string{auth.ScopeNetworkingProxyRead, auth.ScopeNetworkingProxyApply, auth.ScopeComposeRead})
+	h.srv.WithComposeDiscovery(composediscovery.Fixture{})
+	headers = packagesHeaders(h)
+	headers["Content-Type"] = "application/json"
+	if rr := h.do("GET", proxyPath+"/applications", "", headers); rr.Code != 200 || !strings.Contains(rr.Body.String(), `"setupAvailable":false`) || !strings.Contains(rr.Body.String(), `"present":false`) {
+		t.Fatal("setup stays off without a directory", rr.Code, rr.Body)
+	}
+	if rr := h.do("POST", proxyPath+"/setup", "{}", headers); rr.Code != 503 {
+		t.Fatal("missing setup dir", rr.Code, rr.Body)
+	}
+	h.srv.WithTraefikSetupDir(dir)
+	if rr := h.do("GET", proxyPath+"/applications", "", headers); rr.Code != 200 || !strings.Contains(rr.Body.String(), `"setupAvailable":true`) {
+		t.Fatal(rr.Code, rr.Body)
+	}
+	if rr := h.do("POST", proxyPath+"/setup", `{"deploy":true}`, headers); rr.Code != 400 {
+		t.Fatal("unknown fields", rr.Code, rr.Body)
+	}
+	if rr := h.do("POST", proxyPath+"/setup", "{}", headers); rr.Code != 200 || !strings.Contains(rr.Body.String(), `"started":false`) || !strings.Contains(rr.Body.String(), `"httpPort":"8880"`) {
+		t.Fatal(rr.Code, rr.Body)
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "compose.yaml"))
+	if err != nil || !strings.Contains(string(b), "8880:8080") || strings.Contains(string(b), "'80:80'") {
+		t.Fatal(string(b), err)
+	}
+}
+
+func TestTraefikSetupConflictsWhenPresent(t *testing.T) {
+	dir := t.TempDir()
+	h := harnessWith(t, nil, []string{auth.ScopeNetworkingProxyRead, auth.ScopeNetworkingProxyApply, auth.ScopeComposeRead})
+	h.srv.WithComposeDiscovery(traefikPresent{}).WithTraefikSetupDir(dir)
+	headers := packagesHeaders(h)
+	headers["Content-Type"] = "application/json"
+	if rr := h.do("GET", proxyPath+"/applications", "", headers); rr.Code != 200 || !strings.Contains(rr.Body.String(), `"present":true`) || !strings.Contains(rr.Body.String(), "hc-traefik-fixture") || strings.Contains(rr.Body.String(), `"setupAvailable":true`) {
+		t.Fatal(rr.Code, rr.Body)
+	}
+	if rr := h.do("POST", proxyPath+"/setup", "{}", headers); rr.Code != 409 || !strings.Contains(rr.Body.String(), "traefik_present") {
+		t.Fatal(rr.Code, rr.Body)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "compose.yaml")); !os.IsNotExist(err) {
+		t.Fatal("existing Traefik must not write a second compose", err)
+	}
+}
