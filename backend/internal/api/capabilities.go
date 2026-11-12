@@ -21,6 +21,7 @@ import (
 	"homelab-control/backend/internal/brokerclient"
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
+	"homelab-control/backend/internal/mergerfsinfo"
 	"homelab-control/backend/internal/modules"
 	"homelab-control/backend/internal/servicepolicy"
 )
@@ -234,16 +235,16 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 	// Available when the required mergerfs binary is present (pools may still
 	// be empty); degraded (never unavailable) when it is missing so the page
 	// still mounts and shows the Software Center install offer. Missing
-	// snapraid never degrades the capability.
+	// snapraid never degrades the capability. Probe is two os.Stat calls only
+	// (no mountinfo/snapraid.conf read), and only when the module is enabled
+	// and the session has mergerfs.read.
 	mergerfs := Capability{ID: "mergerfs", Label: "MergerFS", Path: "/storage/mergerfs", Scope: auth.ScopeMergerFSRead, Status: CapAvailable}
-	if s.mergerfsCollect == nil {
-		mergerfs.Status, mergerfs.Reason = CapUnavailable, "MergerFS inventory is not enabled on this server."
-	} else if snap, err := s.mergerfsCollect(r.Context()); err != nil {
-		mergerfs.Status, mergerfs.Reason = CapUnavailable, "MergerFS inventory could not be collected."
-	} else if snap.Tooling.RequiredInstalled("mergerfs") {
-		mergerfs.Status, mergerfs.Reason = CapAvailable, ""
-	} else {
-		mergerfs.Status, mergerfs.Reason = CapDegraded, "The mergerfs package is required and is not installed."
+	if s.mods.Enabled("mergerfs") && sess.HasScope(auth.ScopeMergerFSRead) {
+		if mergerfsinfo.ProbeTooling(s.packageFamily()).RequiredInstalled("mergerfs") {
+			mergerfs.Status, mergerfs.Reason = CapAvailable, ""
+		} else {
+			mergerfs.Status, mergerfs.Reason = CapDegraded, "The mergerfs package is required and is not installed."
+		}
 	}
 	traefik := Capability{ID: "traefik", Label: "Networking → Reverse Proxy → Traefik", Path: "/networking/reverse-proxy/traefik", Scope: auth.ScopeNetworkingProxyRead, Status: CapAvailable}
 	if s.traefik == nil {

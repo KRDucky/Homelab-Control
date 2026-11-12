@@ -76,8 +76,24 @@ export function MergerFSView({
       <section className="panel" aria-labelledby="mergerfs-pools-heading">
         <header className="panel-head">
           <h2 id="mergerfs-pools-heading">Pools</h2>
+          {mergerfs.pools.length > 0 && <span className="tag">observed</span>}
         </header>
-        {requiredMissing ? (
+        {mergerfs.pools.length > 0 ? (
+          <>
+            {requiredMissing && (
+              <div className="banner" role="status">
+                The mergerfs binary was not found in <code>/usr/bin</code> or <code>/usr/sbin</code>; observed
+                pools are listed below.
+                <InstallOffer
+                  label={`Install ${required?.package || 'mergerfs'}`}
+                  item={required}
+                  canInstall={canInstall}
+                />
+              </div>
+            )}
+            <Pools pools={mergerfs.pools} />
+          </>
+        ) : requiredMissing ? (
           <div className="empty" role="status">
             <p>MergerFS is not available — {mergerfs.reason || 'the mergerfs binary is missing'}.</p>
             <InstallOffer
@@ -86,10 +102,12 @@ export function MergerFSView({
               canInstall={canInstall}
             />
           </div>
-        ) : mergerfs.pools.length > 0 ? (
-          <Pools pools={mergerfs.pools} />
-        ) : (
+        ) : mergerfs.present ? (
           <p className="empty">No mergerfs pools found.</p>
+        ) : (
+          <p className="banner" role="alert">
+            Mount inventory could not be read; observed pools cannot be listed.
+          </p>
         )}
       </section>
 
@@ -140,8 +158,8 @@ function InstallOffer({
   if (!canInstall) {
     return (
       <p>
-        Install requires the Software Center module to be enabled and the <code>packages.read</code>{' '}
-        permission on your account.
+        To install <code>{pkg}</code>, the Software Center module must be enabled and your account needs the{' '}
+        <code>packages.read</code> permission.
       </p>
     );
   }
