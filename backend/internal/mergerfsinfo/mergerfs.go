@@ -34,6 +34,7 @@ type MergerFS struct {
 
 // Snapshot is the full read-only MergerFS + SnapRAID inventory.
 type Snapshot struct {
+	Tooling  Tooling  `json:"tooling"`
 	MergerFS MergerFS `json:"mergerfs"`
 	SnapRAID SnapRAID `json:"snapraid"`
 }
@@ -166,22 +167,26 @@ func collectMounts(osRoot string) ([]Pool, error) {
 	return ParseMountInfo(f)
 }
 
-// Collect reads mergerfs pools and the optional snapraid.conf. It never fails
-// on a missing or unreadable input: those become present=false with a reason.
-// Only context cancellation returns an error (the caller maps it to 503).
-func Collect(ctx context.Context, osRoot, snapraidPath string) (Snapshot, error) {
+// Collect reads mergerfs pools and the optional snapraid.conf, and probes the
+// required (mergerfs) and optional (snapraid) binaries. It never fails on a
+// missing or unreadable input: those become present=false with a reason. Only
+// context cancellation returns an error (the caller maps it to 503).
+func Collect(ctx context.Context, osRoot, snapraidPath, family string) (Snapshot, error) {
 	if err := ctx.Err(); err != nil {
 		return Snapshot{}, err
 	}
 	var snap Snapshot
-	pools, err := collectMounts(osRoot)
-	switch {
-	case err != nil:
-		snap.MergerFS = MergerFS{Present: false, Reason: "mount inventory unavailable"}
-	case len(pools) == 0:
-		snap.MergerFS = MergerFS{Present: false, Reason: "no fuse.mergerfs mounts found"}
-	default:
+	snap.Tooling = ProbeTooling(family)
+	pools, _ := collectMounts(osRoot)
+	if pools == nil {
+		pools = []Pool{}
+	}
+	// mergerfs.present prefers the binary gate; a parsed mount without the
+	// binary is still listed (empty pools without a binary is not a fake page).
+	if snap.Tooling.RequiredInstalled("mergerfs") || len(pools) > 0 {
 		snap.MergerFS = MergerFS{Present: true, Pools: pools}
+	} else {
+		snap.MergerFS = MergerFS{Present: false, Reason: "mergerfs is not installed", Pools: []Pool{}}
 	}
 	snap.SnapRAID = ReadSnapRAID(snapraidPath)
 	if err := ctx.Err(); err != nil {

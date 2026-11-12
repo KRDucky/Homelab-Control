@@ -118,6 +118,10 @@ export function App() {
   // M2-3 module registry: a module the host administrator disabled has no
   // navigation; its page says so instead of falling back to another page.
   const disabledModule = (caps?.modules ?? []).find((m) => !m.enabled && m.path === path);
+  // M8: the MergerFS offer is a Software Center search link, so it needs the
+  // packages module to be enabled (the packages.read scope is checked per
+  // session on the page).
+  const packagesEnabled = (caps?.modules ?? []).find((m) => m.id === 'packages')?.enabled ?? false;
   const route =
     path === ACCOUNT_PATH || path === '/appearance/themes'
       ? undefined
@@ -177,7 +181,15 @@ export function App() {
   else if (route?.id === 'overview') page = <OverviewPage onUnauthorized={signedOut} />;
   else if (route?.id === 'traefik') page = <Traefik csrf={session.csrf_token} onUnauthorized={signedOut} />;
   else if (route?.id === 'packages') page = <Software csrf={session.csrf_token} onUnauthorized={signedOut} />;
-  else if (route?.id === 'mergerfs') page = <MergerFS csrf={session.csrf_token} onUnauthorized={signedOut} />;
+  else if (route?.id === 'mergerfs')
+    page = (
+      <MergerFS
+        csrf={session.csrf_token}
+        scopes={session.scopes ?? []}
+        packagesEnabled={packagesEnabled}
+        onUnauthorized={signedOut}
+      />
+    );
 
   return (
     <Shell

@@ -1002,6 +1002,19 @@ export function getPackagesSources(csrf: string): Promise<SourceList> {
 
 // ---- M8 first checkpoint: MergerFS + optional SnapRAID (read-only) ---------
 
+export interface MergerFSToolItem {
+  id: string;
+  package: string;
+  installed: boolean;
+  binary: string;
+}
+
+export interface MergerFSTooling {
+  family: string;
+  required: MergerFSToolItem[];
+  optional: MergerFSToolItem[];
+}
+
 export interface MergerFSPool {
   mountpoint: string;
   branches: string[];
@@ -1024,6 +1037,7 @@ export interface SnapRAIDInfo {
 }
 
 export interface MergerFSInventory {
+  tooling: MergerFSTooling;
   mergerfs: MergerFSInfo;
   snapraid: SnapRAIDInfo;
 }

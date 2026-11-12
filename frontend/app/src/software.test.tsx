@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { Software } from './pages/Software';
-import type { PackageList, SourceList, UpdateList } from './api';
+import { getPackageSearch, type PackageList, type SourceList, type UpdateList } from './api';
 
 const installedFixture: PackageList = {
   packages: [{ name: 'nginx', version: '1.2.3', arch: 'amd64', installed: true }],
@@ -82,5 +82,16 @@ describe('Software Center UI model', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Updates' }));
     expect(await screen.findByText(/As of last metadata refresh/)).toBeTruthy();
     expect(screen.getByText('1.2.4')).toBeTruthy();
+  });
+
+  it('seeds the local-cache search from ?q=', async () => {
+    window.history.replaceState(null, '', '/software?q=mergerfs');
+    try {
+      render(<Software csrf={csrf} onUnauthorized={onUnauthorized} />);
+      expect(await screen.findByText('nginx')).toBeTruthy();
+      expect(vi.mocked(getPackageSearch)).toHaveBeenCalledWith('mergerfs', csrf);
+    } finally {
+      window.history.replaceState(null, '', '/software');
+    }
   });
 });

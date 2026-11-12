@@ -119,7 +119,7 @@ func New(cfg Config, users *auth.Store, audit *audit.Logger, collector *hostinfo
 	s.storageSem = make(chan struct{}, 1)
 	s.snapraidConfig = mergerfsinfo.DefaultSnapRAIDPath
 	s.mergerfsCollect = func(ctx context.Context) (mergerfsinfo.Snapshot, error) {
-		return mergerfsinfo.Collect(ctx, "/", s.snapraidConfig)
+		return mergerfsinfo.Collect(ctx, "/", s.snapraidConfig, s.packageFamily())
 	}
 	s.mergerfsSem = make(chan struct{}, 1)
 	s.routes()
