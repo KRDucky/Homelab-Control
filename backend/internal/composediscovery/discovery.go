@@ -27,6 +27,11 @@ type Service struct {
 	// OfficialTraefik is true when the container image is the official Traefik
 	// image. HomeControl CORE/plugin/browser images are never Traefik.
 	OfficialTraefik bool `json:"officialTraefik,omitempty"`
+	// Image is the container image reference (server-side only; used for
+	// manager detection, never returned to the browser).
+	Image string `json:"-"`
+	// PublishedPorts are host-published TCP ports (server-side only).
+	PublishedPorts []int `json:"-"`
 	// Labels stays server-side. Browser views contain safe routing labels only.
 	Labels map[string]string `json:"-"`
 }

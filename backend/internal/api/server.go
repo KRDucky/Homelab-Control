@@ -65,6 +65,9 @@ type Server struct {
 	composeApplyDir   string
 	traefikSetupDir   string
 	discovery         composediscovery.Provider
+	arcaneKey         string // ARCANE_API_KEY; empty disables the Arcane path
+	arcaneURL         string // operator -arcane-url override; empty derives from detection
+	arcaneEnv         string // Arcane environment id ("0" by default)
 	platforms         *platform.Registry
 	identity          *containeridentity.Config
 	storageCollect    func(context.Context) (storageinfo.Graph, error)
