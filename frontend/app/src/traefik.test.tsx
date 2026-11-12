@@ -70,8 +70,9 @@ beforeEach(() => {
     proposed: { labels: { 'traefik.enable': 'true' }, networks: ['private'] },
     changes: [],
     blockers: [{ code: 'provider_disabled', message: 'Docker provider is disabled.' }],
-    warnings: [{ code: 'file_provider', message: 'Copy the file YAML into Traefik\'s dynamic directory.' }],
-    fileYAML: "http:\n  routers:\n    proxy-host:\n      rule: 'Host(`notes.example.com`)'\n      service: web",
+    warnings: [{ code: 'file_provider', message: "Copy the file YAML into Traefik's dynamic directory." }],
+    fileYAML:
+      "http:\n  routers:\n    proxy-host:\n      rule: 'Host(`notes.example.com`)'\n      service: web",
     applyAvailable: false,
     labelApplyAvailable: false,
     sourceFileVerified: false,
@@ -413,7 +414,13 @@ it('shows a detected Traefik container and keeps compose write hidden', async ()
       entrypoints: ['web'],
       resolvers: [],
       dockerProvider: true,
-      instance: { present: true, running: true, container: 'hc-traefik-fixture', project: 'hc-traefik-live', service: 'traefik' },
+      instance: {
+        present: true,
+        running: true,
+        container: 'hc-traefik-fixture',
+        project: 'hc-traefik-live',
+        service: 'traefik',
+      },
     },
     setupAvailable: false,
   });

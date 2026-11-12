@@ -277,15 +277,15 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
           <section>
             <h2>Manage your proxy hosts</h2>
             <p>
-              Select a Docker Compose or Kubernetes workload, set hostname and optional path, then review
-              file YAML, Compose labels, or Kubernetes manifests. Nothing is applied.
+              Select a Docker Compose or Kubernetes workload, set hostname and optional path, then review file
+              YAML, Compose labels, or Kubernetes manifests. Nothing is applied.
             </p>
             <button type="button" onClick={() => setSection('Proxy Hosts')}>
               View Proxy Hosts
             </button>
             <p className="muted">
-              Certificates management is planned. Middleware assignment and multiple hostnames are not in
-              this preview model. Path prefix is optional.
+              Certificates management is planned. Middleware assignment and multiple hostnames are not in this
+              preview model. Path prefix is optional.
             </p>
             {warnings > 0 && (
               <p className="banner">
@@ -300,8 +300,8 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
               {catalog.traefik.instance?.present ? (
                 <p>
                   Traefik detected: {catalog.traefik.instance.container}
-                  {catalog.traefik.instance.running ? ' (running)' : ' (stopped)'}. Configure proxy hosts
-                  for your applications.
+                  {catalog.traefik.instance.running ? ' (running)' : ' (stopped)'}. Configure proxy hosts for
+                  your applications.
                 </p>
               ) : catalog.setupAvailable ? (
                 <>
@@ -689,8 +689,8 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
                 <>
                   <h3>File provider YAML</h3>
                   <p className="muted">
-                    Copy into the dynamic directory (for example /config/dynamic), or write it when Apply
-                    file YAML is available.
+                    Copy into the dynamic directory (for example /config/dynamic), or write it when Apply file
+                    YAML is available.
                   </p>
                   <pre aria-label="File provider YAML">{proposal.fileYAML}</pre>
                 </>
@@ -739,8 +739,8 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
                   </button>
                   {labelsWrote ? (
                     <p>
-                      Wrote Traefik labels into {labelsWrote}. Recreate the Compose service so Traefik
-                      reloads them.
+                      Wrote Traefik labels into {labelsWrote}. Recreate the Compose service so Traefik reloads
+                      them.
                     </p>
                   ) : null}
                 </>
