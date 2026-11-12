@@ -21,6 +21,7 @@ import (
 	"homelab-control/backend/internal/brokerclient"
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
+	"homelab-control/backend/internal/mergerfsinfo"
 	"homelab-control/backend/internal/modules"
 	"homelab-control/backend/internal/servicepolicy"
 )
@@ -230,15 +231,36 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 	case packageFamilyBinary(s.packageFamily()) == "" || !slices.Contains(bi.Exec, packageFamilyBinary(s.packageFamily())):
 		packages.Status, packages.Reason = CapUnsupported, "The package manager for this distribution is not installed."
 	}
+	// M8 first checkpoint: one MergerFS page with optional SnapRAID, read-only.
+	// Available when the required mergerfs binary is present (pools may still
+	// be empty); degraded (never unavailable) when it is missing so the page
+	// still mounts and shows the Software Center install offer. Missing
+	// snapraid never degrades the capability. Probe is two os.Stat calls only
+	// (no mountinfo/snapraid.conf read), and only when the module is enabled
+	// and the session has mergerfs.read.
+	mergerfs := Capability{ID: "mergerfs", Label: "MergerFS", Path: "/storage/mergerfs", Scope: auth.ScopeMergerFSRead, Status: CapAvailable}
+	if s.mods.Enabled("mergerfs") && sess.HasScope(auth.ScopeMergerFSRead) {
+		if mergerfsinfo.ProbeTooling(s.packageFamily()).RequiredInstalled("mergerfs") {
+			mergerfs.Status, mergerfs.Reason = CapAvailable, ""
+		} else {
+			mergerfs.Status, mergerfs.Reason = CapDegraded, "The mergerfs package is required and is not installed."
+		}
+	}
 	traefik := Capability{ID: "traefik", Label: "Networking → Reverse Proxy → Traefik", Path: "/networking/reverse-proxy/traefik", Scope: auth.ScopeNetworkingProxyRead, Status: CapAvailable}
 	if s.traefik == nil {
 		traefik.Status, traefik.Reason = CapUnavailable, "Traefik extension is not configured."
 	}
-	caps := []Capability{gate(traefik), gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages)}
+	caps := []Capability{gate(traefik), gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages), gate(mergerfs)}
 	// Navigation follows the module registry: a disabled module contributes
 	// no capability (and therefore no navigation entry).
 	resp.Capabilities = caps[:0]
 	for _, c := range caps {
+		// M8: the mergerfs UI path (/storage/mergerfs) does not equal its API
+		// prefix (/api/v1/mergerfs), so ForRoute cannot map it; gate it by its
+		// module ID directly. Other capabilities keep their ForRoute mapping.
+		if c.ID == "mergerfs" && !s.mods.Enabled("mergerfs") {
+			continue
+		}
 		if s.mods.Enabled(modules.ForRoute("/api/v1" + c.Path)) {
 			resp.Capabilities = append(resp.Capabilities, c)
 		}

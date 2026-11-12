@@ -45,7 +45,7 @@ not confirmed for every family during this review.
 | Ceph (logical options, first slice) | Existing cluster health, OSDs, MONs, MGRs, MDS, pools, CRUSH classes (hdd/ssd/nvme); RBD, CephFS, RGW as consumable types | Cluster create is a **later, separately reviewed** write. Cache-tier only if still supported by the installed Ceph — do not advertise removed features | BR / BW (later) | Detect whichever is installed: ceph.conf / cephadm / microceph / rook. Do not invent a second orchestrator | Inventing an orchestrator; advertising removed cache-tier | ceph / cephadm / microceph / rook (*verify*) | *verify* | after 04-ROADMAP **M8**, unslotted backlog (no 04-ROADMAP row); cluster create separately reviewed |
 
 **Owner storage requirements:**
-- **mergerfs and SnapRAID** are separate modules and usable alone. The combined setup is a coordinated workflow (`MODULE-ARCHITECTURE.md` §4).
+- **mergerfs and SnapRAID** are separate modules and usable alone. The combined setup is a coordinated workflow (`MODULE-ARCHITECTURE.md` §4). M8 first checkpoint: one UI page (`/storage/mergerfs`) shows mergerfs pools with SnapRAID as an optional section on the same page, never a second nav module; on open it probes required/optional binaries and, when a package is missing, offers a Software Center search link instead of a fake empty page.
 - **ext4/XFS adoption:** existing disks are discovered and adopted with no reformat (mount, label, add as mergerfs branch or SnapRAID data disk).
 - **Replacement and SnapRAID recovery** are guided only, with a feasibility check before any action:
   - parity count vs failed disks;

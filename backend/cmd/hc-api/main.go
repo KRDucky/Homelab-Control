@@ -35,6 +35,7 @@ import (
 	"homelab-control/backend/internal/filesinfo"
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
+	"homelab-control/backend/internal/mergerfsinfo"
 	"homelab-control/backend/internal/modules"
 	"homelab-control/backend/internal/oidclogin"
 	"homelab-control/backend/internal/platform"
@@ -68,6 +69,7 @@ func main() {
 	allowRoot := flag.Bool("i-understand-running-as-root-is-unsupported", false, "permit running as root (development containers only)")
 	modulesFile := flag.String("modules-config", modules.DefaultPath, "administrator's module setting (root-owned; missing = all modules enabled)")
 	filesFile := flag.String("files-config", filesinfo.DefaultPath, "allow-listed file-manager roots (root-owned; missing/empty = no browse)")
+	snapraidConfig := flag.String("snapraid-config", mergerfsinfo.DefaultSnapRAIDPath, "snapraid.conf path for the read-only MergerFS page (missing = SnapRAID not present)")
 	oidcConfig := flag.String("oidc-config", "", "single sign-on provider setting (mode 0600, may hold the client secret); empty disables OIDC")
 	traefikOrigin := flag.String("traefik-helper-origin", "", "fixed private Traefik extension origin; empty disables integration")
 	traefikTokenFile := flag.String("traefik-helper-token-file", "", "private extension token file; never returned to browser")
@@ -313,6 +315,7 @@ func main() {
 		log.Printf("file-manager roots from %s: %d", *filesFile, len(files.PublicRoots()))
 	}
 	srv.WithFiles(files)
+	srv.WithSnapRAIDConfig(*snapraidConfig)
 	if webui.FS() == nil {
 		log.Print("warning: UI not embedded; serving API only")
 	}
