@@ -1107,7 +1107,7 @@ paths:
       summary: Write Safe Traefik labels into the selected application's allowlisted Compose file
       x-required-scope: networking.proxy.apply
       security: [{ session: [], csrf: [] }]
-      description: Also requires docker.compose.read. The body is the same as compose-preview. CORE patches services.<name>.labels in a compose.yaml under -compose-apply-dir. List or flow-style labels are rejected. This slice does not recreate containers. A Docker Compose module will own recreate over docker.sock or the rootless Docker socket; until then recreate the Compose service after a successful write so Traefik's Docker provider reloads labels.
+      description: Also requires docker.compose.read. The body is the same as compose-preview. CORE patches services.<name>.labels in a compose.yaml under -compose-apply-dir. List or flow-style labels are rejected. This slice does not recreate containers. Recreate through a detected Arcane or Dockhand API, or through HomeControl's compose fallback (Restart) once it exists; until then recreate the Compose service after a successful write so Traefik's Docker provider reloads labels.
       requestBody:
         required: true
         content:
@@ -1135,7 +1135,7 @@ paths:
       summary: Write official Traefik compose when no Traefik container is present
       x-required-scope: networking.proxy.apply
       security: [{ session: [], csrf: [] }]
-      description: Also requires docker.compose.read. The Traefik helper is not required. Body is an empty JSON object. CORE writes official Traefik compose.yaml and traefik.yml under -traefik-setup-dir when discovery finds no official Traefik image or Compose service named traefik. Host 80/443 stay free (HTTP 8880). started is false until a Docker Compose module can start the project over docker.sock or the rootless Docker socket. If Traefik is already present the write is rejected so the existing instance can be configured.
+      description: Also requires docker.compose.read. The Traefik helper is not required. Body is an empty JSON object. CORE writes official Traefik compose.yaml and traefik.yml under -traefik-setup-dir when discovery finds no official Traefik image or Compose service named traefik. Host 80/443 stay free (HTTP 8880). started is false until a detected Arcane or Dockhand API, or HomeControl's compose fallback, can start the project over docker.sock or the rootless Docker socket. If Traefik is already present the write is rejected so the existing instance can be configured.
       requestBody:
         required: true
         content:
