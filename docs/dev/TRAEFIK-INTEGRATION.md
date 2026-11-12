@@ -73,7 +73,7 @@ Start/Stop/Restart/Remove/Pull/Update. It is not feature parity.
 
 ## Build and tests
 
-Pinned Go 1.26.10, Node 22.23.3, npm 10.9.9 are asserted in
+Pinned Go 1.26.11, Node 22.23.3, npm 10.9.9 are asserted in
 `dev/traefik-core.Dockerfile`. It installs only locked application dependencies inside
 build stages, runs Go/backend, React/frontend and SDK tests, and builds embedded CORE.
 Dockerfile-specific ignore excludes Git, local environment and development state.

@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 # Development validation only. No service is deployed or host package installed.
-FROM docker.io/library/golang:1.26.10-bookworm@sha256:5de7c99eb78ca5e515a4c340235d0955ec5964a5071c492c15503d7c267da473 AS go
+FROM docker.io/library/golang:1.26.11-bookworm@sha256:dc40a13b61304647ed7e5d581d246b86413dfc29d63c6d018310feb93cd98fc0 AS go
 FROM docker.io/library/node:22.23.3-bookworm@sha256:69a5713e7f4997e96d579aafd78734810e0dac0dd5ee4621d72c27a2891a4088 AS tools
 COPY --from=go /usr/local/go /usr/local/go
 ENV PATH=/usr/local/go/bin:$PATH GOTOOLCHAIN=local GOFLAGS=-mod=readonly CGO_ENABLED=0
 WORKDIR /src
 RUN chown node:node /src
 USER node
-RUN test "$(go env GOVERSION)" = "go1.26.10" && test "$(node --version)" = "v22.23.3" && test "$(npm --version)" = "10.9.9"
+RUN test "$(go env GOVERSION)" = "go1.26.11" && test "$(node --version)" = "v22.23.3" && test "$(npm --version)" = "10.9.9"
 COPY --chown=node:node frontend/app/package*.json ./frontend/app/
 RUN cd frontend/app && npm ci --ignore-scripts --no-fund
 COPY --chown=node:node backend/go.mod backend/go.sum ./backend/

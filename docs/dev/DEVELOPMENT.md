@@ -3,7 +3,7 @@
 ## Requirements
 | Tool | Version used in M0 | Notes |
 |---|---|---|
-| Go | 1.26.10 (CI and releases, exact pin in `packaging/release/toolchain.env`; older local toolchains fetch it with `GOTOOLCHAIN=go1.26.10`) | `go.mod` requires ≥ 1.26.0 (`modernc.org/sqlite`). Third-party modules only from the reviewed allow-list `backend/go-deps-allowlist.json` (ADR 0006 amendment 1); `hc-broker` stays standard-library only. Release/CI builds must use a *supported* Go line so stdlib security fixes apply; govulncheck in CI fails otherwise. |
+| Go | 1.26.11 (CI and releases, exact pin in `packaging/release/toolchain.env`; older local toolchains fetch it with `GOTOOLCHAIN=go1.26.11`) | `go.mod` requires ≥ 1.26.0 (`modernc.org/sqlite`). Third-party modules only from the reviewed allow-list `backend/go-deps-allowlist.json` (ADR 0006 amendment 1); `hc-broker` stays standard-library only. Release/CI builds must use a *supported* Go line so stdlib security fixes apply; govulncheck in CI fails otherwise. |
 | Node.js / npm | 22.22.0 / 10.9.4 | jsdom (dev-only) warns it prefers Node ≥ 22.22.2; tests pass on 22.22.0. |
 | GNU make, git, bash, coreutils | any recent | |
 | Perl 5 | 5.38 | Only for the legacy Webmin baseline and upstream `prove` suite. |
