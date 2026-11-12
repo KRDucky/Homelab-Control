@@ -1042,6 +1042,7 @@ export interface ComposeService {
   replicaCount?: number;
   unsupportedNetworking?: boolean;
   unsupportedDeployment?: boolean;
+  officialTraefik?: boolean;
   id: string;
   compose: boolean;
   project?: string;
@@ -1053,11 +1054,25 @@ export interface ComposeService {
   traefikLabels: Record<string, string>;
   hiddenTraefikSettings: boolean;
 }
+export interface TraefikInstance {
+  present: boolean;
+  running: boolean;
+  container?: string;
+  project?: string;
+  service?: string;
+}
 export interface ComposeCatalog {
   source: string;
   fixture: boolean;
   services: ComposeService[];
-  traefik: { networks: string[]; entrypoints: string[]; resolvers: string[]; dockerProvider: boolean | null };
+  traefik: {
+    networks: string[];
+    entrypoints: string[];
+    resolvers: string[];
+    dockerProvider: boolean | null;
+    instance?: TraefikInstance;
+  };
+  setupAvailable?: boolean;
 }
 export interface ProxySummary {
   application: string;
@@ -1110,6 +1125,8 @@ export const applyComposeLabels = (
     csrf,
     body,
   );
+export const applyTraefikSetup = (csrf: string) =>
+  postJSON<{ wrote: string[]; started: boolean; httpPort: string }>(`${traefikPath}/setup`, csrf, {});
 
 // Container platform registry (CORE). Connection details never reach the browser.
 export type PlatformCapability =

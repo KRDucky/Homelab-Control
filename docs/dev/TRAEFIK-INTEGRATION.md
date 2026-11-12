@@ -27,6 +27,7 @@ CORE routes beneath `/api/v1/networking/reverse-proxy/traefik`:
 | `/compose-preview` | POST | labels plus file-provider YAML (`fileYAML`); `applyAvailable` when `-traefik-dynamic-dir` is set |
 | `/file-apply` | POST | writes CORE-generated `<name>.yml` into that directory; requires `networking.proxy.apply` |
 | `/compose-apply` | POST | patches Safe Traefik labels into an allowlisted Compose file; requires `networking.proxy.apply`; does not recreate containers |
+| `/setup` | POST | writes official Traefik compose + static config when no Traefik container is present; 409 when one is already detected; `started` is false until a detected Arcane/Dockhand API or HomeControl's compose fallback can start the project; does not require the Traefik helper |
 
 Every route requires the session and dedicated scope. GET/HEAD additionally requires
 `X-CSRF-Token`; a present Origin must match. POST uses shared Origin/CSRF protection.
@@ -51,11 +52,28 @@ explicit resolver reference can trigger issuance if the owner later applies labe
 Router TLS may replace entrypoint defaults: review options separately. File apply
 writes CORE-generated YAML into `-traefik-dynamic-dir` only. Compose-label apply
 (`-compose-apply-dir`) patches Safe Traefik keys on `services.<name>.labels` in an
-allowlisted compose.yaml. CORE does not mount docker.sock or recreate containers.
+allowlisted compose.yaml. Easy-setup (`-traefik-setup-dir`) writes official Traefik
+compose (host HTTP 8880, 80/443 left free) only when discovery finds no official
+Traefik container or Compose service named `traefik`. If Traefik is already present
+the plugin configures that instance (labels and file YAML). This slice writes
+compose files; it does not start or recreate containers.
+
+HomeControl is a baremetal application. Docker Engine access is
+`/var/run/docker.sock` or the rootless socket (`/run/user/<uid>/docker.sock`)
+through the broker, not by adding `hc-api` to the `docker` group.
+
+If Arcane or Dockhand is detected on the host, reverse-proxy plugins talk to
+that tool's published API for compose edits and start/recreate (example: Arcane
+`X-Api-Key` and `/api/environments/:id/projects`). If both are present, prefer
+the manager that already owns the project's files. Do not vendor or copy those
+products; Dockhand REST paths come from public docs only. HomeControl's own
+Compose slice is a fallback: YAML editor, ENV editor, and
+Start/Stop/Restart/Remove/Pull/Update. It is not feature parity.
+`started: false` on `/setup` is the current stopgap until that handoff exists.
 
 ## Build and tests
 
-Pinned Go 1.26.10, Node 22.23.3, npm 10.9.9 are asserted in
+Pinned Go 1.26.11, Node 22.23.3, npm 10.9.9 are asserted in
 `dev/traefik-core.Dockerfile`. It installs only locked application dependencies inside
 build stages, runs Go/backend, React/frontend and SDK tests, and builds embedded CORE.
 Dockerfile-specific ignore excludes Git, local environment and development state.

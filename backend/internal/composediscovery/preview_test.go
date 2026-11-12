@@ -74,6 +74,20 @@ func TestValidationAndBlockers(t *testing.T) {
 		t.Fatal(p)
 	}
 }
+
+func TestBuildBlocksTraefikProxy(t *testing.T) {
+	s, r := fixtureRequest()
+	s.Services = append(s.Services, Service{
+		ID: "fixture-traefik", Compose: true, Project: "hc-traefik-live", Service: "traefik",
+		Container: "hc-traefik-fixture", State: "running", Ports: []Port{{8080, "tcp"}},
+		Networks: []string{"hc-traefik-test"}, Labels: map[string]string{},
+	})
+	r.ServiceID = "fixture-traefik"
+	p, err := Build(s, traefikclient.Inventory{}, r)
+	if err != nil || !has(p.Blockers, "traefik_proxy") {
+		t.Fatal(p, err)
+	}
+}
 func TestConflictsTLSAndRedaction(t *testing.T) {
 	s, r := fixtureRequest()
 	s.Services[0].Labels["traefik.http.routers.notes.rule"] = "Host(`old.example.com`)"

@@ -73,6 +73,7 @@ func main() {
 	traefikTokenFile := flag.String("traefik-helper-token-file", "", "private extension token file; never returned to browser")
 	traefikDynamicDir := flag.String("traefik-dynamic-dir", "", "administrator Traefik file-provider directory for CORE-generated YAML; empty disables file apply")
 	composeApplyDir := flag.String("compose-apply-dir", "", "allowlisted directory of Compose files for Traefik label apply; empty disables compose-label apply")
+	traefikSetupDir := flag.String("traefik-setup-dir", "", "allowlisted directory for official Traefik easy-setup compose; empty disables easy-setup writes")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
@@ -206,6 +207,17 @@ func main() {
 			log.Fatal("Compose apply directory is missing or not a directory")
 		}
 		srv.WithComposeApplyDir(abs)
+	}
+	if *traefikSetupDir != "" {
+		abs, err := filepath.Abs(*traefikSetupDir)
+		if err != nil {
+			log.Fatal("Traefik setup directory is invalid")
+		}
+		info, err := os.Stat(abs)
+		if err != nil || !info.IsDir() {
+			log.Fatal("Traefik setup directory is missing or not a directory")
+		}
+		srv.WithTraefikSetupDir(abs)
 	}
 	// Container platforms are registered only from these startup flags; no API
 	// can add a socket, API endpoint or credential.
