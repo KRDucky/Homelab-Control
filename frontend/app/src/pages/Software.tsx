@@ -28,6 +28,15 @@ const TABS: { id: Tab; label: string }[] = [
 
 type SoftwareData = PackageList | UpdateList | SourceList;
 
+// M8: seed the local-cache search from ?q= so another module can offer a
+// Software Center search link (e.g. Install mergerfs). Trimmed and capped to
+// the same 64-char limit as the input.
+function seedQuery(): string {
+  const q = new URLSearchParams(window.location.search).get('q');
+  if (!q) return '';
+  return q.trim().slice(0, 64);
+}
+
 function isPackageList(d: SoftwareData): d is PackageList {
   return 'packages' in d;
 }
@@ -44,9 +53,10 @@ function isSourceList(d: SoftwareData): d is SourceList {
  * Update or Add-repo control exists in the DOM, not even disabled.
  */
 export function Software({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: () => void }) {
+  const seeded = seedQuery();
   const [tab, setTab] = useState<Tab>('search');
-  const [query, setQuery] = useState('');
-  const [submitted, setSubmitted] = useState('');
+  const [query, setQuery] = useState(seeded);
+  const [submitted, setSubmitted] = useState(seeded);
   const [data, setData] = useState<SoftwareData | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [loading, setLoading] = useState(false);

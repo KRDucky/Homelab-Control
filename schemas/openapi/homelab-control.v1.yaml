@@ -910,8 +910,33 @@ components:
               third_party: { type: boolean }
     MergerFSInventory:
       type: object
-      required: [mergerfs, snapraid]
+      required: [tooling, mergerfs, snapraid]
       properties:
+        tooling:
+          type: object
+          required: [family, required, optional]
+          properties:
+            family: { type: string, enum: [debian, fedora, suse, arch, unknown] }
+            required:
+              type: array
+              items:
+                type: object
+                required: [id, package, installed, binary]
+                properties:
+                  id: { type: string }
+                  package: { type: string }
+                  installed: { type: boolean }
+                  binary: { type: string }
+            optional:
+              type: array
+              items:
+                type: object
+                required: [id, package, installed, binary]
+                properties:
+                  id: { type: string }
+                  package: { type: string }
+                  installed: { type: boolean }
+                  binary: { type: string }
         mergerfs:
           type: object
           required: [present, reason, pools]
