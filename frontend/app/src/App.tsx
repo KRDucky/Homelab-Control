@@ -19,6 +19,7 @@ import { Storage } from './pages/Storage';
 import { FilesPage } from './pages/Files';
 import { Traefik } from './pages/Traefik';
 import { Software } from './pages/Software';
+import { MergerFS } from './pages/MergerFS';
 import { HostSettingsPage } from './pages/HostSettings';
 import { Legacy } from './pages/Legacy';
 import { OverviewPage } from './pages/OverviewPage';
@@ -176,6 +177,7 @@ export function App() {
   else if (route?.id === 'overview') page = <OverviewPage onUnauthorized={signedOut} />;
   else if (route?.id === 'traefik') page = <Traefik csrf={session.csrf_token} onUnauthorized={signedOut} />;
   else if (route?.id === 'packages') page = <Software csrf={session.csrf_token} onUnauthorized={signedOut} />;
+  else if (route?.id === 'mergerfs') page = <MergerFS csrf={session.csrf_token} onUnauthorized={signedOut} />;
 
   return (
     <Shell

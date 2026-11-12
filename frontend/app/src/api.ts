@@ -147,6 +147,7 @@ export interface Capability {
     | 'host_settings'
     | 'files'
     | 'packages'
+    | 'mergerfs'
     | 'traefik';
   label: string;
   path: string;
@@ -997,6 +998,40 @@ export function getPackagesUpdates(csrf: string): Promise<UpdateList> {
 
 export function getPackagesSources(csrf: string): Promise<SourceList> {
   return request<SourceList>('/api/v1/packages/sources', { headers: { 'X-CSRF-Token': csrf } });
+}
+
+// ---- M8 first checkpoint: MergerFS + optional SnapRAID (read-only) ---------
+
+export interface MergerFSPool {
+  mountpoint: string;
+  branches: string[];
+  options: string[];
+}
+
+export interface MergerFSInfo {
+  present: boolean;
+  reason: string;
+  pools: MergerFSPool[];
+}
+
+export interface SnapRAIDInfo {
+  present: boolean;
+  reason: string;
+  configPath: string;
+  data: string[];
+  parity: string[];
+  content: string[];
+}
+
+export interface MergerFSInventory {
+  mergerfs: MergerFSInfo;
+  snapraid: SnapRAIDInfo;
+}
+
+// Like storage/files/packages: this GET returns host mount and configuration
+// paths, so it is access-audited and requires the session CSRF token.
+export function getMergerFS(csrf: string): Promise<MergerFSInventory> {
+  return request<MergerFSInventory>('/api/v1/mergerfs', { headers: { 'X-CSRF-Token': csrf } });
 }
 
 // Read-only Traefik helper integration. The browser never receives helper credentials.

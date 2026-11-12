@@ -36,6 +36,7 @@ import (
 	"homelab-control/backend/internal/filesinfo"
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
+	"homelab-control/backend/internal/mergerfsinfo"
 	"homelab-control/backend/internal/modules"
 	"homelab-control/backend/internal/oidclogin"
 	"homelab-control/backend/internal/platform"
@@ -70,6 +71,9 @@ type Server struct {
 	storageCollect    func(context.Context) (storageinfo.Graph, error)
 	storageSem        chan struct{}
 	storageSnapshots  StorageSnapshotStore
+	mergerfsCollect   func(context.Context) (mergerfsinfo.Snapshot, error)
+	mergerfsSem       chan struct{}
+	snapraidConfig    string
 	layouts           LayoutStore
 	cfg               Config
 	users             *auth.Store
@@ -113,12 +117,21 @@ func New(cfg Config, users *auth.Store, audit *audit.Logger, collector *hostinfo
 	}
 	s.storageCollect = func(ctx context.Context) (storageinfo.Graph, error) { return storageinfo.Collect(ctx, "/") }
 	s.storageSem = make(chan struct{}, 1)
+	s.snapraidConfig = mergerfsinfo.DefaultSnapRAIDPath
+	s.mergerfsCollect = func(ctx context.Context) (mergerfsinfo.Snapshot, error) {
+		return mergerfsinfo.Collect(ctx, "/", s.snapraidConfig)
+	}
+	s.mergerfsSem = make(chan struct{}, 1)
 	s.routes()
 	return s
 }
 
 // WithModules applies the administrator's module setting (M2-3).
 func (s *Server) WithModules(m modules.Set) *Server { s.mods = m; return s }
+
+// WithSnapRAIDConfig sets the snapraid.conf path for the read-only MergerFS
+// page (default /etc/snapraid.conf).
+func (s *Server) WithSnapRAIDConfig(path string) *Server { s.snapraidConfig = path; return s }
 
 // WithFiles applies the administrator's confined-root allow-list.
 func (s *Server) WithFiles(f filesinfo.Set) *Server { s.files = f; return s }
@@ -196,6 +209,8 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/packages/installed", auth.ScopePackagesRead, s.handlePackagesInstalled)
 	s.handle("GET /api/v1/packages/updates", auth.ScopePackagesRead, s.handlePackagesUpdates)
 	s.handle("GET /api/v1/packages/sources", auth.ScopePackagesRead, s.handlePackagesSources)
+	// M8 first checkpoint: read-only MergerFS + optional SnapRAID (no broker ops).
+	s.handle("GET /api/v1/mergerfs", auth.ScopeMergerFSRead, s.handleMergerFS)
 	s.handle("GET /api/v1/legacy/webmin", auth.ScopeSystemRead, s.handleLegacy)
 	s.mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "unknown API route")

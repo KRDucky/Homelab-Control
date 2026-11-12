@@ -230,11 +230,24 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 	case packageFamilyBinary(s.packageFamily()) == "" || !slices.Contains(bi.Exec, packageFamilyBinary(s.packageFamily())):
 		packages.Status, packages.Reason = CapUnsupported, "The package manager for this distribution is not installed."
 	}
+	// M8 first checkpoint: one MergerFS page with optional SnapRAID, read-only.
+	// Available when at least one fuse.mergerfs mount or a readable
+	// snapraid.conf is present; otherwise unavailable with a reason.
+	mergerfs := Capability{ID: "mergerfs", Label: "MergerFS", Path: "/storage/mergerfs", Scope: auth.ScopeMergerFSRead, Status: CapAvailable}
+	if s.mergerfsCollect == nil {
+		mergerfs.Status, mergerfs.Reason = CapUnavailable, "MergerFS inventory is not enabled on this server."
+	} else if snap, err := s.mergerfsCollect(r.Context()); err != nil {
+		mergerfs.Status, mergerfs.Reason = CapUnavailable, "MergerFS inventory could not be collected."
+	} else if snap.MergerFS.Present || snap.SnapRAID.Present {
+		mergerfs.Status, mergerfs.Reason = CapAvailable, ""
+	} else {
+		mergerfs.Status, mergerfs.Reason = CapDegraded, "No mergerfs pools or SnapRAID configuration were found."
+	}
 	traefik := Capability{ID: "traefik", Label: "Networking → Reverse Proxy → Traefik", Path: "/networking/reverse-proxy/traefik", Scope: auth.ScopeNetworkingProxyRead, Status: CapAvailable}
 	if s.traefik == nil {
 		traefik.Status, traefik.Reason = CapUnavailable, "Traefik extension is not configured."
 	}
-	caps := []Capability{gate(traefik), gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages)}
+	caps := []Capability{gate(traefik), gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages), gate(mergerfs)}
 	// Navigation follows the module registry: a disabled module contributes
 	// no capability (and therefore no navigation entry).
 	resp.Capabilities = caps[:0]
