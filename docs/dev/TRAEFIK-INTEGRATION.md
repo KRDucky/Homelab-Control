@@ -182,20 +182,19 @@ for the proposed test, then verify its actual presence/metadata before any appro
 
 ## Arcane compose-apply (slice 1)
 
-When Arcane is configured (`ARCANE_API_KEY` plus `-arcane-url`, or a detected
-container publishing 3552), `POST /networking/reverse-proxy/traefik/compose-apply`
-writes the patched Compose content through Arcane's REST API (`via:"arcane"`)
-instead of the local `-compose-apply-dir` file patch. Docker Settings checkboxes
-(address, port, optional API key) are the product UX; this slice takes flags/env.
-A configured URL is the source of truth and does not require the Arcane container
-to appear in CORE's discovery snapshot.
+`POST /networking/reverse-proxy/traefik/compose-apply` writes the patched Compose
+content through Arcane's REST API (`via:"arcane"`) instead of the local
+`-compose-apply-dir` file patch.
 
-- **Config:** `ARCANE_API_KEY` (env) enables the path; `-arcane-url` is the
-  operator/Settings override (empty derives `http://127.0.0.1:<published 3552>`
-  from a detected container). `-arcane-env` selects the environment id (default `0`).
-- **Detection** (`backend/internal/arcanediscovery`): image last path segment `arcane`,
-  `getarcaneapp/arcane`/`getarcaneapp/manager`, or container name `arcane`; published
-  port 3552 is supporting evidence for the URL.
+- **Config (source of truth):** `ARCANE_API_KEY` (env) enables the path; `-arcane-url` is
+  an optional base-URL override (empty derives `http://127.0.0.1:<published 3552>` from a
+  detected container). `-arcane-env` selects the environment id (default `0`). The API key
+  is optional in the client (managers without auth, for example the LAN-only Dockhand,
+  send no `X-Api-Key`), but Arcane's enablement still requires a configured key.
+- **Detection only pre-fills the URL, never enables:** image last path segment `arcane`,
+  `getarcaneapp/arcane`/`getarcaneapp/manager`, or container name `arcane`; a published
+  port 3552 supplies the derived URL. A detected container with no configured key does not
+  turn the path on.
 - **Matching:** list projects, GET each project's Compose, and pick the one whose service
   key or `container_name` equals the selected service and whose compose `name:` or project
   name equals the project (when set).
@@ -205,3 +204,5 @@ to appear in CORE's discovery snapshot.
   the `-compose-apply-dir` file patch. A conflicting existing label is still a 409.
 - No Arcane code is vendored; the client is stdlib HTTP with redirects disabled and
   8 s GET / 15 s PUT timeouts. Response bodies are never logged (they may contain env).
+- Dockhand is not implemented and no `DOCKHAND_API_KEY` is required; Dockhand
+  authentication stays off (LAN-only) by owner decision.

@@ -401,25 +401,6 @@ func TestTraefikComposeApplyFallsBackToFileWhenArcaneHasNoProject(t *testing.T) 
 	}
 }
 
-func TestTraefikComposeApplyUsesConfiguredArcaneWithoutDetect(t *testing.T) {
-	// Docker Settings: address/port/key are the source of truth. Isolated CORE
-	// may not see the Arcane container in its snapshot.
-	arcane := &arcaneApplyServer{compose: "name: example-notes\nservices:\n  web:\n    image: x\n"}
-	srv := httptest.NewServer(arcane)
-	defer srv.Close()
-	h := harnessWith(t, nil, []string{auth.ScopeNetworkingProxyRead, auth.ScopeNetworkingProxyApply, auth.ScopeComposeRead})
-	h.srv.WithTraefik(&fakeTraefik{}).WithComposeDiscovery(dockerProviderOn{}).WithArcane("test-key", srv.URL, "0")
-	headers := packagesHeaders(h)
-	headers["Content-Type"] = "application/json"
-	rr := h.do("POST", proxyPath+"/compose-apply", composeBody, headers)
-	if rr.Code != 200 || !strings.Contains(rr.Body.String(), `"via":"arcane"`) {
-		t.Fatal(rr.Code, rr.Body)
-	}
-	if arcane.putBody == nil {
-		t.Fatal("configured Arcane URL must apply without a detected container")
-	}
-}
-
 func TestTraefikComposeApplyArcaneConflictIs409(t *testing.T) {
 	arcane := &arcaneApplyServer{compose: "name: example-notes\nservices:\n  web:\n    image: x\n    labels:\n      traefik.enable: \"false\"\n"}
 	srv := httptest.NewServer(arcane)
@@ -434,5 +415,45 @@ func TestTraefikComposeApplyArcaneConflictIs409(t *testing.T) {
 	}
 	if arcane.putBody != nil {
 		t.Fatal("conflicting labels must not be written")
+	}
+}
+
+func TestTraefikComposeApplyUsesConfiguredURLWithoutDetection(t *testing.T) {
+	// -arcane-url is the source of truth: a configured URL enables the path even
+	// when no Arcane container appears in the discovery snapshot.
+	arcane := &arcaneApplyServer{compose: "name: example-notes\nservices:\n  web:\n    image: x\n"}
+	srv := httptest.NewServer(arcane)
+	defer srv.Close()
+	h := harnessWith(t, nil, []string{auth.ScopeNetworkingProxyRead, auth.ScopeNetworkingProxyApply, auth.ScopeComposeRead})
+	h.srv.WithTraefik(&fakeTraefik{}).WithComposeDiscovery(dockerProviderOn{}).WithArcane("test-key", srv.URL, "0")
+	headers := packagesHeaders(h)
+	headers["Content-Type"] = "application/json"
+	rr := h.do("POST", proxyPath+"/compose-apply", composeBody, headers)
+	if rr.Code != 200 || !strings.Contains(rr.Body.String(), `"via":"arcane"`) {
+		t.Fatal(rr.Code, rr.Body)
+	}
+	if arcane.putBody == nil {
+		t.Fatal("configured URL must drive the Arcane path without docker detection")
+	}
+}
+
+func TestTraefikComposeApplyDoesNotAutoEnableFromDetection(t *testing.T) {
+	// An Arcane container is detected, but no ARCANE_API_KEY is configured:
+	// detection must not enable the path; the file apply is the fallback.
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "compose.yaml"), []byte("name: example-notes\nservices:\n  web:\n    image: x\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	h := harnessWith(t, nil, []string{auth.ScopeNetworkingProxyRead, auth.ScopeNetworkingProxyApply, auth.ScopeComposeRead})
+	h.srv.WithTraefik(&fakeTraefik{}).WithComposeDiscovery(arcaneProviderOn{}).WithComposeApplyDir(dir)
+	headers := packagesHeaders(h)
+	headers["Content-Type"] = "application/json"
+	rr := h.do("POST", proxyPath+"/compose-apply", composeBody, headers)
+	if rr.Code != 200 || strings.Contains(rr.Body.String(), `"via":"arcane"`) {
+		t.Fatal(rr.Code, rr.Body)
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "compose.yaml"))
+	if err != nil || !strings.Contains(string(b), "traefik.enable") {
+		t.Fatal("detection must not auto-enable Arcane; file apply expected", string(b), err)
 	}
 }
