@@ -41,15 +41,16 @@ func TestDetectFromSnapshot(t *testing.T) {
 	}
 }
 
-func TestNewRejectsMissingKeyAndURL(t *testing.T) {
-	if _, err := New("http://192.168.1.44:3552", "", "0"); err == nil {
-		t.Fatal("empty key accepted")
-	}
+func TestNewRejectsInvalidURL(t *testing.T) {
 	if _, err := New("", "k", "0"); err == nil {
 		t.Fatal("empty URL accepted")
 	}
 	if _, err := New("ftp://x", "k", "0"); err == nil {
 		t.Fatal("non-http URL accepted")
+	}
+	// The key is optional (managers without auth, e.g. LAN-only Dockhand).
+	if _, err := New("http://192.168.1.44:3552", "", "0"); err != nil {
+		t.Fatalf("empty key should be allowed: %v", err)
 	}
 }
 

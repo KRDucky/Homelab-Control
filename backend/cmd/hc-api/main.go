@@ -223,12 +223,9 @@ func main() {
 	}
 	// Arcane is enabled by the ARCANE_API_KEY environment (the URL is optional:
 	// without -arcane-url it is derived from a detected host-published 3552 port).
-	arcaneKey := os.Getenv("ARCANE_API_KEY")
-	if arcaneKey != "" || *arcaneURL != "" {
-		if arcaneKey == "" {
-			log.Fatal("Arcane API key (ARCANE_API_KEY) is required when -arcane-url is set")
-		}
-		srv.WithArcane(arcaneKey, *arcaneURL, *arcaneEnv)
+	// Detection only pre-fills the URL; it never enables the path.
+	if key := os.Getenv("ARCANE_API_KEY"); key != "" {
+		srv.WithArcane(key, *arcaneURL, *arcaneEnv)
 	}
 	// Container platforms are registered only from these startup flags; no API
 	// can add a socket, API endpoint or credential.

@@ -232,14 +232,11 @@ func (s *Server) handleTraefikComposeApply(w http.ResponseWriter, r *http.Reques
 
 	// The blocker gate is shared by the file and Arcane paths.
 	blockersOK := composediscovery.LabelApplyReady(out.Blockers, req.Model.Name, out.Summary.Hostname, inventory, snapshot.Traefik.DockerProvider)
-	detected := arcanediscovery.Detect(snapshot)
-	url := s.arcaneURL
-	if url == "" {
-		url = detected.URL
-	}
-	// Operator-configured URL is the Docker Settings path: do not require a
-	// detected Arcane container in this snapshot (isolated CORE may not see it).
-	arcaneAvailable := s.arcaneKey != "" && url != "" && blockersOK
+	// Arcane is enabled by configuration (ARCANE_API_KEY) plus a resolvable base
+	// URL (-arcane-url, or derived from a detected host-published 3552). Docker
+	// detection only pre-fills the URL; it never auto-enables the path.
+	arcane := arcanediscovery.Detect(snapshot)
+	arcaneAvailable := s.arcaneKey != "" && blockersOK && (s.arcaneURL != "" || arcane.URL != "")
 
 	if !out.LabelApplyAvailable && !arcaneAvailable {
 		writeError(w, 409, "compose_apply_blocked", "Compose labels cannot be written until preview blockers are resolved.")
@@ -249,6 +246,10 @@ func (s *Server) handleTraefikComposeApply(w http.ResponseWriter, r *http.Reques
 	// Try Arcane first; fall back to the local file apply when Arcane does not
 	// own the project, the key is missing, or the API call fails.
 	if arcaneAvailable {
+		url := s.arcaneURL
+		if url == "" {
+			url = arcane.URL
+		}
 		if client, cerr := arcanediscovery.New(url, s.arcaneKey, s.arcaneEnv); cerr == nil {
 			res, aerr := client.ApplyLabels(r.Context(), out.Project, out.Service, out.Proposed.Labels)
 			switch {

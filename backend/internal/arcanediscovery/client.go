@@ -60,14 +60,13 @@ type Client struct {
 }
 
 // New builds a client for an Arcane instance. env is the environment id the
-// endpoints operate on ("0" by default).
+// endpoints operate on ("0" by default). apiKey is optional: managers without
+// authentication (for example the LAN-only Dockhand) send no X-Api-Key. Arcane's
+// own enablement still requires a configured key at the caller.
 func New(url, apiKey, env string) (*Client, error) {
 	url = strings.TrimRight(strings.TrimSpace(url), "/")
 	if url == "" || !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
 		return nil, fmt.Errorf("%w: invalid Arcane URL", ErrArcane)
-	}
-	if apiKey == "" {
-		return nil, fmt.Errorf("%w: missing Arcane API key", ErrArcane)
 	}
 	if env == "" {
 		env = "0"
@@ -95,7 +94,9 @@ func (c *Client) do(ctx context.Context, method, path string, timeout time.Durat
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrArcane, err)
 	}
-	req.Header.Set("X-Api-Key", c.apiKey)
+	if c.apiKey != "" {
+		req.Header.Set("X-Api-Key", c.apiKey)
+	}
 	req.Header.Set("Accept", "application/json")
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
