@@ -179,3 +179,29 @@ no credentials. API unavailability is unhealthy, rather than a misleading succes
 because the helper process alone is alive. Use the previously verified helper image
 ID `sha256:57fb5e12dd3c035ef7b06ee82eb318bdd292f25d90a609d0771de302df9f7f1c`
 for the proposed test, then verify its actual presence/metadata before any approved start.
+
+## Arcane compose-apply (slice 1)
+
+When Arcane is configured (`ARCANE_API_KEY` plus `-arcane-url`, or a detected
+container publishing 3552), `POST /networking/reverse-proxy/traefik/compose-apply`
+writes the patched Compose content through Arcane's REST API (`via:"arcane"`)
+instead of the local `-compose-apply-dir` file patch. Docker Settings checkboxes
+(address, port, optional API key) are the product UX; this slice takes flags/env.
+A configured URL is the source of truth and does not require the Arcane container
+to appear in CORE's discovery snapshot.
+
+- **Config:** `ARCANE_API_KEY` (env) enables the path; `-arcane-url` is the
+  operator/Settings override (empty derives `http://127.0.0.1:<published 3552>`
+  from a detected container). `-arcane-env` selects the environment id (default `0`).
+- **Detection** (`backend/internal/arcanediscovery`): image last path segment `arcane`,
+  `getarcaneapp/arcane`/`getarcaneapp/manager`, or container name `arcane`; published
+  port 3552 is supporting evidence for the URL.
+- **Matching:** list projects, GET each project's Compose, and pick the one whose service
+  key or `container_name` equals the selected service and whose compose `name:` or project
+  name equals the project (when set).
+- **Patch:** the same stdlib-only `SafeLabels` rules as the file apply (`PatchLabelsText`).
+  Only `composeContent` is PUT; `envContent` is never sent.
+- **Fallback:** no matching project, a missing key, or an Arcane API error falls back to
+  the `-compose-apply-dir` file patch. A conflicting existing label is still a 409.
+- No Arcane code is vendored; the client is stdlib HTTP with redirects disabled and
+  8 s GET / 15 s PUT timeouts. Response bodies are never logged (they may contain env).
