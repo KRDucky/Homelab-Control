@@ -27,7 +27,7 @@ CORE routes beneath `/api/v1/networking/reverse-proxy/traefik`:
 | `/compose-preview` | POST | labels plus file-provider YAML (`fileYAML`); `applyAvailable` when `-traefik-dynamic-dir` is set |
 | `/file-apply` | POST | writes CORE-generated `<name>.yml` into that directory; requires `networking.proxy.apply` |
 | `/compose-apply` | POST | patches Safe Traefik labels into an allowlisted Compose file; requires `networking.proxy.apply`; does not recreate containers |
-| `/setup` | POST | writes official Traefik compose + static config when no Traefik container is present; 409 when one is already detected; `started` is false until a Compose module can start the project; does not require the Traefik helper |
+| `/setup` | POST | writes official Traefik compose + static config when no Traefik container is present; 409 when one is already detected; `started` is false until a detected Arcane/Dockhand API or HomeControl's compose fallback can start the project; does not require the Traefik helper |
 
 Every route requires the session and dedicated scope. GET/HEAD additionally requires
 `X-CSRF-Token`; a present Origin must match. POST uses shared Origin/CSRF protection.
@@ -60,13 +60,16 @@ compose files; it does not start or recreate containers.
 
 HomeControl is a baremetal application. Docker Engine access is
 `/var/run/docker.sock` or the rootless socket (`/run/user/<uid>/docker.sock`)
-through the broker, not by adding `hc-api` to the `docker` group. There is not
-yet a Docker Compose module. When that module exists, the Traefik plugin uses it
-for container config: start the easy-setup project, recreate after label apply,
-and edit managed compose files. Arcane and Dockhand are UX and architecture
-references for that module (socket access, project directory, visual/YAML
-editor, env editor, up/down). They are not dependencies and not copies.
-`started: false` on `/setup` is the current stopgap, not a product freeze.
+through the broker, not by adding `hc-api` to the `docker` group.
+
+If Arcane or Dockhand is detected on the host, reverse-proxy plugins talk to
+that tool's published API for compose edits and start/recreate (example: Arcane
+`X-Api-Key` and `/api/environments/:id/projects`). If both are present, prefer
+the manager that already owns the project's files. Do not vendor or copy those
+products; Dockhand REST paths come from public docs only. HomeControl's own
+Compose slice is a fallback: YAML editor, ENV editor, and
+Start/Stop/Restart/Remove/Pull/Update. It is not feature parity.
+`started: false` on `/setup` is the current stopgap until that handoff exists.
 
 ## Build and tests
 

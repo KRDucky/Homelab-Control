@@ -300,7 +300,7 @@ func (s *Server) handleTraefikSetup(w http.ResponseWriter, r *http.Request, sess
 	}
 	writeJSON(w, 200, map[string]any{
 		"wrote":    wrote,
-		"started":  false, // Compose module will start over docker.sock when it exists.
+		"started":  false, // Arcane/Dockhand API if detected, else HC compose fallback.
 		"httpPort": composediscovery.SetupHTTPPort,
 	})
 }

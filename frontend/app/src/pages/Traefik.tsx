@@ -314,8 +314,8 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
                   </button>
                   {setupWrote ? (
                     <p>
-                      Wrote {setupWrote}. A Docker Compose module will start this stack when it exists; until
-                      then start it with docker compose from that directory.
+                      Wrote {setupWrote}. Start it with docker compose from that directory, or with Arcane or
+                      Dockhand if one is on the host.
                     </p>
                   ) : null}
                 </>
@@ -743,7 +743,7 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
                   {labelsWrote ? (
                     <p>
                       Wrote Traefik labels into {labelsWrote}. Recreate the Compose service so Traefik reloads
-                      them. A Docker Compose module will own recreate when it exists.
+                      them (docker compose, or Arcane/Dockhand if one is on the host).
                     </p>
                   ) : null}
                 </>
