@@ -430,3 +430,35 @@ func TestPlanWrongLengthPlannedRdev(t *testing.T) {
 		t.Fatalf("wrong length: %+v", op)
 	}
 }
+
+func TestPlanDuplicatePlannedRdev(t *testing.T) {
+	d := wwnDisk()
+	other := DeviceRef{Kind: IdentitySerial, Value: "WD-WCC4E1234567"}
+	op := Op{
+		Phase:       PhasePlan,
+		Tooling:     debianReady(),
+		Devices:     []DeviceRef{d, other},
+		PlannedRdev: []string{"8:1", "8:1"},
+	}
+	op = Advance(op)
+	if op.Block != BlockDuplicateDevice || op.Phase != PhasePlan {
+		t.Fatalf("dup planned rdev: %+v", op)
+	}
+}
+
+func TestMixedCaseFactMatches(t *testing.T) {
+	d := wwnDisk()
+	upper := DeviceRef{Kind: IdentityWWN, Value: strings.ToUpper(d.Value)}
+	op := Op{
+		Phase:          PhaseConfirm,
+		Tooling:        debianReady(),
+		Devices:        []DeviceRef{d},
+		IdentityDigest: DigestDevices([]DeviceRef{d}),
+		PlannedRdev:    readyRdev(),
+		Preflight:      readyPreflight(upper),
+	}
+	op = Advance(op)
+	if op.Block != BlockNoExecute {
+		t.Fatalf("mixed-case fact: %+v", op)
+	}
+}
