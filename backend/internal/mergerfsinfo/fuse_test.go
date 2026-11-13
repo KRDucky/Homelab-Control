@@ -72,6 +72,79 @@ func TestProbeCapabilityMissingRequiredAndFuse(t *testing.T) {
 	}
 	ok, reason = probeCapability("debian", present, dir)
 	if !ok || reason != "" {
-		t.Fatalf("ready: ok=%v reason=%q", ok, reason)
+		t.Fatalf("listed fuse: ok=%v reason=%q", ok, reason)
+	}
+}
+
+func TestProbeKernelFuseOversized(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "proc"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	big := strings.Repeat("x", kernelFuseMaxBytes+1)
+	if err := os.WriteFile(filepath.Join(dir, "proc", "filesystems"), []byte(big), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got := ProbeKernelFuse(dir)
+	if got.Present || got.Reason != reasonFuseUnread {
+		t.Fatalf("oversized: %+v", got)
+	}
+}
+
+func TestProbeKernelFuseDirectory(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "proc", "filesystems"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	got := ProbeKernelFuse(dir)
+	if got.Present || got.Reason != reasonFuseUnread {
+		t.Fatalf("directory: %+v", got)
+	}
+}
+
+func TestProbeKernelFuseEscapingSymlink(t *testing.T) {
+	dir := t.TempDir()
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "filesystems"), []byte("nodev\tfuse\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "proc"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(outside, "filesystems"), filepath.Join(dir, "proc", "filesystems")); err != nil {
+		t.Fatal(err)
+	}
+	got := ProbeKernelFuse(dir)
+	if got.Present || got.Reason != reasonFuseUnread {
+		t.Fatalf("escaping symlink must fail closed: %+v", got)
+	}
+}
+
+func TestProbeCapabilityDegradedPerItem(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "proc"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "proc", "filesystems"), []byte("nodev\tfuse\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mergerfsOnly := func(path string) bool { return filepath.Base(path) == "mergerfs" }
+	ok, reason := probeCapability("debian", mergerfsOnly, dir)
+	if ok || !strings.Contains(reason, "fusermount3") || strings.Contains(reason, "snapraid") {
+		t.Fatalf("missing fusermount3: ok=%v reason=%q", ok, reason)
+	}
+	fusermount3Only := func(path string) bool { return filepath.Base(path) == "fusermount3" }
+	ok, reason = probeCapability("debian", fusermount3Only, dir)
+	if ok || !strings.Contains(reason, "mergerfs") || strings.Contains(reason, "fusermount3") {
+		t.Fatalf("missing mergerfs: ok=%v reason=%q", ok, reason)
+	}
+	both := func(path string) bool {
+		base := filepath.Base(path)
+		return base == "mergerfs" || base == "fusermount3"
+	}
+	empty := t.TempDir()
+	ok, reason = probeCapability("debian", both, empty)
+	if ok || reason != reasonFuseUnread {
+		t.Fatalf("missing fuse: ok=%v reason=%q", ok, reason)
 	}
 }

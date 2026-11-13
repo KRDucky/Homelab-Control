@@ -81,7 +81,11 @@ function inventory(opts: {
         },
     kernelFuse: kernelFusePresent
       ? { present: true, reason: '' }
-      : { present: false, reason: 'The kernel FUSE filesystem is not listed in /proc/filesystems.' },
+      : {
+          present: false,
+          reason:
+            'The kernel FUSE filesystem is not currently listed in /proc/filesystems (the module may load on first mount).',
+        },
   };
 }
 
@@ -271,9 +275,23 @@ describe('MergerFS read-only page', () => {
       }),
     );
     render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
-    expect(await screen.findByText(/kernel FUSE filesystem is not listed/)).toBeTruthy();
+    expect(await screen.findByText(/not currently listed/)).toBeTruthy();
     expect(screen.getByText('/mnt/media')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Install mergerfs' })).toBeNull();
+  });
+
+  it('renders when kernelFuse is omitted', async () => {
+    const data = inventory({
+      mergerfsInstalled: true,
+      snapraidInstalled: true,
+      mergerfsPresent: true,
+      snapraidPresent: false,
+    });
+    delete (data as { kernelFuse?: unknown }).kernelFuse;
+    vi.mocked(getMergerFS).mockResolvedValue(data);
+    render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
+    expect(await screen.findByText(/not currently listed|does not load kernel modules/)).toBeTruthy();
+    expect(screen.getByText('/mnt/media')).toBeTruthy();
   });
 
   it('has no mutating controls in the DOM', async () => {

@@ -19,8 +19,8 @@ type KernelFuse struct {
 
 const (
 	kernelFuseMaxBytes = 64 << 10
-	reasonFuseMissing  = "The kernel FUSE filesystem is not listed in /proc/filesystems."
-	reasonFuseUnread   = "could not read /proc/filesystems"
+	reasonFuseMissing  = "The kernel FUSE filesystem is not currently listed in /proc/filesystems (the module may load on first mount)."
+	reasonFuseUnread   = "Could not read /proc/filesystems."
 )
 
 // ProbeKernelFuse reports whether the kernel lists the fuse filesystem

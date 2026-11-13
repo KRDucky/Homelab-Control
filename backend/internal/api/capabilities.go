@@ -233,12 +233,12 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 	}
 	// M8 first checkpoint: one MergerFS page with optional SnapRAID, read-only.
 	// Available when required binaries (mergerfs, fusermount3) and kernel FUSE
-	// are present (pools may still be empty); degraded (never unavailable)
+	// are listed (pools may still be empty); degraded (never unavailable)
 	// when any of those is missing so the page still mounts and shows the
-	// Software Center install offer. Missing snapraid never degrades the
-	// capability. Probe is os.Stat of well-known paths plus one
-	// /proc/filesystems read (no mountinfo/snapraid.conf), and only when the
-	// module is enabled and the session has mergerfs.read.
+	// Software Center install offer. FUSE3 is the supported baseline.
+	// Missing snapraid never degrades the capability. Probe is os.Stat of
+	// well-known paths plus one /proc/filesystems read (no mountinfo/snapraid.conf),
+	// and only when the module is enabled and the session has mergerfs.read.
 	mergerfs := Capability{ID: "mergerfs", Label: "MergerFS", Path: "/storage/mergerfs", Scope: auth.ScopeMergerFSRead, Status: CapAvailable}
 	if s.mods.Enabled("mergerfs") && sess.HasScope(auth.ScopeMergerFSRead) {
 		if ok, reason := mergerfsinfo.ProbeCapability(s.packageFamily()); ok {
