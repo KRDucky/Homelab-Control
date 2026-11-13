@@ -1,6 +1,6 @@
 # ADR-0008: Privileged broker design (M1)
 
-**Status:** Accepted (2026-10-16, owner) **for the four existing read-only, argument-free M1 operations only**; Amendment 1 (2026-10-21, `services.unit.logs`) and Amendment 2 (2026-10-23, `root-exec`, owner decision D-4) extend it (`broker.info`, `legacy.webmin.status`, `hardware.dmi.identity`, `services.systemd.list`). Amendments 3 (M2-3), 4 (M2-6), and 5 (M4-1b) are **Proposed**. Adding or changing an operation requires a new review.
+**Status:** Accepted (2026-10-16, owner) **for the four existing read-only, argument-free M1 operations only**; Amendment 1 (2026-10-21, `services.unit.logs`) and Amendment 2 (2026-10-23, `root-exec`, owner decision D-4) extend it (`broker.info`, `legacy.webmin.status`, `hardware.dmi.identity`, `services.systemd.list`). Amendments 3 (M2-3), 4 (M2-6), 5 (M4-1b), and 6 (P0 unused mkfs.ext4 template) are **Proposed**. Adding or changing an operation requires a new review.
 > **Owner decision recorded 2026-10-16:** this acceptance is **not** authorization to implement privileged write operations. Any write-capable broker operation needs a separate, explicit owner approval (M2 design: confirmation, locking, audit, rollback).
 
 **Date:** 2026-10-15
@@ -237,3 +237,25 @@ authorize install, remove, upgrade, repository changes, key import, or metadata 
   is authorized by this amendment. The later write ADR is reserved as 0014 and is not part of this change.
 - **Proposed status.** This amendment remains subject to review and owner acceptance. It does not accept
   ADR 0008 or authorize M4 acceptance.
+
+## Amendment 6 (2026-11-13, P0 storage, Proposed): unused `mkfs.ext4` root template
+
+Proposed with the P0 shared-storage work. **Not accepted.** Independent security review of PR #74
+(approve-with-nits) covers the unused template only. This amendment does not authorize execute
+wiring, guest or host write tests, or a broker unit change.
+
+- **One unused closed template.** `mkfs.ext4` = `mkfs.ext4 -q -- <by-id>`; exactly one
+  `/dev/disk/by-id` target (`wwn-0x` 16 or 32 hex, `nvme-eui.` 16 hex, `nvme-uuid.`, `ata-`,
+  `scsi-`, `virtio-`; optional `-part` 1–3 digits). No `-F`. Kernel names, mapper/md/lvm/dm,
+  by-path, usb, `..`, and `//` are refused.
+- **No caller.** No broker op lists or runs this template. `Advance` stays `BlockNoExecute`.
+  `TestUnusedStorageRootTemplateConfined` fails if `RootMkfsExt4` or `mkfs.ext4` appears outside
+  `runner.go` (tests excepted). A wiring PR must change that test on purpose.
+- **Wiring gates (not met here).** G1: non-TTY stdin/stdout skip mke2fs's existing-FS prompt;
+  the op must prove identity, unmounted, not a member, under lock. G2: require a block device
+  immediately before exec (mke2fs may create a regular file). G3: do not widen the main broker
+  unit (`PrivateDevices=yes`); use a narrow helper plus SELinux/AppArmor review. G4: bind
+  confirmation to the plan's recorded identity, not the by-id string. G5: duration policy and
+  recovery for a killed mkfs.
+- **Proposed status.** This amendment remains subject to review and owner acceptance. It does
+  not accept ADR 0008 for storage writes.
