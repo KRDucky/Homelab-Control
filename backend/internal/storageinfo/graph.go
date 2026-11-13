@@ -313,3 +313,54 @@ func Conflict(types []string) bool {
 	}
 	return len(unique) > 1
 }
+
+// stackFamily maps an observed claim technology onto one stack name so a PV
+// signature and the LVM used-by edge count as one stack, and a matching
+// mount counts with its filesystem. Unknown names stay distinct.
+func stackFamily(tech string) string {
+	t := strings.TrimSpace(tech)
+	if t == "" {
+		return ""
+	}
+	if rest, ok := strings.CutPrefix(t, "mounted:"); ok {
+		t = rest
+	} else if rest, ok := strings.CutPrefix(t, "service-view-mount:"); ok {
+		t = rest
+	}
+	switch strings.ToLower(t) {
+	case "lvm2_member", "lvm", "lvm-pv":
+		return "lvm"
+	case "linux_raid_member", "mdraid":
+		return "mdraid"
+	case "crypto_luks", "crypt":
+		return "crypt"
+	case "zfs_member", "zfs":
+		return "zfs"
+	case "btrfs":
+		return "btrfs"
+	}
+	return t
+}
+
+// OverlapClaims reports two unrelated stacks observed on one block node.
+// Layered LVM/md/crypt plus a matching filesystem on a different node is
+// not overlap. Absence of overlap is not permission to write.
+func OverlapClaims(g Graph) bool {
+	byNode := map[string]map[string]bool{}
+	for _, c := range g.Claims {
+		fam := stackFamily(c.Technology)
+		if fam == "" || c.Node == "" {
+			continue
+		}
+		if byNode[c.Node] == nil {
+			byNode[c.Node] = map[string]bool{}
+		}
+		byNode[c.Node][fam] = true
+	}
+	for _, fams := range byNode {
+		if len(fams) > 1 {
+			return true
+		}
+	}
+	return false
+}
