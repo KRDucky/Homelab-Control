@@ -63,8 +63,9 @@ identity/extra-confirm types, and SHARED-02 operation phases (`Advance`). Probe 
 `/software?q=` only). The MergerFS install offer opens a review dialog (`executes: false`); it
 never POSTs a package. `mkfs.ext4` is on main unused (PR #74); no broker op calls it.
 `Advance` confirm now requires observed block-device preflight bound to the planned
-device identity (block device, valid major:minor rdev matching the plan, not
-mounted including partitions of the disk, no holders) and still never enters
+device identity (each target once, block device, canonical major:minor rdev with
+major ≥ 1 matching the plan, not mounted including partitions of the disk, no
+holders) and still never enters
 execute: no storage apply op and no device helper unit (G3). Preflight facts are
 caller-supplied and untrusted; this package does not stat devices. ADR 0011 apply
 unused here. Independent security review is required before execute wiring. `storageinfo.OverlapClaims` flags two unrelated stacks on one block node

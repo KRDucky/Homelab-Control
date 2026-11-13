@@ -42,6 +42,7 @@ const (
 	BlockMounted          Block = "device-mounted"
 	BlockHasHolders       Block = "device-has-holders"
 	BlockRdevInvalid      Block = "rdev-invalid"
+	BlockDuplicateDevice  Block = "device-duplicate"
 )
 
 const blockNoExecuteReason = "P0 storage writes are not implemented; no storage apply op and no device helper unit (G3). ADR 0011 apply is unused here."
@@ -141,9 +142,27 @@ func missingAck(required, acked []ExtraConfirm) bool {
 	return false
 }
 
+func duplicateDevice(devs []DeviceRef) bool {
+	seen := map[string]bool{}
+	for _, d := range devs {
+		if d.Value == "" {
+			continue
+		}
+		k := deviceKey(d)
+		if seen[k] {
+			return true
+		}
+		seen[k] = true
+	}
+	return false
+}
+
 func identityBlock(devs []DeviceRef) Block {
 	if len(devs) == 0 {
 		return BlockEmptyDevice
+	}
+	if duplicateDevice(devs) {
+		return BlockDuplicateDevice
 	}
 	for _, d := range devs {
 		if d.Kind == IdentityKernel {
@@ -159,33 +178,35 @@ func identityBlock(devs []DeviceRef) Block {
 	return ""
 }
 
+func rdevDigits(s string, allowZero bool, maxLen int) bool {
+	if len(s) < 1 || len(s) > maxLen {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	if s[0] == '0' {
+		return allowZero && len(s) == 1
+	}
+	return true
+}
+
 func validRdev(s string) bool {
 	maj, min, ok := strings.Cut(s, ":")
 	if !ok || strings.Contains(min, ":") {
 		return false
 	}
-	if len(maj) < 1 || len(maj) > 5 || len(min) < 1 || len(min) > 7 {
-		return false
-	}
-	for i := 0; i < len(maj); i++ {
-		if maj[i] < '0' || maj[i] > '9' {
-			return false
-		}
-	}
-	for i := 0; i < len(min); i++ {
-		if min[i] < '0' || min[i] > '9' {
-			return false
-		}
-	}
-	if rdevAllZero(maj) && rdevAllZero(min) {
-		return false
-	}
-	return true
+	return rdevDigits(maj, false, 5) && rdevDigits(min, true, 7)
 }
 
-func rdevAllZero(s string) bool {
-	for i := 0; i < len(s); i++ {
-		if s[i] != '0' {
+func sameRdevs(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
 			return false
 		}
 	}
@@ -230,6 +251,9 @@ func preflightBlock(devs []DeviceRef, facts []DevicePreflight, planned []string)
 	if len(devs) == 0 {
 		return BlockEmptyDevice, "mutating storage ops require at least one device"
 	}
+	if duplicateDevice(devs) {
+		return BlockDuplicateDevice, "each target must appear once"
+	}
 	if len(facts) != len(devs) || len(planned) != len(devs) {
 		return BlockPreflightMissing, "execute needs a fresh block-device preflight per target"
 	}
@@ -245,7 +269,7 @@ func preflightBlock(devs []DeviceRef, facts []DevicePreflight, planned []string)
 		if !p.BlockDevice {
 			return BlockNotBlockDevice, "target must be a block device immediately before exec"
 		}
-		if !validRdev(p.Rdev) {
+		if !validRdev(p.Rdev) || !validRdev(planned[i]) {
 			return BlockRdevInvalid, "target rdev must be major:minor immediately before exec"
 		}
 		if p.Rdev != planned[i] {
@@ -267,6 +291,8 @@ func identityFail(op Op, b Block) Op {
 		return fail(op, b, "/dev/sdX is display-only; persist/write needs wwn, nvme-uuid, or serial")
 	case BlockEmptyDevice:
 		return fail(op, b, "mutating storage ops require at least one device")
+	case BlockDuplicateDevice:
+		return fail(op, b, "each target must appear once")
 	default:
 		return fail(op, b, "persist/write identity is wwn, nvme-uuid, or serial; by-id is discovery only")
 	}
@@ -299,6 +325,9 @@ func Advance(op Op) Op {
 		if len(op.Devices) == 0 {
 			return fail(op, BlockEmptyDevice, "mutating storage ops require at least one device")
 		}
+		if duplicateDevice(op.Devices) {
+			return fail(op, BlockDuplicateDevice, "each target must appear once")
+		}
 		op.IdentityDigest = DigestDevices(op.Devices)
 		op.Phase = PhasePlan
 		return op
@@ -306,8 +335,11 @@ func Advance(op Op) Op {
 		if b := identityBlock(op.Devices); b != "" {
 			return identityFail(op, b)
 		}
+		fromFacts := plannedRdevFromFacts(op.Devices, op.Preflight)
 		if len(op.PlannedRdev) == 0 {
-			op.PlannedRdev = plannedRdevFromFacts(op.Devices, op.Preflight)
+			op.PlannedRdev = fromFacts
+		} else if fromFacts != nil && !sameRdevs(op.PlannedRdev, fromFacts) {
+			return fail(op, BlockIdentityChanged, "identity changed since plan; revalidate before action")
 		}
 		op.Phase = PhaseConfirm
 		return op
