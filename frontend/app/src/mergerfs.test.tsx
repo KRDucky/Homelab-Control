@@ -30,9 +30,11 @@ function inventory(opts: {
   snapraidPresent: boolean;
   fusermount3Installed?: boolean;
   kernelFusePresent?: boolean;
+  smartctlInstalled?: boolean;
 }): MergerFSInventory {
   const fusermount3Installed = opts.fusermount3Installed ?? true;
   const kernelFusePresent = opts.kernelFusePresent ?? true;
+  const smartctlInstalled = opts.smartctlInstalled ?? true;
   return {
     tooling: {
       family: 'debian',
@@ -57,6 +59,7 @@ function inventory(opts: {
           opts.snapraidInstalled,
           opts.snapraidInstalled ? '/usr/bin/snapraid' : '',
         ),
+        item('smartctl', 'smartmontools', smartctlInstalled, smartctlInstalled ? '/usr/sbin/smartctl' : ''),
       ],
     },
     mergerfs: opts.mergerfsPresent
@@ -259,6 +262,35 @@ describe('MergerFS read-only page', () => {
     expect(within(dialog).getByText(/does not install packages/)).toBeTruthy();
     expect(within(dialog).getByRole('link', { name: 'Open Software Center' }).getAttribute('href')).toBe(
       '/software?q=snapraid',
+    );
+    expect(screen.queryByText(/smartctl is optional/)).toBeNull();
+  });
+
+  it('shows the optional-missing smartmontools offer without opening disks', async () => {
+    vi.mocked(getMergerFS).mockResolvedValue(
+      inventory({
+        mergerfsInstalled: true,
+        snapraidInstalled: true,
+        mergerfsPresent: true,
+        snapraidPresent: false,
+        smartctlInstalled: false,
+      }),
+    );
+    render(
+      <MergerFS
+        csrf={csrf}
+        scopes={['packages.read']}
+        packagesEnabled={true}
+        onUnauthorized={onUnauthorized}
+      />,
+    );
+    expect(await screen.findByText(/smartctl is optional/)).toBeTruthy();
+    expect(screen.getByText(/does not run it or open disks/)).toBeTruthy();
+    expect(screen.getByText(/smartctl is probed, not run/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Add smartmontools' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Add smartmontools' });
+    expect(within(dialog).getByRole('link', { name: 'Open Software Center' }).getAttribute('href')).toBe(
+      '/software?q=smartmontools',
     );
   });
 

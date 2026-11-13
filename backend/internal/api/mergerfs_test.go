@@ -24,7 +24,10 @@ func mergerfsFake() func(context.Context) (mergerfsinfo.Snapshot, error) {
 					{ID: "mergerfs", Package: "mergerfs", Installed: true, Binary: "/usr/bin/mergerfs"},
 					{ID: "fusermount3", Package: "fuse3", Installed: true, Binary: "/usr/bin/fusermount3"},
 				},
-				Optional: []mergerfsinfo.ToolItem{{ID: "snapraid", Package: "snapraid", Installed: false}},
+				Optional: []mergerfsinfo.ToolItem{
+					{ID: "snapraid", Package: "snapraid", Installed: false},
+					{ID: "smartctl", Package: "smartmontools", Installed: false},
+				},
 			},
 			MergerFS: mergerfsinfo.MergerFS{Present: true, Pools: []mergerfsinfo.Pool{
 				{Mountpoint: "/mnt/media", Branches: []string{"/mnt/disk1", "/mnt/disk2"}, Options: []string{"category.create=epmfs", "minfreespace=20G"}, Usage: []mergerfsinfo.BranchUsage{}},
@@ -72,6 +75,9 @@ func TestMergerFSReadsAndAuditsCountsOnly(t *testing.T) {
 	}
 	if !strings.Contains(rr.Body.String(), `"snapraid"`) || !strings.Contains(rr.Body.String(), `"present":true`) {
 		t.Fatalf("body missing snapraid: %s", rr.Body)
+	}
+	if !strings.Contains(rr.Body.String(), `"smartctl"`) || !strings.Contains(rr.Body.String(), `"smartmontools"`) {
+		t.Fatalf("body missing smartctl: %s", rr.Body)
 	}
 	auditLine := h.audit.String()
 	if !strings.Contains(auditLine, "mergerfs.inventory.read") || !strings.Contains(auditLine, "pools=1") || !strings.Contains(auditLine, "configured=1") || !strings.Contains(auditLine, "snapraid=true") {
