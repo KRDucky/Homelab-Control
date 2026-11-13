@@ -1049,6 +1049,11 @@ export interface SnapRAIDInfo {
   content: string[];
 }
 
+export interface MergerFSKernelFuse {
+  present: boolean;
+  reason: string;
+}
+
 export interface MergerFSWarning {
   code: 'duplicate-branch' | 'parity-in-pool';
   pool: string;
@@ -1061,6 +1066,7 @@ export interface MergerFSInventory {
   tooling: MergerFSTooling;
   mergerfs: MergerFSInfo;
   snapraid: SnapRAIDInfo;
+  kernelFuse: MergerFSKernelFuse;
   warnings: MergerFSWarning[];
   warningsTruncated: boolean;
 }

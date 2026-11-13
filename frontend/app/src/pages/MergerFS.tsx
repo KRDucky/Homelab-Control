@@ -53,9 +53,11 @@ export function MergerFSView({
   packagesEnabled: boolean;
 }) {
   const { tooling, mergerfs, snapraid } = data;
-  const required = tooling.required.find((t) => t.id === 'mergerfs');
+  const kernelFuse = data.kernelFuse;
+  const missingRequired = tooling.required.filter((t) => !t.installed);
+  const mergerfsTool = tooling.required.find((t) => t.id === 'mergerfs');
+  const mergerfsMissing = mergerfsTool ? !mergerfsTool.installed : false;
   const optional = tooling.optional.find((t) => t.id === 'snapraid');
-  const requiredMissing = required ? !required.installed : false;
   const optionalMissing = optional ? !optional.installed : false;
   const canInstall = packagesEnabled && (scopes ?? []).includes('packages.read');
 
@@ -65,8 +67,9 @@ export function MergerFSView({
         <h1 className="page-title">MergerFS</h1>
         <p className="page-sub">
           Read-only observations. Pooling is not redundancy or RAID. SnapRAID parity must not be a pool
-          branch. Matching is path-based; a missing warning is not proof. fstab and systemd mount units are
-          listed, not written. No pool, mount or SnapRAID configuration is changed here.
+          branch. Matching is path-based; a missing warning is not proof. FUSE3 fusermount3 and kernel FUSE
+          are probed here; this page does not load modules. fstab and systemd mount units are listed, not
+          written. No pool, mount or SnapRAID configuration is changed here.
         </p>
       </header>
       {error && (
@@ -75,6 +78,23 @@ export function MergerFSView({
         </p>
       )}
 
+      <section className="panel" aria-labelledby="mergerfs-fuse-heading">
+        <header className="panel-head">
+          <h2 id="mergerfs-fuse-heading">Kernel FUSE</h2>
+        </header>
+        {kernelFuse?.present ? (
+          <p>
+            Kernel FUSE is listed in <code>/proc/filesystems</code>.
+          </p>
+        ) : (
+          <p className="banner" role="status">
+            {kernelFuse?.reason ||
+              'The kernel FUSE filesystem is not currently listed in /proc/filesystems (the module may load on first mount).'}{' '}
+            This page does not load kernel modules.
+          </p>
+        )}
+      </section>
+
       <section className="panel" aria-labelledby="mergerfs-pools-heading">
         <header className="panel-head">
           <h2 id="mergerfs-pools-heading">Pools</h2>
@@ -82,30 +102,31 @@ export function MergerFSView({
         </header>
         {mergerfs.pools.length > 0 ? (
           <>
-            {requiredMissing && (
+            {missingRequired.length > 0 && (
               <div className="banner" role="status">
-                The mergerfs binary was not found in <code>/usr/bin</code> or <code>/usr/sbin</code>; observed
-                pools are listed below.
-                <InstallOffer
-                  label={`Install ${required?.package || 'mergerfs'}`}
-                  item={required}
-                  canInstall={canInstall}
-                />
+                {mergerfsMissing ? (
+                  <>
+                    The mergerfs binary was not found in <code>/usr/bin</code> or <code>/usr/sbin</code>;
+                    observed pools are listed below.
+                  </>
+                ) : (
+                  <>Required FUSE tooling is missing; observed pools are listed below.</>
+                )}
+                <RequiredOffers items={missingRequired} canInstall={canInstall} />
               </div>
             )}
             <Pools pools={mergerfs.pools} />
           </>
-        ) : requiredMissing ? (
+        ) : mergerfsMissing ? (
           <div className="empty" role="status">
             <p>MergerFS is not available — {mergerfs.reason || 'the mergerfs binary is missing'}.</p>
-            <InstallOffer
-              label={`Install ${required?.package || 'mergerfs'}`}
-              item={required}
-              canInstall={canInstall}
-            />
+            <RequiredOffers items={missingRequired} canInstall={canInstall} />
           </div>
         ) : mergerfs.present ? (
-          <p className="empty">No mergerfs pools found.</p>
+          <>
+            <p className="empty">No mergerfs pools found.</p>
+            <RequiredOffers items={missingRequired} canInstall={canInstall} />
+          </>
         ) : (
           <p className="banner" role="alert">
             Mount inventory could not be read; observed pools cannot be listed.
@@ -188,6 +209,22 @@ export function MergerFSView({
         </section>
       )}
     </div>
+  );
+}
+
+function RequiredOffers({ items, canInstall }: { items: MergerFSToolItem[]; canInstall: boolean }) {
+  if (items.length === 0) return null;
+  return (
+    <>
+      {items.map((item) => (
+        <InstallOffer
+          key={item.id}
+          label={`Install ${item.package || item.id}`}
+          item={item}
+          canInstall={canInstall}
+        />
+      ))}
+    </>
   );
 }
 

@@ -45,15 +45,20 @@ acceptance, not a merge, not production; ADR 0008 Amendment 5 remains Proposed.
 ## M8 first checkpoint: MergerFS + optional SnapRAID (read-only; not M8 acceptance)
 
 One read-only page at `/storage/mergerfs` (module id `mergerfs`, scope `mergerfs.read`, never default
-and implied by nothing) probes the required `mergerfs` and optional `snapraid` binaries (unprivileged
-`os.Stat` of well-known paths, no `os/exec`, no `packages.installed`), then shows observed
-`fuse.mergerfs` pools parsed from bounded `/proc/self/mountinfo`, plus a read-only import of
-`/etc/fstab` and `/etc/systemd/system/*.mount` (O_NOFOLLOW, size and entry caps, 64 branches per
-entry; includes, drop-ins, generator units and symlinks never followed; listed paths never opened;
-`mounted` means a fuse.mergerfs mount exists at that mountpoint), and, when a `snapraid.conf` is
-readable, an optional SnapRAID section (`data`/`parity`/`content` paths only). A missing required
-package hides pools and offers a Software Center search link (`/software?q=…`, when the packages
-module is enabled and the session has `packages.read`); no POST install or `packages.manage` exists.
+and implied by nothing) probes the required `mergerfs` and `fusermount3` (package `fuse3`) binaries
+and optional `snapraid` (unprivileged `os.Stat` of well-known paths, no `os/exec`, no
+`packages.installed`), plus kernel FUSE from bounded `/proc/filesystems` (never `/dev/fuse`, never
+modprobe). FUSE3 (`fusermount3`, package `fuse3`) is the supported baseline; FUSE2 `fusermount` is
+not probed. A missing `fuse` line is “not currently listed” (the module may load on first mount),
+not proof that mounts cannot work, and a listed line is not proof that a mount will succeed.
+It then shows observed `fuse.mergerfs` pools parsed from bounded `/proc/self/mountinfo`, plus a
+read-only import of `/etc/fstab` and `/etc/systemd/system/*.mount` (O_NOFOLLOW, size and entry
+caps, 64 branches per entry; includes, drop-ins, generator units and symlinks never followed;
+listed paths never opened; `mounted` means a fuse.mergerfs mount exists at that mountpoint),
+and, when a `snapraid.conf` is readable, an optional SnapRAID section (`data`/`parity`/`content`
+paths only). A missing required package hides empty-pool pages and offers a Software Center search
+link (`/software?q=…`, when the packages module is enabled and the session has `packages.read`);
+observed pools stay listed. No POST install or `packages.manage` exists.
 SnapRAID is never implied by a mergerfs pool. The inventory reports read-only honesty
 warnings when a SnapRAID parity path sits on a mergerfs branch or the fused mount, or when a
 pool lists the same branch twice; data disks as branches are expected and are not warnings.
