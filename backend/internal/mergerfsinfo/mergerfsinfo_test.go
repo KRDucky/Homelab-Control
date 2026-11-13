@@ -81,6 +81,9 @@ func TestCollectNoMountsNoConfig(t *testing.T) {
 	if snap.SnapRAID.Present || snap.SnapRAID.Reason != "optional: no snapraid.conf" {
 		t.Fatalf("snapraid: %+v", snap.SnapRAID)
 	}
+	if snap.KernelFuse.Present || snap.KernelFuse.Reason != reasonFuseUnread {
+		t.Fatalf("kernel fuse without proc: %+v", snap.KernelFuse)
+	}
 }
 
 func TestCollectParseFailureFailsClosed(t *testing.T) {
@@ -105,7 +108,7 @@ func TestCollectParseFailureFailsClosed(t *testing.T) {
 
 func TestProbeToolingPresent(t *testing.T) {
 	dir := t.TempDir()
-	for _, name := range []string{"mergerfs", "snapraid"} {
+	for _, name := range []string{"mergerfs", "fusermount3", "snapraid"} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte("fixture"), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -115,12 +118,16 @@ func TestProbeToolingPresent(t *testing.T) {
 		return err == nil && fi.Mode().IsRegular()
 	}
 	tool := probeTooling("debian", stat)
-	if tool.Family != "debian" || len(tool.Required) != 1 || len(tool.Optional) != 1 {
+	if tool.Family != "debian" || len(tool.Required) != 2 || len(tool.Optional) != 1 {
 		t.Fatalf("%+v", tool)
 	}
 	req := tool.Required[0]
 	if req.ID != "mergerfs" || req.Package != "mergerfs" || !req.Installed || req.Binary != "/usr/bin/mergerfs" {
-		t.Fatalf("required: %+v", req)
+		t.Fatalf("required mergerfs: %+v", req)
+	}
+	fuse := tool.Required[1]
+	if fuse.ID != "fusermount3" || fuse.Package != "fuse3" || !fuse.Installed || fuse.Binary != "/usr/bin/fusermount3" {
+		t.Fatalf("required fusermount3: %+v", fuse)
 	}
 	opt := tool.Optional[0]
 	if opt.ID != "snapraid" || opt.Package != "snapraid" || !opt.Installed || opt.Binary != "/usr/bin/snapraid" {
@@ -132,18 +139,18 @@ func TestProbeToolingMissingAndPackageNames(t *testing.T) {
 	stat := func(string) bool { return false }
 	for _, family := range []string{"debian", "fedora", "suse", "arch"} {
 		tool := probeTooling(family, stat)
-		if tool.Required[0].Installed || tool.Required[0].Binary != "" {
-			t.Fatalf("%s required installed: %+v", family, tool.Required[0])
+		if len(tool.Required) != 2 || tool.Required[0].Installed || tool.Required[1].Installed {
+			t.Fatalf("%s required installed: %+v", family, tool.Required)
 		}
-		if tool.Required[0].Package != "mergerfs" || tool.Optional[0].Package != "snapraid" {
+		if tool.Required[0].Package != "mergerfs" || tool.Required[1].Package != "fuse3" || tool.Optional[0].Package != "snapraid" {
 			t.Fatalf("%s package names: %+v", family, tool)
 		}
 	}
 	unknown := probeTooling("unknown", stat)
-	if unknown.Required[0].Package != "" || unknown.Optional[0].Package != "" {
+	if unknown.Required[0].Package != "" || unknown.Required[1].Package != "" || unknown.Optional[0].Package != "" {
 		t.Fatalf("unknown family must not name a package: %+v", unknown)
 	}
-	if unknown.Required[0].Installed || unknown.Optional[0].Installed {
+	if unknown.Required[0].Installed || unknown.Required[1].Installed || unknown.Optional[0].Installed {
 		t.Fatalf("unknown family probe: %+v", unknown)
 	}
 }

@@ -1036,10 +1036,16 @@ export interface SnapRAIDInfo {
   content: string[];
 }
 
+export interface MergerFSKernelFuse {
+  present: boolean;
+  reason: string;
+}
+
 export interface MergerFSInventory {
   tooling: MergerFSTooling;
   mergerfs: MergerFSInfo;
   snapraid: SnapRAIDInfo;
+  kernelFuse: MergerFSKernelFuse;
 }
 
 // Like storage/files/packages: this GET returns host mount and configuration
