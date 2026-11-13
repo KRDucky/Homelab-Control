@@ -947,11 +947,31 @@ components:
               type: array
               items:
                 type: object
-                required: [mountpoint, branches, options]
+                required: [mountpoint, branches, options, usage]
                 properties:
                   mountpoint: { type: string }
                   branches: { type: array, items: { type: string } }
                   options: { type: array, items: { type: string } }
+                  usage:
+                    type: array
+                    maxItems: 64
+                    description: >
+                      fstatfs of each live branch directory under the collect root (os.OpenRoot).
+                      Not the fused mount, not fstab/systemd paths, not SnapRAID
+                      data/parity/content. AvailBytes is unprivileged free (bavail). Capped at 64
+                      per pool and 64 total.
+                    items:
+                      type: object
+                      required: [path, measured]
+                      additionalProperties: false
+                      properties:
+                        path: { type: string, maxLength: 256 }
+                        measured: { type: boolean }
+                        totalBytes: { type: integer, format: int64, minimum: 0 }
+                        usedBytes: { type: integer, format: int64, minimum: 0 }
+                        availBytes: { type: integer, format: int64, minimum: 0 }
+                        reason: { type: string, maxLength: 256 }
+                  usageTruncated: { type: boolean }
             configured:
               type: array
               maxItems: 64
@@ -1879,7 +1899,9 @@ paths:
         absolute branches, mergerfs-relevant options only), read-only /etc/fstab and
         /etc/systemd/system/*.mount (O_NOFOLLOW, size and entry caps; includes never followed),
         and one configured snapraid.conf (data/parity/content absolute paths only; includes never
-        followed; listed paths never opened). Required tooling is mergerfs plus FUSE3 fusermount3
+        followed). Live pool branches are opened only as directories under the collect root
+        (os.OpenRoot) for fstatfs; fused mounts, fstab/systemd paths, and SnapRAID
+        data/parity/content are not opened. Required tooling is mergerfs plus FUSE3 fusermount3
         (package fuse3, the supported baseline; FUSE2 fusermount is not probed); kernelFuse is a
         read-only /proc/filesystems probe (fuse type only; fusectl/fuseblk do not count; listed is
         not proof a mount will succeed). warnings lists read-only honesty findings (duplicate

@@ -64,7 +64,10 @@ warnings when a SnapRAID parity path sits on a mergerfs branch or the fused moun
 pool lists the same branch twice; data disks as branches are expected and are not warnings.
 Matching is path-based (`=RW`/`=NC`/`=RO` suffixes stripped); a missing warning is not proof.
 The warning list is capped (64 total, 8 per pool) with `warningsTruncated` when the cap or
-collect deadline hits.
+collect deadline hits. Each live pool branch is measured with `fstatfs` of the directory under
+the collect root (`os.OpenRoot`, directory, 500ms timeout, 64 per pool / 64 total);
+the fused mount, fstab/systemd paths, and SnapRAID data/parity/content are not opened.
+`availBytes` is unprivileged free (`bavail`). A missing measurement is not zero capacity.
 No pool create, mount, policy write, fstab/unit write, or
 snapraid sync/diff/fix path exists; there are no broker ops. This is a checkpoint, not M8 acceptance,
 not a merge, not production.

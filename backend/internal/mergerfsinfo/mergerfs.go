@@ -5,7 +5,9 @@
 // Package mergerfsinfo is the unprivileged, read-only MergerFS + optional
 // SnapRAID inventory (M8 first checkpoint). It reads bounded kernel mountinfo,
 // /etc/fstab, systemd .mount units, and a single administrator-configured
-// snapraid.conf, and never opens branch or data paths, never writes, and never
+// snapraid.conf. Live pool branches are opened only as directories under the
+// collect root (os.OpenRoot, directory) for fstatfs; SnapRAID data/parity/
+// content and fstab/systemd paths are not opened. It never writes and never
 // executes a program.
 package mergerfsinfo
 
@@ -21,9 +23,11 @@ import (
 
 // Pool is one observed fuse.mergerfs mount.
 type Pool struct {
-	Mountpoint string   `json:"mountpoint"`
-	Branches   []string `json:"branches"`
-	Options    []string `json:"options"`
+	Mountpoint     string        `json:"mountpoint"`
+	Branches       []string      `json:"branches"`
+	Options        []string      `json:"options"`
+	Usage          []BranchUsage `json:"usage"`
+	UsageTruncated bool          `json:"usageTruncated,omitempty"`
 }
 
 // MergerFS is the mergerfs half of the response.
@@ -189,6 +193,9 @@ func Collect(ctx context.Context, osRoot, snapraidPath, family string) (Snapshot
 	pools, err := collectMounts(osRoot)
 	if pools == nil {
 		pools = []Pool{}
+	}
+	if err == nil {
+		measurePoolUsage(ctx, osRoot, pools)
 	}
 	configured, truncated := collectConfigured(ctx, osRoot, pools)
 	base := MergerFS{Pools: pools, Configured: configured, ConfiguredTruncated: truncated}
