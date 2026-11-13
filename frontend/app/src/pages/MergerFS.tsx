@@ -71,8 +71,8 @@ export function MergerFSView({
           Read-only observations. Pooling is not redundancy or RAID. SnapRAID parity must not be a pool
           branch. Matching is path-based; a missing warning is not proof. FUSE3 fusermount3 and kernel FUSE
           are probed here; this page does not load modules. fstab and systemd mount units are listed, not
-          written. Capacity is measured per live branch directory, not the fused mount. No pool, mount or
-          SnapRAID configuration is changed here.
+          written. Capacity is measured per live branch of a root-owned mount, not the fused mount. No pool,
+          mount or SnapRAID configuration is changed here.
         </p>
       </header>
       {error && (

@@ -189,24 +189,6 @@ func measurePoolUsageWith(set usageSettings, osRoot string, pools []Pool) {
 		set.Timeout = usageTimeout
 	}
 
-	if _, err := os.OpenRoot(osRoot); err != nil {
-		for i := range pools {
-			n := len(pools[i].Branches)
-			trunc := false
-			if n > usageBranchesMaxPerPool {
-				n = usageBranchesMaxPerPool
-				trunc = true
-			}
-			if n > usageBranchesMaxTotal {
-				n = usageBranchesMaxTotal
-				trunc = true
-			}
-			pools[i].Usage = unmeasuredAll(pools[i].Branches[:n], reasonUsageUnread)
-			pools[i].UsageTruncated = trunc || len(pools[i].Branches) > n
-		}
-		return
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), set.Budget)
 	defer cancel()
 
