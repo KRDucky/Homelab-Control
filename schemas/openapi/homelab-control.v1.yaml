@@ -910,7 +910,7 @@ components:
               third_party: { type: boolean }
     MergerFSInventory:
       type: object
-      required: [tooling, mergerfs, snapraid]
+      required: [tooling, mergerfs, snapraid, warnings]
       properties:
         tooling:
           type: object
@@ -962,6 +962,19 @@ components:
             data: { type: array, items: { type: string } }
             parity: { type: array, items: { type: string } }
             content: { type: array, items: { type: string } }
+        warnings:
+          type: array
+          description: Read-only honesty findings (duplicate branches; SnapRAID parity on a pool branch or the fused mount). Never executes.
+          items:
+            type: object
+            required: [code, pool, branch, other, detail]
+            additionalProperties: false
+            properties:
+              code: { type: string, enum: [duplicate-branch, parity-in-pool] }
+              pool: { type: string }
+              branch: { type: string }
+              other: { type: string }
+              detail: { type: string }
     TraefikResource:
       type: object
       additionalProperties: false
@@ -1833,9 +1846,11 @@ paths:
         Parses bounded /proc/self/mountinfo for fuse.mergerfs mounts (mountpoint, colon-separated
         absolute branches, mergerfs-relevant options only) and one configured snapraid.conf
         (data/parity/content absolute paths only; includes never followed; listed paths never opened).
-        No pool create, mount, policy write, or snapraid sync/diff/fix path exists. A missing
-        snapraid.conf is normal (SnapRAID is optional), not an error. Origin and X-CSRF-Token are
-        required; audit records counts only, never branch or data paths.
+        warnings lists read-only honesty findings (duplicate branches; SnapRAID parity on a pool
+        branch or the fused mount). Pooling is not RAID. No pool create, mount, policy write, or
+        snapraid sync/diff/fix path exists. A missing snapraid.conf is normal (SnapRAID is optional),
+        not an error. Origin and X-CSRF-Token are required; audit records counts only, never branch
+        or data paths.
       security: [{ session: [] }]
       x-required-scope: mergerfs.read
       parameters:
