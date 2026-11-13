@@ -218,6 +218,20 @@ func sameRdevs(a, b []string) bool {
 	return true
 }
 
+func duplicateRdev(vals []string) bool {
+	seen := map[string]bool{}
+	for _, v := range vals {
+		if !validRdev(v) {
+			continue
+		}
+		if seen[v] {
+			return true
+		}
+		seen[v] = true
+	}
+	return false
+}
+
 func factsByDevice(facts []DevicePreflight) (map[string]DevicePreflight, bool) {
 	out := map[string]DevicePreflight{}
 	for _, p := range facts {
@@ -348,6 +362,9 @@ func Advance(op Op) Op {
 		fromFacts := plannedRdevFromFacts(op.Devices, op.Preflight)
 		if len(op.PlannedRdev) != 0 && len(op.PlannedRdev) != len(op.Devices) {
 			return fail(op, BlockPreflightMissing, "execute needs a fresh block-device preflight per target")
+		}
+		if duplicateRdev(op.PlannedRdev) || duplicateRdev(fromFacts) {
+			return fail(op, BlockDuplicateDevice, "each target must appear once")
 		}
 		if len(op.PlannedRdev) == 0 {
 			op.PlannedRdev = fromFacts
