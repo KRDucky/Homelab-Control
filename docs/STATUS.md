@@ -42,6 +42,20 @@ is in `KnownScopes`, never default, implied by nothing; `packages.manage` stays 
 No root template, no plan/apply, no write, no metadata refresh, no repository mutation. Not M4
 acceptance, not a merge, not production; ADR 0008 Amendment 5 remains Proposed.
 
+## M7 first checkpoint: OpenZFS (read-only; not M7 acceptance)
+
+One read-only page at `/storage/zfs` (module id `zfs`, scope `zfs.read`, never default and implied
+by nothing, including `storage.read`) probes the required `zfs` and `zpool` binaries (unprivileged
+`os.Stat` of well-known `/usr/sbin` then `/usr/bin` paths, no `os/exec`) and kernel ZFS from bounded
+`/proc/filesystems` (never modprobe, never a device node). Debian/Ubuntu names `zfsutils-linux`;
+Fedora, SUSE, and Arch name no package (OpenZFS is not in those default archives; Homelab Control
+does not add a third-party repository). Observed `fstype=zfs` mounts come from bounded
+`/proc/self/mountinfo` (dataset source and mountpoint only; datasets are not opened). A missing
+required package offers Software Center search (`/software?q=zfsutils-linux`) when the packages
+module is enabled and the session has `packages.read`. No POST install, `packages.manage`, pool
+create, import, export, destroy, or `zpool`/`zfs` execution exists. This is a checkpoint, not M7
+acceptance, not a merge, not production. Never touch production pool `tank`.
+
 ## M8 first checkpoint: MergerFS + optional SnapRAID (read-only; not M8 acceptance)
 
 One read-only page at `/storage/mergerfs` (module id `mergerfs`, scope `mergerfs.read`, never default

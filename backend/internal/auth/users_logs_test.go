@@ -173,3 +173,25 @@ func TestMergerFSReadNotGrantedByDefaultOrImplied(t *testing.T) {
 		t.Fatal("every other scope together must not imply mergerfs.read")
 	}
 }
+
+// M7 first checkpoint: read-only OpenZFS needs zfs.read, never granted by
+// default and implied by no other scope (including storage.read).
+func TestZFSReadNotGrantedByDefaultOrImplied(t *testing.T) {
+	if !KnownScopes[ScopeZFSRead] || ScopeZFSRead != "zfs.read" {
+		t.Fatal("zfs.read must be a known scope")
+	}
+	for _, s := range strings.Split(DefaultScopes, ",") {
+		if s == ScopeZFSRead || strings.HasPrefix(s, "zfs.") {
+			t.Fatalf("default scopes grant %s", s)
+		}
+	}
+	var others []string
+	for s := range KnownScopes {
+		if s != ScopeZFSRead {
+			others = append(others, s)
+		}
+	}
+	if (&Session{Scopes: others}).HasScope(ScopeZFSRead) {
+		t.Fatal("every other scope together must not imply zfs.read")
+	}
+}
