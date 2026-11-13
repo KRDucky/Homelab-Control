@@ -117,7 +117,7 @@ func TestCollectParseFailureFailsClosed(t *testing.T) {
 
 func TestProbeToolingPresent(t *testing.T) {
 	dir := t.TempDir()
-	for _, name := range []string{"mergerfs", "fusermount3", "snapraid", "smartctl"} {
+	for _, name := range []string{"mergerfs", "fusermount3", "snapraid", "smartctl", "dumpe2fs", "xfs_info", "btrfs"} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte("fixture"), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -127,7 +127,7 @@ func TestProbeToolingPresent(t *testing.T) {
 		return err == nil && fi.Mode().IsRegular()
 	}
 	tool := probeTooling("debian", stat)
-	if tool.Family != "debian" || len(tool.Required) != 2 || len(tool.Optional) != 2 {
+	if tool.Family != "debian" || len(tool.Required) != 2 || len(tool.Optional) != 5 {
 		t.Fatalf("%+v", tool)
 	}
 	req := tool.Required[0]
@@ -146,6 +146,18 @@ func TestProbeToolingPresent(t *testing.T) {
 	if smart.ID != "smartctl" || smart.Package != "smartmontools" || !smart.Installed || smart.Binary != "/usr/sbin/smartctl" {
 		t.Fatalf("optional smartctl: %+v", smart)
 	}
+	ext := tool.Optional[2]
+	if ext.ID != "dumpe2fs" || ext.Package != "e2fsprogs" || !ext.Installed || ext.Binary != "/usr/sbin/dumpe2fs" {
+		t.Fatalf("optional dumpe2fs: %+v", ext)
+	}
+	xfs := tool.Optional[3]
+	if xfs.ID != "xfs_info" || xfs.Package != "xfsprogs" || !xfs.Installed || xfs.Binary != "/usr/sbin/xfs_info" {
+		t.Fatalf("optional xfs_info: %+v", xfs)
+	}
+	btrfs := tool.Optional[4]
+	if btrfs.ID != "btrfs" || btrfs.Package != "btrfs-progs" || !btrfs.Installed || btrfs.Binary != "/usr/bin/btrfs" {
+		t.Fatalf("optional btrfs: %+v", btrfs)
+	}
 }
 
 func TestProbeToolingMissingAndPackageNames(t *testing.T) {
@@ -155,18 +167,26 @@ func TestProbeToolingMissingAndPackageNames(t *testing.T) {
 		if len(tool.Required) != 2 || tool.Required[0].Installed || tool.Required[1].Installed {
 			t.Fatalf("%s required installed: %+v", family, tool.Required)
 		}
+		wantBtrfs := "btrfs-progs"
+		if family == "suse" {
+			wantBtrfs = "btrfsprogs"
+		}
 		if tool.Required[0].Package != "mergerfs" || tool.Required[1].Package != "fuse3" ||
-			tool.Optional[0].Package != "snapraid" || tool.Optional[1].Package != "smartmontools" {
+			tool.Optional[0].Package != "snapraid" || tool.Optional[1].Package != "smartmontools" ||
+			tool.Optional[2].Package != "e2fsprogs" || tool.Optional[3].Package != "xfsprogs" ||
+			tool.Optional[4].Package != wantBtrfs {
 			t.Fatalf("%s package names: %+v", family, tool)
 		}
 	}
 	unknown := probeTooling("unknown", stat)
 	if unknown.Required[0].Package != "" || unknown.Required[1].Package != "" ||
-		unknown.Optional[0].Package != "" || unknown.Optional[1].Package != "" {
+		unknown.Required[0].Installed || unknown.Required[1].Installed {
 		t.Fatalf("unknown family must not name a package: %+v", unknown)
 	}
-	if unknown.Required[0].Installed || unknown.Required[1].Installed || unknown.Optional[0].Installed || unknown.Optional[1].Installed {
-		t.Fatalf("unknown family probe: %+v", unknown)
+	for _, it := range unknown.Optional {
+		if it.Package != "" || it.Installed {
+			t.Fatalf("unknown family optional: %+v", it)
+		}
 	}
 }
 

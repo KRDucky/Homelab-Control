@@ -27,6 +27,9 @@ func mergerfsFake() func(context.Context) (mergerfsinfo.Snapshot, error) {
 				Optional: []mergerfsinfo.ToolItem{
 					{ID: "snapraid", Package: "snapraid", Installed: false},
 					{ID: "smartctl", Package: "smartmontools", Installed: false},
+					{ID: "dumpe2fs", Package: "e2fsprogs", Installed: false},
+					{ID: "xfs_info", Package: "xfsprogs", Installed: false},
+					{ID: "btrfs", Package: "btrfs-progs", Installed: false},
 				},
 			},
 			MergerFS: mergerfsinfo.MergerFS{Present: true, Pools: []mergerfsinfo.Pool{
@@ -79,6 +82,15 @@ func TestMergerFSReadsAndAuditsCountsOnly(t *testing.T) {
 	}
 	if !strings.Contains(rr.Body.String(), `"smartctl"`) || !strings.Contains(rr.Body.String(), `"smartmontools"`) {
 		t.Fatalf("body missing smartctl: %s", rr.Body)
+	}
+	if !strings.Contains(rr.Body.String(), `"dumpe2fs"`) || !strings.Contains(rr.Body.String(), `"e2fsprogs"`) {
+		t.Fatalf("body missing dumpe2fs: %s", rr.Body)
+	}
+	if !strings.Contains(rr.Body.String(), `"xfs_info"`) || !strings.Contains(rr.Body.String(), `"xfsprogs"`) {
+		t.Fatalf("body missing xfs_info: %s", rr.Body)
+	}
+	if !strings.Contains(rr.Body.String(), `"btrfs"`) || !strings.Contains(rr.Body.String(), `"btrfs-progs"`) {
+		t.Fatalf("body missing btrfs: %s", rr.Body)
 	}
 	if !strings.Contains(rr.Body.String(), `"kernelRelease"`) || !strings.Contains(rr.Body.String(), `6.8.0-hc-test`) {
 		t.Fatalf("body missing kernelRelease: %s", rr.Body)
