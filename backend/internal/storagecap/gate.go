@@ -9,14 +9,14 @@ package storagecap
 type Gate string
 
 const (
-	GateAvailable    Gate = "available"
-	GateMissing      Gate = "missing"
-	GateDegraded     Gate = "degraded"
-	GateUnsupported  Gate = "unsupported"
-	GateRestricted   Gate = "restricted"
-	GateBroken       Gate = "broken"
-	GateReadOnly     Gate = "readonly"
-	GateNeedsReboot  Gate = "needs-reboot"
+	GateAvailable   Gate = "available"
+	GateMissing     Gate = "missing"
+	GateDegraded    Gate = "degraded"
+	GateUnsupported Gate = "unsupported"
+	GateRestricted  Gate = "restricted"
+	GateBroken      Gate = "broken"
+	GateReadOnly    Gate = "readonly"
+	GateNeedsReboot Gate = "needs-reboot"
 )
 
 // FromTooling maps a probe to a gate. Missing required binaries are
