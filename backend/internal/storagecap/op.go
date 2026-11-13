@@ -41,17 +41,21 @@ const (
 	BlockNotBlockDevice   Block = "not-block-device"
 	BlockMounted          Block = "device-mounted"
 	BlockHasHolders       Block = "device-has-holders"
+	BlockRdevInvalid      Block = "rdev-invalid"
 )
 
 const blockNoExecuteReason = "P0 storage writes are not implemented; no storage apply op and no device helper unit (G3). ADR 0011 apply is unused here."
 
-// DevicePreflight is observed device state supplied by a later privileged
-// helper. This package does not stat, open, or format devices (G1/G2/G4).
+// DevicePreflight is necessary, not sufficient, observed device state from a
+// later privileged helper (not hc-api). This package does not stat, open, or
+// format block devices (G1/G2/G4). Signature, host-root/boot/tank, and
+// md/ZFS/LVM/btrfs membership are later helper facts.
 type DevicePreflight struct {
-	BlockDevice bool   // S_ISBLK after resolving the planned path
-	Mounted     bool   // mounted, swap, or otherwise busy
-	HasHolders  bool   // sysfs holders/slaves or a stack member
-	Rdev        string // st_rdev as "major:minor"; required when BlockDevice
+	Device      DeviceRef // must match one Op.Devices entry by kind:value
+	BlockDevice bool      // S_ISBLK after resolving the planned path
+	Mounted     bool      // mounted, swap, a mounted partition of the disk, or otherwise busy
+	HasHolders  bool      // sysfs holders/slaves or a stack member
+	Rdev        string    // st_rdev as "major:minor"; required when BlockDevice
 }
 
 // DeviceRef is one persist/write identity. Kernel names are display-only
@@ -79,6 +83,7 @@ type Op struct {
 	Acked          []ExtraConfirm
 	IdentityDigest string
 	ObservedDigest string
+	PlannedRdev    []string // one major:minor per Devices entry, recorded at plan
 	Preflight      []DevicePreflight
 	StackingPlan   bool
 	Block          Block
@@ -154,13 +159,97 @@ func identityBlock(devs []DeviceRef) Block {
 	return ""
 }
 
-func preflightBlock(devs []DeviceRef, facts []DevicePreflight) (Block, string) {
-	if len(facts) != len(devs) {
+func validRdev(s string) bool {
+	maj, min, ok := strings.Cut(s, ":")
+	if !ok || strings.Contains(min, ":") {
+		return false
+	}
+	if len(maj) < 1 || len(maj) > 5 || len(min) < 1 || len(min) > 7 {
+		return false
+	}
+	for i := 0; i < len(maj); i++ {
+		if maj[i] < '0' || maj[i] > '9' {
+			return false
+		}
+	}
+	for i := 0; i < len(min); i++ {
+		if min[i] < '0' || min[i] > '9' {
+			return false
+		}
+	}
+	if rdevAllZero(maj) && rdevAllZero(min) {
+		return false
+	}
+	return true
+}
+
+func rdevAllZero(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] != '0' {
+			return false
+		}
+	}
+	return true
+}
+
+func factsByDevice(facts []DevicePreflight) (map[string]DevicePreflight, bool) {
+	out := map[string]DevicePreflight{}
+	for _, p := range facts {
+		if p.Device.Value == "" {
+			return nil, false
+		}
+		k := deviceKey(p.Device)
+		if _, dup := out[k]; dup {
+			return nil, false
+		}
+		out[k] = p
+	}
+	return out, true
+}
+
+func plannedRdevFromFacts(devs []DeviceRef, facts []DevicePreflight) []string {
+	if len(facts) != len(devs) || len(devs) == 0 {
+		return nil
+	}
+	byKey, ok := factsByDevice(facts)
+	if !ok {
+		return nil
+	}
+	out := make([]string, len(devs))
+	for i, d := range devs {
+		p, ok := byKey[deviceKey(d)]
+		if !ok || !validRdev(p.Rdev) {
+			return nil
+		}
+		out[i] = p.Rdev
+	}
+	return out
+}
+
+func preflightBlock(devs []DeviceRef, facts []DevicePreflight, planned []string) (Block, string) {
+	if len(devs) == 0 {
+		return BlockEmptyDevice, "mutating storage ops require at least one device"
+	}
+	if len(facts) != len(devs) || len(planned) != len(devs) {
 		return BlockPreflightMissing, "execute needs a fresh block-device preflight per target"
 	}
-	for _, p := range facts {
-		if !p.BlockDevice || p.Rdev == "" {
+	byKey, ok := factsByDevice(facts)
+	if !ok {
+		return BlockPreflightMissing, "execute needs a fresh block-device preflight per target"
+	}
+	for i, d := range devs {
+		p, ok := byKey[deviceKey(d)]
+		if !ok {
+			return BlockPreflightMissing, "execute needs a fresh block-device preflight per target"
+		}
+		if !p.BlockDevice {
 			return BlockNotBlockDevice, "target must be a block device immediately before exec"
+		}
+		if !validRdev(p.Rdev) {
+			return BlockRdevInvalid, "target rdev must be major:minor immediately before exec"
+		}
+		if p.Rdev != planned[i] {
+			return BlockIdentityChanged, "identity changed since plan; revalidate before action"
 		}
 		if p.Mounted {
 			return BlockMounted, "target is mounted"
@@ -170,6 +259,17 @@ func preflightBlock(devs []DeviceRef, facts []DevicePreflight) (Block, string) {
 		}
 	}
 	return "", ""
+}
+
+func identityFail(op Op, b Block) Op {
+	switch b {
+	case BlockKernelIdentity:
+		return fail(op, b, "/dev/sdX is display-only; persist/write needs wwn, nvme-uuid, or serial")
+	case BlockEmptyDevice:
+		return fail(op, b, "mutating storage ops require at least one device")
+	default:
+		return fail(op, b, "persist/write identity is wwn, nvme-uuid, or serial; by-id is discovery only")
+	}
 }
 
 func fail(op Op, b Block, reason string) Op {
@@ -204,14 +304,10 @@ func Advance(op Op) Op {
 		return op
 	case PhasePlan:
 		if b := identityBlock(op.Devices); b != "" {
-			switch b {
-			case BlockKernelIdentity:
-				return fail(op, b, "/dev/sdX is display-only; persist/write needs wwn, nvme-uuid, or serial")
-			case BlockEmptyDevice:
-				return fail(op, b, "mutating storage ops require at least one device")
-			default:
-				return fail(op, b, "persist/write identity is wwn, nvme-uuid, or serial; by-id is discovery only")
-			}
+			return identityFail(op, b)
+		}
+		if len(op.PlannedRdev) == 0 {
+			op.PlannedRdev = plannedRdevFromFacts(op.Devices, op.Preflight)
 		}
 		op.Phase = PhaseConfirm
 		return op
@@ -222,13 +318,19 @@ func Advance(op Op) Op {
 		if missingAck(op.Extra, op.Acked) {
 			return fail(op, BlockExtraConfirm, "extra confirmation kinds must be acknowledged before execute")
 		}
+		if Overlap(op.Claims) && !op.StackingPlan {
+			return fail(op, BlockOverlapNoStack, "device already claimed by another stack; stacking plan required")
+		}
+		if b := identityBlock(op.Devices); b != "" {
+			return identityFail(op, b)
+		}
 		if op.ObservedDigest == "" {
 			op.ObservedDigest = DigestDevices(op.Devices)
 		}
 		if op.IdentityDigest == "" || op.ObservedDigest != op.IdentityDigest {
 			return fail(op, BlockIdentityChanged, "identity changed since plan; revalidate before action")
 		}
-		if b, reason := preflightBlock(op.Devices, op.Preflight); b != "" {
+		if b, reason := preflightBlock(op.Devices, op.Preflight, op.PlannedRdev); b != "" {
 			return fail(op, b, reason)
 		}
 		return fail(op, BlockNoExecute, blockNoExecuteReason)
