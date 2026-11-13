@@ -53,8 +53,8 @@ func TestProbeCapabilityMissingRequiredAndFuse(t *testing.T) {
 	if ok || !strings.Contains(reason, "mergerfs") || !strings.Contains(reason, "fusermount3") {
 		t.Fatalf("missing binaries: ok=%v reason=%q", ok, reason)
 	}
-	if strings.Contains(reason, "snapraid") {
-		t.Fatalf("optional snapraid must not degrade: %q", reason)
+	if strings.Contains(reason, "snapraid") || strings.Contains(reason, "smartctl") {
+		t.Fatalf("optional snapraid/smartctl must not degrade: %q", reason)
 	}
 	if strings.Contains(reason, "may load on first mount") {
 		t.Fatalf("autoload hint must not ride along with missing binaries: %q", reason)
@@ -140,7 +140,7 @@ func TestProbeCapabilityDegradedPerItem(t *testing.T) {
 	}
 	mergerfsOnly := func(path string) bool { return filepath.Base(path) == "mergerfs" }
 	ok, reason := probeCapability("debian", mergerfsOnly, dir)
-	if ok || !strings.Contains(reason, "fusermount3") || strings.Contains(reason, "snapraid") {
+	if ok || !strings.Contains(reason, "fusermount3") || strings.Contains(reason, "snapraid") || strings.Contains(reason, "smartctl") {
 		t.Fatalf("missing fusermount3: ok=%v reason=%q", ok, reason)
 	}
 	fusermount3Only := func(path string) bool { return filepath.Base(path) == "fusermount3" }
@@ -156,6 +156,10 @@ func TestProbeCapabilityDegradedPerItem(t *testing.T) {
 	ok, reason = probeCapability("debian", both, empty)
 	if ok || reason != reasonFuseUnread {
 		t.Fatalf("missing fuse: ok=%v reason=%q", ok, reason)
+	}
+	ok, reason = probeCapability("debian", both, dir)
+	if !ok || reason != "" {
+		t.Fatalf("missing smartctl must not degrade: ok=%v reason=%q", ok, reason)
 	}
 }
 

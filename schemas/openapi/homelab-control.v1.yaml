@@ -1905,7 +1905,8 @@ paths:
         collect root (os.OpenRoot) for fstatfs; fused mounts, /proc /sys /dev, fstab/systemd
         paths, and listed SnapRAID paths are not opened as such. Capacity uses its own budget and
         does not fail the inventory. Required tooling is mergerfs plus FUSE3 fusermount3
-        (package fuse3, the supported baseline; FUSE2 fusermount is not probed); kernelFuse is a
+        (package fuse3, the supported baseline; FUSE2 fusermount is not probed); optional tooling is
+        snapraid and smartctl (package smartmontools; never executed, no disk opened); kernelFuse is a
         read-only /proc/filesystems probe (fuse type only; fusectl/fuseblk do not count; listed is
         not proof a mount will succeed). warnings lists read-only honesty findings (duplicate
         branches; SnapRAID parity on a pool branch or the fused mount). Matching is path-based; a
