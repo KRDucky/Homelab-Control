@@ -61,6 +61,8 @@ export function MergerFSView({
   const mergerfsMissing = mergerfsTool ? !mergerfsTool.installed : false;
   const optional = tooling.optional.find((t) => t.id === 'snapraid');
   const optionalMissing = optional ? !optional.installed : false;
+  const smartctl = tooling.optional.find((t) => t.id === 'smartctl');
+  const smartctlMissing = smartctl ? !smartctl.installed : false;
   const canInstall = packagesEnabled && (scopes ?? []).includes('packages.read');
 
   return (
@@ -71,8 +73,8 @@ export function MergerFSView({
           Read-only observations. Pooling is not redundancy or RAID. SnapRAID parity must not be a pool
           branch. Matching is path-based; a missing warning is not proof. FUSE3 fusermount3 and kernel FUSE
           are probed here; this page does not load modules. fstab and systemd mount units are listed, not
-          written. Capacity is measured per live branch of a root-owned mount, not the fused mount. No pool,
-          mount or SnapRAID configuration is changed here.
+          written. Capacity is measured per live branch of a root-owned mount, not the fused mount. smartctl
+          is probed, not run; disks are not opened. No pool, mount or SnapRAID configuration is changed here.
         </p>
       </header>
       {error && (
@@ -193,6 +195,20 @@ export function MergerFSView({
           <InstallOffer
             label={`Add ${optional?.package || 'snapraid'}`}
             item={optional}
+            canInstall={canInstall}
+          />
+        </section>
+      )}
+
+      {smartctlMissing && (
+        <section className="panel" aria-labelledby="smartctl-offer-heading">
+          <header className="panel-head">
+            <h2 id="smartctl-offer-heading">smartmontools</h2>
+          </header>
+          <p>smartctl is optional. This page does not run it or open disks.</p>
+          <InstallOffer
+            label={`Add ${smartctl?.package || 'smartmontools'}`}
+            item={smartctl}
             canInstall={canInstall}
           />
         </section>

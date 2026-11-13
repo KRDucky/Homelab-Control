@@ -182,10 +182,11 @@ func collectMounts(osRoot string) ([]Pool, error) {
 
 // Collect reads mergerfs pools, optional fstab/systemd declarations, and the
 // optional snapraid.conf, and probes the required (mergerfs, fusermount3) and
-// optional (snapraid) binaries plus kernel FUSE from /proc/filesystems. It
-// never fails on a missing or unreadable input: those become present=false
-// with a reason. Only context cancellation of the non-capacity work returns
-// an error (the caller maps it to 503). Capacity uses its own budget.
+// optional (snapraid, smartctl) binaries plus kernel FUSE from /proc/filesystems.
+// smartctl is never executed and no disk is opened. Missing or unreadable
+// inputs become present=false with a reason. Only context cancellation of the
+// non-capacity work returns an error (the caller maps it to 503). Capacity
+// uses its own budget.
 func Collect(ctx context.Context, osRoot, snapraidPath, family string) (Snapshot, error) {
 	if err := ctx.Err(); err != nil {
 		return Snapshot{}, err
