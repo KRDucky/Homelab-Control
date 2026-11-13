@@ -116,6 +116,31 @@ func TestParseMountInfoInvalidRecordStillErrors(t *testing.T) {
 	}
 }
 
+func TestParseMountInfoSkipsMalformedNonZFS(t *testing.T) {
+	in := "nope 29 0:1 / /mnt rw - ext4 /dev/sda1 rw\n" + zfsMountLine(0) + "short - btrfs\n"
+	mounts, truncated, err := ParseMountInfo(strings.NewReader(in))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if truncated || len(mounts) != 1 || mounts[0].Dataset != "tank/ds0" {
+		t.Fatalf("n=%d truncated=%v mounts=%+v", len(mounts), truncated, mounts)
+	}
+}
+
+func TestParseMountInfoSkipsOversizedLine(t *testing.T) {
+	var b strings.Builder
+	b.WriteString(strings.Repeat("x", mountinfoMaxLine+8))
+	b.WriteByte('\n')
+	b.WriteString(zfsMountLine(3))
+	mounts, truncated, err := ParseMountInfo(strings.NewReader(b.String()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !truncated || len(mounts) != 1 || mounts[0].Dataset != "tank/ds3" {
+		t.Fatalf("n=%d truncated=%v mounts=%+v", len(mounts), truncated, mounts)
+	}
+}
+
 func TestParseKernelZfs(t *testing.T) {
 	if !parseKernelZfs("nodev\tsysfs\nnodev\tzfs\n") {
 		t.Fatal("zfs line must count")
