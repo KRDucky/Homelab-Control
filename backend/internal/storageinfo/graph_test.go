@@ -80,6 +80,37 @@ func TestConflictsDoNotFlagRepeatedSameSignature(t *testing.T) {
 	}
 }
 
+func TestOverlapClaimsLayeredLVMIsOneStack(t *testing.T) {
+	g := Build([]Block{
+		{Name: "sda", DeviceNumber: "8:0", Kind: "disk", WWID: "naa.5000000000000a0a"},
+		{Name: "sda1", DeviceNumber: "8:1", Kind: "partition", Parent: "8:0", PartUUID: "part-A", FSType: "LVM2_member"},
+		{Name: "dm-0", DeviceNumber: "253:0", Kind: "lvm", Lower: []string{"8:1"}, FSType: "ext4", UUID: "fs-A"},
+	}, []Mount{{ID: "20", DeviceNumber: "253:0", Mountpoint: "/data", FSType: "ext4", View: "host"}})
+	if OverlapClaims(g) {
+		t.Fatal("layered LVM+ext4 treated as overlapping stacks")
+	}
+}
+
+func TestOverlapClaimsTwoStacksOnOneDisk(t *testing.T) {
+	g := Build([]Block{
+		{Name: "sda", DeviceNumber: "8:0", Kind: "disk", WWID: "naa.5000000000000b0b"},
+		{Name: "md0", DeviceNumber: "9:0", Kind: "mdraid", Lower: []string{"8:0"}},
+		{Name: "dm-0", DeviceNumber: "253:0", Kind: "lvm", Lower: []string{"8:0"}},
+	}, nil)
+	if !OverlapClaims(g) {
+		t.Fatal("mdraid and lvm on the same disk not reported as overlap")
+	}
+}
+
+func TestOverlapClaimsMatchingMountIsSameStack(t *testing.T) {
+	g := Build([]Block{
+		{Name: "sda", DeviceNumber: "8:0", Kind: "disk", WWID: "naa.5000000000000c0c", FSType: "ext4"},
+	}, []Mount{{ID: "20", DeviceNumber: "8:0", Mountpoint: "/data", FSType: "ext4", View: "host"}})
+	if OverlapClaims(g) {
+		t.Fatal("ext4 signature plus matching mount treated as overlap")
+	}
+}
+
 func TestServiceNamespaceMountsRetainRootsWithoutInventingHostClaims(t *testing.T) {
 	mounts, e := ParseMountInfo(strings.NewReader("10 1 8:0 /tmp/private /tmp rw - ext4 /dev/sda rw\n11 1 8:0 /@data /data rw - btrfs /dev/sda rw\n"))
 	if e != nil {
