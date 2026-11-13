@@ -55,6 +55,15 @@ func TestProbeCapabilityMissingRequiredAndFuse(t *testing.T) {
 	if strings.Contains(reason, "snapraid") {
 		t.Fatalf("optional snapraid must not degrade: %q", reason)
 	}
+	if strings.Contains(reason, "may load on first mount") {
+		t.Fatalf("autoload hint must not ride along with missing binaries: %q", reason)
+	}
+	if !strings.Contains(reason, reasonFuseUnread) && !strings.Contains(reason, reasonFuseMissingShort) {
+		t.Fatalf("missing binaries should still name FUSE briefly: %q", reason)
+	}
+	if len(reason) > capabilityReasonMax {
+		t.Fatalf("capability reason exceeds cap: %d %q", len(reason), reason)
+	}
 
 	present := func(path string) bool {
 		base := filepath.Base(path)
@@ -112,7 +121,7 @@ func TestProbeKernelFuseEscapingSymlink(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.Symlink(filepath.Join(outside, "filesystems"), filepath.Join(dir, "proc", "filesystems")); err != nil {
-		t.Fatal(err)
+		t.Skip("filesystem does not support symlinks")
 	}
 	got := ProbeKernelFuse(dir)
 	if got.Present || got.Reason != reasonFuseUnread {

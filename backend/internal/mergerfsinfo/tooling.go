@@ -65,11 +65,14 @@ func probeCapability(family string, stat storagecap.StatFunc, osRoot string) (av
 	if len(missing) > 0 {
 		reason = "Required tooling is not installed: " + strings.Join(missing, ", ") + "."
 		if !fuse.Present {
-			extra := fuse.Reason
-			if extra == "" {
-				extra = reasonFuseMissing
+			// Keep the install-offer sentence first. When binaries are the
+			// primary problem, do not append the autoload hint (that sentence
+			// is for a missing fuse line on an otherwise complete host).
+			extra := reasonFuseMissingShort
+			if fuse.Reason == reasonFuseUnread {
+				extra = reasonFuseUnread
 			}
-			reason += " " + extra
+			reason = clipCapabilityReason(reason + " " + extra)
 		}
 		return false, reason
 	}
@@ -80,4 +83,11 @@ func probeCapability(family string, stat storagecap.StatFunc, osRoot string) (av
 		return false, reasonFuseMissing
 	}
 	return true, ""
+}
+
+func clipCapabilityReason(s string) string {
+	if len(s) <= capabilityReasonMax {
+		return s
+	}
+	return s[:capabilityReasonMax]
 }
