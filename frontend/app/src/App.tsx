@@ -20,6 +20,7 @@ import { FilesPage } from './pages/Files';
 import { Traefik } from './pages/Traefik';
 import { Software } from './pages/Software';
 import { MergerFS } from './pages/MergerFS';
+import { ZFS } from './pages/ZFS';
 import { HostSettingsPage } from './pages/HostSettings';
 import { Legacy } from './pages/Legacy';
 import { OverviewPage } from './pages/OverviewPage';
@@ -184,6 +185,15 @@ export function App() {
   else if (route?.id === 'mergerfs')
     page = (
       <MergerFS
+        csrf={session.csrf_token}
+        scopes={session.scopes ?? []}
+        packagesEnabled={packagesEnabled}
+        onUnauthorized={signedOut}
+      />
+    );
+  else if (route?.id === 'zfs')
+    page = (
+      <ZFS
         csrf={session.csrf_token}
         scopes={session.scopes ?? []}
         packagesEnabled={packagesEnabled}

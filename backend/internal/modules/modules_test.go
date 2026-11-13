@@ -12,7 +12,7 @@ import (
 
 func TestRegistryIsClosed(t *testing.T) {
 	all := All()
-	if len(all) != 4 || all[0].ID != "services" || all[0].APIPrefix != "/api/v1/services" || all[0].OpPrefix != "services." {
+	if len(all) != 5 || all[0].ID != "services" || all[0].APIPrefix != "/api/v1/services" || all[0].OpPrefix != "services." {
 		t.Fatalf("registry: %+v (new modules need review)", all)
 	}
 	if all[1].ID != "packages" || all[1].APIPrefix != "/api/v1/packages" || all[1].OpPrefix != "packages." || all[1].Path != "/software" || len(all[1].Scopes) != 1 || all[1].Scopes[0] != "packages.read" {
@@ -24,10 +24,13 @@ func TestRegistryIsClosed(t *testing.T) {
 	if all[3].ID != "mergerfs" || all[3].APIPrefix != "/api/v1/mergerfs" || all[3].OpPrefix != "" || all[3].Path != "/storage/mergerfs" || len(all[3].Scopes) != 1 || all[3].Scopes[0] != "mergerfs.read" {
 		t.Fatalf("mergerfs module: %+v (new modules need review)", all[3])
 	}
+	if all[4].ID != "zfs" || all[4].APIPrefix != "/api/v1/zfs" || all[4].OpPrefix != "" || all[4].Path != "/storage/zfs" || len(all[4].Scopes) != 1 || all[4].Scopes[0] != "zfs.read" {
+		t.Fatalf("zfs module: %+v (new modules need review)", all[4])
+	}
 	for path, want := range map[string]string{"/api/v1/services": "services", "/api/v1/services/units/{unit}/plan": "services",
 		"/api/v1/servicesx": "", "/api/v1/audit": "", "/api/v1/operations": "", "/api/v1/capabilities": "",
 		"/api/v1/files": "", "/api/v1/files/roots": "", "/api/v1/files/entries": "", "/": "",
-		"/api/v1/networking/reverse-proxy/traefik/inventory": "networking", "/api/v1/networkingx": "", "/api/v1/packages": "packages", "/api/v1/packages/search": "packages", "/api/v1/packagesx": "", "/api/v1/mergerfs": "mergerfs", "/api/v1/mergerfsx": ""} {
+		"/api/v1/networking/reverse-proxy/traefik/inventory": "networking", "/api/v1/networkingx": "", "/api/v1/packages": "packages", "/api/v1/packages/search": "packages", "/api/v1/packagesx": "", "/api/v1/mergerfs": "mergerfs", "/api/v1/mergerfsx": "", "/api/v1/zfs": "zfs", "/api/v1/zfsx": ""} {
 		if got := ForRoute(path); got != want {
 			t.Errorf("ForRoute(%q) = %q, want %q", path, got, want)
 		}
@@ -84,7 +87,7 @@ func TestLoadFailsClosed(t *testing.T) {
 		t.Fatal("symlinked setting must fail closed")
 	}
 	_ = os.WriteFile(p, []byte(`{"version":1,"disabled":["nope"]}`), 0o644)
-	if s := LoadOrFailClosed(p, false); s.Enabled("services") || len(s.Disabled()) != 4 {
+	if s := LoadOrFailClosed(p, false); s.Enabled("services") || len(s.Disabled()) != 5 {
 		t.Fatal("invalid setting must disable every module")
 	}
 }
