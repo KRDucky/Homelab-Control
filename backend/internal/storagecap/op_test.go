@@ -20,6 +20,10 @@ func wwnDisk() DeviceRef {
 	return DeviceRef{Kind: IdentityWWN, Value: "naa.5000cca252c8d2a1"}
 }
 
+func readyPreflight() []DevicePreflight {
+	return []DevicePreflight{{BlockDevice: true, Rdev: "8:1"}}
+}
+
 func advanceTo(t *testing.T, op Op, want Phase) Op {
 	t.Helper()
 	for op.Phase != want && op.Block == "" {
@@ -159,12 +163,13 @@ func TestConfirmNeverEntersExecute(t *testing.T) {
 		Extra:          []ExtraConfirm{ConfirmFormat},
 		Acked:          []ExtraConfirm{ConfirmFormat},
 		IdentityDigest: DigestDevices([]DeviceRef{d}),
+		Preflight:      readyPreflight(),
 	}
 	op = Advance(op)
 	if op.Phase != PhaseConfirm || op.Block != BlockNoExecute {
 		t.Fatalf("execute must stay closed: %+v", op)
 	}
-	if !strings.Contains(op.Reason, "registered unused pending security review") {
+	if !strings.Contains(op.Reason, "no device helper unit") {
 		t.Fatalf("reason: %q", op.Reason)
 	}
 }
@@ -183,8 +188,38 @@ func TestAdvanceToConfirmThenClosed(t *testing.T) {
 	if op.Block != "" {
 		t.Fatalf("reached confirm: %+v", op)
 	}
+	op.Preflight = readyPreflight()
 	op = Advance(op)
 	if op.Block != BlockNoExecute {
 		t.Fatalf("still closed: %+v", op)
+	}
+}
+
+func TestConfirmRequiresPreflight(t *testing.T) {
+	d := wwnDisk()
+	base := Op{
+		Phase:          PhaseConfirm,
+		Tooling:        debianReady(),
+		Devices:        []DeviceRef{d},
+		IdentityDigest: DigestDevices([]DeviceRef{d}),
+	}
+	op := Advance(base)
+	if op.Block != BlockPreflightMissing {
+		t.Fatalf("missing: %+v", op)
+	}
+	base.Preflight = []DevicePreflight{{BlockDevice: false, Rdev: ""}}
+	op = Advance(base)
+	if op.Block != BlockNotBlockDevice {
+		t.Fatalf("not block: %+v", op)
+	}
+	base.Preflight = []DevicePreflight{{BlockDevice: true, Rdev: "8:1", Mounted: true}}
+	op = Advance(base)
+	if op.Block != BlockMounted {
+		t.Fatalf("mounted: %+v", op)
+	}
+	base.Preflight = []DevicePreflight{{BlockDevice: true, Rdev: "8:1", HasHolders: true}}
+	op = Advance(base)
+	if op.Block != BlockHasHolders {
+		t.Fatalf("holders: %+v", op)
 	}
 }
