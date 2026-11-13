@@ -52,7 +52,8 @@ export function MergerFSView({
   scopes?: string[];
   packagesEnabled: boolean;
 }) {
-  const { tooling, mergerfs, snapraid, kernelFuse } = data;
+  const { tooling, mergerfs, snapraid } = data;
+  const kernelFuse = data.kernelFuse;
   const missingRequired = tooling.required.filter((t) => !t.installed);
   const mergerfsTool = tooling.required.find((t) => t.id === 'mergerfs');
   const mergerfsMissing = mergerfsTool ? !mergerfsTool.installed : false;
@@ -79,14 +80,15 @@ export function MergerFSView({
         <header className="panel-head">
           <h2 id="mergerfs-fuse-heading">Kernel FUSE</h2>
         </header>
-        {kernelFuse.present ? (
+        {kernelFuse?.present ? (
           <p>
             Kernel FUSE is listed in <code>/proc/filesystems</code>.
           </p>
         ) : (
           <p className="banner" role="status">
-            {kernelFuse.reason || 'The kernel FUSE filesystem is not listed in /proc/filesystems.'} MergerFS
-            cannot create mounts without it. This page does not load kernel modules.
+            {kernelFuse?.reason ||
+              'The kernel FUSE filesystem is not currently listed in /proc/filesystems (the module may load on first mount).'}{' '}
+            This page does not load kernel modules.
           </p>
         )}
       </section>

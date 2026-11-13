@@ -966,7 +966,7 @@ components:
           type: object
           required: [present, reason]
           additionalProperties: false
-          description: Read-only /proc/filesystems probe for the fuse type. Never loads a module, never opens /dev/fuse.
+          description: Read-only /proc/filesystems probe for the fuse type (listed, not ready). Never loads a module, never opens /dev/fuse. FUSE3 fusermount3 is the supported baseline.
           properties:
             present: { type: boolean }
             reason: { type: string }
@@ -1841,8 +1841,9 @@ paths:
         Parses bounded /proc/self/mountinfo for fuse.mergerfs mounts (mountpoint, colon-separated
         absolute branches, mergerfs-relevant options only) and one configured snapraid.conf
         (data/parity/content absolute paths only; includes never followed; listed paths never opened).
-        Required tooling is mergerfs plus FUSE3 fusermount3 (package fuse3); kernelFuse is a
-        read-only /proc/filesystems probe (fuse type only; fusectl/fuseblk do not count). No pool
+        Required tooling is mergerfs plus FUSE3 fusermount3 (package fuse3, the supported baseline;
+        FUSE2 fusermount is not probed); kernelFuse is a read-only /proc/filesystems probe (fuse
+        type only; fusectl/fuseblk do not count; listed is not proof a mount will succeed). No pool
         create, mount, policy write, module load, or snapraid sync/diff/fix path exists. A missing
         snapraid.conf is normal (SnapRAID is optional), not an error. Origin and X-CSRF-Token are
         required; audit records counts only, never branch or data paths.

@@ -48,7 +48,10 @@ One read-only page at `/storage/mergerfs` (module id `mergerfs`, scope `mergerfs
 and implied by nothing) probes the required `mergerfs` and `fusermount3` (package `fuse3`) binaries
 and optional `snapraid` (unprivileged `os.Stat` of well-known paths, no `os/exec`, no
 `packages.installed`), plus kernel FUSE from bounded `/proc/filesystems` (never `/dev/fuse`, never
-modprobe). It then shows observed `fuse.mergerfs` pools parsed from bounded `/proc/self/mountinfo`
+modprobe). FUSE3 (`fusermount3`, package `fuse3`) is the supported baseline; FUSE2 `fusermount` is
+not probed. A missing `fuse` line is “not currently listed” (the module may load on first mount),
+not proof that mounts cannot work, and a listed line is not proof that a mount will succeed.
+It then shows observed `fuse.mergerfs` pools parsed from bounded `/proc/self/mountinfo`
 and, when a `snapraid.conf` is readable, an optional SnapRAID section (`data`/`parity`/`content`
 paths only). A missing required package hides empty-pool pages and offers a Software Center search
 link (`/software?q=…`, when the packages module is enabled and the session has `packages.read`);

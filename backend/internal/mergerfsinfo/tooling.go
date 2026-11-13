@@ -61,10 +61,18 @@ func probeCapability(family string, stat storagecap.StatFunc, osRoot string) (av
 			missing = append(missing, it.ID)
 		}
 	}
-	if len(missing) > 0 {
-		return false, "Required tooling is not installed: " + strings.Join(missing, ", ") + "."
-	}
 	fuse := ProbeKernelFuse(osRoot)
+	if len(missing) > 0 {
+		reason = "Required tooling is not installed: " + strings.Join(missing, ", ") + "."
+		if !fuse.Present {
+			extra := fuse.Reason
+			if extra == "" {
+				extra = reasonFuseMissing
+			}
+			reason += " " + extra
+		}
+		return false, reason
+	}
 	if !fuse.Present {
 		if fuse.Reason != "" {
 			return false, fuse.Reason
