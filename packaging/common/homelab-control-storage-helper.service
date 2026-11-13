@@ -3,6 +3,7 @@ Description=Homelab Control storage helper (unused and closed; no device access)
 Documentation=file:///usr/share/doc/homelab-control/README.md
 RefuseManualStart=yes
 RefuseManualStop=yes
+ConditionPathExists=/nonexistent-unused
 
 [Service]
 Type=oneshot

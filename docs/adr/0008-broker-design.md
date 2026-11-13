@@ -270,15 +270,21 @@ change to `homelab-control-broker.service`.
 - **One unused unit.** `packaging/common/homelab-control-storage-helper.service` ships in
   debian/fedora/arch development packages. No `[Install]`. `PrivateDevices=yes`. No
   `DeviceAllow`. Empty `CapabilityBoundingSet`. `ExecStart=/bin/false`.
-  `RefuseManualStart=yes`. No `Restart`. Uninstall may stop/disable it; install must not
-  enable it.
+  `RefuseManualStart=yes`. `ConditionPathExists=/nonexistent-unused`. No `Restart`.
+  Install must not enable it. Uninstall must not `stop`/`disable` it on the same
+  command as the API or broker (H2).
 - **Broker unchanged.** The main broker keeps `PrivateDevices=yes` and
   `CapabilityBoundingSet=CAP_SETUID CAP_SETGID`. Do not add storage device access there.
 - **No caller.** No broker op, `Advance` execute path, or non-test Go names the unit.
-  `TestUnusedStorageHelperUnitConfined` fails if those constraints drift. `Advance` stays
-  `BlockNoExecute`.
-- **Later PRs (not this one).** O-1 read-only probe (`PrivateDevices=no`, closed
-  `DeviceAllow`, SELinux/AppArmor). Execute wiring (ADR 0011 apply, T1 update, G1–G5).
-  Each needs its own independent security review.
+  `TestUnusedStorageHelperUnitConfined` fails if those constraints drift (duplicate
+  keys, sha256 snapshot). `Advance` stays `BlockNoExecute`.
+- **Later PRs (not this one).** O-1 read-only probe must, in the same PR: closed
+  `DeviceAllow` of named by-id nodes resolved at plan (no wildcards); decide
+  per-op transient unit vs persistent helper; choose `User=` deliberately (not
+  `homelab-control`); SELinux/AppArmor dedicated domain with a labelled helper
+  binary that transitions (do not repeat P2 `lib_t`/`init_t`; do not use
+  unconfined); limited read-only block-node access; AVC validation; identity
+  audit; timeouts and recovery (G5). Execute wiring is a separate PR (ADR 0011
+  apply, T1 update, G1–G5). Each needs its own independent security review.
 - **Proposed status.** This amendment remains subject to review and owner acceptance. It
   does not accept ADR 0008 for storage writes.

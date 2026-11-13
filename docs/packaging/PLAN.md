@@ -10,7 +10,8 @@
 ## Package contents (all formats)
 `/usr/bin/hc-api`, `/usr/bin/hlctl`, `/usr/lib/homelab-control/hc-broker`, four systemd units
 (`homelab-control.service`, `homelab-control-broker.socket`, `homelab-control-broker.service`,
-and unused closed `homelab-control-storage-helper.service`; hardened,
+and unused closed `homelab-control-storage-helper.service` with no `[Install]`/enable
+step — do not `systemctl enable` it; hardened,
 **not enabled on install**), sysusers entry for `homelab-control`, `/etc/homelab-control/hc-api.env` (conffile), license and notice files.
 Webmin is **not** bundled in the M0 package; upstream Webmin is installed separately from upstream or
 distro packages. Bundling `compat/webmin` (with module pruning per `MODULE-INVENTORY.md`) is an M1/M2
