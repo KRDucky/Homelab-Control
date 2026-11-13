@@ -33,7 +33,7 @@ post_install() {
 }
 post_upgrade() { post_install; }
 pre_remove() {
-  systemctl disable --now homelab-control.service homelab-control-broker.socket homelab-control-broker.service homelab-control-storage-helper.service >/dev/null 2>&1 || true
+  systemctl disable --now homelab-control.service homelab-control-broker.socket homelab-control-broker.service >/dev/null 2>&1 || true
 }
 INST
 cat > "$work/PKGBUILD" <<PKG

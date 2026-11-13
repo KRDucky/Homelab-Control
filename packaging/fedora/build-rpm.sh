@@ -61,7 +61,7 @@ fi
 
 %preun
 if [ \$1 -eq 0 ] && [ -d /run/systemd/system ]; then
-  systemctl --no-reload disable --now homelab-control.service homelab-control-broker.socket homelab-control-broker.service homelab-control-storage-helper.service >/dev/null 2>&1 || :
+  systemctl --no-reload disable --now homelab-control.service homelab-control-broker.socket homelab-control-broker.service >/dev/null 2>&1 || :
 fi
 
 %postun

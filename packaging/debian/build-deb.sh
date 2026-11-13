@@ -75,7 +75,7 @@ cat > "$stage/DEBIAN/prerm" <<'PRE'
 #!/bin/sh
 set -e
 if [ -d /run/systemd/system ] && [ "$1" = remove ]; then
-  systemctl stop homelab-control.service homelab-control-broker.service homelab-control-broker.socket homelab-control-storage-helper.service || true
+  systemctl stop homelab-control.service homelab-control-broker.service homelab-control-broker.socket || true
   systemctl disable homelab-control.service homelab-control-broker.socket >/dev/null 2>&1 || true
 fi
 PRE
