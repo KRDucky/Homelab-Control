@@ -60,7 +60,8 @@ not a merge, not production.
 `backend/internal/storagecap` is the shared P0 probe, install-plan preview, discovery gate,
 identity/extra-confirm types, and SHARED-02 operation phases (`Advance`). Probe is still
 `os.Stat` of well-known paths only. Install plans set `executes: false` (Software Center
-`/software?q=` only). `Advance` never enters execute: no storage broker templates, ADR 0011
+`/software?q=` only). The MergerFS install offer opens a review dialog (`executes: false`); it
+never POSTs a package. `Advance` never enters execute: no storage broker templates, ADR 0011
 apply unused here. `storageinfo.OverlapClaims` flags two unrelated stacks on one block node
 (layered LVM/md/crypt plus a matching filesystem is one stack). Collect still does not read
 `/dev/disk/by-id` (`PrivateDevices=yes`). Default is read-only. No storage mutation, no host
