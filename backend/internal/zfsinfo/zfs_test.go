@@ -6,6 +6,7 @@ package zfsinfo
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,9 +21,12 @@ const mountFixture = `36 29 0:28 / /tank/media rw,relatime shared:1 - zfs tank/m
 `
 
 func TestParseMountInfoKeepsOnlyZFS(t *testing.T) {
-	mounts, err := ParseMountInfo(strings.NewReader(mountFixture))
+	mounts, truncated, err := ParseMountInfo(strings.NewReader(mountFixture))
 	if err != nil {
 		t.Fatal(err)
+	}
+	if truncated {
+		t.Fatal("small fixture must not truncate")
 	}
 	if len(mounts) != 2 {
 		t.Fatalf("mounts: %+v", mounts)
@@ -37,12 +41,78 @@ func TestParseMountInfoKeepsOnlyZFS(t *testing.T) {
 
 func TestParseMountInfoSkipsAbsoluteAndDotDotDatasets(t *testing.T) {
 	in := "36 29 0:28 / /mnt/x rw - zfs /dev/sda1 rw\n37 29 0:29 / /mnt/y rw - zfs pool/../escape rw\n"
-	mounts, err := ParseMountInfo(strings.NewReader(in))
+	mounts, truncated, err := ParseMountInfo(strings.NewReader(in))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(mounts) != 0 {
-		t.Fatalf("accepted bad datasets: %+v", mounts)
+	if truncated || len(mounts) != 0 {
+		t.Fatalf("accepted bad datasets: %+v truncated=%v", mounts, truncated)
+	}
+}
+
+func zfsMountLine(id int) string {
+	return fmt.Sprintf("%d 29 0:%d / /tank/ds%d rw,relatime shared:1 - zfs tank/ds%d rw\n", 36+id, 28+id, id, id)
+}
+
+func TestParseMountInfoOneHundredZFS(t *testing.T) {
+	var b strings.Builder
+	for i := 0; i < 100; i++ {
+		b.WriteString(zfsMountLine(i))
+	}
+	mounts, truncated, err := ParseMountInfo(strings.NewReader(b.String()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if truncated || len(mounts) != 100 {
+		t.Fatalf("got %d truncated=%v", len(mounts), truncated)
+	}
+	if mounts[0].Dataset != "tank/ds0" || mounts[99].Dataset != "tank/ds99" {
+		t.Fatalf("first/last: %+v %+v", mounts[0], mounts[99])
+	}
+}
+
+func TestParseMountInfo300KiB(t *testing.T) {
+	var b strings.Builder
+	b.WriteString(zfsMountLine(0))
+	for i := 0; b.Len() < 300<<10; i++ {
+		fmt.Fprintf(&b, "%d 29 8:%d / /mnt/pad%d rw - ext4 /dev/sdx%d rw\n", 1000+i, i, i, i)
+	}
+	b.WriteString(zfsMountLine(1))
+	if b.Len() < 300<<10 {
+		t.Fatalf("fixture too small: %d", b.Len())
+	}
+	mounts, truncated, err := ParseMountInfo(strings.NewReader(b.String()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if truncated || len(mounts) != 2 {
+		t.Fatalf("300KiB: n=%d truncated=%v", len(mounts), truncated)
+	}
+}
+
+func TestParseMountInfoTruncatesZFSRows(t *testing.T) {
+	var b strings.Builder
+	for i := 0; i < zfsMaxMounts+4; i++ {
+		b.WriteString(zfsMountLine(i))
+	}
+	mounts, truncated, err := ParseMountInfo(strings.NewReader(b.String()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !truncated || len(mounts) != zfsMaxMounts {
+		t.Fatalf("overflow: n=%d truncated=%v want %d", len(mounts), truncated, zfsMaxMounts)
+	}
+	if mounts[0].Dataset != "tank/ds0" || mounts[zfsMaxMounts-1].Dataset != fmt.Sprintf("tank/ds%d", zfsMaxMounts-1) {
+		t.Fatalf("kept wrong rows: %+v %+v", mounts[0], mounts[len(mounts)-1])
+	}
+	if reasonTooManyMounts != "too many mounts to list" {
+		t.Fatalf("fixed overflow text: %q", reasonTooManyMounts)
+	}
+}
+
+func TestParseMountInfoInvalidRecordStillErrors(t *testing.T) {
+	if _, _, err := ParseMountInfo(strings.NewReader("not-a-mountinfo-line\n")); err == nil {
+		t.Fatal("invalid record must fail parse")
 	}
 }
 
@@ -167,11 +237,38 @@ func TestCollectPresentFromMounts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !snap.Zfs.Present || len(snap.Zfs.Mounts) != 2 {
+	if !snap.Zfs.Present || len(snap.Zfs.Mounts) != 2 || snap.Zfs.MountsTruncated {
 		t.Fatalf("%+v", snap.Zfs)
 	}
 	if !snap.KernelZfs.Present {
 		t.Fatalf("kernel: %+v", snap.KernelZfs)
+	}
+}
+
+func TestCollectTruncatedMounts(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "proc", "self"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "proc", "filesystems"), []byte("nodev\tzfs\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var b strings.Builder
+	for i := 0; i < zfsMaxMounts+1; i++ {
+		b.WriteString(zfsMountLine(i))
+	}
+	if err := os.WriteFile(filepath.Join(dir, "proc", "self", "mountinfo"), []byte(b.String()), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	snap, err := Collect(context.Background(), dir, "debian")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !snap.Zfs.Present || !snap.Zfs.MountsTruncated || len(snap.Zfs.Mounts) != zfsMaxMounts {
+		t.Fatalf("%+v", snap.Zfs)
+	}
+	if snap.Zfs.Reason != "" {
+		t.Fatalf("truncated inventory must stay present: %q", snap.Zfs.Reason)
 	}
 }
 

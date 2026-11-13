@@ -50,7 +50,10 @@ by nothing, including `storage.read`) probes the required `zfs` and `zpool` bina
 `/proc/filesystems` (never modprobe, never a device node). Debian/Ubuntu names `zfsutils-linux`;
 Fedora, SUSE, and Arch name no package (OpenZFS is not in those default archives; Homelab Control
 does not add a third-party repository). Observed `fstype=zfs` mounts come from bounded
-`/proc/self/mountinfo` (dataset source and mountpoint only; datasets are not opened). A missing
+`/proc/self/mountinfo` (dataset source and mountpoint only; datasets are not opened;
+parse limits match mergerfs at 4 MiB and 8192 records; zfs rows cap at 256 with
+`mountsTruncated` and the fixed text “too many mounts to list” rather than failing the
+inventory). A missing
 required package offers Software Center search (`/software?q=zfsutils-linux`) when the packages
 module is enabled and the session has `packages.read`. No POST install, `packages.manage`, pool
 create, import, export, destroy, or `zpool`/`zfs` execution exists. This is a checkpoint, not M7
