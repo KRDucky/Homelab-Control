@@ -34,9 +34,10 @@ type MergerFS struct {
 
 // Snapshot is the full read-only MergerFS + SnapRAID inventory.
 type Snapshot struct {
-	Tooling  Tooling  `json:"tooling"`
-	MergerFS MergerFS `json:"mergerfs"`
-	SnapRAID SnapRAID `json:"snapraid"`
+	Tooling  Tooling   `json:"tooling"`
+	MergerFS MergerFS  `json:"mergerfs"`
+	SnapRAID SnapRAID  `json:"snapraid"`
+	Warnings []Warning `json:"warnings"`
 }
 
 // mountinfoReadLimits match storageinfo.ParseMountInfo so a hostile or
@@ -190,6 +191,7 @@ func Collect(ctx context.Context, osRoot, snapraidPath, family string) (Snapshot
 		snap.MergerFS = MergerFS{Present: false, Reason: "mergerfs is not installed", Pools: []Pool{}}
 	}
 	snap.SnapRAID = ReadSnapRAID(snapraidPath)
+	snap.Warnings = HonestyWarnings(snap.MergerFS.Pools, snap.SnapRAID)
 	if err := ctx.Err(); err != nil {
 		return Snapshot{}, err
 	}

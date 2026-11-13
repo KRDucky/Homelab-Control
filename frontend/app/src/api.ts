@@ -1036,10 +1036,19 @@ export interface SnapRAIDInfo {
   content: string[];
 }
 
+export interface MergerFSWarning {
+  code: 'duplicate-branch' | 'parity-in-pool' | string;
+  pool: string;
+  branch: string;
+  other: string;
+  detail: string;
+}
+
 export interface MergerFSInventory {
   tooling: MergerFSTooling;
   mergerfs: MergerFSInfo;
   snapraid: SnapRAIDInfo;
+  warnings: MergerFSWarning[];
 }
 
 // Like storage/files/packages: this GET returns host mount and configuration
