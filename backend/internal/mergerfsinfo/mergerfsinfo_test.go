@@ -84,6 +84,9 @@ func TestCollectNoMountsNoConfig(t *testing.T) {
 	if snap.KernelFuse.Present || snap.KernelFuse.Reason != reasonFuseUnread {
 		t.Fatalf("kernel fuse without proc: %+v", snap.KernelFuse)
 	}
+	if snap.MergerFS.Configured == nil || len(snap.MergerFS.Configured) != 0 || snap.MergerFS.ConfiguredTruncated {
+		t.Fatalf("configured: %+v truncated=%v", snap.MergerFS.Configured, snap.MergerFS.ConfiguredTruncated)
+	}
 	if snap.Warnings == nil || len(snap.Warnings) != 0 || snap.WarningsTruncated {
 		t.Fatalf("warnings must be an empty list: %+v trunc=%v", snap.Warnings, snap.WarningsTruncated)
 	}
