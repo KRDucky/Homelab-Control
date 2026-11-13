@@ -61,8 +61,11 @@ not a merge, not production.
 identity/extra-confirm types, and SHARED-02 operation phases (`Advance`). Probe is still
 `os.Stat` of well-known paths only. Install plans set `executes: false` (Software Center
 `/software?q=` only). `Advance` never enters execute: no storage broker templates, ADR 0011
-apply unused here. Default is read-only. No storage mutation, no host package install.
-MergerFS tooling JSON is unchanged (types aliased). Not P0 complete, not M8, not production.
+apply unused here. `storageinfo.OverlapClaims` flags two unrelated stacks on one block node
+(layered LVM/md/crypt plus a matching filesystem is one stack). Collect still does not read
+`/dev/disk/by-id` (`PrivateDevices=yes`). Default is read-only. No storage mutation, no host
+package install. MergerFS tooling JSON is unchanged (types aliased). Not P0 complete, not M8,
+not production. Not ready for write tests.
 
 ## M2-3: expanded service management (development authorized 2026-11-04; working skeleton on main, not accepted)
 
