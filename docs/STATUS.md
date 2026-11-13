@@ -51,7 +51,10 @@ and optional `snapraid` (unprivileged `os.Stat` of well-known paths, no `os/exec
 modprobe). FUSE3 (`fusermount3`, package `fuse3`) is the supported baseline; FUSE2 `fusermount` is
 not probed. A missing `fuse` line is “not currently listed” (the module may load on first mount),
 not proof that mounts cannot work, and a listed line is not proof that a mount will succeed.
-It then shows observed `fuse.mergerfs` pools parsed from bounded `/proc/self/mountinfo`
+It then shows observed `fuse.mergerfs` pools parsed from bounded `/proc/self/mountinfo`, plus a
+read-only import of `/etc/fstab` and `/etc/systemd/system/*.mount` (O_NOFOLLOW, size and entry
+caps, 64 branches per entry; includes, drop-ins, generator units and symlinks never followed;
+listed paths never opened; `mounted` means a fuse.mergerfs mount exists at that mountpoint),
 and, when a `snapraid.conf` is readable, an optional SnapRAID section (`data`/`parity`/`content`
 paths only). A missing required package hides empty-pool pages and offers a Software Center search
 link (`/software?q=…`, when the packages module is enabled and the session has `packages.read`);
@@ -62,7 +65,7 @@ pool lists the same branch twice; data disks as branches are expected and are no
 Matching is path-based (`=RW`/`=NC`/`=RO` suffixes stripped); a missing warning is not proof.
 The warning list is capped (64 total, 8 per pool) with `warningsTruncated` when the cap or
 collect deadline hits.
-No pool create, mount, policy write, or
+No pool create, mount, policy write, fstab/unit write, or
 snapraid sync/diff/fix path exists; there are no broker ops. This is a checkpoint, not M8 acceptance,
 not a merge, not production.
 
