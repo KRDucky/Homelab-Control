@@ -10,6 +10,8 @@
 package guard
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -314,5 +316,197 @@ func TestUnusedStorageRootTemplateConfined(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+const storageHelperUnit = "homelab-control-storage-helper.service"
+
+// storageHelperUnitSHA256 pins the unused helper file. systemd uses the last
+// assignment of a key; any edit (including a later PrivateDevices=no) must
+// change this hash on purpose (H1).
+const storageHelperUnitSHA256 = "a08bf5b9ae1653acd9101487b72f094d3fcf1ca8a6d591a9b17974e903c9d4c9"
+
+func repoRoot(t *testing.T) string {
+	t.Helper()
+	backend, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return filepath.Join(backend, "..")
+}
+
+func unitAssignments(body, key string) []string {
+	var out []string
+	for _, line := range strings.Split(body, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "[") {
+			continue
+		}
+		if strings.HasPrefix(line, key+"=") {
+			out = append(out, strings.TrimPrefix(line, key+"="))
+		}
+	}
+	return out
+}
+
+// unitSettingLast returns systemd's effective value (last assignment). It
+// fails the test if a singleton key is set more than once.
+func unitSettingLast(t *testing.T, body, key string) (string, bool) {
+	t.Helper()
+	vals := unitAssignments(body, key)
+	if len(vals) == 0 {
+		return "", false
+	}
+	if len(vals) > 1 {
+		t.Errorf("unit key %s assigned %d times %q; systemd uses the last", key, len(vals), vals)
+	}
+	return vals[len(vals)-1], true
+}
+
+func unitHasKey(body, key string) bool {
+	return len(unitAssignments(body, key)) > 0
+}
+
+// TestUnusedStorageHelperUnitConfined is G3 unused-helper packaging: the unit
+// ships closed (no [Install], PrivateDevices=yes, no DeviceAllow, no caps,
+// ExecStart=/bin/false) and the broker unit is unchanged. Non-test Go must
+// not name the helper. This is not O-1 and not execute wiring.
+func TestUnusedStorageHelperUnitConfined(t *testing.T) {
+	root := repoRoot(t)
+	common := filepath.Join(root, "packaging", "common")
+	brokerB, err := os.ReadFile(filepath.Join(common, "homelab-control-broker.service"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	helperB, err := os.ReadFile(filepath.Join(common, storageHelperUnit))
+	if err != nil {
+		t.Fatal(err)
+	}
+	apiB, err := os.ReadFile(filepath.Join(common, "homelab-control.service"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	broker := string(brokerB)
+	helper := string(helperB)
+	api := string(apiB)
+
+	sum := sha256.Sum256(helperB)
+	gotHash := hex.EncodeToString(sum[:])
+	if gotHash != storageHelperUnitSHA256 {
+		t.Errorf("helper unit sha256=%s want %s; any edit must update this test (H1)", gotHash, storageHelperUnitSHA256)
+	}
+
+	nUnit, nService, nOther := 0, 0, 0
+	for _, line := range strings.Split(helper, "\n") {
+		switch strings.TrimSpace(line) {
+		case "[Unit]":
+			nUnit++
+		case "[Service]":
+			nService++
+		case "[Install]":
+			t.Error("helper must not have [Install]; it is unused")
+		default:
+			if strings.HasPrefix(strings.TrimSpace(line), "[") {
+				nOther++
+			}
+		}
+	}
+	if nUnit != 1 || nService != 1 || nOther != 0 {
+		t.Errorf("helper sections [Unit]=%d [Service]=%d other=%d; want 1/1/0", nUnit, nService, nOther)
+	}
+
+	if v, ok := unitSettingLast(t, broker, "PrivateDevices"); !ok || v != "yes" {
+		t.Errorf("broker PrivateDevices=%q; keep yes (do not widen the main broker)", v)
+	}
+	if v, ok := unitSettingLast(t, broker, "CapabilityBoundingSet"); !ok || v != "CAP_SETUID CAP_SETGID" {
+		t.Errorf("broker CapabilityBoundingSet=%q; do not add storage caps to the main broker", v)
+	}
+	if unitHasKey(broker, "DeviceAllow") {
+		t.Error("broker must not gain DeviceAllow")
+	}
+	if strings.Contains(broker, storageHelperUnit) || strings.Contains(api, storageHelperUnit) {
+		t.Error("api/broker units must not pull in the unused storage helper")
+	}
+
+	if v, ok := unitSettingLast(t, helper, "PrivateDevices"); !ok || v != "yes" {
+		t.Errorf("helper PrivateDevices=%q; unused helper cannot see disks", v)
+	}
+	if unitHasKey(helper, "DeviceAllow") {
+		t.Error("helper must not set DeviceAllow; that is O-1 / wiring")
+	}
+	if v, ok := unitSettingLast(t, helper, "CapabilityBoundingSet"); !ok || v != "" {
+		t.Errorf("helper CapabilityBoundingSet=%q; keep empty", v)
+	}
+	if v, ok := unitSettingLast(t, helper, "ExecStart"); !ok || v != "/bin/false" {
+		t.Errorf("helper ExecStart=%q; unused helper must not run a real binary", v)
+	}
+	if v, ok := unitSettingLast(t, helper, "RefuseManualStart"); !ok || v != "yes" {
+		t.Errorf("helper RefuseManualStart=%q; keep yes", v)
+	}
+	if v, ok := unitSettingLast(t, helper, "ConditionPathExists"); !ok || v != "/nonexistent-unused" {
+		t.Errorf("helper ConditionPathExists=%q; keep /nonexistent-unused", v)
+	}
+	for _, key := range []string{
+		"Restart", "User", "ExecStartPre", "ExecStartPost", "ExecStop",
+		"DeviceAllow", "WantedBy", "RequiredBy", "Also", "Alias",
+		"Wants", "Requires", "BindPaths", "BindReadOnlyPaths",
+	} {
+		if unitHasKey(helper, key) {
+			t.Errorf("helper must not set %s", key)
+		}
+	}
+
+	backend := filepath.Join(root, "backend")
+	err = filepath.WalkDir(backend, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() && (d.Name() == "testdata" || d.Name() == "node_modules") {
+			return filepath.SkipDir
+		}
+		if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if strings.Contains(string(b), storageHelperUnit) {
+			rel, _ := filepath.Rel(backend, path)
+			t.Errorf("%s names unused storage helper unit; keep it packaging-only until a wiring PR", rel)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, rel := range []string{
+		"packaging/debian/build-deb.sh",
+		"packaging/fedora/build-rpm.sh",
+		"packaging/arch/build-pkg.sh",
+	} {
+		b, err := os.ReadFile(filepath.Join(root, rel))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(b), storageHelperUnit) {
+			t.Errorf("%s does not ship %s", rel, storageHelperUnit)
+		}
+		needles := []string{
+			"enable --now", "systemctl enable", "preset",
+			"WantedBy", "Also=", "Alias=",
+			"systemctl stop", "disable --now",
+		}
+		for _, line := range strings.Split(string(b), "\n") {
+			if !strings.Contains(line, storageHelperUnit) {
+				continue
+			}
+			for _, n := range needles {
+				if strings.Contains(line, n) {
+					t.Errorf("%s must not %s the unused helper: %s", rel, n, strings.TrimSpace(line))
+				}
+			}
+		}
 	}
 }
