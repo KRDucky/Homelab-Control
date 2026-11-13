@@ -226,6 +226,7 @@ var rootExecNames = map[string]bool{
 	"RootSystemctlShowInstall": true, "RootSystemctlShow": true, "RootSystemctlShowManager": true,
 	"RootHostnamectlSetStatic": true, "RootHostnamectlSetPretty": true, "RootHostnamectlStatus": true,
 	"RootTimedatectlSetTimezone": true, "RootTimedatectlStatus": true, "RootTimedatectlListTimezones": true,
+	"RootMkfsExt4": true,
 }
 
 func TestRootExecConfined(t *testing.T) {

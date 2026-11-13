@@ -164,7 +164,7 @@ func TestConfirmNeverEntersExecute(t *testing.T) {
 	if op.Phase != PhaseConfirm || op.Block != BlockNoExecute {
 		t.Fatalf("execute must stay closed: %+v", op)
 	}
-	if !strings.Contains(op.Reason, "no storage broker templates") {
+	if !strings.Contains(op.Reason, "registered unused pending security review") {
 		t.Fatalf("reason: %q", op.Reason)
 	}
 }
