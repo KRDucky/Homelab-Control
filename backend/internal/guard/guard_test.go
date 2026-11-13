@@ -226,6 +226,7 @@ var rootExecNames = map[string]bool{
 	"RootSystemctlShowInstall": true, "RootSystemctlShow": true, "RootSystemctlShowManager": true,
 	"RootHostnamectlSetStatic": true, "RootHostnamectlSetPretty": true, "RootHostnamectlStatus": true,
 	"RootTimedatectlSetTimezone": true, "RootTimedatectlStatus": true, "RootTimedatectlListTimezones": true,
+	"RootMkfsExt4": true,
 }
 
 func TestRootExecConfined(t *testing.T) {
@@ -275,5 +276,43 @@ func TestRootExecConfined(t *testing.T) {
 		if !found[f] {
 			t.Errorf("%s is listed as a root-exec file but no longer references it; shrink the list", f)
 		}
+	}
+}
+
+// TestUnusedStorageRootTemplateConfined is T1 (PR #74 security review): the
+// unused storage template may be named only in runner.go until a wiring PR
+// updates this test. TestRootExecConfined allows every root-template ident in
+// any reviewed root-exec file; this one fails a one-line Root.Run of it.
+func TestUnusedStorageRootTemplateConfined(t *testing.T) {
+	root, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() && (d.Name() == "testdata" || d.Name() == "node_modules") {
+			return filepath.SkipDir
+		}
+		if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		rel, _ := filepath.Rel(root, path)
+		if rel == "internal/broker/runner/runner.go" {
+			return nil
+		}
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		s := string(b)
+		if strings.Contains(s, "RootMkfsExt4") || strings.Contains(s, "mkfs.ext4") {
+			t.Errorf("%s mentions unused storage root template; keep it in runner.go until the wiring PR", rel)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }

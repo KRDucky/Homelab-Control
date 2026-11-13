@@ -149,6 +149,7 @@ func TestAllowListedBinariesAreClosed(t *testing.T) {
 		"systemctl": true, "journalctl": true, "hostnamectl": true, "timedatectl": true,
 		// M4-1b (ADR 0008 Amendment 5, Proposed): read-only package managers.
 		"dpkg-query": true, "apt-cache": true, "apt": true, "rpm": true, "dnf": true, "zypper": true, "pacman": true,
+		"mkfs.ext4": true,
 	}
 	if len(allowlist) != len(want) {
 		t.Fatalf("allow-list changed (%d entries); new binaries need security review", len(allowlist))
@@ -186,6 +187,7 @@ func TestRootTemplatesAreClosed(t *testing.T) {
 		RootTimedatectlSetTimezone:   {"timedatectl --no-ask-password set-timezone -- Europe/Berlin", []string{"Europe/Berlin"}},
 		RootTimedatectlStatus:        {"timedatectl --no-ask-password status", nil},
 		RootTimedatectlListTimezones: {"timedatectl --no-ask-password list-timezones", nil},
+		RootMkfsExt4:                 {"mkfs.ext4 -q -- /dev/disk/by-id/virtio-mmvtestdisk01", []string{"/dev/disk/by-id/virtio-mmvtestdisk01"}},
 	}
 	if len(rootTemplates) != len(want) {
 		t.Fatalf("%d root templates, want %d — new root templates need review", len(rootTemplates), len(want))
@@ -202,7 +204,8 @@ func TestRootTemplatesAreClosed(t *testing.T) {
 		}
 	}
 	for _, unknown := range []RootTemplate{"systemctl.mask", "systemctl.unmask", "systemctl.daemon-reload", "systemctl.edit", "systemctl.reenable", "systemctl.preset", "systemctl.link",
-		"hostnamectl.set-chassis", "timedatectl.set-ntp", "timedatectl.set-time"} {
+		"hostnamectl.set-chassis", "timedatectl.set-ntp", "timedatectl.set-time",
+		"mkfs.xfs", "zpool.create", "wipefs"} {
 		if _, err := RootArgv(unknown, "demo.service"); !errors.Is(err, ErrUnknownTemplate) {
 			t.Errorf("unknown template %s: %v", unknown, err)
 		}
@@ -296,6 +299,66 @@ func TestRootTargetValidation(t *testing.T) {
 		if !strings.HasPrefix(a, "--property=") && a != "show" && a != "--no-pager" && a != "--" {
 			t.Errorf("unexpected show argument %q", a)
 		}
+	}
+}
+
+func TestRootMkfsExt4StorageByID(t *testing.T) {
+	ok := []string{
+		"/dev/disk/by-id/virtio-mmvtestdisk01",
+		"/dev/disk/by-id/wwn-0x5000c500a1b2c3d4",
+		"/dev/disk/by-id/wwn-0x5000c500a1b2c3d4-part1",
+		"/dev/disk/by-id/nvme-eui.0025385b71b0c123",
+		"/dev/disk/by-id/nvme-uuid.123e4567-e89b-12d3-a456-426614174000",
+		"/dev/disk/by-id/ata-SAMSUNG_SSD_850_EVO_500GB_S21NNXAG123456",
+		"/dev/disk/by-id/scsi-35000c500a1b2c3d4",
+	}
+	for _, p := range ok {
+		if argv, err := RootArgv(RootMkfsExt4, p); err != nil || len(argv) != 3 || argv[0] != "-q" || argv[1] != "--" || argv[2] != p {
+			t.Errorf("accept %s: %v %v", p, argv, err)
+		}
+	}
+	bad := []string{
+		"",
+		"/dev/sda",
+		"/dev/vda",
+		"/dev/nvme0n1",
+		"/dev/disk/by-path/pci-0000:00:01.0",
+		"/dev/disk/by-id/dm-name-vg-lv",
+		"/dev/disk/by-id/lvm-pv-uuid-abc",
+		"/dev/disk/by-id/md-uuid-1234:5678",
+		"/dev/disk/by-id/nvme-Samsung_SSD_980",
+		"/dev/disk/by-id/../sda",
+		"/dev/disk/by-id/virtio-foo/../../sda",
+		"/dev/disk/by-id/virtio-foo bar",
+		"/dev/disk/by-id/virtio-..hidden",
+		"/dev/disk/by-id/usb-SanDisk_123",
+		"/dev/disk/by-id/virtio-mmvtestdisk01\n",
+		"/dev/disk/by-id/wwn-0x5000c500a1b2c3d4-part1000",
+		"/dev/disk/by-id/wwn-0x",
+		"/dev/disk/by-id/wwn-0x5",
+		"/dev/disk/by-id/virtio-",
+		"/dev/disk/by-id/WWN-0x5000c500a1b2c3d4",
+		"/dev/disk/by-id/virtio-" + strings.Repeat("a", 200),
+		strings.Repeat("a", 20),
+	}
+	for _, p := range bad {
+		if _, err := RootArgv(RootMkfsExt4, p); !errors.Is(err, ErrBadArg) {
+			t.Errorf("reject %q: %v", p, err)
+		}
+	}
+	if _, err := RootArgv(RootMkfsExt4); !errors.Is(err, ErrBadArg) {
+		t.Errorf("no target: %v", err)
+	}
+	if _, err := RootArgv(RootMkfsExt4, ok[0], ok[1]); !errors.Is(err, ErrBadArg) {
+		t.Errorf("two targets: %v", err)
+	}
+	for _, a := range rootTemplates[RootMkfsExt4].argv {
+		if a == "-F" || a == "--force" {
+			t.Errorf("mkfs.ext4 must not force: %q", a)
+		}
+	}
+	if _, ok := allowlist[rootTemplates[RootMkfsExt4].binary]; !ok {
+		t.Fatal("mkfs.ext4 binary missing from allow-list")
 	}
 }
 
