@@ -381,3 +381,52 @@ func TestPlanPlannedRdevDisagreesWithFacts(t *testing.T) {
 		t.Fatalf("plan rdev mismatch: %+v", op)
 	}
 }
+
+func TestSharedRdevBlocked(t *testing.T) {
+	d := wwnDisk()
+	other := DeviceRef{Kind: IdentitySerial, Value: "WD-WCC4E1234567"}
+	op := Op{
+		Phase:          PhaseConfirm,
+		Tooling:        debianReady(),
+		Devices:        []DeviceRef{d, other},
+		IdentityDigest: DigestDevices([]DeviceRef{d, other}),
+		PlannedRdev:    []string{"8:1", "8:1"},
+		Preflight: []DevicePreflight{
+			{Device: d, BlockDevice: true, Rdev: "8:1"},
+			{Device: other, BlockDevice: true, Rdev: "8:1"},
+		},
+	}
+	op = Advance(op)
+	if op.Block != BlockDuplicateDevice {
+		t.Fatalf("shared rdev: %+v", op)
+	}
+}
+
+func TestWwnCaseAliasBlocked(t *testing.T) {
+	lower := wwnDisk()
+	upper := DeviceRef{Kind: IdentityWWN, Value: strings.ToUpper(lower.Value)}
+	op := Op{
+		Phase:   PhasePreflight,
+		Devices: []DeviceRef{lower, upper},
+		Tooling: debianReady(),
+	}
+	op = Advance(op)
+	if op.Block != BlockDuplicateDevice {
+		t.Fatalf("wwn case: %+v", op)
+	}
+}
+
+func TestPlanWrongLengthPlannedRdev(t *testing.T) {
+	d := wwnDisk()
+	op := Op{
+		Phase:       PhasePlan,
+		Tooling:     debianReady(),
+		Devices:     []DeviceRef{d},
+		PlannedRdev: []string{"8:1", "8:2"},
+		Preflight:   readyPreflight(d),
+	}
+	op = Advance(op)
+	if op.Block != BlockPreflightMissing || op.Phase != PhasePlan {
+		t.Fatalf("wrong length: %+v", op)
+	}
+}
