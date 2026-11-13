@@ -92,6 +92,11 @@ const (
 	// parsed snapraid.conf, with no writes and no broker ops. Not in
 	// DefaultScopes and implied by nothing, including storage.read.
 	ScopeMergerFSRead = "mergerfs.read"
+	// ScopeZFSRead allows the read-only OpenZFS inventory (M7 first
+	// checkpoint): observed zfs mounts and zfs/zpool binary presence, with
+	// no writes, no broker ops, and no zpool/zfs execution. Not in
+	// DefaultScopes and implied by nothing, including storage.read.
+	ScopeZFSRead = "zfs.read"
 )
 
 // KnownScopes lists every scope the server understands. Unknown scopes in the
@@ -119,6 +124,7 @@ var KnownScopes = map[string]bool{
 	ScopeFilesRead:            true,
 	ScopePackagesRead:         true,
 	ScopeMergerFSRead:         true,
+	ScopeZFSRead:              true,
 }
 
 // DefaultScopes are granted by `hlctl user add` when --scopes is not given.

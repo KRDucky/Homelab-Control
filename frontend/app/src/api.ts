@@ -148,6 +148,7 @@ export interface Capability {
     | 'files'
     | 'packages'
     | 'mergerfs'
+    | 'zfs'
     | 'traefik';
   label: string;
   path: string;
@@ -1093,6 +1094,47 @@ export interface MergerFSInventory {
 // paths, so it is access-audited and requires the session CSRF token.
 export function getMergerFS(csrf: string): Promise<MergerFSInventory> {
   return request<MergerFSInventory>('/api/v1/mergerfs', { headers: { 'X-CSRF-Token': csrf } });
+}
+
+// ---- M7 first checkpoint: OpenZFS (read-only) --------------------------------
+
+export interface ZFSToolItem {
+  id: string;
+  package: string;
+  installed: boolean;
+  binary: string;
+}
+
+export interface ZFSTooling {
+  family: string;
+  required: ZFSToolItem[];
+  optional: ZFSToolItem[];
+}
+
+export interface ZFSMount {
+  mountpoint: string;
+  dataset: string;
+}
+
+export interface ZFSInfo {
+  present: boolean;
+  reason: string;
+  mounts: ZFSMount[];
+}
+
+export interface ZFSKernel {
+  present: boolean;
+  reason: string;
+}
+
+export interface ZFSInventory {
+  tooling: ZFSTooling;
+  zfs: ZFSInfo;
+  kernelZfs: ZFSKernel;
+}
+
+export function getZFS(csrf: string): Promise<ZFSInventory> {
+  return request<ZFSInventory>('/api/v1/zfs', { headers: { 'X-CSRF-Token': csrf } });
 }
 
 // Read-only Traefik helper integration. The browser never receives helper credentials.
