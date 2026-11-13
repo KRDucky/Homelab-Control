@@ -57,11 +57,12 @@ not a merge, not production.
 
 ## P0 storage shared (development; not production, not ADR 0014)
 
-`backend/internal/storagecap` is the shared P0 probe, install-plan preview, discovery gate, and
-identity/extra-confirm types. Probe is still `os.Stat` of well-known paths only. Install plans set
-`executes: false` (Software Center `/software?q=` only). Default is read-only. No storage mutation,
-no broker storage templates, no host package install. MergerFS tooling JSON is unchanged (types
-aliased). Not P0 complete, not M8, not production.
+`backend/internal/storagecap` is the shared P0 probe, install-plan preview, discovery gate,
+identity/extra-confirm types, and SHARED-02 operation phases (`Advance`). Probe is still
+`os.Stat` of well-known paths only. Install plans set `executes: false` (Software Center
+`/software?q=` only). `Advance` never enters execute: no storage broker templates, ADR 0011
+apply unused here. Default is read-only. No storage mutation, no host package install.
+MergerFS tooling JSON is unchanged (types aliased). Not P0 complete, not M8, not production.
 
 ## M2-3: expanded service management (development authorized 2026-11-04; working skeleton on main, not accepted)
 
