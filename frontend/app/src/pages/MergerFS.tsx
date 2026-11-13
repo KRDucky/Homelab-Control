@@ -56,6 +56,7 @@ export function MergerFSView({
 }) {
   const { tooling, mergerfs, snapraid } = data;
   const kernelFuse = data.kernelFuse;
+  const kernelRelease = data.kernelRelease;
   const missingRequired = tooling.required.filter((t) => !t.installed);
   const mergerfsTool = tooling.required.find((t) => t.id === 'mergerfs');
   const mergerfsMissing = mergerfsTool ? !mergerfsTool.installed : false;
@@ -72,9 +73,11 @@ export function MergerFSView({
         <p className="page-sub">
           Read-only observations. Pooling is not redundancy or RAID. SnapRAID parity must not be a pool
           branch. Matching is path-based; a missing warning is not proof. FUSE3 fusermount3 and kernel FUSE
-          are probed here; this page does not load modules. fstab and systemd mount units are listed, not
-          written. Capacity is measured per live branch of a root-owned mount, not the fused mount. smartctl
-          is probed, not run; disks are not opened. No pool, mount or SnapRAID configuration is changed here.
+          are probed here; this page does not load modules. Kernel release is read from
+          /proc/sys/kernel/osrelease; mergerfs --version is not run. fstab and systemd mount units are listed,
+          not written. Capacity is measured per live branch of a root-owned mount, not the fused mount.
+          smartctl is probed, not run; disks are not opened. No pool, mount or SnapRAID configuration is
+          changed here.
         </p>
       </header>
       {error && (
@@ -98,6 +101,16 @@ export function MergerFSView({
             This page does not load kernel modules.
           </p>
         )}
+        {kernelRelease?.present ? (
+          <p>
+            Kernel release <code>{kernelRelease.release}</code> from <code>/proc/sys/kernel/osrelease</code>.
+          </p>
+        ) : kernelRelease ? (
+          <p className="banner" role="status">
+            {kernelRelease.reason || 'Could not read /proc/sys/kernel/osrelease.'} mergerfs --version is not
+            run.
+          </p>
+        ) : null}
       </section>
 
       <section className="panel" aria-labelledby="mergerfs-pools-heading">
