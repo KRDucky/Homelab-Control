@@ -47,7 +47,10 @@ acceptance, not a merge, not production; ADR 0008 Amendment 5 remains Proposed.
 One read-only page at `/storage/mergerfs` (module id `mergerfs`, scope `mergerfs.read`, never default
 and implied by nothing) probes the required `mergerfs` and optional `snapraid` binaries (unprivileged
 `os.Stat` of well-known paths, no `os/exec`, no `packages.installed`), then shows observed
-`fuse.mergerfs` pools parsed from bounded `/proc/self/mountinfo` and, when a `snapraid.conf` is
+`fuse.mergerfs` pools parsed from bounded `/proc/self/mountinfo`, plus a read-only import of
+`/etc/fstab` and `/etc/systemd/system/*.mount` (O_NOFOLLOW, size and entry caps, 64 branches per
+entry; includes, drop-ins, generator units and symlinks never followed; listed paths never opened;
+`mounted` means a fuse.mergerfs mount exists at that mountpoint), and, when a `snapraid.conf` is
 readable, an optional SnapRAID section (`data`/`parity`/`content` paths only). A missing required
 package hides pools and offers a Software Center search link (`/software?q=…`, when the packages
 module is enabled and the session has `packages.read`); no POST install or `packages.manage` exists.
@@ -57,7 +60,7 @@ pool lists the same branch twice; data disks as branches are expected and are no
 Matching is path-based (`=RW`/`=NC`/`=RO` suffixes stripped); a missing warning is not proof.
 The warning list is capped (64 total, 8 per pool) with `warningsTruncated` when the cap or
 collect deadline hits.
-No pool create, mount, policy write, or
+No pool create, mount, policy write, fstab/unit write, or
 snapraid sync/diff/fix path exists; there are no broker ops. This is a checkpoint, not M8 acceptance,
 not a merge, not production.
 

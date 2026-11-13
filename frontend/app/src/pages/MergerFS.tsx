@@ -65,8 +65,8 @@ export function MergerFSView({
         <h1 className="page-title">MergerFS</h1>
         <p className="page-sub">
           Read-only observations. Pooling is not redundancy or RAID. SnapRAID parity must not be a pool
-          branch. Matching is path-based; a missing warning is not proof. No pool, mount or SnapRAID
-          configuration is changed here.
+          branch. Matching is path-based; a missing warning is not proof. fstab and systemd mount units are
+          listed, not written. No pool, mount or SnapRAID configuration is changed here.
         </p>
       </header>
       {error && (
@@ -109,6 +109,31 @@ export function MergerFSView({
         ) : (
           <p className="banner" role="alert">
             Mount inventory could not be read; observed pools cannot be listed.
+          </p>
+        )}
+      </section>
+
+      <section className="panel" aria-labelledby="mergerfs-configured-heading">
+        <header className="panel-head">
+          <h2 id="mergerfs-configured-heading">Configured mounts</h2>
+        </header>
+        <p>
+          Read-only import of regular files at <code>/etc/fstab</code> and{' '}
+          <code>/etc/systemd/system/*.mount</code>. File contents only: drop-ins,{' '}
+          <code>/run/systemd/generator</code>, and symlinked or masked units are not read. This page does not
+          mount, unmount, or write units.
+        </p>
+        {mergerfs.configuredTruncated && (
+          <p className="banner" role="status">
+            Some configured entries were omitted because the import limit was reached.
+          </p>
+        )}
+        {(mergerfs.configured ?? []).length > 0 ? (
+          <ConfiguredMounts items={mergerfs.configured} />
+        ) : (
+          <p className="empty">
+            No regular mergerfs fstab lines or systemd mount units were imported. Symlinked, masked, or
+            generated units are not read.
           </p>
         )}
       </section>
@@ -195,6 +220,41 @@ function InstallOffer({
       </button>
       {open && <InstallPlanDialog title={label} pkg={pkg} onClose={() => setOpen(false)} />}
     </>
+  );
+}
+
+function ConfiguredMounts({ items }: { items: NonNullable<MergerFSInventory['mergerfs']['configured']> }) {
+  return (
+    <ul className="pool-list">
+      {items.map((item, i) => (
+        <li key={`${i}:${item.origin}:${item.path}:${item.mountpoint}`}>
+          <code>{item.mountpoint}</code>
+          <dl>
+            <dt>Source</dt>
+            <dd>
+              {item.origin === 'systemd' ? (
+                <>
+                  systemd <code>{item.unit || item.path}</code>
+                </>
+              ) : (
+                <>
+                  fstab <code>{item.path}</code>
+                </>
+              )}
+            </dd>
+            <dt>Branches</dt>
+            <dd>
+              {item.branches.length > 0 ? item.branches.join(', ') : '—'}
+              {item.branchesTruncated ? ' (truncated)' : ''}
+            </dd>
+            <dt>Mounted</dt>
+            <dd>
+              {item.mounted ? 'a mergerfs mount is present at this mountpoint' : 'not currently mounted'}
+            </dd>
+          </dl>
+        </li>
+      ))}
+    </ul>
   );
 }
 
