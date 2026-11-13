@@ -1021,10 +1021,22 @@ export interface MergerFSPool {
   options: string[];
 }
 
+export interface MergerFSConfiguredMount {
+  origin: 'fstab' | 'systemd' | string;
+  path: string;
+  unit?: string;
+  mountpoint: string;
+  branches: string[];
+  options: string[];
+  mounted: boolean;
+}
+
 export interface MergerFSInfo {
   present: boolean;
   reason: string;
   pools: MergerFSPool[];
+  configured: MergerFSConfiguredMount[];
+  configuredTruncated?: boolean;
 }
 
 export interface SnapRAIDInfo {

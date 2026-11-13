@@ -939,7 +939,7 @@ components:
                   binary: { type: string }
         mergerfs:
           type: object
-          required: [present, reason, pools]
+          required: [present, reason, pools, configured]
           properties:
             present: { type: boolean }
             reason: { type: string }
@@ -952,6 +952,21 @@ components:
                   mountpoint: { type: string }
                   branches: { type: array, items: { type: string } }
                   options: { type: array, items: { type: string } }
+            configured:
+              type: array
+              maxItems: 64
+              items:
+                type: object
+                required: [origin, path, mountpoint, branches, options, mounted]
+                properties:
+                  origin: { type: string, enum: [fstab, systemd] }
+                  path: { type: string }
+                  unit: { type: string }
+                  mountpoint: { type: string }
+                  branches: { type: array, items: { type: string } }
+                  options: { type: array, items: { type: string } }
+                  mounted: { type: boolean }
+            configuredTruncated: { type: boolean }
         snapraid:
           type: object
           required: [present, reason, configPath, data, parity, content]
@@ -1831,11 +1846,13 @@ paths:
       summary: Read-only MergerFS pool inventory and optional SnapRAID configuration (scope mergerfs.read).
       description: >
         Parses bounded /proc/self/mountinfo for fuse.mergerfs mounts (mountpoint, colon-separated
-        absolute branches, mergerfs-relevant options only) and one configured snapraid.conf
-        (data/parity/content absolute paths only; includes never followed; listed paths never opened).
-        No pool create, mount, policy write, or snapraid sync/diff/fix path exists. A missing
-        snapraid.conf is normal (SnapRAID is optional), not an error. Origin and X-CSRF-Token are
-        required; audit records counts only, never branch or data paths.
+        absolute branches, mergerfs-relevant options only), read-only /etc/fstab and
+        /etc/systemd/system/*.mount (O_NOFOLLOW, size and entry caps; includes never followed),
+        and one configured snapraid.conf (data/parity/content absolute paths only; includes never
+        followed; listed paths never opened). No pool create, mount, policy write, fstab/unit
+        write, or snapraid sync/diff/fix path exists. A missing snapraid.conf is normal (SnapRAID
+        is optional), not an error. Origin and X-CSRF-Token are required; audit records counts
+        only, never branch, data, or unit paths.
       security: [{ session: [] }]
       x-required-scope: mergerfs.read
       parameters:

@@ -47,12 +47,14 @@ acceptance, not a merge, not production; ADR 0008 Amendment 5 remains Proposed.
 One read-only page at `/storage/mergerfs` (module id `mergerfs`, scope `mergerfs.read`, never default
 and implied by nothing) probes the required `mergerfs` and optional `snapraid` binaries (unprivileged
 `os.Stat` of well-known paths, no `os/exec`, no `packages.installed`), then shows observed
-`fuse.mergerfs` pools parsed from bounded `/proc/self/mountinfo` and, when a `snapraid.conf` is
+`fuse.mergerfs` pools parsed from bounded `/proc/self/mountinfo`, plus a read-only import of
+`/etc/fstab` and `/etc/systemd/system/*.mount` (O_NOFOLLOW, size and entry caps; includes never
+followed; listed paths never opened), and, when a `snapraid.conf` is
 readable, an optional SnapRAID section (`data`/`parity`/`content` paths only). A missing required
 package hides pools and offers a Software Center search link (`/software?q=…`, when the packages
 module is enabled and the session has `packages.read`); no POST install or `packages.manage` exists.
-SnapRAID is never implied by a mergerfs pool. No pool create, mount, policy write, or
-snapraid sync/diff/fix path exists; there are no broker ops. This is a checkpoint, not M8 acceptance,
+SnapRAID is never implied by a mergerfs pool. No pool create, mount, policy write, fstab/unit
+write, or snapraid sync/diff/fix path exists; there are no broker ops. This is a checkpoint, not M8 acceptance,
 not a merge, not production.
 
 ## P0 storage shared (development; not production, not ADR 0014)
