@@ -910,7 +910,7 @@ components:
               third_party: { type: boolean }
     MergerFSInventory:
       type: object
-      required: [tooling, mergerfs, snapraid, kernelFuse, warnings, warningsTruncated]
+      required: [tooling, mergerfs, snapraid, kernelFuse, kernelRelease, warnings, warningsTruncated]
       properties:
         tooling:
           type: object
@@ -929,6 +929,7 @@ components:
                   binary: { type: string }
             optional:
               type: array
+              description: Optional tools (snapraid, smartctl, and others). Clients match items by id; order is not a contract.
               items:
                 type: object
                 required: [id, package, installed, binary]
@@ -1007,6 +1008,19 @@ components:
           description: Read-only /proc/filesystems probe for the fuse type (listed, not ready). Never loads a module, never opens /dev/fuse. FUSE3 fusermount3 is the supported baseline.
           properties:
             present: { type: boolean }
+            reason: { type: string }
+        kernelRelease:
+          type: object
+          required: [present, release, reason]
+          additionalProperties: false
+          description: >
+            Read-only /proc/sys/kernel/osrelease probe (kernel utsname release). Never runs
+            uname or mergerfs --version. Invalid or unreadable content is present=false with
+            fixed text; the raw bytes are not echoed. Informational; missing release does not
+            degrade capability.
+          properties:
+            present: { type: boolean }
+            release: { type: string, maxLength: 64 }
             reason: { type: string }
         warnings:
           type: array
@@ -1906,9 +1920,11 @@ paths:
         paths, and listed SnapRAID paths are not opened as such. Capacity uses its own budget and
         does not fail the inventory. Required tooling is mergerfs plus FUSE3 fusermount3
         (package fuse3, the supported baseline; FUSE2 fusermount is not probed); optional tooling is
-        snapraid and smartctl (package smartmontools; never executed, no disk opened); kernelFuse is a
-        read-only /proc/filesystems probe (fuse type only; fusectl/fuseblk do not count; listed is
-        not proof a mount will succeed). warnings lists read-only honesty findings (duplicate
+        snapraid and smartctl (package smartmontools; never executed, no disk opened); clients match
+        tooling items by id. kernelFuse is a read-only /proc/filesystems probe (fuse type only;
+        fusectl/fuseblk do not count; listed is not proof a mount will succeed). kernelRelease is a
+        read-only /proc/sys/kernel/osrelease probe (never uname, never mergerfs --version; missing
+        does not degrade capability). warnings lists read-only honesty findings (duplicate
         branches; SnapRAID parity on a pool branch or the fused mount). Matching is path-based; a
         missing warning is not proof. warningsTruncated is true when the list was capped. Pooling is
         not RAID. No pool create, mount, policy write, fstab/unit write, module load, or snapraid
