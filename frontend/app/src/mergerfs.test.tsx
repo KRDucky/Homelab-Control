@@ -31,10 +31,12 @@ function inventory(opts: {
   fusermount3Installed?: boolean;
   kernelFusePresent?: boolean;
   smartctlInstalled?: boolean;
+  kernelReleasePresent?: boolean;
 }): MergerFSInventory {
   const fusermount3Installed = opts.fusermount3Installed ?? true;
   const kernelFusePresent = opts.kernelFusePresent ?? true;
   const smartctlInstalled = opts.smartctlInstalled ?? true;
+  const kernelReleasePresent = opts.kernelReleasePresent ?? true;
   return {
     tooling: {
       family: 'debian',
@@ -89,6 +91,9 @@ function inventory(opts: {
           reason:
             'The kernel FUSE filesystem is not currently listed in /proc/filesystems (the module may load on first mount).',
         },
+    kernelRelease: kernelReleasePresent
+      ? { present: true, release: '6.8.0-hc-test', reason: '' }
+      : { present: false, release: '', reason: 'Could not read /proc/sys/kernel/osrelease.' },
     warnings: [],
     warningsTruncated: false,
   };
@@ -346,6 +351,36 @@ describe('MergerFS read-only page', () => {
     expect(within(dialog).getByRole('link', { name: 'Open Software Center' }).getAttribute('href')).toBe(
       '/software?q=fuse3',
     );
+  });
+
+  it('shows kernel release from osrelease without running uname', async () => {
+    vi.mocked(getMergerFS).mockResolvedValue(
+      inventory({
+        mergerfsInstalled: true,
+        snapraidInstalled: true,
+        mergerfsPresent: true,
+        snapraidPresent: false,
+      }),
+    );
+    render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
+    expect(await screen.findByText('6.8.0-hc-test')).toBeTruthy();
+    expect(screen.getByText(/mergerfs --version is not run/)).toBeTruthy();
+  });
+
+  it('reports unread kernel release without mutating controls', async () => {
+    vi.mocked(getMergerFS).mockResolvedValue(
+      inventory({
+        mergerfsInstalled: true,
+        snapraidInstalled: true,
+        mergerfsPresent: true,
+        snapraidPresent: false,
+        kernelReleasePresent: false,
+      }),
+    );
+    render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
+    expect(await screen.findByText(/Could not read \/proc\/sys\/kernel\/osrelease/)).toBeTruthy();
+    expect(screen.getByText('/mnt/media')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Install mergerfs' })).toBeNull();
   });
 
   it('reports missing kernel FUSE without mutating controls', async () => {
