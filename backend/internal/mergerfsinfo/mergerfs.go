@@ -42,12 +42,13 @@ type MergerFS struct {
 
 // Snapshot is the full read-only MergerFS + SnapRAID inventory.
 type Snapshot struct {
-	Tooling           Tooling    `json:"tooling"`
-	MergerFS          MergerFS   `json:"mergerfs"`
-	SnapRAID          SnapRAID   `json:"snapraid"`
-	KernelFuse        KernelFuse `json:"kernelFuse"`
-	Warnings          []Warning  `json:"warnings"`
-	WarningsTruncated bool       `json:"warningsTruncated"`
+	Tooling           Tooling       `json:"tooling"`
+	MergerFS          MergerFS      `json:"mergerfs"`
+	SnapRAID          SnapRAID      `json:"snapraid"`
+	KernelFuse        KernelFuse    `json:"kernelFuse"`
+	KernelRelease     KernelRelease `json:"kernelRelease"`
+	Warnings          []Warning     `json:"warnings"`
+	WarningsTruncated bool          `json:"warningsTruncated"`
 }
 
 // mountinfoReadLimits match storageinfo.ParseMountInfo so a hostile or
@@ -182,11 +183,13 @@ func collectMounts(osRoot string) ([]Pool, error) {
 
 // Collect reads mergerfs pools, optional fstab/systemd declarations, and the
 // optional snapraid.conf, and probes the required (mergerfs, fusermount3) and
-// optional (snapraid, smartctl) binaries plus kernel FUSE from /proc/filesystems.
-// smartctl is never executed and no disk is opened. Missing or unreadable
-// inputs become present=false with a reason. Only context cancellation of the
-// non-capacity work returns an error (the caller maps it to 503). Capacity
-// uses its own budget.
+// optional (snapraid, smartctl) binaries plus kernel FUSE from /proc/filesystems
+// and kernel release from /proc/sys/kernel/osrelease. smartctl is never
+// executed, uname is never run, and mergerfs --version is never run. Missing
+// or unreadable inputs become present=false with a reason. Only context
+// cancellation of the non-capacity work returns an error (the caller maps it
+// to 503). Capacity uses its own budget. Kernel release is informational and
+// never degrades ProbeCapability.
 func Collect(ctx context.Context, osRoot, snapraidPath, family string) (Snapshot, error) {
 	if err := ctx.Err(); err != nil {
 		return Snapshot{}, err
@@ -194,6 +197,7 @@ func Collect(ctx context.Context, osRoot, snapraidPath, family string) (Snapshot
 	var snap Snapshot
 	snap.Tooling = ProbeTooling(family)
 	snap.KernelFuse = ProbeKernelFuse(osRoot)
+	snap.KernelRelease = ProbeKernelRelease(osRoot)
 	pools, err := collectMounts(osRoot)
 	if pools == nil {
 		pools = []Pool{}

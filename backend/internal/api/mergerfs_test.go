@@ -36,6 +36,7 @@ func mergerfsFake() func(context.Context) (mergerfsinfo.Snapshot, error) {
 			}},
 			SnapRAID:          mergerfsinfo.SnapRAID{Present: true, ConfigPath: "/etc/snapraid.conf", Data: []string{"/mnt/disk1"}, Parity: []string{"/mnt/parity1"}, Content: []string{"/var/snapraid/content"}},
 			KernelFuse:        mergerfsinfo.KernelFuse{Present: true},
+			KernelRelease:     mergerfsinfo.KernelRelease{Present: true, Release: "6.8.0-hc-test"},
 			Warnings:          []mergerfsinfo.Warning{},
 			WarningsTruncated: false,
 		}, nil
@@ -78,6 +79,9 @@ func TestMergerFSReadsAndAuditsCountsOnly(t *testing.T) {
 	}
 	if !strings.Contains(rr.Body.String(), `"smartctl"`) || !strings.Contains(rr.Body.String(), `"smartmontools"`) {
 		t.Fatalf("body missing smartctl: %s", rr.Body)
+	}
+	if !strings.Contains(rr.Body.String(), `"kernelRelease"`) || !strings.Contains(rr.Body.String(), `6.8.0-hc-test`) {
+		t.Fatalf("body missing kernelRelease: %s", rr.Body)
 	}
 	auditLine := h.audit.String()
 	if !strings.Contains(auditLine, "mergerfs.inventory.read") || !strings.Contains(auditLine, "pools=1") || !strings.Contains(auditLine, "configured=1") || !strings.Contains(auditLine, "snapraid=true") {
