@@ -31,11 +31,17 @@ function inventory(opts: {
   fusermount3Installed?: boolean;
   kernelFusePresent?: boolean;
   smartctlInstalled?: boolean;
+  dumpe2fsInstalled?: boolean;
+  xfsInfoInstalled?: boolean;
+  btrfsInstalled?: boolean;
   kernelReleasePresent?: boolean;
 }): MergerFSInventory {
   const fusermount3Installed = opts.fusermount3Installed ?? true;
   const kernelFusePresent = opts.kernelFusePresent ?? true;
   const smartctlInstalled = opts.smartctlInstalled ?? true;
+  const dumpe2fsInstalled = opts.dumpe2fsInstalled ?? true;
+  const xfsInfoInstalled = opts.xfsInfoInstalled ?? true;
+  const btrfsInstalled = opts.btrfsInstalled ?? true;
   const kernelReleasePresent = opts.kernelReleasePresent ?? true;
   return {
     tooling: {
@@ -62,6 +68,9 @@ function inventory(opts: {
           opts.snapraidInstalled ? '/usr/bin/snapraid' : '',
         ),
         item('smartctl', 'smartmontools', smartctlInstalled, smartctlInstalled ? '/usr/sbin/smartctl' : ''),
+        item('dumpe2fs', 'e2fsprogs', dumpe2fsInstalled, dumpe2fsInstalled ? '/usr/sbin/dumpe2fs' : ''),
+        item('xfs_info', 'xfsprogs', xfsInfoInstalled, xfsInfoInstalled ? '/usr/sbin/xfs_info' : ''),
+        item('btrfs', 'btrfs-progs', btrfsInstalled, btrfsInstalled ? '/usr/bin/btrfs' : ''),
       ],
     },
     mergerfs: opts.mergerfsPresent
@@ -269,6 +278,7 @@ describe('MergerFS read-only page', () => {
       '/software?q=snapraid',
     );
     expect(screen.queryByText(/smartctl is optional/)).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Underlying filesystems' })).toBeNull();
   });
 
   it('shows the optional-missing smartmontools offer without opening disks', async () => {
@@ -297,6 +307,40 @@ describe('MergerFS read-only page', () => {
     expect(within(dialog).getByRole('link', { name: 'Open Software Center' }).getAttribute('href')).toBe(
       '/software?q=smartmontools',
     );
+    expect(screen.queryByRole('heading', { name: 'Underlying filesystems' })).toBeNull();
+  });
+
+  it('shows the underlying filesystem tools offer without formatting disks', async () => {
+    vi.mocked(getMergerFS).mockResolvedValue(
+      inventory({
+        mergerfsInstalled: true,
+        snapraidInstalled: true,
+        mergerfsPresent: true,
+        snapraidPresent: false,
+        dumpe2fsInstalled: false,
+        xfsInfoInstalled: false,
+        btrfsInstalled: false,
+      }),
+    );
+    render(
+      <MergerFS
+        csrf={csrf}
+        scopes={['packages.read']}
+        packagesEnabled={true}
+        onUnauthorized={onUnauthorized}
+      />,
+    );
+    expect(await screen.findByRole('heading', { name: 'Underlying filesystems' })).toBeTruthy();
+    expect(screen.getByText(/inspect branch filesystems/)).toBeTruthy();
+    expect(screen.getByText(/does not run them or format disks/)).toBeTruthy();
+    expect(screen.getByText(/Underlying filesystem tools are probed, not run/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Add e2fsprogs' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Add e2fsprogs' });
+    expect(within(dialog).getByRole('link', { name: 'Open Software Center' }).getAttribute('href')).toBe(
+      '/software?q=e2fsprogs',
+    );
+    expect(screen.getByRole('button', { name: 'Add xfsprogs' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Add btrfs-progs' })).toBeTruthy();
   });
 
   it('renders the SnapRAID config block only when a config is present', async () => {

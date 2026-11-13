@@ -46,8 +46,9 @@ acceptance, not a merge, not production; ADR 0008 Amendment 5 remains Proposed.
 
 One read-only page at `/storage/mergerfs` (module id `mergerfs`, scope `mergerfs.read`, never default
 and implied by nothing) probes the required `mergerfs` and `fusermount3` (package `fuse3`) binaries
-and optional `snapraid` and `smartctl` (unprivileged `os.Stat` of well-known paths, no `os/exec`, no
-`packages.installed`, never `smartctl` run, never a disk opened), plus kernel FUSE from bounded
+and optional `snapraid`, `smartctl`, `dumpe2fs`, `xfs_info`, and `btrfs` (unprivileged `os.Stat` of
+well-known paths, no `os/exec`, no `packages.installed`, never those binaries run, never a disk
+opened or formatted), plus kernel FUSE from bounded
 `/proc/filesystems` (never `/dev/fuse`, never modprobe) and kernel release from bounded
 `/proc/sys/kernel/osrelease` (visible to `mergerfs.read` without `system.read`; never `uname`, never
 `mergerfs --version`; unread is not degraded). FUSE3 (`fusermount3`, package `fuse3`) is the

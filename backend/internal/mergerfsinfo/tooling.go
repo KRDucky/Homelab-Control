@@ -24,12 +24,16 @@ var (
 	fusermount3BinaryPaths = []string{"/usr/bin/fusermount3", "/usr/sbin/fusermount3"}
 	snapraidBinaryPaths    = []string{"/usr/bin/snapraid", "/usr/sbin/snapraid"}
 	smartctlBinaryPaths    = []string{"/usr/sbin/smartctl", "/usr/bin/smartctl"}
+	dumpe2fsBinaryPaths    = []string{"/usr/sbin/dumpe2fs", "/usr/bin/dumpe2fs"}
+	xfsInfoBinaryPaths     = []string{"/usr/sbin/xfs_info", "/usr/bin/xfs_info"}
+	btrfsBinaryPaths       = []string{"/usr/bin/btrfs", "/usr/sbin/btrfs"}
 )
 
 // ProbeTooling reports binary presence with family-adapted package names. It
 // never spawns a process and never calls the package manager. fusermount3 is
-// required (FUSE3 mount helper, package fuse3); snapraid and smartctl stay
-// optional. smartctl is never executed and no disk is opened.
+// required (FUSE3 mount helper, package fuse3); snapraid, smartctl, dumpe2fs,
+// xfs_info, and btrfs stay optional. Those optional tools are never executed
+// and no disk is opened or formatted.
 func ProbeTooling(family string) Tooling {
 	return probeTooling(family, storagecap.RealStat)
 }
@@ -41,18 +45,25 @@ func probeTooling(family string, stat storagecap.StatFunc) Tooling {
 		}
 		return ""
 	}
+	btrfsPkg := pkg("btrfs-progs")
+	if family == "suse" {
+		btrfsPkg = pkg("btrfsprogs")
+	}
 	return storagecap.Probe(family, []storagecap.Spec{
 		{ID: "mergerfs", Package: pkg("mergerfs"), Paths: mergerfsBinaryPaths, Required: true},
 		{ID: "fusermount3", Package: pkg("fuse3"), Paths: fusermount3BinaryPaths, Required: true},
 		{ID: "snapraid", Package: pkg("snapraid"), Paths: snapraidBinaryPaths, Required: false},
 		{ID: "smartctl", Package: pkg("smartmontools"), Paths: smartctlBinaryPaths, Required: false},
+		{ID: "dumpe2fs", Package: pkg("e2fsprogs"), Paths: dumpe2fsBinaryPaths, Required: false},
+		{ID: "xfs_info", Package: pkg("xfsprogs"), Paths: xfsInfoBinaryPaths, Required: false},
+		{ID: "btrfs", Package: btrfsPkg, Paths: btrfsBinaryPaths, Required: false},
 	}, stat)
 }
 
 // ProbeCapability is the cheap capabilities GET probe: binary Stat plus one
 // /proc/filesystems read. It never reads mountinfo or snapraid.conf. Missing
 // required binaries or kernel FUSE is degraded (page still mounts). Missing
-// snapraid or smartctl never degrades.
+// snapraid, smartctl, dumpe2fs, xfs_info, or btrfs never degrades.
 func ProbeCapability(family string) (available bool, reason string) {
 	return probeCapability(family, storagecap.RealStat, "/")
 }
