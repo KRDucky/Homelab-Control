@@ -81,6 +81,9 @@ func TestCollectNoMountsNoConfig(t *testing.T) {
 	if snap.SnapRAID.Present || snap.SnapRAID.Reason != "optional: no snapraid.conf" {
 		t.Fatalf("snapraid: %+v", snap.SnapRAID)
 	}
+	if snap.MergerFS.Configured == nil || len(snap.MergerFS.Configured) != 0 || snap.MergerFS.ConfiguredTruncated {
+		t.Fatalf("configured: %+v truncated=%v", snap.MergerFS.Configured, snap.MergerFS.ConfiguredTruncated)
+	}
 }
 
 func TestCollectParseFailureFailsClosed(t *testing.T) {

@@ -35,8 +35,9 @@ func (s *Server) mergerfsProtectedGET(w http.ResponseWriter, r *http.Request, se
 
 // handleMergerFS serves the read-only MergerFS + optional SnapRAID inventory.
 // No pool create, mount, policy write, or snapraid sync/diff/fix path exists:
-// this endpoint only parses bounded /proc/self/mountinfo and one configured
-// snapraid.conf, and opens none of the listed branch or data paths.
+// this endpoint only parses bounded /proc/self/mountinfo, /etc/fstab, systemd
+// .mount units, and one configured snapraid.conf, and opens none of the listed
+// branch or data paths.
 func (s *Server) handleMergerFS(w http.ResponseWriter, r *http.Request, sess *auth.Session, _ string) {
 	if !s.mergerfsProtectedGET(w, r, sess) {
 		return
@@ -60,8 +61,8 @@ func (s *Server) handleMergerFS(w http.ResponseWriter, r *http.Request, sess *au
 		writeError(w, http.StatusServiceUnavailable, "mergerfs_unavailable", "MergerFS inventory could not be collected safely.")
 		return
 	}
-	// Audit counts only, never branch, data, parity or content paths.
-	detail := "pools=" + strconv.Itoa(len(snap.MergerFS.Pools)) + " snapraid=" + strconv.FormatBool(snap.SnapRAID.Present)
+	// Audit counts only, never branch, data, parity, content or unit paths.
+	detail := "pools=" + strconv.Itoa(len(snap.MergerFS.Pools)) + " configured=" + strconv.Itoa(len(snap.MergerFS.Configured)) + " snapraid=" + strconv.FormatBool(snap.SnapRAID.Present)
 	if err := s.auditLog("mergerfs.inventory.read", sess.Username, r, "returned", detail); err != nil {
 		writeError(w, http.StatusServiceUnavailable, "audit_unavailable", "MergerFS inventory cannot be returned because its access could not be audited.")
 		return

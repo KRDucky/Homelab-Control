@@ -3,9 +3,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // Package mergerfsinfo is the unprivileged, read-only MergerFS + optional
-// SnapRAID inventory (M8 first checkpoint). It reads bounded kernel mountinfo
-// and a single administrator-configured snapraid.conf, and never opens branch
-// or data paths, never writes, and never executes a program.
+// SnapRAID inventory (M8 first checkpoint). It reads bounded kernel mountinfo,
+// /etc/fstab, systemd .mount units, and a single administrator-configured
+// snapraid.conf, and never opens branch or data paths, never writes, and never
+// executes a program.
 package mergerfsinfo
 
 import (
@@ -27,9 +28,11 @@ type Pool struct {
 
 // MergerFS is the mergerfs half of the response.
 type MergerFS struct {
-	Present bool   `json:"present"`
-	Reason  string `json:"reason"`
-	Pools   []Pool `json:"pools"`
+	Present             bool              `json:"present"`
+	Reason              string            `json:"reason"`
+	Pools               []Pool            `json:"pools"`
+	Configured          []ConfiguredMount `json:"configured"`
+	ConfiguredTruncated bool              `json:"configuredTruncated,omitempty"`
 }
 
 // Snapshot is the full read-only MergerFS + SnapRAID inventory.
@@ -167,10 +170,11 @@ func collectMounts(osRoot string) ([]Pool, error) {
 	return ParseMountInfo(f)
 }
 
-// Collect reads mergerfs pools and the optional snapraid.conf, and probes the
-// required (mergerfs) and optional (snapraid) binaries. It never fails on a
-// missing or unreadable input: those become present=false with a reason. Only
-// context cancellation returns an error (the caller maps it to 503).
+// Collect reads mergerfs pools, optional fstab/systemd declarations, and the
+// optional snapraid.conf, and probes the required (mergerfs) and optional
+// (snapraid) binaries. It never fails on a missing or unreadable input: those
+// become present=false with a reason. Only context cancellation returns an
+// error (the caller maps it to 503).
 func Collect(ctx context.Context, osRoot, snapraidPath, family string) (Snapshot, error) {
 	if err := ctx.Err(); err != nil {
 		return Snapshot{}, err
@@ -178,16 +182,28 @@ func Collect(ctx context.Context, osRoot, snapraidPath, family string) (Snapshot
 	var snap Snapshot
 	snap.Tooling = ProbeTooling(family)
 	pools, err := collectMounts(osRoot)
+	if pools == nil {
+		pools = []Pool{}
+	}
+	configured, truncated := collectConfigured(ctx, osRoot, pools)
+	base := MergerFS{Pools: pools, Configured: configured, ConfiguredTruncated: truncated}
 	if err != nil {
 		// A mount inventory that cannot be parsed must not read as a healthy
 		// empty pool list; report it honestly with fixed text (no error string).
-		snap.MergerFS = MergerFS{Present: false, Reason: "mount inventory could not be read", Pools: []Pool{}}
+		// Configured fstab/systemd entries are still returned.
+		base.Present = false
+		base.Reason = "mount inventory could not be read"
+		base.Pools = []Pool{}
+		snap.MergerFS = base
 	} else if snap.Tooling.RequiredInstalled("mergerfs") || len(pools) > 0 {
 		// mergerfs.present prefers the binary gate; a parsed mount without the
 		// binary is still listed (empty pools without a binary is not a fake page).
-		snap.MergerFS = MergerFS{Present: true, Pools: pools}
+		base.Present = true
+		snap.MergerFS = base
 	} else {
-		snap.MergerFS = MergerFS{Present: false, Reason: "mergerfs is not installed", Pools: []Pool{}}
+		base.Present = false
+		base.Reason = "mergerfs is not installed"
+		snap.MergerFS = base
 	}
 	snap.SnapRAID = ReadSnapRAID(snapraidPath)
 	if err := ctx.Err(); err != nil {
