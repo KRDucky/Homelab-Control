@@ -18,28 +18,31 @@ import (
 // unit. It is a read-only import: Collect never writes fstab or unit files
 // and never mounts or unmounts.
 type ConfiguredMount struct {
-	Origin     string   `json:"origin"`
-	Path       string   `json:"path"`
-	Unit       string   `json:"unit,omitempty"`
-	Mountpoint string   `json:"mountpoint"`
-	Branches   []string `json:"branches"`
-	Options    []string `json:"options"`
-	Mounted    bool     `json:"mounted"`
+	Origin            string   `json:"origin"`
+	Path              string   `json:"path"`
+	Unit              string   `json:"unit,omitempty"`
+	Mountpoint        string   `json:"mountpoint"`
+	Branches          []string `json:"branches"`
+	Options           []string `json:"options"`
+	Mounted           bool     `json:"mounted"`
+	BranchesTruncated bool     `json:"branchesTruncated,omitempty"`
 }
 
 const (
-	originFstab         = "fstab"
-	originSystemd       = "systemd"
-	fstabDisplayPath    = "/etc/fstab"
-	systemdDirDisplay   = "/etc/systemd/system"
-	fstabRel            = "etc/fstab"
-	systemdDirRel       = "etc/systemd/system"
-	fstabMaxBytes       = 256 << 10
-	unitMaxBytes        = 64 << 10
-	configuredMax       = 64
-	systemdDirMaxNames  = 512
-	configuredFieldMax  = 256
-	configuredScanEvery = 32
+	originFstab           = "fstab"
+	originSystemd         = "systemd"
+	fstabDisplayPath      = "/etc/fstab"
+	systemdDirDisplay     = "/etc/systemd/system"
+	fstabRel              = "etc/fstab"
+	systemdDirRel         = "etc/systemd/system"
+	fstabMaxBytes         = 256 << 10
+	unitMaxBytes          = 64 << 10
+	configuredMax         = 64
+	configuredBranchesMax = 64
+	systemdDirMaxNames    = 4096
+	systemdDirBatch       = 64
+	configuredFieldMax    = 256
+	configuredScanEvery   = 32
 )
 
 // collectConfigured reads bounded /etc/fstab and /etc/systemd/system/*.mount
@@ -138,16 +141,18 @@ func parseFstabLine(line string) (ConfiguredMount, bool) {
 	if !ok || !branchesOK(branches) {
 		return ConfiguredMount{}, false
 	}
+	branches, brTrunc := clipBranches(branches)
 	opts := []string{}
 	if len(fields) >= 4 {
 		opts = parseOptions(fields[3])
 	}
 	return ConfiguredMount{
-		Origin:     originFstab,
-		Path:       fstabDisplayPath,
-		Mountpoint: file,
-		Branches:   branches,
-		Options:    opts,
+		Origin:            originFstab,
+		Path:              fstabDisplayPath,
+		Mountpoint:        file,
+		Branches:          branches,
+		Options:           opts,
+		BranchesTruncated: brTrunc,
 	}, true
 }
 
@@ -163,18 +168,36 @@ func appendSystemd(ctx context.Context, root *os.Root, out []ConfiguredMount, li
 		return out, truncated
 	}
 	defer d.Close()
-	names, err := d.Readdirnames(systemdDirMaxNames + 1)
-	if err != nil {
-		return out, truncated
-	}
-	if len(names) > systemdDirMaxNames {
-		names = names[:systemdDirMaxNames]
-		truncated = true
-	}
-	mounts := make([]string, 0, len(names))
-	for _, name := range names {
-		if validMountUnitName(name) {
-			mounts = append(mounts, name)
+	// Skip non-.mount names while reading so a busy directory of .wants
+	// symlinks does not drop later .mount files at an arbitrary cutoff.
+	mounts := []string{}
+	scanned := 0
+	for {
+		if ctx.Err() != nil {
+			return out, truncated
+		}
+		batch, readErr := d.Readdirnames(systemdDirBatch)
+		for _, name := range batch {
+			scanned++
+			if scanned > systemdDirMaxNames {
+				truncated = true
+				break
+			}
+			if validMountUnitName(name) {
+				mounts = append(mounts, name)
+			}
+		}
+		if truncated {
+			break
+		}
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			return out, truncated
+		}
+		if len(batch) == 0 {
+			break
 		}
 	}
 	sort.Strings(mounts)
@@ -238,13 +261,15 @@ func readSystemdUnit(root *os.Root, name string) (ConfiguredMount, bool) {
 	if !ok || !branchesOK(branches) {
 		return ConfiguredMount{}, false
 	}
+	branches, brTrunc := clipBranches(branches)
 	return ConfiguredMount{
-		Origin:     originSystemd,
-		Path:       systemdDirDisplay + "/" + name,
-		Unit:       name,
-		Mountpoint: where,
-		Branches:   branches,
-		Options:    parseOptions(options),
+		Origin:            originSystemd,
+		Path:              systemdDirDisplay + "/" + name,
+		Unit:              name,
+		Mountpoint:        where,
+		Branches:          branches,
+		Options:           parseOptions(options),
+		BranchesTruncated: brTrunc,
 	}, true
 }
 
@@ -310,6 +335,14 @@ func branchesOK(branches []string) bool {
 		}
 	}
 	return len(branches) > 0
+}
+
+func clipBranches(branches []string) ([]string, bool) {
+	if len(branches) <= configuredBranchesMax {
+		return branches, false
+	}
+	out := append([]string(nil), branches[:configuredBranchesMax]...)
+	return out, true
 }
 
 func unquote(s string) string {

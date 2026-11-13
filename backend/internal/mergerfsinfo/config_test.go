@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -246,5 +247,80 @@ func TestValidMountUnitName(t *testing.T) {
 		if validMountUnitName(name) {
 			t.Fatalf("accepted %q", name)
 		}
+	}
+}
+
+func TestCollectConfiguredCapsBranchesAndDropsSecrets(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "etc"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var spec strings.Builder
+	for i := 0; i < configuredBranchesMax+8; i++ {
+		if i > 0 {
+			spec.WriteByte(':')
+		}
+		fmt.Fprintf(&spec, "/d%d", i)
+	}
+	line := spec.String() + " /mnt/many fuse.mergerfs defaults,password=hunter2,user=secret 0 0\n"
+	if err := os.WriteFile(filepath.Join(dir, "etc", "fstab"), []byte(line), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, _ := collectConfigured(context.Background(), dir, nil)
+	if len(cfg) != 1 || len(cfg[0].Branches) != configuredBranchesMax || !cfg[0].BranchesTruncated {
+		t.Fatalf("branch cap: %+v", cfg)
+	}
+	opts := strings.Join(cfg[0].Options, ",")
+	if strings.Contains(opts, "password") || strings.Contains(opts, "hunter2") || strings.Contains(opts, "user=secret") {
+		t.Fatalf("credentials retained: %q", opts)
+	}
+}
+
+func TestCollectConfiguredSkipsIncludeOversizedFIFOAndBadUTF8(t *testing.T) {
+	dir := t.TempDir()
+	sysd := filepath.Join(dir, "etc", "systemd", "system")
+	if err := os.MkdirAll(sysd, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	includeUnit := "[Mount]\n.include /etc/secret\nWhat=/a:/b\nWhere=/mnt/inc\nType=fuse.mergerfs\n"
+	if err := os.WriteFile(filepath.Join(sysd, "mnt-inc.mount"), []byte(includeUnit), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	big := "[Mount]\nWhat=/a:/b\nWhere=/mnt/big\nType=fuse.mergerfs\nOptions=" + strings.Repeat("x", unitMaxBytes) + "\n"
+	if err := os.WriteFile(filepath.Join(sysd, "mnt-big.mount"), []byte(big), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Mkfifo(filepath.Join(sysd, "fifo.mount"), 0o600); err != nil {
+		t.Skip("filesystem does not support FIFOs")
+	}
+	fstab := "/mnt/a:/mnt/b /mnt/\xff fuse.mergerfs defaults 0 0\n"
+	if err := os.WriteFile(filepath.Join(dir, "etc", "fstab"), []byte(fstab), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, _ := collectConfigured(context.Background(), dir, nil)
+	if len(cfg) != 0 {
+		t.Fatalf("include/oversize/fifo/utf8 must skip: %+v", cfg)
+	}
+}
+
+func TestCollectConfiguredFindsMountAfterNonMountNames(t *testing.T) {
+	dir := t.TempDir()
+	sysd := filepath.Join(dir, "etc", "systemd", "system")
+	if err := os.MkdirAll(sysd, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < systemdDirBatch+8; i++ {
+		name := fmt.Sprintf("dummy-%d.wants", i)
+		if err := os.WriteFile(filepath.Join(sysd, name), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	unit := "[Mount]\nWhat=/mnt/a:/mnt/b\nWhere=/mnt/late\nType=fuse.mergerfs\n"
+	if err := os.WriteFile(filepath.Join(sysd, "mnt-late.mount"), []byte(unit), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, truncated := collectConfigured(context.Background(), dir, nil)
+	if truncated || len(cfg) != 1 || cfg[0].Mountpoint != "/mnt/late" {
+		t.Fatalf("late .mount dropped: truncated=%v %+v", truncated, cfg)
 	}
 }

@@ -245,7 +245,9 @@ describe('MergerFS read-only page', () => {
       expect(screen.queryByRole('button', { name })).toBeNull();
     }
     expect(screen.getByRole('heading', { name: 'Configured mounts' })).toBeTruthy();
-    expect(screen.getByText(/No mergerfs entries in fstab or systemd mount units/)).toBeTruthy();
+    expect(screen.getByText(/No regular mergerfs fstab lines/)).toBeTruthy();
+    expect(screen.getByText(/drop-ins/)).toBeTruthy();
+    expect(screen.getByText(/Symlinked, masked, or generated units are not read/)).toBeTruthy();
   });
 
   it('lists fstab and systemd configured mounts without mount controls', async () => {
@@ -263,6 +265,7 @@ describe('MergerFS read-only page', () => {
         branches: ['/mnt/disk1', '/mnt/disk2'],
         options: ['allow_other'],
         mounted: true,
+        branchesTruncated: true,
       },
       {
         origin: 'systemd',
@@ -277,8 +280,9 @@ describe('MergerFS read-only page', () => {
     vi.mocked(getMergerFS).mockResolvedValue(data);
     render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
     expect(await screen.findByRole('heading', { name: 'Configured mounts' })).toBeTruthy();
-    expect(screen.getByText('currently mounted')).toBeTruthy();
+    expect(screen.getByText('a mergerfs mount is present at this mountpoint')).toBeTruthy();
     expect(screen.getByText('not currently mounted')).toBeTruthy();
+    expect(screen.getByText(/\(truncated\)/)).toBeTruthy();
     expect(screen.getByText('mnt-idle.mount')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Mount' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Unmount' })).toBeNull();

@@ -117,8 +117,10 @@ export function MergerFSView({
           <h2 id="mergerfs-configured-heading">Configured mounts</h2>
         </header>
         <p>
-          Read-only import of <code>/etc/fstab</code> and <code>/etc/systemd/system/*.mount</code>. This page
-          does not mount, unmount, or write units.
+          Read-only import of regular files at <code>/etc/fstab</code> and{' '}
+          <code>/etc/systemd/system/*.mount</code>. File contents only: drop-ins,{' '}
+          <code>/run/systemd/generator</code>, and symlinked or masked units are not read. This page does not
+          mount, unmount, or write units.
         </p>
         {mergerfs.configuredTruncated && (
           <p className="banner" role="status">
@@ -128,7 +130,10 @@ export function MergerFSView({
         {(mergerfs.configured ?? []).length > 0 ? (
           <ConfiguredMounts items={mergerfs.configured} />
         ) : (
-          <p className="empty">No mergerfs entries in fstab or systemd mount units.</p>
+          <p className="empty">
+            No regular mergerfs fstab lines or systemd mount units were imported. Symlinked, masked, or
+            generated units are not read.
+          </p>
         )}
       </section>
 
@@ -198,8 +203,8 @@ function InstallOffer({
 function ConfiguredMounts({ items }: { items: NonNullable<MergerFSInventory['mergerfs']['configured']> }) {
   return (
     <ul className="pool-list">
-      {items.map((item) => (
-        <li key={`${item.origin}:${item.path}:${item.mountpoint}`}>
+      {items.map((item, i) => (
+        <li key={`${i}:${item.origin}:${item.path}:${item.mountpoint}`}>
           <code>{item.mountpoint}</code>
           <dl>
             <dt>Source</dt>
@@ -215,9 +220,14 @@ function ConfiguredMounts({ items }: { items: NonNullable<MergerFSInventory['mer
               )}
             </dd>
             <dt>Branches</dt>
-            <dd>{item.branches.length > 0 ? item.branches.join(', ') : '—'}</dd>
+            <dd>
+              {item.branches.length > 0 ? item.branches.join(', ') : '—'}
+              {item.branchesTruncated ? ' (truncated)' : ''}
+            </dd>
             <dt>Mounted</dt>
-            <dd>{item.mounted ? 'currently mounted' : 'not currently mounted'}</dd>
+            <dd>
+              {item.mounted ? 'a mergerfs mount is present at this mountpoint' : 'not currently mounted'}
+            </dd>
           </dl>
         </li>
       ))}
