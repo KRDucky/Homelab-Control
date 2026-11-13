@@ -11,7 +11,7 @@ import (
 
 // Phase is one step of the SHARED-02 mutating storage state machine.
 // Execute is typed here so later broker templates can plug in; P0 never
-// reaches it (mkfs.ext4 is registered unused; DefaultReadOnly).
+// reaches it (storage root template registered unused; DefaultReadOnly).
 type Phase string
 
 const (
@@ -39,7 +39,7 @@ const (
 	BlockEmptyDevice     Block = "device-required"
 )
 
-const blockNoExecuteReason = "P0 storage writes are not implemented; mkfs.ext4 root template is registered unused pending security review. ADR 0011 apply is unused here."
+const blockNoExecuteReason = "P0 storage writes are not implemented; a storage root template is registered unused pending security review. ADR 0011 apply is unused here."
 
 // DeviceRef is one persist/write identity. Kernel names are display-only
 // and cannot confirm.
