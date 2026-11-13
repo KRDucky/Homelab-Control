@@ -70,6 +70,7 @@ function inventory(opts: {
           content: [],
         },
     warnings: [],
+    warningsTruncated: false,
   };
 }
 
@@ -241,8 +242,23 @@ describe('MergerFS read-only page', () => {
     vi.mocked(getMergerFS).mockResolvedValue(data);
     render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
     expect(await screen.findByRole('heading', { name: 'Honesty warnings' })).toBeTruthy();
-    expect(screen.getByText(/pooling is not redundancy/i)).toBeTruthy();
+    expect(
+      screen.getByText('SnapRAID parity sits on a mergerfs branch; pooling is not redundancy'),
+    ).toBeTruthy();
     expect(screen.getByText('/mnt/parity/snapraid.parity')).toBeTruthy();
+  });
+
+  it('reports truncated warnings without mutating controls', async () => {
+    const data = inventory({
+      mergerfsInstalled: true,
+      snapraidInstalled: true,
+      mergerfsPresent: true,
+      snapraidPresent: false,
+    });
+    data.warningsTruncated = true;
+    vi.mocked(getMergerFS).mockResolvedValue(data);
+    render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
+    expect(await screen.findByText('Further warnings omitted.')).toBeTruthy();
   });
 
   it('has no mutating controls in the DOM', async () => {
