@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestParseKernelFuse(t *testing.T) {
@@ -155,5 +156,19 @@ func TestProbeCapabilityDegradedPerItem(t *testing.T) {
 	ok, reason = probeCapability("debian", both, empty)
 	if ok || reason != reasonFuseUnread {
 		t.Fatalf("missing fuse: ok=%v reason=%q", ok, reason)
+	}
+}
+
+func TestClipCapabilityReasonRuneSafe(t *testing.T) {
+	prefix := strings.Repeat("a", capabilityReasonMax-1)
+	got := clipCapabilityReason(prefix + "é")
+	if !utf8.ValidString(got) {
+		t.Fatalf("invalid utf8: %q", got)
+	}
+	if got != prefix {
+		t.Fatalf("got %q want prefix of %d a's", got, capabilityReasonMax-1)
+	}
+	if len(clipCapabilityReason(strings.Repeat("b", capabilityReasonMax))) != capabilityReasonMax {
+		t.Fatal("exact-length ASCII must be unchanged")
 	}
 }
