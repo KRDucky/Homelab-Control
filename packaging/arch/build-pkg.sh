@@ -20,7 +20,7 @@ pkgver=$(hc_arch_pkgver "$ver_in")
 work=${HC_MAKEPKG_DIR:-/tmp/homelab-control-makepkg}
 rm -rf "$work"; mkdir -p "$work"; trap 'rm -rf "$work"' EXIT
 cp "$root/build/hc-api" "$root/build/hc-broker" "$root/build/hlctl" "$work/"
-cp "$root"/packaging/common/{homelab-control.service,homelab-control-broker.service,homelab-control-broker.socket,sysusers.conf,hc-api.env} "$work/"
+cp "$root"/packaging/common/{homelab-control.service,homelab-control-broker.service,homelab-control-broker.socket,homelab-control-storage-helper.service,sysusers.conf,hc-api.env} "$work/"
 cp "$root/LICENSE.md" "$root/NOTICE.md" "$root/README.md" "$root/docs/compliance/THIRD-PARTY-NOTICES.md" "$work/"
 cat > "$work/homelab-control.install" <<'INST'
 post_install() {
@@ -33,7 +33,7 @@ post_install() {
 }
 post_upgrade() { post_install; }
 pre_remove() {
-  systemctl disable --now homelab-control.service homelab-control-broker.socket homelab-control-broker.service >/dev/null 2>&1 || true
+  systemctl disable --now homelab-control.service homelab-control-broker.socket homelab-control-broker.service homelab-control-storage-helper.service >/dev/null 2>&1 || true
 }
 INST
 cat > "$work/PKGBUILD" <<PKG
@@ -48,14 +48,14 @@ depends=('systemd')
 backup=('etc/homelab-control/hc-api.env')
 install=homelab-control.install
 options=('!debug' '!strip')
-source=(hc-api hc-broker hlctl homelab-control.service homelab-control-broker.service homelab-control-broker.socket sysusers.conf hc-api.env LICENSE.md NOTICE.md THIRD-PARTY-NOTICES.md README.md)
-sha256sums=(SKIP SKIP SKIP SKIP SKIP SKIP SKIP SKIP SKIP SKIP SKIP SKIP)
+source=(hc-api hc-broker hlctl homelab-control.service homelab-control-broker.service homelab-control-broker.socket homelab-control-storage-helper.service sysusers.conf hc-api.env LICENSE.md NOTICE.md THIRD-PARTY-NOTICES.md README.md)
+sha256sums=(SKIP SKIP SKIP SKIP SKIP SKIP SKIP SKIP SKIP SKIP SKIP SKIP SKIP)
 
 package() {
   install -Dm0755 hc-api "\$pkgdir/usr/bin/hc-api"
   install -Dm0755 hlctl "\$pkgdir/usr/bin/hlctl"
   install -Dm0755 hc-broker "\$pkgdir/usr/lib/homelab-control/hc-broker"
-  for u in homelab-control.service homelab-control-broker.service homelab-control-broker.socket; do
+  for u in homelab-control.service homelab-control-broker.service homelab-control-broker.socket homelab-control-storage-helper.service; do
     install -Dm0644 "\$u" "\$pkgdir/usr/lib/systemd/system/\$u"
   done
   install -Dm0644 sysusers.conf "\$pkgdir/usr/lib/sysusers.d/homelab-control.conf"

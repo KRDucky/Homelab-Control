@@ -67,7 +67,11 @@ device identity (each target once, including the same rdev under two keys or in
 `PlannedRdev`,
 block device, canonical major:minor rdev with major ≥ 1 matching the plan, not
 mounted including partitions of the disk, no holders) and still never enters
-execute: no storage apply op and no device helper unit (G3). Preflight facts are
+execute: no storage apply op. An unused closed storage helper unit is packaged
+(G3 placeholder: no `[Install]`, `PrivateDevices=yes`, no `DeviceAllow`, empty
+caps, `ExecStart=/bin/false`, `RefuseManualStart=yes`). The main broker unit is
+unchanged (`PrivateDevices=yes`). This is not owner O-1 (no live device access)
+and not execute wiring. Preflight facts are
 caller-supplied and untrusted; this package does not stat devices. ADR 0011 apply
 unused here. Independent security review is required before execute wiring. `storageinfo.OverlapClaims` flags two unrelated stacks on one block node
 (layered LVM/md/crypt plus a matching filesystem is one stack). Collect still does not read

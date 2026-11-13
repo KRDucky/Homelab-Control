@@ -21,6 +21,7 @@ install -Dm0755 "$root/build/hc-broker" "$stage/usr/lib/homelab-control/hc-broke
 install -Dm0644 "$root/packaging/common/homelab-control-broker.service" "$stage/usr/lib/systemd/system/homelab-control-broker.service"
 install -Dm0644 "$root/packaging/common/homelab-control-broker.socket" "$stage/usr/lib/systemd/system/homelab-control-broker.socket"
 install -Dm0644 "$root/packaging/common/homelab-control.service" "$stage/usr/lib/systemd/system/homelab-control.service"
+install -Dm0644 "$root/packaging/common/homelab-control-storage-helper.service" "$stage/usr/lib/systemd/system/homelab-control-storage-helper.service"
 install -Dm0644 "$root/packaging/common/sysusers.conf" "$stage/usr/lib/sysusers.d/homelab-control.conf"
 install -Dm0640 "$root/packaging/common/hc-api.env" "$stage/etc/homelab-control/hc-api.env"
 install -Dm0644 "$root/LICENSE.md" "$stage/usr/share/doc/homelab-control/LICENSE.md"
@@ -74,7 +75,7 @@ cat > "$stage/DEBIAN/prerm" <<'PRE'
 #!/bin/sh
 set -e
 if [ -d /run/systemd/system ] && [ "$1" = remove ]; then
-  systemctl stop homelab-control.service homelab-control-broker.service homelab-control-broker.socket || true
+  systemctl stop homelab-control.service homelab-control-broker.service homelab-control-broker.socket homelab-control-storage-helper.service || true
   systemctl disable homelab-control.service homelab-control-broker.socket >/dev/null 2>&1 || true
 fi
 PRE

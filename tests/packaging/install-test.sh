@@ -48,7 +48,7 @@ esac
 check "service user created" homelab-control "$(getent passwd homelab-control | cut -d: -f1)"
 check "config dir mode/group" "750 homelab-control" "$(stat -c '%a %G' /etc/homelab-control)"
 check "broker binary installed" 1 "$([ -x /usr/lib/homelab-control/hc-broker ] && echo 1 || echo 0)"
-check "units installed" 3 "$(find /usr/lib/systemd/system -name 'homelab-control*' | wc -l)"
+check "units installed" 4 "$(find /usr/lib/systemd/system -name 'homelab-control*' | wc -l)"
 
 pw="ci-$(head -c 9 /dev/urandom | od -An -tx1 | tr -d ' \n')"
 printf '%s\n' "$pw" | hlctl user add --file /etc/homelab-control/users.json --username admin >/dev/null
