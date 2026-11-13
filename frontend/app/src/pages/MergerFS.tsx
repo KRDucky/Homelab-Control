@@ -64,8 +64,9 @@ export function MergerFSView({
       <header className="page-head">
         <h1 className="page-title">MergerFS</h1>
         <p className="page-sub">
-          Read-only observations. fstab and systemd mount units are listed, not written. No pool, mount or
-          SnapRAID configuration is changed here.
+          Read-only observations. Pooling is not redundancy or RAID. SnapRAID parity must not be a pool
+          branch. Matching is path-based; a missing warning is not proof. fstab and systemd mount units are
+          listed, not written. No pool, mount or SnapRAID configuration is changed here.
         </p>
       </header>
       {error && (
@@ -136,6 +137,28 @@ export function MergerFSView({
           </p>
         )}
       </section>
+
+      {((data.warnings ?? []).length > 0 || data.warningsTruncated) && (
+        <section className="panel" aria-labelledby="mergerfs-warnings-heading">
+          <header className="panel-head">
+            <h2 id="mergerfs-warnings-heading">Honesty warnings</h2>
+          </header>
+          <ul>
+            {(data.warnings ?? []).map((w, i) => (
+              <li key={`${w.code}:${w.pool}:${w.branch}:${w.other}:${i}`} className="banner" role="status">
+                {w.detail} <code>{w.branch}</code>
+                {w.other && w.other !== w.branch ? (
+                  <>
+                    {' '}
+                    / <code>{w.other}</code>
+                  </>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          {data.warningsTruncated ? <p role="status">Further warnings omitted.</p> : null}
+        </section>
+      )}
 
       {optionalMissing && (
         <section className="panel" aria-labelledby="snapraid-offer-heading">
