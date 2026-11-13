@@ -1120,6 +1120,7 @@ export interface ZFSInfo {
   present: boolean;
   reason: string;
   mounts: ZFSMount[];
+  mountsTruncated: boolean;
 }
 
 export interface ZFSKernel {

@@ -101,6 +101,11 @@ export function ZFSView({
           <h2 id="zfs-mounts-heading">Mounted datasets</h2>
           {zfs.mounts.length > 0 && <span className="tag">observed</span>}
         </header>
+        {zfs.mountsTruncated ? (
+          <p className="banner" role="status">
+            too many mounts to list
+          </p>
+        ) : null}
         {zfs.mounts.length > 0 ? (
           <ul className="pool-list">
             {zfs.mounts.map((m) => (
