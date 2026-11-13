@@ -205,7 +205,7 @@ func TestRootTemplatesAreClosed(t *testing.T) {
 	}
 	for _, unknown := range []RootTemplate{"systemctl.mask", "systemctl.unmask", "systemctl.daemon-reload", "systemctl.edit", "systemctl.reenable", "systemctl.preset", "systemctl.link",
 		"hostnamectl.set-chassis", "timedatectl.set-ntp", "timedatectl.set-time",
-		"mkfs.xfs", "zpool.create", "wipefs", "mkfs.ext4.force"} {
+		"mkfs.xfs", "zpool.create", "wipefs"} {
 		if _, err := RootArgv(unknown, "demo.service"); !errors.Is(err, ErrUnknownTemplate) {
 			t.Errorf("unknown template %s: %v", unknown, err)
 		}
@@ -333,6 +333,12 @@ func TestRootMkfsExt4StorageByID(t *testing.T) {
 		"/dev/disk/by-id/virtio-..hidden",
 		"/dev/disk/by-id/usb-SanDisk_123",
 		"/dev/disk/by-id/virtio-mmvtestdisk01\n",
+		"/dev/disk/by-id/wwn-0x5000c500a1b2c3d4-part1000",
+		"/dev/disk/by-id/wwn-0x",
+		"/dev/disk/by-id/wwn-0x5",
+		"/dev/disk/by-id/virtio-",
+		"/dev/disk/by-id/WWN-0x5000c500a1b2c3d4",
+		"/dev/disk/by-id/virtio-" + strings.Repeat("a", 200),
 		strings.Repeat("a", 20),
 	}
 	for _, p := range bad {

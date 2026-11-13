@@ -242,7 +242,7 @@ func validQueryUnit(t string) bool {
 // Persist/write identity stays wwn / nvme-uuid / serial; kernel names, mapper
 // names, md/lvm/dm, by-path, and path traversal are refused. virtio- is for
 // guest MMV disks. Optional -partN is a udev partition symlink.
-var storageByIDRE = regexp.MustCompile(`^/dev/disk/by-id/(wwn-0x[0-9a-fA-F]+|nvme-eui\.[0-9a-fA-F]+|nvme-uuid\.[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|ata-[A-Za-z0-9._-]+|scsi-[A-Za-z0-9._-]+|virtio-[A-Za-z0-9._-]+)(-part[0-9]{1,3})?$`)
+var storageByIDRE = regexp.MustCompile(`^/dev/disk/by-id/(wwn-0x[0-9a-fA-F]{16}|wwn-0x[0-9a-fA-F]{32}|nvme-eui\.[0-9a-fA-F]{16}|nvme-uuid\.[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|ata-[A-Za-z0-9._-]+|scsi-[A-Za-z0-9._-]+|virtio-[A-Za-z0-9._-]+)(-part[0-9]{1,3})?$`)
 
 func validStorageByID(t string) bool {
 	if len(t) < 20 || len(t) > 128 {

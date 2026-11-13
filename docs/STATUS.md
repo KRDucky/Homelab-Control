@@ -68,7 +68,8 @@ execute wiring. `storageinfo.OverlapClaims` flags two unrelated stacks on one bl
 (layered LVM/md/crypt plus a matching filesystem is one stack). Collect still does not read
 `/dev/disk/by-id` (`PrivateDevices=yes`). Default is read-only. No storage mutation, no host
 package install. MergerFS tooling JSON is unchanged (types aliased). Not P0 complete, not M8,
-not production. Not ready for write tests.
+not production. Not ready for write tests. This does not make the storage write
+path ready for guest or host write tests.
 
 ## M2-3: expanded service management (development authorized 2026-11-04; working skeleton on main, not accepted)
 
