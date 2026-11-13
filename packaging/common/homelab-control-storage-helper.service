@@ -1,0 +1,38 @@
+[Unit]
+Description=Homelab Control storage helper (unused and closed; no device access)
+Documentation=file:///usr/share/doc/homelab-control/README.md
+RefuseManualStart=yes
+RefuseManualStop=yes
+ConditionPathExists=/nonexistent-unused
+
+[Service]
+Type=oneshot
+ExecStart=/bin/false
+
+# Unused G3 placeholder. PrivateDevices=yes: this unit cannot see disks.
+# Empty CapabilityBoundingSet. No DeviceAllow. No [Install]. Do not start.
+# O-1 (PrivateDevices=no + r-only DeviceAllow) and execute wiring are later PRs.
+CapabilityBoundingSet=
+AmbientCapabilities=
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateNetwork=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictAddressFamilies=AF_UNIX
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@resources @mount @swap @reboot @raw-io @module @obsolete @debug @cpu-emulation @clock
+UMask=0077

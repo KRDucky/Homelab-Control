@@ -3,7 +3,8 @@
 Homelab Control (M0/M1) **does not modify** an existing Webmin installation: it installs its own binaries
 (`/usr/bin/hc-api`, `/usr/bin/hlctl`, `/usr/lib/homelab-control/hc-broker`), config
 (`/etc/homelab-control/`), logs (`/var/log/homelab-control/`, `/var/log/homelab-control-broker/`), a
-system user (`homelab-control`) and three systemd units that are not enabled by default. Since M1 the
+system user (`homelab-control`) and four systemd units that are not enabled by default
+(the fourth, `homelab-control-storage-helper.service`, is unused: no `[Install]`, do not enable it). Since M1 the
 root broker *reads* Webmin's configuration (allow-listed fields only); nothing writes under `/etc/webmin`.
 
 ## Remove Homelab Control, keep upstream Webmin
