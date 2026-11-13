@@ -316,3 +316,141 @@ func TestUnusedStorageRootTemplateConfined(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+const storageHelperUnit = "homelab-control-storage-helper.service"
+
+func repoRoot(t *testing.T) string {
+	t.Helper()
+	backend, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return filepath.Join(backend, "..")
+}
+
+func unitSetting(body, key string) (string, bool) {
+	for _, line := range strings.Split(body, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "[") {
+			continue
+		}
+		if strings.HasPrefix(line, key+"=") {
+			return strings.TrimPrefix(line, key+"="), true
+		}
+	}
+	return "", false
+}
+
+func unitHasKey(body, key string) bool {
+	_, ok := unitSetting(body, key)
+	return ok
+}
+
+// TestUnusedStorageHelperUnitConfined is G3 unused-helper packaging: the unit
+// ships closed (no [Install], PrivateDevices=yes, no DeviceAllow, no caps,
+// ExecStart=/bin/false) and the broker unit is unchanged. Non-test Go must
+// not name the helper. This is not O-1 and not execute wiring.
+func TestUnusedStorageHelperUnitConfined(t *testing.T) {
+	root := repoRoot(t)
+	common := filepath.Join(root, "packaging", "common")
+	brokerB, err := os.ReadFile(filepath.Join(common, "homelab-control-broker.service"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	helperB, err := os.ReadFile(filepath.Join(common, storageHelperUnit))
+	if err != nil {
+		t.Fatal(err)
+	}
+	apiB, err := os.ReadFile(filepath.Join(common, "homelab-control.service"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	broker := string(brokerB)
+	helper := string(helperB)
+	api := string(apiB)
+
+	if v, ok := unitSetting(broker, "PrivateDevices"); !ok || v != "yes" {
+		t.Errorf("broker PrivateDevices=%q; keep yes (do not widen the main broker)", v)
+	}
+	if v, ok := unitSetting(broker, "CapabilityBoundingSet"); !ok || v != "CAP_SETUID CAP_SETGID" {
+		t.Errorf("broker CapabilityBoundingSet=%q; do not add storage caps to the main broker", v)
+	}
+	if unitHasKey(broker, "DeviceAllow") {
+		t.Error("broker must not gain DeviceAllow")
+	}
+	if strings.Contains(broker, storageHelperUnit) || strings.Contains(api, storageHelperUnit) {
+		t.Error("api/broker units must not pull in the unused storage helper")
+	}
+
+	for _, line := range strings.Split(helper, "\n") {
+		if strings.TrimSpace(line) == "[Install]" {
+			t.Error("helper must not have [Install]; it is unused")
+		}
+	}
+	if v, ok := unitSetting(helper, "PrivateDevices"); !ok || v != "yes" {
+		t.Errorf("helper PrivateDevices=%q; unused helper cannot see disks", v)
+	}
+	if unitHasKey(helper, "DeviceAllow") {
+		t.Error("helper must not set DeviceAllow; that is O-1 / wiring")
+	}
+	if v, ok := unitSetting(helper, "CapabilityBoundingSet"); !ok || v != "" {
+		t.Errorf("helper CapabilityBoundingSet=%q; keep empty", v)
+	}
+	if v, ok := unitSetting(helper, "ExecStart"); !ok || v != "/bin/false" {
+		t.Errorf("helper ExecStart=%q; unused helper must not run a real binary", v)
+	}
+	if unitHasKey(helper, "Restart") {
+		t.Error("helper must not Restart; /bin/false must not loop")
+	}
+	if v, ok := unitSetting(helper, "RefuseManualStart"); !ok || v != "yes" {
+		t.Errorf("helper RefuseManualStart=%q; keep yes", v)
+	}
+
+	backend := filepath.Join(root, "backend")
+	err = filepath.WalkDir(backend, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() && (d.Name() == "testdata" || d.Name() == "node_modules") {
+			return filepath.SkipDir
+		}
+		if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if strings.Contains(string(b), storageHelperUnit) {
+			rel, _ := filepath.Rel(backend, path)
+			t.Errorf("%s names unused storage helper unit; keep it packaging-only until a wiring PR", rel)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, rel := range []string{
+		"packaging/debian/build-deb.sh",
+		"packaging/fedora/build-rpm.sh",
+		"packaging/arch/build-pkg.sh",
+	} {
+		b, err := os.ReadFile(filepath.Join(root, rel))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(b), storageHelperUnit) {
+			t.Errorf("%s does not ship %s", rel, storageHelperUnit)
+		}
+		if strings.Contains(string(b), "enable --now") && strings.Contains(string(b), storageHelperUnit) {
+			// enable --now appears in comments for other units; fail only if
+			// the helper is on the same enable --now line.
+			for _, line := range strings.Split(string(b), "\n") {
+				if strings.Contains(line, "enable --now") && strings.Contains(line, storageHelperUnit) {
+					t.Errorf("%s enables the unused helper: %s", rel, strings.TrimSpace(line))
+				}
+			}
+		}
+	}
+}

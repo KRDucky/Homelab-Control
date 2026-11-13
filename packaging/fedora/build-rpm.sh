@@ -38,7 +38,7 @@ only typed, read-only operations. Coexists with upstream Webmin.
 install -Dm0755 $root/build/hc-api %{buildroot}/usr/bin/hc-api
 install -Dm0755 $root/build/hlctl %{buildroot}/usr/bin/hlctl
 install -Dm0755 $root/build/hc-broker %{buildroot}/usr/lib/homelab-control/hc-broker
-for u in homelab-control.service homelab-control-broker.service homelab-control-broker.socket; do
+for u in homelab-control.service homelab-control-broker.service homelab-control-broker.socket homelab-control-storage-helper.service; do
   install -Dm0644 $root/packaging/common/\$u %{buildroot}/usr/lib/systemd/system/\$u
 done
 install -Dm0644 $root/packaging/common/sysusers.conf %{buildroot}/usr/lib/sysusers.d/homelab-control.conf
@@ -61,7 +61,7 @@ fi
 
 %preun
 if [ \$1 -eq 0 ] && [ -d /run/systemd/system ]; then
-  systemctl --no-reload disable --now homelab-control.service homelab-control-broker.socket homelab-control-broker.service >/dev/null 2>&1 || :
+  systemctl --no-reload disable --now homelab-control.service homelab-control-broker.socket homelab-control-broker.service homelab-control-storage-helper.service >/dev/null 2>&1 || :
 fi
 
 %postun
@@ -79,6 +79,7 @@ if [ -d /run/systemd/system ]; then systemctl daemon-reload >/dev/null 2>&1 || :
 /usr/lib/systemd/system/homelab-control.service
 /usr/lib/systemd/system/homelab-control-broker.service
 /usr/lib/systemd/system/homelab-control-broker.socket
+/usr/lib/systemd/system/homelab-control-storage-helper.service
 /usr/lib/sysusers.d/homelab-control.conf
 %dir %attr(0750,root,homelab-control) /etc/homelab-control
 %config(noreplace) %attr(0640,root,homelab-control) /etc/homelab-control/hc-api.env
