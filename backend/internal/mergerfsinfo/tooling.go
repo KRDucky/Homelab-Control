@@ -6,6 +6,7 @@ package mergerfsinfo
 
 import (
 	"strings"
+	"unicode/utf8"
 
 	"homelab-control/backend/internal/storagecap"
 )
@@ -89,5 +90,9 @@ func clipCapabilityReason(s string) string {
 	if len(s) <= capabilityReasonMax {
 		return s
 	}
-	return s[:capabilityReasonMax]
+	s = s[:capabilityReasonMax]
+	for len(s) > 0 && !utf8.ValidString(s) {
+		s = s[:len(s)-1]
+	}
+	return s
 }
