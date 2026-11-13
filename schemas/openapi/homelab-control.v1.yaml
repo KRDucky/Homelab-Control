@@ -963,9 +963,10 @@ components:
                   path: { type: string }
                   unit: { type: string }
                   mountpoint: { type: string }
-                  branches: { type: array, items: { type: string } }
+                  branches: { type: array, maxItems: 64, items: { type: string } }
                   options: { type: array, items: { type: string } }
                   mounted: { type: boolean }
+                  branchesTruncated: { type: boolean }
             configuredTruncated: { type: boolean }
         snapraid:
           type: object

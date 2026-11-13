@@ -1022,13 +1022,14 @@ export interface MergerFSPool {
 }
 
 export interface MergerFSConfiguredMount {
-  origin: 'fstab' | 'systemd' | string;
+  origin: 'fstab' | 'systemd';
   path: string;
   unit?: string;
   mountpoint: string;
   branches: string[];
   options: string[];
   mounted: boolean;
+  branchesTruncated?: boolean;
 }
 
 export interface MergerFSInfo {
