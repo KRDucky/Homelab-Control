@@ -44,7 +44,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, storage.read, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, storage.read, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read, zfs.read] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
@@ -378,7 +378,7 @@ components:
       type: object
       required: [id, label, path, scope, status]
       properties:
-        id: { type: string, enum: [overview, services, hardware, legacy, audit, service_logs, unit_files, storage, host_settings, files, mergerfs] }
+        id: { type: string, enum: [overview, services, hardware, legacy, audit, service_logs, unit_files, storage, host_settings, files, mergerfs, zfs] }
         label: { type: string }
         path: { type: string }
         scope: { type: string }
@@ -402,7 +402,7 @@ components:
             type: object
             required: [id, title, description, path, enabled, scopes]
             properties:
-              id: { type: string, enum: [services, mergerfs] }
+              id: { type: string, enum: [services, mergerfs, zfs] }
               title: { type: string }
               path: { type: string, description: Page of the module in the web UI }
               description: { type: string }
@@ -1044,6 +1044,60 @@ components:
         warningsTruncated:
           type: boolean
           description: True when the warning list hit the cap or the collect deadline.
+    ZFSInventory:
+      type: object
+      required: [tooling, zfs, kernelZfs]
+      properties:
+        tooling:
+          type: object
+          required: [family, required, optional]
+          properties:
+            family: { type: string, enum: [debian, fedora, suse, arch, unknown] }
+            required:
+              type: array
+              items:
+                type: object
+                required: [id, package, installed, binary]
+                properties:
+                  id: { type: string }
+                  package: { type: string }
+                  installed: { type: boolean }
+                  binary: { type: string }
+            optional:
+              type: array
+              description: Optional tools. Clients match items by id; order is not a contract.
+              items:
+                type: object
+                required: [id, package, installed, binary]
+                properties:
+                  id: { type: string }
+                  package: { type: string }
+                  installed: { type: boolean }
+                  binary: { type: string }
+        zfs:
+          type: object
+          required: [present, reason, mounts]
+          properties:
+            present: { type: boolean }
+            reason: { type: string }
+            mounts:
+              type: array
+              maxItems: 64
+              items:
+                type: object
+                required: [mountpoint, dataset]
+                additionalProperties: false
+                properties:
+                  mountpoint: { type: string, maxLength: 256 }
+                  dataset: { type: string, maxLength: 256 }
+        kernelZfs:
+          type: object
+          required: [present, reason]
+          additionalProperties: false
+          description: Read-only /proc/filesystems probe for the zfs type (listed, not ready). Never loads a module, never opens a device.
+          properties:
+            present: { type: boolean }
+            reason: { type: string }
     TraefikResource:
       type: object
       additionalProperties: false
@@ -1943,6 +1997,27 @@ paths:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/MergerFSInventory' } } } }
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: Missing mergerfs.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Collection busy, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /zfs:
+    get:
+      summary: Read-only OpenZFS inventory (scope zfs.read).
+      description: >
+        Parses bounded /proc/self/mountinfo for fstype zfs mounts (mountpoint and dataset
+        source only). Required tooling is zfs plus zpool (Debian/Ubuntu package zfsutils-linux;
+        other families name no package and never add a third-party OpenZFS repository). Never
+        executed. kernelZfs is a read-only /proc/filesystems probe (zfs type only; listed is
+        not proof a pool is imported). No pool create, import, export, destroy, property write,
+        or module load exists. Origin and X-CSRF-Token are required; audit records counts only,
+        never dataset or mountpoint paths.
+      security: [{ session: [] }]
+      x-required-scope: zfs.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ZFSInventory' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing zfs.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: Collection busy, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /storage:
     get:

@@ -24,6 +24,7 @@ import (
 	"homelab-control/backend/internal/mergerfsinfo"
 	"homelab-control/backend/internal/modules"
 	"homelab-control/backend/internal/servicepolicy"
+	"homelab-control/backend/internal/zfsinfo"
 )
 
 // Broker abstracts the broker client (tests use a fake).
@@ -251,15 +252,28 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 	if s.traefik == nil {
 		traefik.Status, traefik.Reason = CapUnavailable, "Traefik extension is not configured."
 	}
-	caps := []Capability{gate(traefik), gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages), gate(mergerfs)}
+	// M7 first checkpoint: one ZFS page, read-only. Available when required
+	// binaries (zfs, zpool) and kernel ZFS are listed (mounts may still be
+	// empty); degraded when any of those is missing so the page still mounts.
+	// Probe is os.Stat of well-known paths plus one /proc/filesystems read
+	// (no mountinfo, no zpool/zfs exec), and only when the module is enabled
+	// and the session has zfs.read.
+	zfs := Capability{ID: "zfs", Label: "ZFS", Path: "/storage/zfs", Scope: auth.ScopeZFSRead, Status: CapAvailable}
+	if s.mods.Enabled("zfs") && sess.HasScope(auth.ScopeZFSRead) {
+		if ok, reason := zfsinfo.ProbeCapability(s.packageFamily()); ok {
+			zfs.Status, zfs.Reason = CapAvailable, ""
+		} else {
+			zfs.Status, zfs.Reason = CapDegraded, reason
+		}
+	}
+	caps := []Capability{gate(traefik), gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages), gate(mergerfs), gate(zfs)}
 	// Navigation follows the module registry: a disabled module contributes
 	// no capability (and therefore no navigation entry).
 	resp.Capabilities = caps[:0]
 	for _, c := range caps {
-		// M8: the mergerfs UI path (/storage/mergerfs) does not equal its API
-		// prefix (/api/v1/mergerfs), so ForRoute cannot map it; gate it by its
-		// module ID directly. Other capabilities keep their ForRoute mapping.
-		if c.ID == "mergerfs" && !s.mods.Enabled("mergerfs") {
+		// M8/M7: mergerfs and zfs UI paths do not equal their API prefixes,
+		// so ForRoute cannot map them; gate by module ID directly.
+		if (c.ID == "mergerfs" && !s.mods.Enabled("mergerfs")) || (c.ID == "zfs" && !s.mods.Enabled("zfs")) {
 			continue
 		}
 		if s.mods.Enabled(modules.ForRoute("/api/v1" + c.Path)) {

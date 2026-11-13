@@ -43,6 +43,7 @@ import (
 	"homelab-control/backend/internal/storageinfo"
 	"homelab-control/backend/internal/traefikclient"
 	"homelab-control/backend/internal/version"
+	"homelab-control/backend/internal/zfsinfo"
 )
 
 // Version is the build version (see internal/version).
@@ -76,6 +77,8 @@ type Server struct {
 	storageSnapshots  StorageSnapshotStore
 	mergerfsCollect   func(context.Context) (mergerfsinfo.Snapshot, error)
 	mergerfsSem       chan struct{}
+	zfsCollect        func(context.Context) (zfsinfo.Snapshot, error)
+	zfsSem            chan struct{}
 	snapraidConfig    string
 	layouts           LayoutStore
 	cfg               Config
@@ -125,6 +128,10 @@ func New(cfg Config, users *auth.Store, audit *audit.Logger, collector *hostinfo
 		return mergerfsinfo.Collect(ctx, "/", s.snapraidConfig, s.packageFamily())
 	}
 	s.mergerfsSem = make(chan struct{}, 1)
+	s.zfsCollect = func(ctx context.Context) (zfsinfo.Snapshot, error) {
+		return zfsinfo.Collect(ctx, "/", s.packageFamily())
+	}
+	s.zfsSem = make(chan struct{}, 1)
 	s.routes()
 	return s
 }
@@ -214,6 +221,8 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/packages/sources", auth.ScopePackagesRead, s.handlePackagesSources)
 	// M8 first checkpoint: read-only MergerFS + optional SnapRAID (no broker ops).
 	s.handle("GET /api/v1/mergerfs", auth.ScopeMergerFSRead, s.handleMergerFS)
+	// M7 first checkpoint: read-only OpenZFS (no broker ops, never exec).
+	s.handle("GET /api/v1/zfs", auth.ScopeZFSRead, s.handleZFS)
 	s.handle("GET /api/v1/legacy/webmin", auth.ScopeSystemRead, s.handleLegacy)
 	s.mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "unknown API route")
