@@ -43,11 +43,13 @@ function inventory(opts: {
             present: opts.zfsInstalled,
             reason: opts.zfsInstalled ? '' : 'zfs and zpool binaries were not found',
             mounts: [],
+            mountsTruncated: false,
           }
         : {
             present: true,
             reason: '',
             mounts: [{ mountpoint: '/tank/media', dataset: 'tank/media' }],
+            mountsTruncated: false,
           },
     kernelZfs: kernelPresent
       ? { present: true, reason: '' }
@@ -93,6 +95,17 @@ describe('ZFS read-only page', () => {
     expect(within(dialog).getByRole('link', { name: 'Open Software Center' }).getAttribute('href')).toBe(
       '/software?q=zfsutils-linux',
     );
+  });
+
+  it('shows too many mounts to list when the inventory was truncated', async () => {
+    const data = inventory({ zfsInstalled: true });
+    data.zfs.mountsTruncated = true;
+    vi.mocked(getZFS).mockResolvedValue(data);
+    render(
+      <ZFS csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
+    );
+    expect(await screen.findByText('too many mounts to list')).toBeTruthy();
+    expect(screen.getByText('/tank/media')).toBeTruthy();
   });
 
   it('does not offer a third-party repository on Fedora', async () => {

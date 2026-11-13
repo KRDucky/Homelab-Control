@@ -1076,13 +1076,16 @@ components:
                   binary: { type: string }
         zfs:
           type: object
-          required: [present, reason, mounts]
+          required: [present, reason, mounts, mountsTruncated]
           properties:
             present: { type: boolean }
             reason: { type: string }
+            mountsTruncated:
+              type: boolean
+              description: True when the zfs row cap or mountinfo byte/record limit was hit. The page shows the fixed text "too many mounts to list".
             mounts:
               type: array
-              maxItems: 64
+              maxItems: 256
               items:
                 type: object
                 required: [mountpoint, dataset]

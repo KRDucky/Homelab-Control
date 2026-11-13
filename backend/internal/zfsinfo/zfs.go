@@ -28,9 +28,10 @@ type Mount struct {
 
 // Inventory is the zfs half of the response.
 type Inventory struct {
-	Present bool    `json:"present"`
-	Reason  string  `json:"reason"`
-	Mounts  []Mount `json:"mounts"`
+	Present         bool    `json:"present"`
+	Reason          string  `json:"reason"`
+	Mounts          []Mount `json:"mounts"`
+	MountsTruncated bool    `json:"mountsTruncated"`
 }
 
 // Snapshot is the full read-only OpenZFS inventory.
@@ -40,28 +41,39 @@ type Snapshot struct {
 	KernelZfs KernelZfs `json:"kernelZfs"`
 }
 
+// mountinfoReadLimits match mergerfsinfo so a hostile or oversized kernel
+// file cannot grow memory unbounded. zfsMaxMounts caps returned rows; overflow
+// sets mountsTruncated instead of failing the inventory.
 const (
-	mountinfoMaxBytes  = 256 << 10
-	mountinfoMaxMounts = 64
-	datasetMaxBytes    = 256
+	mountinfoMaxBytes   = 4 * 1024 * 1024
+	mountinfoMaxMounts  = 8192
+	zfsMaxMounts        = 256
+	datasetMaxBytes     = 256
+	reasonTooManyMounts = "too many mounts to list"
 )
 
 // ParseMountInfo parses bounded kernel mountinfo and retains fstype zfs
 // mounts only. Dataset names are the mount source (not opened). Every other
-// filesystem is dropped.
-func ParseMountInfo(r io.Reader) ([]Mount, error) {
+// filesystem is dropped. Byte and record limits count every mountinfo line;
+// zfs rows above zfsMaxMounts set truncated and keep the first N.
+func ParseMountInfo(r io.Reader) ([]Mount, bool, error) {
 	s := bufio.NewScanner(io.LimitReader(r, mountinfoMaxBytes+1))
 	s.Buffer(make([]byte, 4096), 65536)
 	mounts := []Mount{}
 	size := 0
+	records := 0
+	truncated := false
 	for s.Scan() {
 		size += len(s.Bytes()) + 1
 		if size > mountinfoMaxBytes {
-			return nil, fmt.Errorf("mount inventory exceeds byte limit")
+			truncated = true
+			break
 		}
-		if len(mounts) >= mountinfoMaxMounts {
-			return nil, fmt.Errorf("mount inventory exceeds entry limit")
+		if records >= mountinfoMaxMounts {
+			truncated = true
+			break
 		}
+		records++
 		fields := strings.Fields(s.Text())
 		sep := -1
 		for i, f := range fields {
@@ -71,10 +83,10 @@ func ParseMountInfo(r io.Reader) ([]Mount, error) {
 			}
 		}
 		if sep < 6 || len(fields) < sep+3 {
-			return nil, fmt.Errorf("invalid mountinfo record")
+			return nil, false, fmt.Errorf("invalid mountinfo record")
 		}
 		if _, e := strconv.ParseUint(fields[0], 10, 64); e != nil {
-			return nil, fmt.Errorf("invalid mount identifier")
+			return nil, false, fmt.Errorf("invalid mount identifier")
 		}
 		fstype := fields[sep+1]
 		if fstype != "zfs" {
@@ -82,21 +94,25 @@ func ParseMountInfo(r io.Reader) ([]Mount, error) {
 		}
 		point, err := unescape(fields[4])
 		if err != nil || !strings.HasPrefix(point, "/") {
-			return nil, fmt.Errorf("invalid zfs mountpoint")
+			return nil, false, fmt.Errorf("invalid zfs mountpoint")
 		}
 		source, err := unescape(fields[sep+2])
 		if err != nil {
-			return nil, fmt.Errorf("invalid zfs source")
+			return nil, false, fmt.Errorf("invalid zfs source")
 		}
 		if !validDataset(source) {
+			continue
+		}
+		if len(mounts) >= zfsMaxMounts {
+			truncated = true
 			continue
 		}
 		mounts = append(mounts, Mount{Mountpoint: point, Dataset: source})
 	}
 	if err := s.Err(); err != nil {
-		return nil, fmt.Errorf("cannot read bounded mount inventory: %w", err)
+		return nil, false, fmt.Errorf("cannot read bounded mount inventory: %w", err)
 	}
-	return mounts, nil
+	return mounts, truncated, nil
 }
 
 func validDataset(name string) bool {
@@ -111,15 +127,15 @@ func validDataset(name string) bool {
 	return true
 }
 
-func collectMounts(osRoot string) ([]Mount, error) {
+func collectMounts(osRoot string) ([]Mount, bool, error) {
 	root, err := os.OpenRoot(osRoot)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	defer root.Close()
 	f, err := root.Open("proc/self/mountinfo")
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	defer f.Close()
 	return ParseMountInfo(f)
@@ -137,15 +153,16 @@ func Collect(ctx context.Context, osRoot, family string) (Snapshot, error) {
 	var snap Snapshot
 	snap.Tooling = ProbeTooling(family)
 	snap.KernelZfs = ProbeKernelZfs(osRoot)
-	mounts, err := collectMounts(osRoot)
+	mounts, truncated, err := collectMounts(osRoot)
 	if mounts == nil {
 		mounts = []Mount{}
 	}
-	base := Inventory{Mounts: mounts}
+	base := Inventory{Mounts: mounts, MountsTruncated: truncated}
 	if err != nil {
 		base.Present = false
 		base.Reason = "mount inventory could not be read"
 		base.Mounts = []Mount{}
+		base.MountsTruncated = false
 		snap.Zfs = base
 	} else if snap.Tooling.RequiredInstalled("zfs") || snap.Tooling.RequiredInstalled("zpool") || len(mounts) > 0 {
 		base.Present = true
