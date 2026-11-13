@@ -28,7 +28,11 @@ function inventory(opts: {
   snapraidInstalled: boolean;
   mergerfsPresent: boolean;
   snapraidPresent: boolean;
+  fusermount3Installed?: boolean;
+  kernelFusePresent?: boolean;
 }): MergerFSInventory {
+  const fusermount3Installed = opts.fusermount3Installed ?? true;
+  const kernelFusePresent = opts.kernelFusePresent ?? true;
   return {
     tooling: {
       family: 'debian',
@@ -38,6 +42,12 @@ function inventory(opts: {
           'mergerfs',
           opts.mergerfsInstalled,
           opts.mergerfsInstalled ? '/usr/bin/mergerfs' : '',
+        ),
+        item(
+          'fusermount3',
+          'fuse3',
+          fusermount3Installed,
+          fusermount3Installed ? '/usr/bin/fusermount3' : '',
         ),
       ],
       optional: [
@@ -68,6 +78,13 @@ function inventory(opts: {
           data: [],
           parity: [],
           content: [],
+        },
+    kernelFuse: kernelFusePresent
+      ? { present: true, reason: '' }
+      : {
+          present: false,
+          reason:
+            'The kernel FUSE filesystem is not currently listed in /proc/filesystems (the module may load on first mount).',
         },
     warnings: [],
     warningsTruncated: false,
@@ -221,6 +238,62 @@ describe('MergerFS read-only page', () => {
     render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
     expect(await screen.findByText('/mnt/media')).toBeTruthy();
     expect(screen.getByText(/SnapRAID is optional/)).toBeTruthy();
+  });
+
+  it('shows the fuse3 install offer when fusermount3 is missing', async () => {
+    vi.mocked(getMergerFS).mockResolvedValue(
+      inventory({
+        mergerfsInstalled: true,
+        snapraidInstalled: true,
+        mergerfsPresent: true,
+        snapraidPresent: false,
+        fusermount3Installed: false,
+      }),
+    );
+    render(
+      <MergerFS
+        csrf={csrf}
+        scopes={['packages.read']}
+        packagesEnabled={true}
+        onUnauthorized={onUnauthorized}
+      />,
+    );
+    expect(await screen.findByText('/mnt/media')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Install fuse3' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Install fuse3' });
+    expect(within(dialog).getByRole('link', { name: 'Open Software Center' }).getAttribute('href')).toBe(
+      '/software?q=fuse3',
+    );
+  });
+
+  it('reports missing kernel FUSE without mutating controls', async () => {
+    vi.mocked(getMergerFS).mockResolvedValue(
+      inventory({
+        mergerfsInstalled: true,
+        snapraidInstalled: true,
+        mergerfsPresent: true,
+        snapraidPresent: false,
+        kernelFusePresent: false,
+      }),
+    );
+    render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
+    expect(await screen.findByText(/not currently listed/)).toBeTruthy();
+    expect(screen.getByText('/mnt/media')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Install mergerfs' })).toBeNull();
+  });
+
+  it('renders when kernelFuse is omitted', async () => {
+    const data = inventory({
+      mergerfsInstalled: true,
+      snapraidInstalled: true,
+      mergerfsPresent: true,
+      snapraidPresent: false,
+    });
+    delete (data as { kernelFuse?: unknown }).kernelFuse;
+    vi.mocked(getMergerFS).mockResolvedValue(data);
+    render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
+    expect(await screen.findByText(/not currently listed|does not load kernel modules/)).toBeTruthy();
+    expect(screen.getByText('/mnt/media')).toBeTruthy();
   });
 
   it('renders honesty warnings without mutating controls', async () => {

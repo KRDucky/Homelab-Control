@@ -19,8 +19,11 @@ func mergerfsFake() func(context.Context) (mergerfsinfo.Snapshot, error) {
 	return func(context.Context) (mergerfsinfo.Snapshot, error) {
 		return mergerfsinfo.Snapshot{
 			Tooling: mergerfsinfo.Tooling{
-				Family:   "debian",
-				Required: []mergerfsinfo.ToolItem{{ID: "mergerfs", Package: "mergerfs", Installed: true, Binary: "/usr/bin/mergerfs"}},
+				Family: "debian",
+				Required: []mergerfsinfo.ToolItem{
+					{ID: "mergerfs", Package: "mergerfs", Installed: true, Binary: "/usr/bin/mergerfs"},
+					{ID: "fusermount3", Package: "fuse3", Installed: true, Binary: "/usr/bin/fusermount3"},
+				},
 				Optional: []mergerfsinfo.ToolItem{{ID: "snapraid", Package: "snapraid", Installed: false}},
 			},
 			MergerFS: mergerfsinfo.MergerFS{Present: true, Pools: []mergerfsinfo.Pool{
@@ -29,6 +32,7 @@ func mergerfsFake() func(context.Context) (mergerfsinfo.Snapshot, error) {
 				{Origin: "fstab", Path: "/etc/fstab", Mountpoint: "/mnt/media", Branches: []string{"/mnt/disk1", "/mnt/disk2"}, Mounted: true},
 			}},
 			SnapRAID:          mergerfsinfo.SnapRAID{Present: true, ConfigPath: "/etc/snapraid.conf", Data: []string{"/mnt/disk1"}, Parity: []string{"/mnt/parity1"}, Content: []string{"/var/snapraid/content"}},
+			KernelFuse:        mergerfsinfo.KernelFuse{Present: true},
 			Warnings:          []mergerfsinfo.Warning{},
 			WarningsTruncated: false,
 		}, nil

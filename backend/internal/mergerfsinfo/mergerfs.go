@@ -37,11 +37,12 @@ type MergerFS struct {
 
 // Snapshot is the full read-only MergerFS + SnapRAID inventory.
 type Snapshot struct {
-	Tooling           Tooling   `json:"tooling"`
-	MergerFS          MergerFS  `json:"mergerfs"`
-	SnapRAID          SnapRAID  `json:"snapraid"`
-	Warnings          []Warning `json:"warnings"`
-	WarningsTruncated bool      `json:"warningsTruncated"`
+	Tooling           Tooling    `json:"tooling"`
+	MergerFS          MergerFS   `json:"mergerfs"`
+	SnapRAID          SnapRAID   `json:"snapraid"`
+	KernelFuse        KernelFuse `json:"kernelFuse"`
+	Warnings          []Warning  `json:"warnings"`
+	WarningsTruncated bool       `json:"warningsTruncated"`
 }
 
 // mountinfoReadLimits match storageinfo.ParseMountInfo so a hostile or
@@ -173,16 +174,18 @@ func collectMounts(osRoot string) ([]Pool, error) {
 }
 
 // Collect reads mergerfs pools, optional fstab/systemd declarations, and the
-// optional snapraid.conf, and probes the required (mergerfs) and optional
-// (snapraid) binaries. It never fails on a missing or unreadable input: those
-// become present=false with a reason. Only context cancellation returns an
-// error (the caller maps it to 503).
+// optional snapraid.conf, and probes the required (mergerfs, fusermount3) and
+// optional (snapraid) binaries plus kernel FUSE from /proc/filesystems. It
+// never fails on a missing or unreadable input: those become present=false
+// with a reason. Only context cancellation returns an error (the caller maps
+// it to 503).
 func Collect(ctx context.Context, osRoot, snapraidPath, family string) (Snapshot, error) {
 	if err := ctx.Err(); err != nil {
 		return Snapshot{}, err
 	}
 	var snap Snapshot
 	snap.Tooling = ProbeTooling(family)
+	snap.KernelFuse = ProbeKernelFuse(osRoot)
 	pools, err := collectMounts(osRoot)
 	if pools == nil {
 		pools = []Pool{}
