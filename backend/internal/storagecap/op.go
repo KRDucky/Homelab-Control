@@ -92,7 +92,12 @@ type Op struct {
 }
 
 func deviceKey(d DeviceRef) string {
-	return string(d.Kind) + ":" + d.Value
+	v := d.Value
+	switch d.Kind {
+	case IdentityWWN, IdentityNVMeUUID:
+		v = strings.ToLower(v)
+	}
+	return string(d.Kind) + ":" + v
 }
 
 // DigestDevices is the TOCTOU identity digest (sorted kind:value).
@@ -261,6 +266,7 @@ func preflightBlock(devs []DeviceRef, facts []DevicePreflight, planned []string)
 	if !ok {
 		return BlockPreflightMissing, "execute needs a fresh block-device preflight per target"
 	}
+	seenRdev := map[string]bool{}
 	for i, d := range devs {
 		p, ok := byKey[deviceKey(d)]
 		if !ok {
@@ -275,6 +281,10 @@ func preflightBlock(devs []DeviceRef, facts []DevicePreflight, planned []string)
 		if p.Rdev != planned[i] {
 			return BlockIdentityChanged, "identity changed since plan; revalidate before action"
 		}
+		if seenRdev[p.Rdev] {
+			return BlockDuplicateDevice, "each target must appear once"
+		}
+		seenRdev[p.Rdev] = true
 		if p.Mounted {
 			return BlockMounted, "target is mounted"
 		}
@@ -336,6 +346,9 @@ func Advance(op Op) Op {
 			return identityFail(op, b)
 		}
 		fromFacts := plannedRdevFromFacts(op.Devices, op.Preflight)
+		if len(op.PlannedRdev) != 0 && len(op.PlannedRdev) != len(op.Devices) {
+			return fail(op, BlockPreflightMissing, "execute needs a fresh block-device preflight per target")
+		}
 		if len(op.PlannedRdev) == 0 {
 			op.PlannedRdev = fromFacts
 		} else if fromFacts != nil && !sameRdevs(op.PlannedRdev, fromFacts) {
