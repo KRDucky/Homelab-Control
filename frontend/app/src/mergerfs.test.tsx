@@ -116,7 +116,7 @@ describe('MergerFS read-only page', () => {
     expect(await screen.findByText('/mnt/media')).toBeTruthy();
     expect(screen.getByText('/mnt/disk1, /mnt/disk2')).toBeTruthy();
     expect(screen.queryByText(/SnapRAID is optional/)).toBeNull();
-    expect(screen.getByText(/Capacity is measured per live branch directory/)).toBeTruthy();
+    expect(screen.getByText(/Capacity is measured per live branch of a root-owned mount/)).toBeTruthy();
   });
 
   it('shows a per-branch capacity meter when usage is measured', async () => {
