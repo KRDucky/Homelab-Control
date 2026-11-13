@@ -49,6 +49,9 @@ var allowlist = map[string][]string{
 	"dnf":        {"/usr/bin/dnf"},
 	"zypper":     {"/usr/bin/zypper"},
 	"pacman":     {"/usr/bin/pacman", "/usr/bin/pacman.static"},
+	// P0 storage (ADR 0008 Amendment 2): mkfs.ext4 is registered unused.
+	// No broker op calls it until independent security review. No -F.
+	"mkfs.ext4": {"/usr/sbin/mkfs.ext4", "/sbin/mkfs.ext4"},
 }
 
 // argRE limits fixed arguments to a conservative character set; arguments
@@ -98,6 +101,13 @@ const (
 	RootTimedatectlSetTimezone   RootTemplate = "timedatectl.set-timezone"
 	RootTimedatectlStatus        RootTemplate = "timedatectl.status"
 	RootTimedatectlListTimezones RootTemplate = "timedatectl.list-timezones"
+)
+
+// P0 storage: one unused closed mkfs.ext4 template so TestRootTemplatesAreClosed
+// can snapshot it. Advance stays BlockNoExecute; no broker op calls this
+// until independent security review (ADR 0008 Amendment 2). Quiet only; no -F.
+const (
+	RootMkfsExt4 RootTemplate = "mkfs.ext4"
 )
 
 // managerShowProperties are the manager's unit-load timestamps: realtime
@@ -206,6 +216,8 @@ var rootTemplates = map[RootTemplate]rootTemplate{
 	RootTimedatectlSetTimezone:   {"timedatectl", []string{"--no-ask-password", "set-timezone", "--"}, validTimezoneName, 1},
 	RootTimedatectlStatus:        {"timedatectl", []string{"--no-ask-password", "status"}, nil, 0},
 	RootTimedatectlListTimezones: {"timedatectl", []string{"--no-ask-password", "list-timezones"}, nil, 0},
+	// P0 storage: quiet ext4 format of one by-id path. Unused until review.
+	RootMkfsExt4: {"mkfs.ext4", []string{"-q", "--"}, validStorageByID, 1},
 }
 
 func validStaticHostname(t string) bool { return hostinfo.ValidStaticHostname(t) == "" }
@@ -224,6 +236,22 @@ var queryUnitRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9:_.@-]{0,99}\.(servi
 
 func validQueryUnit(t string) bool {
 	return queryUnitRE.MatchString(t) && !strings.Contains(t, "..") && !strings.Contains(t, "@.")
+}
+
+// storageByIDRE is the exec-time discovery path for a storage root template.
+// Persist/write identity stays wwn / nvme-uuid / serial; kernel names, mapper
+// names, md/lvm/dm, by-path, and path traversal are refused. virtio- is for
+// guest MMV disks. Optional -partN is a udev partition symlink.
+var storageByIDRE = regexp.MustCompile(`^/dev/disk/by-id/(wwn-0x[0-9a-fA-F]+|nvme-eui\.[0-9a-fA-F]+|nvme-uuid\.[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|ata-[A-Za-z0-9._-]+|scsi-[A-Za-z0-9._-]+|virtio-[A-Za-z0-9._-]+)(-part[0-9]{1,3})?$`)
+
+func validStorageByID(t string) bool {
+	if len(t) < 20 || len(t) > 128 {
+		return false
+	}
+	if strings.Contains(t, "..") || strings.Contains(t, "//") || strings.ContainsAny(t, " \t\n\r\x00") {
+		return false
+	}
+	return storageByIDRE.MatchString(t)
 }
 
 // Identity is the uid/gid children run as.
