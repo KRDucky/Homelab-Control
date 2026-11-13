@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The Homelab Control Authors
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MergerFS } from './pages/MergerFS';
 import { ApiError, getMergerFS, type MergerFSInventory, type MergerFSToolItem } from './api';
 
@@ -74,6 +74,12 @@ function inventory(opts: {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  HTMLDialogElement.prototype.showModal = function () {
+    this.setAttribute('open', '');
+  };
+  HTMLDialogElement.prototype.close = function () {
+    this.removeAttribute('open');
+  };
 });
 afterEach(cleanup);
 
@@ -111,8 +117,12 @@ describe('MergerFS read-only page', () => {
       />,
     );
     expect(await screen.findByText(/MergerFS is not available/)).toBeTruthy();
-    const cta = screen.getByRole('link', { name: 'Install mergerfs' });
-    expect(cta.getAttribute('href')).toBe('/software?q=mergerfs');
+    fireEvent.click(screen.getByRole('button', { name: 'Install mergerfs' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Install mergerfs' });
+    expect(within(dialog).getByText(/does not install packages/)).toBeTruthy();
+    expect(within(dialog).getByRole('link', { name: 'Open Software Center' }).getAttribute('href')).toBe(
+      '/software?q=mergerfs',
+    );
     expect(screen.queryByText('/mnt/media')).toBeNull();
   });
 
@@ -128,7 +138,7 @@ describe('MergerFS read-only page', () => {
     render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
     const offer = await screen.findByText(/Software Center module must be enabled/);
     expect(offer.textContent).toContain('mergerfs');
-    expect(screen.queryByRole('link', { name: 'Install mergerfs' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Install mergerfs' })).toBeNull();
   });
 
   it('shows observed pools together with the install offer when the binary is missing', async () => {
@@ -150,7 +160,11 @@ describe('MergerFS read-only page', () => {
     );
     expect(await screen.findByText('/mnt/media')).toBeTruthy();
     expect(screen.getByText('observed')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Install mergerfs' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Install mergerfs' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Install mergerfs' });
+    expect(within(dialog).getByRole('link', { name: 'Open Software Center' }).getAttribute('href')).toBe(
+      '/software?q=mergerfs',
+    );
   });
 
   it('shows the optional-missing SnapRAID offer with an Add CTA', async () => {
@@ -171,8 +185,12 @@ describe('MergerFS read-only page', () => {
       />,
     );
     expect(await screen.findByText(/SnapRAID is optional/)).toBeTruthy();
-    const cta = screen.getByRole('link', { name: 'Add snapraid' });
-    expect(cta.getAttribute('href')).toBe('/software?q=snapraid');
+    fireEvent.click(screen.getByRole('button', { name: 'Add snapraid' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Add snapraid' });
+    expect(within(dialog).getByText(/does not install packages/)).toBeTruthy();
+    expect(within(dialog).getByRole('link', { name: 'Open Software Center' }).getAttribute('href')).toBe(
+      '/software?q=snapraid',
+    );
   });
 
   it('renders the SnapRAID config block only when a config is present', async () => {
