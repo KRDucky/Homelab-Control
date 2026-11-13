@@ -65,8 +65,8 @@ export function MergerFSView({
       <header className="page-head">
         <h1 className="page-title">MergerFS</h1>
         <p className="page-sub">
-          Read-only observations. Pooling is not RAID. FUSE3 fusermount3 and kernel FUSE are probed
-          here; this page does not load modules or change mounts.
+          Read-only observations. Pooling is not RAID. FUSE3 fusermount3 and kernel FUSE are probed here; this
+          page does not load modules or change mounts.
         </p>
       </header>
       {error && (
