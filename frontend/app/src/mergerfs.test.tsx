@@ -242,8 +242,9 @@ describe('MergerFS read-only page', () => {
     vi.mocked(getMergerFS).mockResolvedValue(data);
     render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
     expect(await screen.findByRole('heading', { name: 'Honesty warnings' })).toBeTruthy();
+    // detail is a text node next to <code> branch/other; match the li via substring.
     expect(
-      screen.getByText('SnapRAID parity sits on a mergerfs branch; pooling is not redundancy'),
+      screen.getByText(/SnapRAID parity sits on a mergerfs branch; pooling is not redundancy/),
     ).toBeTruthy();
     expect(screen.getByText('/mnt/parity/snapraid.parity')).toBeTruthy();
   });
