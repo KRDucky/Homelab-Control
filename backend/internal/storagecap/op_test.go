@@ -280,6 +280,16 @@ func TestConfirmRdevMalformed(t *testing.T) {
 	if op.Block != BlockRdevInvalid {
 		t.Fatalf("zero rdev: %+v", op)
 	}
+	base.Preflight = []DevicePreflight{{Device: d, BlockDevice: true, Rdev: "08:1"}}
+	op = Advance(base)
+	if op.Block != BlockRdevInvalid {
+		t.Fatalf("leading zero: %+v", op)
+	}
+	base.Preflight = []DevicePreflight{{Device: d, BlockDevice: true, Rdev: "0:1"}}
+	op = Advance(base)
+	if op.Block != BlockRdevInvalid {
+		t.Fatalf("major zero: %+v", op)
+	}
 }
 
 func TestConfirmRdevChanged(t *testing.T) {
@@ -328,5 +338,46 @@ func TestConfirmExtraBeforePreflight(t *testing.T) {
 	op = Advance(op)
 	if op.Block != BlockExtraConfirm {
 		t.Fatalf("extra before preflight: %+v", op)
+	}
+}
+
+func TestDuplicateDevicesBlocked(t *testing.T) {
+	d := wwnDisk()
+	other := DeviceRef{Kind: IdentityWWN, Value: "naa.5000cca2deadbeef"}
+	op := Op{
+		Phase:   PhasePreflight,
+		Devices: []DeviceRef{d, d},
+		Tooling: debianReady(),
+	}
+	op = Advance(op)
+	if op.Block != BlockDuplicateDevice || op.Phase != PhasePreflight {
+		t.Fatalf("preflight dup: %+v", op)
+	}
+	op = Op{
+		Phase:          PhaseConfirm,
+		Tooling:        debianReady(),
+		Devices:        []DeviceRef{d, d},
+		IdentityDigest: DigestDevices([]DeviceRef{d, d}),
+		PlannedRdev:    []string{"8:1", "8:2"},
+		Preflight:      []DevicePreflight{readyPreflight(d)[0], {Device: other, BlockDevice: true, Rdev: "8:2"}},
+	}
+	op = Advance(op)
+	if op.Block != BlockDuplicateDevice {
+		t.Fatalf("confirm dup: %+v", op)
+	}
+}
+
+func TestPlanPlannedRdevDisagreesWithFacts(t *testing.T) {
+	d := wwnDisk()
+	op := Op{
+		Phase:       PhasePlan,
+		Tooling:     debianReady(),
+		Devices:     []DeviceRef{d},
+		PlannedRdev: []string{"8:2"},
+		Preflight:   readyPreflight(d),
+	}
+	op = Advance(op)
+	if op.Block != BlockIdentityChanged || op.Phase != PhasePlan {
+		t.Fatalf("plan rdev mismatch: %+v", op)
 	}
 }
