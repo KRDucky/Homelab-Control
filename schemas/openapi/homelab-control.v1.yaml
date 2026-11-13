@@ -1921,8 +1921,9 @@ paths:
         paths, and listed SnapRAID paths are not opened as such. Capacity uses its own budget and
         does not fail the inventory. Required tooling is mergerfs plus FUSE3 fusermount3
         (package fuse3, the supported baseline; FUSE2 fusermount is not probed); optional tooling is
-        snapraid and smartctl (package smartmontools; never executed, no disk opened); clients match
-        tooling items by id. kernelFuse is a read-only /proc/filesystems probe (fuse type only;
+        snapraid, smartctl (package smartmontools), dumpe2fs (e2fsprogs), xfs_info (xfsprogs), and
+        btrfs (btrfs-progs; SUSE btrfsprogs); never executed, no disk opened or formatted; clients
+        match tooling items by id. kernelFuse is a read-only /proc/filesystems probe (fuse type only;
         fusectl/fuseblk do not count; listed is not proof a mount will succeed). kernelRelease is a
         read-only /proc/sys/kernel/osrelease probe (visible to mergerfs.read without system.read;
         never uname, never mergerfs --version; missing does not degrade capability). warnings lists
