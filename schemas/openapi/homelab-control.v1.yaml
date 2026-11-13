@@ -1014,10 +1014,11 @@ components:
           required: [present, release, reason]
           additionalProperties: false
           description: >
-            Read-only /proc/sys/kernel/osrelease probe (kernel utsname release). Never runs
-            uname or mergerfs --version. Invalid or unreadable content is present=false with
-            fixed text; the raw bytes are not echoed. Informational; missing release does not
-            degrade capability.
+            Read-only /proc/sys/kernel/osrelease probe (kernel utsname release). Visible to
+            mergerfs.read; this GET does not also require system.read (overview already shows
+            the same string under system.read). Never runs uname or mergerfs --version. Invalid
+            or unreadable content is present=false with fixed text; the raw bytes are not echoed.
+            Informational; missing release does not degrade capability.
           properties:
             present: { type: boolean }
             release: { type: string, maxLength: 64 }
@@ -1923,8 +1924,9 @@ paths:
         snapraid and smartctl (package smartmontools; never executed, no disk opened); clients match
         tooling items by id. kernelFuse is a read-only /proc/filesystems probe (fuse type only;
         fusectl/fuseblk do not count; listed is not proof a mount will succeed). kernelRelease is a
-        read-only /proc/sys/kernel/osrelease probe (never uname, never mergerfs --version; missing
-        does not degrade capability). warnings lists read-only honesty findings (duplicate
+        read-only /proc/sys/kernel/osrelease probe (visible to mergerfs.read without system.read;
+        never uname, never mergerfs --version; missing does not degrade capability). warnings lists
+        read-only honesty findings (duplicate
         branches; SnapRAID parity on a pool branch or the fused mount). Matching is path-based; a
         missing warning is not proof. warningsTruncated is true when the list was capped. Pooling is
         not RAID. No pool create, mount, policy write, fstab/unit write, module load, or snapraid

@@ -49,8 +49,9 @@ and implied by nothing) probes the required `mergerfs` and `fusermount3` (packag
 and optional `snapraid` and `smartctl` (unprivileged `os.Stat` of well-known paths, no `os/exec`, no
 `packages.installed`, never `smartctl` run, never a disk opened), plus kernel FUSE from bounded
 `/proc/filesystems` (never `/dev/fuse`, never modprobe) and kernel release from bounded
-`/proc/sys/kernel/osrelease` (never `uname`, never `mergerfs --version`; unread is not degraded).
-FUSE3 (`fusermount3`, package `fuse3`) is the supported baseline; FUSE2 `fusermount` is
+`/proc/sys/kernel/osrelease` (visible to `mergerfs.read` without `system.read`; never `uname`, never
+`mergerfs --version`; unread is not degraded). FUSE3 (`fusermount3`, package `fuse3`) is the
+supported baseline; FUSE2 `fusermount` is
 not probed. A missing `fuse` line is “not currently listed” (the module may load on first mount),
 not proof that mounts cannot work, and a listed line is not proof that a mount will succeed.
 It then shows observed `fuse.mergerfs` pools parsed from bounded `/proc/self/mountinfo`, plus a
