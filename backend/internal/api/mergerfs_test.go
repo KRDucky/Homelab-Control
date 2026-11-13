@@ -26,7 +26,9 @@ func mergerfsFake() func(context.Context) (mergerfsinfo.Snapshot, error) {
 			MergerFS: mergerfsinfo.MergerFS{Present: true, Pools: []mergerfsinfo.Pool{
 				{Mountpoint: "/mnt/media", Branches: []string{"/mnt/disk1", "/mnt/disk2"}, Options: []string{"category.create=epmfs", "minfreespace=20G"}},
 			}},
-			SnapRAID: mergerfsinfo.SnapRAID{Present: true, ConfigPath: "/etc/snapraid.conf", Data: []string{"/mnt/disk1"}, Parity: []string{"/mnt/parity1"}, Content: []string{"/var/snapraid/content"}},
+			SnapRAID:          mergerfsinfo.SnapRAID{Present: true, ConfigPath: "/etc/snapraid.conf", Data: []string{"/mnt/disk1"}, Parity: []string{"/mnt/parity1"}, Content: []string{"/var/snapraid/content"}},
+			Warnings:          []mergerfsinfo.Warning{},
+			WarningsTruncated: false,
 		}, nil
 	}
 }
