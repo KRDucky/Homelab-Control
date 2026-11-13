@@ -53,7 +53,10 @@ does not add a third-party repository). Observed `fstype=zfs` mounts come from b
 `/proc/self/mountinfo` (dataset source and mountpoint only; datasets are not opened;
 parse limits match mergerfs at 4 MiB and 8192 records; zfs rows cap at 256 with
 `mountsTruncated` and the fixed text “too many mounts to list” rather than failing the
-inventory). A missing
+inventory). A mountinfo line whose type is not `zfs` is skipped even when the rest of
+that record is malformed. A line over 64 KiB is skipped and marks the list truncated.
+A line with no filesystem type, or a `zfs` line with a bad mountpoint or source, still
+fails the inventory. A missing
 required package offers Software Center search (`/software?q=zfsutils-linux`) when the packages
 module is enabled and the session has `packages.read`. No POST install, `packages.manage`, pool
 create, import, export, destroy, or `zpool`/`zfs` execution exists. This is a checkpoint, not M7
