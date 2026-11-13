@@ -50,8 +50,8 @@ function inventory(opts: {
       ],
     },
     mergerfs: opts.mergerfsPresent
-      ? { present: true, reason: '', pools: [poolFixture] }
-      : { present: false, reason: 'mergerfs is not installed', pools: [] },
+      ? { present: true, reason: '', pools: [poolFixture], configured: [] }
+      : { present: false, reason: 'mergerfs is not installed', pools: [], configured: [] },
     snapraid: opts.snapraidPresent
       ? {
           present: true,
@@ -273,9 +273,73 @@ describe('MergerFS read-only page', () => {
     );
     render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
     await screen.findByText('/mnt/media');
-    for (const name of ['Create', 'Add branch', 'Sync', 'Scrub', 'Fix', 'Install package']) {
+    for (const name of [
+      'Create',
+      'Add branch',
+      'Sync',
+      'Scrub',
+      'Fix',
+      'Install package',
+      'Mount',
+      'Unmount',
+    ]) {
       expect(screen.queryByRole('button', { name })).toBeNull();
     }
+    expect(screen.getByRole('heading', { name: 'Configured mounts' })).toBeTruthy();
+    expect(screen.getByText(/No regular mergerfs fstab lines/)).toBeTruthy();
+    expect(screen.getByText(/drop-ins/)).toBeTruthy();
+    expect(screen.getByText(/Symlinked, masked, or generated units are not read/)).toBeTruthy();
+  });
+
+  it('lists fstab and systemd configured mounts without mount controls', async () => {
+    const data = inventory({
+      mergerfsInstalled: true,
+      snapraidInstalled: true,
+      mergerfsPresent: true,
+      snapraidPresent: false,
+    });
+    data.mergerfs.configured = [
+      {
+        origin: 'fstab',
+        path: '/etc/fstab',
+        mountpoint: '/mnt/media',
+        branches: ['/mnt/disk1', '/mnt/disk2'],
+        options: ['allow_other'],
+        mounted: true,
+        branchesTruncated: true,
+      },
+      {
+        origin: 'systemd',
+        path: '/etc/systemd/system/mnt-idle.mount',
+        unit: 'mnt-idle.mount',
+        mountpoint: '/mnt/idle',
+        branches: ['/mnt/a', '/mnt/b'],
+        options: [],
+        mounted: false,
+      },
+    ];
+    vi.mocked(getMergerFS).mockResolvedValue(data);
+    render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
+    expect(await screen.findByRole('heading', { name: 'Configured mounts' })).toBeTruthy();
+    expect(screen.getByText('a mergerfs mount is present at this mountpoint')).toBeTruthy();
+    expect(screen.getByText('not currently mounted')).toBeTruthy();
+    expect(screen.getByText(/\(truncated\)/)).toBeTruthy();
+    expect(screen.getByText('mnt-idle.mount')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Mount' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Unmount' })).toBeNull();
+  });
+
+  it('says when configured import was truncated', async () => {
+    const data = inventory({
+      mergerfsInstalled: true,
+      snapraidInstalled: true,
+      mergerfsPresent: true,
+      snapraidPresent: false,
+    });
+    data.mergerfs.configuredTruncated = true;
+    vi.mocked(getMergerFS).mockResolvedValue(data);
+    render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
+    expect(await screen.findByText(/import limit was reached/)).toBeTruthy();
   });
 
   it('signals an expired or revoked session through onUnauthorized', async () => {

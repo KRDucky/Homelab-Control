@@ -25,6 +25,8 @@ func mergerfsFake() func(context.Context) (mergerfsinfo.Snapshot, error) {
 			},
 			MergerFS: mergerfsinfo.MergerFS{Present: true, Pools: []mergerfsinfo.Pool{
 				{Mountpoint: "/mnt/media", Branches: []string{"/mnt/disk1", "/mnt/disk2"}, Options: []string{"category.create=epmfs", "minfreespace=20G"}},
+			}, Configured: []mergerfsinfo.ConfiguredMount{
+				{Origin: "fstab", Path: "/etc/fstab", Mountpoint: "/mnt/media", Branches: []string{"/mnt/disk1", "/mnt/disk2"}, Mounted: true},
 			}},
 			SnapRAID:          mergerfsinfo.SnapRAID{Present: true, ConfigPath: "/etc/snapraid.conf", Data: []string{"/mnt/disk1"}, Parity: []string{"/mnt/parity1"}, Content: []string{"/var/snapraid/content"}},
 			Warnings:          []mergerfsinfo.Warning{},
@@ -68,7 +70,7 @@ func TestMergerFSReadsAndAuditsCountsOnly(t *testing.T) {
 		t.Fatalf("body missing snapraid: %s", rr.Body)
 	}
 	auditLine := h.audit.String()
-	if !strings.Contains(auditLine, "mergerfs.inventory.read") || !strings.Contains(auditLine, "pools=1") || !strings.Contains(auditLine, "snapraid=true") {
+	if !strings.Contains(auditLine, "mergerfs.inventory.read") || !strings.Contains(auditLine, "pools=1") || !strings.Contains(auditLine, "configured=1") || !strings.Contains(auditLine, "snapraid=true") {
 		t.Fatalf("audit must record counts only: %s", auditLine)
 	}
 	for _, secret := range []string{"/mnt/disk1", "/mnt/parity1", "/var/snapraid/content"} {
