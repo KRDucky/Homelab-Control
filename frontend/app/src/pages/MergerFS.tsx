@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { getMergerFS, type MergerFSInventory, type MergerFSToolItem } from '../api';
-import { linkHandler } from '../router';
+import { InstallPlanDialog } from '../InstallPlanDialog';
 import { explain, useData } from '../useData';
 
 /**
@@ -151,6 +151,7 @@ function InstallOffer({
   item: MergerFSToolItem | undefined;
   canInstall: boolean;
 }) {
+  const [open, setOpen] = useState(false);
   const pkg = item?.package ?? '';
   if (!pkg) {
     return <p>Software Center cannot determine the package name for this distribution (verify).</p>;
@@ -163,11 +164,13 @@ function InstallOffer({
       </p>
     );
   }
-  const path = `/software?q=${encodeURIComponent(pkg)}`;
   return (
-    <a href={path} onClick={linkHandler(path)}>
-      {label}
-    </a>
+    <>
+      <button type="button" onClick={() => setOpen(true)}>
+        {label}
+      </button>
+      {open && <InstallPlanDialog title={label} pkg={pkg} onClose={() => setOpen(false)} />}
+    </>
   );
 }
 
