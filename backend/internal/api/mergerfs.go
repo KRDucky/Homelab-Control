@@ -35,9 +35,10 @@ func (s *Server) mergerfsProtectedGET(w http.ResponseWriter, r *http.Request, se
 
 // handleMergerFS serves the read-only MergerFS + optional SnapRAID inventory.
 // No pool create, mount, policy write, or snapraid sync/diff/fix path exists:
-// this endpoint only parses bounded /proc/self/mountinfo, /etc/fstab, systemd
-// .mount units, and one configured snapraid.conf, and opens none of the listed
-// branch or data paths.
+// this endpoint parses bounded /proc/self/mountinfo, /etc/fstab, systemd
+// .mount units, and one configured snapraid.conf, and fstatfs of live pool
+// branch directories under the collect root (os.OpenRoot). SnapRAID data/parity/content and
+// fstab/systemd paths are not opened.
 func (s *Server) handleMergerFS(w http.ResponseWriter, r *http.Request, sess *auth.Session, _ string) {
 	if !s.mergerfsProtectedGET(w, r, sess) {
 		return
