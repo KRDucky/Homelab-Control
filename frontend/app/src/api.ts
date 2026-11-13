@@ -1041,11 +1041,21 @@ export interface MergerFSKernelFuse {
   reason: string;
 }
 
+export interface MergerFSWarning {
+  code: 'duplicate-branch' | 'parity-in-pool';
+  pool: string;
+  branch: string;
+  other: string;
+  detail: string;
+}
+
 export interface MergerFSInventory {
   tooling: MergerFSTooling;
   mergerfs: MergerFSInfo;
   snapraid: SnapRAIDInfo;
   kernelFuse: MergerFSKernelFuse;
+  warnings: MergerFSWarning[];
+  warningsTruncated: boolean;
 }
 
 // Like storage/files/packages: this GET returns host mount and configuration

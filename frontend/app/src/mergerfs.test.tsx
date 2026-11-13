@@ -86,6 +86,8 @@ function inventory(opts: {
           reason:
             'The kernel FUSE filesystem is not currently listed in /proc/filesystems (the module may load on first mount).',
         },
+    warnings: [],
+    warningsTruncated: false,
   };
 }
 
@@ -292,6 +294,45 @@ describe('MergerFS read-only page', () => {
     render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
     expect(await screen.findByText(/not currently listed|does not load kernel modules/)).toBeTruthy();
     expect(screen.getByText('/mnt/media')).toBeTruthy();
+  });
+
+  it('renders honesty warnings without mutating controls', async () => {
+    const data = inventory({
+      mergerfsInstalled: true,
+      snapraidInstalled: true,
+      mergerfsPresent: true,
+      snapraidPresent: true,
+    });
+    data.warnings = [
+      {
+        code: 'parity-in-pool',
+        pool: '/mnt/media',
+        branch: '/mnt/parity',
+        other: '/mnt/parity/snapraid.parity',
+        detail: 'SnapRAID parity sits on a mergerfs branch; pooling is not redundancy',
+      },
+    ];
+    vi.mocked(getMergerFS).mockResolvedValue(data);
+    render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
+    expect(await screen.findByRole('heading', { name: 'Honesty warnings' })).toBeTruthy();
+    // detail is a text node next to <code> branch/other; match the li via substring.
+    expect(
+      screen.getByText(/SnapRAID parity sits on a mergerfs branch; pooling is not redundancy/),
+    ).toBeTruthy();
+    expect(screen.getByText('/mnt/parity/snapraid.parity')).toBeTruthy();
+  });
+
+  it('reports truncated warnings without mutating controls', async () => {
+    const data = inventory({
+      mergerfsInstalled: true,
+      snapraidInstalled: true,
+      mergerfsPresent: true,
+      snapraidPresent: false,
+    });
+    data.warningsTruncated = true;
+    vi.mocked(getMergerFS).mockResolvedValue(data);
+    render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
+    expect(await screen.findByText('Further warnings omitted.')).toBeTruthy();
   });
 
   it('has no mutating controls in the DOM', async () => {
