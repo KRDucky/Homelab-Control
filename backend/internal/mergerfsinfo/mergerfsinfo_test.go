@@ -81,8 +81,8 @@ func TestCollectNoMountsNoConfig(t *testing.T) {
 	if snap.SnapRAID.Present || snap.SnapRAID.Reason != "optional: no snapraid.conf" {
 		t.Fatalf("snapraid: %+v", snap.SnapRAID)
 	}
-	if snap.Warnings == nil || len(snap.Warnings) != 0 {
-		t.Fatalf("warnings must be an empty list: %+v", snap.Warnings)
+	if snap.Warnings == nil || len(snap.Warnings) != 0 || snap.WarningsTruncated {
+		t.Fatalf("warnings must be an empty list: %+v trunc=%v", snap.Warnings, snap.WarningsTruncated)
 	}
 }
 
