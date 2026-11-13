@@ -64,6 +64,9 @@ export function MergerFSView({
   const optionalMissing = optional ? !optional.installed : false;
   const smartctl = tooling.optional.find((t) => t.id === 'smartctl');
   const smartctlMissing = smartctl ? !smartctl.installed : false;
+  const fsToolsMissing = tooling.optional.filter(
+    (t) => (t.id === 'dumpe2fs' || t.id === 'xfs_info' || t.id === 'btrfs') && !t.installed,
+  );
   const canInstall = packagesEnabled && (scopes ?? []).includes('packages.read');
 
   return (
@@ -76,8 +79,8 @@ export function MergerFSView({
           are probed here; this page does not load modules. Kernel release is read from
           /proc/sys/kernel/osrelease; mergerfs --version is not run. fstab and systemd mount units are listed,
           not written. Capacity is measured per live branch of a root-owned mount, not the fused mount.
-          smartctl is probed, not run; disks are not opened. No pool, mount or SnapRAID configuration is
-          changed here.
+          smartctl is probed, not run; disks are not opened. Underlying filesystem tools are probed, not run;
+          disks are not formatted. No pool, mount or SnapRAID configuration is changed here.
         </p>
       </header>
       {error && (
@@ -224,6 +227,26 @@ export function MergerFSView({
             item={smartctl}
             canInstall={canInstall}
           />
+        </section>
+      )}
+
+      {fsToolsMissing.length > 0 && (
+        <section className="panel" aria-labelledby="fstools-offer-heading">
+          <header className="panel-head">
+            <h2 id="fstools-offer-heading">Underlying filesystems</h2>
+          </header>
+          <p>
+            dumpe2fs, xfs_info, and btrfs inspect branch filesystems. This page does not run them or format
+            disks.
+          </p>
+          {fsToolsMissing.map((item) => (
+            <InstallOffer
+              key={item.id}
+              label={`Add ${item.package || item.id}`}
+              item={item}
+              canInstall={canInstall}
+            />
+          ))}
         </section>
       )}
 
