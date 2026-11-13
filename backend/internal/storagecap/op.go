@@ -29,17 +29,30 @@ const (
 type Block string
 
 const (
-	BlockOverlapNoStack  Block = "overlapping-claim"
-	BlockKernelIdentity  Block = "identity-kernel"
-	BlockWeakIdentity    Block = "identity-not-strongest"
-	BlockExtraConfirm    Block = "extra-confirm-missing"
-	BlockIdentityChanged Block = "identity-changed"
-	BlockNoExecute       Block = "no-storage-execute"
-	BlockGate            Block = "gate-not-available"
-	BlockEmptyDevice     Block = "device-required"
+	BlockOverlapNoStack   Block = "overlapping-claim"
+	BlockKernelIdentity   Block = "identity-kernel"
+	BlockWeakIdentity     Block = "identity-not-strongest"
+	BlockExtraConfirm     Block = "extra-confirm-missing"
+	BlockIdentityChanged  Block = "identity-changed"
+	BlockNoExecute        Block = "no-storage-execute"
+	BlockGate             Block = "gate-not-available"
+	BlockEmptyDevice      Block = "device-required"
+	BlockPreflightMissing Block = "preflight-missing"
+	BlockNotBlockDevice   Block = "not-block-device"
+	BlockMounted          Block = "device-mounted"
+	BlockHasHolders       Block = "device-has-holders"
 )
 
-const blockNoExecuteReason = "P0 storage writes are not implemented; a storage root template is registered unused pending security review. ADR 0011 apply is unused here."
+const blockNoExecuteReason = "P0 storage writes are not implemented; no storage apply op and no device helper unit (G3). ADR 0011 apply is unused here."
+
+// DevicePreflight is observed device state supplied by a later privileged
+// helper. This package does not stat, open, or format devices (G1/G2/G4).
+type DevicePreflight struct {
+	BlockDevice bool   // S_ISBLK after resolving the planned path
+	Mounted     bool   // mounted, swap, or otherwise busy
+	HasHolders  bool   // sysfs holders/slaves or a stack member
+	Rdev        string // st_rdev as "major:minor"; required when BlockDevice
+}
 
 // DeviceRef is one persist/write identity. Kernel names are display-only
 // and cannot confirm.
@@ -66,6 +79,7 @@ type Op struct {
 	Acked          []ExtraConfirm
 	IdentityDigest string
 	ObservedDigest string
+	Preflight      []DevicePreflight
 	StackingPlan   bool
 	Block          Block
 	Reason         string
@@ -140,6 +154,24 @@ func identityBlock(devs []DeviceRef) Block {
 	return ""
 }
 
+func preflightBlock(devs []DeviceRef, facts []DevicePreflight) (Block, string) {
+	if len(facts) != len(devs) {
+		return BlockPreflightMissing, "execute needs a fresh block-device preflight per target"
+	}
+	for _, p := range facts {
+		if !p.BlockDevice || p.Rdev == "" {
+			return BlockNotBlockDevice, "target must be a block device immediately before exec"
+		}
+		if p.Mounted {
+			return BlockMounted, "target is mounted"
+		}
+		if p.HasHolders {
+			return BlockHasHolders, "target has holders or is a stack member"
+		}
+	}
+	return "", ""
+}
+
 func fail(op Op, b Block, reason string) Op {
 	op.Block = b
 	op.Reason = reason
@@ -195,6 +227,9 @@ func Advance(op Op) Op {
 		}
 		if op.IdentityDigest == "" || op.ObservedDigest != op.IdentityDigest {
 			return fail(op, BlockIdentityChanged, "identity changed since plan; revalidate before action")
+		}
+		if b, reason := preflightBlock(op.Devices, op.Preflight); b != "" {
+			return fail(op, b, reason)
 		}
 		return fail(op, BlockNoExecute, blockNoExecuteReason)
 	default:

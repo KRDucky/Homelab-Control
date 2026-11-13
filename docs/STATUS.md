@@ -61,10 +61,11 @@ not a merge, not production.
 identity/extra-confirm types, and SHARED-02 operation phases (`Advance`). Probe is still
 `os.Stat` of well-known paths only. Install plans set `executes: false` (Software Center
 `/software?q=` only). The MergerFS install offer opens a review dialog (`executes: false`); it
-never POSTs a package. `Advance` never enters execute: `mkfs.ext4` is registered in the
-closed root-argv table unused (one `/dev/disk/by-id` target, quiet, no `-F`); no broker
-op calls it; ADR 0011 apply unused here. Independent security review is required before
-execute wiring. `storageinfo.OverlapClaims` flags two unrelated stacks on one block node
+never POSTs a package. `mkfs.ext4` is on main unused (PR #74); no broker op calls it.
+`Advance` confirm now requires observed block-device preflight (block device, not
+mounted, no holders) and still never enters execute: no storage apply op and no
+device helper unit (G3). ADR 0011 apply unused here. Independent security review is
+required before execute wiring. `storageinfo.OverlapClaims` flags two unrelated stacks on one block node
 (layered LVM/md/crypt plus a matching filesystem is one stack). Collect still does not read
 `/dev/disk/by-id` (`PrivateDevices=yes`). Default is read-only. No storage mutation, no host
 package install. MergerFS tooling JSON is unchanged (types aliased). Not P0 complete, not M8,
