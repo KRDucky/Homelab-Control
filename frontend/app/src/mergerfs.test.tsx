@@ -116,6 +116,56 @@ describe('MergerFS read-only page', () => {
     expect(await screen.findByText('/mnt/media')).toBeTruthy();
     expect(screen.getByText('/mnt/disk1, /mnt/disk2')).toBeTruthy();
     expect(screen.queryByText(/SnapRAID is optional/)).toBeNull();
+    expect(screen.getByText(/Capacity is measured per live branch of a root-owned mount/)).toBeTruthy();
+  });
+
+  it('shows a per-branch capacity meter when usage is measured', async () => {
+    const data = inventory({
+      mergerfsInstalled: true,
+      snapraidInstalled: false,
+      mergerfsPresent: true,
+      snapraidPresent: false,
+    });
+    data.mergerfs.pools = [
+      {
+        ...poolFixture,
+        usage: [
+          {
+            path: '/mnt/disk1',
+            measured: true,
+            totalBytes: 100,
+            usedBytes: 40,
+            availBytes: 50,
+          },
+        ],
+      },
+    ];
+    vi.mocked(getMergerFS).mockResolvedValue(data);
+    render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
+    expect(await screen.findByRole('meter', { name: '/mnt/disk1' })).toBeTruthy();
+    expect(screen.getByText('50 B free of 100 B')).toBeTruthy();
+    expect(screen.queryByText('/mnt/disk1, /mnt/disk2')).toBeNull();
+  });
+
+  it('shows a fixed unread reason when a branch cannot be measured', async () => {
+    const data = inventory({
+      mergerfsInstalled: true,
+      snapraidInstalled: false,
+      mergerfsPresent: true,
+      snapraidPresent: false,
+    });
+    data.mergerfs.pools = [
+      {
+        ...poolFixture,
+        usage: [{ path: '/mnt/disk1', measured: false, reason: 'path could not be measured' }],
+        usageTruncated: true,
+      },
+    ];
+    vi.mocked(getMergerFS).mockResolvedValue(data);
+    render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
+    expect(await screen.findByText('path could not be measured')).toBeTruthy();
+    expect(screen.getByText('(truncated)')).toBeTruthy();
+    expect(screen.queryByRole('meter')).toBeNull();
   });
 
   it('shows the required-missing offer with an Install CTA', async () => {

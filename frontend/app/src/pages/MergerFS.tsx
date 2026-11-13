@@ -4,7 +4,9 @@
 
 import { useCallback, useState } from 'react';
 import { getMergerFS, type MergerFSInventory, type MergerFSToolItem } from '../api';
+import { formatBytes } from '../format';
 import { InstallPlanDialog } from '../InstallPlanDialog';
+import { Meter } from '../Meter';
 import { explain, useData } from '../useData';
 
 /**
@@ -69,7 +71,8 @@ export function MergerFSView({
           Read-only observations. Pooling is not redundancy or RAID. SnapRAID parity must not be a pool
           branch. Matching is path-based; a missing warning is not proof. FUSE3 fusermount3 and kernel FUSE
           are probed here; this page does not load modules. fstab and systemd mount units are listed, not
-          written. No pool, mount or SnapRAID configuration is changed here.
+          written. Capacity is measured per live branch of a root-owned mount, not the fused mount. No pool,
+          mount or SnapRAID configuration is changed here.
         </p>
       </header>
       {error && (
@@ -303,13 +306,50 @@ function Pools({ pools }: { pools: MergerFSInventory['mergerfs']['pools'] }) {
           <code>{pool.mountpoint}</code>
           <dl>
             <dt>Branches</dt>
-            <dd>{pool.branches.length > 0 ? pool.branches.join(', ') : '—'}</dd>
+            <dd>
+              <BranchCapacity pool={pool} />
+            </dd>
             <dt>Options</dt>
             <dd>{pool.options.length > 0 ? pool.options.join(', ') : '—'}</dd>
           </dl>
         </li>
       ))}
     </ul>
+  );
+}
+
+function BranchCapacity({ pool }: { pool: MergerFSInventory['mergerfs']['pools'][number] }) {
+  const usage = pool.usage ?? [];
+  if (usage.length === 0) {
+    return (
+      <>
+        {pool.branches.length > 0 ? pool.branches.join(', ') : '—'}
+        {pool.usageTruncated ? ' (truncated)' : ''}
+      </>
+    );
+  }
+  return (
+    <>
+      <ul>
+        {usage.map((u) => (
+          <li key={u.path}>
+            {u.measured ? (
+              <Meter
+                label={u.path}
+                used={u.usedBytes}
+                total={u.totalBytes}
+                detail={`${formatBytes(u.availBytes)} free of ${formatBytes(u.totalBytes)}`}
+              />
+            ) : (
+              <>
+                <code>{u.path}</code> {u.reason || 'path could not be measured'}
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+      {pool.usageTruncated ? ' (truncated)' : ''}
+    </>
   );
 }
 
