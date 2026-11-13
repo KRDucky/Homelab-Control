@@ -51,7 +51,13 @@ and implied by nothing) probes the required `mergerfs` and optional `snapraid` b
 readable, an optional SnapRAID section (`data`/`parity`/`content` paths only). A missing required
 package hides pools and offers a Software Center search link (`/software?q=…`, when the packages
 module is enabled and the session has `packages.read`); no POST install or `packages.manage` exists.
-SnapRAID is never implied by a mergerfs pool. No pool create, mount, policy write, or
+SnapRAID is never implied by a mergerfs pool. The inventory reports read-only honesty
+warnings when a SnapRAID parity path sits on a mergerfs branch or the fused mount, or when a
+pool lists the same branch twice; data disks as branches are expected and are not warnings.
+Matching is path-based (`=RW`/`=NC`/`=RO` suffixes stripped); a missing warning is not proof.
+The warning list is capped (64 total, 8 per pool) with `warningsTruncated` when the cap or
+collect deadline hits.
+No pool create, mount, policy write, or
 snapraid sync/diff/fix path exists; there are no broker ops. This is a checkpoint, not M8 acceptance,
 not a merge, not production.
 
