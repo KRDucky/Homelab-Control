@@ -5,8 +5,11 @@
 // Package mergerfsinfo is the unprivileged, read-only MergerFS + optional
 // SnapRAID inventory (M8 first checkpoint). It reads bounded kernel mountinfo,
 // /etc/fstab, systemd .mount units, and a single administrator-configured
-// snapraid.conf, and never opens branch or data paths, never writes, and never
-// executes a program.
+// snapraid.conf. Live pool branches are opened only as directories under the
+// collect root (os.OpenRoot, directory) for fstatfs of root-owned live pool
+// branches. Listed SnapRAID paths are not opened as such; a data disk that is
+// also a branch is measured as a branch. fstab/systemd paths are not opened.
+// It never writes and never executes a program.
 package mergerfsinfo
 
 import (
@@ -21,9 +24,11 @@ import (
 
 // Pool is one observed fuse.mergerfs mount.
 type Pool struct {
-	Mountpoint string   `json:"mountpoint"`
-	Branches   []string `json:"branches"`
-	Options    []string `json:"options"`
+	Mountpoint     string        `json:"mountpoint"`
+	Branches       []string      `json:"branches"`
+	Options        []string      `json:"options"`
+	Usage          []BranchUsage `json:"usage"`
+	UsageTruncated bool          `json:"usageTruncated,omitempty"`
 }
 
 // MergerFS is the mergerfs half of the response.
@@ -148,6 +153,8 @@ func parseOptions(super string) []string {
 			continue
 		case tok == "allow_other" || tok == "use_ino" || tok == "moveonenospc":
 			out = append(out, tok)
+		case low == "user_id=0":
+			out = append(out, "user_id=0")
 		case strings.HasPrefix(low, "moveonenospc="),
 			strings.HasPrefix(low, "category.create="),
 			strings.HasPrefix(low, "minfreespace="),
@@ -177,8 +184,8 @@ func collectMounts(osRoot string) ([]Pool, error) {
 // optional snapraid.conf, and probes the required (mergerfs, fusermount3) and
 // optional (snapraid) binaries plus kernel FUSE from /proc/filesystems. It
 // never fails on a missing or unreadable input: those become present=false
-// with a reason. Only context cancellation returns an error (the caller maps
-// it to 503).
+// with a reason. Only context cancellation of the non-capacity work returns
+// an error (the caller maps it to 503). Capacity uses its own budget.
 func Collect(ctx context.Context, osRoot, snapraidPath, family string) (Snapshot, error) {
 	if err := ctx.Err(); err != nil {
 		return Snapshot{}, err
@@ -214,6 +221,10 @@ func Collect(ctx context.Context, osRoot, snapraidPath, family string) (Snapshot
 	snap.Warnings, snap.WarningsTruncated = HonestyWarnings(ctx, snap.MergerFS.Pools, snap.SnapRAID)
 	if err := ctx.Err(); err != nil {
 		return Snapshot{}, err
+	}
+	// Capacity has its own budget and must not 503 the inventory.
+	if err == nil {
+		collectMeasure(osRoot, snap.MergerFS.Pools)
 	}
 	return snap, nil
 }

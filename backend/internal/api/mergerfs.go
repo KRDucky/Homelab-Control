@@ -35,9 +35,11 @@ func (s *Server) mergerfsProtectedGET(w http.ResponseWriter, r *http.Request, se
 
 // handleMergerFS serves the read-only MergerFS + optional SnapRAID inventory.
 // No pool create, mount, policy write, or snapraid sync/diff/fix path exists:
-// this endpoint only parses bounded /proc/self/mountinfo, /etc/fstab, systemd
-// .mount units, and one configured snapraid.conf, and opens none of the listed
-// branch or data paths.
+// this endpoint parses bounded /proc/self/mountinfo, /etc/fstab, systemd
+// .mount units, and one configured snapraid.conf, then fstatfs of root-owned
+// live pool branch directories under the collect root. Listed SnapRAID paths
+// are not opened as such; fstab/systemd paths are not opened. Capacity timeout
+// degrades usage and must not fail the inventory.
 func (s *Server) handleMergerFS(w http.ResponseWriter, r *http.Request, sess *auth.Session, _ string) {
 	if !s.mergerfsProtectedGET(w, r, sess) {
 		return
@@ -56,7 +58,7 @@ func (s *Server) handleMergerFS(w http.ResponseWriter, r *http.Request, sess *au
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 	snap, err := s.mergerfsCollect(ctx)
-	if err != nil || ctx.Err() != nil {
+	if err != nil {
 		_ = s.auditLog("mergerfs.inventory.read", sess.Username, r, "unavailable", "")
 		writeError(w, http.StatusServiceUnavailable, "mergerfs_unavailable", "MergerFS inventory could not be collected safely.")
 		return

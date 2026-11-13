@@ -1015,10 +1015,21 @@ export interface MergerFSTooling {
   optional: MergerFSToolItem[];
 }
 
+export interface MergerFSBranchUsage {
+  path: string;
+  measured: boolean;
+  totalBytes?: number;
+  usedBytes?: number;
+  availBytes?: number;
+  reason?: string;
+}
+
 export interface MergerFSPool {
   mountpoint: string;
   branches: string[];
   options: string[];
+  usage?: MergerFSBranchUsage[];
+  usageTruncated?: boolean;
 }
 
 export interface MergerFSConfiguredMount {
