@@ -62,6 +62,25 @@ module is enabled and the session has `packages.read`. No POST install, `package
 create, import, export, destroy, or `zpool`/`zfs` execution exists. This is a checkpoint, not M7
 acceptance, not a merge, not production. Never touch production pool `tank`.
 
+## M7 first checkpoint: LVM2 (read-only; not M7 acceptance)
+
+One read-only page at `/storage/lvm` (module id `lvm`, scope `lvm.read`, never default and implied
+by nothing, including `storage.read`) probes the required `lvm` binary (unprivileged `os.Stat` of
+`/usr/sbin/lvm` then `/usr/bin/lvm`, no `os/exec`) and optional `thin_check`. Package `lvm2` is named
+for Debian, Fedora, SUSE, and Arch. Optional thin tools: Debian and Arch `thin-provisioning-tools`,
+Fedora `device-mapper-persistent-data`; SUSE names no optional package. An unknown family names no
+package. Kernel device-mapper is a bounded read of `/proc/devices` (last field exactly
+`device-mapper`; never modprobe; listed is not ready to create a PV). Observed devices are
+`dm-<digits>` under sysfs whose `dm/uuid` starts with `LVM-` (the uuid is not returned). The mapper
+name comes from `dm/name` when it is valid UTF-8, at most 128 bytes, and contains no `/`, `..`, or
+control character; otherwise the mapper is empty and the device is still listed. The directory scan
+stops at 1024 entries and the returned list stops at 256, with `devicesTruncated` and the fixed page
+text “too many devices to list”. An unreadable device inventory is `present=false` with a fixed
+reason and an empty list. No `pvs`/`vgs`/`lvs` execution and no `pvcreate`/`vgcreate`/`lvcreate`.
+A missing `lvm2` package offers Software Center search (`/software?q=lvm2`) when the packages module
+is enabled and the session has `packages.read`. This is a checkpoint, not M7 acceptance, not a merge,
+not production. Never touch production pool `tank`.
+
 ## M8 first checkpoint: MergerFS + optional SnapRAID (read-only; not M8 acceptance)
 
 One read-only page at `/storage/mergerfs` (module id `mergerfs`, scope `mergerfs.read`, never default

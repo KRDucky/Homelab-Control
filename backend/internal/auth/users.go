@@ -97,6 +97,11 @@ const (
 	// no writes, no broker ops, and no zpool/zfs execution. Not in
 	// DefaultScopes and implied by nothing, including storage.read.
 	ScopeZFSRead = "zfs.read"
+	// ScopeLVMRead allows the read-only LVM inventory (M7 first checkpoint):
+	// observed device-mapper names whose uuid starts with LVM- and lvm
+	// binary presence, with no writes, no broker ops, and no lvm execution.
+	// Not in DefaultScopes and implied by nothing, including storage.read.
+	ScopeLVMRead = "lvm.read"
 )
 
 // KnownScopes lists every scope the server understands. Unknown scopes in the
@@ -125,6 +130,7 @@ var KnownScopes = map[string]bool{
 	ScopePackagesRead:         true,
 	ScopeMergerFSRead:         true,
 	ScopeZFSRead:              true,
+	ScopeLVMRead:              true,
 }
 
 // DefaultScopes are granted by `hlctl user add` when --scopes is not given.

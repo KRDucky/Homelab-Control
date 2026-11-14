@@ -12,7 +12,7 @@ import (
 
 func TestRegistryIsClosed(t *testing.T) {
 	all := All()
-	if len(all) != 5 || all[0].ID != "services" || all[0].APIPrefix != "/api/v1/services" || all[0].OpPrefix != "services." {
+	if len(all) != 6 || all[0].ID != "services" || all[0].APIPrefix != "/api/v1/services" || all[0].OpPrefix != "services." {
 		t.Fatalf("registry: %+v (new modules need review)", all)
 	}
 	if all[1].ID != "packages" || all[1].APIPrefix != "/api/v1/packages" || all[1].OpPrefix != "packages." || all[1].Path != "/software" || len(all[1].Scopes) != 1 || all[1].Scopes[0] != "packages.read" {
@@ -27,10 +27,13 @@ func TestRegistryIsClosed(t *testing.T) {
 	if all[4].ID != "zfs" || all[4].APIPrefix != "/api/v1/zfs" || all[4].OpPrefix != "" || all[4].Path != "/storage/zfs" || len(all[4].Scopes) != 1 || all[4].Scopes[0] != "zfs.read" {
 		t.Fatalf("zfs module: %+v (new modules need review)", all[4])
 	}
+	if all[5].ID != "lvm" || all[5].APIPrefix != "/api/v1/lvm" || all[5].OpPrefix != "" || all[5].Path != "/storage/lvm" || len(all[5].Scopes) != 1 || all[5].Scopes[0] != "lvm.read" {
+		t.Fatalf("lvm module: %+v (new modules need review)", all[5])
+	}
 	for path, want := range map[string]string{"/api/v1/services": "services", "/api/v1/services/units/{unit}/plan": "services",
 		"/api/v1/servicesx": "", "/api/v1/audit": "", "/api/v1/operations": "", "/api/v1/capabilities": "",
 		"/api/v1/files": "", "/api/v1/files/roots": "", "/api/v1/files/entries": "", "/": "",
-		"/api/v1/networking/reverse-proxy/traefik/inventory": "networking", "/api/v1/networkingx": "", "/api/v1/packages": "packages", "/api/v1/packages/search": "packages", "/api/v1/packagesx": "", "/api/v1/mergerfs": "mergerfs", "/api/v1/mergerfsx": "", "/api/v1/zfs": "zfs", "/api/v1/zfsx": ""} {
+		"/api/v1/networking/reverse-proxy/traefik/inventory": "networking", "/api/v1/networkingx": "", "/api/v1/packages": "packages", "/api/v1/packages/search": "packages", "/api/v1/packagesx": "", "/api/v1/mergerfs": "mergerfs", "/api/v1/mergerfsx": "", "/api/v1/zfs": "zfs", "/api/v1/zfsx": "", "/api/v1/lvm": "lvm", "/api/v1/lvmx": ""} {
 		if got := ForRoute(path); got != want {
 			t.Errorf("ForRoute(%q) = %q, want %q", path, got, want)
 		}
@@ -87,7 +90,7 @@ func TestLoadFailsClosed(t *testing.T) {
 		t.Fatal("symlinked setting must fail closed")
 	}
 	_ = os.WriteFile(p, []byte(`{"version":1,"disabled":["nope"]}`), 0o644)
-	if s := LoadOrFailClosed(p, false); s.Enabled("services") || len(s.Disabled()) != 5 {
+	if s := LoadOrFailClosed(p, false); s.Enabled("services") || len(s.Disabled()) != 6 {
 		t.Fatal("invalid setting must disable every module")
 	}
 }
