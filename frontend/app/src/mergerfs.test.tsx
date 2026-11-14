@@ -103,6 +103,7 @@ function inventory(opts: {
     kernelRelease: kernelReleasePresent
       ? { present: true, release: '6.8.0-hc-test', reason: '' }
       : { present: false, release: '', reason: 'Could not read /proc/sys/kernel/osrelease.' },
+    fuseAccess: { present: true, userAllowOther: true, reason: '' },
     warnings: [],
     warningsTruncated: false,
   };
@@ -134,6 +135,33 @@ describe('MergerFS read-only page', () => {
     expect(screen.getByText('/mnt/disk1, /mnt/disk2')).toBeTruthy();
     expect(screen.queryByText(/SnapRAID is optional/)).toBeNull();
     expect(screen.getByText(/Capacity is measured per live branch of a root-owned mount/)).toBeTruthy();
+    expect(screen.getByText(/user_allow_other is set in \/etc\/fuse.conf/)).toBeTruthy();
+    expect(screen.getByText(/does not edit fuse.conf or remount/)).toBeTruthy();
+  });
+
+  it('shows when user_allow_other is unset and when a pool lacks allow_other', async () => {
+    const data = inventory({
+      mergerfsInstalled: true,
+      snapraidInstalled: true,
+      mergerfsPresent: true,
+      snapraidPresent: false,
+    });
+    data.fuseAccess = { present: true, userAllowOther: false, reason: '' };
+    data.warnings = [
+      {
+        code: 'fuse-allow-other',
+        pool: '/mnt/media',
+        branch: '/mnt/media',
+        other: '',
+        detail:
+          'this pool is mounted without allow_other; other users may not see its files. This page does not remount',
+      },
+    ];
+    vi.mocked(getMergerFS).mockResolvedValue(data);
+    render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
+    expect(await screen.findByText(/user_allow_other is not set in \/etc\/fuse.conf/)).toBeTruthy();
+    expect(screen.getByText(/does not edit fuse.conf or remount/)).toBeTruthy();
+    expect(screen.getByText(/mounted without allow_other/)).toBeTruthy();
   });
 
   it('shows a per-branch capacity meter when usage is measured', async () => {

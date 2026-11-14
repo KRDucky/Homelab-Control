@@ -16,6 +16,7 @@ const (
 	WarnContentOnPool       = "content-on-pool"
 	WarnContentOnParity     = "content-on-parity"
 	WarnContentNotRedundant = "content-not-redundant"
+	WarnFuseAllowOther      = "fuse-allow-other"
 
 	maxWarningsTotal   = 64
 	maxWarningsPerPool = 8
@@ -34,7 +35,9 @@ type Warning struct {
 // HonestyWarnings reports duplicate pool branches and SnapRAID parity or
 // content paths that sit on a mergerfs branch or on the fused mount.
 // Content on a data branch is expected and is not a warning. Fewer than two
-// content files is a warning. Comparison is string prefix only (exact or
+// content files is a warning. A pool whose options were parsed and omit
+// allow_other is a warning; nil options (older fixtures) stay silent. This
+// page does not remount. Comparison is string prefix only (exact or
 // inner path under a cleaned prefix); mergerfs branch mode suffixes
 // =RW/=NC/=RO are stripped; nothing is stat'ed and content files are not
 // read. Output is capped (64 total, 8 per pool for branch findings);
@@ -61,6 +64,16 @@ func HonestyWarnings(ctx context.Context, pools []Pool, snap SnapRAID) (out []Wa
 			out = append(out, clipWarning(w))
 			poolCount++
 			return true
+		}
+		if pool.Options != nil && !hasOption(pool.Options, "allow_other") {
+			if !add(Warning{
+				Code:   WarnFuseAllowOther,
+				Pool:   pool.Mountpoint,
+				Branch: pool.Mountpoint,
+				Detail: "this pool is mounted without allow_other; other users may not see its files. This page does not remount",
+			}) {
+				continue
+			}
 		}
 		seen := map[string]int{}
 		for _, b := range pool.Branches {
@@ -247,4 +260,13 @@ func clipField(s string) string {
 		return s
 	}
 	return s[:warningFieldMax]
+}
+
+func hasOption(opts []string, name string) bool {
+	for _, o := range opts {
+		if o == name {
+			return true
+		}
+	}
+	return false
 }
