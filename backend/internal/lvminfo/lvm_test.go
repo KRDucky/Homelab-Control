@@ -185,6 +185,9 @@ func TestCollectKeepsLVMPrefixOnly(t *testing.T) {
 	writeLV(t, dir, "dm-1", "CRYPT-not-lvm\n", "crypt-keep")
 	writeLV(t, dir, "dm-2", "LVM-OTHER", "bad/name")
 	writeLV(t, dir, "dm-3", "LVM-DOTS", "pool/../escape")
+	writeLV(t, dir, "dm-8", "LVM-SLASH", "vg/lv")
+	writeLV(t, dir, "dm-4", "LVM-THINMETA", "vg-pool_tmeta")
+	writeLV(t, dir, "dm-5", "LVM-CACHE", "vg-cache_corig")
 	writeLV(t, dir, "sda", "LVM-DISK", "not-dm")
 	writeLV(t, dir, "dm-x", "LVM-LETTERS", "letters")
 	snap, err := Collect(context.Background(), dir, "debian")
@@ -201,15 +204,24 @@ func TestCollectKeepsLVMPrefixOnly(t *testing.T) {
 	for _, d := range snap.Lvm.Devices {
 		got[d.Name] = d.Mapper
 	}
-	if len(got) != 3 || got["dm-0"] != "vg-lv" || got["dm-2"] != "" || got["dm-3"] != "" {
+	if len(got) != 4 || got["dm-0"] != "vg-lv" || got["dm-2"] != "" || got["dm-3"] != "" || got["dm-8"] != "" {
 		t.Fatalf("devices: %+v", snap.Lvm.Devices)
+	}
+	if _, ok := got["dm-4"]; ok {
+		t.Fatal("thin metadata must not be listed")
+	}
+	if _, ok := got["dm-5"]; ok {
+		t.Fatal("cache origin must not be listed")
+	}
+	if snap.Tooling.Optional[0].Package != "thin-provisioning-tools" {
+		t.Fatalf("thin pool observed, package must stay: %+v", snap.Tooling.Optional[0])
 	}
 	raw, err := json.Marshal(snap)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(raw), "LVM-") || strings.Contains(string(raw), "SECRET") || strings.Contains(string(raw), "CRYPT-") {
-		t.Fatalf("uuid leaked: %s", raw)
+	if strings.Contains(string(raw), "LVM-") || strings.Contains(string(raw), "SECRET") || strings.Contains(string(raw), "CRYPT-") || strings.Contains(string(raw), "_tmeta") || strings.Contains(string(raw), "_corig") {
+		t.Fatalf("uuid or internal name leaked: %s", raw)
 	}
 }
 
@@ -225,6 +237,9 @@ func TestCollectTruncatesDevices(t *testing.T) {
 	if !snap.Lvm.Present || !snap.Lvm.DevicesTruncated || len(snap.Lvm.Devices) != deviceMax {
 		t.Fatalf("n=%d truncated=%v present=%v", len(snap.Lvm.Devices), snap.Lvm.DevicesTruncated, snap.Lvm.Present)
 	}
+	if snap.Lvm.Devices[0].Name != "dm-0" || snap.Lvm.Devices[deviceMax-1].Name != "dm-"+itoa(deviceMax-1) {
+		t.Fatalf("keep the lowest dm numbers: first=%s last=%s", snap.Lvm.Devices[0].Name, snap.Lvm.Devices[deviceMax-1].Name)
+	}
 	if snap.Lvm.Reason != "" {
 		t.Fatalf("truncated inventory must stay present: %q", snap.Lvm.Reason)
 	}
@@ -232,15 +247,17 @@ func TestCollectTruncatesDevices(t *testing.T) {
 
 func TestCollectScanCapTruncates(t *testing.T) {
 	dir := fixtureRoot(t)
-	for i := 0; i < blockScanMax+1; i++ {
-		writeLV(t, dir, "dm-"+itoa(i), "LVM-SCAN", "vg-s"+itoa(i))
+	for i := 0; i < dirReadMax+1; i++ {
+		if err := os.Mkdir(filepath.Join(dir, "sys", "block", "pad-"+itoa(i)), 0o755); err != nil {
+			t.Fatal(err)
+		}
 	}
 	snap, err := Collect(context.Background(), dir, "unknown")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !snap.Lvm.DevicesTruncated || len(snap.Lvm.Devices) != deviceMax || !snap.Lvm.Present {
-		t.Fatalf("n=%d truncated=%v present=%v", len(snap.Lvm.Devices), snap.Lvm.DevicesTruncated, snap.Lvm.Present)
+	if !snap.Lvm.DevicesTruncated || len(snap.Lvm.Devices) != 0 {
+		t.Fatalf("n=%d truncated=%v", len(snap.Lvm.Devices), snap.Lvm.DevicesTruncated)
 	}
 }
 
@@ -264,6 +281,9 @@ func TestCollectEmptyIsHonest(t *testing.T) {
 	if len(snap.Lvm.Devices) != 0 || snap.Lvm.DevicesTruncated {
 		t.Fatalf("%+v", snap.Lvm)
 	}
+	if snap.Tooling.Optional[0].ID != "thin_check" || snap.Tooling.Optional[0].Package != "" {
+		t.Fatalf("no thin pool, package must be cleared: %+v", snap.Tooling.Optional[0])
+	}
 	if snap.Tooling.RequiredInstalled("lvm") {
 		if !snap.Lvm.Present || snap.Lvm.Reason != "" {
 			t.Fatalf("installed lvm with no devices: %+v", snap.Lvm)
@@ -272,6 +292,60 @@ func TestCollectEmptyIsHonest(t *testing.T) {
 	}
 	if snap.Lvm.Present || snap.Lvm.Reason != "lvm binary was not found" {
 		t.Fatalf("missing lvm with no devices: %+v", snap.Lvm)
+	}
+}
+
+func TestCollectSortsLeadingZeros(t *testing.T) {
+	dir := fixtureRoot(t)
+	writeLV(t, dir, "dm-10", "LVM-TEN", "vg-ten")
+	writeLV(t, dir, "dm-2", "LVM-TWO", "vg-two")
+	writeLV(t, dir, "dm-01", "LVM-ONE", "vg-one")
+	snap, err := Collect(context.Background(), dir, "debian")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snap.Lvm.Devices) != 3 {
+		t.Fatalf("%+v", snap.Lvm.Devices)
+	}
+	if snap.Lvm.Devices[0].Name != "dm-01" || snap.Lvm.Devices[1].Name != "dm-2" || snap.Lvm.Devices[2].Name != "dm-10" {
+		t.Fatalf("numeric order: %+v", snap.Lvm.Devices)
+	}
+}
+
+func TestCollectSkipsOversizedUUIDAndEscapingSymlink(t *testing.T) {
+	dir := fixtureRoot(t)
+	writeLV(t, dir, "dm-1", "LVM-KEEP", "vg-lv")
+	big := "LVM-" + strings.Repeat("A", uuidReadMax)
+	writeLV(t, dir, "dm-2", big, "vg-big")
+	outside := t.TempDir()
+	secret := filepath.Join(outside, "secret")
+	if err := os.WriteFile(secret, []byte("LVM-LEAKED-SECRET\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	linkDir := filepath.Join(dir, "sys", "block", "dm-4", "dm")
+	if err := os.MkdirAll(linkDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(secret, filepath.Join(linkDir, "uuid")); err != nil {
+		t.Fatal(err)
+	}
+	snap, err := Collect(context.Background(), dir, "debian")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]string{}
+	for _, d := range snap.Lvm.Devices {
+		got[d.Name] = d.Mapper
+	}
+	if len(got) != 1 || got["dm-1"] != "vg-lv" {
+		t.Fatalf("devices: %+v", snap.Lvm.Devices)
+	}
+	raw, err := json.Marshal(snap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "LEAKED") || strings.Contains(string(raw), "LVM-") {
+		t.Fatalf("leaked: %s", raw)
 	}
 }
 

@@ -1139,22 +1139,23 @@ components:
             reason: { type: string }
             devicesTruncated:
               type: boolean
-              description: True when the device cap or the sysfs directory scan cap was hit. The page shows the fixed text "too many devices to list".
+              description: True when the 256-device cap or the 8192-entry sysfs directory read cap was hit. Names are sorted numerically by dm-N before the keep cap. The page shows the fixed text "too many devices to list".
             devices:
               type: array
               maxItems: 256
+              description: dm-N devices with an LVM- uuid, lowest numbers first. Thin and cache internals are omitted when the mapper ends with _tmeta, _tdata, _cmeta, _cdata, or _corig. The uuid is not returned.
               items:
                 type: object
                 required: [name, mapper]
                 additionalProperties: false
                 properties:
-                  name: { type: string, maxLength: 32, description: dm-N sysfs name. The LVM uuid is not returned. }
+                  name: { type: string, maxLength: 32, description: dm-N sysfs name, including leading zeros. The LVM uuid is not returned. }
                   mapper: { type: string, maxLength: 128, description: dm/name when it is a safe mapper label; otherwise empty. }
         kernelDm:
           type: object
           required: [present, reason]
           additionalProperties: false
-          description: Read-only /proc/devices probe for the device-mapper target (listed, not ready to create a PV). Never loads a module, never opens a device.
+          description: Read-only /proc/devices probe for the device-mapper target (listed, not ready to create a PV). present false uses the fixed "not currently listed" text, including when dm_mod is not loaded. The capability may show degraded. This page does not load a module and never opens a device.
           properties:
             present: { type: boolean }
             reason: { type: string }
@@ -2087,8 +2088,13 @@ paths:
         itself is not returned). Mapper is dm/name when that label is safe. Required
         tooling is the lvm binary (package lvm2 on Debian, Fedora, SUSE, and Arch).
         Optional thin_check names a package only where this checkpoint is sure (SUSE
-        names none). Never executed. kernelDm is a read-only /proc/devices probe
-        (last field exactly device-mapper; listed is not proof a PV can be created).
+        names none) and only when a thin-pool component (_tmeta or _tdata) was
+        observed; otherwise the package is empty. Never executed. dm-N names are
+        sorted numerically before the 256-device cap. Directory reads stop at 8192
+        names. Mapper suffixes _tmeta, _tdata, _cmeta, _cdata, and _corig are omitted.
+        kernelDm is a read-only /proc/devices probe (last field exactly device-mapper;
+        "not currently listed" covers an unloaded dm_mod; listed is not proof a PV
+        can be created).
         No pvcreate, vgcreate, lvcreate, or module load exists. Origin and
         X-CSRF-Token are required; audit records counts only, never mapper names.
       security: [{ session: [] }]
