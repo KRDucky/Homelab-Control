@@ -481,6 +481,8 @@ describe('MergerFS read-only page', () => {
       screen.getByText(/SnapRAID parity sits on a mergerfs branch; pooling is not redundancy/),
     ).toBeTruthy();
     expect(screen.getByText('/mnt/parity/snapraid.parity')).toBeTruthy();
+    expect(screen.getByText(/Writes between syncs are not protected/)).toBeTruthy();
+    expect(screen.getByText(/does not read content files/)).toBeTruthy();
   });
 
   it('reports truncated warnings without mutating controls', async () => {

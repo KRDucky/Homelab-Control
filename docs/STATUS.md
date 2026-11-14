@@ -116,6 +116,9 @@ SnapRAID is never implied by a mergerfs pool. The inventory reports read-only ho
 warnings when a SnapRAID parity path sits on a mergerfs branch or the fused mount, or when a
 pool lists the same branch twice; data disks as branches are expected and are not warnings.
 Matching is path-based (`=RW`/`=NC`/`=RO` suffixes stripped); a missing warning is not proof.
+Content on a data branch is expected. Content on the fused mount or on a parity path is a warning,
+as is fewer than two content files. Content files are not read, and a missing mount is not inferred.
+Writes between SnapRAID syncs are not protected; this page does not know the last sync time.
 The warning list is capped (64 total, 8 per pool) with `warningsTruncated` when the cap or
 collect deadline hits. Each root-owned live pool branch (`user_id=0` in mount super-options)
 is measured with `fstatfs` of the directory under the collect root (`os.OpenRoot`, directory,
