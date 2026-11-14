@@ -57,6 +57,7 @@ export function MergerFSView({
   const { tooling, mergerfs, snapraid } = data;
   const kernelFuse = data.kernelFuse;
   const kernelRelease = data.kernelRelease;
+  const fuseAccess = data.fuseAccess;
   const missingRequired = tooling.required.filter((t) => !t.installed);
   const mergerfsTool = tooling.required.find((t) => t.id === 'mergerfs');
   const mergerfsMissing = mergerfsTool ? !mergerfsTool.installed : false;
@@ -112,6 +113,16 @@ export function MergerFSView({
           <p className="banner" role="status">
             {kernelRelease.reason || 'Could not read /proc/sys/kernel/osrelease.'} mergerfs --version is not
             run.
+          </p>
+        ) : null}
+        {fuseAccess ? (
+          <p>
+            {fuseAccess.present
+              ? fuseAccess.userAllowOther
+                ? 'user_allow_other is set in /etc/fuse.conf.'
+                : 'user_allow_other is not set in /etc/fuse.conf.'
+              : fuseAccess.reason || 'Could not read /etc/fuse.conf.'}{' '}
+            This page does not edit fuse.conf or remount.
           </p>
         ) : null}
       </section>

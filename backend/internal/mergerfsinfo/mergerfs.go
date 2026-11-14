@@ -47,6 +47,7 @@ type Snapshot struct {
 	SnapRAID          SnapRAID      `json:"snapraid"`
 	KernelFuse        KernelFuse    `json:"kernelFuse"`
 	KernelRelease     KernelRelease `json:"kernelRelease"`
+	FuseAccess        FuseAccess    `json:"fuseAccess"`
 	Warnings          []Warning     `json:"warnings"`
 	WarningsTruncated bool          `json:"warningsTruncated"`
 }
@@ -184,12 +185,14 @@ func collectMounts(osRoot string) ([]Pool, error) {
 // Collect reads mergerfs pools, optional fstab/systemd declarations, and the
 // optional snapraid.conf, and probes the required (mergerfs, fusermount3) and
 // optional (snapraid, smartctl, dumpe2fs, xfs_info, btrfs) binaries plus kernel
-// FUSE from /proc/filesystems and kernel release from /proc/sys/kernel/osrelease.
-// Optional tools are never executed, uname is never run, and mergerfs --version
-// is never run. Disks are not formatted. Missing or unreadable inputs become
+// FUSE from /proc/filesystems, kernel release from /proc/sys/kernel/osrelease,
+// and user_allow_other from /etc/fuse.conf. Optional tools are never executed,
+// uname is never run, and mergerfs --version is never run. Disks are not
+// formatted and fuse.conf is not edited. Missing or unreadable inputs become
 // present=false with a reason. Only context cancellation of the non-capacity
 // work returns an error (the caller maps it to 503). Capacity uses its own
-// budget. Kernel release is informational and never degrades ProbeCapability.
+// budget. Kernel release and fuse.conf are informational and never degrade
+// ProbeCapability.
 func Collect(ctx context.Context, osRoot, snapraidPath, family string) (Snapshot, error) {
 	if err := ctx.Err(); err != nil {
 		return Snapshot{}, err
@@ -198,6 +201,7 @@ func Collect(ctx context.Context, osRoot, snapraidPath, family string) (Snapshot
 	snap.Tooling = ProbeTooling(family)
 	snap.KernelFuse = ProbeKernelFuse(osRoot)
 	snap.KernelRelease = ProbeKernelRelease(osRoot)
+	snap.FuseAccess = ProbeFuseAccess(osRoot)
 	pools, err := collectMounts(osRoot)
 	if pools == nil {
 		pools = []Pool{}
