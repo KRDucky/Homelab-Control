@@ -2069,8 +2069,9 @@ paths:
       description: >
         Parses bounded /proc/self/mountinfo for fstype zfs mounts (mountpoint and dataset
         source only). Required tooling is zfs plus zpool (Debian/Ubuntu package zfsutils-linux;
-        other families name no package and never add a third-party OpenZFS repository). Never
-        executed. kernelZfs is a read-only /proc/filesystems probe (zfs type only; listed is
+        other families name no package and never add a third-party OpenZFS repository). Optional
+        smartctl (smartmontools) and nvme (nvme-cli) are named on known families and never executed;
+        missing them does not degrade capability and no disk is opened. kernelZfs is a read-only /proc/filesystems probe (zfs type only; listed is
         not proof a pool is imported). No pool create, import, export, destroy, property write,
         or module load exists. Origin and X-CSRF-Token are required; audit records counts only,
         never dataset or mountpoint paths.
