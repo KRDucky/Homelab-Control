@@ -149,6 +149,7 @@ export interface Capability {
     | 'packages'
     | 'mergerfs'
     | 'zfs'
+    | 'lvm'
     | 'traefik';
   label: string;
   path: string;
@@ -1136,6 +1137,48 @@ export interface ZFSInventory {
 
 export function getZFS(csrf: string): Promise<ZFSInventory> {
   return request<ZFSInventory>('/api/v1/zfs', { headers: { 'X-CSRF-Token': csrf } });
+}
+
+// ---- M7 first checkpoint: LVM (read-only) ------------------------------------
+
+export interface LVMToolItem {
+  id: string;
+  package: string;
+  installed: boolean;
+  binary: string;
+}
+
+export interface LVMTooling {
+  family: string;
+  required: LVMToolItem[];
+  optional: LVMToolItem[];
+}
+
+export interface LVMDevice {
+  name: string;
+  mapper: string;
+}
+
+export interface LVMInfo {
+  present: boolean;
+  reason: string;
+  devices: LVMDevice[];
+  devicesTruncated: boolean;
+}
+
+export interface LVMKernel {
+  present: boolean;
+  reason: string;
+}
+
+export interface LVMInventory {
+  tooling: LVMTooling;
+  lvm: LVMInfo;
+  kernelDm: LVMKernel;
+}
+
+export function getLVM(csrf: string): Promise<LVMInventory> {
+  return request<LVMInventory>('/api/v1/lvm', { headers: { 'X-CSRF-Token': csrf } });
 }
 
 // Read-only Traefik helper integration. The browser never receives helper credentials.
