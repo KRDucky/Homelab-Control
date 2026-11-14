@@ -179,8 +179,14 @@ func TestProbeToolingPresentDebian(t *testing.T) {
 		}
 	}
 	tool := probeTooling("debian", stat)
-	if tool.Family != "debian" || len(tool.Required) != 2 || len(tool.Optional) != 0 {
+	if tool.Family != "debian" || len(tool.Required) != 2 || len(tool.Optional) != 2 {
 		t.Fatalf("%+v", tool)
+	}
+	if tool.Optional[0].ID != "smartctl" || tool.Optional[0].Package != "smartmontools" || tool.Optional[0].Installed {
+		t.Fatalf("smartctl: %+v", tool.Optional[0])
+	}
+	if tool.Optional[1].ID != "nvme" || tool.Optional[1].Package != "nvme-cli" || tool.Optional[1].Installed {
+		t.Fatalf("nvme: %+v", tool.Optional[1])
 	}
 	if tool.Required[0].ID != "zfs" || tool.Required[0].Package != "zfsutils-linux" || !tool.Required[0].Installed || tool.Required[0].Binary != "/usr/sbin/zfs" {
 		t.Fatalf("zfs: %+v", tool.Required[0])
@@ -203,6 +209,16 @@ func TestProbeToolingPackageNames(t *testing.T) {
 	debian := probeTooling("debian", stat)
 	if debian.Required[0].Package != "zfsutils-linux" || debian.Required[1].Package != "zfsutils-linux" {
 		t.Fatalf("debian missing: %+v", debian)
+	}
+	for _, family := range []string{"debian", "fedora", "suse", "arch"} {
+		tool := probeTooling(family, stat)
+		if tool.Optional[0].Package != "smartmontools" || tool.Optional[1].Package != "nvme-cli" {
+			t.Fatalf("%s optional: %+v", family, tool.Optional)
+		}
+	}
+	unknown := probeTooling("unknown", stat)
+	if unknown.Optional[0].Package != "" || unknown.Optional[1].Package != "" {
+		t.Fatalf("unknown family must not name a package: %+v", unknown.Optional)
 	}
 }
 

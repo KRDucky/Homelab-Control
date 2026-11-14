@@ -35,7 +35,7 @@ function inventory(opts: {
         item('zfs', pkg, opts.zfsInstalled, opts.zfsInstalled ? '/usr/sbin/zfs' : ''),
         item('zpool', pkg, zpoolInstalled, zpoolInstalled ? '/usr/sbin/zpool' : ''),
       ],
-      optional: [],
+      optional: [item('smartctl', 'smartmontools', true), item('nvme', 'nvme-cli', true)],
     },
     zfs:
       opts.mounts === false
@@ -82,6 +82,20 @@ describe('ZFS read-only page', () => {
     expect(screen.getByText('tank/media')).toBeTruthy();
     expect(screen.getByText(/zfs and zpool are probed, not run/)).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'OpenZFS tools' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Disk inspect tools' })).toBeNull();
+  });
+
+  it('offers smartctl and nvme only when missing and a package is named', async () => {
+    const data = inventory({ zfsInstalled: true });
+    data.tooling.optional = [item('smartctl', 'smartmontools', false), item('nvme', '', false)];
+    vi.mocked(getZFS).mockResolvedValue(data);
+    render(
+      <ZFS csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
+    );
+    expect(await screen.findByRole('heading', { name: 'Disk inspect tools' })).toBeTruthy();
+    expect(screen.getByText(/does not run them or open disks/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Install smartmontools' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /nvme/ })).toBeNull();
   });
 
   it('shows the Debian install offer without adding a third-party repo', async () => {
