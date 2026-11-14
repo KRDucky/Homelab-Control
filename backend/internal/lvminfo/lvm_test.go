@@ -349,6 +349,154 @@ func TestCollectSkipsOversizedUUIDAndEscapingSymlink(t *testing.T) {
 	}
 }
 
+func TestCollectDevicesContextStopsEvery64(t *testing.T) {
+	dir := fixtureRoot(t)
+	const n = ctxCheckEvery + 16
+	for i := 0; i < n; i++ {
+		writeLV(t, dir, "dm-"+itoa(i), "LVM-ROW", "vg-lv"+itoa(i))
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	devices, truncated, seen, thin, err := collectDevices(ctx, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !truncated || !seen || thin || len(devices) != ctxCheckEvery {
+		t.Fatalf("n=%d truncated=%v seen=%v thin=%v", len(devices), truncated, seen, thin)
+	}
+	if devices[0].Name != "dm-0" || devices[ctxCheckEvery-1].Name != "dm-"+itoa(ctxCheckEvery-1) {
+		t.Fatalf("stopped group: first=%s last=%s", devices[0].Name, devices[len(devices)-1].Name)
+	}
+	live, liveTrunc, _, _, err := collectDevices(context.Background(), dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if liveTrunc || len(live) != n {
+		t.Fatalf("live walk n=%d truncated=%v", len(live), liveTrunc)
+	}
+}
+
+func TestCollectHiddenInternalsDoNotConsumeCap(t *testing.T) {
+	dir := fixtureRoot(t)
+	internals := []string{
+		"vg-pool_tdata",
+		"vg-pool_tmeta",
+		"vg-cache_cmeta",
+		"vg-cache_cdata",
+		"vg-cache_corig",
+		"vg-lv_mimage_0",
+		"vg-lv_mlog",
+		"vg-lv_rimage_1",
+		"vg-lv_rmeta_2",
+		"vg-pool_pmspare",
+		"vg-origin_vorigin",
+		"vg-snap-real",
+		"vg-snap-cow",
+	}
+	for i, mapper := range internals {
+		writeLV(t, dir, "dm-"+itoa(i), "LVM-INT", mapper)
+	}
+	// Lookalikes sit in the kept window: user LV "real" and user LV "foo-cow".
+	writeLV(t, dir, "dm-13", "LVM-REAL", "vg-real")
+	writeLV(t, dir, "dm-14", "LVM-COW", "vg-foo--cow")
+	const publicN = 255
+	for i := 0; i < publicN; i++ {
+		writeLV(t, dir, "dm-"+itoa(15+i), "LVM-PUB", "vg-lv"+itoa(i))
+	}
+	snap, err := Collect(context.Background(), dir, "debian")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !snap.Lvm.DevicesTruncated || len(snap.Lvm.Devices) != deviceMax {
+		t.Fatalf("n=%d truncated=%v", len(snap.Lvm.Devices), snap.Lvm.DevicesTruncated)
+	}
+	if snap.Lvm.Devices[0].Name != "dm-13" || snap.Lvm.Devices[0].Mapper != "vg-real" {
+		t.Fatalf("first kept: %+v", snap.Lvm.Devices[0])
+	}
+	if snap.Lvm.Devices[1].Name != "dm-14" || snap.Lvm.Devices[1].Mapper != "vg-foo--cow" {
+		t.Fatalf("escaped cow name must stay: %+v", snap.Lvm.Devices[1])
+	}
+	last := snap.Lvm.Devices[deviceMax-1].Name
+	if last != "dm-"+itoa(15+deviceMax-3) {
+		t.Fatalf("last kept=%s", last)
+	}
+	if snap.Tooling.Optional[0].ID != "thin_check" || snap.Tooling.Optional[0].Package != "thin-provisioning-tools" {
+		t.Fatalf("thin component among hidden lows must keep the package: %+v", snap.Tooling.Optional[0])
+	}
+	raw, err := json.Marshal(snap.Lvm.Devices)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, leak := range []string{"_tdata", "_tmeta", "_mimage", "_mlog", "_rimage", "_rmeta", "_pmspare", "_vorigin", "snap-real", "snap-cow"} {
+		if strings.Contains(string(raw), leak) {
+			t.Fatalf("internal leaked %s: %s", leak, raw)
+		}
+	}
+}
+
+func TestCollectThinAboveCap(t *testing.T) {
+	dir := fixtureRoot(t)
+	for i := 0; i < deviceMax+1; i++ {
+		writeLV(t, dir, "dm-"+itoa(i), "LVM-ROW", "vg-lv"+itoa(i))
+	}
+	writeLV(t, dir, "dm-400", "LVM-THIN", "vg-pool_tdata")
+	snap, err := Collect(context.Background(), dir, "debian")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snap.Lvm.Devices) != deviceMax || !snap.Lvm.DevicesTruncated {
+		t.Fatalf("n=%d truncated=%v", len(snap.Lvm.Devices), snap.Lvm.DevicesTruncated)
+	}
+	if snap.Tooling.Optional[0].Package != "thin-provisioning-tools" {
+		t.Fatalf("thin above the cap must still name the package: %+v", snap.Tooling.Optional[0])
+	}
+	raw, err := json.Marshal(snap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "_tdata") {
+		t.Fatalf("thin internal listed: %s", raw)
+	}
+}
+
+func TestCollectInvalidMapperStillMarksThin(t *testing.T) {
+	dir := fixtureRoot(t)
+	writeLV(t, dir, "dm-1", "LVM-THIN", "bad/pool_tdata")
+	writeLV(t, dir, "dm-2", "LVM-PUB", "vg/lv")
+	snap, err := Collect(context.Background(), dir, "debian")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snap.Lvm.Devices) != 1 || snap.Lvm.Devices[0].Name != "dm-2" || snap.Lvm.Devices[0].Mapper != "" {
+		t.Fatalf("devices: %+v", snap.Lvm.Devices)
+	}
+	if snap.Tooling.Optional[0].ID != "thin_check" || snap.Tooling.Optional[0].Package != "thin-provisioning-tools" {
+		t.Fatalf("invalid thin mapper must still keep the package: %+v", snap.Tooling.Optional[0])
+	}
+	raw, err := json.Marshal(snap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "_tdata") {
+		t.Fatalf("internal leaked: %s", raw)
+	}
+}
+
+func TestCollectUnreadableNameIsNotThin(t *testing.T) {
+	dir := fixtureRoot(t)
+	writeLV(t, dir, "dm-1", "LVM-NONAME", "")
+	snap, err := Collect(context.Background(), dir, "debian")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snap.Lvm.Devices) != 1 || snap.Lvm.Devices[0].Mapper != "" {
+		t.Fatalf("devices: %+v", snap.Lvm.Devices)
+	}
+	if snap.Tooling.Optional[0].ID != "thin_check" || snap.Tooling.Optional[0].Package != "" {
+		t.Fatalf("unreadable name must not mark thin: %+v", snap.Tooling.Optional[0])
+	}
+}
+
 func TestCollectCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

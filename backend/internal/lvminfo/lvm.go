@@ -47,6 +47,9 @@ const (
 	dirReadMax    = 8192
 	uuidReadMax   = 256
 	mapperNameMax = 128
+	// ctxCheckEvery bounds a cancelled collect. The walk checks the context
+	// after each group of this many dm devices and then stops.
+	ctxCheckEvery = 64
 )
 
 // Collect reads observed LVM device-mapper names and probes tooling plus
@@ -60,7 +63,7 @@ func Collect(ctx context.Context, osRoot, family string) (Snapshot, error) {
 	var snap Snapshot
 	snap.Tooling = ProbeTooling(family)
 	snap.KernelDM = ProbeKernelDM(osRoot)
-	devices, truncated, seen, thin, err := collectDevices(osRoot)
+	devices, truncated, seen, thin, err := collectDevices(ctx, osRoot)
 	if !thin {
 		// thin_check is never run. Name its package only after a thin pool
 		// component was observed, so the page does not offer it otherwise.
@@ -91,7 +94,7 @@ func Collect(ctx context.Context, osRoot, family string) (Snapshot, error) {
 	return snap, nil
 }
 
-func collectDevices(osRoot string) (devices []Device, truncated, seen, thin bool, err error) {
+func collectDevices(ctx context.Context, osRoot string) (devices []Device, truncated, seen, thin bool, err error) {
 	if osRoot == "" {
 		osRoot = "/"
 	}
@@ -123,7 +126,15 @@ func collectDevices(osRoot string) (devices []Device, truncated, seen, thin bool
 	// lowest dm-N values rather than directory order.
 	slices.SortFunc(dm, compareDM)
 	devices = []Device{}
-	for _, name := range dm {
+	for i, name := range dm {
+		// A context that is already done before Collect starts still returns
+		// that error. Once the walk has started, a done context stops after
+		// each group of ctxCheckEvery devices and sets devicesTruncated
+		// instead of failing the inventory.
+		if i > 0 && i%ctxCheckEvery == 0 && ctx.Err() != nil {
+			truncated = true
+			break
+		}
 		uuidPath := "sys/block/" + name + "/dm/uuid"
 		info, stErr := root.Lstat(uuidPath)
 		if stErr != nil || !info.Mode().IsRegular() {
@@ -199,6 +210,8 @@ func dmName(name string) bool {
 }
 
 func thinComponent(mapper string) bool {
+	// Suffix on the raw dm/name, before validMapper blanks a public label.
+	// An empty or unreadable name is not a thin component.
 	return strings.HasSuffix(mapper, "_tmeta") || strings.HasSuffix(mapper, "_tdata")
 }
 
@@ -206,7 +219,65 @@ func internalComponent(mapper string) bool {
 	if thinComponent(mapper) {
 		return true
 	}
-	return strings.HasSuffix(mapper, "_cmeta") || strings.HasSuffix(mapper, "_cdata") || strings.HasSuffix(mapper, "_corig")
+	if strings.HasSuffix(mapper, "_cmeta") || strings.HasSuffix(mapper, "_cdata") || strings.HasSuffix(mapper, "_corig") {
+		return true
+	}
+	if strings.HasSuffix(mapper, "_mlog") || strings.HasSuffix(mapper, "_pmspare") || strings.HasSuffix(mapper, "_vorigin") {
+		return true
+	}
+	if hasNumberedSuffix(mapper, "_mimage_") || hasNumberedSuffix(mapper, "_rimage_") || hasNumberedSuffix(mapper, "_rmeta_") {
+		return true
+	}
+	return dmSnapshotComponent(mapper)
+}
+
+// hasNumberedSuffix reports whether mapper ends with marker plus decimal digits.
+func hasNumberedSuffix(mapper, marker string) bool {
+	i := strings.LastIndex(mapper, marker)
+	if i < 0 || i+len(marker) == len(mapper) {
+		return false
+	}
+	rest := mapper[i+len(marker):]
+	for _, r := range rest {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// dmSnapshotComponent reports device-mapper snapshot nodes whose final
+// unescaped component is real or cow (vg-lv-real, vg-lv-cow). A user LV
+// named real (vg-real) or foo-cow (vg-foo--cow) stays public.
+func dmSnapshotComponent(mapper string) bool {
+	parts := splitDMName(mapper)
+	if len(parts) < 3 {
+		return false
+	}
+	last := parts[len(parts)-1]
+	return last == "real" || last == "cow"
+}
+
+// splitDMName splits a device-mapper name on unescaped hyphens. A doubled
+// hyphen is a hyphen inside a VG or LV name.
+func splitDMName(mapper string) []string {
+	var parts []string
+	var b strings.Builder
+	for i := 0; i < len(mapper); i++ {
+		if mapper[i] != '-' {
+			b.WriteByte(mapper[i])
+			continue
+		}
+		if i+1 < len(mapper) && mapper[i+1] == '-' {
+			b.WriteByte('-')
+			i++
+			continue
+		}
+		parts = append(parts, b.String())
+		b.Reset()
+	}
+	parts = append(parts, b.String())
+	return parts
 }
 
 func validMapper(name string) bool {
