@@ -18,7 +18,10 @@ type KernelDM struct {
 }
 
 const (
-	kernelDMMaxBytes     = 64 << 10
+	kernelDMMaxBytes = 64 << 10
+	// reasonDMMissing is the stable wording for an unlisted device-mapper
+	// target, including when dm_mod is not loaded. Do not replace it with a
+	// "module missing" instruction. This page does not load modules.
 	reasonDMMissing      = "The kernel device-mapper target is not currently listed in /proc/devices (this page does not load modules)."
 	reasonDMUnread       = "Could not read /proc/devices."
 	reasonDMMissingShort = "Kernel device-mapper is not currently listed."
