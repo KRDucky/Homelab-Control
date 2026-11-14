@@ -52,6 +52,7 @@ export function LVMView({
   const { tooling, lvm } = data;
   const kernelDm = data.kernelDm;
   const missingRequired = tooling.required.filter((t) => !t.installed);
+  const missingThin = tooling.optional.filter((t) => t.id === 'thin_check' && !t.installed && t.package);
   const canInstall = packagesEnabled && (scopes ?? []).includes('packages.read');
 
   return (
@@ -94,6 +95,19 @@ export function LVMView({
           </header>
           <p>lvm is required. This page does not run it.</p>
           <RequiredOffers items={missingRequired} canInstall={canInstall} />
+        </section>
+      )}
+
+      {missingThin.length > 0 && (
+        <section className="panel" aria-labelledby="lvm-thin-heading">
+          <header className="panel-head">
+            <h2 id="lvm-thin-heading">Thin pool check</h2>
+          </header>
+          <p>
+            thin_check is optional. It is offered only after a thin pool is observed. This page does not run
+            it.
+          </p>
+          <RequiredOffers items={missingThin} canInstall={canInstall} />
         </section>
       )}
 

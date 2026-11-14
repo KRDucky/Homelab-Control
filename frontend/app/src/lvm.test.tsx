@@ -30,7 +30,7 @@ function inventory(opts: {
     tooling: {
       family: opts.family ?? 'debian',
       required: [item('lvm', pkg, opts.lvmInstalled, opts.lvmInstalled ? '/usr/sbin/lvm' : '')],
-      optional: [item('thin_check', 'thin-provisioning-tools', false)],
+      optional: [item('thin_check', '', false)],
     },
     lvm:
       opts.devices === false
@@ -101,6 +101,21 @@ describe('LVM read-only page', () => {
     );
     expect(await screen.findByText('too many devices to list')).toBeTruthy();
     expect(screen.getByText('dm-0')).toBeTruthy();
+  });
+
+  it('offers thin_check only when the API names a package', async () => {
+    const data = inventory({ lvmInstalled: true });
+    data.tooling.optional = [item('thin_check', 'thin-provisioning-tools', false)];
+    vi.mocked(getLVM).mockResolvedValue(data);
+    render(
+      <LVM csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
+    );
+    expect(await screen.findByRole('heading', { name: 'Thin pool check' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Install thin-provisioning-tools' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Install thin-provisioning-tools' });
+    expect(within(dialog).getByRole('link', { name: 'Open Software Center' }).getAttribute('href')).toBe(
+      '/software?q=thin-provisioning-tools',
+    );
   });
 
   it('does not invent a package name for an unknown family', async () => {

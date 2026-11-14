@@ -58,6 +58,8 @@ func probeTooling(family string, stat storagecap.StatFunc) Tooling {
 // ProbeCapability is the cheap capabilities GET probe: binary Stat plus one
 // /proc/devices read. It never walks sysfs and never runs lvm. A missing
 // binary or an unlisted device-mapper target is degraded, not unavailable.
+// Unlisted includes an unloaded dm_mod. The reason stays "not currently
+// listed"; this probe does not load the module.
 func ProbeCapability(family string) (available bool, reason string) {
 	return probeCapability(family, storagecap.RealStat, "/")
 }
