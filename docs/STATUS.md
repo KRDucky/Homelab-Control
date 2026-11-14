@@ -100,7 +100,9 @@ well-known paths, no `os/exec`, no `packages.installed`, never those binaries ru
 opened or formatted), plus kernel FUSE from bounded
 `/proc/filesystems` (never `/dev/fuse`, never modprobe) and kernel release from bounded
 `/proc/sys/kernel/osrelease` (visible to `mergerfs.read` without `system.read`; never `uname`, never
-`mergerfs --version`; unread is not degraded). FUSE3 (`fusermount3`, package `fuse3`) is the
+`mergerfs --version`; unread is not degraded), plus a read-only `/etc/fuse.conf` probe for an
+uncommented `user_allow_other` line (symlink not followed, 4 KiB cap, missing file is not degraded,
+file is not edited). FUSE3 (`fusermount3`, package `fuse3`) is the
 supported baseline; FUSE2 `fusermount` is
 not probed. A missing `fuse` line is “not currently listed” (the module may load on first mount),
 not proof that mounts cannot work, and a listed line is not proof that a mount will succeed.
@@ -117,7 +119,9 @@ warnings when a SnapRAID parity path sits on a mergerfs branch or the fused moun
 pool lists the same branch twice; data disks as branches are expected and are not warnings.
 Matching is path-based (`=RW`/`=NC`/`=RO` suffixes stripped); a missing warning is not proof.
 Content on a data branch is expected. Content on the fused mount or on a parity path is a warning,
-as is fewer than two content files. Content files are not read, and a missing mount is not inferred.
+as is fewer than two content files. A pool whose parsed options omit `allow_other` is a warning
+(`fuse-allow-other`); nil options stay silent. This page does not remount. Content files are not
+read, and a missing mount is not inferred.
 Writes between SnapRAID syncs are not protected; this page does not know the last sync time.
 The warning list is capped (64 total, 8 per pool) with `warningsTruncated` when the cap or
 collect deadline hits. Each root-owned live pool branch (`user_id=0` in mount super-options)

@@ -1075,11 +1075,22 @@ export interface MergerFSKernelRelease {
 
 export interface MergerFSWarning {
   code:
-    'duplicate-branch' | 'parity-in-pool' | 'content-on-pool' | 'content-on-parity' | 'content-not-redundant';
+    | 'duplicate-branch'
+    | 'parity-in-pool'
+    | 'content-on-pool'
+    | 'content-on-parity'
+    | 'content-not-redundant'
+    | 'fuse-allow-other';
   pool: string;
   branch: string;
   other: string;
   detail: string;
+}
+
+export interface MergerFSFuseAccess {
+  present: boolean;
+  userAllowOther: boolean;
+  reason: string;
 }
 
 export interface MergerFSInventory {
@@ -1088,6 +1099,7 @@ export interface MergerFSInventory {
   snapraid: SnapRAIDInfo;
   kernelFuse: MergerFSKernelFuse;
   kernelRelease: MergerFSKernelRelease;
+  fuseAccess: MergerFSFuseAccess;
   warnings: MergerFSWarning[];
   warningsTruncated: boolean;
 }

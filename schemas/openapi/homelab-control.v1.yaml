@@ -910,7 +910,7 @@ components:
               third_party: { type: boolean }
     MergerFSInventory:
       type: object
-      required: [tooling, mergerfs, snapraid, kernelFuse, kernelRelease, warnings, warningsTruncated]
+      required: [tooling, mergerfs, snapraid, kernelFuse, kernelRelease, fuseAccess, warnings, warningsTruncated]
       properties:
         tooling:
           type: object
@@ -1023,22 +1023,37 @@ components:
             present: { type: boolean }
             release: { type: string, maxLength: 64 }
             reason: { type: string }
+        fuseAccess:
+          type: object
+          required: [present, userAllowOther, reason]
+          additionalProperties: false
+          description: >
+            Read-only /etc/fuse.conf probe for an uncommented user_allow_other line.
+            A missing file is present=false with a fixed reason and does not degrade
+            capability. Symlinks are not followed. Unreadable or oversized input uses
+            fixed text and does not echo the file. This page does not edit fuse.conf
+            or remount.
+          properties:
+            present: { type: boolean }
+            userAllowOther: { type: boolean }
+            reason: { type: string }
         warnings:
           type: array
           maxItems: 64
           description: >
             Read-only honesty findings (duplicate branches; SnapRAID parity on a pool branch or the
             fused mount; SnapRAID content on the fused mount or a parity path; fewer than two content
-            files). Content on a data branch is not a warning. Path-based only: =RW/=NC/=RO suffixes
+            files; a parsed pool whose options omit allow_other). Content on a data branch is not a
+            warning. Nil options are not a warning. Path-based only: =RW/=NC/=RO suffixes
             are stripped; globs, bind mounts and symlinks are not resolved; content files are not
             read. A missing warning is not proof. Capped at 64 total, 8 per pool for branch findings.
-            Never executes.
+            Never executes and never remounts.
           items:
             type: object
             required: [code, pool, branch, other, detail]
             additionalProperties: false
             properties:
-              code: { type: string, enum: [duplicate-branch, parity-in-pool, content-on-pool, content-on-parity, content-not-redundant] }
+              code: { type: string, enum: [duplicate-branch, parity-in-pool, content-on-pool, content-on-parity, content-not-redundant, fuse-allow-other] }
               pool: { type: string, maxLength: 256 }
               branch: { type: string, maxLength: 256 }
               other: { type: string, maxLength: 256 }
@@ -2043,13 +2058,16 @@ paths:
         match tooling items by id. kernelFuse is a read-only /proc/filesystems probe (fuse type only;
         fusectl/fuseblk do not count; listed is not proof a mount will succeed). kernelRelease is a
         read-only /proc/sys/kernel/osrelease probe (visible to mergerfs.read without system.read;
-        never uname, never mergerfs --version; missing does not degrade capability). warnings lists
+        never uname, never mergerfs --version; missing does not degrade capability). fuseAccess is a
+        read-only /etc/fuse.conf probe for user_allow_other (missing file does not degrade capability;
+        symlinks are not followed; this page does not edit fuse.conf or remount). warnings lists
         read-only honesty findings (duplicate
         branches; SnapRAID parity on a pool branch or the fused mount; SnapRAID content on the fused
-        mount or a parity path; fewer than two content files). Content on a data branch is not a
+        mount or a parity path; fewer than two content files; a parsed pool mounted without
+        allow_other). Content on a data branch is not a
         warning. Content files are not read. Matching is path-based; a
         missing warning is not proof. warningsTruncated is true when the list was capped. Pooling is
-        not RAID. Writes between SnapRAID syncs are not protected. No pool create, mount, policy write, fstab/unit write, module load, or snapraid
+        not RAID. Writes between SnapRAID syncs are not protected. No pool create, mount, remount, policy write, fstab/unit write, module load, or snapraid
         sync/diff/fix path exists. A missing snapraid.conf is normal (SnapRAID is optional), not an
         error. Origin and X-CSRF-Token are required; audit records counts only, never branch, data,
         or unit paths.
