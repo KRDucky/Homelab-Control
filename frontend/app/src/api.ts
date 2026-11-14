@@ -1074,7 +1074,8 @@ export interface MergerFSKernelRelease {
 }
 
 export interface MergerFSWarning {
-  code: 'duplicate-branch' | 'parity-in-pool';
+  code:
+    'duplicate-branch' | 'parity-in-pool' | 'content-on-pool' | 'content-on-parity' | 'content-not-redundant';
   pool: string;
   branch: string;
   other: string;

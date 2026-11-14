@@ -1028,15 +1028,17 @@ components:
           maxItems: 64
           description: >
             Read-only honesty findings (duplicate branches; SnapRAID parity on a pool branch or the
-            fused mount). Path-based only: =RW/=NC/=RO suffixes are stripped; globs, bind mounts and
-            symlinks are not resolved. A missing warning is not proof. Capped at 64 total, 8 per pool.
+            fused mount; SnapRAID content on the fused mount or a parity path; fewer than two content
+            files). Content on a data branch is not a warning. Path-based only: =RW/=NC/=RO suffixes
+            are stripped; globs, bind mounts and symlinks are not resolved; content files are not
+            read. A missing warning is not proof. Capped at 64 total, 8 per pool for branch findings.
             Never executes.
           items:
             type: object
             required: [code, pool, branch, other, detail]
             additionalProperties: false
             properties:
-              code: { type: string, enum: [duplicate-branch, parity-in-pool] }
+              code: { type: string, enum: [duplicate-branch, parity-in-pool, content-on-pool, content-on-parity, content-not-redundant] }
               pool: { type: string, maxLength: 256 }
               branch: { type: string, maxLength: 256 }
               other: { type: string, maxLength: 256 }
@@ -2043,9 +2045,11 @@ paths:
         read-only /proc/sys/kernel/osrelease probe (visible to mergerfs.read without system.read;
         never uname, never mergerfs --version; missing does not degrade capability). warnings lists
         read-only honesty findings (duplicate
-        branches; SnapRAID parity on a pool branch or the fused mount). Matching is path-based; a
+        branches; SnapRAID parity on a pool branch or the fused mount; SnapRAID content on the fused
+        mount or a parity path; fewer than two content files). Content on a data branch is not a
+        warning. Content files are not read. Matching is path-based; a
         missing warning is not proof. warningsTruncated is true when the list was capped. Pooling is
-        not RAID. No pool create, mount, policy write, fstab/unit write, module load, or snapraid
+        not RAID. Writes between SnapRAID syncs are not protected. No pool create, mount, policy write, fstab/unit write, module load, or snapraid
         sync/diff/fix path exists. A missing snapraid.conf is normal (SnapRAID is optional), not an
         error. Origin and X-CSRF-Token are required; audit records counts only, never branch, data,
         or unit paths.
