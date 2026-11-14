@@ -21,6 +21,7 @@ import (
 	"homelab-control/backend/internal/brokerclient"
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
+	"homelab-control/backend/internal/lvminfo"
 	"homelab-control/backend/internal/mergerfsinfo"
 	"homelab-control/backend/internal/modules"
 	"homelab-control/backend/internal/servicepolicy"
@@ -266,14 +267,28 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 			zfs.Status, zfs.Reason = CapDegraded, reason
 		}
 	}
-	caps := []Capability{gate(traefik), gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages), gate(mergerfs), gate(zfs)}
+	// M7 first checkpoint: one LVM page, read-only. Available when the lvm
+	// binary and kernel device-mapper are listed (devices may still be
+	// empty); degraded when either is missing so the page still mounts.
+	// Missing thin_check never degrades the capability. Probe is os.Stat of
+	// well-known paths plus one /proc/devices read (no sysfs walk, no lvm
+	// exec), and only when the module is enabled and the session has lvm.read.
+	lvm := Capability{ID: "lvm", Label: "LVM", Path: "/storage/lvm", Scope: auth.ScopeLVMRead, Status: CapAvailable}
+	if s.mods.Enabled("lvm") && sess.HasScope(auth.ScopeLVMRead) {
+		if ok, reason := lvminfo.ProbeCapability(s.packageFamily()); ok {
+			lvm.Status, lvm.Reason = CapAvailable, ""
+		} else {
+			lvm.Status, lvm.Reason = CapDegraded, reason
+		}
+	}
+	caps := []Capability{gate(traefik), gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages), gate(mergerfs), gate(zfs), gate(lvm)}
 	// Navigation follows the module registry: a disabled module contributes
 	// no capability (and therefore no navigation entry).
 	resp.Capabilities = caps[:0]
 	for _, c := range caps {
-		// M8/M7: mergerfs and zfs UI paths do not equal their API prefixes,
-		// so ForRoute cannot map them; gate by module ID directly.
-		if (c.ID == "mergerfs" && !s.mods.Enabled("mergerfs")) || (c.ID == "zfs" && !s.mods.Enabled("zfs")) {
+		// M8/M7: mergerfs, zfs, and lvm UI paths do not equal their API
+		// prefixes, so ForRoute cannot map them; gate by module ID directly.
+		if (c.ID == "mergerfs" && !s.mods.Enabled("mergerfs")) || (c.ID == "zfs" && !s.mods.Enabled("zfs")) || (c.ID == "lvm" && !s.mods.Enabled("lvm")) {
 			continue
 		}
 		if s.mods.Enabled(modules.ForRoute("/api/v1" + c.Path)) {

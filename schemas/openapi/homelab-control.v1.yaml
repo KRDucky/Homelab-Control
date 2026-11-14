@@ -44,7 +44,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, storage.read, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read, zfs.read] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, storage.read, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read, zfs.read, lvm.read] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
@@ -378,7 +378,7 @@ components:
       type: object
       required: [id, label, path, scope, status]
       properties:
-        id: { type: string, enum: [overview, services, hardware, legacy, audit, service_logs, unit_files, storage, host_settings, files, mergerfs, zfs] }
+        id: { type: string, enum: [overview, services, hardware, legacy, audit, service_logs, unit_files, storage, host_settings, files, mergerfs, zfs, lvm] }
         label: { type: string }
         path: { type: string }
         scope: { type: string }
@@ -402,7 +402,7 @@ components:
             type: object
             required: [id, title, description, path, enabled, scopes]
             properties:
-              id: { type: string, enum: [services, mergerfs, zfs] }
+              id: { type: string, enum: [services, mergerfs, zfs, lvm] }
               title: { type: string }
               path: { type: string, description: Page of the module in the web UI }
               description: { type: string }
@@ -1098,6 +1098,63 @@ components:
           required: [present, reason]
           additionalProperties: false
           description: Read-only /proc/filesystems probe for the zfs type (listed, not ready). Never loads a module, never opens a device.
+          properties:
+            present: { type: boolean }
+            reason: { type: string }
+    LVMInventory:
+      type: object
+      required: [tooling, lvm, kernelDm]
+      properties:
+        tooling:
+          type: object
+          required: [family, required, optional]
+          properties:
+            family: { type: string, enum: [debian, fedora, suse, arch, unknown] }
+            required:
+              type: array
+              items:
+                type: object
+                required: [id, package, installed, binary]
+                properties:
+                  id: { type: string }
+                  package: { type: string }
+                  installed: { type: boolean }
+                  binary: { type: string }
+            optional:
+              type: array
+              description: Optional tools. Clients match items by id; order is not a contract.
+              items:
+                type: object
+                required: [id, package, installed, binary]
+                properties:
+                  id: { type: string }
+                  package: { type: string }
+                  installed: { type: boolean }
+                  binary: { type: string }
+        lvm:
+          type: object
+          required: [present, reason, devices, devicesTruncated]
+          properties:
+            present: { type: boolean }
+            reason: { type: string }
+            devicesTruncated:
+              type: boolean
+              description: True when the device cap or the sysfs directory scan cap was hit. The page shows the fixed text "too many devices to list".
+            devices:
+              type: array
+              maxItems: 256
+              items:
+                type: object
+                required: [name, mapper]
+                additionalProperties: false
+                properties:
+                  name: { type: string, maxLength: 32, description: dm-N sysfs name. The LVM uuid is not returned. }
+                  mapper: { type: string, maxLength: 128, description: dm/name when it is a safe mapper label; otherwise empty. }
+        kernelDm:
+          type: object
+          required: [present, reason]
+          additionalProperties: false
+          description: Read-only /proc/devices probe for the device-mapper target (listed, not ready to create a PV). Never loads a module, never opens a device.
           properties:
             present: { type: boolean }
             reason: { type: string }
@@ -2021,6 +2078,28 @@ paths:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ZFSInventory' } } } }
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: Missing zfs.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Collection busy, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /lvm:
+    get:
+      summary: Read-only LVM inventory (scope lvm.read).
+      description: >
+        Lists bounded sysfs dm-N devices whose dm/uuid starts with LVM- (the uuid
+        itself is not returned). Mapper is dm/name when that label is safe. Required
+        tooling is the lvm binary (package lvm2 on Debian, Fedora, SUSE, and Arch).
+        Optional thin_check names a package only where this checkpoint is sure (SUSE
+        names none). Never executed. kernelDm is a read-only /proc/devices probe
+        (last field exactly device-mapper; listed is not proof a PV can be created).
+        No pvcreate, vgcreate, lvcreate, or module load exists. Origin and
+        X-CSRF-Token are required; audit records counts only, never mapper names.
+      security: [{ session: [] }]
+      x-required-scope: lvm.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/LVMInventory' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing lvm.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: Collection busy, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /storage:
     get:

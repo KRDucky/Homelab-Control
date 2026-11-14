@@ -195,3 +195,25 @@ func TestZFSReadNotGrantedByDefaultOrImplied(t *testing.T) {
 		t.Fatal("every other scope together must not imply zfs.read")
 	}
 }
+
+// M7 first checkpoint: read-only LVM needs lvm.read, never granted by
+// default and implied by no other scope (including storage.read).
+func TestLVMReadNotGrantedByDefaultOrImplied(t *testing.T) {
+	if !KnownScopes[ScopeLVMRead] || ScopeLVMRead != "lvm.read" {
+		t.Fatal("lvm.read must be a known scope")
+	}
+	for _, s := range strings.Split(DefaultScopes, ",") {
+		if s == ScopeLVMRead || strings.HasPrefix(s, "lvm.") {
+			t.Fatalf("default scopes grant %s", s)
+		}
+	}
+	var others []string
+	for s := range KnownScopes {
+		if s != ScopeLVMRead {
+			others = append(others, s)
+		}
+	}
+	if (&Session{Scopes: others}).HasScope(ScopeLVMRead) {
+		t.Fatal("every other scope together must not imply lvm.read")
+	}
+}

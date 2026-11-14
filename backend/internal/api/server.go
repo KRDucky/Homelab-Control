@@ -36,6 +36,7 @@ import (
 	"homelab-control/backend/internal/filesinfo"
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
+	"homelab-control/backend/internal/lvminfo"
 	"homelab-control/backend/internal/mergerfsinfo"
 	"homelab-control/backend/internal/modules"
 	"homelab-control/backend/internal/oidclogin"
@@ -79,6 +80,8 @@ type Server struct {
 	mergerfsSem       chan struct{}
 	zfsCollect        func(context.Context) (zfsinfo.Snapshot, error)
 	zfsSem            chan struct{}
+	lvmCollect        func(context.Context) (lvminfo.Snapshot, error)
+	lvmSem            chan struct{}
 	snapraidConfig    string
 	layouts           LayoutStore
 	cfg               Config
@@ -132,6 +135,10 @@ func New(cfg Config, users *auth.Store, audit *audit.Logger, collector *hostinfo
 		return zfsinfo.Collect(ctx, "/", s.packageFamily())
 	}
 	s.zfsSem = make(chan struct{}, 1)
+	s.lvmCollect = func(ctx context.Context) (lvminfo.Snapshot, error) {
+		return lvminfo.Collect(ctx, "/", s.packageFamily())
+	}
+	s.lvmSem = make(chan struct{}, 1)
 	s.routes()
 	return s
 }
@@ -223,6 +230,8 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/mergerfs", auth.ScopeMergerFSRead, s.handleMergerFS)
 	// M7 first checkpoint: read-only OpenZFS (no broker ops, never exec).
 	s.handle("GET /api/v1/zfs", auth.ScopeZFSRead, s.handleZFS)
+	// M7 first checkpoint: read-only LVM (no broker ops, never exec).
+	s.handle("GET /api/v1/lvm", auth.ScopeLVMRead, s.handleLVM)
 	s.handle("GET /api/v1/legacy/webmin", auth.ScopeSystemRead, s.handleLegacy)
 	s.mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "unknown API route")
