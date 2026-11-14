@@ -13,6 +13,11 @@ import (
 
 func mustWarnings(t *testing.T, pools []Pool, snap SnapRAID) []Warning {
 	t.Helper()
+	// Existing fixtures omit content. Two files outside the pool keep those
+	// cases on the parity and duplicate assertions.
+	if snap.Present && snap.Content == nil {
+		snap.Content = []string{"/var/snapraid/content.1", "/var/snapraid/content.2"}
+	}
 	got, trunc := HonestyWarnings(context.Background(), pools, snap)
 	if trunc {
 		t.Fatalf("unexpected truncation: %+v", got)
@@ -172,6 +177,53 @@ func TestHonestyWarningsClipsFields(t *testing.T) {
 	got := mustWarnings(t, []Pool{{Mountpoint: long, Branches: []string{long, long}}}, SnapRAID{})
 	if len(got) != 1 || len(got[0].Pool) != warningFieldMax || len(got[0].Branch) != warningFieldMax {
 		t.Fatalf("fields must clip to %d: %+v", warningFieldMax, got)
+	}
+}
+
+func TestHonestyWarningsContentOnDataBranchIsSilent(t *testing.T) {
+	pools := []Pool{{Mountpoint: "/mnt/media", Branches: []string{"/mnt/disk1", "/mnt/disk2"}}}
+	snap := SnapRAID{
+		Present: true,
+		Data:    []string{"/mnt/disk1", "/mnt/disk2"},
+		Parity:  []string{"/mnt/parity1"},
+		Content: []string{"/mnt/disk1/snapraid.content", "/mnt/disk2/snapraid.content"},
+	}
+	got := mustWarnings(t, pools, snap)
+	if len(got) != 0 {
+		t.Fatalf("content on data branches must not warn: %+v", got)
+	}
+}
+
+func TestHonestyWarningsContentOnPoolAndParity(t *testing.T) {
+	pools := []Pool{{Mountpoint: "/mnt/media", Branches: []string{"/mnt/disk1"}}}
+	snap := SnapRAID{
+		Present: true,
+		Parity:  []string{"/mnt/parity1"},
+		Content: []string{"/mnt/media/content", "/mnt/parity1/content"},
+	}
+	got := mustWarnings(t, pools, snap)
+	codes := map[string]bool{}
+	for _, w := range got {
+		codes[w.Code] = true
+	}
+	if !codes[WarnContentOnPool] || !codes[WarnContentOnParity] || codes[WarnContentNotRedundant] {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestHonestyWarningsSingleContentFile(t *testing.T) {
+	snap := SnapRAID{Present: true, ConfigPath: "/etc/snapraid.conf", Content: []string{"/mnt/disk1/snapraid.content"}}
+	got := mustWarnings(t, nil, snap)
+	if len(got) != 1 || got[0].Code != WarnContentNotRedundant || got[0].Branch != "/mnt/disk1/snapraid.content" {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestHonestyWarningsNoContentFiles(t *testing.T) {
+	snap := SnapRAID{Present: true, ConfigPath: "/etc/snapraid.conf", Content: []string{}}
+	got := mustWarnings(t, nil, snap)
+	if len(got) != 1 || got[0].Code != WarnContentNotRedundant || got[0].Branch != "/etc/snapraid.conf" {
+		t.Fatalf("got %+v", got)
 	}
 }
 

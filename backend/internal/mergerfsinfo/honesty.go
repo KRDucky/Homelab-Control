@@ -11,8 +11,11 @@ import (
 
 // Warning codes for read-only MergerFS + SnapRAID honesty (01-FOUNDATION).
 const (
-	WarnDuplicateBranch = "duplicate-branch"
-	WarnParityInPool    = "parity-in-pool"
+	WarnDuplicateBranch     = "duplicate-branch"
+	WarnParityInPool        = "parity-in-pool"
+	WarnContentOnPool       = "content-on-pool"
+	WarnContentOnParity     = "content-on-parity"
+	WarnContentNotRedundant = "content-not-redundant"
 
 	maxWarningsTotal   = 64
 	maxWarningsPerPool = 8
@@ -28,12 +31,14 @@ type Warning struct {
 	Detail string `json:"detail"`
 }
 
-// HonestyWarnings reports duplicate pool branches and SnapRAID parity paths
-// that sit on a mergerfs branch or on the fused mount itself. Data disks as
-// branches are expected and are not warnings. Comparison is string prefix
-// only (exact or inner path under a cleaned prefix); mergerfs branch mode
-// suffixes =RW/=NC/=RO are stripped; nothing is stat'ed. Output is capped
-// (64 total, 8 per pool); truncated is true when the cap or ctx deadline hits.
+// HonestyWarnings reports duplicate pool branches and SnapRAID parity or
+// content paths that sit on a mergerfs branch or on the fused mount.
+// Content on a data branch is expected and is not a warning. Fewer than two
+// content files is a warning. Comparison is string prefix only (exact or
+// inner path under a cleaned prefix); mergerfs branch mode suffixes
+// =RW/=NC/=RO are stripped; nothing is stat'ed and content files are not
+// read. Output is capped (64 total, 8 per pool for branch findings);
+// truncated is true when the cap or ctx deadline hits.
 func HonestyWarnings(ctx context.Context, pools []Pool, snap SnapRAID) (out []Warning, truncated bool) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -118,6 +123,56 @@ func HonestyWarnings(ctx context.Context, pools []Pool, snap SnapRAID) (out []Wa
 				}) {
 					break
 				}
+			}
+		}
+	}
+	if !snap.Present {
+		return out, truncated
+	}
+	addGlobal := func(w Warning) {
+		if len(out) >= maxWarningsTotal {
+			truncated = true
+			return
+		}
+		out = append(out, clipWarning(w))
+	}
+	if ctx.Err() != nil {
+		return out, true
+	}
+	if len(snap.Content) < 2 {
+		branch := snap.ConfigPath
+		if len(snap.Content) == 1 {
+			branch = snap.Content[0]
+		}
+		addGlobal(Warning{
+			Code:   WarnContentNotRedundant,
+			Branch: branch,
+			Detail: "SnapRAID lists fewer than two content files; one copy is not redundant",
+		})
+	}
+	for _, c := range snap.Content {
+		if ctx.Err() != nil {
+			return out, true
+		}
+		for _, p := range snap.Parity {
+			if pathCovers(p, c) || pathCovers(c, p) {
+				addGlobal(Warning{
+					Code:   WarnContentOnParity,
+					Branch: p,
+					Other:  c,
+					Detail: "SnapRAID content sits on a parity path",
+				})
+			}
+		}
+		for _, pool := range pools {
+			if pathCovers(pool.Mountpoint, c) {
+				addGlobal(Warning{
+					Code:   WarnContentOnPool,
+					Pool:   pool.Mountpoint,
+					Branch: pool.Mountpoint,
+					Other:  c,
+					Detail: "SnapRAID content sits on the mergerfs mount; content belongs on a data disk, not the pool",
+				})
 			}
 		}
 	}
