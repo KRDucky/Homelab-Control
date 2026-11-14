@@ -52,6 +52,9 @@ export function ZFSView({
   const { tooling, zfs } = data;
   const kernelZfs = data.kernelZfs;
   const missingRequired = tooling.required.filter((t) => !t.installed);
+  const diskToolsMissing = tooling.optional.filter(
+    (t) => (t.id === 'smartctl' || t.id === 'nvme') && !t.installed && t.package,
+  );
   const canInstall = packagesEnabled && (scopes ?? []).includes('packages.read');
 
   return (
@@ -59,9 +62,9 @@ export function ZFSView({
       <header className="page-head">
         <h1 className="page-title">ZFS</h1>
         <p className="page-sub">
-          Read-only observations. zfs and zpool are probed, not run. This page does not import, export,
-          create, or destroy pools, and it does not load kernel modules. Mounts come from
-          /proc/self/mountinfo, not zpool list.
+          Read-only observations. zfs and zpool are probed, not run. Optional smartctl and nvme are probed,
+          not run, and no disk is opened. This page does not import, export, create, or destroy pools, and it
+          does not load kernel modules. Mounts come from /proc/self/mountinfo, not zpool list.
         </p>
       </header>
       {error && (
@@ -93,6 +96,16 @@ export function ZFSView({
           </header>
           <p>zfs and zpool are required. This page does not run them or add third-party repositories.</p>
           <RequiredOffers items={missingRequired} canInstall={canInstall} />
+        </section>
+      )}
+
+      {diskToolsMissing.length > 0 && (
+        <section className="panel" aria-labelledby="zfs-disktools-heading">
+          <header className="panel-head">
+            <h2 id="zfs-disktools-heading">Disk inspect tools</h2>
+          </header>
+          <p>smartctl and nvme are optional. This page does not run them or open disks.</p>
+          <RequiredOffers items={diskToolsMissing} canInstall={canInstall} />
         </section>
       )}
 

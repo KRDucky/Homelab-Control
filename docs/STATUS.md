@@ -46,7 +46,8 @@ acceptance, not a merge, not production; ADR 0008 Amendment 5 remains Proposed.
 
 One read-only page at `/storage/zfs` (module id `zfs`, scope `zfs.read`, never default and implied
 by nothing, including `storage.read`) probes the required `zfs` and `zpool` binaries (unprivileged
-`os.Stat` of well-known `/usr/sbin` then `/usr/bin` paths, no `os/exec`) and kernel ZFS from bounded
+`os.Stat` of well-known `/usr/sbin` then `/usr/bin` paths, no `os/exec`), optional `smartctl`
+(`smartmontools`) and `nvme` (`nvme-cli`) on known families, and kernel ZFS from bounded
 `/proc/filesystems` (never modprobe, never a device node). Debian/Ubuntu names `zfsutils-linux`;
 Fedora, SUSE, and Arch name no package (OpenZFS is not in those default archives; Homelab Control
 does not add a third-party repository). Observed `fstype=zfs` mounts come from bounded
@@ -59,7 +60,8 @@ A line with no filesystem type, or a `zfs` line with a bad mountpoint or source,
 fails the inventory. A missing
 required package offers Software Center search (`/software?q=zfsutils-linux`) when the packages
 module is enabled and the session has `packages.read`. No POST install, `packages.manage`, pool
-create, import, export, destroy, or `zpool`/`zfs` execution exists. This is a checkpoint, not M7
+create, import, export, destroy, or `zpool`/`zfs`/`smartctl`/`nvme` execution exists. Optional
+tools do not degrade capability and no disk is opened. This is a checkpoint, not M7
 acceptance, not a merge, not production. Never touch production pool `tank`.
 
 ## M7 first checkpoint: LVM2 (read-only; not M7 acceptance)
