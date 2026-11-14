@@ -73,10 +73,15 @@ package. Kernel device-mapper is a bounded read of `/proc/devices` (last field e
 `device-mapper`; never modprobe; listed is not ready to create a PV). Observed devices are
 `dm-<digits>` under sysfs whose `dm/uuid` starts with `LVM-` (the uuid is not returned). The mapper
 name comes from `dm/name` when it is valid UTF-8, at most 128 bytes, and contains no `/`, `..`, or
-control character; otherwise the mapper is empty and the device is still listed. The directory scan
-stops at 1024 entries and the returned list stops at 256, with `devicesTruncated` and the fixed page
-text “too many devices to list”. An unreadable device inventory is `present=false` with a fixed
-reason and an empty list. No `pvs`/`vgs`/`lvs` execution and no `pvcreate`/`vgcreate`/`lvcreate`.
+control character; otherwise the mapper is empty and the device is still listed. `dm-N` names are
+sorted numerically before the keep cap. The directory read stops at 8192 entries and the returned
+list stops at 256, with `devicesTruncated` and the fixed page text “too many devices to list”.
+Mapper names ending in `_tmeta`, `_tdata`, `_cmeta`, `_cdata`, or `_corig` are omitted (thin and
+cache internals). `thin_check` keeps a package name only when a `_tmeta` or `_tdata` component was
+observed; otherwise the package is empty and the page does not offer it. An unlisted device-mapper
+target, including an unloaded `dm_mod`, stays the fixed text “not currently listed” (degraded, not
+a module-load instruction). An unreadable device inventory is `present=false` with a fixed reason
+and an empty list. No `pvs`/`vgs`/`lvs` execution and no `pvcreate`/`vgcreate`/`lvcreate`.
 A missing `lvm2` package offers Software Center search (`/software?q=lvm2`) when the packages module
 is enabled and the session has `packages.read`. This is a checkpoint, not M7 acceptance, not a merge,
 not production. Never touch production pool `tank`.

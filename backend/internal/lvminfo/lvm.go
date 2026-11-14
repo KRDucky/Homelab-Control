@@ -14,6 +14,8 @@ import (
 	"context"
 	"io"
 	"os"
+	"slices"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -42,7 +44,7 @@ type Snapshot struct {
 
 const (
 	deviceMax     = 256
-	blockScanMax  = 1024
+	dirReadMax    = 8192
 	uuidReadMax   = 256
 	mapperNameMax = 128
 )
@@ -58,7 +60,16 @@ func Collect(ctx context.Context, osRoot, family string) (Snapshot, error) {
 	var snap Snapshot
 	snap.Tooling = ProbeTooling(family)
 	snap.KernelDM = ProbeKernelDM(osRoot)
-	devices, truncated, err := collectDevices(osRoot)
+	devices, truncated, seen, thin, err := collectDevices(osRoot)
+	if !thin {
+		// thin_check is never run. Name its package only after a thin pool
+		// component was observed, so the page does not offer it otherwise.
+		for i := range snap.Tooling.Optional {
+			if snap.Tooling.Optional[i].ID == "thin_check" {
+				snap.Tooling.Optional[i].Package = ""
+			}
+		}
+	}
 	if devices == nil {
 		devices = []Device{}
 	}
@@ -69,7 +80,7 @@ func Collect(ctx context.Context, osRoot, family string) (Snapshot, error) {
 		base.Devices = []Device{}
 		base.DevicesTruncated = false
 		snap.Lvm = base
-	} else if snap.Tooling.RequiredInstalled("lvm") || len(devices) > 0 {
+	} else if snap.Tooling.RequiredInstalled("lvm") || seen {
 		base.Present = true
 		snap.Lvm = base
 	} else {
@@ -80,39 +91,57 @@ func Collect(ctx context.Context, osRoot, family string) (Snapshot, error) {
 	return snap, nil
 }
 
-func collectDevices(osRoot string) ([]Device, bool, error) {
+func collectDevices(osRoot string) (devices []Device, truncated, seen, thin bool, err error) {
 	if osRoot == "" {
 		osRoot = "/"
 	}
 	root, err := os.OpenRoot(osRoot)
 	if err != nil {
-		return nil, false, err
+		return nil, false, false, false, err
 	}
 	defer root.Close()
 	dir, err := root.Open("sys/block")
 	if err != nil {
-		return nil, false, err
+		return nil, false, false, false, err
 	}
 	defer dir.Close()
-	names, err := dir.Readdirnames(blockScanMax + 1)
+	names, err := dir.Readdirnames(dirReadMax + 1)
 	if err != nil && err != io.EOF {
-		return nil, false, err
+		return nil, false, false, false, err
 	}
-	truncated := len(names) > blockScanMax
+	truncated = len(names) > dirReadMax
 	if truncated {
-		names = names[:blockScanMax]
+		names = names[:dirReadMax]
 	}
-	devices := []Device{}
+	var dm []string
 	for _, name := range names {
-		if !dmName(name) {
+		if dmName(name) {
+			dm = append(dm, name)
+		}
+	}
+	// Numeric order before the keep cap, so the returned slice is the
+	// lowest dm-N values rather than directory order.
+	slices.SortFunc(dm, compareDM)
+	devices = []Device{}
+	for _, name := range dm {
+		uuidPath := "sys/block/" + name + "/dm/uuid"
+		info, stErr := root.Lstat(uuidPath)
+		if stErr != nil || !info.Mode().IsRegular() {
 			continue
 		}
-		uuid, uerr := readSmall(root, "sys/block/"+name+"/dm/uuid")
-		if uerr != nil || !strings.HasPrefix(uuid, "LVM-") {
+		uuid, uerr := readSmall(root, uuidPath)
+		if uerr != nil || !strings.HasPrefix(strings.TrimRight(uuid, "\n"), "LVM-") {
 			continue
 		}
+		seen = true
 		mapper, _ := readSmall(root, "sys/block/"+name+"/dm/name")
 		mapper = strings.TrimRight(mapper, "\n")
+		if thinComponent(mapper) {
+			thin = true
+		}
+		if internalComponent(mapper) {
+			continue
+		}
 		if !validMapper(mapper) {
 			mapper = ""
 		}
@@ -122,7 +151,38 @@ func collectDevices(osRoot string) ([]Device, bool, error) {
 		}
 		devices = append(devices, Device{Name: name, Mapper: mapper})
 	}
-	return devices, truncated, nil
+	return devices, truncated, seen, thin, nil
+}
+
+func compareDM(a, b string) int {
+	na, aok := dmIndex(a)
+	nb, bok := dmIndex(b)
+	switch {
+	case aok && bok && na != nb:
+		if na < nb {
+			return -1
+		}
+		return 1
+	case aok != bok:
+		if aok {
+			return -1
+		}
+		return 1
+	default:
+		return strings.Compare(a, b)
+	}
+}
+
+func dmIndex(name string) (uint64, bool) {
+	rest, ok := strings.CutPrefix(name, "dm-")
+	if !ok {
+		return 0, false
+	}
+	n, err := strconv.ParseUint(rest, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return n, true
 }
 
 func dmName(name string) bool {
@@ -136,6 +196,17 @@ func dmName(name string) bool {
 		}
 	}
 	return true
+}
+
+func thinComponent(mapper string) bool {
+	return strings.HasSuffix(mapper, "_tmeta") || strings.HasSuffix(mapper, "_tdata")
+}
+
+func internalComponent(mapper string) bool {
+	if thinComponent(mapper) {
+		return true
+	}
+	return strings.HasSuffix(mapper, "_cmeta") || strings.HasSuffix(mapper, "_cdata") || strings.HasSuffix(mapper, "_corig")
 }
 
 func validMapper(name string) bool {
