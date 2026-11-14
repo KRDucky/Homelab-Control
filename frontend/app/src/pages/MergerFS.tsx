@@ -256,7 +256,8 @@ export function MergerFSView({
             <h2 id="snapraid-heading">SnapRAID configuration</h2>
           </header>
           <p>
-            SnapRAID is optional. Read-only view of <code>{snapraid.configPath}</code>.
+            SnapRAID is optional. Read-only view of <code>{snapraid.configPath}</code>. Writes between syncs
+            are not protected. This page does not run sync, diff, or fix, and it does not read content files.
           </p>
           <PathList title="Data" paths={snapraid.data} />
           <PathList title="Parity" paths={snapraid.parity} />
