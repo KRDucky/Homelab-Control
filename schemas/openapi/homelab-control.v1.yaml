@@ -1139,11 +1139,11 @@ components:
             reason: { type: string }
             devicesTruncated:
               type: boolean
-              description: True when the 256-device cap or the 8192-entry sysfs directory read cap was hit. Names are sorted numerically by dm-N before the keep cap. The page shows the fixed text "too many devices to list".
+              description: True when the 256-device cap, the 8192-entry sysfs directory read cap, or a done request context (checked about every 64 devices) was hit. Names are sorted numerically by dm-N before the keep cap. The page shows the fixed text "too many devices to list".
             devices:
               type: array
               maxItems: 256
-              description: dm-N devices with an LVM- uuid, lowest numbers first. Thin and cache internals are omitted when the mapper ends with _tmeta, _tdata, _cmeta, _cdata, or _corig. The uuid is not returned.
+              description: dm-N devices with an LVM- uuid, lowest numbers first. Omitted mappers end with _tmeta, _tdata, _cmeta, _cdata, _corig, _mlog, _pmspare, or _vorigin, or with _mimage_N, _rimage_N, or _rmeta_N, or are device-mapper snapshot components whose final unescaped component is real or cow. A user LV named real or foo-cow stays listed. The uuid is not returned. Clients match tooling.optional by id; an empty thin_check package leaves the item in place.
               items:
                 type: object
                 required: [name, mapper]
@@ -2091,7 +2091,12 @@ paths:
         names none) and only when a thin-pool component (_tmeta or _tdata) was
         observed; otherwise the package is empty. Never executed. dm-N names are
         sorted numerically before the 256-device cap. Directory reads stop at 8192
-        names. Mapper suffixes _tmeta, _tdata, _cmeta, _cdata, and _corig are omitted.
+        names. Omitted mappers end with _tmeta, _tdata, _cmeta, _cdata, _corig, _mlog, _pmspare,
+        or _vorigin, or with _mimage_N, _rimage_N, or _rmeta_N, or are snapshot components whose
+        final unescaped component is real or cow. A raw dm/name ending in _tmeta or _tdata still
+        counts as thin when the public label is unsafe. An empty or unreadable name does not.
+        Clients match optional tools by id. A done context stops the walk about every 64 devices
+        and sets devicesTruncated.
         kernelDm is a read-only /proc/devices probe (last field exactly device-mapper;
         "not currently listed" covers an unloaded dm_mod; listed is not proof a PV
         can be created).

@@ -76,9 +76,14 @@ name comes from `dm/name` when it is valid UTF-8, at most 128 bytes, and contain
 control character; otherwise the mapper is empty and the device is still listed. `dm-N` names are
 sorted numerically before the keep cap. The directory read stops at 8192 entries and the returned
 list stops at 256, with `devicesTruncated` and the fixed page text “too many devices to list”.
-Mapper names ending in `_tmeta`, `_tdata`, `_cmeta`, `_cdata`, or `_corig` are omitted (thin and
-cache internals). `thin_check` keeps a package name only when a `_tmeta` or `_tdata` component was
-observed; otherwise the package is empty and the page does not offer it. An unlisted device-mapper
+Mapper names ending in `_tmeta`, `_tdata`, `_cmeta`, `_cdata`, `_corig`, `_mlog`, `_pmspare`,
+or `_vorigin`, numbered `_mimage_N` / `_rimage_N` / `_rmeta_N`, and device-mapper snapshot
+components whose final unescaped component is `real` or `cow` are omitted. A user LV named `real`
+(`vg-real`) or `foo-cow` (`vg-foo--cow`) stays listed. `thin_check` keeps a package name only when
+a raw `dm/name` ends in `_tmeta` or `_tdata`, including a name that is not a safe public label;
+an empty or unreadable name does not count. Otherwise the package is empty and the item stays,
+matched by id. A cancelled walk stops about every 64 devices and sets `devicesTruncated`.
+An unlisted device-mapper
 target, including an unloaded `dm_mod`, stays the fixed text “not currently listed” (degraded, not
 a module-load instruction). An unreadable device inventory is `present=false` with a fixed reason
 and an empty list. No `pvs`/`vgs`/`lvs` execution and no `pvcreate`/`vgcreate`/`lvcreate`.
