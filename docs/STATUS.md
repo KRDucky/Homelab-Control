@@ -121,8 +121,10 @@ warnings when a SnapRAID parity path sits on a mergerfs branch or the fused moun
 pool lists the same branch twice; data disks as branches are expected and are not warnings.
 Matching is path-based (`=RW`/`=NC`/`=RO` suffixes stripped); a missing warning is not proof.
 Content on a data branch is expected. Content on the fused mount or on a parity path is a warning,
-as is fewer than two content files. A pool whose parsed options omit `allow_other` is a warning
-(`fuse-allow-other`); nil options stay silent. This page does not remount. Content files are not
+as is fewer than two content files. A root-owned pool (`user_id=0`) whose parsed options omit
+`allow_other` is a warning (`fuse-allow-other`), recorded after that pool's duplicate and parity
+findings. Nil options and non-root mounts stay silent. `user_allow_other` in `/etc/fuse.conf` only
+matters when a non-root user mounts with `allow_other`. This page does not remount. Content files are not
 read, and a missing mount is not inferred.
 Writes between SnapRAID syncs are not protected; this page does not know the last sync time.
 The warning list is capped (64 total, 8 per pool) with `warningsTruncated` when the cap or

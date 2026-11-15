@@ -35,9 +35,10 @@ type Warning struct {
 // HonestyWarnings reports duplicate pool branches and SnapRAID parity or
 // content paths that sit on a mergerfs branch or on the fused mount.
 // Content on a data branch is expected and is not a warning. Fewer than two
-// content files is a warning. A pool whose options were parsed and omit
-// allow_other is a warning; nil options (older fixtures) stay silent. This
-// page does not remount. Comparison is string prefix only (exact or
+// content files is a warning. A root-owned pool (user_id=0) whose options
+// were parsed and omit allow_other is a warning, recorded after that pool's
+// duplicate and parity findings. Nil options and non-root mounts stay silent.
+// This page does not remount. Comparison is string prefix only (exact or
 // inner path under a cleaned prefix); mergerfs branch mode suffixes
 // =RW/=NC/=RO are stripped; nothing is stat'ed and content files are not
 // read. Output is capped (64 total, 8 per pool for branch findings);
@@ -65,16 +66,6 @@ func HonestyWarnings(ctx context.Context, pools []Pool, snap SnapRAID) (out []Wa
 			poolCount++
 			return true
 		}
-		if pool.Options != nil && !hasOption(pool.Options, "allow_other") {
-			if !add(Warning{
-				Code:   WarnFuseAllowOther,
-				Pool:   pool.Mountpoint,
-				Branch: pool.Mountpoint,
-				Detail: "this pool is mounted without allow_other; other users may not see its files. This page does not remount",
-			}) {
-				continue
-			}
-		}
 		seen := map[string]int{}
 		for _, b := range pool.Branches {
 			iters++
@@ -97,46 +88,52 @@ func HonestyWarnings(ctx context.Context, pools []Pool, snap SnapRAID) (out []Wa
 				}
 			}
 		}
-		if truncated || !snap.Present {
-			continue
-		}
-		for _, b := range uniqueBranchKeys(pool.Branches) {
-			if truncated {
-				break
-			}
-			for _, p := range snap.Parity {
-				iters++
-				if iters%4096 == 0 && ctx.Err() != nil {
-					return out, true
+		if !truncated && snap.Present {
+			for _, b := range uniqueBranchKeys(pool.Branches) {
+				if truncated {
+					break
 				}
-				if pathCovers(b, p) {
-					if !add(Warning{
-						Code:   WarnParityInPool,
-						Pool:   pool.Mountpoint,
-						Branch: b,
-						Other:  p,
-						Detail: "SnapRAID parity sits on a mergerfs branch; pooling is not redundancy",
-					}) {
-						break
+				for _, p := range snap.Parity {
+					iters++
+					if iters%4096 == 0 && ctx.Err() != nil {
+						return out, true
+					}
+					if pathCovers(b, p) {
+						if !add(Warning{
+							Code:   WarnParityInPool,
+							Pool:   pool.Mountpoint,
+							Branch: b,
+							Other:  p,
+							Detail: "SnapRAID parity sits on a mergerfs branch; pooling is not redundancy",
+						}) {
+							break
+						}
+					}
+				}
+			}
+			if !truncated {
+				for _, p := range snap.Parity {
+					if pathCovers(pool.Mountpoint, p) {
+						if !add(Warning{
+							Code:   WarnParityInPool,
+							Pool:   pool.Mountpoint,
+							Branch: pool.Mountpoint,
+							Other:  p,
+							Detail: "SnapRAID parity sits on the mergerfs mount itself; pooling is not redundancy",
+						}) {
+							break
+						}
 					}
 				}
 			}
 		}
-		if truncated {
-			continue
-		}
-		for _, p := range snap.Parity {
-			if pathCovers(pool.Mountpoint, p) {
-				if !add(Warning{
-					Code:   WarnParityInPool,
-					Pool:   pool.Mountpoint,
-					Branch: pool.Mountpoint,
-					Other:  p,
-					Detail: "SnapRAID parity sits on the mergerfs mount itself; pooling is not redundancy",
-				}) {
-					break
-				}
-			}
+		if pool.Options != nil && hasRootUserID(pool.Options) && !hasOption(pool.Options, "allow_other") {
+			add(Warning{
+				Code:   WarnFuseAllowOther,
+				Pool:   pool.Mountpoint,
+				Branch: pool.Mountpoint,
+				Detail: "this pool is mounted without allow_other; other users may not see its files. This page does not remount",
+			})
 		}
 	}
 	if !snap.Present {

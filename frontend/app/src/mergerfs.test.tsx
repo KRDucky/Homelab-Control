@@ -160,6 +160,7 @@ describe('MergerFS read-only page', () => {
     vi.mocked(getMergerFS).mockResolvedValue(data);
     render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
     expect(await screen.findByText(/user_allow_other is not set in \/etc\/fuse.conf/)).toBeTruthy();
+    expect(screen.getByText(/only matters when a non-root user mounts with allow_other/)).toBeTruthy();
     expect(screen.getByText(/does not edit fuse.conf or remount/)).toBeTruthy();
     expect(screen.getByText(/mounted without allow_other/)).toBeTruthy();
   });
