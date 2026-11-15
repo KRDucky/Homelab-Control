@@ -3,6 +3,14 @@
 **Date:** 2026-10-16 · **Branch:** `compliance-audit` (from `main` at `b6d1d4d3`) · **Auditor:** Claude (AI), for owner review
 **Scope:** owner directive "Product Independence, UI Architecture, Theme Engine, and License Compliance", §6.
 
+**Update 2026-11-15:** This audit's original dependency conclusions predate the reviewed Go modules added
+under ADR 0006 amendments. Current shipped Go dependencies, npm inventory and review process are tracked in
+[`DEPENDENCY-LICENSES.md`](DEPENDENCY-LICENSES.md), the generated SPDX SBOM, and
+[`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md). In particular, the original answer in §1 that no
+third-party Go modules ship is historical; the current Go dependency allowlist is
+`backend/go-deps-allowlist.json`. Refresh this audit's dependency-specific answers and counts before relying
+on them as a current full-tree audit.
+
 > This is an engineering audit, not legal advice. It records what the files and packages contain and what
 > the licenses involved require. The owner decides license policy; anything marked "owner approval" is not done.
 
