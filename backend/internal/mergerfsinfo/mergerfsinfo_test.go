@@ -87,6 +87,9 @@ func TestCollectNoMountsNoConfig(t *testing.T) {
 	if snap.KernelRelease.Present || snap.KernelRelease.Reason != reasonReleaseUnread || snap.KernelRelease.Release != "" {
 		t.Fatalf("kernel release without proc: %+v", snap.KernelRelease)
 	}
+	if snap.FuseAccess.Present || snap.FuseAccess.UserAllowOther || snap.FuseAccess.Reason != reasonFuseConfMissing {
+		t.Fatalf("missing fuse.conf: %+v", snap.FuseAccess)
+	}
 	if snap.MergerFS.Configured == nil || len(snap.MergerFS.Configured) != 0 || snap.MergerFS.ConfiguredTruncated {
 		t.Fatalf("configured: %+v truncated=%v", snap.MergerFS.Configured, snap.MergerFS.ConfiguredTruncated)
 	}

@@ -25,6 +25,33 @@ func mustWarnings(t *testing.T, pools []Pool, snap SnapRAID) []Warning {
 	return got
 }
 
+func TestHonestyAllowOtherNilOptionsSilent(t *testing.T) {
+	pools := []Pool{{Mountpoint: "/mnt/media", Branches: []string{"/mnt/disk1"}}}
+	got := mustWarnings(t, pools, SnapRAID{})
+	if len(got) != 0 {
+		t.Fatalf("nil options must stay silent: %+v", got)
+	}
+}
+
+func TestHonestyAllowOtherMissingWarnsOnce(t *testing.T) {
+	pools := []Pool{{Mountpoint: "/mnt/media", Branches: []string{"/mnt/disk1"}, Options: []string{"use_ino"}}}
+	got := mustWarnings(t, pools, SnapRAID{})
+	if len(got) != 1 || got[0].Code != WarnFuseAllowOther || got[0].Pool != "/mnt/media" || got[0].Branch != "/mnt/media" {
+		t.Fatalf("got %+v", got)
+	}
+	if strings.Contains(got[0].Detail, "/") {
+		t.Fatalf("detail must not contain a path: %q", got[0].Detail)
+	}
+}
+
+func TestHonestyAllowOtherPresentSilent(t *testing.T) {
+	pools := []Pool{{Mountpoint: "/mnt/media", Branches: []string{"/mnt/disk1"}, Options: []string{"allow_other", "use_ino"}}}
+	got := mustWarnings(t, pools, SnapRAID{})
+	if len(got) != 0 {
+		t.Fatalf("allow_other must stay silent: %+v", got)
+	}
+}
+
 func TestHonestyWarningsParityFileOnBranch(t *testing.T) {
 	pools := []Pool{{Mountpoint: "/mnt/media", Branches: []string{"/mnt/disk1", "/mnt/parity"}}}
 	snap := SnapRAID{Present: true, Parity: []string{"/mnt/parity/snapraid.parity"}, Data: []string{"/mnt/disk1"}}
