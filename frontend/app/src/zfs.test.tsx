@@ -110,6 +110,17 @@ describe('ZFS read-only page', () => {
     expect(screen.queryByRole('button', { name: 'Install smartmontools' })).toBeNull();
   });
 
+  it('does not offer disk tools when no zfs mount is observed', async () => {
+    const data = inventory({ zfsInstalled: true, mounts: false });
+    data.tooling.optional = [item('smartctl', 'smartmontools', false), item('nvme', 'nvme-cli', false)];
+    vi.mocked(getZFS).mockResolvedValue(data);
+    render(
+      <ZFS csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
+    );
+    expect(await screen.findByText(/No zfs mounts found/)).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Disk inspect tools' })).toBeNull();
+  });
+
   it('shows the Debian install offer without adding a third-party repo', async () => {
     vi.mocked(getZFS).mockResolvedValue(inventory({ zfsInstalled: false, mounts: false }));
     render(
