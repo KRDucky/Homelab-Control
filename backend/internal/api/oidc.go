@@ -40,6 +40,20 @@ func (s *Server) setOIDCCookie(w http.ResponseWriter, value string, maxAge int) 
 		HttpOnly: true, Secure: s.cfg.SecureCookies, SameSite: http.SameSiteLaxMode})
 }
 
+// oidcAdmit acquires the OIDC admission slot nonblocking. When saturated it
+// redirects to the failed-URL (with a Retry-After hint) and returns false;
+// otherwise the returned release must be deferred by the caller.
+func (s *Server) oidcAdmit(w http.ResponseWriter, r *http.Request) (func(), bool) {
+	select {
+	case s.oidcSem <- struct{}{}:
+		return func() { <-s.oidcSem }, true
+	default:
+		w.Header().Set("Retry-After", "1")
+		http.Redirect(w, r, loginFailedURL, http.StatusSeeOther)
+		return nil, false
+	}
+}
+
 type oidcStatus struct {
 	Enabled bool `json:"enabled"`
 }
@@ -61,6 +75,11 @@ func (s *Server) handleOIDCStart(w http.ResponseWriter, r *http.Request, _ *auth
 		writeError(w, http.StatusNotFound, "not_found", "single sign-on is not configured")
 		return
 	}
+	release, ok := s.oidcAdmit(w, r)
+	if !ok {
+		return
+	}
+	defer release()
 	authURL, binding, err := s.oidc.Begin(r.Context())
 	if err != nil {
 		s.auditLog("auth.oidc.login", "", r, "failure", failureReason(err))
@@ -76,6 +95,11 @@ func (s *Server) handleOIDCCallback(w http.ResponseWriter, r *http.Request, _ *a
 		writeError(w, http.StatusNotFound, "not_found", "single sign-on is not configured")
 		return
 	}
+	release, ok := s.oidcAdmit(w, r)
+	if !ok {
+		return
+	}
+	defer release()
 	s.setOIDCCookie(w, "", -1) // one attempt per binding, whatever the outcome
 	failed := func(user, reason string) {
 		s.auditLog("auth.oidc.login", user, r, "failure", reason)
