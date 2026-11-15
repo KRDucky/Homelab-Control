@@ -61,7 +61,7 @@ func TestHonestyAllowOtherAfterDuplicate(t *testing.T) {
 }
 
 func TestHonestyAllowOtherPresentSilent(t *testing.T) {
-	pools := []Pool{{Mountpoint: "/mnt/media", Branches: []string{"/mnt/disk1"}, Options: []string{"allow_other", "use_ino"}}}
+	pools := []Pool{{Mountpoint: "/mnt/media", Branches: []string{"/mnt/disk1"}, Options: []string{"user_id=0", "allow_other", "use_ino"}}}
 	got := mustWarnings(t, pools, SnapRAID{})
 	if len(got) != 0 {
 		t.Fatalf("allow_other must stay silent: %+v", got)

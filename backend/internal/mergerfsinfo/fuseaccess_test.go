@@ -32,7 +32,7 @@ func TestProbeFuseAccessMissing(t *testing.T) {
 
 func TestProbeFuseAccessFlag(t *testing.T) {
 	dir := t.TempDir()
-	writeFuseConf(t, dir, "# user_allow_other\n\n  user_allow_other  \n")
+	writeFuseConf(t, dir, "# user_allow_other\n\nuser_allow_other\n")
 	got := ProbeFuseAccess(dir)
 	if !got.Present || !got.UserAllowOther || got.Reason != "" {
 		t.Fatalf("set: %+v", got)
@@ -46,20 +46,60 @@ func TestProbeFuseAccessFlag(t *testing.T) {
 
 func TestProbeFuseAccessLineShapes(t *testing.T) {
 	dir := t.TempDir()
+	// strip_line: text after '#' is a comment; the directive still matches.
 	writeFuseConf(t, dir, "user_allow_other # comment\n")
 	got := ProbeFuseAccess(dir)
-	if !got.Present || got.UserAllowOther {
-		t.Fatalf("same-line comment must not set the flag: %+v", got)
+	if !got.Present || !got.UserAllowOther {
+		t.Fatalf("same-line comment must still set the flag: %+v", got)
 	}
-	writeFuseConf(t, dir, " user_allow_other\n")
+	// ASCII surrounding whitespace (C isspace) is trimmed.
+	writeFuseConf(t, dir, " user_allow_other \t\n")
 	got = ProbeFuseAccess(dir)
 	if !got.Present || !got.UserAllowOther {
-		t.Fatalf("leading space is trimmed and counts as set: %+v", got)
+		t.Fatalf("ASCII surrounding whitespace must set the flag: %+v", got)
 	}
+	// CRLF is trimmed as C isspace.
 	writeFuseConf(t, dir, "user_allow_other\r\n")
 	got = ProbeFuseAccess(dir)
 	if !got.Present || !got.UserAllowOther {
 		t.Fatalf("CRLF must set the flag: %+v", got)
+	}
+	// Unicode whitespace is not C isspace and must not match.
+	writeFuseConf(t, dir, "\u00a0user_allow_other\n")
+	got = ProbeFuseAccess(dir)
+	if !got.Present || got.UserAllowOther {
+		t.Fatalf("unicode whitespace must not set the flag: %+v", got)
+	}
+}
+
+func TestProbeFuseAccessNoFinalNewline(t *testing.T) {
+	dir := t.TempDir()
+	writeFuseConf(t, dir, "user_allow_other")
+	got := ProbeFuseAccess(dir)
+	if !got.Present || got.UserAllowOther {
+		t.Fatalf("unterminated final line must not set the flag: %+v", got)
+	}
+}
+
+func TestProbeFuseAccessOverlongLine(t *testing.T) {
+	dir := t.TempDir()
+	// fgets(line, 256) cannot fit the newline, so fusermount discards the
+	// whole line even though the trimmed content would be user_allow_other.
+	writeFuseConf(t, dir, "user_allow_other"+strings.Repeat(" ", 250)+"\n")
+	got := ProbeFuseAccess(dir)
+	if !got.Present || got.UserAllowOther {
+		t.Fatalf("overlong line must not set the flag: %+v", got)
+	}
+}
+
+func TestProbeFuseAccessEmbeddedNUL(t *testing.T) {
+	dir := t.TempDir()
+	// C strlen stops at the NUL, so fusermount never sees the newline and
+	// discards the line; we fail closed the same way.
+	writeFuseConf(t, dir, "user_allow_other\x00x\n")
+	got := ProbeFuseAccess(dir)
+	if !got.Present || got.UserAllowOther {
+		t.Fatalf("embedded NUL must not set the flag: %+v", got)
 	}
 }
 
@@ -81,6 +121,60 @@ func TestProbeFuseAccessInRootSymlink(t *testing.T) {
 	}
 	if strings.Contains(got.Reason, secret) {
 		t.Fatalf("reason echoed the target: %+v", got)
+	}
+}
+
+func TestProbeFuseAccessEtcSymlink(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "realdir"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "realdir", "fuse.conf"), []byte("user_allow_other\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("realdir", filepath.Join(dir, "etc")); err != nil {
+		t.Skip("filesystem does not support symlinks")
+	}
+	got := ProbeFuseAccess(dir)
+	if got.Present || got.UserAllowOther || got.Reason != reasonFuseConfUnread {
+		t.Fatalf("etc symlink must fail closed: %+v", got)
+	}
+}
+
+func TestProbeFuseAccessRetriesEINTR(t *testing.T) {
+	dir := t.TempDir()
+	writeFuseConf(t, dir, "user_allow_other\n")
+	old := rawOpenat
+	t.Cleanup(func() { rawOpenat = old })
+	calls := 0
+	eintrSent := false
+	rawOpenat = func(dirfd uintptr, name string, flags int) (int, error) {
+		calls++
+		if name == "fuse.conf" && !eintrSent {
+			eintrSent = true
+			return -1, syscall.EINTR
+		}
+		return syscall.Openat(int(dirfd), name, flags|syscall.O_NOFOLLOW|syscall.O_CLOEXEC, 0)
+	}
+	got := ProbeFuseAccess(dir)
+	if !got.Present || !got.UserAllowOther || !eintrSent || calls != 3 {
+		t.Fatalf("EINTR retry: %+v calls=%d eintr=%v", got, calls, eintrSent)
+	}
+}
+
+func TestProbeFuseAccessPersistentEINTR(t *testing.T) {
+	dir := t.TempDir()
+	writeFuseConf(t, dir, "user_allow_other\n")
+	old := rawOpenat
+	t.Cleanup(func() { rawOpenat = old })
+	calls := 0
+	rawOpenat = func(dirfd uintptr, name string, flags int) (int, error) {
+		calls++
+		return -1, syscall.EINTR
+	}
+	got := ProbeFuseAccess(dir)
+	if got.Present || got.UserAllowOther || got.Reason != reasonFuseConfUnread || calls != 8 {
+		t.Fatalf("persistent EINTR must fail closed: %+v calls=%d", got, calls)
 	}
 }
 
