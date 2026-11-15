@@ -120,7 +120,7 @@ export function MergerFSView({
             {fuseAccess.present
               ? fuseAccess.userAllowOther
                 ? 'user_allow_other is set in /etc/fuse.conf.'
-                : 'user_allow_other is not set in /etc/fuse.conf.'
+                : 'user_allow_other is not set in /etc/fuse.conf. That line only matters when a non-root user mounts with allow_other.'
               : fuseAccess.reason || 'Could not read /etc/fuse.conf.'}{' '}
             This page does not edit fuse.conf or remount.
           </p>

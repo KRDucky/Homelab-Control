@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -40,6 +41,60 @@ func TestProbeFuseAccessFlag(t *testing.T) {
 	got = ProbeFuseAccess(dir)
 	if !got.Present || got.UserAllowOther || got.Reason != "" {
 		t.Fatalf("comment and extra token must not set the flag: %+v", got)
+	}
+}
+
+func TestProbeFuseAccessLineShapes(t *testing.T) {
+	dir := t.TempDir()
+	writeFuseConf(t, dir, "user_allow_other # comment\n")
+	got := ProbeFuseAccess(dir)
+	if !got.Present || got.UserAllowOther {
+		t.Fatalf("same-line comment must not set the flag: %+v", got)
+	}
+	writeFuseConf(t, dir, " user_allow_other\n")
+	got = ProbeFuseAccess(dir)
+	if !got.Present || !got.UserAllowOther {
+		t.Fatalf("leading space is trimmed and counts as set: %+v", got)
+	}
+	writeFuseConf(t, dir, "user_allow_other\r\n")
+	got = ProbeFuseAccess(dir)
+	if !got.Present || !got.UserAllowOther {
+		t.Fatalf("CRLF must set the flag: %+v", got)
+	}
+}
+
+func TestProbeFuseAccessInRootSymlink(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "etc"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	secret := "fuse-conf-secret-do-not-echo"
+	if err := os.WriteFile(filepath.Join(dir, "etc", "other.conf"), []byte(secret+"\nuser_allow_other\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("other.conf", filepath.Join(dir, "etc", "fuse.conf")); err != nil {
+		t.Skip("filesystem does not support symlinks")
+	}
+	got := ProbeFuseAccess(dir)
+	if got.Present || got.UserAllowOther || got.Reason != reasonFuseConfUnread {
+		t.Fatalf("in-root symlink must fail closed: %+v", got)
+	}
+	if strings.Contains(got.Reason, secret) {
+		t.Fatalf("reason echoed the target: %+v", got)
+	}
+}
+
+func TestProbeFuseAccessFIFO(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "etc"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Mkfifo(filepath.Join(dir, "etc", "fuse.conf"), 0o644); err != nil {
+		t.Skip("filesystem does not support fifos")
+	}
+	got := ProbeFuseAccess(dir)
+	if got.Present || got.UserAllowOther || got.Reason != reasonFuseConfUnread {
+		t.Fatalf("fifo must fail closed: %+v", got)
 	}
 }
 

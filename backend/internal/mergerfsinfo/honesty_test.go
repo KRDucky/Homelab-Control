@@ -34,13 +34,29 @@ func TestHonestyAllowOtherNilOptionsSilent(t *testing.T) {
 }
 
 func TestHonestyAllowOtherMissingWarnsOnce(t *testing.T) {
-	pools := []Pool{{Mountpoint: "/mnt/media", Branches: []string{"/mnt/disk1"}, Options: []string{"use_ino"}}}
+	pools := []Pool{{Mountpoint: "/mnt/media", Branches: []string{"/mnt/disk1"}, Options: []string{"user_id=0", "use_ino"}}}
 	got := mustWarnings(t, pools, SnapRAID{})
 	if len(got) != 1 || got[0].Code != WarnFuseAllowOther || got[0].Pool != "/mnt/media" || got[0].Branch != "/mnt/media" {
 		t.Fatalf("got %+v", got)
 	}
 	if strings.Contains(got[0].Detail, "/") {
 		t.Fatalf("detail must not contain a path: %q", got[0].Detail)
+	}
+}
+
+func TestHonestyAllowOtherNonRootSilent(t *testing.T) {
+	pools := []Pool{{Mountpoint: "/mnt/media", Branches: []string{"/mnt/disk1"}, Options: []string{"user_id=1000", "use_ino"}}}
+	got := mustWarnings(t, pools, SnapRAID{})
+	if len(got) != 0 {
+		t.Fatalf("non-root pool must stay silent: %+v", got)
+	}
+}
+
+func TestHonestyAllowOtherAfterDuplicate(t *testing.T) {
+	pools := []Pool{{Mountpoint: "/mnt/media", Branches: []string{"/mnt/disk1", "/mnt/disk1"}, Options: []string{"user_id=0"}}}
+	got := mustWarnings(t, pools, SnapRAID{})
+	if len(got) != 2 || got[0].Code != WarnDuplicateBranch || got[1].Code != WarnFuseAllowOther {
+		t.Fatalf("duplicate must precede allow_other: %+v", got)
 	}
 }
 
