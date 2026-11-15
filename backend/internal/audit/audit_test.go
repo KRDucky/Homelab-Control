@@ -180,6 +180,105 @@ func TestLegacyRecordsBeforeChain(t *testing.T) {
 	}
 }
 
+func TestAnchoredVerification(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "a.jsonl")
+	// Open writes audit.chain (seq 1); writeN adds 6 auth.login records
+	// (seq 2..7).
+	_ = writeN(t, p, 6).Close()
+	lines := readLines(t, p)
+	if len(lines) != 7 {
+		t.Fatalf("expected 7 lines, got %d", len(lines))
+	}
+
+	// Prune the first three records (seq 1..3); the anchor is the record
+	// immediately before the prune point (seq 3).
+	var anchorEv Event
+	if err := json.Unmarshal([]byte(lines[2]), &anchorEv); err != nil {
+		t.Fatal(err)
+	}
+	anchor := Checkpoint{Seq: anchorEv.Seq, Hash: anchorEv.Hash}
+	if anchor.Seq != 3 {
+		t.Fatalf("anchor seq = %d, want 3", anchor.Seq)
+	}
+	pruned := strings.Join(lines[3:], "\n") + "\n"
+
+	// Missing anchor: ordinary Verify must fail on a partial log.
+	if rep := Verify(strings.NewReader(pruned)); rep.OK() {
+		t.Fatalf("unanchored verify of a pruned log must fail: %+v", rep)
+	}
+
+	// Valid anchor: the first remaining record continues the chain.
+	rep := VerifyAnchored(strings.NewReader(pruned), anchor)
+	if !rep.OK() || rep.Records != 4 || rep.HeadSeq != 7 {
+		t.Fatalf("valid anchor rejected: %+v", rep)
+	}
+
+	// Wrong anchor sequence.
+	if rep := VerifyAnchored(strings.NewReader(pruned), Checkpoint{Seq: anchor.Seq - 1, Hash: anchor.Hash}); rep.OK() {
+		t.Fatal("wrong anchor sequence accepted")
+	}
+	// Wrong anchor hash.
+	if rep := VerifyAnchored(strings.NewReader(pruned), Checkpoint{Seq: anchor.Seq, Hash: ZeroHash}); rep.OK() {
+		t.Fatal("wrong anchor hash accepted")
+	}
+}
+
+// The default full-chain verification must remain unchanged.
+func TestFullChainVerificationUnchanged(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "a.jsonl")
+	l := writeN(t, p, 5)
+	seq, head := l.Head()
+	_ = l.Close()
+	rep := verifyFile(t, p, Checkpoint{Seq: seq, Hash: head})
+	if !rep.OK() || rep.Records != 6 || rep.Segments != 1 || rep.HeadSeq != seq || rep.HeadHash != head {
+		t.Fatalf("%+v", rep)
+	}
+}
+
+// An anchored verify must not accept an unrelated, internally valid chain
+// whose first record is a fresh segment start.
+func TestAnchoredRejectsFreshSegment(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "a.jsonl")
+	_ = writeN(t, p, 3).Close() // audit.chain (seq 1) + 3 auth.login (seq 2..4)
+	f, err := os.Open(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	// An unrelated anchor: the log starts a fresh segment, so no anchor can
+	// legitimately continue it.
+	rep := VerifyAnchored(f, Checkpoint{Seq: 100, Hash: ZeroHash})
+	if rep.OK() {
+		t.Fatalf("unrelated anchor accepted a fresh segment: %+v", rep)
+	}
+	if !strings.Contains(strings.Join(rep.Problems, " "), "starts a new segment") {
+		t.Fatalf("expected a segment-start rejection: %+v", rep)
+	}
+}
+
+// A fully truncated retained tail must fail anchored verification.
+func TestAnchoredRejectsEmptyTail(t *testing.T) {
+	rep := VerifyAnchored(strings.NewReader(""), Checkpoint{Seq: 3, Hash: ZeroHash})
+	if rep.OK() {
+		t.Fatalf("empty tail accepted: %+v", rep)
+	}
+	if !strings.Contains(strings.Join(rep.Problems, " "), "no records after the anchor") {
+		t.Fatalf("missing anchored-empty problem: %+v", rep)
+	}
+}
+
+// A retained tail with only pre-chain legacy records must also fail.
+func TestAnchoredRejectsLegacyOnly(t *testing.T) {
+	in := `{"time":"2026-01-01T00:00:00Z","event":"auth.login","outcome":"ok"}` + "\n"
+	rep := VerifyAnchored(strings.NewReader(in), Checkpoint{Seq: 3, Hash: ZeroHash})
+	if rep.OK() {
+		t.Fatalf("legacy-only tail accepted: %+v", rep)
+	}
+	if !strings.Contains(strings.Join(rep.Problems, " "), "no records after the anchor") {
+		t.Fatalf("missing anchored-empty problem: %+v", rep)
+	}
+}
+
 func TestCheckpointCallbackAndParse(t *testing.T) {
 	var got []uint64
 	l := New(&bytes.Buffer{})

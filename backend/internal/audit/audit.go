@@ -339,18 +339,39 @@ func ParseCheckpoint(s string) (Checkpoint, error) {
 	return c, nil
 }
 
-// Verify checks a log. With checkpoints, it also detects a truncated tail or a
-// rollback to an older copy: every checkpoint must be present in the last
-// segment with the same hash.
+// Verify checks a full log. With checkpoints, it also detects a truncated tail
+// or a rollback to an older copy: every checkpoint must be present in the last
+// segment with the same hash. A log that does not begin with an audit.chain
+// record (a pruned or partial log) is a problem.
 func Verify(r io.Reader, cps ...Checkpoint) Report {
+	return verify(r, nil, cps)
+}
+
+// VerifyAnchored verifies a log whose beginning may have been pruned away.
+// anchor is a checkpoint of the record immediately before the first remaining
+// record; the first record must continue that chain (seq = anchor.Seq + 1 and
+// prev = anchor.Hash), otherwise verification fails. A partial log is only
+// accepted when the caller supplies the anchor explicitly.
+func VerifyAnchored(r io.Reader, anchor Checkpoint, cps ...Checkpoint) Report {
+	return verify(r, &anchor, cps)
+}
+
+func verify(r io.Reader, anchor *Checkpoint, cps []Checkpoint) Report {
 	var rep Report
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 64<<10), 1<<20)
 	var seq uint64
 	head := ""
 	inChain := false
+	if anchor != nil {
+		// Treat the anchor as the record immediately preceding the log: the
+		// first record must continue it.
+		seq, head = anchor.Seq, anchor.Hash
+		inChain = true
+	}
 	seen := map[uint64]string{}
 	line := 0
+	firstChained := true
 	for sc.Scan() {
 		line++
 		raw := bytes.TrimSpace(sc.Bytes())
@@ -373,7 +394,12 @@ func Verify(r io.Reader, cps ...Checkpoint) Report {
 		if e.Hash == "" || digest(e) != e.Hash {
 			rep.Problems = append(rep.Problems, fmt.Sprintf("line %d (seq %d): record hash does not match its content (modified)", line, e.Seq))
 		}
-		if e.Event == "audit.chain" && e.Seq == 1 && e.Prev == ZeroHash {
+		isSegmentStart := e.Event == "audit.chain" && e.Seq == 1 && e.Prev == ZeroHash
+		if anchor != nil && firstChained && isSegmentStart {
+			// An anchored log must continue the anchor, not start a fresh
+			// segment: an unrelated, internally valid chain must not pass.
+			rep.Problems = append(rep.Problems, fmt.Sprintf("line %d (seq %d): anchored log starts a new segment instead of continuing seq %d", line, e.Seq, anchor.Seq))
+		} else if isSegmentStart {
 			if inChain {
 				rep.Warnings = append(rep.Warnings, fmt.Sprintf("line %d: new chain segment started (%s)", line, e.Detail))
 			}
@@ -391,6 +417,7 @@ func Verify(r io.Reader, cps ...Checkpoint) Report {
 				}
 			}
 		}
+		firstChained = false
 		inChain = true
 		seq, head = e.Seq, e.Hash
 		seen[e.Seq] = e.Hash
@@ -410,6 +437,11 @@ func Verify(r io.Reader, cps ...Checkpoint) Report {
 		case h != c.Hash:
 			rep.Problems = append(rep.Problems, fmt.Sprintf("checkpoint seq %d: hash differs (the log was rewritten)", c.Seq))
 		}
+	}
+	if anchor != nil && rep.Records == 0 {
+		// An anchored log must have at least one record continuing the anchor;
+		// a fully truncated tail (or only pre-chain legacy records) must fail.
+		rep.Problems = append(rep.Problems, "anchored log has no records after the anchor")
 	}
 	if rep.Records == 0 && rep.Legacy == 0 {
 		rep.Warnings = append(rep.Warnings, "log is empty")
