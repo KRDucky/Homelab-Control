@@ -1030,8 +1030,10 @@ components:
           description: >
             Read-only /etc/fuse.conf probe for an uncommented user_allow_other line.
             A missing file is present=false with a fixed reason and does not degrade
-            capability. Symlinks are not followed. Unreadable or oversized input uses
-            fixed text and does not echo the file. This page does not edit fuse.conf
+            capability. The open is O_NOFOLLOW and the handle is re-checked as a regular
+            file, so a symlink or FIFO is not read. Unset user_allow_other only matters
+            when a non-root user mounts with allow_other. Unreadable or oversized input
+            uses fixed text and does not echo the file. This page does not edit fuse.conf
             or remount.
           properties:
             present: { type: boolean }
@@ -1043,8 +1045,9 @@ components:
           description: >
             Read-only honesty findings (duplicate branches; SnapRAID parity on a pool branch or the
             fused mount; SnapRAID content on the fused mount or a parity path; fewer than two content
-            files; a parsed pool whose options omit allow_other). Content on a data branch is not a
-            warning. Nil options are not a warning. Path-based only: =RW/=NC/=RO suffixes
+            files; a root-owned pool (user_id=0) whose parsed options omit allow_other, after that
+            pool's duplicate and parity findings). Content on a data branch is not a
+            warning. Nil options and non-root mounts are not a warning. Path-based only: =RW/=NC/=RO suffixes
             are stripped; globs, bind mounts and symlinks are not resolved; content files are not
             read. A missing warning is not proof. Capped at 64 total, 8 per pool for branch findings.
             Never executes and never remounts.
@@ -2060,11 +2063,12 @@ paths:
         read-only /proc/sys/kernel/osrelease probe (visible to mergerfs.read without system.read;
         never uname, never mergerfs --version; missing does not degrade capability). fuseAccess is a
         read-only /etc/fuse.conf probe for user_allow_other (missing file does not degrade capability;
-        symlinks are not followed; this page does not edit fuse.conf or remount). warnings lists
+        O_NOFOLLOW, regular-file re-check, symlink and FIFO unread; an unset line only matters for a
+        non-root allow_other mount; this page does not edit fuse.conf or remount). warnings lists
         read-only honesty findings (duplicate
         branches; SnapRAID parity on a pool branch or the fused mount; SnapRAID content on the fused
-        mount or a parity path; fewer than two content files; a parsed pool mounted without
-        allow_other). Content on a data branch is not a
+        mount or a parity path; fewer than two content files; a root-owned pool (user_id=0) mounted
+        without allow_other, after that pool's other findings). Content on a data branch is not a
         warning. Content files are not read. Matching is path-based; a
         missing warning is not proof. warningsTruncated is true when the list was capped. Pooling is
         not RAID. Writes between SnapRAID syncs are not protected. No pool create, mount, remount, policy write, fstab/unit write, module load, or snapraid
