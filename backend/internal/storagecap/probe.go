@@ -38,6 +38,12 @@ type Tooling struct {
 	Optional []ToolItem `json:"optional"`
 }
 
+// Well-known, fixed binary paths shared by storage inventory packages.
+// Returned as fresh slices so an importing package cannot mutate the shared
+// probe configuration. Never search $PATH and never execute these binaries.
+func SmartctlPaths() []string { return []string{"/usr/sbin/smartctl", "/usr/bin/smartctl"} }
+func NvmePaths() []string     { return []string{"/usr/sbin/nvme", "/usr/bin/nvme"} }
+
 // RealStat is the production StatFunc.
 func RealStat(path string) bool {
 	fi, err := os.Stat(path)
