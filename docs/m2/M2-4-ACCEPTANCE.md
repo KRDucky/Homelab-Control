@@ -17,7 +17,7 @@ Status 2026-11-05: **not ready for acceptance or merge.** This lists what is evi
 | 11 | HCIS UI, keyboard, axe desktop/mobile, no overflow, real API/session/DB | Done for the synthetic fixture only (browser run 22/22 after integrating `main` `a548f52f`; axe 0 desktop/0 mobile; no overflow). Not native-probe, distro or KVM evidence | local evidence, not committed |
 | 12 | `make check` | Pass locally 2026-11-05 (pinned Go 1.26.10, non-root) including ShellCheck 0.9.0, the version CI installs, also after integrating `main` `a548f52f` (uncommitted merge); CI not yet run on this change | local log |
 | 13 | CI, distribution packaging, SELinux, KVM | **Open** — not run | — |
-| 14 | GET side effects and request controls | Controls implemented and tested; residual audit growth for owner/supervisor review | see below; `TestStorageReadRequiresSessionCSRFToken`; e2e `cookie-only storage read refused` |
+| 14 | GET side effects and request controls | Storage, service-log and unit-file reads require the session CSRF token before collection, broker access, audit or snapshot writes; residual audit growth remains for owner/supervisor review | see below; `TestStorageReadRequiresSessionCSRFToken`, `TestUnitLogsRequiresCSRFBeforeBrokerOrAudit`, `TestUnitContentsRequiresCSRFBeforeBrokerOrAudit`; e2e `cookie-only storage read refused` |
 | 15 | Module registry (M2-3, merged from `main` `a548f52f`) | `storage` is **not** a registered module: `GET /api/v1/storage` is a core route, so `/etc/homelab-control/modules.json` cannot disable it and the fail-closed state (invalid setting) does not hide it. Registering it changes the administrator file contract (`modules_test` requires review for new modules); proposed, not done | `modules.ForRoute("/api/v1/storage") == ""` |
 
 ### Row 14 — reasoning (not an accepted risk)
@@ -34,5 +34,7 @@ Controls:
 3. **Snapshot storage is bounded**: 4 rows, 8 MiB per graph, one-minute same-boot dedup (`state` tests). Responses are `Cache-Control: no-store`.
 4. The UI polls once per 60 s only while the tab is visible (`useData` pauses on `visibilitychange`).
 
-Residual, for owner/supervisor review: the audit log is an append-only hash chain with **no retention or rotation** found in code or packaging, so authorized reads grow it without bound (≈1,440 rows per day per continuously visible Storage tab, plus manual refreshes). Bounding that is an audit-subsystem decision (rotation with checkpoint continuity, or a per-user read rate limit), not something to drop silently from M2-4. Separately, the existing audited GET `services.logs.read` has the same same-site trigger exposure; applying the CSRF-on-audited-read rule in the shared `Server.handle` wrapper is proposed, not done here.
+Residual, for owner/supervisor review: the audit log is an append-only hash chain with **no retention or rotation** found in code or packaging, so authorized reads grow it without bound (≈1,440 rows per day per continuously visible Storage tab, plus manual refreshes). Bounding that is an audit-subsystem decision (rotation with checkpoint continuity, or a per-user read rate limit), not something to drop silently from M2-4.
+
+Follow-up hardening (2026-11-15): `GET /services/units/{unit}/logs` and `/services/units/{unit}/contents` require the per-session CSRF header through the shared `Server.handleCSRFRead` wrapper. Cookie-only, wrong-token and URL-token requests are rejected before the broker or audit writer; the Services UI sends the session token. This does not bound audit growth from authorized reads.
 

@@ -198,7 +198,7 @@ func (s *Server) routes() {
 	s.handle("POST /api/v1/host/settings/apply", auth.ScopeHostSettingsApply, s.handleHostSettingsApply)
 	s.handle("GET /api/v1/capabilities", sessionOnly, s.handleCapabilities)
 	s.handle("GET /api/v1/services", auth.ScopeServicesRead, s.handleServices)
-	s.handle("GET /api/v1/services/units/{unit}/logs", auth.ScopeServicesLogs, s.handleUnitLogs)
+	s.handleCSRFRead("GET /api/v1/services/units/{unit}/logs", auth.ScopeServicesLogs, s.handleUnitLogs)
 	s.handle("POST /api/v1/auth/step-up", sessionOnly, s.handleStepUp)
 	s.handle("POST /api/v1/services/units/{unit}/plan", auth.ScopeServicesOperate, s.handleUnitPlan)
 	s.handle("POST /api/v1/services/units/{unit}/apply", auth.ScopeServicesOperate, s.handleUnitApply)
@@ -206,7 +206,7 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/services/timers", auth.ScopeServicesRead, s.handleTimers)
 	s.handle("GET /api/v1/services/sockets", auth.ScopeServicesRead, s.handleSockets)
 	s.handle("GET /api/v1/services/units/{unit}", auth.ScopeServicesRead, s.handleUnitDetail)
-	s.handle("GET /api/v1/services/units/{unit}/contents", auth.ScopeServicesFiles, s.handleUnitContents)
+	s.handleCSRFRead("GET /api/v1/services/units/{unit}/contents", auth.ScopeServicesFiles, s.handleUnitContents)
 	s.handle("POST /api/v1/services/units/{unit}/enablement/plan", auth.ScopeServicesConfigure, s.handleEnablementPlan)
 	s.handle("POST /api/v1/services/units/{unit}/enablement/apply", auth.ScopeServicesConfigure, s.handleEnablementApply)
 	s.handle("GET /api/v1/operations", auth.ScopeAuditRead, s.handleOperations)
@@ -247,6 +247,17 @@ type ctxHandler func(w http.ResponseWriter, r *http.Request, sess *auth.Session,
 // handle registers a route with mandatory authn/authz/CSRF wrapping. There is
 // deliberately no way to register an /api route that bypasses this function.
 func (s *Server) handle(pattern, scope string, h ctxHandler) {
+	s.handleRoute(pattern, scope, h, false)
+}
+
+// handleCSRFRead registers an authenticated read whose application-level side
+// effects require an unforgeable per-session token (for example, an audited
+// read that appends to persistent state).
+func (s *Server) handleCSRFRead(pattern, scope string, h ctxHandler) {
+	s.handleRoute(pattern, scope, h, true)
+}
+
+func (s *Server) handleRoute(pattern, scope string, h ctxHandler, csrfRead bool) {
 	_, routePath, _ := strings.Cut(pattern, " ")
 	module := modules.ForRoute(routePath)
 	s.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
@@ -288,8 +299,12 @@ func (s *Server) handle(pattern, scope string, h ctxHandler) {
 		// account now. Removing a scope (e.g. services.operate) therefore takes
 		// effect on persisted sessions too; adding one needs a new login.
 		sess.Scopes = slices.DeleteFunc(sess.Scopes, func(sc string) bool { return !slices.Contains(u.Scopes, sc) })
-		if unsafe && !auth.CheckCSRF(sess, r.Header.Get("X-CSRF-Token")) {
-			s.auditLog("csrf.token_rejected", sess.Username, r, "denied", "")
+		if (unsafe || csrfRead) && !auth.CheckCSRF(sess, r.Header.Get("X-CSRF-Token")) {
+			// Do not audit rejected CSRF-protected reads: their audit writes are
+			// precisely the side effect the token protects from cross-site triggers.
+			if unsafe {
+				s.auditLog("csrf.token_rejected", sess.Username, r, "denied", "")
+			}
 			writeError(w, http.StatusForbidden, "csrf_rejected", "missing or invalid CSRF token")
 			return
 		}

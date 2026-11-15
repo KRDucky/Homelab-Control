@@ -226,9 +226,10 @@ export interface UnitLogs {
   source: string;
 }
 
-export function getUnitLogs(unit: string, lines: number): Promise<UnitLogs> {
+export function getUnitLogs(unit: string, lines: number, csrf: string): Promise<UnitLogs> {
   return request<UnitLogs>(
     `/api/v1/services/units/${encodeURIComponent(unit)}/logs?lines=${encodeURIComponent(String(lines))}`,
+    { headers: { 'X-CSRF-Token': csrf } },
   );
 }
 
@@ -603,8 +604,8 @@ export function getUnitDetail(unit: string): Promise<UnitDetail> {
   return request<UnitDetail>(unitPath(unit));
 }
 
-export function getUnitContents(unit: string): Promise<UnitContents> {
-  return request<UnitContents>(`${unitPath(unit)}/contents`);
+export function getUnitContents(unit: string, csrf: string): Promise<UnitContents> {
+  return request<UnitContents>(`${unitPath(unit)}/contents`, { headers: { 'X-CSRF-Token': csrf } });
 }
 
 export function getTimers(): Promise<{ timers: TimerInfo[]; truncated: boolean; source: string }> {

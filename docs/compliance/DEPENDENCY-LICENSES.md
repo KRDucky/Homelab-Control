@@ -1,6 +1,6 @@
 # Dependency licenses
 
-**Snapshot:** 2026-10-16, `frontend/app/package-lock.json` (lockfileVersion 3) and `backend/go.mod`.
+**Snapshot:** `frontend/app/package-lock.json` through 2026-10-23; Go modules and allowlist through 2026-11-12.
 **Authoritative, per-version record:** the SPDX SBOM `docs/compliance/sbom/homelab-control.spdx.json`
 (regenerate with `scripts/gen-sbom.py`; CI fails if it is stale). `scripts/license-report.sh` prints the
 same split from the lockfile.
@@ -8,16 +8,28 @@ same split from the lockfile.
 ## 1. Redistributed (in binaries and packages)
 | Component | Version | License | How it ships | Verified by |
 |---|---|---|---|---|
-| Go standard library | CI and release toolchain 1.26.11 (`go.mod` minimum 1.24) | BSD-3-Clause | Statically linked into `hc-api`, `hlctl`, `hc-broker` | `go.mod` has no `require`; `go version -m` |
+| Go standard library | CI and release toolchain 1.26.11 (`go.mod` minimum 1.26.0) | BSD-3-Clause | Statically linked into `hc-api`, `hlctl`, `hc-broker` | `backend/go.mod`; `go version -m` |
+| modernc.org/sqlite | 1.60.1 | BSD-3-Clause | Statically linked into `hc-api`, `hlctl` | Go dependency allowlist; `go version -m` |
+| modernc.org/libc | 1.77.1 | BSD-3-Clause | Statically linked into `hc-api`, `hlctl` | Go dependency allowlist; `go version -m` |
+| modernc.org/mathutil | 1.7.1 | BSD-3-Clause | Statically linked into `hc-api`, `hlctl` | Go dependency allowlist; `go version -m` |
+| modernc.org/memory | 1.12.1 | BSD-3-Clause | Statically linked into `hc-api`, `hlctl` | Go dependency allowlist; `go version -m` |
+| golang.org/x/sys | 0.48.0 | BSD-3-Clause | Statically linked into `hc-api`, `hlctl` | Go dependency allowlist; `go version -m` |
+| github.com/google/uuid | 1.6.0 | BSD-3-Clause | Statically linked into `hc-api`, `hlctl` | Go dependency allowlist; `go version -m` |
+| github.com/dustin/go-humanize | 1.0.1 | MIT | Statically linked into `hc-api`, `hlctl` | Go dependency allowlist; `go version -m` |
+| github.com/remyoudompheng/bigfft | v0.0.0-20230129092748-24d4a6f8daec | BSD-3-Clause | Statically linked into `hc-api`, `hlctl` | Go dependency allowlist; `go version -m` |
+| github.com/coreos/go-oidc/v3 | 3.21.0 | Apache-2.0 | Statically linked into `hc-api`, `hlctl` | Go dependency allowlist; `go version -m` |
+| github.com/go-jose/go-jose/v4 | 4.1.7 | Apache-2.0 | Statically linked into `hc-api`, `hlctl` | Go dependency allowlist; `go version -m` |
+| golang.org/x/oauth2 | 0.37.0 | BSD-3-Clause | Statically linked into `hc-api`, `hlctl` | Go dependency allowlist; `go version -m` |
 | react | 19.3.1 | MIT | JS bundle embedded in `hc-api` | Production source map |
 | react-dom | 19.3.1 | MIT | JS bundle embedded in `hc-api` | Production source map |
 | scheduler | 0.28.0 | MIT | JS bundle embedded in `hc-api` (react-dom dependency) | Production source map |
 | @fontsource-variable/inter | 5.3.0 (Inter 4.001) | OFL-1.1 (no Reserved Font Name) | Seven variable `.woff2` subsets + CSS embedded in `hc-api` | Production build output |
 | @fontsource-variable/jetbrains-mono | 5.3.0 (JetBrains Mono 2.211) | OFL-1.1 (no Reserved Font Name) | Six variable `.woff2` subsets + CSS embedded in `hc-api` | Production build output |
 
-Nothing else reaches the bundle: the source map lists only these packages plus our own `src/` files, the
-bundle contains no Vite runtime (module-preload polyfill disabled in `vite.config.ts`), and the Go module
-graph is empty. Notices: `THIRD-PARTY-NOTICES.md`.
+Nothing else reaches the UI bundle: the source map lists only these frontend packages plus our own `src/`
+files, and the bundle contains no Vite runtime (module-preload polyfill disabled in `vite.config.ts`). Go
+module graph contents and whether each module is linked into a binary are checked against
+`backend/go-deps-allowlist.json`. Required notices: `THIRD-PARTY-NOTICES.md`.
 
 ## 2. Development and test only (npm, not redistributed)
 243 unique packages (245 lockfile entries; `lru-cache@11.5.3` appears three times).
@@ -61,5 +73,26 @@ output) is our own code, not a copy of the tool.
 Tool licenses do not extend to the artifacts they produce.
 
 ## 4. Go modules
-None. `backend/go.mod` declares no `require`; ADR 0006 keeps the backend standard-library-only, enforced by
-`scripts/security-check.sh` ("Go dependency policy").
+
+`backend/go.mod` has direct and indirect third-party modules. Exact versions, SPDX identifiers, checksums,
+and link status are recorded in `backend/go-deps-allowlist.json`; `scripts/security-check.sh` rejects
+unreviewed versions and verifies the linked set. Eleven allowlisted modules are linked into `hc-api` and
+`hlctl` (none into `hc-broker`) and listed in §1. `github.com/mattn/go-isatty` and
+`github.com/ncruces/go-strftime` are present in the module graph but are not linked into a binary. Full
+license texts and inherited notices for distributed modules are in `THIRD-PARTY-NOTICES.md`; the
+per-version SPDX record is in the generated SBOM.
+
+## 5. Adding or reusing open-source code
+
+Before adding a library, copying or adapting upstream code, or bundling an SDK/plugin dependency, review the
+exact version and its transitive dependencies against the repository's `GPL-3.0-or-later` licensing and
+distribution model. Record the license identifier and the compatibility rationale; an SPDX label alone is
+not a compatibility review. Stop for owner review when the license is missing, ambiguous, has additional
+conditions, or the obligations are unclear. Do not add code with incompatible terms.
+
+For every accepted addition, regenerate and validate the version-specific SPDX SBOM, update this dependency
+inventory and `THIRD-PARTY-NOTICES.md` with required copyright, license text, attribution and upstream
+notices, and add/update REUSE metadata as applicable. Keep the records in these repository paths so they
+are published with the GitHub source and release artifacts. The project license is in [`../../LICENSE.md`](../../LICENSE.md);
+the current audit and exceptions are [`LICENSE-AUDIT.md`](LICENSE-AUDIT.md) and
+[`LICENSE-EXCEPTIONS.md`](LICENSE-EXCEPTIONS.md). Run the repository's license/SBOM checks before merging.

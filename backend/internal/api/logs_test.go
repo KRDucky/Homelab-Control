@@ -27,9 +27,13 @@ func logsFake() *fakeBroker {
 	return fb
 }
 
+func logsHeaders(h *harness) map[string]string {
+	return map[string]string{"X-CSRF-Token": h.csrf}
+}
+
 func TestUnitLogsRequiresScope(t *testing.T) {
 	h := harnessWith(t, logsFake(), allScopes) // no services.logs
-	if rr := h.do("GET", "/api/v1/services/units/ssh.service/logs", "", nil); rr.Code != http.StatusForbidden {
+	if rr := h.do("GET", "/api/v1/services/units/ssh.service/logs", "", logsHeaders(h)); rr.Code != http.StatusForbidden {
 		t.Fatalf("without services.logs: %d", rr.Code)
 	}
 	if c := caps(t, h); c["service_logs"].Status != CapForbidden {
@@ -56,7 +60,7 @@ func TestUnitLogsValidatesBeforeBroker(t *testing.T) {
 		"/api/v1/services/units/..%2F..%2Fetc%2Fpasswd.service/logs",
 		"/api/v1/services/units/%2Fetc%2Fpasswd.service/logs",
 	} {
-		if rr := h.do("GET", p, "", nil); rr.Code != http.StatusBadRequest {
+		if rr := h.do("GET", p, "", logsHeaders(h)); rr.Code != http.StatusBadRequest {
 			t.Errorf("%s: %d %s", p, rr.Code, rr.Body)
 		}
 	}
@@ -71,7 +75,7 @@ func TestUnitLogsOK(t *testing.T) {
 	if c := caps(t, h); c["service_logs"].Status != CapAvailable {
 		t.Fatalf("capability: %+v", c["service_logs"])
 	}
-	rr := h.do("GET", "/api/v1/services/units/ssh.service/logs?lines=50", "", nil)
+	rr := h.do("GET", "/api/v1/services/units/ssh.service/logs?lines=50", "", logsHeaders(h))
 	if rr.Code != 200 || !strings.Contains(rr.Body.String(), "Accepted publickey") {
 		t.Fatalf("%d %s", rr.Code, rr.Body)
 	}
@@ -85,9 +89,36 @@ func TestUnitLogsOK(t *testing.T) {
 		t.Fatalf("audit must record the read but not the content: %s", audit)
 	}
 	// Default line count.
-	_ = h.do("GET", "/api/v1/services/units/ssh.service/logs", "", nil)
+	_ = h.do("GET", "/api/v1/services/units/ssh.service/logs", "", logsHeaders(h))
 	if b, _ := json.Marshal(fb.args[len(fb.args)-1]); !strings.Contains(string(b), `"lines":100`) {
 		t.Fatalf("default lines: %s", b)
+	}
+}
+
+func TestUnitLogsRequiresCSRFBeforeBrokerOrAudit(t *testing.T) {
+	fb := logsFake()
+	h := harnessWith(t, fb, append(allScopes, auth.ScopeServicesLogs))
+	h.audit.Reset()
+	for name, headers := range map[string]map[string]string{
+		"missing token": nil,
+		"wrong token":   {"X-CSRF-Token": "wrong"},
+		"token in URL":  nil,
+	} {
+		path := "/api/v1/services/units/ssh.service/logs"
+		if name == "token in URL" {
+			path += "?csrf_token=" + h.csrf
+		}
+		rr := h.do("GET", path, "", headers)
+		if rr.Code != http.StatusForbidden || !strings.Contains(rr.Body.String(), "csrf_rejected") {
+			t.Errorf("%s: %d %s", name, rr.Code, rr.Body)
+		}
+		if len(fb.args) != 0 || h.audit.Len() != 0 {
+			t.Errorf("%s reached broker or audit: args=%v audit=%s", name, fb.args, h.audit)
+		}
+	}
+	rr := h.do("GET", "/api/v1/services/units/ssh.service/logs", "", map[string]string{"X-CSRF-Token": h.csrf})
+	if rr.Code != http.StatusOK || len(fb.args) != 1 || !strings.Contains(h.audit.String(), `"event":"services.logs.read"`) {
+		t.Fatalf("valid CSRF token: code=%d args=%d audit=%s body=%s", rr.Code, len(fb.args), h.audit, rr.Body)
 	}
 }
 
@@ -97,7 +128,7 @@ func TestUnitLogsBrokerErrors(t *testing.T) {
 		fb := logsFake()
 		fb.errs["services.unit.logs"] = &proto.Error{Code: code, Message: "m"}
 		h := harnessWith(t, fb, append(allScopes, auth.ScopeServicesLogs))
-		if rr := h.do("GET", "/api/v1/services/units/ssh.service/logs", "", nil); rr.Code != want {
+		if rr := h.do("GET", "/api/v1/services/units/ssh.service/logs", "", logsHeaders(h)); rr.Code != want {
 			t.Errorf("%s: got %d want %d", code, rr.Code, want)
 		}
 	}
@@ -111,7 +142,7 @@ func (brokenWriter) Write([]byte) (int, error) { return 0, errors.New("disk full
 func TestUnitLogsFailClosedOnAudit(t *testing.T) {
 	h := harnessWith(t, logsFake(), append(allScopes, auth.ScopeServicesLogs))
 	h.srv.audit = audit.New(brokenWriter{})
-	rr := h.do("GET", "/api/v1/services/units/ssh.service/logs", "", nil)
+	rr := h.do("GET", "/api/v1/services/units/ssh.service/logs", "", logsHeaders(h))
 	if rr.Code != http.StatusServiceUnavailable || strings.Contains(rr.Body.String(), "Accepted publickey") {
 		t.Fatalf("%d %s", rr.Code, rr.Body)
 	}

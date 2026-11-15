@@ -10,8 +10,9 @@
 # (disposable hosts only) to exercise legacy detection against real files.
 # shellcheck disable=SC2154,SC2034
 api=http://127.0.0.1:9180
-get() { curl -s -H "Cookie: __Host-hc_session=$HC_SID" "$api$1"; }
-getc() { curl -s -o /dev/null -w '%{http_code}' -H "Cookie: __Host-hc_session=$HC_SID" "$api$1"; }
+HC_CSRF=$(curl -s -H "Cookie: __Host-hc_session=$HC_SID" "$api/api/v1/auth/session" | python3 -c 'import json,sys; print(json.load(sys.stdin)["csrf_token"])')
+get() { curl -s -H "Cookie: __Host-hc_session=$HC_SID" -H "X-CSRF-Token: $HC_CSRF" "$api$1"; }
+getc() { curl -s -o /dev/null -w '%{http_code}' -H "Cookie: __Host-hc_session=$HC_SID" -H "X-CSRF-Token: $HC_CSRF" "$api$1"; }
 jget() { python3 -c "import json,sys; d=json.load(sys.stdin); print(eval(sys.argv[1]))" "$1"; }
 
 echo "== M1: broker"

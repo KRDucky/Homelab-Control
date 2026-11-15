@@ -138,6 +138,8 @@ describe('service logs', () => {
     const panel = await screen.findByRole('region', { name: 'Logs: ssh.service' });
     await within(panel).findByText('Started ssh.service.');
     expect(calls).toContain('GET /api/v1/services/units/ssh.service/logs?lines=100');
+    const logCall = vi.mocked(fetch).mock.calls.find(([url]) => String(url).includes('/logs'));
+    expect(new Headers(logCall?.[1]?.headers).get('X-CSRF-Token')).toBe('t');
     // Journal content is rendered as text, never as markup.
     expect(within(panel).getByText('<img src=x onerror=alert(1)>')).toBeTruthy();
     expect(panel.querySelector('img')).toBeNull();

@@ -80,11 +80,11 @@ def call(method, path, body=None, csrf=None, sid=None):
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(BASE + path, data=data, method=method)
     req.add_header("Cookie", f"__Host-hc_session={sid or SID}")
+    if csrf:
+        req.add_header("X-CSRF-Token", csrf)
     if method != "GET":
         req.add_header("Origin", ORIGIN)
         req.add_header("Content-Type", "application/json")
-        if csrf:
-            req.add_header("X-CSRF-Token", csrf)
     try:
         with urllib.request.urlopen(req, timeout=120) as r:
             raw = r.read() or b"{}"
@@ -836,14 +836,14 @@ def main():
     check("disable removes the drop-in alias", (200, "succeeded", False), (st, o.get("outcome"), os.path.lexists(f"{ETC}/hc-test-en-secret-alias.service")))
 
     # 8. Read-only views.
-    st, c = call("GET", f"/api/v1/services/units/{sec}/contents")
+    st, c = call("GET", f"/api/v1/services/units/{sec}/contents", csrf=sess.get("csrf_token"))
     texts = "\n".join(f.get("text", "") for f in c.get("files", []))
     check("contents: 200 with redactions", (200, True), (st, c.get("redactions", 0) >= 2))
     check("contents: root-only drop-in reported unreadable", True, f"{ETC}/{sec}.d/secret.conf" in (c.get("unreadable") or []))
     check("contents: no fixture secret", (False, False), (SECRET_FRAGMENT in texts, SECRET_DROPIN in texts))
     # services.files is separate: the operator account (services.read,
     # services.operate) is refused, and so is a session with every scope but it.
-    st, e = call("GET", f"/api/v1/services/units/{sec}/contents", sid=op_sid)
+    st, e = call("GET", f"/api/v1/services/units/{sec}/contents", csrf=op_sess.get("csrf_token"), sid=op_sid)
     check("contents without services.files (operator): 403", (403, "forbidden"), (st, e.get("error")))
     subprocess.run(["hlctl", "user", "add", "--file", USERS, "--username", "nofiles", "--scopes",
                     "system.read,services.read,services.logs,services.operate,services.configure,audit.read"],
@@ -852,9 +852,9 @@ def main():
     restart_api()
     SID = login()
     nf_sid = login("nofiles")
-    st, e = call("GET", f"/api/v1/services/units/{sec}/contents", sid=nf_sid)
+    st, e = call("GET", f"/api/v1/services/units/{sec}/contents", csrf=call("GET", "/api/v1/auth/session", sid=nf_sid)[1].get("csrf_token"), sid=nf_sid)
     check("contents with every scope but services.files: 403", (403, "forbidden"), (st, e.get("error")))
-    st, _ = call("GET", "/api/v1/services/units/homelab-control.service/logs?lines=5", sid=nf_sid)
+    st, _ = call("GET", "/api/v1/services/units/homelab-control.service/logs?lines=5", csrf=call("GET", "/api/v1/auth/session", sid=nf_sid)[1].get("csrf_token"), sid=nf_sid)
     check("its service logs (services.logs) still readable: 200", 200, st)
     st, sess = call("GET", "/api/v1/auth/session")
     csrf = sess.get("csrf_token")

@@ -45,12 +45,14 @@ function detailError(err: Error): string {
 
 export function UnitDetailPanel({
   unit,
+  csrf,
   canReadFile,
   fileReason,
   onClose,
   onUnauthorized,
 }: {
   unit: string;
+  csrf: string;
   /** services.files: unit files can contain sensitive values. */
   canReadFile: boolean;
   /** Why the unit file is not offered (from the unit_files capability). */
@@ -84,7 +86,7 @@ export function UnitDetailPanel({
   async function loadFile() {
     setFileLoading(true);
     try {
-      setFile(await getUnitContents(unit));
+      setFile(await getUnitContents(unit, csrf));
       setFileError(null);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) onUnauthorized();
