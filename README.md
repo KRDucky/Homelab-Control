@@ -153,7 +153,9 @@ and licences stay intact in the repository.
 Third-party components in release artifacts and their notices:
 [`docs/compliance/THIRD-PARTY-NOTICES.md`](docs/compliance/THIRD-PARTY-NOTICES.md) (installed with every
 package). Provenance and attribution: [`NOTICE.md`](NOTICE.md). Compliance record:
-[`docs/compliance/LICENSE-AUDIT.md`](docs/compliance/LICENSE-AUDIT.md).
+[`docs/compliance/LICENSE-AUDIT.md`](docs/compliance/LICENSE-AUDIT.md). The dependency inventory and
+open-source license review requirements are in
+[`docs/compliance/DEPENDENCY-LICENSES.md`](docs/compliance/DEPENDENCY-LICENSES.md).
 
 ### Create your own theme
 

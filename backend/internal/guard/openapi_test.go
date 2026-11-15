@@ -33,13 +33,14 @@ func TestOpenAPIMatchesRoutes(t *testing.T) {
 		t.Fatal(err)
 	}
 	code := map[string]string{} // "GET /path" -> scope
+	codeRouteCSRF := map[string]struct{}{}
 	ast.Inspect(f, func(n ast.Node) bool {
 		call, ok := n.(*ast.CallExpr)
 		if !ok {
 			return true
 		}
 		sel, ok := call.Fun.(*ast.SelectorExpr)
-		if !ok || sel.Sel.Name != "handle" || len(call.Args) != 3 {
+		if !ok || (sel.Sel.Name != "handle" && sel.Sel.Name != "handleCSRFRead") || len(call.Args) != 3 {
 			return true
 		}
 		lit, ok := call.Args[0].(*ast.BasicLit)
@@ -59,6 +60,9 @@ func TestOpenAPIMatchesRoutes(t *testing.T) {
 			t.Errorf("route %s uses unknown scope expression %s", pat, scopeName)
 		}
 		code[strings.Replace(pat, " /api/v1", " ", 1)] = sc
+		if sel.Sel.Name == "handleCSRFRead" {
+			codeRouteCSRF[strings.Replace(pat, " /api/v1", " ", 1)] = struct{}{}
+		}
 		return true
 	})
 
@@ -71,6 +75,7 @@ func TestOpenAPIMatchesRoutes(t *testing.T) {
 	scopeRE := regexp.MustCompile(`^      x-required-scope:\s*(\S+)`)
 	secNoneRE := regexp.MustCompile(`^      security:\s*\[\]`)
 	spec := map[string]string{}
+	specCSRF := map[string]bool{}
 	inPaths := false
 	var cur, key string
 	for _, line := range strings.Split(string(b), "\n") {
@@ -86,10 +91,13 @@ func TestOpenAPIMatchesRoutes(t *testing.T) {
 		} else if m := methodRE.FindStringSubmatch(line); m != nil {
 			key = strings.ToUpper(m[1]) + " " + cur
 			spec[key] = "session"
+			specCSRF[key] = false
 		} else if m := scopeRE.FindStringSubmatch(line); m != nil && key != "" {
 			spec[key] = m[1]
 		} else if secNoneRE.MatchString(line) && key != "" {
 			spec[key] = ""
+		} else if strings.Contains(line, "security:") && strings.Contains(line, "session: []") && strings.Contains(line, "csrf: []") && key != "" {
+			specCSRF[key] = true
 		}
 	}
 	for route, sc := range code {
@@ -100,6 +108,11 @@ func TestOpenAPIMatchesRoutes(t *testing.T) {
 		}
 		if got != sc {
 			t.Errorf("route %q: code requires %q, OpenAPI says %q", route, sc, got)
+		}
+	}
+	for route := range codeRouteCSRF {
+		if !specCSRF[route] {
+			t.Errorf("route %q requires CSRF in code but not in OpenAPI", route)
 		}
 	}
 	if len(spec) != len(code) {

@@ -190,7 +190,7 @@ func TestUnitContentsNeedFilesScopeAndAudit(t *testing.T) {
 	for _, set := range [][]string{{auth.ScopeServicesRead}, {auth.ScopeServicesLogs}, {auth.ScopeServicesOperate},
 		{auth.ScopeServicesConfigure}, others} {
 		h := harnessWith(t, fb, set)
-		rr := h.do("GET", "/api/v1/services/units/nginx.service/contents", "", nil)
+		rr := h.do("GET", "/api/v1/services/units/nginx.service/contents", "", map[string]string{"X-CSRF-Token": h.csrf})
 		if rr.Code != http.StatusForbidden || strings.Contains(rr.Body.String(), "Environment") ||
 			strings.Contains(h.audit.String(), `"event":"services.unit.contents.read"`) {
 			t.Fatalf("contents with %v: %d %s / %s", set, rr.Code, rr.Body, h.audit)
@@ -200,18 +200,45 @@ func TestUnitContentsNeedFilesScopeAndAudit(t *testing.T) {
 		t.Fatalf("broker asked for contents without services.files: %v", fb.args)
 	}
 	h := harnessWith(t, fb, []string{auth.ScopeServicesRead, auth.ScopeServicesFiles})
-	rr := h.do("GET", "/api/v1/services/units/nginx.service/contents", "", nil)
+	rr := h.do("GET", "/api/v1/services/units/nginx.service/contents", "", map[string]string{"X-CSRF-Token": h.csrf})
 	if rr.Code != 200 || !strings.Contains(h.audit.String(), `"event":"services.unit.contents.read"`) || strings.Contains(h.audit.String(), "redacted") {
 		t.Fatalf("%d %s / %s", rr.Code, rr.Body, h.audit)
 	}
 	h.srv.audit = audit.New(brokenWriter{})
-	if rr := h.do("GET", "/api/v1/services/units/nginx.service/contents", "", nil); rr.Code != http.StatusServiceUnavailable || strings.Contains(rr.Body.String(), "Environment") {
+	if rr := h.do("GET", "/api/v1/services/units/nginx.service/contents", "", map[string]string{"X-CSRF-Token": h.csrf}); rr.Code != http.StatusServiceUnavailable || strings.Contains(rr.Body.String(), "Environment") {
 		t.Fatalf("contents released without audit: %d %s", rr.Code, rr.Body)
 	}
 	for _, bad := range []string{"x.device", "-x.service", "a%2Fb.service", "x.service%0A"} {
-		if rr := h.do("GET", "/api/v1/services/units/"+bad+"/contents", "", nil); rr.Code != http.StatusBadRequest {
+		if rr := h.do("GET", "/api/v1/services/units/"+bad+"/contents", "", map[string]string{"X-CSRF-Token": h.csrf}); rr.Code != http.StatusBadRequest {
 			t.Errorf("%s: %d", bad, rr.Code)
 		}
+	}
+}
+
+func TestUnitContentsRequiresCSRFBeforeBrokerOrAudit(t *testing.T) {
+	fb := m23Fake()
+	h := harnessWith(t, fb, []string{auth.ScopeServicesRead, auth.ScopeServicesFiles})
+	h.audit.Reset()
+	for name, headers := range map[string]map[string]string{
+		"missing token": nil,
+		"wrong token":   {"X-CSRF-Token": "wrong"},
+		"token in URL":  nil,
+	} {
+		path := "/api/v1/services/units/nginx.service/contents"
+		if name == "token in URL" {
+			path += "?csrf_token=" + h.csrf
+		}
+		rr := h.do("GET", path, "", headers)
+		if rr.Code != http.StatusForbidden || !strings.Contains(rr.Body.String(), "csrf_rejected") {
+			t.Errorf("%s: %d %s", name, rr.Code, rr.Body)
+		}
+		if len(fb.args) != 0 || h.audit.Len() != 0 {
+			t.Errorf("%s reached broker or audit: args=%v audit=%s", name, fb.args, h.audit)
+		}
+	}
+	rr := h.do("GET", "/api/v1/services/units/nginx.service/contents", "", map[string]string{"X-CSRF-Token": h.csrf})
+	if rr.Code != http.StatusOK || len(fb.args) != 1 || !strings.Contains(h.audit.String(), `"event":"services.unit.contents.read"`) {
+		t.Fatalf("valid CSRF token: code=%d args=%d audit=%s body=%s", rr.Code, len(fb.args), h.audit, rr.Body)
 	}
 }
 

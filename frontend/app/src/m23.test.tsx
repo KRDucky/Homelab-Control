@@ -161,14 +161,14 @@ const enableOutcome = {
 };
 
 type Route = { status: number; body?: unknown };
-let calls: { key: string; body: string | undefined }[] = [];
+let calls: { key: string; body: BodyInit | null | undefined; headers: HeadersInit | undefined }[] = [];
 function mock(routes: Record<string, Route>) {
   calls = [];
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, init?: RequestInit) => {
       const key = `${init?.method ?? 'GET'} ${url.split('?')[0]}`;
-      calls.push({ key, body: init?.body as string | undefined });
+      calls.push({ key, body: init?.body, headers: init?.headers });
       const r = routes[key] ?? { status: 404, body: { error: 'not_found', message: 'unknown API route' } };
       return new Response(JSON.stringify(r.body ?? {}), { status: r.status });
     }),
@@ -256,7 +256,8 @@ describe('boot-time enable/disable', () => {
     expect(within(dialog).getByText('disabled → enabled')).toBeTruthy();
     expect(within(dialog).getByText(/— present/)).toBeTruthy();
     const apply = calls.find((c) => c.key.endsWith('/enablement/apply'));
-    expect(JSON.parse(apply?.body ?? '{}')).toEqual({ action: 'enable', token: enablePlan.token });
+    if (typeof apply?.body !== 'string') throw new Error('expected JSON request body string');
+    expect(JSON.parse(apply.body)).toEqual({ action: 'enable', token: enablePlan.token });
     // The start/stop endpoints are never used for a boot-time change.
     expect(calls.some((c) => /\/units\/batch\.service\/(plan|apply)$/.test(c.key))).toBe(false);
     const res = await axe.run(dialog);
@@ -405,6 +406,9 @@ describe('unit detail, timers and sockets', () => {
     await within(panel).findByText(/1 line redacted/);
     expect(within(panel).getByText(/Environment=TOKEN=\[redacted\]/)).toBeTruthy();
     expect(within(panel).getByText(/only root can read this file/)).toBeTruthy();
+    const contentsRequest = calls.find((c) => c.key.endsWith('/contents'));
+    expect(contentsRequest).toBeDefined();
+    expect(new Headers(contentsRequest?.headers).get('X-CSRF-Token')).toBe('csrf-1');
   });
 
   it('switches to timers and sockets with the keyboard (WAI-ARIA tabs)', async () => {

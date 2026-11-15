@@ -1747,8 +1747,8 @@ paths:
         '504': { description: 'Broker operation timed out', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /services/units/{unit}/logs:
     get:
-      summary: Recent journal entries of one listed unit (read-only, via broker op services.unit.logs). Reads are audited; content is not stored.
-      security: [{ session: [] }]
+      summary: Recent journal entries of one listed unit (read-only, via broker op services.unit.logs). Reads require the session CSRF token and are audited; content is not stored.
+      security: [{ session: [], csrf: [] }]
       x-required-scope: services.logs
       parameters:
         - { name: unit, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9:_.@-]{0,99}\.(service|socket|timer|mount|automount|path|target|swap)$' } }
@@ -1756,7 +1756,7 @@ paths:
       responses:
         '200': { description: 'OK', content: { application/json: { schema: { $ref: '#/components/schemas/UnitLogs' } } } }
         '400': { description: 'Invalid unit name or line count', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '403': { description: 'Missing scope', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing scope or invalid CSRF token', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '404': { description: 'The unit is not listed by systemd', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '502': { description: 'Broker failure (details are not exposed)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: 'Broker unavailable; systemd/journald or the journal reader group missing; or the read could not be audited (audit_unavailable, no content returned)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
@@ -1828,15 +1828,15 @@ paths:
         '503': { description: 'Broker unavailable or systemd not running', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /services/units/{unit}/contents:
     get:
-      summary: "Read-only unit file and drop-ins (broker op services.unit.contents, `systemctl cat` as the service account): files only root can read are not shown; values that look like secrets are redacted (heuristic: this permission can disclose sensitive configuration); 64 KiB / 2,000 lines. Audited (who, which unit, never content); withheld if the audit cannot be written. Needs services.files, which no other scope implies."
-      security: [{ session: [] }]
+      summary: "Read-only unit file and drop-ins (broker op services.unit.contents, `systemctl cat` as the service account): files only root can read are not shown; values that look like secrets are redacted (heuristic: this permission can disclose sensitive configuration); 64 KiB / 2,000 lines. Requires the session CSRF token. Audited (who, which unit, never content); withheld if the audit cannot be written. Needs services.files, which no other scope implies."
+      security: [{ session: [], csrf: [] }]
       x-required-scope: services.files
       parameters:
         - { name: unit, in: path, required: true, schema: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9:_.@-]{0,99}\\.(service|socket|timer|mount|automount|path|target|swap)$' } }
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/UnitContents' } } } }
         '400': { description: Invalid unit name, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '403': { description: Missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing scope or invalid CSRF token, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '404': { description: 'Not in the unit inventory or no unit file', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: 'Broker unavailable, systemd not running, or the read could not be audited', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /services/units/{unit}/enablement/plan:
