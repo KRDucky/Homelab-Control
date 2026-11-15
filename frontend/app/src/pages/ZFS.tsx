@@ -52,9 +52,10 @@ export function ZFSView({
   const { tooling, zfs } = data;
   const kernelZfs = data.kernelZfs;
   const missingRequired = tooling.required.filter((t) => !t.installed);
-  const diskToolsMissing = tooling.optional.filter(
-    (t) => (t.id === 'smartctl' || t.id === 'nvme') && !t.installed && t.package,
-  );
+  const zfsPoolObserved = zfs.mounts.length > 0;
+  const diskToolsMissing = zfsPoolObserved
+    ? tooling.optional.filter((t) => (t.id === 'smartctl' || t.id === 'nvme') && !t.installed && t.package)
+    : [];
   const canInstall = packagesEnabled && (scopes ?? []).includes('packages.read');
 
   return (
@@ -104,7 +105,11 @@ export function ZFSView({
           <header className="panel-head">
             <h2 id="zfs-disktools-heading">Disk inspect tools</h2>
           </header>
-          <p>smartctl and nvme are optional. This page does not run them or open disks.</p>
+          <p>
+            smartctl and nvme are optional. This page does not run them or open disks. An installed binary
+            does not mean HomeControl can access raw devices; future use requires a reviewed closed broker
+            operation.
+          </p>
           <RequiredOffers items={diskToolsMissing} canInstall={canInstall} />
         </section>
       )}
