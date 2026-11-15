@@ -38,10 +38,12 @@ function logsError(err: Error): string {
 /** Read-only view of the most recent journal entries of one unit. */
 export function UnitLogsPanel({
   unit,
+  csrf,
   onClose,
   onUnauthorized,
 }: {
   unit: string;
+  csrf: string;
   onClose: () => void;
   onUnauthorized: () => void;
 }) {
@@ -56,7 +58,7 @@ export function UnitLogsPanel({
     const mine = ++seq.current;
     setLoading(true);
     try {
-      const d = await getUnitLogs(unit, lines);
+      const d = await getUnitLogs(unit, lines, csrf);
       if (mine !== seq.current) return;
       setData(d);
       setError(null);
@@ -68,7 +70,7 @@ export function UnitLogsPanel({
     } finally {
       if (mine === seq.current) setLoading(false);
     }
-  }, [unit, lines, onUnauthorized]);
+  }, [unit, lines, csrf, onUnauthorized]);
 
   useEffect(() => {
     const t = window.setTimeout(() => void load(), 0);

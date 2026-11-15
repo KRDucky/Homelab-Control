@@ -490,6 +490,7 @@ export function Services({
         <UnitDetailPanel
           key={detailUnit}
           unit={detailUnit}
+          csrf={csrf}
           canReadFile={filesUsable}
           fileReason={files?.reason}
           onClose={() => {
@@ -505,6 +506,7 @@ export function Services({
         <UnitLogsPanel
           key={logUnit}
           unit={logUnit}
+          csrf={csrf}
           onClose={() => setLogUnit(null)}
           onUnauthorized={onUnauthorized}
         />

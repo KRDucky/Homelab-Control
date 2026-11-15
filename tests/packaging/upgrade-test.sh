@@ -80,10 +80,11 @@ check "previous API audit log still verifies (legacy records)" 0 "$(hlctl audit 
 check "old in-memory session ended (expected: sessions were not persistent before)" 401 "$(code -b "$j1" $b/api/v1/auth/session)"
 j2=$(mktemp)
 check "new: login with the existing account" 200 "$(login "$j2" "$pw")"
+csrf2=$(curl -fsS -b "$j2" "$b/api/v1/auth/session" | python3 -c 'import json,sys; print(json.load(sys.stdin)["csrf_token"])')
 caps=$(curl -s -b "$j2" $b/api/v1/capabilities)
 check "D-7: service logs not granted by the upgrade" forbidden "$(python3 -c 'import json,sys; print([c["status"] for c in json.load(sys.stdin)["capabilities"] if c["id"]=="service_logs"][0])' <<<"$caps")"
 check "D-7: audit not granted by the upgrade" forbidden "$(python3 -c 'import json,sys; print([c["status"] for c in json.load(sys.stdin)["capabilities"] if c["id"]=="audit"][0])' <<<"$caps")"
-check "D-7: logs endpoint 403" 403 "$(code -b "$j2" $b/api/v1/services/units/ssh.service/logs)"
+check "D-7: logs endpoint 403" 403 "$(code -b "$j2" -H "X-CSRF-Token: $csrf2" "$b/api/v1/services/units/ssh.service/logs")"
 check "sessions are now persistent" 1 "$(curl -s -b "$j2" $b/api/v1/auth/sessions | grep -c '"persistent":true' || true)"
 systemctl restart homelab-control.service
 wait_api
@@ -97,8 +98,9 @@ systemctl restart homelab-control.service
 wait_api
 j3=$(mktemp)
 check "login after granting scopes" 200 "$(login "$j3" "$pw")"
+csrf3=$(curl -fsS -b "$j3" "$b/api/v1/auth/session" | python3 -c 'import json,sys; print(json.load(sys.stdin)["csrf_token"])')
 check "audit endpoint with audit.read" 200 "$(code -b "$j3" "$b/api/v1/audit?limit=5")"
-check "logs endpoint with services.logs" 200 "$(code -b "$j3" "$b/api/v1/services/units/homelab-control.service/logs?lines=5")"
+check "logs endpoint with services.logs" 200 "$(code -b "$j3" -H "X-CSRF-Token: $csrf3" "$b/api/v1/services/units/homelab-control.service/logs?lines=5")"
 
 systemctl disable --now homelab-control.service homelab-control-broker.socket homelab-control-broker.service >/dev/null 2>&1 || true
 echo "upgrade-test: $pass passed, $fail failed"
