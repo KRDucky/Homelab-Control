@@ -20,10 +20,8 @@ type (
 
 // Well-known, fixed paths only: never search $PATH, never exec the binary.
 var (
-	zfsBinaryPaths      = []string{"/usr/sbin/zfs", "/usr/bin/zfs"}
-	zpoolBinaryPaths    = []string{"/usr/sbin/zpool", "/usr/bin/zpool"}
-	smartctlBinaryPaths = []string{"/usr/sbin/smartctl", "/usr/bin/smartctl"}
-	nvmeBinaryPaths     = []string{"/usr/sbin/nvme", "/usr/bin/nvme"}
+	zfsBinaryPaths   = []string{"/usr/sbin/zfs", "/usr/bin/zfs"}
+	zpoolBinaryPaths = []string{"/usr/sbin/zpool", "/usr/bin/zpool"}
 )
 
 const capabilityReasonMax = 256
@@ -53,8 +51,8 @@ func probeTooling(family string, stat storagecap.StatFunc) Tooling {
 	tool := storagecap.Probe(family, []storagecap.Spec{
 		{ID: "zfs", Package: pkg, Paths: zfsBinaryPaths, Required: true},
 		{ID: "zpool", Package: pkg, Paths: zpoolBinaryPaths, Required: true},
-		{ID: "smartctl", Package: opt("smartmontools"), Paths: smartctlBinaryPaths, Required: false},
-		{ID: "nvme", Package: opt("nvme-cli"), Paths: nvmeBinaryPaths, Required: false},
+		{ID: "smartctl", Package: opt("smartmontools"), Paths: storagecap.SmartctlPaths(), Required: false},
+		{ID: "nvme", Package: opt("nvme-cli"), Paths: storagecap.NvmePaths(), Required: false},
 	}, stat)
 	if tool.Optional == nil {
 		tool.Optional = []ToolItem{}

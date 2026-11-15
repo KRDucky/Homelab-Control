@@ -23,7 +23,6 @@ var (
 	mergerfsBinaryPaths    = []string{"/usr/bin/mergerfs", "/usr/sbin/mergerfs"}
 	fusermount3BinaryPaths = []string{"/usr/bin/fusermount3", "/usr/sbin/fusermount3"}
 	snapraidBinaryPaths    = []string{"/usr/bin/snapraid", "/usr/sbin/snapraid"}
-	smartctlBinaryPaths    = []string{"/usr/sbin/smartctl", "/usr/bin/smartctl"}
 	dumpe2fsBinaryPaths    = []string{"/usr/sbin/dumpe2fs", "/usr/bin/dumpe2fs"}
 	xfsInfoBinaryPaths     = []string{"/usr/sbin/xfs_info", "/usr/bin/xfs_info"}
 	btrfsBinaryPaths       = []string{"/usr/bin/btrfs", "/usr/sbin/btrfs"}
@@ -53,7 +52,7 @@ func probeTooling(family string, stat storagecap.StatFunc) Tooling {
 		{ID: "mergerfs", Package: pkg("mergerfs"), Paths: mergerfsBinaryPaths, Required: true},
 		{ID: "fusermount3", Package: pkg("fuse3"), Paths: fusermount3BinaryPaths, Required: true},
 		{ID: "snapraid", Package: pkg("snapraid"), Paths: snapraidBinaryPaths, Required: false},
-		{ID: "smartctl", Package: pkg("smartmontools"), Paths: smartctlBinaryPaths, Required: false},
+		{ID: "smartctl", Package: pkg("smartmontools"), Paths: storagecap.SmartctlPaths(), Required: false},
 		{ID: "dumpe2fs", Package: pkg("e2fsprogs"), Paths: dumpe2fsBinaryPaths, Required: false},
 		{ID: "xfs_info", Package: pkg("xfsprogs"), Paths: xfsInfoBinaryPaths, Required: false},
 		{ID: "btrfs", Package: btrfsPkg, Paths: btrfsBinaryPaths, Required: false},
