@@ -67,6 +67,39 @@ For the API trail, use `homelab-control.service` and `--db /var/lib/homelab-cont
 `--file`. `hlctl` opens the database read-only, so it can run while `hc-api` is up.
 `--checkpoint` can be repeated. `hlctl audit verify` exits non-zero if any problem is found.
 
+## Statistics
+
+`hlctl audit stats` reports the log's shape without exposing who did what:
+
+```sh
+sudo hlctl audit stats --file /var/log/homelab-control-broker/broker-audit.jsonl
+sudo hlctl audit stats --db /var/lib/homelab-control/state.db
+```
+
+It prints the record count (chained and `legacy`), the byte size of the audit trail (the
+file size for `--file`, the exported JSON Lines size for `--db`), the oldest and newest
+timestamps, the number of chain segments, and read-event counts grouped by event family
+and UTC day. A read event is an event name ending in `.read`; its family is the first
+dot-separated component. `stats` never prints `user`, `remote`, `detail` or `data`.
+
+## Anchored verification of a pruned log
+
+A log whose beginning has been deleted (pruned) no longer starts with an `audit.chain`
+record, so ordinary `hlctl audit verify` reports it as broken. When an administrator prunes
+a log, they can keep a checkpoint of the record immediately before the prune point and later
+verify the remainder against it:
+
+```sh
+sudo hlctl audit verify --file /var/log/homelab-control-broker/broker-audit.jsonl --anchor SEQ:HASH
+```
+
+`--anchor` is the `SEQ:HASH` of the record immediately before the first remaining record.
+The first remaining record must continue that chain: its `seq` must be `SEQ+1` and its
+`prev` must be `HASH`, otherwise verification fails. A partial log is accepted only when the
+anchor is supplied explicitly; without `--anchor`, `verify` stays strict and a pruned or
+partial log fails. The anchor is trusted input: it is a checkpoint the operator recorded and
+it does not itself prove that the discarded prefix was intact.
+
 ## What is detected
 
 | Change | Detected? | How |
@@ -108,6 +141,7 @@ checkpoints.
   starts a new segment, and checkpoints for the old file no longer match the new one.
 - **Size:** no retention yet; both logs grow until an administrator prunes them (a few hundred bytes
   per event). Deleting old records breaks the chain at that point, which verification reports.
+  Pruning only the beginning can be verified with `--anchor` (see above).
 - **What is never logged:** passwords, session IDs, CSRF tokens and log content. A
   `services.unit.logs` read records the unit and line count only, never the messages returned. The
   broker records an argument only after it passes validation; anything else is recorded as
