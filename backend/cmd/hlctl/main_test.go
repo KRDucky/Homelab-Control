@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -142,5 +143,139 @@ func TestAuditVerifyDatabase(t *testing.T) {
 		if err := run(bad, nil, &out); err == nil {
 			t.Errorf("%v accepted", bad)
 		}
+	}
+}
+
+func TestAuditStatsFile(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "a.jsonl")
+	l, err := audit.Open(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range []audit.Event{
+		{Event: "auth.login", User: "alice", Outcome: "ok"},
+		{Event: "files.entries.read", User: "alice", Outcome: "ok", Detail: "secret-detail"},
+		{Event: "services.logs.read", User: "bob", Outcome: "ok"},
+	} {
+		if err := l.Log(e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	l.Close()
+	fi, _ := os.Stat(p)
+	var out bytes.Buffer
+	if err := run([]string{"audit", "stats", "--file", p}, nil, &out); err != nil {
+		t.Fatalf("%v\n%s", err, out.String())
+	}
+	s := out.String()
+	if !strings.Contains(s, "records 4") || !strings.Contains(s, "segments 1") || !strings.Contains(s, fmt.Sprintf("bytes %d", fi.Size())) {
+		t.Fatalf("%q", s)
+	}
+	if !strings.Contains(s, "files:") || !strings.Contains(s, "services:") {
+		t.Fatalf("missing read-event families: %q", s)
+	}
+	for _, leak := range []string{"alice", "bob", "secret-detail"} {
+		if strings.Contains(s, leak) {
+			t.Fatalf("stats leaked %q: %q", leak, s)
+		}
+	}
+}
+
+func TestAuditStatsDatabase(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "s")
+	_ = os.Mkdir(dir, 0o700)
+	p := filepath.Join(dir, "state.db")
+	db, err := state.Open(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l, err := audit.OpenStore(db.Audit())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = l.Log(audit.Event{Event: "files.entries.read", User: "alice", Outcome: "ok"})
+	_ = l.Log(audit.Event{Event: "auth.login", User: "alice", Outcome: "ok"})
+	db.Close()
+	var out bytes.Buffer
+	if err := run([]string{"audit", "stats", "--db", p}, nil, &out); err != nil {
+		t.Fatalf("%v\n%s", err, out.String())
+	}
+	s := out.String()
+	if !strings.Contains(s, "records") || !strings.Contains(s, "files:") {
+		t.Fatalf("%q", s)
+	}
+	if strings.Contains(s, "alice") {
+		t.Fatalf("stats leaked user: %q", s)
+	}
+}
+
+func TestAuditVerifyAnchored(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "a.jsonl")
+	l, err := audit.Open(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 4; i++ {
+		if err := l.Log(audit.Event{Event: "auth.login", Outcome: "ok"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	l.Close()
+	// audit.chain (seq 1) + 4 auth.login (seq 2..5) = 5 lines.
+	raw, _ := os.ReadFile(p)
+	lines := strings.Split(strings.TrimRight(string(raw), "\n"), "\n")
+	var anchorEv audit.Event
+	if err := json.Unmarshal([]byte(lines[1]), &anchorEv); err != nil {
+		t.Fatal(err)
+	}
+	anchor := fmt.Sprintf("%d:%s", anchorEv.Seq, anchorEv.Hash)
+	pruned := filepath.Join(t.TempDir(), "pruned.jsonl")
+	if err := os.WriteFile(pruned, []byte(strings.Join(lines[2:], "\n")+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	// Without an anchor a partial log must fail.
+	if err := run([]string{"audit", "verify", "--file", pruned}, nil, &out); err == nil {
+		t.Fatalf("unanchored verify of a pruned log accepted: %q", out.String())
+	}
+	out.Reset()
+	// With the correct anchor it must pass.
+	if err := run([]string{"audit", "verify", "--file", pruned, "--anchor", anchor}, nil, &out); err != nil || !strings.Contains(out.String(), "OK: chain verified") {
+		t.Fatalf("%v\n%s", err, out.String())
+	}
+	// A wrong anchor hash must fail.
+	out.Reset()
+	if err := run([]string{"audit", "verify", "--file", pruned, "--anchor", fmt.Sprintf("%d:%s", anchorEv.Seq, audit.ZeroHash)}, nil, &out); err == nil {
+		t.Fatalf("wrong anchor hash accepted: %q", out.String())
+	}
+}
+
+func TestAuditVerifyAnchoredUnrelatedChain(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "a.jsonl")
+	l, err := audit.Open(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 3; i++ {
+		if err := l.Log(audit.Event{Event: "auth.login", Outcome: "ok"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	l.Close()
+	// A fresh, internally valid chain must not pass with an unrelated anchor.
+	var out bytes.Buffer
+	if err := run([]string{"audit", "verify", "--file", p, "--anchor", fmt.Sprintf("100:%s", audit.ZeroHash)}, nil, &out); err == nil {
+		t.Fatalf("unrelated anchor accepted a fresh chain: %q", out.String())
+	}
+}
+
+func TestAuditStatsMalformedFails(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "a.jsonl")
+	if err := os.WriteFile(p, []byte("not json\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	if err := run([]string{"audit", "stats", "--file", p}, nil, &out); err == nil {
+		t.Fatalf("malformed log accepted: %q", out.String())
 	}
 }

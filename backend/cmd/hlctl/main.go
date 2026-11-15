@@ -17,7 +17,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
+	"time"
 
 	"homelab-control/backend/internal/api"
 	"homelab-control/backend/internal/audit"
@@ -36,7 +38,8 @@ Usage:
   hlctl user scopes  --file PATH --username NAME --scopes A,B              (replaces the account's scopes)
   hlctl user list    --file PATH
   hlctl broker info  [--socket PATH]                                       (as root or homelab-control)
-  hlctl audit verify (--file PATH | --db PATH) [--checkpoint SEQ:HASH]...
+  hlctl audit verify (--file PATH | --db PATH) [--checkpoint SEQ:HASH]... [--anchor SEQ:HASH]
+  hlctl audit stats  (--file PATH | --db PATH)                             (aggregate counts only)
   hlctl audit export --db PATH                                             (JSON Lines to stdout)
   hlctl version
 `
@@ -233,11 +236,13 @@ func (c *checkpointFlags) Set(v string) error {
 	return nil
 }
 
-// auditCmd verifies an audit log's hash chain, optionally against checkpoints
-// copied from the journal ("audit checkpoint ... seq=N hash=H" lines).
+// auditCmd verifies or summarises an audit log. Verify checks the hash chain
+// and, with --anchor, can accept a log whose beginning was pruned away;
+// without --anchor a partial log fails. Stats reports aggregate counts only
+// (never user, remote, detail or data).
 func auditCmd(args []string, stdout io.Writer) error {
-	const use = "usage: hlctl audit verify (--file PATH | --db PATH) [--checkpoint SEQ:HASH]...\n       hlctl audit export --db PATH"
-	if len(args) == 0 || (args[0] != "verify" && args[0] != "export") {
+	const use = "usage: hlctl audit verify (--file PATH | --db PATH) [--checkpoint SEQ:HASH]... [--anchor SEQ:HASH]\n       hlctl audit stats  (--file PATH | --db PATH)\n       hlctl audit export --db PATH"
+	if len(args) == 0 || (args[0] != "verify" && args[0] != "export" && args[0] != "stats") {
 		return errors.New(use)
 	}
 	fs := flag.NewFlagSet("audit "+args[0], flag.ContinueOnError)
@@ -245,11 +250,23 @@ func auditCmd(args []string, stdout io.Writer) error {
 	dbPath := fs.String("db", "", "hc-api state database (e.g. /var/lib/homelab-control/state.db), opened read-only")
 	var cps checkpointFlags
 	fs.Var(&cps, "checkpoint", "SEQ:HASH from a journal checkpoint line (repeatable)")
+	anchor := fs.String("anchor", "", "SEQ:HASH of the record immediately before the first remaining record (anchored verification of a pruned log)")
 	if err := fs.Parse(args[1:]); err != nil {
 		return err
 	}
 	if (*file == "") == (*dbPath == "") || (args[0] == "export" && *dbPath == "") {
 		return errors.New(use)
+	}
+	if args[0] == "stats" {
+		return auditStats(file, dbPath, stdout)
+	}
+	var anchorCP *audit.Checkpoint
+	if *anchor != "" {
+		cp, err := audit.ParseCheckpoint(*anchor)
+		if err != nil {
+			return fmt.Errorf("anchor: %w", err)
+		}
+		anchorCP = &cp
 	}
 	var r io.Reader
 	if *dbPath != "" {
@@ -274,7 +291,12 @@ func auditCmd(args []string, stdout io.Writer) error {
 		defer f.Close()
 		r = f
 	}
-	rep := audit.Verify(r, cps...)
+	var rep audit.Report
+	if anchorCP != nil {
+		rep = audit.VerifyAnchored(r, *anchorCP, cps...)
+	} else {
+		rep = audit.Verify(r, cps...)
+	}
 	fmt.Fprintf(stdout, "records %d (legacy %d), segments %d, head seq=%d hash=%s\n", rep.Records, rep.Legacy, rep.Segments, rep.HeadSeq, rep.HeadHash)
 	for _, w := range rep.Warnings {
 		fmt.Fprintln(stdout, "WARN ", w)
@@ -289,5 +311,71 @@ func auditCmd(args []string, stdout io.Writer) error {
 		return fmt.Errorf("audit log verification failed (%d problems)", len(rep.Problems))
 	}
 	fmt.Fprintln(stdout, "OK: chain verified")
+	return nil
+}
+
+// auditStats prints aggregate audit-log statistics. It never prints user,
+// remote, detail or data fields.
+func auditStats(file, dbPath *string, stdout io.Writer) error {
+	var r io.Reader
+	var srcBytes int64
+	if *dbPath != "" {
+		db, err := state.OpenReadOnly(*dbPath)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+		var buf bytes.Buffer
+		if err := db.Audit().Export(&buf); err != nil {
+			return err
+		}
+		srcBytes = int64(buf.Len())
+		r = &buf
+	} else {
+		f, err := os.Open(*file)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		fi, err := f.Stat()
+		if err != nil {
+			return err
+		}
+		srcBytes = fi.Size()
+		r = f
+	}
+	s, err := audit.Summarize(r)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "records %d (legacy %d), segments %d, bytes %d\n", s.Records, s.Legacy, s.Segments, srcBytes)
+	if s.Oldest.IsZero() {
+		fmt.Fprintln(stdout, "oldest -")
+		fmt.Fprintln(stdout, "newest -")
+	} else {
+		fmt.Fprintf(stdout, "oldest %s\nnewest %s\n", s.Oldest.UTC().Format(time.RFC3339), s.Newest.UTC().Format(time.RFC3339))
+	}
+	if len(s.ReadEvents) == 0 {
+		fmt.Fprintln(stdout, "read events: none")
+		return nil
+	}
+	fmt.Fprintln(stdout, "read events (family/day):")
+	fams := make([]string, 0, len(s.ReadEvents))
+	for f := range s.ReadEvents {
+		fams = append(fams, f)
+	}
+	sort.Strings(fams)
+	for _, f := range fams {
+		days := make([]string, 0, len(s.ReadEvents[f]))
+		for d := range s.ReadEvents[f] {
+			days = append(days, d)
+		}
+		sort.Strings(days)
+		fmt.Fprintf(stdout, "  %s:", f)
+		for _, d := range days {
+			fmt.Fprintf(stdout, " %s=%d", d, s.ReadEvents[f][d])
+		}
+		fmt.Fprintln(stdout)
+	}
 	return nil
 }
