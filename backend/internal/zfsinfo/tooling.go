@@ -20,8 +20,10 @@ type (
 
 // Well-known, fixed paths only: never search $PATH, never exec the binary.
 var (
-	zfsBinaryPaths   = []string{"/usr/sbin/zfs", "/usr/bin/zfs"}
-	zpoolBinaryPaths = []string{"/usr/sbin/zpool", "/usr/bin/zpool"}
+	zfsBinaryPaths      = []string{"/usr/sbin/zfs", "/usr/bin/zfs"}
+	zpoolBinaryPaths    = []string{"/usr/sbin/zpool", "/usr/bin/zpool"}
+	smartctlBinaryPaths = []string{"/usr/sbin/smartctl", "/usr/bin/smartctl"}
+	nvmeBinaryPaths     = []string{"/usr/sbin/nvme", "/usr/bin/nvme"}
 )
 
 const capabilityReasonMax = 256
@@ -31,6 +33,8 @@ const capabilityReasonMax = 256
 // manager. Both binaries are required. Debian/Ubuntu name zfsutils-linux;
 // Fedora, SUSE, and Arch get an empty package (OpenZFS is not in those
 // default archives; this probe never adds a third-party repository).
+// smartctl and nvme are optional inspect tools. They are never executed
+// and no disk is opened. Missing them does not degrade capability.
 func ProbeTooling(family string) Tooling {
 	return probeTooling(family, storagecap.RealStat)
 }
@@ -40,9 +44,17 @@ func probeTooling(family string, stat storagecap.StatFunc) Tooling {
 	if family == "debian" {
 		pkg = "zfsutils-linux"
 	}
+	opt := func(name string) string {
+		if storagecap.KnownFamily(family) {
+			return name
+		}
+		return ""
+	}
 	tool := storagecap.Probe(family, []storagecap.Spec{
 		{ID: "zfs", Package: pkg, Paths: zfsBinaryPaths, Required: true},
 		{ID: "zpool", Package: pkg, Paths: zpoolBinaryPaths, Required: true},
+		{ID: "smartctl", Package: opt("smartmontools"), Paths: smartctlBinaryPaths, Required: false},
+		{ID: "nvme", Package: opt("nvme-cli"), Paths: nvmeBinaryPaths, Required: false},
 	}, stat)
 	if tool.Optional == nil {
 		tool.Optional = []ToolItem{}
@@ -52,8 +64,8 @@ func probeTooling(family string, stat storagecap.StatFunc) Tooling {
 
 // ProbeCapability is the cheap capabilities GET probe: binary Stat plus one
 // /proc/filesystems read. It never reads mountinfo. Missing required binaries
-// or kernel ZFS is degraded (page still mounts). zpool and zfs are never
-// executed.
+// or kernel ZFS is degraded (page still mounts). Missing smartctl or nvme
+// is not degraded. zpool, zfs, smartctl, and nvme are never executed.
 func ProbeCapability(family string) (available bool, reason string) {
 	return probeCapability(family, storagecap.RealStat, "/")
 }
