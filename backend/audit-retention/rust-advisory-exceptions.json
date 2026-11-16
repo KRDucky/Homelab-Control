@@ -1,0 +1,14 @@
+{
+  "comment": "RustSec advisories accepted for a limited time. scripts/check-rust-advisories.py honours an entry only if it names the exact advisory, crate and version, has a non-empty approved_by (owner or security reviewer) and has not expired. An entry without approved_by is a proposal: the gate still fails.",
+  "exceptions": [
+    {
+      "id": "RUSTSEC-2026-0459",
+      "crate": "libsqlite3-sys",
+      "version": "0.30.1",
+      "expires": "2027-01-31",
+      "approved_by": "",
+      "reason": "Bundled SQLite 3.4x < 3.54.0 (CVE-2026-119375). No sqlx release accepts libsqlite3-sys >= 0.39: sqlx 0.8.6 needs ^0.30 and sqlx 0.9.0 needs < 0.38.",
+      "mitigation": "hc-audit-retention refuses to open state.db when its -wal page size differs from the database page size (the advisory's precondition; fsx::check_wal_page_size, test mismatched_wal_page_size_is_refused). Only the homelab-control user can write state.db and its WAL. Remove this entry when sqlx supports a patched libsqlite3-sys."
+    }
+  ]
+}

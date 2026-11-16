@@ -11,16 +11,21 @@ of the binaries and packages in that release. It contains:
 - `vendor-sources/go/download/`: from 0.2 on, the Go module files (`.zip`, `.mod`, `.info`) of every
   third-party Go module the binaries are built from (the reviewed list in `backend/go-deps-allowlist.json`;
   ADR 0006 amendment 1), in Go module proxy layout. `backend/go.sum` verifies each one;
-- `RELEASE-BUILDINFO`: version, commit, `SOURCE_DATE_EPOCH` and the exact Go, Node.js and npm versions
-  used for the published binaries.
+- `vendor-sources/cargo/`: the source of every Rust crate in `backend/audit-retention/Cargo.lock`
+  (`cargo vendor --versioned-dirs`; reviewed list `backend/audit-retention/rust-deps-allowlist.json`,
+  ADR 0006 amendment 4), each checksummed by cargo, for `hc-audit-retention`;
+- `RELEASE-BUILDINFO`: version, commit, `SOURCE_DATE_EPOCH` and the exact Go, Node.js, npm and Rust
+  versions used for the published binaries.
 
 It omits only `compat/webmin/`, the upstream Webmin reference tree, which no binary or package uses
 (owner decision, ADR 0009). It is available in the Git repository at the tagged commit and from
 <https://github.com/webmin/webmin>.
 
 ## Requirements
-- Go and Node.js/npm at the versions in `RELEASE-BUILDINFO` (other versions build, but produce
-  different bytes). Go comes from <https://go.dev/dl/>; verify the download checksum.
+- Go, Node.js/npm and Rust at the versions in `RELEASE-BUILDINFO` (other versions build, but produce
+  different bytes). Go comes from <https://go.dev/dl/>; verify the download checksum. Rust: `rustup
+  toolchain install <rust> --profile minimal -t x86_64-unknown-linux-musl` (`backend/audit-retention/rust-toolchain.toml`
+  selects it), plus a musl C compiler for the bundled SQLite (`musl-tools`; `CC_x86_64_unknown_linux_musl=musl-gcc`).
 - GNU make, bash, coreutils, tar, gzip; `dpkg-deb` for the `.deb`, `rpmbuild` for the `.rpm`.
 - Network access to the npm registry for `npm ci`, which installs the build tools pinned in
   `frontend/app/package-lock.json` (Vite, TypeScript, …) and checks each against its recorded integrity.
@@ -30,21 +35,25 @@ It omits only `compat/webmin/`, the upstream Webmin reference tree, which no bin
 ```bash
 tar -xzf homelab-control-<version>-source.tar.gz
 cd homelab-control-<version>
-grep -E '^(go|node|npm|build_command)=' RELEASE-BUILDINFO
+grep -E '^(go|node|npm|rust|build_command)=' RELEASE-BUILDINFO
 # Go modules come from the archive, offline (0.2 and later); go.sum still checks every module:
 export GOPROXY="file://$PWD/vendor-sources/go/download" GOFLAGS=-mod=readonly GOSUMDB=off GOTOOLCHAIN=local
-make build VERSION=<version> SOURCE_DATE_EPOCH=<source_date_epoch from RELEASE-BUILDINFO>
+# Rust crates come from the archive, offline; cargo checks each crate's checksum:
+printf '[source.crates-io]\nreplace-with = "vendored"\n[source.vendored]\ndirectory = "%s/vendor-sources/cargo"\n' "$PWD" > /tmp/cargo-offline.toml
+make build VERSION=<version> SOURCE_DATE_EPOCH=<source_date_epoch from RELEASE-BUILDINFO> \
+  CARGO="cargo --offline --config /tmp/cargo-offline.toml"
 packaging/debian/build-deb.sh <version>      # optional: .deb
 packaging/fedora/build-rpm.sh <version>      # optional: .rpm
 packaging/arch/build-pkg.sh <version>        # optional, on Arch Linux as a normal user: .pkg.tar.zst
 ```
 Run the packaging commands with the same `SOURCE_DATE_EPOCH` exported; package timestamps come from it.
 `make build` runs `npm ci --ignore-scripts`, builds the UI, embeds it and builds `build/hc-api`,
-`build/hlctl` and `build/hc-broker`. Version and timestamps come from the command line, not from Git.
+`build/hlctl`, `build/hc-broker` and the static `build/hc-audit-retention`. Version and timestamps come
+from the command line, not from Git.
 
 ## Verify
 ```bash
-cd build && sha256sum hc-api hlctl hc-broker *.deb *.rpm
+cd build && sha256sum hc-api hlctl hc-broker hc-audit-retention *.deb *.rpm
 # compare with the binaries in homelab-control-<version>-linux-<arch>.tar.gz and the release SHA256SUMS
 ```
 For a prerelease such as `0.1.0-dev.1`, the `.deb` you build is named `homelab-control_0.1.0~dev.1_amd64.deb`

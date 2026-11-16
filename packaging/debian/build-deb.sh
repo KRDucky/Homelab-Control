@@ -18,12 +18,16 @@ stage=$(mktemp -d); chmod 0755 "$stage"; trap 'rm -rf "$stage"' EXIT
 install -Dm0755 "$root/build/hc-api" "$stage/usr/bin/hc-api"
 install -Dm0755 "$root/build/hlctl"  "$stage/usr/bin/hlctl"
 install -Dm0755 "$root/build/hc-broker" "$stage/usr/lib/homelab-control/hc-broker"
+install -Dm0755 "$root/build/hc-audit-retention" "$stage/usr/bin/hc-audit-retention"
 install -Dm0644 "$root/packaging/common/homelab-control-broker.service" "$stage/usr/lib/systemd/system/homelab-control-broker.service"
 install -Dm0644 "$root/packaging/common/homelab-control-broker.socket" "$stage/usr/lib/systemd/system/homelab-control-broker.socket"
 install -Dm0644 "$root/packaging/common/homelab-control.service" "$stage/usr/lib/systemd/system/homelab-control.service"
 install -Dm0644 "$root/packaging/common/homelab-control-storage-helper.service" "$stage/usr/lib/systemd/system/homelab-control-storage-helper.service"
+install -Dm0644 "$root/packaging/common/homelab-control-audit-retention.service" "$stage/usr/lib/systemd/system/homelab-control-audit-retention.service"
+install -Dm0644 "$root/packaging/common/homelab-control-audit-retention.timer" "$stage/usr/lib/systemd/system/homelab-control-audit-retention.timer"
 install -Dm0644 "$root/packaging/common/sysusers.conf" "$stage/usr/lib/sysusers.d/homelab-control.conf"
 install -Dm0640 "$root/packaging/common/hc-api.env" "$stage/etc/homelab-control/hc-api.env"
+install -Dm0640 "$root/packaging/common/audit-retention.conf" "$stage/etc/homelab-control/audit-retention.conf"
 install -Dm0644 "$root/LICENSE.md" "$stage/usr/share/doc/homelab-control/LICENSE.md"
 install -Dm0644 "$root/NOTICE.md"  "$stage/usr/share/doc/homelab-control/NOTICE.md"
 install -Dm0644 "$root/docs/compliance/THIRD-PARTY-NOTICES.md" "$stage/usr/share/doc/homelab-control/THIRD-PARTY-NOTICES.md"
@@ -31,7 +35,7 @@ install -Dm0644 "$root/README.md"  "$stage/usr/share/doc/homelab-control/README.
 # Debian Policy 12.5: machine-readable copyright file (generated, LA-12).
 install -Dm0644 "$root/packaging/debian/copyright" "$stage/usr/share/doc/homelab-control/copyright"
 mkdir -p "$stage/DEBIAN"
-echo "/etc/homelab-control/hc-api.env" > "$stage/DEBIAN/conffiles"
+printf '%s\n' /etc/homelab-control/hc-api.env /etc/homelab-control/audit-retention.conf > "$stage/DEBIAN/conffiles"
 cat > "$stage/DEBIAN/control" <<CTRL
 Package: homelab-control
 Provides: homelab-control-api
@@ -59,11 +63,17 @@ if [ "$1" = configure ]; then
   elif ! getent passwd homelab-control >/dev/null; then
     adduser --system --group --no-create-home --home /nonexistent homelab-control
   fi
-  chgrp homelab-control /etc/homelab-control /etc/homelab-control/hc-api.env
+  chgrp homelab-control /etc/homelab-control /etc/homelab-control/hc-api.env /etc/homelab-control/audit-retention.conf
   chmod 0750 /etc/homelab-control
   install -d -m 0700 -o homelab-control -g homelab-control /var/log/homelab-control
   install -d -m 0700 -o homelab-control -g homelab-control /var/lib/homelab-control
   if [ -d /run/systemd/system ]; then systemctl daemon-reload || true; fi
+  # Audit retention runs daily from the first install on (it does nothing until
+  # hc-api has created state.db). An upgrade keeps the administrator's choice.
+  if [ -z "$2" ]; then
+    systemctl enable homelab-control-audit-retention.timer >/dev/null 2>&1 || true
+    if [ -d /run/systemd/system ]; then systemctl start homelab-control-audit-retention.timer || true; fi
+  fi
   echo "homelab-control installed but NOT enabled. Create an account with:"
   echo "  sudo hlctl user add --file /etc/homelab-control/users.json --username admin"
   echo "  sudo chown homelab-control:homelab-control /etc/homelab-control/users.json"
@@ -77,6 +87,7 @@ set -e
 if [ -d /run/systemd/system ] && [ "$1" = remove ]; then
   systemctl stop homelab-control.service homelab-control-broker.service homelab-control-broker.socket || true
   systemctl disable homelab-control.service homelab-control-broker.socket >/dev/null 2>&1 || true
+  systemctl disable --now homelab-control-audit-retention.timer >/dev/null 2>&1 || true
 fi
 PRE
 cat > "$stage/DEBIAN/postrm" <<'PRM'
@@ -85,7 +96,7 @@ set -e
 if [ "$1" = purge ]; then
   rm -f /etc/homelab-control/users.json
   rmdir /etc/homelab-control 2>/dev/null || true
-  echo "State and audit data kept in /var/lib/homelab-control, /var/log/homelab-control and /var/log/homelab-control-broker (remove manually if no longer needed)."
+  echo "State, audit data and audit archives kept in /var/lib/homelab-control, /var/log/homelab-control and /var/log/homelab-control-broker (remove manually if no longer needed)."
 fi
 if [ -d /run/systemd/system ]; then systemctl daemon-reload || true; fi
 PRM

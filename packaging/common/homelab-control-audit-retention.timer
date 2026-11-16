@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+[Unit]
+Description=Daily Homelab Control audit retention
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+RandomizedDelaySec=30min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,171 @@
+[
+  {
+    "name": "segment start",
+    "seq": 1,
+    "time": "2026-01-02T03:04:05Z",
+    "event": "audit.chain",
+    "user": "",
+    "remote": "",
+    "outcome": "ok",
+    "detail": "new chain",
+    "prev": "0000000000000000000000000000000000000000000000000000000000000000",
+    "hash": "9c58ca5c11ae3081b028b75473ce072177d66d87797216af9175b1251880da30",
+    "line": "{\"seq\":1,\"time\":\"2026-01-02T03:04:05Z\",\"event\":\"audit.chain\",\"outcome\":\"ok\",\"detail\":\"new chain\",\"prev\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"hash\":\"9c58ca5c11ae3081b028b75473ce072177d66d87797216af9175b1251880da30\"}"
+  },
+  {
+    "name": "fraction one digit",
+    "seq": 2,
+    "time": "2026-01-02T03:04:05.1Z",
+    "event": "auth.login",
+    "user": "admin",
+    "remote": "192.0.2.10",
+    "outcome": "success",
+    "detail": "",
+    "prev": "9c58ca5c11ae3081b028b75473ce072177d66d87797216af9175b1251880da30",
+    "hash": "6b90222c719b6c5fb9612e94e7faa87fa176715ac3d7440b47874355d0747cd5",
+    "line": "{\"seq\":2,\"time\":\"2026-01-02T03:04:05.1Z\",\"event\":\"auth.login\",\"user\":\"admin\",\"remote\":\"192.0.2.10\",\"outcome\":\"success\",\"prev\":\"9c58ca5c11ae3081b028b75473ce072177d66d87797216af9175b1251880da30\",\"hash\":\"6b90222c719b6c5fb9612e94e7faa87fa176715ac3d7440b47874355d0747cd5\"}"
+  },
+  {
+    "name": "fraction nanoseconds",
+    "seq": 3,
+    "time": "2026-12-31T23:59:59.123456789Z",
+    "event": "storage.inventory.read",
+    "user": "admin",
+    "remote": "2001:db8::1",
+    "outcome": "collected",
+    "detail": "nodes=12",
+    "prev": "6b90222c719b6c5fb9612e94e7faa87fa176715ac3d7440b47874355d0747cd5",
+    "hash": "b531fd205579c245be380ebc7b9b2a4cf7aa9d1e10496abfccf7bf298b9717be",
+    "line": "{\"seq\":3,\"time\":\"2026-12-31T23:59:59.123456789Z\",\"event\":\"storage.inventory.read\",\"user\":\"admin\",\"remote\":\"2001:db8::1\",\"outcome\":\"collected\",\"detail\":\"nodes=12\",\"prev\":\"6b90222c719b6c5fb9612e94e7faa87fa176715ac3d7440b47874355d0747cd5\",\"hash\":\"b531fd205579c245be380ebc7b9b2a4cf7aa9d1e10496abfccf7bf298b9717be\"}"
+  },
+  {
+    "name": "html characters",
+    "seq": 4,
+    "time": "2026-06-01T00:00:00.5Z",
+    "event": "csrf.origin_rejected",
+    "user": "",
+    "remote": "198.51.100.7",
+    "outcome": "denied",
+    "detail": "https://evil.example/?a=\u003cb\u003e\u0026c='d'",
+    "prev": "b531fd205579c245be380ebc7b9b2a4cf7aa9d1e10496abfccf7bf298b9717be",
+    "hash": "069ec2a252729ee93e858f58da94caa47d326b814cc4cb67183771f62c9e2906",
+    "line": "{\"seq\":4,\"time\":\"2026-06-01T00:00:00.5Z\",\"event\":\"csrf.origin_rejected\",\"remote\":\"198.51.100.7\",\"outcome\":\"denied\",\"detail\":\"https://evil.example/?a=\\u003cb\\u003e\\u0026c='d'\",\"prev\":\"b531fd205579c245be380ebc7b9b2a4cf7aa9d1e10496abfccf7bf298b9717be\",\"hash\":\"069ec2a252729ee93e858f58da94caa47d326b814cc4cb67183771f62c9e2906\"}"
+  },
+  {
+    "name": "quotes backslash",
+    "seq": 5,
+    "time": "2026-06-01T00:00:01Z",
+    "event": "services.logs.read",
+    "user": "op",
+    "remote": "",
+    "outcome": "returned",
+    "detail": "say \"hi\" \\ path\\to",
+    "prev": "069ec2a252729ee93e858f58da94caa47d326b814cc4cb67183771f62c9e2906",
+    "hash": "5410041f60e9f5bf2bfe247119c12a82b4163c198d538dc7b97e8e2434e56c33",
+    "line": "{\"seq\":5,\"time\":\"2026-06-01T00:00:01Z\",\"event\":\"services.logs.read\",\"user\":\"op\",\"outcome\":\"returned\",\"detail\":\"say \\\"hi\\\" \\\\ path\\\\to\",\"prev\":\"069ec2a252729ee93e858f58da94caa47d326b814cc4cb67183771f62c9e2906\",\"hash\":\"5410041f60e9f5bf2bfe247119c12a82b4163c198d538dc7b97e8e2434e56c33\"}"
+  },
+  {
+    "name": "controls and del",
+    "seq": 6,
+    "time": "2026-06-01T00:00:02Z",
+    "event": "x.read",
+    "user": "",
+    "remote": "",
+    "outcome": "ok",
+    "detail": "a\u0001b\bc\fd\ne\rf\tg\u001fhi",
+    "prev": "5410041f60e9f5bf2bfe247119c12a82b4163c198d538dc7b97e8e2434e56c33",
+    "hash": "6c39fa8b481d4d4576f91e9614da15e60f80eb17e847a7a3e602007f513abf55",
+    "line": "{\"seq\":6,\"time\":\"2026-06-01T00:00:02Z\",\"event\":\"x.read\",\"outcome\":\"ok\",\"detail\":\"a\\u0001b\\bc\\fd\\ne\\rf\\tg\\u001fhi\",\"prev\":\"5410041f60e9f5bf2bfe247119c12a82b4163c198d538dc7b97e8e2434e56c33\",\"hash\":\"6c39fa8b481d4d4576f91e9614da15e60f80eb17e847a7a3e602007f513abf55\"}"
+  },
+  {
+    "name": "unicode separators",
+    "seq": 7,
+    "time": "2026-06-01T00:00:03Z",
+    "event": "x.read",
+    "user": "",
+    "remote": "",
+    "outcome": "ok",
+    "detail": "line\u2028para\u2029end",
+    "prev": "6c39fa8b481d4d4576f91e9614da15e60f80eb17e847a7a3e602007f513abf55",
+    "hash": "47a92c8c13a74a24d4bbc57df77346410a19dc3702050732d7b0586b75bc8adf",
+    "line": "{\"seq\":7,\"time\":\"2026-06-01T00:00:03Z\",\"event\":\"x.read\",\"outcome\":\"ok\",\"detail\":\"line\\u2028para\\u2029end\",\"prev\":\"6c39fa8b481d4d4576f91e9614da15e60f80eb17e847a7a3e602007f513abf55\",\"hash\":\"47a92c8c13a74a24d4bbc57df77346410a19dc3702050732d7b0586b75bc8adf\"}"
+  },
+  {
+    "name": "non-ascii",
+    "seq": 8,
+    "time": "2026-06-01T00:00:04Z",
+    "event": "x.read",
+    "user": "jörg",
+    "remote": "",
+    "outcome": "ok",
+    "detail": "Büro ✓ 😀 �",
+    "prev": "47a92c8c13a74a24d4bbc57df77346410a19dc3702050732d7b0586b75bc8adf",
+    "hash": "325a407a34e75604a7c6383a98920ec35b58ec5ffb8212617f5664be32c92494",
+    "line": "{\"seq\":8,\"time\":\"2026-06-01T00:00:04Z\",\"event\":\"x.read\",\"user\":\"jörg\",\"outcome\":\"ok\",\"detail\":\"Büro ✓ 😀 �\",\"prev\":\"47a92c8c13a74a24d4bbc57df77346410a19dc3702050732d7b0586b75bc8adf\",\"hash\":\"325a407a34e75604a7c6383a98920ec35b58ec5ffb8212617f5664be32c92494\"}"
+  },
+  {
+    "name": "empty optional fields",
+    "seq": 9,
+    "time": "2026-06-01T00:00:05Z",
+    "event": "audit.open",
+    "user": "",
+    "remote": "",
+    "outcome": "ok",
+    "detail": "",
+    "prev": "325a407a34e75604a7c6383a98920ec35b58ec5ffb8212617f5664be32c92494",
+    "hash": "7a02524f381b1d79f44cf1981256bf8c980b77b4a425bc61ecd0da60247bf723",
+    "line": "{\"seq\":9,\"time\":\"2026-06-01T00:00:05Z\",\"event\":\"audit.open\",\"outcome\":\"ok\",\"prev\":\"325a407a34e75604a7c6383a98920ec35b58ec5ffb8212617f5664be32c92494\",\"hash\":\"7a02524f381b1d79f44cf1981256bf8c980b77b4a425bc61ecd0da60247bf723\"}"
+  },
+  {
+    "name": "structured data",
+    "seq": 10,
+    "time": "2026-06-01T00:00:06Z",
+    "event": "retention.prune",
+    "user": "",
+    "remote": "",
+    "outcome": "done",
+    "detail": "",
+    "data": {
+      "count": 2,
+      "from_id": 1,
+      "last_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "to_id": 2
+    },
+    "prev": "7a02524f381b1d79f44cf1981256bf8c980b77b4a425bc61ecd0da60247bf723",
+    "hash": "d2d727a4750afe4048d587dd84b23d792b0b23627e3ac241f545207ff169432a",
+    "line": "{\"seq\":10,\"time\":\"2026-06-01T00:00:06Z\",\"event\":\"retention.prune\",\"outcome\":\"done\",\"data\":{\"count\":2,\"from_id\":1,\"last_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"to_id\":2},\"prev\":\"7a02524f381b1d79f44cf1981256bf8c980b77b4a425bc61ecd0da60247bf723\",\"hash\":\"d2d727a4750afe4048d587dd84b23d792b0b23627e3ac241f545207ff169432a\"}"
+  },
+  {
+    "name": "data compacted and html-escaped",
+    "seq": 11,
+    "time": "2026-06-01T00:00:06.75Z",
+    "event": "op.intent",
+    "user": "",
+    "remote": "",
+    "outcome": "ok",
+    "detail": "",
+    "data": {
+      "note": "a\u003cb\u003e\u0026c\u2028",
+      "n": [
+        1,
+        2
+      ]
+    },
+    "prev": "d2d727a4750afe4048d587dd84b23d792b0b23627e3ac241f545207ff169432a",
+    "hash": "0f39106beb142da64a64af0d65d24f7e9c39c3baf5c1d3d87a5a4672b156dec1",
+    "line": "{\"seq\":11,\"time\":\"2026-06-01T00:00:06.75Z\",\"event\":\"op.intent\",\"outcome\":\"ok\",\"data\":{\"note\":\"a\\u003cb\\u003e\\u0026c\\u2028\",\"n\":[1,2]},\"prev\":\"d2d727a4750afe4048d587dd84b23d792b0b23627e3ac241f545207ff169432a\",\"hash\":\"0f39106beb142da64a64af0d65d24f7e9c39c3baf5c1d3d87a5a4672b156dec1\"}"
+  },
+  {
+    "name": "seq zero legacy shape",
+    "seq": 0,
+    "time": "2026-06-01T00:00:07Z",
+    "event": "legacy",
+    "user": "",
+    "remote": "",
+    "outcome": "ok",
+    "detail": "",
+    "prev": "",
+    "hash": "e690d2c2eaa3c7a8940608a04c048f5288c309ac7890784b7b52cce808ab7762",
+    "line": "{\"time\":\"2026-06-01T00:00:07Z\",\"event\":\"legacy\",\"outcome\":\"ok\",\"hash\":\"e690d2c2eaa3c7a8940608a04c048f5288c309ac7890784b7b52cce808ab7762\"}"
+  }
+]

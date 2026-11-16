@@ -31,6 +31,7 @@ case "$kind" in
   *) echo "unknown package kind $kind"; exit 2 ;;
 esac
 check "service not enabled on install" "disabled" "$(systemctl is-enabled homelab-control.service 2>/dev/null || true)"
+check "audit retention timer enabled on install" "enabled" "$(systemctl is-enabled homelab-control-audit-retention.timer 2>/dev/null || true)"
 
 pw="smoke-$(head -c 9 /dev/urandom | od -An -tx1 | tr -d ' \n')"
 printf '%s\n' "$pw" | hlctl user add --file /etc/homelab-control/users.json --username admin \
@@ -56,6 +57,11 @@ ov=$(curl -s -H "Cookie: __Host-hc_session=$sid" http://127.0.0.1:9180/api/v1/ho
 check "overview under hardening returns hostname" 1 "$(grep -q '"hostname":"' <<<"$ov" && echo 1 || echo 0)"
 check "overview: filesystems readable (ProtectHome/PrivateDevices)" 1 "$(grep -q '"mount_point":"/"' <<<"$ov" && echo 1 || echo 0)"
 check "overview: network section ok" 1 "$(grep -q '"network":{"status":"ok"' <<<"$ov" && echo 1 || echo 0)"
+# Audit retention under its packaged sandbox (state.db exists now; nothing is old enough to archive).
+systemctl start homelab-control-audit-retention.service || true
+check "audit retention service result" success "$(systemctl show -p Result --value homelab-control-audit-retention.service)"
+check "audit retention wrote a journal checkpoint" 1 "$(journalctl -u homelab-control-audit-retention.service -o cat --no-pager | grep -c 'audit checkpoint log=/var/lib/homelab-control/audit-archive/ledger.jsonl' | awk '{print ($1>0)}')"
+check "audit retention verify" 0 "$(runuser -u homelab-control -- hc-audit-retention verify >/dev/null 2>&1; echo $?)"
 # Space-separated list of check scripts, sourced in order (they see $sid and $pw).
 for extra in ${HC_SMOKE_EXTRA_CHECKS:-}; do
   # shellcheck disable=SC1090
