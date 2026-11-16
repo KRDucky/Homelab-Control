@@ -79,11 +79,32 @@ export interface Overview {
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
-  constructor(status: number, code: string, message: string) {
+  /** Seconds the server asked us to wait (Retry-After), when valid. */
+  readonly retryAfterSeconds?: number;
+  constructor(status: number, code: string, message: string, retryAfterSeconds?: number) {
     super(message);
     this.status = status;
     this.code = code;
+    if (retryAfterSeconds !== undefined) this.retryAfterSeconds = retryAfterSeconds;
   }
+}
+
+/** Maximum accepted Retry-After in seconds (one hour). Larger values are
+ * treated as malformed and fall back to bounded backoff. */
+const MAX_RETRY_AFTER_SECONDS = 3600;
+
+/** Parse a Retry-After header (integer seconds). Returns undefined for a
+ * missing, non-decimal, zero, negative, fractional, non-numeric, unsafe, or
+ * oversized value so callers fall back to bounded backoff instead of retrying
+ * immediately or overflowing a timer delay. Only plain digits are accepted
+ * (no exponent, hex, sign, or fraction). */
+export function parseRetryAfterSeconds(value: string | null): number | undefined {
+  if (value === null) return undefined;
+  const s = value.trim();
+  if (!/^[0-9]+$/.test(s)) return undefined;
+  const n = Number(s);
+  if (!Number.isSafeInteger(n) || n <= 0 || n > MAX_RETRY_AFTER_SECONDS) return undefined;
+  return n;
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -97,7 +118,12 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
   if (!res.ok) {
     const b = (body ?? {}) as { error?: string; message?: string };
-    throw new ApiError(res.status, b.error ?? 'http_error', b.message ?? `Request failed (${res.status})`);
+    throw new ApiError(
+      res.status,
+      b.error ?? 'http_error',
+      b.message ?? `Request failed (${res.status})`,
+      parseRetryAfterSeconds(res.headers.get('Retry-After')),
+    );
   }
   return body as T;
 }

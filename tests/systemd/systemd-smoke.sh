@@ -37,6 +37,12 @@ pw="smoke-$(head -c 9 /dev/urandom | od -An -tx1 | tr -d ' \n')"
 printf '%s\n' "$pw" | hlctl user add --file /etc/homelab-control/users.json --username admin \
   --scopes "${HC_SMOKE_SCOPES:-system.read}" >/dev/null
 chown homelab-control:homelab-control /etc/homelab-control/users.json
+# Disposable CI hosts raise the per-user API burst so the M2 scenario scripts
+# do not trip incidental throttling; the production default stays 30.
+if [ -n "${HC_SMOKE_RATE_LIMIT_BURST:-}" ]; then
+  sed -i "s|^HC_API_ARGS=.*|& -rate-limit-burst ${HC_SMOKE_RATE_LIMIT_BURST}|" /etc/homelab-control/hc-api.env
+  grep '^HC_API_ARGS=' /etc/homelab-control/hc-api.env
+fi
 # Loopback + behind-tls-proxy is the packaged default; the smoke test talks to it directly.
 systemctl daemon-reload
 for u in ${HC_SMOKE_EXTRA_UNITS:-}; do systemctl start "$u"; done
