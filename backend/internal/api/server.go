@@ -61,6 +61,13 @@ type Config struct {
 	// may perform unsafe requests, e.g. when served behind a reverse proxy.
 	AllowedOrigins []string
 	LegacyURL      string
+	// RateLimitBurst is the authenticated per-user token-bucket burst. Zero
+	// or negative selects the production default (30).
+	RateLimitBurst int
+	// RateLimitRefill is the authenticated per-user token-bucket refill
+	// interval (one token per interval). Zero or negative selects the
+	// production default (5 seconds).
+	RateLimitRefill time.Duration
 }
 
 // Server wires handlers, sessions and collectors.
@@ -135,12 +142,20 @@ type overviewCache struct {
 
 // New constructs a Server. ui may be nil (API only).
 func New(cfg Config, users *auth.Store, audit *audit.Logger, collector *hostinfo.Collector, ui fs.FS) *Server {
+	burst := cfg.RateLimitBurst
+	if burst <= 0 {
+		burst = 30
+	}
+	refill := cfg.RateLimitRefill
+	if refill <= 0 {
+		refill = 5 * time.Second
+	}
 	s := &Server{
 		cfg: cfg, users: users, sessions: auth.NewSessionManager(), throttle: auth.NewThrottle(),
 		audit: audit, collector: collector, ui: ui, loginSem: make(chan struct{}, 4), mux: http.NewServeMux(),
 		oidcSem:      make(chan struct{}, 4),
 		stepups:      auth.NewStepUps(),
-		userLimit:    ratelimit.NewTokenBucket(30, 5*time.Second),
+		userLimit:    ratelimit.NewTokenBucket(burst, refill),
 		preauthLimit: ratelimit.NewPreauth(10*time.Second, 10*time.Second, time.Minute),
 		limitSummary: ratelimit.NewOncePer(time.Minute),
 		globalSem:    make(chan struct{}, 64),
