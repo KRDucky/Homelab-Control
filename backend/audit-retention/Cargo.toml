@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+[package]
+name = "hc-audit-retention"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.89"
+description = "Homelab Control audit retention: archive, verify and prune the hash-chained API audit trail"
+license = "GPL-3.0-or-later"
+publish = false
+
+# Dependencies are pinned by Cargo.lock and reviewed against rust-deps-allowlist.json
+# (scripts/check-rust-deps.py, ADR 0006 amendment 4). Keep the list minimal.
+[dependencies]
+sqlx = { version = "=0.8.6", default-features = false, features = ["sqlite", "runtime-tokio"] }
+tokio = { version = "1", default-features = false, features = ["rt"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["raw_value"] }
+sha2 = "0.10"
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
+tar = { version = "0.4", default-features = false }
+libc = "0.2"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+debug = false
+incremental = false

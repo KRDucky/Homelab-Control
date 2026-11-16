@@ -11,3 +11,5 @@ __pycache__/
 *.tsbuildinfo
 /dist/
 /work/
+# Rust build output (backend/audit-retention; make sets CARGO_TARGET_DIR here by default).
+/backend/audit-retention/target/

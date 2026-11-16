@@ -156,6 +156,16 @@ class ReleaseWorkflowPolicy(unittest.TestCase):
         for v in versions:
             self.assertEqual(str(v), pin, "ci.yml go-version must equal GO_VERSION in toolchain.env (no floating .x)")
 
+    def test_rust_pin_matches_the_crate_toolchain(self):
+        with open(os.path.join(ROOT, "packaging", "release", "toolchain.env"), encoding="utf-8") as f:
+            pin = re.search(r"^RUST_VERSION=(\S+)$", f.read(), re.M).group(1)
+        with open(os.path.join(ROOT, "backend", "audit-retention", "rust-toolchain.toml"), encoding="utf-8") as f:
+            channel = re.search(r'^channel = "([^"]+)"$', f.read(), re.M).group(1)
+        self.assertEqual(channel, pin, "rust-toolchain.toml must pin RUST_VERSION from toolchain.env")
+        for text in (self.ctext, self.btext):
+            self.assertIn("RUST_VERSION", text, "CI and release builds install the pinned Rust toolchain")
+            self.assertNotRegex(text, r"curl[^\n]*\|\s*(ba)?sh", "no curl|sh installers")
+
     def test_build_uses_exact_toolchain(self):
         for j, st in steps(self.build):
             u = st.get("uses", "")

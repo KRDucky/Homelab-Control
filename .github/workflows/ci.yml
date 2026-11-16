@@ -46,7 +46,12 @@ jobs:
           package-manager-cache: false
       - name: Tools
         run: |
-          sudo apt-get update && sudo apt-get install -y shellcheck rpm lintian
+          sudo apt-get update && sudo apt-get install -y shellcheck rpm lintian musl-tools
+          # Rust for hc-audit-retention (ADR 0006 amendment 4): exact RUST_VERSION from toolchain.env via the
+          # runner's rustup (no installer script); musl-gcc compiles the bundled SQLite for the static binary.
+          RUST_VERSION=$(sed -n 's/^RUST_VERSION=//p' packaging/release/toolchain.env)
+          rustup toolchain install "$RUST_VERSION" --profile minimal -c rustfmt -c clippy -t x86_64-unknown-linux-musl
+          echo "CC_x86_64_unknown_linux_musl=musl-gcc" >> "$GITHUB_ENV"
           go install golang.org/x/vuln/cmd/govulncheck@v1.9.0  # pinned (commit e672cbe8); needs Go >= 1.26.0
           python3 -m venv /tmp/spdx && /tmp/spdx/bin/pip install -q spdx-tools==0.8.3 reuse==6.2.0  # SBOM + REUSE validation (CI-only tools)
           echo /tmp/spdx/bin >> "$GITHUB_PATH"
@@ -57,6 +62,10 @@ jobs:
         run: make build
       - name: Go tests (non-root runner)
         run: make test-go
+      - name: Rust tests (hc-audit-retention, incl. Go golden digest vectors)
+        run: make test-rust
+      - name: Cross-language retention check (Go records, Rust archive/prune, Go verify)
+        run: make test-retention-xcheck
       - name: Fuzz broker argument decoding (60 s)
         run: cd backend && go test -run='^$' -fuzz='^FuzzLogsArgs$' -fuzztime=60s ./internal/broker/ops
       - name: Fuzz write-operation argument decoding (60 s)
@@ -87,6 +96,7 @@ jobs:
           path: |
             build/hc-api
             build/hc-broker
+            build/hc-audit-retention
             build/hlctl
             build/SHA256SUMS
             build/*.deb
@@ -123,7 +133,7 @@ jobs:
           path: build
       - name: makepkg (as unprivileged builder)
         run: |
-          chmod +x build/hc-api build/hc-broker build/hlctl
+          chmod +x build/hc-api build/hc-broker build/hlctl build/hc-audit-retention
           useradd -m builder
           chown -R builder "$GITHUB_WORKSPACE"
           su builder -c "cd '$GITHUB_WORKSPACE' && packaging/arch/build-pkg.sh '${GITHUB_SHA::8}'"

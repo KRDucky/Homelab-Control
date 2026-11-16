@@ -134,6 +134,713 @@ License: BSD-3-clause~golang.org-x-oauth2
 Comment: Go module golang.org/x/oauth2 v0.37.0, compiled into /usr/bin/hc-api and /usr/bin/hlctl (not hc-broker).
  Source (module zip) in the release source archive under vendor-sources/go/download.
 
+Files: vendor-sources/cargo/adler2-2.0.1/*
+Copyright: Jonas Schievink <jonasschievink@gmail.com>
+License: 0BSD or Expat or Apache-2.0
+Comment: Rust crate adler2 2.0.1, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/allocator-api2-0.2.21/*
+Copyright: Zakarum
+License: Expat or Apache-2.0
+Comment: Rust crate allocator-api2 0.2.21, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/atoi-2.0.0/*
+Copyright: 2017
+License: Expat
+Comment: Rust crate atoi 2.0.0, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/base64-0.22.1/*
+Copyright: 2015 Alice Maz
+License: Expat or Apache-2.0
+Comment: Rust crate base64 0.22.1, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/block-buffer-0.10.4/*
+Copyright: 2018-2019 The RustCrypto Project Developers
+License: Expat or Apache-2.0
+Comment: Rust crate block-buffer 0.10.4, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/bytes-1.12.1/*
+Copyright: 2018 Carl Lerche
+License: Expat
+Comment: Rust crate bytes 1.12.1, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/cfg-if-1.0.5/*
+Copyright: 2014 Alex Crichton
+License: Expat or Apache-2.0
+Comment: Rust crate cfg-if 1.0.5, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/cpufeatures-0.2.17/*
+Copyright: 2020-2025 The RustCrypto Project Developers
+License: Expat or Apache-2.0
+Comment: Rust crate cpufeatures 0.2.17, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/crc-3.4.0/*
+Copyright: 2017 crc-rs Developers
+License: Expat or Apache-2.0
+Comment: Rust crate crc 3.4.0, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/crc-catalog-2.5.0/*
+Copyright: Akhil Velagapudi
+License: Expat
+Comment: Rust crate crc-catalog 2.5.0, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/crc32fast-1.5.5/*
+Copyright: 2018 Sam Rijs, Alex Crichton and contributors
+License: Expat or Apache-2.0
+Comment: Rust crate crc32fast 1.5.5, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/crossbeam-queue-0.3.14/*
+Copyright: 2019 The Crossbeam Project Developers
+License: Expat or Apache-2.0
+Comment: Rust crate crossbeam-queue 0.3.14, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/crossbeam-utils-0.8.23/*
+Copyright: 2019 The Crossbeam Project Developers
+License: Expat or Apache-2.0
+Comment: Rust crate crossbeam-utils 0.8.23, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/crypto-common-0.1.7/*
+Copyright: 2021 RustCrypto Developers
+License: Expat or Apache-2.0
+Comment: Rust crate crypto-common 0.1.7, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/digest-0.10.7/*
+Copyright: 2017 Artyom Pavlov
+License: Expat or Apache-2.0
+Comment: Rust crate digest 0.10.7, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/either-1.19.0/*
+Copyright: 2015
+License: Expat or Apache-2.0
+Comment: Rust crate either 1.19.0, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/equivalent-1.0.3/*
+Copyright: 2016--2023
+License: Apache-2.0 or Expat
+Comment: Rust crate equivalent 1.0.3, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/event-listener-5.4.2/*
+Copyright: Stjepan Glavina, John Nunley
+License: Apache-2.0 or Expat
+Comment: Rust crate event-listener 5.4.2, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/filetime-0.2.29/*
+Copyright: 2014 Alex Crichton
+License: Expat or Apache-2.0
+Comment: Rust crate filetime 0.2.29, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/flate2-1.1.11/*
+Copyright: 2014-2026 Alex Crichton
+License: Expat or Apache-2.0
+Comment: Rust crate flate2 1.1.11, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/flume-0.11.1/*
+Copyright: Joshua Barretto
+License: Apache-2.0 or Expat
+Comment: Rust crate flume 0.11.1, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/foldhash-0.1.5/*
+Copyright: 2024 Orson Peters
+License: Zlib
+Comment: Rust crate foldhash 0.1.5, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/form_urlencoded-1.2.2/*
+Copyright: 2013-2016 The rust-url developers
+License: Expat or Apache-2.0
+Comment: Rust crate form_urlencoded 1.2.2, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/futures-channel-0.3.34/*
+Copyright: 2016 Alex Crichton
+License: Expat or Apache-2.0
+Comment: Rust crate futures-channel 0.3.34, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/futures-core-0.3.34/*
+Copyright: 2016 Alex Crichton
+License: Expat or Apache-2.0
+Comment: Rust crate futures-core 0.3.34, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/futures-executor-0.3.34/*
+Copyright: 2016 Alex Crichton
+License: Expat or Apache-2.0
+Comment: Rust crate futures-executor 0.3.34, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/futures-intrusive-0.5.0/*
+Copyright: 2019 Matthias Einwag
+License: Expat or Apache-2.0
+Comment: Rust crate futures-intrusive 0.5.0, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/futures-io-0.3.34/*
+Copyright: 2016 Alex Crichton
+License: Expat or Apache-2.0
+Comment: Rust crate futures-io 0.3.34, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/futures-sink-0.3.34/*
+Copyright: 2016 Alex Crichton
+License: Expat or Apache-2.0
+Comment: Rust crate futures-sink 0.3.34, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/futures-task-0.3.34/*
+Copyright: 2016 Alex Crichton
+License: Expat or Apache-2.0
+Comment: Rust crate futures-task 0.3.34, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/futures-util-0.3.34/*
+Copyright: 2016 Alex Crichton
+License: Expat or Apache-2.0
+Comment: Rust crate futures-util 0.3.34, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/generic-array-0.14.7/*
+Copyright: 2015 Bartłomiej Kamiński
+License: Expat
+Comment: Rust crate generic-array 0.14.7, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/hashbrown-0.15.5/*
+Copyright: 2016 Amanieu d'Antras
+License: Expat or Apache-2.0
+Comment: Rust crate hashbrown 0.15.5, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/hashbrown-0.17.1/*
+Copyright: 2016 Amanieu d'Antras
+License: Expat or Apache-2.0
+Comment: Rust crate hashbrown 0.17.1, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/hashlink-0.10.0/*
+Copyright: kyren
+License: Expat or Apache-2.0
+Comment: Rust crate hashlink 0.10.0, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/icu_collections-2.4.0/*
+Copyright: © 2020-2024 Unicode, Inc.
+License: Unicode-3.0
+Comment: Rust crate icu_collections 2.4.0, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/icu_locale_core-2.4.0/*
+Copyright: © 2020-2024 Unicode, Inc.
+License: Unicode-3.0
+Comment: Rust crate icu_locale_core 2.4.0, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/icu_normalizer-2.4.0/*
+Copyright: © 2020-2024 Unicode, Inc.
+License: Unicode-3.0
+Comment: Rust crate icu_normalizer 2.4.0, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/icu_normalizer_data-2.4.0/*
+Copyright: © 2020-2024 Unicode, Inc.
+License: Unicode-3.0
+Comment: Rust crate icu_normalizer_data 2.4.0, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/icu_properties-2.4.0/*
+Copyright: © 2020-2024 Unicode, Inc.
+License: Unicode-3.0
+Comment: Rust crate icu_properties 2.4.0, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/icu_properties_data-2.4.0/*
+Copyright: © 2020-2024 Unicode, Inc.
+License: Unicode-3.0
+Comment: Rust crate icu_properties_data 2.4.0, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/icu_provider-2.4.0/*
+Copyright: © 2020-2024 Unicode, Inc.
+License: Unicode-3.0
+Comment: Rust crate icu_provider 2.4.0, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/idna-1.1.0/*
+Copyright: 2013-2025 The rust-url developers
+License: Expat or Apache-2.0
+Comment: Rust crate idna 1.1.0, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/idna_adapter-1.2.2/*
+Copyright: The rust-url developers
+License: Apache-2.0 or Expat
+Comment: Rust crate idna_adapter 1.2.2, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/indexmap-2.14.2/*
+Copyright: 2016--2017
+License: Apache-2.0 or Expat
+Comment: Rust crate indexmap 2.14.2, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/itoa-1.0.19/*
+Copyright: David Tolnay
+License: Expat or Apache-2.0
+Comment: Rust crate itoa 1.0.19, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/libc-0.2.191/*
+Copyright: The Rust Project Developers
+License: Expat or Apache-2.0
+Comment: Rust crate libc 0.2.191, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/libsqlite3-sys-0.30.1/*
+Copyright: 2014-2021 The rusqlite developers
+License: Expat
+Comment: Rust crate libsqlite3-sys 0.30.1, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/litemap-0.8.3/*
+Copyright: © 2020-2024 Unicode, Inc.
+License: Unicode-3.0
+Comment: Rust crate litemap 0.8.3, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/lock_api-0.4.14/*
+Copyright: 2016 The Rust Project Developers
+License: Expat or Apache-2.0
+Comment: Rust crate lock_api 0.4.14, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/log-0.4.35/*
+Copyright: 2014 The Rust Project Developers
+License: Expat or Apache-2.0
+Comment: Rust crate log 0.4.35, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/memchr-2.8.3/*
+Copyright: 2015 Andrew Gallant
+License: Unlicense or Expat
+Comment: Rust crate memchr 2.8.3, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/miniz_oxide-0.9.1/*
+Copyright: 2013-2014 RAD Game Tools and Valve Software
+License: Expat or Zlib or Apache-2.0
+Comment: Rust crate miniz_oxide 0.9.1, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/mio-1.2.5/*
+Copyright: 2014 Carl Lerche and other MIO contributors
+License: Expat
+Comment: Rust crate mio 1.2.5, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/num-traits-0.2.19/*
+Copyright: 2014 The Rust Project Developers
+License: Expat or Apache-2.0
+Comment: Rust crate num-traits 0.2.19, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/once_cell-1.21.4/*
+Copyright: Aleksey Kladov
+License: Expat or Apache-2.0
+Comment: Rust crate once_cell 1.21.4, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/parking-2.2.1/*
+Copyright: 2014-2020 The Rust Project Developers
+License: Apache-2.0 or Expat
+Comment: Rust crate parking 2.2.1, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/parking_lot-0.12.5/*
+Copyright: 2016 The Rust Project Developers
+License: Expat or Apache-2.0
+Comment: Rust crate parking_lot 0.12.5, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/parking_lot_core-0.9.12/*
+Copyright: 2016 The Rust Project Developers
+License: Expat or Apache-2.0
+Comment: Rust crate parking_lot_core 0.9.12, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/percent-encoding-2.3.2/*
+Copyright: 2013-2025 The rust-url developers
+License: Expat or Apache-2.0
+Comment: Rust crate percent-encoding 2.3.2, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/pin-project-lite-0.2.17/*
+Copyright: the pin-project-lite authors
+License: Apache-2.0 or Expat
+Comment: Rust crate pin-project-lite 0.2.17, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/potential_utf-0.1.6/*
+Copyright: © 2020-2024 Unicode, Inc.
+License: Unicode-3.0
+Comment: Rust crate potential_utf 0.1.6, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/proc-macro2-1.0.107/*
+Copyright: David Tolnay, Alex Crichton
+License: Expat or Apache-2.0
+Comment: Rust crate proc-macro2 1.0.107, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/quote-1.0.47/*
+Copyright: David Tolnay
+License: Expat or Apache-2.0
+Comment: Rust crate quote 1.0.47, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/ryu-1.0.23/*
+Copyright: David Tolnay
+License: Apache-2.0 or BSL-1.0
+Comment: Rust crate ryu 1.0.23, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/scopeguard-1.2.0/*
+Copyright: 2016-2019 Ulrik Sverdrup "bluss" and scopeguard developers
+License: Expat or Apache-2.0
+Comment: Rust crate scopeguard 1.2.0, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/serde-1.0.229/*
+Copyright: Erick Tryzelaar, David Tolnay
+License: Expat or Apache-2.0
+Comment: Rust crate serde 1.0.229, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/serde_core-1.0.229/*
+Copyright: Erick Tryzelaar, David Tolnay
+License: Expat or Apache-2.0
+Comment: Rust crate serde_core 1.0.229, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/serde_json-1.0.154/*
+Copyright: the serde_json authors
+License: Expat or Apache-2.0
+Comment: Rust crate serde_json 1.0.154, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/serde_urlencoded-0.7.1/*
+Copyright: 2016 Anthony Ramine
+License: Expat or Apache-2.0
+Comment: Rust crate serde_urlencoded 0.7.1, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/sha2-0.10.9/*
+Copyright: 2006-2009 Graydon Hoare
+License: Expat or Apache-2.0
+Comment: Rust crate sha2 0.10.9, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/simd-adler32-0.3.10/*
+Copyright: [2021] [Marvin Countryman]
+License: Expat
+Comment: Rust crate simd-adler32 0.3.10, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/slab-0.4.12/*
+Copyright: 2019 Carl Lerche
+License: Expat
+Comment: Rust crate slab 0.4.12, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/smallvec-1.16.5/*
+Copyright: 2018 The Servo Project Developers
+License: Expat or Apache-2.0
+Comment: Rust crate smallvec 1.16.5, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/socket2-0.6.5/*
+Copyright: 2014 Alex Crichton
+License: Expat or Apache-2.0
+Comment: Rust crate socket2 0.6.5, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/spin-0.9.9/*
+Copyright: 2014 Mathijs van de Nes
+License: Expat
+Comment: Rust crate spin 0.9.9, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/sqlx-0.8.6/*
+Copyright: 2020 LaunchBadge, LLC
+License: Expat or Apache-2.0
+Comment: Rust crate sqlx 0.8.6, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/sqlx-core-0.8.6/*
+Copyright: 2020 LaunchBadge, LLC
+License: Expat or Apache-2.0
+Comment: Rust crate sqlx-core 0.8.6, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/sqlx-sqlite-0.8.6/*
+Copyright: 2020 LaunchBadge, LLC
+License: Expat or Apache-2.0
+Comment: Rust crate sqlx-sqlite 0.8.6, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/stable_deref_trait-1.2.1/*
+Copyright: 2017 Robert Grosse
+License: Expat or Apache-2.0
+Comment: Rust crate stable_deref_trait 1.2.1, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/syn-2.0.119/*
+Copyright: David Tolnay
+License: Expat or Apache-2.0
+Comment: Rust crate syn 2.0.119, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/syn-3.0.10/*
+Copyright: David Tolnay
+License: Expat or Apache-2.0
+Comment: Rust crate syn 3.0.10, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/synstructure-0.14.0/*
+Copyright: 2016 Nika Layzell
+License: Expat
+Comment: Rust crate synstructure 0.14.0, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/tar-0.4.46/*
+Copyright: The tar-rs Project Contributors
+License: Expat or Apache-2.0
+Comment: Rust crate tar 0.4.46, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/thiserror-2.0.21/*
+Copyright: David Tolnay
+License: Expat or Apache-2.0
+Comment: Rust crate thiserror 2.0.21, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/tinystr-0.8.5/*
+Copyright: © 2020-2024 Unicode, Inc.
+License: Unicode-3.0
+Comment: Rust crate tinystr 0.8.5, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/tokio-1.54.1/*
+Copyright: Tokio Contributors
+License: Expat
+Comment: Rust crate tokio 1.54.1, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/tokio-stream-0.1.19/*
+Copyright: Tokio Contributors
+License: Expat
+Comment: Rust crate tokio-stream 0.1.19, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/tracing-0.1.44/*
+Copyright: 2019 Tokio Contributors
+License: Expat
+Comment: Rust crate tracing 0.1.44, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/tracing-core-0.1.36/*
+Copyright: 2019 Tokio Contributors
+License: Expat
+Comment: Rust crate tracing-core 0.1.36, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/typenum-1.20.1/*
+Copyright: 2014 Paho Lurie-Gregg
+License: Expat or Apache-2.0
+Comment: Rust crate typenum 1.20.1, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/unicode-ident-1.0.27/*
+Copyright: © 1991-2023 Unicode, Inc.
+License: (Expat or Apache-2.0) and Unicode-3.0
+Comment: Rust crate unicode-ident 1.0.27, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/url-2.5.8/*
+Copyright: 2013-2025 The rust-url developers
+License: Expat or Apache-2.0
+Comment: Rust crate url 2.5.8, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/utf8_iter-1.1.0/*
+Copyright: Mozilla Foundation
+License: Apache-2.0 or Expat
+Comment: Rust crate utf8_iter 1.1.0, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/utf_types-1.0.0/*
+Copyright: Mozilla Foundation
+License: Apache-2.0 or Expat
+Comment: Rust crate utf_types 1.0.0, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/writeable-0.6.4/*
+Copyright: © 2020-2024 Unicode, Inc.
+License: Unicode-3.0
+Comment: Rust crate writeable 0.6.4, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/yoke-0.8.4/*
+Copyright: © 2020-2024 Unicode, Inc.
+License: Unicode-3.0
+Comment: Rust crate yoke 0.8.4, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/zerofrom-0.1.8/*
+Copyright: © 2020-2024 Unicode, Inc.
+License: Unicode-3.0
+Comment: Rust crate zerofrom 0.1.8, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/zerotrie-0.2.5/*
+Copyright: © 2020-2024 Unicode, Inc.
+License: Unicode-3.0
+Comment: Rust crate zerotrie 0.2.5, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/zerovec-0.11.9/*
+Copyright: © 2020-2024 Unicode, Inc.
+License: Unicode-3.0
+Comment: Rust crate zerovec 0.11.9, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
+Files: vendor-sources/cargo/zmij-1.0.23/*
+Copyright: David Tolnay
+License: Expat
+Comment: Rust crate zmij 1.0.23, compiled into /usr/bin/hc-audit-retention.
+ Source (.crate) in the release source archive under vendor-sources/cargo; licence and
+ notice files are reproduced in THIRD-PARTY-NOTICES.md.
+
 License: GPL-3+
  This program is free software: you can redistribute it and/or modify it under the
  terms of the GNU General Public License as published by the Free Software Foundation,
@@ -510,6 +1217,136 @@ License: BSD-3-clause~golang.org-x-oauth2
  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+License: 0BSD
+ Permission to use, copy, modify, and/or distribute this software for
+ any purpose with or without fee is hereby granted.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN
+ AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
+ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+License: BSL-1.0
+ Boost Software License - Version 1.0 - August 17th, 2003
+ .
+ Permission is hereby granted, free of charge, to any person or organization
+ obtaining a copy of the software and accompanying documentation covered by
+ this license (the "Software") to use, reproduce, display, distribute,
+ execute, and transmit the Software, and to prepare derivative works of the
+ Software, and to permit third-parties to whom the Software is furnished to
+ do so, all subject to the following:
+ .
+ The copyright notices in the Software and this entire statement, including
+ the above license grant, this restriction and the following disclaimer,
+ must be included in all copies of the Software, in whole or in part, and
+ all derivative works of the Software, unless such copies or derivative
+ works are solely in the form of machine-executable object code generated by
+ a source language processor.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT
+ SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
+ FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
+ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ DEALINGS IN THE SOFTWARE.
+
+License: Unicode-3.0
+ UNICODE LICENSE V3
+ .
+ COPYRIGHT AND PERMISSION NOTICE
+ .
+ Copyright © 2020-2024 Unicode, Inc.
+ .
+ NOTICE TO USER: Carefully read the following legal agreement. BY
+ DOWNLOADING, INSTALLING, COPYING OR OTHERWISE USING DATA FILES, AND/OR
+ SOFTWARE, YOU UNEQUIVOCALLY ACCEPT, AND AGREE TO BE BOUND BY, ALL OF THE
+ TERMS AND CONDITIONS OF THIS AGREEMENT. IF YOU DO NOT AGREE, DO NOT
+ DOWNLOAD, INSTALL, COPY, DISTRIBUTE OR USE THE DATA FILES OR SOFTWARE.
+ .
+ Permission is hereby granted, free of charge, to any person obtaining a
+ copy of data files and any associated documentation (the "Data Files") or
+ software and any associated documentation (the "Software") to deal in the
+ Data Files or Software without restriction, including without limitation
+ the rights to use, copy, modify, merge, publish, distribute, and/or sell
+ copies of the Data Files or Software, and to permit persons to whom the
+ Data Files or Software are furnished to do so, provided that either (a)
+ this copyright and permission notice appear with all copies of the Data
+ Files or Software, or (b) this copyright and permission notice appear in
+ associated Documentation.
+ .
+ THE DATA FILES AND SOFTWARE ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+ KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF
+ THIRD PARTY RIGHTS.
+ .
+ IN NO EVENT SHALL THE COPYRIGHT HOLDER OR HOLDERS INCLUDED IN THIS NOTICE
+ BE LIABLE FOR ANY CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES,
+ OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+ WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THE DATA
+ FILES OR SOFTWARE.
+ .
+ Except as contained in this notice, the name of a copyright holder shall
+ not be used in advertising or otherwise to promote the sale, use or other
+ dealings in these Data Files or Software without prior written
+ authorization of the copyright holder.
+ .
+ SPDX-License-Identifier: Unicode-3.0
+ .
+ —
+ .
+ Portions of ICU4X may have been adapted from ICU4C and/or ICU4J.
+ ICU 1.8.1 to ICU 57.1 © 1995-2016 International Business Machines Corporation and others.
+
+License: Unlicense
+ This is free and unencumbered software released into the public domain.
+ .
+ Anyone is free to copy, modify, publish, use, compile, sell, or
+ distribute this software, either in source code form or as a compiled
+ binary, for any purpose, commercial or non-commercial, and by any
+ means.
+ .
+ In jurisdictions that recognize copyright laws, the author or authors
+ of this software dedicate any and all copyright interest in the
+ software to the public domain. We make this dedication for the benefit
+ of the public at large and to the detriment of our heirs and
+ successors. We intend this dedication to be an overt act of
+ relinquishment in perpetuity of all present and future rights to this
+ software under copyright law.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ OTHER DEALINGS IN THE SOFTWARE.
+ .
+ For more information, please refer to <http://unlicense.org/>
+
+License: Zlib
+ This software is provided 'as-is', without any express or implied warranty. In
+ no event will the authors be held liable for any damages arising from the use of
+ this software.
+ .
+ Permission is granted to anyone to use this software for any purpose, including
+ commercial applications, and to alter it and redistribute it freely, subject to
+ the following restrictions:
+ .
+ 1. The origin of this software must not be misrepresented; you must not claim
+     that you wrote the original software. If you use this software in a product,
+     an acknowledgment in the product documentation would be appreciated but is
+     not required.
+ .
+ 2. Altered source versions must be plainly marked as such, and must not be
+     misrepresented as being the original software.
+ .
+ 3. This notice may not be removed or altered from any source distribution.
 
 License: BSD-3-clause
  Redistribution and use in source and binary forms, with or without

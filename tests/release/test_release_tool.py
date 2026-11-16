@@ -24,7 +24,7 @@ spec.loader.exec_module(rt)
 
 V = "0.1.0-dev.1"
 C = "0123456789abcdef0123456789abcdef01234567"
-PINS = "GO_VERSION=1.26.9\nNODE_VERSION=22.23.3\nNPM_VERSION=10.9.9\n"
+PINS = "GO_VERSION=1.26.9\nNODE_VERSION=22.23.3\nNPM_VERSION=10.9.9\nRUST_VERSION=1.100.0\n"
 
 
 def wr(path, data):
@@ -49,7 +49,7 @@ class Fixture:
             f.write(PINS)
         n = rt.expected_names(version)
         bi = (f"version={version}\ncommit={C}\nsource_date_epoch=1760000000\ngo=go1.26.9\nnode=v22.23.3\n"
-              f"npm=10.9.9\nexcluded=compat/webmin/ (reference tree)\n").encode()
+              f"npm=10.9.9\nrust=1.100.0\nexcluded=compat/webmin/ (reference tree)\n").encode()
         notices = {k: f"{k} text\n".encode() for k in rt.NOTICES}
         p = f"homelab-control-{version}/"
         with tarfile.open(os.path.join(self.d, n["source"]), "w:gz") as t:
@@ -115,7 +115,7 @@ class Toolchain(unittest.TestCase):
         with tempfile.TemporaryDirectory() as t:
             p = os.path.join(t, "tc.env")
             wr(p, PINS)
-            self.assertEqual(rt.load_pins(p), {"go": "1.26.9", "node": "22.23.3", "npm": "10.9.9"})
+            self.assertEqual(rt.load_pins(p), {"go": "1.26.9", "node": "22.23.3", "npm": "10.9.9", "rust": "1.100.0"})
             wr(p, PINS.replace("1.26.9", "1.26.x"))
             with self.assertRaises(rt.Fail):
                 rt.load_pins(p)
