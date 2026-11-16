@@ -22,7 +22,7 @@ Name:           homelab-control
 Version:        $base
 Release:        $rel
 Summary:        Homelab Control API, web UI and privileged broker (development build)
-License:        GPL-3.0-or-later AND MIT AND OFL-1.1 AND BSD-3-Clause
+License:        GPL-3.0-or-later AND MIT AND OFL-1.1 AND BSD-3-Clause AND Apache-2.0 AND Unicode-3.0 AND Zlib
 URL:            https://github.com/KRDucky/Homelab-Control---Webmin-Fork
 BuildArch:      x86_64
 Requires(pre):  /usr/sbin/useradd, /usr/sbin/groupadd
