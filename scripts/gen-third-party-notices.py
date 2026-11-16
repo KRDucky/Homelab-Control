@@ -19,8 +19,14 @@ packaging/debian/copyright is the same information in Debian's machine-readable
 format (DEP-5, https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/),
 installed by the .deb as /usr/share/doc/homelab-control/copyright.
 
-Requires `npm ci` (frontend/app/node_modules) and `go` on PATH. Stdlib only.
+Also covers the crates compiled into hc-audit-retention (Rust, ADR 0006 amendment 4): the
+reviewed allow-list backend/audit-retention/rust-deps-allowlist.json, with each crate's licence
+and notice files read from the cargo registry (CARGO_HOME) or vendor-sources/cargo.
+
+Requires `npm ci` (frontend/app/node_modules), `go` on PATH and the crate sources
+(`cargo fetch --locked` in backend/audit-retention). Stdlib only.
 """
+import glob
 import hashlib
 import json
 import os
@@ -37,6 +43,23 @@ REPO = "https://github.com/KRDucky/Homelab-Control---Webmin-Fork"
 MIT_PATHS = ["sdk/*", "schemas/*", "themes/*", "frontend/design-system/*",
              "docs/ui/theme.schema.v1.draft.json", "docs/ui/examples/themes/*"]
 DEB_LICENSE = {"MIT": "Expat", "OFL-1.1": "OFL-1.1", "BSD-3-Clause": "BSD-3-clause", "Apache-2.0": "Apache-2.0"}
+# SPDX -> DEP-5 short names for crate licences (ADR 0006 amendment 4 approved set).
+DEB_CRATE_LICENSE = {"MIT": "Expat", "Apache-2.0": "Apache-2.0", "Zlib": "Zlib", "Unicode-3.0": "Unicode-3.0",
+                     "BSL-1.0": "BSL-1.0", "0BSD": "0BSD", "Unlicense": "Unlicense", "ISC": "ISC",
+                     "BSD-2-Clause": "BSD-2-clause", "BSD-3-Clause": "BSD-3-clause"}
+CRATE_FILES = ("LICENSE", "LICENCE", "COPYING", "NOTICE", "UNLICENSE")
+MIT_TEMPLATE = """Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."""
 # sha256 of the whitespace-collapsed Apache-2.0 terms ("TERMS AND CONDITIONS ..." up to
 # "END OF TERMS AND CONDITIONS"), identical to the SPDX reference text. Only a licence whose terms
 # match exactly may be replaced by a reference to /usr/share/common-licenses/Apache-2.0.
@@ -109,6 +132,71 @@ def go_modules():
             sys.exit(f"{m['path']}: no licence file; resolve before release")
         out.append({**m, "files": [(f, open(os.path.join(d, f), encoding="utf-8").read().strip()) for f in files]})
     return out
+
+
+def crate_dir(name, version):
+    home = os.environ.get("CARGO_HOME") or os.path.join(os.path.expanduser("~"), ".cargo")
+    for d in sorted(glob.glob(os.path.join(home, "registry", "src", "index.crates.io-*", f"{name}-{version}"))):
+        return d
+    v = os.path.join(ROOT, "vendor-sources", "cargo", f"{name}-{version}")
+    if os.path.isdir(v):
+        return v
+    sys.exit(f"crate {name} {version}: source not found; run `cargo fetch --locked` in backend/audit-retention")
+
+
+def crate_authors(d):
+    import tomllib
+    with open(os.path.join(d, "Cargo.toml"), "rb") as f:
+        authors = tomllib.load(f).get("package", {}).get("authors", [])
+    return ", ".join(re.sub(r"\s*<[^>]*>", "", a) for a in authors) if authors else ""
+
+
+def rust_crates():
+    """Crates compiled into hc-audit-retention with every licence/notice file each ships.
+    A crate without a licence file needs a reviewed `elected` entry in the allow-list."""
+    allow = json.load(open(os.path.join(ROOT, "backend", "audit-retention", "rust-deps-allowlist.json"), encoding="utf-8"))["crates"]
+    out = []
+    for c in allow:
+        if not c["linked"]:
+            continue
+        d = crate_dir(c["name"], c["version"])
+        files = sorted(f for f in os.listdir(d) if f.upper().startswith(CRATE_FILES) and os.path.isfile(os.path.join(d, f)))
+        # Trailing spaces in a crate's licence file carry no meaning; drop them so the notices stay clean.
+        texts = [(f, "\n".join(l.rstrip() for l in open(os.path.join(d, f), encoding="utf-8").read().strip().splitlines()))
+                 for f in files]
+        authors = crate_authors(d) or f"the {c['name']} authors"
+        if not any(f.upper().startswith(("LICENSE", "LICENCE", "COPYING", "UNLICENSE")) for f in files):
+            if c.get("elected") != "MIT":
+                sys.exit(f"crate {c['name']} {c['version']}: no licence file; record a reviewed `elected` licence in the allow-list")
+            texts = [("LICENSE-MIT (standard text; the crate ships no licence file)", f"Copyright (c) {authors}\n\n{MIT_TEMPLATE}")]
+        out.append({**c, "dir": d, "files": texts, "authors": authors})
+    return out
+
+
+def crate_holder(c):
+    for _, t in c["files"]:
+        for line in t.splitlines():
+            m = re.match(r"\s*Copyright\s+(?:\([cC]\)\s*)?(.*\S)", line)
+            if m and not re.search(r"[\[{<](yyyy|year|name)", m.group(1), re.I):
+                return m.group(1)
+    return c["authors"]
+
+
+def crate_deb_license(c):
+    """DEP-5 licence field for a crate, with the SPDX operators spelled the Debian way."""
+    expr = c.get("elected") or c["license"]
+    toks = expr.replace("/", " OR ").replace("(", " ( ").replace(")", " ) ").split()
+    out = []
+    for t in toks:
+        if t in ("OR", "AND"):
+            out.append(t.lower())
+        elif t in ("(", ")"):
+            out.append(t)
+        else:
+            if t not in DEB_CRATE_LICENSE:
+                sys.exit(f"crate {c['name']}: no Debian licence short name for {t}")
+            out.append(DEB_CRATE_LICENSE[t])
+    return " ".join(out).replace("( ", "(").replace(" )", ")")
 
 
 def go_stdlib():
@@ -218,6 +306,33 @@ def render_debian():
                 *([" THIRD-PARTY-NOTICES.md."] if others else [])]
         texts[name] = APACHE_2_DEB if lic == "Apache-2.0" else \
             re.sub(r"^\s*(MIT License\s*)?(Copyright[^\n]*\n+)+", "", main_text)
+    crate_texts = {}
+    for c in rust_crates():
+        field = crate_deb_license(c)
+        out += ["", f"Files: vendor-sources/cargo/{c['name']}-{c['version']}/*",
+                f"Copyright: {crate_holder(c)}", f"License: {field}",
+                f"Comment: Rust crate {c['name']} {c['version']}, compiled into /usr/bin/hc-audit-retention.",
+                " Source (.crate) in the release source archive under vendor-sources/cargo; licence and",
+                " notice files are reproduced in THIRD-PARTY-NOTICES.md."]
+        names = {n for n in re.split(r"[ ()]+", field) if n and n not in ("or", "and")}
+        single = next(iter(names)) if len(names) == 1 else None
+        for f, t in c["files"]:
+            u = f.upper()
+            short = ("Apache-2.0" if "APACHE" in u else "Expat" if "MIT" in u else "Zlib" if "ZLIB" in u else
+                     "BSL-1.0" if "BOOST" in u else "0BSD" if "0BSD" in u else "Unlicense" if u.startswith("UNLICENSE") else
+                     single if u.startswith(("LICENSE", "LICENCE")) else None)
+            if short == "Apache-2.0":
+                require_standard_apache2(f"crate {c['name']} {f}", t)
+                texts["Apache-2.0"] = APACHE_2_DEB
+            elif short and short in names and short not in ("Expat",):
+                crate_texts.setdefault(short, re.sub(r"^\s*((Copyright|\(c\))[^\n]*\n+)+", "", t))
+        for n in names:
+            if n not in ("Expat", "Apache-2.0") and n not in crate_texts:
+                sys.exit(f"crate {c['name']}: no licence text found for {n}")
+            if n == "Apache-2.0":
+                texts["Apache-2.0"] = APACHE_2_DEB
+    for n, t in sorted(crate_texts.items()):
+        texts.setdefault(n, t)
     out += ["", "License: GPL-3+",
             " This program is free software: you can redistribute it and/or modify it under the",
             " terms of the GNU General Public License as published by the Free Software Foundation,",
@@ -249,7 +364,7 @@ def render():
         "",
         "<!-- Generated by scripts/gen-third-party-notices.py. Do not edit by hand. -->",
         "",
-        "Homelab Control release artifacts (`hc-api`, `hlctl`, `hc-broker` and the DEB/RPM/Arch packages)",
+        "Homelab Control release artifacts (`hc-api`, `hlctl`, `hc-broker`, `hc-audit-retention` and the DEB/RPM/Arch packages)",
         "contain the third-party components below. Homelab Control's own code is licensed as described in",
         "`LICENSE.md` and `NOTICE.md`. Development-only tools are not redistributed and are listed in",
         "`docs/compliance/DEPENDENCY-LICENSES.md`.",
@@ -266,10 +381,20 @@ def render():
     for p in npm:
         where = "font files embedded in `hc-api` (web UI)" if "fontsource" in p["name"] else "web UI JavaScript bundle embedded in `hc-api`"
         lines.append(f"| {p['name']} | {p['version']} | {p['license']} | {where} | {p['source']} |")
+    crates = rust_crates()
+    for c in crates:
+        lines.append(f"| {c['name']} (Rust crate) | {c['version']} | {c.get('elected') or c['license']} | compiled into `hc-audit-retention` | https://crates.io/crates/{c['name']} |")
     lines += ["", "## Go standard library", "", "```text", go_stdlib(), "```"]
     for m in gomods:
         for f, text in m["files"]:
             lines += ["", f"## {m['path']} {m['version']}: {f}", "", "````text", text, "````"]
+    # Rust crates: identical licence files are printed once, listing every crate they cover.
+    cgroups = {}
+    for c in crates:
+        for f, text in c["files"]:
+            cgroups.setdefault(text, []).append(f"{c['name']} {c['version']} ({f})")
+    for text, names in cgroups.items():
+        lines += ["", "## Rust: " + ", ".join(names), "", "````text", text, "````"]
     # Identical license texts are printed once, listing every component they cover.
     groups = {}
     for p in npm:

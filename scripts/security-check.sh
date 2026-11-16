@@ -66,6 +66,20 @@ else echo "SKIPPED: pyspdxtools not installed (CI installs spdx-tools)"; fi
 step "Webmin reference tree licence inventory (per-file upstream statements reviewed)"
 python3 -I scripts/gen-webmin-license-inventory.py --check || bad
 
+step "Rust dependency policy (ADR 0006 amendment 4: reviewed crate allow-list only)"
+if python3 -I scripts/check-rust-deps.py; then :; else bad; fi
+
+step "RustSec advisories (backend/audit-retention/Cargo.lock)"
+if [ -n "${RUSTSEC_DB:-}" ]; then
+  python3 -I scripts/check-rust-advisories.py --db "$RUSTSEC_DB" || bad "rust advisories"
+elif [ -n "${GITHUB_ACTIONS:-}" ]; then
+  adb=$(mktemp -d)
+  if git clone -q --depth 1 https://github.com/rustsec/advisory-db.git "$adb"; then
+    python3 -I scripts/check-rust-advisories.py --db "$adb" || bad "rust advisories"
+  else bad "rust advisory database not reachable"; fi
+  rm -rf "$adb"
+else echo "SKIPPED: set RUSTSEC_DB to a checkout of github.com/rustsec/advisory-db (CI fetches it)"; fi
+
 step "Licensing metadata (REUSE 3.3: SPDX licence + copyright for every file)"
 if command -v reuse >/dev/null 2>&1; then
   if reuse lint --quiet; then echo "OK: REUSE compliant"; else reuse lint | tail -30; bad "reuse lint"; fi
@@ -77,7 +91,7 @@ if git grep -nE -- '-----BEGIN ([A-Z]+ )?PRIVATE KEY-----' -- ':!compat/webmin' 
 else echo "OK: no private keys outside compat/webmin"; fi
 
 step "Shell scripts"
-if command -v shellcheck >/dev/null 2>&1; then shellcheck -x scripts/*.sh packaging/*/*.sh tests/integration/*.sh tests/systemd/*.sh tests/packaging/*.sh tests/e2e/*.sh dev/disposable/*.sh || bad
+if command -v shellcheck >/dev/null 2>&1; then shellcheck -x scripts/*.sh packaging/*/*.sh tests/integration/*.sh tests/systemd/*.sh tests/packaging/*.sh tests/e2e/*.sh tests/retention/*.sh dev/disposable/*.sh || bad
 else echo "SKIPPED: shellcheck not installed (CI installs it)"; fi
 
 exit $fail

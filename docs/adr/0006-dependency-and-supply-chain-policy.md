@@ -92,3 +92,33 @@ skeleton, "use a maintained OIDC/OAuth implementation". Design: `docs/security/O
 | Vulnerabilities | Go vulnerability DB 2026-11-05: no entry affects these versions. go-jose's v4 entries GO-2024-2631, GO-2025-3485 and GO-2026-4945 are fixed at or before v4.1.4, and x/oauth2's GO-2025-3488 is fixed in v0.27.0. `govulncheck` runs in `make security`. |
 | Privilege | `hc-broker` still links no third-party module (`scripts/check-go-deps.py`). |
 | Network | The libraries make outbound HTTPS calls to the configured issuer only. hc-api uses one client for these: 10 s timeout, no redirects, TLS 1.2 or later, and response bodies capped at 1 MiB. |
+
+## Amendment 4 (2026-11-16): Rust audit-retention worker with SQLx (proposed, for owner and security review)
+
+**Status: Proposed.** Not accepted until the owner (and hc-security) review it and the advisory gate below
+passes; see "Blocking".
+
+**Decision (proposed):** the audit-retention worker `hc-audit-retention` (`backend/audit-retention/`) is a
+Rust binary that reads and prunes `audit_events` in `state.db` through SQLx (owner direction: database
+access for retention in Rust with SQLx). The Go `state` package keeps owning the schema and its migrations;
+the worker never migrates and refuses any schema version but 3. Design and failure handling:
+`docs/security/AUDIT-LOG.md` ("Retention").
+
+| Item | Result |
+|---|---|
+| Need | Bounded audit storage (≤ 365 days live, ≤ 60 calendar months in total, early archiving above a size threshold) with the hash chain verifiable across archives and the live database. |
+| Choice | `sqlx =0.8.6` (`sqlite`, `runtime-tokio`; no macros, no migrations, no other databases), `tokio` (`rt`), `serde`/`serde_json` (`raw_value`), `sha2`, `flate2` (`rust_backend`, pure Rust), `tar` (no default features), `libc`. Time handling, the Go record encoding and the RFC 3339 parser are local code. |
+| Crate graph | 125 packages in `Cargo.lock` (all platforms), 101 compiled into the binary for `x86_64-unknown-linux-musl`, 8 proc-macros, 16 build-only or other-platform. Reviewed list with checksums, licences and linked flags: `backend/audit-retention/rust-deps-allowlist.json`; `scripts/check-rust-deps.py` (security gate) fails on any difference from `Cargo.lock` or `cargo tree`. No git or path dependencies. |
+| Licences | Linked crates: MIT OR Apache-2.0 (most), MIT, Unicode-3.0 (ICU), Zlib, BSL-1.0, 0BSD/Unlicense alternatives, SQLite (public domain, bundled). All permissive and compatible with GPL-3.0-or-later. `crc-catalog` 2.5.0 ships no licence file: MIT elected from its declared `MIT OR Apache-2.0` (recorded in the allow-list). `THIRD-PARTY-NOTICES.md`, DEP-5 `copyright` and the SBOM (pkg:cargo, SHA-256) are generated from the allow-list and the crate sources. |
+| Provenance | crates.io, checksums in the committed `Cargo.lock`; builds use `--locked`. Release source archives carry every crate under `vendor-sources/cargo` (`cargo vendor --versioned-dirs`) and build offline; `scripts/release-tool.py verify` requires them. |
+| Toolchain | Rust `RUST_VERSION` in `packaging/release/toolchain.env` (1.100.0), equal to `backend/audit-retention/rust-toolchain.toml` (policy test). CI and release builds install it with the runner's rustup (no installer script). Static `x86_64-unknown-linux-musl` binary; the bundled SQLite C source is compiled with `musl-gcc`. |
+| Reproducibility | `--remap-path-prefix`/`-ffile-prefix-map` map the source tree to `/src` and crate sources (registry or vendored) to `/crates`; one codegen unit, LTO, stripped. Verified locally: a registry build and an offline vendored build in another directory with another `CARGO_HOME` were byte-identical. `make repro-check` and the release dry run compare it with the Go binaries. |
+| Vulnerabilities | `scripts/check-rust-advisories.py` checks `Cargo.lock` against the RustSec advisory database (CI fetches it) in `make security`; exceptions only through `rust-advisory-exceptions.json` with a named approver and an expiry. |
+| Privilege | Runs as `homelab-control` (the state database owner), never as root (refused), from a sandboxed oneshot unit with no capabilities and no network. `hc-api` and `hc-broker` link no Rust code. |
+
+**Blocking (2026-11-16):** RUSTSEC-2026-0459 (CVE-2026-119375) affects the SQLite bundled by
+`libsqlite3-sys` 0.30.1, and no released sqlx accepts a fixed `libsqlite3-sys` (≥ 0.39): sqlx 0.8.6 needs
+`^0.30`, sqlx 0.9.0 needs `< 0.38`. The worker refuses the advisory's precondition (a `-wal` whose page size
+differs from the database's). The owner approved the time-limited exception in `rust-advisory-exceptions.json` on
+2026-11-16 (expires 2027-01-31); the gate fails again after that date unless sqlx ships a compatible
+release or the exception is renewed. The amendment itself remains Proposed.

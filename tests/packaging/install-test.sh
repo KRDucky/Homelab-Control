@@ -48,7 +48,14 @@ esac
 check "service user created" homelab-control "$(getent passwd homelab-control | cut -d: -f1)"
 check "config dir mode/group" "750 homelab-control" "$(stat -c '%a %G' /etc/homelab-control)"
 check "broker binary installed" 1 "$([ -x /usr/lib/homelab-control/hc-broker ] && echo 1 || echo 0)"
-check "units installed" 4 "$(find /usr/lib/systemd/system -name 'homelab-control*' | wc -l)"
+check "units installed" 6 "$(find /usr/lib/systemd/system -name 'homelab-control*' | wc -l)"
+check "retention worker installed" 1 "$([ -x /usr/bin/hc-audit-retention ] && echo 1 || echo 0)"
+check "retention settings owner/mode" "640 root:homelab-control" "$(stat -c '%a %U:%G' /etc/homelab-control/audit-retention.conf)"
+if command -v systemctl >/dev/null 2>&1; then
+  check "retention timer enabled on install" enabled "$(systemctl is-enabled homelab-control-audit-retention.timer 2>/dev/null || true)"
+else
+  echo "SKIP  retention timer enablement (no systemctl in this image)"
+fi
 
 pw="ci-$(head -c 9 /dev/urandom | od -An -tx1 | tr -d ' \n')"
 printf '%s\n' "$pw" | hlctl user add --file /etc/homelab-control/users.json --username admin >/dev/null
@@ -79,6 +86,12 @@ check "broker audit written" 1 "$([ -s /tmp/broker-audit.jsonl ] && echo 1 || ec
 check "sessions endpoint (persistent)" 1 "$( (curl -s -b "$jar" $b/api/v1/auth/sessions || true) | grep -c '"persistent":true' || true)"
 check "state database private to the service user" "600 homelab-control" "$(stat -c '%a %U' /var/lib/homelab-control/state.db)"
 kill $apid $bpid 2>/dev/null || true; wait 2>/dev/null || true
+# What the timer's service does (no systemd here): as the service user, with the packaged settings file.
+install -d -m 0700 -o homelab-control -g homelab-control /var/lib/homelab-control/audit-archive
+check "retention dry run as the service user" 0 "$(runuser -u homelab-control -- hc-audit-retention run --dry-run >/tmp/retention.log 2>&1; echo $?)"
+check "retention run as the service user" 0 "$(runuser -u homelab-control -- hc-audit-retention run >>/tmp/retention.log 2>&1; echo $?)"
+check "retention verify" 0 "$(runuser -u homelab-control -- hc-audit-retention verify >>/tmp/retention.log 2>&1; echo $?)"
+check "retention refuses to run as root" 1 "$(hc-audit-retention run >/dev/null 2>&1; echo $?)"
 check "API audit chain in the state database verifies" 0 "$(hlctl audit verify --db /var/lib/homelab-control/state.db >/dev/null 2>&1; echo $?)"
 remove
 check "package removed" 0 "$([ -e /usr/bin/hc-api ] && echo 1 || echo 0)"

@@ -43,7 +43,7 @@ DRYRUN_RE = re.compile(r"0\.0\.0-dryrun\.[0-9a-f]{8}")
 SAFE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")  # names GitHub keeps unchanged as asset names
 PIN_RE = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
 NOTICES = ["LICENSE.md", "NOTICE.md", "THIRD-PARTY-NOTICES.md"]
-BINARIES = ["hc-api", "hc-broker", "hlctl"]
+BINARIES = ["hc-api", "hc-broker", "hlctl", "hc-audit-retention"]
 
 
 class Fail(Exception):
@@ -128,7 +128,8 @@ def parse_kv(path):
 
 def load_pins(path):
     p = parse_kv(path)
-    pins = {"go": p.get("GO_VERSION", ""), "node": p.get("NODE_VERSION", ""), "npm": p.get("NPM_VERSION", "")}
+    pins = {"go": p.get("GO_VERSION", ""), "node": p.get("NODE_VERSION", ""), "npm": p.get("NPM_VERSION", ""),
+            "rust": p.get("RUST_VERSION", "")}
     for k, v in pins.items():
         if not PIN_RE.fullmatch(v):
             raise Fail(f"{path}: {k} pin {v!r} is not an exact X.Y.Z version")
@@ -249,7 +250,8 @@ def check_sums(d):
 
 def check_buildinfo(d, version, commit, pins):
     bi = parse_kv(os.path.join(d, "RELEASE-BUILDINFO"))
-    want = {"version": version, "commit": commit, "go": "go" + pins["go"], "node": "v" + pins["node"], "npm": pins["npm"]}
+    want = {"version": version, "commit": commit, "go": "go" + pins["go"], "node": "v" + pins["node"], "npm": pins["npm"],
+            "rust": pins["rust"]}
     diff = [f"{k}={bi.get(k)!r} (expected {v!r})" for k, v in want.items() if bi.get(k) != v]
     if not re.fullmatch(r"[0-9]+", bi.get("source_date_epoch", "")):
         diff.append("source_date_epoch missing")
@@ -333,6 +335,13 @@ def check_source_archive(d, version):
             z = f"{prefix}vendor-sources/go/download/{esc}/@v/{m['version']}.zip"
             if z not in paths:
                 errs.append(f"Go module source missing: {m['path']} {m['version']} (vendor-sources/go/download)")
+    # Rust crate sources (ADR 0006 amendment 4): every crate in Cargo.lock, vendored for an offline build.
+    if prefix + "backend/audit-retention/rust-deps-allowlist.json" in paths:
+        with tarfile.open(os.path.join(d, names["source"]), "r:gz") as t:
+            crates = json.loads(t.extractfile(prefix + "backend/audit-retention/rust-deps-allowlist.json").read())["crates"]
+        for c in crates:
+            if f"{prefix}vendor-sources/cargo/{c['name']}-{c['version']}/Cargo.toml" not in paths:
+                errs.append(f"Rust crate source missing: {c['name']} {c['version']} (vendor-sources/cargo)")
     if errs:
         raise Fail("; ".join(errs))
     # The archive's copies must be the published ones.
@@ -484,8 +493,11 @@ def main(argv=None):
                 "go": subprocess.run(["go", "env", "GOVERSION"], capture_output=True, text=True).stdout.strip(),
                 "node": subprocess.run(["node", "--version"], capture_output=True, text=True).stdout.strip(),
                 "npm": subprocess.run(["npm", "--version"], capture_output=True, text=True).stdout.strip(),
+                # backend/audit-retention/rust-toolchain.toml selects the toolchain inside the crate.
+                "rust": (subprocess.run(["rustc", "--version"], capture_output=True, text=True,
+                                        cwd=os.path.join(ROOT, "backend", "audit-retention")).stdout.split() + ["", ""])[1],
             }
-            want = {"go": "go" + pins["go"], "node": "v" + pins["node"], "npm": pins["npm"]}
+            want = {"go": "go" + pins["go"], "node": "v" + pins["node"], "npm": pins["npm"], "rust": pins["rust"]}
             bad = [f"{k}: installed {got[k]!r}, pinned {want[k]!r}" for k in want if got[k] != want[k]]
             if bad:
                 raise Fail("toolchain does not match packaging/release/toolchain.env: " + "; ".join(bad))

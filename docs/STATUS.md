@@ -17,6 +17,15 @@ accepted). M3 Theme/Plugin SDK is authorized for isolated development after that
 `docs/project/04-ROADMAP.md`); its first checkpoint is on `main` as PR #54 (`20ddc2b7`). This is not M2
 close, not production, not KVM acceptance, and not ADR acceptance.
 
+## Audit retention (development branch, not accepted; ADR 0006 amendment 4 Proposed)
+
+`hc-audit-retention` (Rust, SQLx) archives API audit records past the live window (≤ 365 days) or above the
+size threshold into verified `tar.gz` archives, prunes exactly the archived rows, and expires archives past
+the total window (≤ 60 months); daily timer, `homelab-control` user. Design: `docs/security/AUDIT-LOG.md`
+("Retention"). Open: RUSTSEC-2026-0459 in the SQLite bundled by sqlx (owner-approved exception until
+2027-01-31, WAL page-size mitigation); systemd, distribution and KVM runs not yet done; no UI for archived records;
+the broker log and operation journal still have no retention.
+
 ## M3 plugin SDK — first checkpoint on main (development note; not M3 acceptance, not M2 close)
 
 The plugin half of the M3 Theme/Plugin SDK landed on `main` as PR #54 (squash `20ddc2b7`, on PR #53
