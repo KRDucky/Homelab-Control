@@ -6,7 +6,8 @@
       "crate": "libsqlite3-sys",
       "version": "0.30.1",
       "expires": "2027-01-31",
-      "approved_by": "",
+      "approved_by": "owner (approval relayed by Dreggbot)",
+      "approved_on": "2026-11-16",
       "reason": "Bundled SQLite 3.4x < 3.54.0 (CVE-2026-119375). No sqlx release accepts libsqlite3-sys >= 0.39: sqlx 0.8.6 needs ^0.30 and sqlx 0.9.0 needs < 0.38.",
       "mitigation": "hc-audit-retention refuses to open state.db when its -wal page size differs from the database page size (the advisory's precondition; fsx::check_wal_page_size, test mismatched_wal_page_size_is_refused). Only the homelab-control user can write state.db and its WAL. Remove this entry when sqlx supports a patched libsqlite3-sys."
     }
