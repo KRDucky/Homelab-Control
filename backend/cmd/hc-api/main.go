@@ -65,6 +65,8 @@ func main() {
 	devHTTP := flag.Bool("dev-insecure-http", false, "allow plain HTTP; only permitted on loopback addresses")
 	origins := flag.String("allowed-origins", "", "comma-separated extra origins allowed for unsafe requests")
 	legacyURL := flag.String("legacy-url", "", "URL of the legacy Webmin UI to link to (optional)")
+	rateLimitBurst := flag.Int("rate-limit-burst", 30, "authenticated per-user token-bucket burst (requests allowed in a burst)")
+	rateLimitRefill := flag.Duration("rate-limit-refill", 5*time.Second, "authenticated per-user token-bucket refill interval (one token per interval)")
 	brokerSocket := flag.String("broker-socket", proto.DefaultSocket, "privileged broker socket (empty disables broker features)")
 	allowRoot := flag.Bool("i-understand-running-as-root-is-unsupported", false, "permit running as root (development containers only)")
 	modulesFile := flag.String("modules-config", modules.DefaultPath, "administrator's module setting (root-owned; missing = all modules enabled)")
@@ -106,6 +108,12 @@ func main() {
 
 	if err := validateLegacyURL(*legacyURL); err != nil {
 		log.Fatalf("-legacy-url: %v", err)
+	}
+	if *rateLimitBurst < 1 {
+		log.Fatal("-rate-limit-burst must be at least 1")
+	}
+	if *rateLimitRefill <= 0 {
+		log.Fatal("-rate-limit-refill must be positive")
 	}
 	uf, err := auth.LoadUsersFile(*usersFile)
 	if err != nil {
@@ -157,7 +165,8 @@ func main() {
 		}
 	}
 	users := auth.NewStore(uf)
-	srv := api.New(api.Config{SecureCookies: useTLS || *behindTLSProxy, AllowedOrigins: extra, LegacyURL: *legacyURL},
+	srv := api.New(api.Config{SecureCookies: useTLS || *behindTLSProxy, AllowedOrigins: extra, LegacyURL: *legacyURL,
+		RateLimitBurst: *rateLimitBurst, RateLimitRefill: *rateLimitRefill},
 		users, al, hostinfo.NewCollector(*legacyURL), webui.FS()).
 		WithHardware(hwinfo.New())
 	if db != nil {

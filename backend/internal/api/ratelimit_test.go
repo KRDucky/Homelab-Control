@@ -5,13 +5,16 @@
 package api
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
+	"homelab-control/backend/internal/audit"
 	"homelab-control/backend/internal/auth"
+	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/ratelimit"
 )
 
@@ -177,6 +180,26 @@ func TestStepUpSaturationNoHashing(t *testing.T) {
 	}
 	if !strings.Contains(rr.Body.String(), "service_busy") {
 		t.Fatalf("body: %s", rr.Body)
+	}
+}
+
+func TestRateLimitConfig(t *testing.T) {
+	// The zero Config used by newHarness selects the production defaults.
+	h := newHarness(t)
+	if h.srv.userLimit.Burst != 30 || h.srv.userLimit.Refill != 5*time.Second {
+		t.Fatalf("defaults: burst %d refill %v", h.srv.userLimit.Burst, h.srv.userLimit.Refill)
+	}
+	// Custom values are honored; non-positive values fall back to defaults.
+	var buf bytes.Buffer
+	users := auth.NewStore(&auth.UsersFile{Version: 1})
+	col := &hostinfo.Collector{}
+	custom := New(Config{RateLimitBurst: 7, RateLimitRefill: 3 * time.Second}, users, audit.New(&buf), col, nil)
+	if custom.userLimit.Burst != 7 || custom.userLimit.Refill != 3*time.Second {
+		t.Fatalf("custom: burst %d refill %v", custom.userLimit.Burst, custom.userLimit.Refill)
+	}
+	fallback := New(Config{RateLimitBurst: -1, RateLimitRefill: 0}, users, audit.New(&buf), col, nil)
+	if fallback.userLimit.Burst != 30 || fallback.userLimit.Refill != 5*time.Second {
+		t.Fatalf("fallback: burst %d refill %v", fallback.userLimit.Burst, fallback.userLimit.Refill)
 	}
 }
 
