@@ -100,6 +100,65 @@ anchor is supplied explicitly; without `--anchor`, `verify` stays strict and a p
 partial log fails. The anchor is trusted input: it is a checkpoint the operator recorded and
 it does not itself prove that the discarded prefix was intact.
 
+## Retention
+
+Status: implemented on the development branch, not accepted (ADR 0006 amendment 4 is Proposed). The worker
+`hc-audit-retention` (Rust, SQLx) runs daily from `homelab-control-audit-retention.timer` as the
+`homelab-control` user. It never runs as root.
+
+**Settings** (`/etc/homelab-control/audit-retention.conf`, owned by root, mode 0640, group
+`homelab-control`; the worker refuses a file that is a symlink, not root-owned, or group/world-writable):
+
+| Setting | Range | Default |
+|---|---|---|
+| `active_retention_days` | 1–365 | 365: records stay on the Audit page this long |
+| `archive_retention_months` | 1–60, at least the live window | 60: archives whose newest record is older are deleted |
+| `active_db_threshold_gib` | 1–1024 | 5: above this many GiB of database pages in use, the oldest records are archived early |
+
+The defaults are the owner maxima; administrators may only shorten. Shortening
+`archive_retention_months` (which deletes archives sooner) needs one confirmation:
+`runuser -u homelab-control -- hc-audit-retention run --dry-run`, then `... run --confirm`.
+
+**What a run does** (`/var/lib/homelab-control/audit-archive/`, mode 0700):
+
+1. Records older than the live window form a contiguous oldest prefix (a later record with an older
+   timestamp never pulls newer ones with it). If the pages in use (`page_count − freelist_count`)
+   exceed the threshold, more of the oldest records are archived, down to 90 % of the threshold. This
+   never happens when the excess is not the audit trail's (the trail alone could not bring the
+   database under the threshold), and it stops and records `retention.early blocked` if a prune did
+   not reduce the pages in use; `--retry-early-archive` lifts the block. The newest record is never
+   pruned, so hc-api always continues the chain.
+2. For each archive (at most 100,000 records), every record's Go digest and chain link is verified
+   first. The archive (`audit-<from id>-<to id>.tar.gz`: `manifest.json` and `audit.jsonl` in the
+   `hlctl audit export` format, deterministic bytes) is written to a private temporary file, fsync'ed,
+   renamed and the directory fsync'ed; an existing file of that name is used only if byte-identical.
+   It is re-read from disk and verified again.
+3. The ledger (`ledger.jsonl`, a hash-chained log in this file's format) records
+   `retention.archive created` and `retention.prune intent`; then exactly those rows are deleted in one
+   transaction that checks their count, id range and first/last hashes; then `retention.prune done`.
+4. Archives whose newest record is older than the total window (calendar months, as Go's
+   `AddDate`, and never inside the live window) are expired oldest first:
+   `retention.expire intent`, delete, fsync, `retention.expire done`.
+5. The ledger head is written to the journal (`audit checkpoint log=…/ledger.jsonl seq=… hash=…`).
+
+Every ledger line is fsync'ed before the next step. After a crash the next run finishes a pending prune
+or expiry (after re-verifying the archive) or refuses; a missing archive without a recorded expiry, an
+unrecorded archive file that is not the byte-identical leftover of an interrupted run, a database that
+does not continue the ledger, an unknown schema version or a modified record stops the run before any
+change. `run --dry-run` reads only: no lock file, no directory, no ledger repair, read-only database.
+Free pages are reused by SQLite; the file shrinks only where `auto_vacuum` is incremental (no full
+`VACUUM` ever runs next to hc-api).
+
+**Verification across archives and the database:** `hc-audit-retention verify` checks the ledger, every
+archive (digests and links) and the live database as one chain, and accounts for expired archives by their
+ledger records. With Go only: `hlctl audit verify --file ledger.jsonl`, `--file audit.jsonl` of an
+extracted archive, and `hlctl audit verify --db state.db --anchor SEQ:HASH` with the `last_seq`/`last_hash`
+of the latest `retention.prune done` ledger entry. Without the anchor a pruned database fails, as it
+should. `tests/retention/go-cross-check.sh` runs these checks in CI.
+
+**Visibility:** the Audit page and `hlctl audit export --db` show only the live database. Archived
+records are in the archive directory; there is no UI for them yet.
+
 ## What is detected
 
 | Change | Detected? | How |
@@ -139,8 +198,9 @@ checkpoints.
   wrote the record. Nothing is keyed or signed, by design. There are no signing keys (ADR 0009).
 - **Rotation:** none is configured. If an administrator rotates or deletes a log, the next record
   starts a new segment, and checkpoints for the old file no longer match the new one.
-- **Size:** no retention yet; both logs grow until an administrator prunes them (a few hundred bytes
-  per event). Deleting old records breaks the chain at that point, which verification reports.
+- **Size:** the API trail is bounded by "Retention" above. The broker log and the operation journal
+  still have no retention; they grow until an administrator prunes them (a few hundred bytes per
+  event). Deleting old records from those breaks the chain at that point, which verification reports.
   Pruning only the beginning can be verified with `--anchor` (see above).
 - **What is never logged:** passwords, session IDs, CSRF tokens and log content. A
   `services.unit.logs` read records the unit and line count only, never the messages returned. The

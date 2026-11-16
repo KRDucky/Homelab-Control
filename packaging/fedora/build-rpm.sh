@@ -9,7 +9,7 @@
 set -euo pipefail
 ver_in=${1:-0.0.0}
 root=$(cd "$(dirname "$0")/../.." && pwd)
-for f in hc-api hc-broker hlctl; do [ -x "$root/build/$f" ] || { echo "missing build/$f (run make build)"; exit 1; }; done
+for f in hc-api hc-broker hlctl hc-audit-retention; do [ -x "$root/build/$f" ] || { echo "missing build/$f (run make build)"; exit 1; }; done
 # RPM Version may not contain '-'; keep the rest in Release (packaging/common/version-map.sh).
 # shellcheck source=packaging/common/version-map.sh
 . "$root/packaging/common/version-map.sh"
@@ -22,7 +22,7 @@ Name:           homelab-control
 Version:        $base
 Release:        $rel
 Summary:        Homelab Control API, web UI and privileged broker (development build)
-License:        GPL-3.0-or-later AND MIT AND OFL-1.1 AND BSD-3-Clause
+License:        GPL-3.0-or-later AND MIT AND OFL-1.1 AND BSD-3-Clause AND Apache-2.0 AND Unicode-3.0 AND Zlib
 URL:            https://github.com/KRDucky/Homelab-Control---Webmin-Fork
 BuildArch:      x86_64
 Requires(pre):  /usr/sbin/useradd, /usr/sbin/groupadd
@@ -38,11 +38,13 @@ only typed, read-only operations. Coexists with upstream Webmin.
 install -Dm0755 $root/build/hc-api %{buildroot}/usr/bin/hc-api
 install -Dm0755 $root/build/hlctl %{buildroot}/usr/bin/hlctl
 install -Dm0755 $root/build/hc-broker %{buildroot}/usr/lib/homelab-control/hc-broker
-for u in homelab-control.service homelab-control-broker.service homelab-control-broker.socket homelab-control-storage-helper.service; do
+install -Dm0755 $root/build/hc-audit-retention %{buildroot}/usr/bin/hc-audit-retention
+for u in homelab-control.service homelab-control-broker.service homelab-control-broker.socket homelab-control-storage-helper.service homelab-control-audit-retention.service homelab-control-audit-retention.timer; do
   install -Dm0644 $root/packaging/common/\$u %{buildroot}/usr/lib/systemd/system/\$u
 done
 install -Dm0644 $root/packaging/common/sysusers.conf %{buildroot}/usr/lib/sysusers.d/homelab-control.conf
 install -Dm0640 $root/packaging/common/hc-api.env %{buildroot}/etc/homelab-control/hc-api.env
+install -Dm0640 $root/packaging/common/audit-retention.conf %{buildroot}/etc/homelab-control/audit-retention.conf
 install -Dm0644 $root/LICENSE.md %{buildroot}/usr/share/licenses/homelab-control/LICENSE.md
 install -Dm0644 $root/NOTICE.md %{buildroot}/usr/share/licenses/homelab-control/NOTICE.md
 install -Dm0644 $root/docs/compliance/THIRD-PARTY-NOTICES.md %{buildroot}/usr/share/licenses/homelab-control/THIRD-PARTY-NOTICES.md
@@ -56,12 +58,15 @@ exit 0
 %post
 if [ -d /run/systemd/system ]; then systemctl daemon-reload >/dev/null 2>&1 || :; fi
 if [ \$1 -eq 1 ]; then
+  # Audit retention runs daily from the first install on; upgrades keep the administrator's choice.
+  systemctl enable homelab-control-audit-retention.timer >/dev/null 2>&1 || :
+  if [ -d /run/systemd/system ]; then systemctl start homelab-control-audit-retention.timer >/dev/null 2>&1 || :; fi
   echo "homelab-control installed but NOT enabled. See /usr/share/doc/homelab-control/README.md"
 fi
 
 %preun
 if [ \$1 -eq 0 ] && [ -d /run/systemd/system ]; then
-  systemctl --no-reload disable --now homelab-control.service homelab-control-broker.socket homelab-control-broker.service >/dev/null 2>&1 || :
+  systemctl --no-reload disable --now homelab-control.service homelab-control-broker.socket homelab-control-broker.service homelab-control-audit-retention.timer >/dev/null 2>&1 || :
 fi
 
 %postun
@@ -74,15 +79,19 @@ if [ -d /run/systemd/system ]; then systemctl daemon-reload >/dev/null 2>&1 || :
 %doc /usr/share/doc/homelab-control/README.md
 /usr/bin/hc-api
 /usr/bin/hlctl
+/usr/bin/hc-audit-retention
 %dir /usr/lib/homelab-control
 /usr/lib/homelab-control/hc-broker
 /usr/lib/systemd/system/homelab-control.service
 /usr/lib/systemd/system/homelab-control-broker.service
 /usr/lib/systemd/system/homelab-control-broker.socket
 /usr/lib/systemd/system/homelab-control-storage-helper.service
+/usr/lib/systemd/system/homelab-control-audit-retention.service
+/usr/lib/systemd/system/homelab-control-audit-retention.timer
 /usr/lib/sysusers.d/homelab-control.conf
 %dir %attr(0750,root,homelab-control) /etc/homelab-control
 %config(noreplace) %attr(0640,root,homelab-control) /etc/homelab-control/hc-api.env
+%config(noreplace) %attr(0640,root,homelab-control) /etc/homelab-control/audit-retention.conf
 SPEC
 # Reproducible output: build time and file mtimes come from SOURCE_DATE_EPOCH (as for the .deb),
 # and the build host name is fixed, so two builds of the same inputs are byte-identical.

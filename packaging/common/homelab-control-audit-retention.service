@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+[Unit]
+Description=Homelab Control audit retention (archive, verify, prune, expire)
+Documentation=file:///usr/share/doc/homelab-control/README.md
+# Nothing to do until hc-api has created the state database.
+ConditionPathExists=/var/lib/homelab-control/state.db
+
+[Service]
+Type=oneshot
+# Same user as hc-api: it owns state.db. Settings come from the root-owned
+# /etc/homelab-control/audit-retention.conf, which this user cannot change.
+User=homelab-control
+Group=homelab-control
+ExecStart=/usr/bin/hc-audit-retention run
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=4h
+
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateNetwork=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictAddressFamilies=AF_UNIX
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+UMask=0077
+# /var/lib/homelab-control (state.db and audit-archive/), 0700 homelab-control.
+StateDirectory=homelab-control
+StateDirectoryMode=0700

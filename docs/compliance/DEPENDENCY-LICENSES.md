@@ -25,6 +25,7 @@ same split from the lockfile.
 | scheduler | 0.28.0 | MIT | JS bundle embedded in `hc-api` (react-dom dependency) | Production source map |
 | @fontsource-variable/inter | 5.3.0 (Inter 4.001) | OFL-1.1 (no Reserved Font Name) | Seven variable `.woff2` subsets + CSS embedded in `hc-api` | Production build output |
 | @fontsource-variable/jetbrains-mono | 5.3.0 (JetBrains Mono 2.211) | OFL-1.1 (no Reserved Font Name) | Six variable `.woff2` subsets + CSS embedded in `hc-api` | Production build output |
+| Rust crates of `hc-audit-retention` (101 linked; ADR 0006 amendment 4, proposed) | exact versions and checksums in `backend/audit-retention/rust-deps-allowlist.json` | 84 MIT (or MIT among alternatives, MIT used); 15 Unicode-3.0 (ICU: `icu_*`, `zerovec`, `yoke`, …); `foldhash` Zlib; `ryu` Apache-2.0 OR BSL-1.0 (Apache-2.0 used); bundled SQLite public domain | Statically linked into `hc-audit-retention` | `scripts/check-rust-deps.py` (lockfile, licences, `cargo tree`) |
 
 Nothing else reaches the UI bundle: the source map lists only these frontend packages plus our own `src/`
 files, and the bundle contains no Vite runtime (module-preload polyfill disabled in `vite.config.ts`). Go

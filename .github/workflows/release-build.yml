@@ -85,10 +85,16 @@ jobs:
           node-version: ${{ steps.pins.outputs.node }}
           # No dependency cache: release builds come from the lockfile, never from a restored cache.
           package-manager-cache: false
+      - name: Tools
+        run: |
+          sudo apt-get update && sudo apt-get install -y rpm musl-tools
+          # Rust for hc-audit-retention (ADR 0006 amendment 4): exact RUST_VERSION from toolchain.env via the
+          # runner's rustup (no installer script); musl-gcc compiles the bundled SQLite for the static binary.
+          RUST_VERSION=$(sed -n 's/^RUST_VERSION=//p' packaging/release/toolchain.env)
+          rustup toolchain install "$RUST_VERSION" --profile minimal -c rustfmt -c clippy -t x86_64-unknown-linux-musl
+          echo "CC_x86_64_unknown_linux_musl=musl-gcc" >> "$GITHUB_ENV"
       - name: Toolchain must equal the pins (R6)
         run: python3 -I scripts/release-tool.py check-toolchain packaging/release/toolchain.env
-      - name: Tools
-        run: sudo apt-get update && sudo apt-get install -y rpm
       - name: Build from the source archive, compare with git (nothing is published)
         env:
           VERSION: ${{ steps.pins.outputs.version }}

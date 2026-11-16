@@ -32,6 +32,7 @@ OUT = os.path.join(ROOT, "docs", "compliance", "sbom", "homelab-control.spdx.jso
 LOCK = os.path.join(ROOT, "frontend", "app", "package-lock.json")
 REPO = "https://github.com/KRDucky/Homelab-Control---Webmin-Fork"
 INPUTS = ["frontend/app/package-lock.json", "backend/go.mod", "backend/go.sum", "backend/go-deps-allowlist.json",
+          "backend/audit-retention/Cargo.lock", "backend/audit-retention/rust-deps-allowlist.json",
           "compat/webmin.lock", "scripts/gen-sbom.py"]
 
 
@@ -72,7 +73,7 @@ def main():
         "filesAnalyzed": False, "licenseConcluded": "NOASSERTION",
         "licenseDeclared": "GPL-3.0-or-later AND MIT",
         "copyrightText": "Copyright 2026 The Homelab Control Authors",
-        "comment": "Release packages (DEB/RPM/Arch): hc-api, hlctl, hc-broker, systemd units, sysusers, default env, "
+        "comment": "Release packages (DEB/RPM/Arch): hc-api, hlctl, hc-broker, hc-audit-retention (Rust), systemd units, sysusers, default env, "
                    "LICENSE.md, NOTICE.md, THIRD-PARTY-NOTICES.md, README.md (+ Debian copyright). Core code is "
                    "GPL-3.0-or-later; the design tokens compiled into the UI bundle are MIT (file boundaries in "
                    "REUSE.toml). Third-party components are listed as separate packages.",
@@ -114,6 +115,30 @@ def main():
         else:
             p["comment"] = ("In the Go module graph only; not compiled into any binary." + integrity + " " + m["notes"]).strip()
             rels.append({"spdxElementId": mid, "relationshipType": "OPTIONAL_DEPENDENCY_OF", "relatedSpdxElement": product})
+        pkgs.append(p)
+
+    # Rust crates of hc-audit-retention (ADR 0006 amendment 4, proposed), from the reviewed allow-list.
+    crates = json.loads(read("backend/audit-retention/rust-deps-allowlist.json"))["crates"]
+    for c in crates:
+        cid = spdx_id("Package-cargo-" + c["name"] + "-" + c["version"])
+        lic = c["license"].replace("/", " OR ") if c["license"] else "NOASSERTION"
+        p = {
+            "SPDXID": cid, "name": c["name"], "versionInfo": c["version"],
+            "downloadLocation": f"https://static.crates.io/crates/{c['name']}/{c['name']}-{c['version']}.crate",
+            "filesAnalyzed": False, "licenseDeclared": lic,
+            "licenseConcluded": lic if c["linked"] else "NOASSERTION",
+            "copyrightText": "NOASSERTION",
+            "checksums": [{"algorithm": "SHA256", "checksumValue": c["checksum"]}],
+            "externalRefs": [{"referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl",
+                              "referenceLocator": f"pkg:cargo/{c['name']}@{c['version']}"}],
+        }
+        if c["linked"]:
+            p["comment"] = "Compiled into hc-audit-retention; source in the release source archive under vendor-sources/cargo."
+            rels.append({"spdxElementId": product, "relationshipType": "CONTAINS", "relatedSpdxElement": cid})
+        else:
+            p["comment"] = ("Proc-macro, build script or other-platform dependency of hc-audit-retention; "
+                            "not compiled into the shipped binary." if c["kind"] != "normal" else "")
+            rels.append({"spdxElementId": cid, "relationshipType": "BUILD_DEPENDENCY_OF", "relatedSpdxElement": product})
         pkgs.append(p)
 
     seen = set()

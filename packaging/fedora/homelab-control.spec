@@ -7,7 +7,7 @@ Name:           homelab-control
 Version:        0.1.0
 Release:        0.m0%{?dist}
 Summary:        Homelab Control API and web UI (unprivileged)
-License:        GPL-3.0-or-later AND MIT AND OFL-1.1 AND BSD-3-Clause
+License:        GPL-3.0-or-later AND MIT AND OFL-1.1 AND BSD-3-Clause AND Apache-2.0 AND Unicode-3.0 AND Zlib
 URL:            https://github.com/KRDucky/Homelab-Control---Webmin-Fork
 Source0:        %{name}-%{version}.tar.gz
 BuildRequires:  golang >= 1.24, nodejs >= 22, npm, make, git, systemd-rpm-macros

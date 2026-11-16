@@ -50,6 +50,9 @@ cp -r "$gm/cache/download" "$work/vendor/vendor-sources/go/download"
 rm -rf "$work/vendor/vendor-sources/go/download/sumdb" "$work/vendor/vendor-sources/go/download/golang.org/toolchain"
 find "$work/vendor/vendor-sources/go/download" \( -name '*.lock' -o -name '*.partial' -o -name '*.tmp' \) -delete
 chmod -R u+rw,go+r-w "$gm" "$work/vendor/vendor-sources/go"
+# Rust crate sources (ADR 0006 amendment 4): every crate in Cargo.lock, checksummed by cargo, so the
+# archive builds hc-audit-retention offline (vendor-sources/cargo, one directory per name-version).
+(cd backend/audit-retention && cargo vendor --locked --versioned-dirs "$work/vendor/vendor-sources/cargo" >/dev/null)
 buildinfo=$(cat <<INFO
 # Homelab Control release build information (see BUILDING.md)
 version=$ver
@@ -58,6 +61,7 @@ source_date_epoch=$sde
 go=$(go env GOVERSION)
 node=$(node --version)
 npm=$(npm --version)
+rust=$(cd backend/audit-retention && rustc --version | cut -d' ' -f2)
 build_command=make build VERSION=$ver SOURCE_DATE_EPOCH=$sde
 packages_command=packaging/debian/build-deb.sh $ver; packaging/fedora/build-rpm.sh $ver; packaging/arch/build-pkg.sh $ver (on Arch Linux, packaging the binaries built above)
 excluded=compat/webmin/ (upstream Webmin reference tree; not used to build any binary; available at the tagged commit)
@@ -75,8 +79,17 @@ tar -xzf "$out/$name-source.tar.gz" -C "$work/x"
 src=$work/x/$name
 [ ! -e "$src/.git" ] || { echo "archive unexpectedly contains .git"; exit 1; }
 # Offline: Go modules only from the archive (go.sum still verifies every one).
+# Offline: crates only from vendor-sources/cargo, with an empty CARGO_HOME (no registry cache).
+cat > "$work/cargo-offline.toml" <<CFG
+[source.crates-io]
+replace-with = "vendored-sources"
+[source.vendored-sources]
+directory = "$src/vendor-sources/cargo"
+CFG
+mkdir -p "$work/cargo-home-archive"
 (cd "$src" && GOMODCACHE="$work/gomod-archive" GOPROXY="file://$src/vendor-sources/go/download" GOSUMDB=off \
-  GOFLAGS=-mod=readonly GOTOOLCHAIN=local make -s build VERSION="$ver" SOURCE_DATE_EPOCH="$sde" >/dev/null)
+  GOFLAGS=-mod=readonly GOTOOLCHAIN=local CARGO_HOME="$work/cargo-home-archive" \
+  make -s build VERSION="$ver" SOURCE_DATE_EPOCH="$sde" CARGO="cargo --offline --config $work/cargo-offline.toml" >/dev/null)
 (cd "$src" && packaging/debian/build-deb.sh "$ver" >/dev/null)
 if command -v rpmbuild >/dev/null 2>&1; then (cd "$src" && packaging/fedora/build-rpm.sh "$ver" >/dev/null); else echo "SKIPPED: rpm (rpmbuild not installed)"; fi
 
@@ -104,7 +117,7 @@ if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::notice title=release dry run::pack
 
 echo "== 4. release files"
 bin=$work/bin/$name-linux-$(go env GOARCH)
-install -Dm0755 -t "$bin" "$src/build/hc-api" "$src/build/hlctl" "$src/build/hc-broker"
+install -Dm0755 -t "$bin" "$src/build/hc-api" "$src/build/hlctl" "$src/build/hc-broker" "$src/build/hc-audit-retention"
 install -Dm0644 -t "$bin" "$src/LICENSE.md" "$src/NOTICE.md" "$src/docs/compliance/THIRD-PARTY-NOTICES.md"
 tar --sort=name --owner=0 --group=0 --numeric-owner --mtime="@$sde" -C "$work/bin" -cf - "$(basename "$bin")" | gzip -n -9 > "$out/$(basename "$bin").tar.gz"
 cp "$src"/build/*.deb "$out/"
