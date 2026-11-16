@@ -61,12 +61,11 @@ func (s *Server) handleStepUp(w http.ResponseWriter, r *http.Request, sess *auth
 		writeError(w, http.StatusTooManyRequests, "throttled", "Too many failed attempts; try again later.")
 		return
 	}
-	select {
-	case s.loginSem <- struct{}{}:
-		defer func() { <-s.loginSem }()
-	case <-r.Context().Done():
+	release, ok := s.admitLogin(w)
+	if !ok {
 		return
 	}
+	defer release()
 	if _, ok := s.users.Authenticate(sess.Username, req.Password); !ok {
 		s.throttle.Fail(sess.Username, ip)
 		s.auditLog("auth.step_up", sess.Username, r, "failure", "")

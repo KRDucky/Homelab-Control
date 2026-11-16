@@ -25,6 +25,7 @@ import (
 	"net/url"
 	"path"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -41,6 +42,7 @@ import (
 	"homelab-control/backend/internal/modules"
 	"homelab-control/backend/internal/oidclogin"
 	"homelab-control/backend/internal/platform"
+	"homelab-control/backend/internal/ratelimit"
 	"homelab-control/backend/internal/storageinfo"
 	"homelab-control/backend/internal/traefikclient"
 	"homelab-control/backend/internal/version"
@@ -59,6 +61,13 @@ type Config struct {
 	// may perform unsafe requests, e.g. when served behind a reverse proxy.
 	AllowedOrigins []string
 	LegacyURL      string
+	// RateLimitBurst is the authenticated per-user token-bucket burst. Zero
+	// or negative selects the production default (30).
+	RateLimitBurst int
+	// RateLimitRefill is the authenticated per-user token-bucket refill
+	// interval (one token per interval). Zero or negative selects the
+	// production default (5 seconds).
+	RateLimitRefill time.Duration
 }
 
 // Server wires handlers, sessions and collectors.
@@ -88,15 +97,29 @@ type Server struct {
 	users             *auth.Store
 	sessions          *auth.SessionManager
 	throttle          *auth.Throttle
+	userLimit         *ratelimit.TokenBucket
+	preauthLimit      *ratelimit.Preauth
+	limitSummary      *ratelimit.OncePer
 	audit             *audit.Logger
 	collector         *hostinfo.Collector
 	ui                fs.FS
 	loginSem          chan struct{}
-	mux               *http.ServeMux
-	overview          overviewCache
-	broker            Broker
-	hw                *hwinfo.Collector
-	bstate            brokerState
+	// oidcSem bounds concurrent OIDC start/callback work (token exchange and
+	// crypto). Like loginSem it is small; unlike login, saturation fails fast
+	// instead of blocking, because OIDC is a browser redirect flow.
+	oidcSem chan struct{}
+	// globalSem bounds the number of concurrently running authenticated
+	// handlers (and therefore broker calls and data collection): a process-
+	// wide safety net against unbounded goroutine growth under a request
+	// storm. Saturation is rejected immediately, without queuing. 64 is
+	// deliberately generous for a homelab control plane yet still caps
+	// goroutine/fd/CPU growth when flooded.
+	globalSem chan struct{}
+	mux       *http.ServeMux
+	overview  overviewCache
+	broker    Broker
+	hw        *hwinfo.Collector
+	bstate    brokerState
 
 	persistentSessions bool
 	auditPager         AuditPager
@@ -119,10 +142,23 @@ type overviewCache struct {
 
 // New constructs a Server. ui may be nil (API only).
 func New(cfg Config, users *auth.Store, audit *audit.Logger, collector *hostinfo.Collector, ui fs.FS) *Server {
+	burst := cfg.RateLimitBurst
+	if burst <= 0 {
+		burst = 30
+	}
+	refill := cfg.RateLimitRefill
+	if refill <= 0 {
+		refill = 5 * time.Second
+	}
 	s := &Server{
 		cfg: cfg, users: users, sessions: auth.NewSessionManager(), throttle: auth.NewThrottle(),
 		audit: audit, collector: collector, ui: ui, loginSem: make(chan struct{}, 4), mux: http.NewServeMux(),
-		stepups: auth.NewStepUps(),
+		oidcSem:      make(chan struct{}, 4),
+		stepups:      auth.NewStepUps(),
+		userLimit:    ratelimit.NewTokenBucket(burst, refill),
+		preauthLimit: ratelimit.NewPreauth(10*time.Second, 10*time.Second, time.Minute),
+		limitSummary: ratelimit.NewOncePer(time.Minute),
+		globalSem:    make(chan struct{}, 64),
 	}
 	s.storageCollect = func(ctx context.Context) (storageinfo.Graph, error) { return storageinfo.Collect(ctx, "/") }
 	s.storageSem = make(chan struct{}, 1)
@@ -313,6 +349,31 @@ func (s *Server) handleRoute(pattern, scope string, h ctxHandler, csrfRead bool)
 			writeError(w, http.StatusForbidden, "forbidden", "missing scope "+scope)
 			return
 		}
+		// Process-local per-user request limit: after auth/scope, before the
+		// handler (and therefore before any broker call, audit write or data
+		// collection). A rejected request writes at most one summary event per
+		// user per minute, not one event per rejection.
+		if ok, retry := s.userLimit.Allow(sess.Username); !ok {
+			if s.limitSummary.Allow(sess.Username) {
+				s.auditLog("audit.rate_limited", sess.Username, r, "rate_limited", "")
+			}
+			w.Header().Set("Retry-After", strconv.Itoa(ratelimit.CeilSeconds(retry)))
+			writeError(w, http.StatusTooManyRequests, "rate_limited", "too many requests")
+			return
+		}
+		// Process-wide concurrency guard: reject before the handler (and any
+		// broker call or data collection) when saturated, without queuing. The
+		// per-user token consumed above is refunded so transient saturation
+		// does not drain the caller's quota.
+		select {
+		case s.globalSem <- struct{}{}:
+			defer func() { <-s.globalSem }()
+		default:
+			s.userLimit.Refund(sess.Username)
+			w.Header().Set("Retry-After", "1")
+			writeError(w, http.StatusServiceUnavailable, "service_busy", "server busy")
+			return
+		}
 		h(w, r, sess, c.Value)
 	})
 }
@@ -388,6 +449,20 @@ func (s *Server) auditLog(event, user string, r *http.Request, outcome, detail s
 	if s.audit == nil {
 		return nil
 	}
+	if s.preauthLimit != nil && (user == "" || (outcome != "success" && (event == "auth.login" || event == "auth.oidc.login"))) {
+		// Unauthenticated events (failed or throttled password and OIDC
+		// logins, CSRF origin rejections) are capped per source IP and
+		// globally; suppressed events are aggregated into one audit.suppressed
+		// summary at most once per minute. A successful login is not
+		// suppressed.
+		ip := remoteIP(r)
+		if !s.preauthLimit.Allow(ip) {
+			if n, ok := s.preauthLimit.Summary(); ok {
+				s.audit.Log(audit.Event{Event: "audit.suppressed", Remote: ip, Outcome: "suppressed", Detail: strconv.Itoa(n) + " unauthenticated audit events suppressed"})
+			}
+			return nil
+		}
+	}
 	err := s.audit.Log(audit.Event{Event: event, User: user, Remote: remoteIP(r), Outcome: outcome, Detail: detail})
 	if err != nil {
 		log.Printf("audit write failed (event %s): %v", event, err)
@@ -423,6 +498,21 @@ func (s *Server) sessionBody(sess *auth.Session) sessionResponse {
 	return r
 }
 
+// admitLogin acquires a login/step-up admission slot nonblocking. When
+// saturated it writes 503 service_busy with Retry-After and returns false
+// without doing any password hashing; otherwise the returned release must be
+// deferred by the caller for the duration of the expensive work.
+func (s *Server) admitLogin(w http.ResponseWriter) (func(), bool) {
+	select {
+	case s.loginSem <- struct{}{}:
+		return func() { <-s.loginSem }, true
+	default:
+		w.Header().Set("Retry-After", "1")
+		writeError(w, http.StatusServiceUnavailable, "service_busy", "too many authentication attempts in progress")
+		return nil, false
+	}
+}
+
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request, _ *auth.Session, _ string) {
 	if ct := r.Header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
 		writeError(w, http.StatusUnsupportedMediaType, "unsupported_media_type", "expected application/json")
@@ -446,12 +536,11 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request, _ *auth.Ses
 		writeError(w, http.StatusTooManyRequests, "throttled", "too many failed attempts; try again later")
 		return
 	}
-	select {
-	case s.loginSem <- struct{}{}:
-		defer func() { <-s.loginSem }()
-	case <-r.Context().Done():
+	release, ok := s.admitLogin(w)
+	if !ok {
 		return
 	}
+	defer release()
 	u, ok := s.users.Authenticate(req.Username, req.Password)
 	if !ok {
 		s.throttle.Fail(req.Username, ip)
