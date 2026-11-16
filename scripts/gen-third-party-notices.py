@@ -161,7 +161,9 @@ def rust_crates():
             continue
         d = crate_dir(c["name"], c["version"])
         files = sorted(f for f in os.listdir(d) if f.upper().startswith(CRATE_FILES) and os.path.isfile(os.path.join(d, f)))
-        texts = [(f, open(os.path.join(d, f), encoding="utf-8").read().strip()) for f in files]
+        # Trailing spaces in a crate's licence file carry no meaning; drop them so the notices stay clean.
+        texts = [(f, "\n".join(l.rstrip() for l in open(os.path.join(d, f), encoding="utf-8").read().strip().splitlines()))
+                 for f in files]
         authors = crate_authors(d) or f"the {c['name']} authors"
         if not any(f.upper().startswith(("LICENSE", "LICENCE", "COPYING", "UNLICENSE")) for f in files):
             if c.get("elected") != "MIT":
