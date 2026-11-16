@@ -119,6 +119,6 @@ the worker never migrates and refuses any schema version but 3. Design and failu
 **Blocking (2026-11-16):** RUSTSEC-2026-0459 (CVE-2026-119375) affects the SQLite bundled by
 `libsqlite3-sys` 0.30.1, and no released sqlx accepts a fixed `libsqlite3-sys` (≥ 0.39): sqlx 0.8.6 needs
 `^0.30`, sqlx 0.9.0 needs `< 0.38`. The worker refuses the advisory's precondition (a `-wal` whose page size
-differs from the database's). A time-limited exception is *proposed* in `rust-advisory-exceptions.json`
-without an approver, so the advisory gate fails until the owner or hc-security approves it or sqlx ships a
-compatible release.
+differs from the database's). The owner approved the time-limited exception in `rust-advisory-exceptions.json` on
+2026-11-16 (expires 2027-01-31); the gate fails again after that date unless sqlx ships a compatible
+release or the exception is renewed. The amendment itself remains Proposed.
