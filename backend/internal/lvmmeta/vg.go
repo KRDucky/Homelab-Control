@@ -39,6 +39,62 @@ type Area struct {
 	Offset uint64
 }
 
+// RaidSeg is a raid0/1/4/5/6/10 segment: data images and metadata images,
+// each as an area (PV key or hidden LV name + offset).
+type RaidSeg struct {
+	DeviceCount uint64
+	RegionSize  uint64
+	StripeSize  uint64
+	Images      []Area
+	Metas       []Area
+}
+
+// ThinPoolSeg is a thin-pool segment.
+type ThinPoolSeg struct {
+	MetadataLV    string
+	DataLV        string
+	ChunkSize     uint64
+	TransactionID uint64
+	Discards      string
+	ZeroNewBlocks string
+}
+
+// ThinSeg is a thin (thinly-provisioned LV) segment.
+type ThinSeg struct {
+	ThinPool      string
+	Origin        string
+	DeviceID      uint64
+	TransactionID uint64
+}
+
+// CachePoolSeg is a cache-pool segment.
+type CachePoolSeg struct {
+	DataLV     string
+	MetadataLV string
+	CacheMode  string
+	Policy     string
+	ChunkSize  uint64
+}
+
+// CacheSeg is a cache segment.
+type CacheSeg struct {
+	CachePool string
+	Origin    string
+}
+
+// MirrorSeg is a legacy mirror segment.
+type MirrorSeg struct {
+	Legs []Area
+	Log  string
+}
+
+// SnapshotSeg is an old-style snapshot segment.
+type SnapshotSeg struct {
+	Origin    string
+	COWStore  string
+	ChunkSize uint64
+}
+
 // Segment is one LV segment. Unknown segment types are kept with Parsed=false.
 type Segment struct {
 	StartExtent uint64
@@ -47,6 +103,13 @@ type Segment struct {
 	Parsed      bool
 	Stripes     []Area
 	StripeSize  uint64
+	Raid        *RaidSeg
+	ThinPool    *ThinPoolSeg
+	Thin        *ThinSeg
+	CachePool   *CachePoolSeg
+	Cache       *CacheSeg
+	Mirror      *MirrorSeg
+	Snapshot    *SnapshotSeg
 	Unsupported string
 }
 
@@ -189,20 +252,78 @@ func parseSegment(n *Node) Segment {
 	}
 	switch s.Type {
 	case "striped":
-		if d := n.child("stripe_size"); d != nil {
-			s.StripeSize, _ = strconv.ParseUint(d.Value, 10, 64)
+		s.StripeSize = uintChild(n, "stripe_size")
+		s.Stripes = areaList(n.child("stripes"))
+	case "raid0", "raid1", "raid4", "raid5", "raid6", "raid10":
+		r := &RaidSeg{DeviceCount: uintChild(n, "device_count"), RegionSize: uintChild(n, "region_size"), StripeSize: uintChild(n, "stripe_size")}
+		r.Images = areaList(n.child("raids"))
+		r.Metas = areaList(n.child("meta_devices"))
+		s.Raid = r
+	case "thin-pool":
+		s.ThinPool = &ThinPoolSeg{
+			MetadataLV:    strChild(n, "metadata"),
+			DataLV:        strChild(n, "pool"),
+			ChunkSize:     uintChild(n, "chunk_size"),
+			TransactionID: uintChild(n, "transaction_id"),
+			Discards:      strChild(n, "discards"),
+			ZeroNewBlocks: strChild(n, "zero_new_blocks"),
 		}
-		if a := n.child("stripes"); a != nil && a.Kind == kindArray {
-			for i := 0; i+1 < len(a.Values); i += 2 {
-				off, _ := strconv.ParseUint(a.Values[i+1], 10, 64)
-				s.Stripes = append(s.Stripes, Area{PVKey: a.Values[i], Offset: off})
-			}
+	case "thin":
+		s.Thin = &ThinSeg{
+			ThinPool:      strChild(n, "thin_pool"),
+			Origin:        strChild(n, "origin"),
+			DeviceID:      uintChild(n, "device_id"),
+			TransactionID: uintChild(n, "transaction_id"),
 		}
+	case "cache-pool":
+		s.CachePool = &CachePoolSeg{
+			DataLV:     strChild(n, "data"),
+			MetadataLV: strChild(n, "metadata"),
+			CacheMode:  strChild(n, "cache_mode"),
+			Policy:     strChild(n, "policy"),
+			ChunkSize:  uintChild(n, "chunk_size"),
+		}
+	case "cache":
+		s.Cache = &CacheSeg{CachePool: strChild(n, "cache_pool"), Origin: strChild(n, "origin")}
+	case "mirror":
+		s.Mirror = &MirrorSeg{Legs: areaList(n.child("mirrors")), Log: strChild(n, "mirror_log")}
+	case "snapshot":
+		s.Snapshot = &SnapshotSeg{Origin: strChild(n, "origin"), COWStore: strChild(n, "cow_store"), ChunkSize: uintChild(n, "chunk_size")}
 	default:
 		s.Parsed = false
 		s.Unsupported = "unsupported-segment-type:" + s.Type
 	}
 	return s
+}
+
+// uintChild reads a child's integer value, 0 when absent.
+func uintChild(n *Node, name string) uint64 {
+	if d := n.child(name); d != nil && d.Kind == kindScalar {
+		v, _ := strconv.ParseUint(d.Value, 10, 64)
+		return v
+	}
+	return 0
+}
+
+// strChild reads a child's string value, "" when absent.
+func strChild(n *Node, name string) string {
+	if d := n.child(name); d != nil && d.Kind == kindScalar {
+		return d.Value
+	}
+	return ""
+}
+
+// areaList parses a [name, offset, name, offset, ...] array into areas.
+func areaList(n *Node) []Area {
+	if n == nil || n.Kind != kindArray {
+		return nil
+	}
+	var out []Area
+	for i := 0; i+1 < len(n.Values); i += 2 {
+		off, _ := strconv.ParseUint(n.Values[i+1], 10, 64)
+		out = append(out, Area{PVKey: n.Values[i], Offset: off})
+	}
+	return out
 }
 
 func stringArray(n *Node) []string {
