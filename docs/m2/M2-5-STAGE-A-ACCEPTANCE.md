@@ -30,6 +30,9 @@ fixture-tested end to end:
   bay is never a drop target and never offers assign.
 - **Export**: the layout can be exported with assignment identifiers **redacted by default** (tier only,
   e.g. `wwn:[redacted]`), so no serial/WWN value is written to the download.
+- **Import**: validated chassis geometry imports additively; any exported IDs, timestamps and
+  assignment objects are discarded, so imports never restore or reveal an identity and never replace
+  existing chassis.
 
 ### Acceptance fixture
 
@@ -43,13 +46,11 @@ fixture-tested end to end:
   drag-and-drop onto a vacant bay (PUT to the bay route asserted), occupied-bay unassign with no overwrite
   path, and 409-conflict re-sync;
 - export: `redactIdentity`/`redactedLayout` mask identities to their tier, and the export button is present.
+- API import: strict schema/size validation, count-only audit, additive atomic storage, and assignment
+  discard are covered by API/state fixtures.
 
 ## Remaining gaps (not delivered)
 
-- **import** of an exported layout: blocked on a dedicated, validated API route. The existing per-bay
-  assign route re-collects a live storage observation and refuses redacted/historical/absent identities,
-  so a safe import (schema/size validation, redacted-identifier semantics) cannot be replayed through the
-  current API without a new backend route (hc-go).
 - **optimistic revision / concurrency**: the UI re-syncs after a 409 conflict, but the API has no
   version/If-Match check, so two concurrent editors can still both write.
 - the **location badge** on other storage views (Stage B);

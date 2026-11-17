@@ -322,7 +322,7 @@ func TestLayoutImportRollsBackAtomically(t *testing.T) {
 func TestLayoutImportOversizeRefused(t *testing.T) {
 	h, _, _ := layoutHarness(t, []string{auth.ScopeLayoutManage})
 	big := `{"chassis":[{"name":"` + strings.Repeat("a", layoutImportMaxBytes) + `","kind":"server","rows":1,"cols":1}]}`
-	if rr := h.do("POST", "/api/v1/storage/layout/import", big, writeHeaders(h)); rr.Code != http.StatusBadRequest {
+	if rr := h.do("POST", "/api/v1/storage/layout/import", big, writeHeaders(h)); rr.Code != http.StatusRequestEntityTooLarge {
 		t.Fatalf("oversize body accepted: %d", rr.Code)
 	}
 }
