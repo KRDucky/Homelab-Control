@@ -64,6 +64,8 @@ func TestRegistryIsClosed(t *testing.T) {
 		"packages.updates":   {PrivUnprivilegedExec, "packages.read", ""},
 		"packages.sources":   {PrivUnprivilegedExec, "packages.read", ""},
 		"packages.search":    {PrivUnprivilegedExec, "packages.read", ""},
+		// M2-4 O-1 (owner-approved implementation/isolated validation).
+		"storage.probe": {PrivRootRead, "storage.probe", ""},
 	}
 	if len(reg) != len(snapshot) {
 		t.Fatalf("registry has %d ops, want %d — new ops need review and this test updated", len(reg), len(snapshot))
