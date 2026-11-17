@@ -9,6 +9,6 @@ SocketMode=0600
 SocketUser=root
 SocketGroup=root
 
-# No [Install] section: the socket is not enabled at boot. Each accepted
-# connection starts one homelab-control-storage-probe@ instance on demand, only
-# for a reviewed storage.read operation.
+# No [Install] section: the socket is not enabled at boot. If explicitly
+# started, each accepted connection starts one helper instance. No broker
+# caller is wired, and the helper has no device access.
