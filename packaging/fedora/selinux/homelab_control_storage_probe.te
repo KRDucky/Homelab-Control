@@ -3,15 +3,15 @@
 #
 # M2-4 O-1 read-only storage probe (hc-storage-probe): SELinux domain.
 #
-# STATUS: source only, uncompiled and unvalidated. Compile and load it ONLY in
-# a disposable validation VM (see docs/m2/M2-4-O1-DEVICE-POLICY.md). Nothing in
-# the packages loads it. The unit names this domain with SELinuxContext=, so on
-# a host where SELinux is active and this module is absent the instance fails
-# to start (fail closed). Do not run the helper unconfined, and do not relabel
-# the binary bin_t or lib_t as a shortcut.
+# STATUS: compiled, loaded and exercised only in a disposable Fedora 44 VM on
+# 2026-11-17. Cross-distro SELinux behavior remains unvalidated. Packages never
+# load this module. The unit names this domain with SELinuxContext=, so on a
+# host where SELinux is active and this module is absent the instance fails to
+# start (fail closed). Do not run the helper unconfined, and do not relabel the
+# binary bin_t or lib_t as a shortcut.
 #
-# Interface names follow selinux-policy (Fedora/RHEL 8+); the compile in the
-# validation VM is the first real check of them.
+# Interface names follow selinux-policy (Fedora/RHEL 8+); the tested policy
+# version and remaining distro coverage are recorded in the M2-4 O-1 evidence.
 
 policy_module(homelab_control_storage_probe, 0.1.0)
 
@@ -23,14 +23,8 @@ type hc_storage_probe_t;
 type hc_storage_probe_exec_t;
 type hc_storage_probe_tmp_t;
 
-init_daemon_domain(hc_storage_probe_t, hc_storage_probe_exec_t)
-files_tmp_file(hc_storage_probe_tmp_t)
-
-# The unit sets NoNewPrivileges=yes; without these permissions the transition
-# from init_t into the domain is denied.
-allow init_t hc_storage_probe_t:process2 { nnp_transition nosuid_transition };
-
 require {
+	attribute filesystem_type;
 	type fixed_disk_device_t;
 	type device_t;
 	type null_device_t;
@@ -41,6 +35,15 @@ require {
 	type fsadm_exec_t;
 	type tmp_t;
 }
+
+# Interface calls expand to policy rules, so keep them after the module's
+# complete require block.
+init_daemon_domain(hc_storage_probe_t, hc_storage_probe_exec_t)
+files_tmp_file(hc_storage_probe_tmp_t)
+
+# The unit sets NoNewPrivileges=yes; without these permissions the transition
+# from init_t into the domain is denied.
+allow init_t hc_storage_probe_t:process2 { nnp_transition nosuid_transition };
 
 ########################################
 # Local policy
@@ -61,7 +64,6 @@ can_exec(hc_storage_probe_t, hc_storage_probe_exec_t)
 libs_use_ld_so(hc_storage_probe_t)
 libs_use_shared_libs(hc_storage_probe_t)
 corecmd_search_bin(hc_storage_probe_t)
-files_read_etc_files(hc_storage_probe_t)
 
 # Fixed child tools run INSIDE this domain (execute_no_trans). With
 # NoNewPrivileges a transition into lvm_t or fsadm_t would be denied anyway, and
@@ -100,4 +102,4 @@ files_tmp_filetrans(hc_storage_probe_t, hc_storage_probe_tmp_t, { dir file })
 
 neverallow hc_storage_probe_t self:capability { sys_admin sys_rawio sys_module mknod dac_override dac_read_search sys_ptrace net_admin net_raw };
 neverallow hc_storage_probe_t fixed_disk_device_t:blk_file { write append create unlink rename setattr relabelfrom relabelto };
-neverallow hc_storage_probe_t fs_type:filesystem { mount remount unmount };
+neverallow hc_storage_probe_t filesystem_type:filesystem { mount remount unmount };
