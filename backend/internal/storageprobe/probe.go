@@ -28,6 +28,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -45,6 +46,7 @@ const (
 	maxBlkidBytes  = 64 << 10
 	reportTimeout  = 12 * time.Second
 	blkidTimeout   = 5 * time.Second
+	maxDevices     = 64 // device names accepted per request
 )
 
 // runSem caps concurrent helper Runs in-process (defense in depth). The
@@ -134,8 +136,13 @@ func Run(ctx context.Context, req Request) Result {
 	}
 	defer release()
 
+	names := validDevices(req.Devices)
+	if len(req.Devices) > maxDevices {
+		res.Errors = append(res.Errors, fmt.Sprintf("request truncated: %d devices, max %d", len(req.Devices), maxDevices))
+	}
+
 	var devs []*device
-	for _, n := range validDevices(req.Devices) {
+	for _, n := range names {
 		if r := skipReason(n); r != "" {
 			res.Errors = append(res.Errors, "skipped "+n+": "+r)
 			continue
@@ -153,9 +160,9 @@ func Run(ctx context.Context, req Request) Result {
 		}
 	}()
 
-	names := make([]string, len(devs))
+	probeNames := make([]string, len(devs))
 	for i, d := range devs {
-		names[i] = d.name
+		probeNames[i] = d.name
 	}
 
 	// LVM: private empty config dir + fixed filter so no host lvm.conf or
@@ -169,14 +176,14 @@ func Run(ctx context.Context, req Request) Result {
 	defer os.RemoveAll(lvmDir)
 	lvmEnv := []string{"LVM_SYSTEM_DIR=" + lvmDir}
 
-	lvs, err := run(ctx, reportTimeout, maxReportBytes, "lvs", lvsArgs(names), lvmEnv)
+	lvs, err := run(ctx, reportTimeout, maxReportBytes, "lvs", lvsArgs(probeNames), lvmEnv)
 	if err != nil {
 		res.Errors = append(res.Errors, "lvs: "+err.Error())
 		res.Partial = true
 	}
 	res.LVS = lvs
 
-	pvs, err := run(ctx, reportTimeout, maxReportBytes, "pvs", pvsArgs(names), lvmEnv)
+	pvs, err := run(ctx, reportTimeout, maxReportBytes, "pvs", pvsArgs(probeNames), lvmEnv)
 	if err != nil {
 		res.Errors = append(res.Errors, "pvs: "+err.Error())
 		res.Partial = true
@@ -294,17 +301,30 @@ func hasAllowedPrefix(key string) bool {
 	return false
 }
 
-// validDevices keeps only syntactically valid names and revalidates them
-// against sysBlockRoot so a stale or caller-supplied name is never opened.
+// validDevices bounds the request: at most maxDevices names are kept, names
+// are de-duplicated, and only syntactically valid, existing sysfs block devices
+// survive revalidation. Work is also bounded for large invalid/duplicate input.
 func validDevices(names []string) []string {
-	out := []string{}
-	for _, n := range names {
+	seen := make(map[string]bool, maxDevices)
+	out := make([]string, 0, maxDevices)
+	limit := maxDevices * 2 // bound total work even for invalid/duplicate input
+	if len(names) < limit {
+		limit = len(names)
+	}
+	for _, n := range names[:limit] {
+		if len(out) >= maxDevices {
+			break
+		}
+		if seen[n] {
+			continue
+		}
 		if !blockName.MatchString(n) || strings.Contains(n, "/") {
 			continue
 		}
 		if fi, err := os.Stat(sysBlockRoot + "/" + n); err != nil || !fi.IsDir() {
 			continue
 		}
+		seen[n] = true
 		out = append(out, n)
 	}
 	return out
@@ -482,16 +502,58 @@ func (c *cappedBuffer) Write(p []byte) (int, error) {
 // MarshalResponse serialises a Result for the closed typed protocol.
 func MarshalResponse(res Result) ([]byte, error) { return json.Marshal(res) }
 
-// UnmarshalRequest parses a closed typed Request.
+// UnmarshalRequest parses a closed typed Request. It rejects unknown fields,
+// duplicate fields, trailing data, and unsupported protocol versions.
 func UnmarshalRequest(b []byte) (Request, error) {
 	var req Request
-	if err := json.Unmarshal(b, &req); err != nil {
+	if err := rejectDupKeys(b); err != nil {
 		return req, err
+	}
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&req); err != nil {
+		return req, err
+	}
+	if _, err := dec.Token(); err != io.EOF {
+		return req, fmt.Errorf("trailing data after request")
 	}
 	if req.Version != 1 {
 		return req, fmt.Errorf("unsupported protocol version %d", req.Version)
 	}
 	return req, nil
+}
+
+// rejectDupKeys returns an error if the top-level JSON object repeats a key.
+// encoding/json takes the last value, so duplicates are rejected explicitly.
+func rejectDupKeys(b []byte) error {
+	dec := json.NewDecoder(bytes.NewReader(b))
+	tok, err := dec.Token()
+	if err != nil {
+		return err
+	}
+	if d, ok := tok.(json.Delim); !ok || d != '{' {
+		return fmt.Errorf("request must be a JSON object")
+	}
+	seen := map[string]bool{}
+	for dec.More() {
+		keyTok, err := dec.Token()
+		if err != nil {
+			return err
+		}
+		key, ok := keyTok.(string)
+		if !ok {
+			return fmt.Errorf("bad request key")
+		}
+		if seen[key] {
+			return fmt.Errorf("duplicate field %q", key)
+		}
+		seen[key] = true
+		var raw json.RawMessage
+		if err := dec.Decode(&raw); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // readTrim reads a sysfs attribute, returning "" on any error.

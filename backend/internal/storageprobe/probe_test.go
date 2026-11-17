@@ -243,3 +243,54 @@ func TestAdmitRateLimit(t *testing.T) {
 	}
 	release()
 }
+
+func TestUnmarshalRequestStrict(t *testing.T) {
+	if _, err := UnmarshalRequest([]byte(`{"version":1,"devices":["sda"]}`)); err != nil {
+		t.Fatalf("valid request rejected: %v", err)
+	}
+	for _, bad := range []string{
+		`{"version":1,"devices":[],"extra":1}`,     // unknown field
+		`{"version":1,"version":2}`,                // duplicate field
+		`{"version":1,"devices":[]} {"version":2}`, // trailing data
+		`{"version":2,"devices":[]}`,               // unsupported version
+		`[1,2]`,                                    // not an object
+	} {
+		if _, err := UnmarshalRequest([]byte(bad)); err == nil {
+			t.Fatalf("expected rejection of %q", bad)
+		}
+	}
+}
+
+func TestValidDevicesBoundsAndDedups(t *testing.T) {
+	base := t.TempDir()
+	sys := filepath.Join(base, "block")
+	devs := filepath.Join(base, "devs")
+	if err := os.MkdirAll(sys, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(devs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, n := range []string{"sda", "sdb"} {
+		mkdev(t, devs, n, "8:0", "", "0", "")
+		link(t, sys, devs, n)
+	}
+	old := sysBlockRoot
+	sysBlockRoot = sys
+	t.Cleanup(func() { sysBlockRoot = old })
+
+	names := []string{"sda", "sda", "sdb", "../evil", "a/b", "nonexistent"}
+	got := validDevices(names)
+	if len(got) != 2 || got[0] != "sda" || got[1] != "sdb" {
+		t.Fatalf("dedup/revalidate wrong: %v", got)
+	}
+
+	huge := make([]string, 1000)
+	for i := range huge {
+		huge[i] = "sda"
+	}
+	got = validDevices(huge)
+	if len(got) != 1 || got[0] != "sda" {
+		t.Fatalf("huge dedup wrong: %v", got)
+	}
+}
