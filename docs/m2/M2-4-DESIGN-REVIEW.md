@@ -20,7 +20,7 @@ Proposed next slice: a separately typed, closed root-read-exec handle, made avai
 
 `blkid` must probe only enumerated/revalidated local block devices and never use or trust a stale cache as current proof. Avoid unbounded all-host scans or opening network filesystems. LVM reports must be non-mutating, with fixed fields/JSON/byte units, no caller config/profile/selection, and capability detection per installed version. LVM reporting may ordinarily update hints/caches or require locks; confirm an actually read-only invocation and distinguish metadata-only from live-kernel RAID/cache health. Do not infer health when the chosen read-only mode cannot observe it. Parser tests alone do not settle this security or compatibility review.
 
-Native root-read execution is not implemented yet. Until independently reviewed and tested in new disposable fixtures/containers, the production collector remains unprivileged metadata only. SSD cache, LVM RAID/PV member joins, ZFS/Btrfs/mergerfs and signature collection remain incomplete and prevent M2-4 acceptance.
+Native root-read execution is not wired or authorized. A candidate helper is implemented on the isolated review branch, but remains unaccepted and fail-closed with no device access; until the O-1 device-access decision, security review and disposable-system evidence are complete, the production collector remains unprivileged metadata only. SSD cache, LVM RAID/PV member joins, ZFS/Btrfs/mergerfs and signature collection remain incomplete and prevent M2-4 acceptance.
 
 ## Confirmed native-probe integration constraint (2026-11-05)
 
