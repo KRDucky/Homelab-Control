@@ -263,7 +263,7 @@ func TestParseTextMalformed(t *testing.T) {
 }
 
 func TestParseSegmentUnsupported(t *testing.T) {
-	root, err := parseText([]byte("vg1 { logical_volumes { lv1 { segment1 { type = \"thin-pool\" } } } }"))
+	root, err := parseText([]byte("vg1 { logical_volumes { lv1 { segment1 { type = \"vdo\" } } } }"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -288,7 +288,7 @@ vg1 {
     seqno = 1
     extent_size = 8192
     physical_volumes { pv0 { id = "abcdef12-3456-7890-abcd-ef1234567890" device = "/dev/vdb" } }
-    logical_volumes { lv1 { id = "99999999-8888-7777-6666-5555-444444444444" segment_count = 1 segment1 { start_extent = 0 extent_count = 1 type = "cache" } } }
+    logical_volumes { lv1 { id = "99999999-8888-7777-6666-5555-444444444444" segment_count = 1 segment1 { start_extent = 0 extent_count = 1 type = "vdo" } } }
 }`
 	img := buildImage(text, nil)
 	pv := ReadPV(bytes.NewReader(img), uint64(len(img)), "vdb")
@@ -298,6 +298,38 @@ vg1 {
 	inv := Assemble([]PVRead{pv})
 	if len(inv.VGs) != 1 || inv.VGs[0].State != StateUnsupported {
 		t.Fatalf("VG state = %+v, want partial-unsupported-segment", inv.VGs)
+	}
+}
+
+func TestParseTypedSegments(t *testing.T) {
+	text := `vg1 { logical_volumes {
+		lv_raid { segment1 { type = "raid1" device_count = 2 region_size = 128 stripe_size = 64 raids = ["pv0", 0, "pv1", 0] } }
+		lv_cache { segment1 { type = "cache" cache_pool = "cpool" origin = "originlv" } }
+		lv_thin { segment1 { type = "thin" thin_pool = "tpool" device_id = 1 transaction_id = 7 } }
+	} }`
+	root, err := parseText([]byte(text))
+	if err != nil {
+		t.Fatal(err)
+	}
+	vg, err := ParseVG("vg1", findVGNode(root))
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]LV{}
+	for _, lv := range vg.LVs {
+		byName[lv.Name] = lv
+	}
+	raid := byName["lv_raid"].Segments[0]
+	if !raid.Parsed || raid.Raid == nil || len(raid.Raid.Images) != 2 || raid.Raid.DeviceCount != 2 {
+		t.Fatalf("raid segment = %+v", raid)
+	}
+	cache := byName["lv_cache"].Segments[0]
+	if !cache.Parsed || cache.Cache == nil || cache.Cache.CachePool != "cpool" || cache.Cache.Origin != "originlv" {
+		t.Fatalf("cache segment = %+v", cache)
+	}
+	thin := byName["lv_thin"].Segments[0]
+	if !thin.Parsed || thin.Thin == nil || thin.Thin.ThinPool != "tpool" || thin.Thin.DeviceID != 1 {
+		t.Fatalf("thin segment = %+v", thin)
 	}
 }
 
