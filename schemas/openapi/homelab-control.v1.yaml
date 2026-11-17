@@ -262,6 +262,38 @@ components:
               col: { type: integer, minimum: 0, maximum: 23 }
               kind: { type: string, enum: [hdd-3.5, ssd-2.5, nvme-m2, nvme-u2, tray, empty, disabled, reserved] }
               label: { type: string, maxLength: 64 }
+    LayoutImport:
+      type: object
+      additionalProperties: false
+      required: [chassis]
+      description: Chassis geometry to import additively. Export-only fields that carry identity or provenance (id, created_at, updated_at, and each cell's assignment object) are accepted and discarded; imported geometry is always unassigned and can never introduce a serial or WWN. At most 32 chassis in total.
+      properties:
+        chassis:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, kind, rows, cols]
+            properties:
+              name: { type: string, minLength: 1, maxLength: 64 }
+              kind: { type: string, enum: [server, shelf, external, desktop] }
+              rows: { type: integer, minimum: 1, maximum: 24 }
+              cols: { type: integer, minimum: 1, maximum: 24 }
+              id: { description: Discarded on import; never used as identity. }
+              created_at: { description: Discarded on import. }
+              updated_at: { description: Discarded on import. }
+              cells:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [row, col, kind]
+                  properties:
+                    row: { type: integer, minimum: 0, maximum: 23 }
+                    col: { type: integer, minimum: 0, maximum: 23 }
+                    kind: { type: string, enum: [hdd-3.5, ssd-2.5, nvme-m2, nvme-u2, tray, empty, disabled, reserved] }
+                    label: { type: string, maxLength: 64 }
+                    assignment: { description: Discarded on import; imported geometry is always unassigned. }
     DriveLayout:
       type: object
       required: [chassis]
@@ -2181,6 +2213,21 @@ paths:
         '400': { description: Invalid body or limits exceeded, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: 'Missing layout.manage, or Origin/CSRF rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'State database or audit unavailable, or the change could not be audited (nothing changed when the requested record fails)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /storage/layout/import:
+    post:
+      summary: Import chassis geometry additively (application state only; audited). Never replaces or deletes existing chassis; any id, timestamp or per-cell assignment/identity in the payload is discarded, so imported geometry is always unassigned.
+      security: [{ session: [] }]
+      x-required-scope: layout.manage
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/LayoutImport' } } }
+      responses:
+        '200': { description: Imported; the full layout is returned, content: { application/json: { schema: { $ref: '#/components/schemas/DriveLayout' } } } }
+        '400': { description: Invalid, malformed or oversized body, unknown/trailing fields, or limits exceeded, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing layout.manage, or Origin/CSRF rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '413': { description: Request body exceeds the import size cap, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: 'State database or audit unavailable, or the change could not be audited (nothing changed when the requested record fails)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /storage/layout/chassis/{id}:
     put:

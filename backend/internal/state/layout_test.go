@@ -7,6 +7,7 @@ package state
 import (
 	"context"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -121,5 +122,55 @@ func TestLayoutSpecBounds(t *testing.T) {
 		if s.Validate() == nil {
 			t.Errorf("spec %d accepted: %+v", i, s)
 		}
+	}
+}
+
+func TestLayoutImportAdditiveAtomicAndCapped(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(dir(t), "state.db")
+	db, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	now := time.Now()
+	l := db.Layouts()
+
+	// Seed one existing chassis to prove import is additive.
+	if _, err := l.Create(ctx, ChassisSpec{Name: "Existing", Kind: "server", Rows: 1, Cols: 1}, now); err != nil {
+		t.Fatal(err)
+	}
+	n, err := l.Import(ctx, []ChassisSpec{
+		{Name: "A", Kind: "shelf", Rows: 2, Cols: 2},
+		{Name: "B", Kind: "external", Rows: 1, Cols: 1, Cells: []CellSpec{{Row: 0, Col: 0, Kind: "hdd-3.5"}}},
+	}, now)
+	if err != nil || n != 2 {
+		t.Fatalf("import: %v %d", err, n)
+	}
+	if list, _ := l.List(ctx); len(list) != 3 {
+		t.Fatalf("expected 3 chassis, got %d", len(list))
+	}
+
+	// Atomic: one invalid chassis rolls back the whole import.
+	if _, err := l.Import(ctx, []ChassisSpec{
+		{Name: "Good", Kind: "server", Rows: 1, Cols: 1},
+		{Name: "Bad", Kind: "server", Rows: 99, Cols: 1},
+	}, now); !errors.Is(err, ErrLayoutInvalid) {
+		t.Fatalf("invalid import: %v", err)
+	}
+	if list, _ := l.List(ctx); len(list) != 3 {
+		t.Fatalf("partial import persisted: %d", len(list))
+	}
+
+	// Cap: importing beyond MaxLayoutChassis is refused atomically (3 exist).
+	many := make([]ChassisSpec, MaxLayoutChassis)
+	for i := range many {
+		many[i] = ChassisSpec{Name: fmt.Sprintf("C%d", i), Kind: "server", Rows: 1, Cols: 1}
+	}
+	if _, err := l.Import(ctx, many, now); !errors.Is(err, ErrLayoutInvalid) {
+		t.Fatalf("cap not enforced: %v", err)
+	}
+	if list, _ := l.List(ctx); len(list) != 3 {
+		t.Fatalf("cap import persisted: %d", len(list))
 	}
 }

@@ -239,3 +239,90 @@ func TestLayoutReadRequiresCSRFAndAuditBeforeRelease(t *testing.T) {
 		t.Fatal("refused read changed stored state")
 	}
 }
+
+func TestLayoutImportHappyPathAdditiveAndRedacted(t *testing.T) {
+	h, _, _ := layoutHarness(t, []string{auth.ScopeLayoutManage})
+	// Seed an existing chassis to prove import is additive (never replaces it).
+	if rr := h.do("POST", "/api/v1/storage/layout/chassis", chassisBody, writeHeaders(h)); rr.Code != http.StatusCreated {
+		t.Fatal(rr.Code, rr.Body)
+	}
+	body := `{"chassis":[{"id":999,"name":"Import A","kind":"shelf","rows":1,"cols":2,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z","cells":[
+		{"row":0,"col":0,"kind":"hdd-3.5","label":"A1","assignment":{"identity":"wwn:naa.5000000000000f01","provenance":"manual","confidence":"unverified","assigned_by":"x","assigned_at":"2026-01-01T00:00:00Z"}},
+		{"row":0,"col":1,"kind":"empty"}
+	]}]}`
+	rr := h.do("POST", "/api/v1/storage/layout/import", body, writeHeaders(h))
+	if rr.Code != http.StatusOK {
+		t.Fatal(rr.Code, rr.Body)
+	}
+	if s := rr.Body.String(); strings.Contains(s, "naa.5000000000000f01") || strings.Contains(s, "wwn:") || strings.Contains(s, "assigned_by") {
+		t.Fatalf("import leaked identity/assignment: %s", s)
+	}
+	var resp layoutResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Chassis) != 2 {
+		t.Fatalf("expected 2 chassis (existing + imported), got %d", len(resp.Chassis))
+	}
+	if resp.Chassis[0].Name != "Main NAS" {
+		t.Fatalf("existing chassis was not preserved: %+v", resp.Chassis[0])
+	}
+	for _, c := range resp.Chassis {
+		for _, cell := range c.Cells {
+			if cell.Assignment != nil {
+				t.Fatalf("imported geometry carries an assignment: %+v", cell)
+			}
+		}
+	}
+}
+
+func TestLayoutImportRejectsUnknownAndMalformed(t *testing.T) {
+	h, _, _ := layoutHarness(t, []string{auth.ScopeLayoutManage})
+	cases := map[string]string{
+		"top-level unknown":  `{"chassis":[],"evil":1}`,
+		"chassis unknown":    `{"chassis":[{"name":"x","kind":"server","rows":1,"cols":1,"evil":1}]}`,
+		"cell unknown":       `{"chassis":[{"name":"x","kind":"server","rows":1,"cols":1,"cells":[{"row":0,"col":0,"kind":"empty","evil":1}]}]}`,
+		"trailing data":      `{"chassis":[]} {}`,
+		"malformed":          `{"chassis":`,
+		"empty import":       `{"chassis":[]}`,
+		"invalid geometry":   `{"chassis":[{"name":"x","kind":"server","rows":99,"cols":1}]}`,
+		"wrong content type": `{"chassis":[]}`,
+	}
+	for name, body := range cases {
+		hdr := writeHeaders(h)
+		if name == "wrong content type" {
+			hdr["Content-Type"] = "text/plain"
+		}
+		if rr := h.do("POST", "/api/v1/storage/layout/import", body, hdr); rr.Code != http.StatusBadRequest && rr.Code != http.StatusUnsupportedMediaType {
+			t.Fatalf("%s: got %d, want 400/415: %s", name, rr.Code, rr.Body)
+		}
+	}
+}
+
+func TestLayoutImportRollsBackAtomically(t *testing.T) {
+	h, db, _ := layoutHarness(t, []string{auth.ScopeLayoutManage})
+	// One valid chassis followed by one invalid one: the whole import must roll
+	// back, leaving no partial chassis.
+	body := `{"chassis":[
+		{"name":"Good","kind":"server","rows":2,"cols":2,"cells":[{"row":0,"col":0,"kind":"empty"}]},
+		{"name":"Bad","kind":"server","rows":99,"cols":2}
+	]}`
+	if rr := h.do("POST", "/api/v1/storage/layout/import", body, writeHeaders(h)); rr.Code != http.StatusBadRequest {
+		t.Fatal(rr.Code, rr.Body)
+	}
+	list, err := db.Layouts().List(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 0 {
+		t.Fatalf("rollback failed: %d chassis persisted", len(list))
+	}
+}
+
+func TestLayoutImportOversizeRefused(t *testing.T) {
+	h, _, _ := layoutHarness(t, []string{auth.ScopeLayoutManage})
+	big := `{"chassis":[{"name":"` + strings.Repeat("a", layoutImportMaxBytes) + `","kind":"server","rows":1,"cols":1}]}`
+	if rr := h.do("POST", "/api/v1/storage/layout/import", big, writeHeaders(h)); rr.Code != http.StatusBadRequest {
+		t.Fatalf("oversize body accepted: %d", rr.Code)
+	}
+}

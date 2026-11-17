@@ -251,6 +251,51 @@ func upsertCells(ctx context.Context, tx *sql.Tx, id int64, spec ChassisSpec) er
 	return nil
 }
 
+// Import adds several chassis and all of their cells in one atomic
+// transaction. It is additive: it never replaces, renames or deletes existing
+// chassis. ChassisSpec carries geometry only (no assignment or identity), so
+// imported geometry is always unassigned and can never introduce a serial/WWN.
+func (l *LayoutStore) Import(ctx context.Context, specs []ChassisSpec, at time.Time) (int, error) {
+	if len(specs) == 0 {
+		return 0, ErrLayoutInvalid
+	}
+	for _, spec := range specs {
+		if err := spec.Validate(); err != nil {
+			return 0, err
+		}
+	}
+	tx, err := l.db.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback() //nolint:errcheck // no-op after Commit
+	var count int
+	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM layout_chassis`).Scan(&count); err != nil {
+		return 0, err
+	}
+	if count+len(specs) > MaxLayoutChassis {
+		return 0, ErrLayoutInvalid
+	}
+	for _, spec := range specs {
+		res, err := tx.ExecContext(ctx, `INSERT INTO layout_chassis(name,kind,row_count,col_count,created_at,updated_at) VALUES (?,?,?,?,?,?)`,
+			spec.Name, spec.Kind, spec.Rows, spec.Cols, stamp(at), stamp(at))
+		if err != nil {
+			return 0, err
+		}
+		id, err := res.LastInsertId()
+		if err != nil {
+			return 0, err
+		}
+		if err := upsertCells(ctx, tx, id, spec); err != nil {
+			return 0, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return len(specs), nil
+}
+
 // Update replaces a chassis' name, kind, size and cells. It is refused when
 // any assigned bay would leave the grid or stop being a bay.
 func (l *LayoutStore) Update(ctx context.Context, id int64, spec ChassisSpec, at time.Time) error {

@@ -253,6 +253,7 @@ func (s *Server) routes() {
 	// M2-5 Stage A: application-owned manual drive-bay layout (no host writes).
 	s.handle("GET /api/v1/storage/layout", auth.ScopeStorageRead, s.handleLayout)
 	s.handle("POST /api/v1/storage/layout/chassis", auth.ScopeLayoutManage, s.handleLayoutCreate)
+	s.handle("POST /api/v1/storage/layout/import", auth.ScopeLayoutManage, s.handleLayoutImport)
 	s.handle("PUT /api/v1/storage/layout/chassis/{id}", auth.ScopeLayoutManage, s.handleLayoutUpdate)
 	s.handle("DELETE /api/v1/storage/layout/chassis/{id}", auth.ScopeLayoutManage, s.handleLayoutDelete)
 	s.handle("PUT /api/v1/storage/layout/chassis/{id}/bays/{row}/{col}/assignment", auth.ScopeLayoutManage, s.handleLayoutAssign)

@@ -65,6 +65,7 @@ M2-4 collector.
 |---|---|---|
 | `GET /storage/layout` | `storage.read` + session CSRF header | Stored layout only, no collection. Released only after an access audit record (`storage.layout.read`, counts only, never serial/WWN) is written; 403 without CSRF before read/audit; 503 when audit is absent or fails. |
 | `POST /storage/layout/chassis` | `layout.manage` | Create a chassis. |
+| `POST /storage/layout/import` | `layout.manage` | Import chassis geometry additively (never replaces or deletes existing chassis). Strict JSON (unknown/trailing fields rejected) with an 8 MiB body cap; one atomic transaction. Any `id`, timestamp or per-cell `assignment`/identity in the payload is discarded, so imported geometry is always unassigned and can never introduce a serial/WWN. |
 | `PUT /storage/layout/chassis/{id}` | `layout.manage` | Replace the name, kind, size and cells. |
 | `DELETE /storage/layout/chassis/{id}` | `layout.manage` | Refused while the chassis has assignments. |
 | `PUT /storage/layout/chassis/{id}/bays/{row}/{col}/assignment` | `layout.manage` **and** `storage.read` | Body `{persistent_id}`. Collects a fresh observation. |
@@ -98,7 +99,7 @@ Each of these is deferred, not claimed as delivered:
 
 > **Roadmap reconciliation.** `docs/m2/M2-ROADMAP.md` §2 (PR M2-5 scope) requires drive assignment
 > by **both drag-and-drop and keyboard**, and **export/import with identifiers redacted by default**.
-> Those two items supersede the earlier "drag-and-drop" and "JSON export and import" deferrals and are
-> delivered in Stage A: drag-and-drop and keyboard assignment are implemented in the Storage UI, and
-> layout export redacts identifiers by default. Import is not yet delivered — it is blocked on a
-> dedicated, validated API route (see `M2-5-STAGE-A-ACCEPTANCE.md`).
+> Those requirements supersede the earlier deferrals and are delivered in Stage A: drag-and-drop and
+> keyboard assignment are implemented in the Storage UI; export redacts identifiers by default; import
+> accepts the exported chassis geometry additively, discards identity/assignment fields, and never
+> replaces or deletes existing chassis.
