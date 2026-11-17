@@ -127,7 +127,22 @@ func (a readAt) ReadAt(p []byte, off int64) (int, error) {
 // ReadPV reads the label, MDA headers and metadata text from r within
 // [0,size). It never writes or seeks. device is the kernel name of the probed
 // fd (identity only).
+// ReadPV reads the label, MDA headers and metadata text from r within
+// [0,size) with no aggregate budget (the per-copy MaxMetadataText cap still
+// applies). Use ReadPVBudget to bound total retained text across devices.
 func ReadPV(r io.ReaderAt, size uint64, device string) PVRead {
+	return readPV(r, size, device, nil)
+}
+
+// ReadPVBudget is ReadPV with a shared remaining-text budget. When budget is
+// non-nil and the selected copy's text would exceed it, the result is
+// StatusLimitExceeded with no retained Text and the budget is zeroed, so a
+// multi-device loop never retains more than MaxTotalText across calls.
+func ReadPVBudget(r io.ReaderAt, size uint64, device string, budget *int64) PVRead {
+	return readPV(r, size, device, budget)
+}
+
+func readPV(r io.ReaderAt, size uint64, device string, budget *int64) PVRead {
 	rd := readAt{r: r, size: size}
 	res := PVRead{Device: device, Status: StatusNotLVM}
 
@@ -205,6 +220,16 @@ func ReadPV(r io.ReaderAt, size uint64, device string) PVRead {
 	}
 	if res.Status != StatusOK {
 		return res
+	}
+	// Enforce the shared remaining budget before retaining res.Text.
+	if budget != nil && res.Text != nil {
+		if int64(len(res.Text)) > *budget {
+			res.Text = nil
+			res.Status = StatusLimitExceeded
+			*budget = 0
+			return res
+		}
+		*budget -= int64(len(res.Text))
 	}
 	return res
 }
