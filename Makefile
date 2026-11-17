@@ -89,6 +89,7 @@ lint: deps
 	node scripts/build-plugin-sdk.mjs --check
 	node scripts/build-extensions.mjs --check
 	python3 -I docs/ui/hcis/tokens/gen-css.py --check
+	tests/packaging/storage-probe-policy-check.sh
 	@test -z "$$(cd backend && gofmt -l .)" || { echo "gofmt needed:"; cd backend && gofmt -l .; exit 1; }
 	cd backend && $(GO) vet ./...
 	cd $(RUST_DIR) && $(CARGO) fmt --check && $(CARGO) clippy --locked --target $(RUST_TARGET) --all-targets -- -D warnings

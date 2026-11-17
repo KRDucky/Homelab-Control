@@ -26,6 +26,7 @@ install -Dm0644 "$root/packaging/common/homelab-control.service" "$stage/usr/lib
 install -Dm0644 "$root/packaging/common/homelab-control-storage-helper.service" "$stage/usr/lib/systemd/system/homelab-control-storage-helper.service"
 install -Dm0644 "$root/packaging/common/homelab-control-storage-probe@.service" "$stage/usr/lib/systemd/system/homelab-control-storage-probe@.service"
 install -Dm0644 "$root/packaging/common/homelab-control-storage-probe.socket" "$stage/usr/lib/systemd/system/homelab-control-storage-probe.socket"
+install -Dm0644 "$root/packaging/debian/apparmor/usr.lib.homelab-control.hc-storage-probe" "$stage/etc/apparmor.d/usr.lib.homelab-control.hc-storage-probe"
 install -Dm0644 "$root/packaging/common/homelab-control-audit-retention.service" "$stage/usr/lib/systemd/system/homelab-control-audit-retention.service"
 install -Dm0644 "$root/packaging/common/homelab-control-audit-retention.timer" "$stage/usr/lib/systemd/system/homelab-control-audit-retention.timer"
 install -Dm0644 "$root/packaging/common/sysusers.conf" "$stage/usr/lib/sysusers.d/homelab-control.conf"
@@ -38,7 +39,7 @@ install -Dm0644 "$root/README.md"  "$stage/usr/share/doc/homelab-control/README.
 # Debian Policy 12.5: machine-readable copyright file (generated, LA-12).
 install -Dm0644 "$root/packaging/debian/copyright" "$stage/usr/share/doc/homelab-control/copyright"
 mkdir -p "$stage/DEBIAN"
-printf '%s\n' /etc/homelab-control/hc-api.env /etc/homelab-control/audit-retention.conf > "$stage/DEBIAN/conffiles"
+printf '%s\n' /etc/homelab-control/hc-api.env /etc/homelab-control/audit-retention.conf /etc/apparmor.d/usr.lib.homelab-control.hc-storage-probe > "$stage/DEBIAN/conffiles"
 cat > "$stage/DEBIAN/control" <<CTRL
 Package: homelab-control
 Provides: homelab-control-api

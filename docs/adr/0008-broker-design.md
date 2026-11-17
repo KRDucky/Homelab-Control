@@ -288,3 +288,25 @@ change to `homelab-control-broker.service`.
   apply, T1 update, G1–G5). Each needs its own independent security review.
 - **Proposed status.** This amendment remains subject to review and owner acceptance. It
   does not accept ADR 0008 for storage writes.
+
+## Amendment 8 (2026-11-17, M2-4 O-1, Proposed): read-only block-probe helper unit
+
+Proposed; **not accepted.** Owner approval covers implementation and isolated
+validation of the O-1 probe only (`docs/m2/OWNER-DECISIONS.md`); no host or
+production activation. Details and residual privilege:
+`docs/m2/M2-4-O1-DEVICE-POLICY.md`.
+
+- **Unit.** `homelab-control-storage-probe@.service` (socket-activated, `Accept=yes`,
+  `MaxConnections=1`) is separate from the unused Amendment 7 helper unit (left unchanged). It stays
+  disabled by default: no `[Install]`, opt-in marker `ConditionPathExists`, `RefuseManualStart=yes`.
+- **Device policy.** `PrivateDevices=no`, `DevicePolicy=closed`, `DeviceAllow=block-sd|blkext|virtblk|md r`
+  only; no `w`/`m`, no `char-*`, no capabilities, `DynamicUser=yes` + group `disk`.
+  `RootImage=`/`MountImages=`/`ExtensionImages=` are banned (implicit `rwm` grants).
+  `TestStorageProbeServiceFailClosed` and `tests/packaging/storage-probe-policy-check.sh` enforce this.
+- **Residual.** The static unit permits raw reads of all disks in those classes, including
+  USB (`sd`); it does not satisfy Amendment 7's "named by-id nodes, no wildcards". Narrower
+  designs (per-request transient unit; fd passing) need their own review. Owner decision open.
+- **MAC.** `SELinuxContext=hc_storage_probe_t` / `AppArmorProfile=hc-storage-probe` fail closed when
+  the LSM is active and the policy is missing. No unconfined, `lib_t` or `bin_t` shortcut.
+- **Startup.** The `/proc/devices` group self-check is the helper's duty (Exec lines inside the
+  MAC domain cannot run `grep`).
