@@ -88,3 +88,30 @@ export function unassignedDrives(nodes: StorageNode[], chassis: Chassis[]) {
   const free = disks.filter((node) => !(node.persistent_id && assigned.has(node.persistent_id)));
   return { eligible: free.filter(assignable), ineligible: free.filter((node) => !assignable(node)) };
 }
+
+/** Mask a persistent identity to its tier only, never its serial/WWN value. */
+export function redactIdentity(identity: string): string {
+  const sep = identity.indexOf(':');
+  return sep > 0 ? `${identity.slice(0, sep)}:[redacted]` : '[redacted]';
+}
+
+/** A layout safe to export: every assignment identity is redacted by default. */
+export function redactedLayout(layout: { chassis: Chassis[] }) {
+  return {
+    chassis: layout.chassis.map((c) => ({
+      name: c.name,
+      kind: c.kind,
+      rows: c.rows,
+      cols: c.cols,
+      cells: c.cells.map((cell) => ({
+        row: cell.row,
+        col: cell.col,
+        kind: cell.kind,
+        label: cell.label,
+        ...(cell.assignment
+          ? { assignment: { ...cell.assignment, identity: redactIdentity(cell.assignment.identity) } }
+          : {}),
+      })),
+    })),
+  };
+}

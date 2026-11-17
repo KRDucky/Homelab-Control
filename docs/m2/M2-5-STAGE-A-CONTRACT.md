@@ -86,13 +86,19 @@ Without a state database, the layout routes return 503. There is no in-memory fa
 
 ## Deferred (not delivered in this slice)
 Each of these is deferred, not claimed as delivered:
-- drag-and-drop;
-- JSON export and import, including redaction;
 - `last_seen`;
-- optimistic-concurrency revisions;
+- optimistic-concurrency revisions (the UI re-syncs after a 409 conflict, but the API has no
+  version/If-Match check);
 - assignment by weaker identity tiers;
 - the location badge on other storage views (Stage B);
 - SES and controller discovery (Stage C);
 - identify LEDs (Stage D);
 - a Playwright + axe flow;
 - the HBA Viewer reconciliation (D-12).
+
+> **Roadmap reconciliation.** `docs/m2/M2-ROADMAP.md` §2 (PR M2-5 scope) requires drive assignment
+> by **both drag-and-drop and keyboard**, and **export/import with identifiers redacted by default**.
+> Those two items supersede the earlier "drag-and-drop" and "JSON export and import" deferrals and are
+> delivered in Stage A: drag-and-drop and keyboard assignment are implemented in the Storage UI, and
+> layout export redacts identifiers by default. Import is not yet delivered — it is blocked on a
+> dedicated, validated API route (see `M2-5-STAGE-A-ACCEPTANCE.md`).

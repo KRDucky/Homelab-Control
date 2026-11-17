@@ -16,7 +16,14 @@ import {
   type ChassisSpec,
   type DriveLayout,
 } from '../api';
-import { BAY_KINDS, BAY_STATE_TEXT, CELL_KINDS, bayState, unassignedDrives } from '../bayModel';
+import {
+  BAY_KINDS,
+  BAY_STATE_TEXT,
+  CELL_KINDS,
+  bayState,
+  redactedLayout,
+  unassignedDrives,
+} from '../bayModel';
 import { formatBytes } from '../format';
 import { driveLabel, type DriveLabelPreference, type StorageNode } from '../storageModel';
 import { Section } from '../ui';
@@ -165,6 +172,25 @@ export function DriveBays({
       <p role="status" aria-live="polite">
         {message}
       </p>
+      <div className="toolbar">
+        <button
+          type="button"
+          className="ghost"
+          onClick={() => {
+            const blob = new Blob([JSON.stringify(redactedLayout(layout), null, 2)], {
+              type: 'application/json',
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'homelab-control-layout-redacted.json';
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+        >
+          Export layout (identifiers redacted)
+        </button>
+      </div>
       {layout.chassis.length === 0 && <p className="muted">No chassis has been described yet.</p>}
       {layout.chassis.map((c) => (
         <div key={c.id}>
@@ -193,6 +219,19 @@ export function DriveBays({
                         data-bay={`${row}-${col}`}
                         tabIndex={isFocus ? 0 : -1}
                         onClick={() => select({ chassis: c.id, row, col })}
+                        onDragOver={(e) => {
+                          if (canManage && !x.assignment && BAY_KINDS.has(x.kind)) e.preventDefault();
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          const id = e.dataTransfer.getData('text/plain');
+                          if (!(canManage && !x.assignment && BAY_KINDS.has(x.kind)) || !id) return;
+                          select({ chassis: c.id, row, col });
+                          run(
+                            () => assignBay(c.id, row, col, id, csrf),
+                            'Drive assigned (manual, unverified).',
+                          );
+                        }}
                         aria-label={`${bayName(c, row, col)}: ${BAY_STATE_TEXT[st]}`}
                       >
                         {x.label || `R${row + 1}C${col + 1}`}
@@ -449,7 +488,15 @@ export function DriveBays({
       ) : (
         <ul aria-label="Unassigned drives">
           {free.eligible.map((node) => (
-            <li key={node.id} className="mono">
+            <li
+              key={node.id}
+              className="mono"
+              draggable={canManage}
+              onDragStart={(e) => {
+                e.dataTransfer.setData('text/plain', node.persistent_id ?? '');
+                e.dataTransfer.effectAllowed = 'move';
+              }}
+            >
               {driveLabel(node, preference).value}
             </li>
           ))}

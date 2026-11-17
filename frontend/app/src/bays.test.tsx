@@ -4,7 +4,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { Chassis, DriveLayout, LayoutCell } from './api';
-import { assignable, bayState, unassignedDrives } from './bayModel';
+import { assignable, bayState, redactedLayout, redactIdentity, unassignedDrives } from './bayModel';
 import { DriveBays } from './pages/DriveBays';
 import type { StorageNode } from './storageModel';
 
@@ -278,6 +278,71 @@ describe('Drives & bays panel', () => {
     // After the conflict the page drops the stale snapshot and re-syncs.
     await screen.findByRole('heading', { name: /renamed elsewhere/ });
   });
+
+  it('assigns a drive by drag and drop onto a vacant bay', async () => {
+    const bay: LayoutCell = { row: 0, col: 0, kind: 'hdd-3.5', label: 'Bay 1' };
+    const nas: Chassis = {
+      id: 7,
+      name: 'Example NAS',
+      kind: 'server',
+      rows: 1,
+      cols: 1,
+      created_at: '2026-11-06T00:00:00Z',
+      updated_at: '2026-11-06T00:00:00Z',
+      cells: [bay],
+    };
+    const before: DriveLayout = { chassis: [nas] };
+    const after: DriveLayout = {
+      chassis: [
+        {
+          ...nas,
+          cells: [
+            {
+              ...bay,
+              assignment: {
+                identity: 'wwn:naa.5000000000000f01',
+                provenance: 'manual',
+                confidence: 'unverified',
+                assigned_by: 'admin',
+                assigned_at: '2026-11-06T00:00:00Z',
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const fetchMock = vi.fn(
+      async (_url: string, init?: RequestInit) =>
+        new Response(JSON.stringify(init?.method === 'PUT' ? after : before), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    render(
+      <DriveBays
+        csrf="example-csrf"
+        nodes={[disk({})]}
+        canManage
+        preference="wwn"
+        onUnauthorized={() => undefined}
+      />,
+    );
+    const bayBtn = await screen.findByRole('button', { name: /Bay 1: No drive assigned/ });
+    const drive = await screen.findByText('naa.5000000000000f01');
+    const dataTransfer = {
+      effectAllowed: '',
+      setData: vi.fn(),
+      getData: vi.fn(() => 'wwn:naa.5000000000000f01'),
+    };
+    fireEvent.dragStart(drive, { dataTransfer });
+    fireEvent.dragOver(bayBtn, { dataTransfer });
+    fireEvent.drop(bayBtn, { dataTransfer });
+    await screen.findByText('Drive assigned (manual, unverified).');
+    const put = fetchMock.mock.calls.find(([, init]) => init?.method === 'PUT');
+    expect(put?.[0]).toBe('/api/v1/storage/layout/chassis/7/bays/0/0/assignment');
+    expect(JSON.parse(String(put?.[1]?.body))).toEqual({ persistent_id: 'wwn:naa.5000000000000f01' });
+  });
 });
 
 describe('assignment guard', () => {
@@ -318,5 +383,55 @@ describe('bay reconciliation states', () => {
       identifiers: [{ kind: 'wwn', value: 'naa.5000000000000f01', source: 'fixture', ambiguous: true }],
     });
     expect(bayState(assigned, [dup]).state).toBe('mismatch');
+  });
+});
+
+describe('export redaction', () => {
+  it('redacts identities to their tier only', () => {
+    expect(redactIdentity('wwn:naa.5000000000000f01')).toBe('wwn:[redacted]');
+    expect(redactIdentity('serial:S123')).toBe('serial:[redacted]');
+    expect(redactIdentity('nvme-uuid:abc')).toBe('nvme-uuid:[redacted]');
+    expect(redactIdentity('plain')).toBe('[redacted]');
+  });
+
+  it('redacts assignment identities in the exported layout', () => {
+    const chassis: Chassis = {
+      id: 7,
+      name: 'Example NAS',
+      kind: 'server',
+      rows: 1,
+      cols: 1,
+      created_at: '2026-11-06T00:00:00Z',
+      updated_at: '2026-11-06T00:00:00Z',
+      cells: [assigned],
+    };
+    const out = redactedLayout({ chassis: [chassis] });
+    const [c] = out.chassis;
+    expect(c?.name).toBe('Example NAS');
+    expect(c?.cells[0]?.kind).toBe('hdd-3.5');
+    expect(c?.cells[0]?.assignment?.identity).toBe('wwn:[redacted]');
+    expect(c?.cells[0]?.assignment?.provenance).toBe('manual');
+  });
+
+  it('offers a redacted layout export', async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ chassis: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    render(
+      <DriveBays
+        csrf="example-csrf"
+        nodes={[]}
+        canManage
+        preference="wwn"
+        onUnauthorized={() => undefined}
+      />,
+    );
+    await screen.findByText('No chassis has been described yet.');
+    expect(screen.getByRole('button', { name: 'Export layout (identifiers redacted)' })).toBeTruthy();
   });
 });
