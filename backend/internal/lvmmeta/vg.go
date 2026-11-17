@@ -5,6 +5,7 @@
 package lvmmeta
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 )
@@ -21,6 +22,10 @@ const (
 	// parser does not yet cover; it must never be reported as a complete
 	// inventory.
 	StateUnsupported VGState = "partial-unsupported-segment"
+	// StateMalformed marks a VG whose metadata has a numeric field that cannot
+	// be converted safely (e.g. a dev_size whose sector count overflows when
+	// multiplied to bytes); it must never be reported complete.
+	StateMalformed VGState = "partial-malformed"
 )
 
 // Presence describes whether a VG's PV was found among the probed devices.
@@ -133,6 +138,9 @@ type VGPV struct {
 	Flags      []string
 	Device     string
 	Presence   Presence
+	// Malformed is set when a numeric field cannot be converted safely (parse
+	// error or overflow); the VG must then never be reported complete.
+	Malformed bool
 }
 
 // VG is one volume group assembled from metadata text.
@@ -204,9 +212,16 @@ func parseVGPV(key string, n *Node) VGPV {
 	}
 	if d := n.child("dev_size"); d != nil {
 		// Text dev_size is in 512-byte sectors (lvm2 internal unit); the graph
-		// and identity checks use bytes, so convert.
-		sectors, _ := strconv.ParseUint(d.Value, 10, 64)
-		p.DevSize = sectors * 512
+		// and identity checks use bytes, so convert. Overflow is rejected, never
+		// wrapped (C9): a hostile sector count becomes a typed partial VG.
+		sectors, err := strconv.ParseUint(d.Value, 10, 64)
+		if err != nil {
+			p.Malformed = true
+		} else if bytes, ok := mulU64(sectors, 512); ok {
+			p.DevSize = bytes
+		} else {
+			p.Malformed = true
+		}
 	}
 	if d := n.child("pe_start"); d != nil {
 		p.PEStart, _ = strconv.ParseUint(d.Value, 10, 64)
@@ -398,7 +413,7 @@ func Assemble(pvs []PVRead) Inventory {
 		inv.Notes = append(inv.Notes, "metadata text exceeds MaxTotalText")
 	}
 
-	byUUID := map[string][]*Node{}
+	byUUID := map[string][]vgCandidate{}
 	for _, pv := range pvs {
 		if pv.Text == nil {
 			continue // already classified (e.g. over-cap) in the budget pass
@@ -419,16 +434,26 @@ func Assemble(pvs []PVRead) Inventory {
 			inv.Orphans = append(inv.Orphans, pv)
 			continue
 		}
-		byUUID[id] = append(byUUID[id], vgNode)
+		byUUID[id] = append(byUUID[id], vgCandidate{node: vgNode, text: pv.Text, seq: seq(vgNode)})
 	}
-	for uuid, nodes := range byUUID {
-		best := nodes[0]
-		for _, n := range nodes[1:] {
-			if seq(n) > seq(best) {
-				best = n
+	for uuid, cands := range byUUID {
+		// Highest seqno wins; ties break on text bytes so the representative is
+		// independent of input order. Equal-seqno candidates whose text differs
+		// mark the VG inconsistent, deterministically regardless of order.
+		best := cands[0]
+		for _, c := range cands[1:] {
+			if c.seq > best.seq || (c.seq == best.seq && bytes.Compare(c.text, best.text) < 0) {
+				best = c
 			}
 		}
-		vg, err := ParseVG(best.Name, best)
+		inconsistent := false
+		for _, c := range cands {
+			if c.seq == best.seq && !bytes.Equal(c.text, best.text) {
+				inconsistent = true
+				break
+			}
+		}
+		vg, err := ParseVG(best.node.Name, best.node)
 		if err != nil {
 			continue
 		}
@@ -456,6 +481,14 @@ func Assemble(pvs []PVRead) Inventory {
 				vg.State = StatePartialMissing
 			}
 		}
+		// Same-seqno-different-content copies across PVs are inconsistent.
+		if inconsistent {
+			vg.State = StateInconsistent
+		}
+		// A malformed numeric field makes the VG partial, never complete.
+		if hasMalformedPV(vg) {
+			vg.State = StateMalformed
+		}
 		// Any unsupported segment type makes the VG partial, never complete.
 		if hasUnsupportedSegment(vg) {
 			vg.State = StateUnsupported
@@ -463,6 +496,26 @@ func Assemble(pvs []PVRead) Inventory {
 		inv.VGs = append(inv.VGs, *vg)
 	}
 	return inv
+}
+
+// vgCandidate is one device's VG section (with its raw text and seqno) for a
+// VG UUID, used to pick the highest-seqno representative and detect
+// equal-seqno content divergence order-independently.
+type vgCandidate struct {
+	node *Node
+	text []byte
+	seq  uint64
+}
+
+// hasMalformedPV reports whether any PV's numeric field could not be converted
+// safely (parse error or overflow).
+func hasMalformedPV(vg *VG) bool {
+	for _, pv := range vg.PVs {
+		if pv.Malformed {
+			return true
+		}
+	}
+	return false
 }
 
 // hasUnsupportedSegment reports whether any LV has a segment the parser does

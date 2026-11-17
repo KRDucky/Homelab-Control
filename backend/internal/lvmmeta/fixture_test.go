@@ -81,8 +81,20 @@ func TestRealFixtureLin01PVOnly(t *testing.T) {
 	if pv.Label == nil {
 		t.Fatal("no label")
 	}
+	if pv.Label.PVUUID != "nV0beL5jP21S4b6t9zB5b5YmeWwXGrJm" {
+		t.Fatalf("label uuid = %q", pv.Label.PVUUID)
+	}
+	if pv.Label.DevSize != 536870912 {
+		t.Fatalf("dev size = %d, want 536870912", pv.Label.DevSize)
+	}
+	if len(pv.Copies) != 0 || pv.Text != nil {
+		t.Fatalf("PV-only must have no metadata copies/text: copies=%d text=%d", len(pv.Copies), len(pv.Text))
+	}
 	inv := Assemble([]PVRead{pv})
 	if len(inv.VGs) != 0 {
 		t.Fatalf("unexpected VG from PV-only: %+v", inv.VGs)
+	}
+	if len(inv.Orphans) != 0 {
+		t.Fatalf("PV-only must not be orphaned: %+v", inv.Orphans)
 	}
 }

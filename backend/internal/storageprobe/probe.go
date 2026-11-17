@@ -340,7 +340,7 @@ func Run(ctx context.Context, req Request) Result {
 		budget := int64(lvmmeta.MaxTotalText)
 		for _, d := range devs {
 			before, hasSeq := diskseq(d.name)
-			pv := lvmmeta.ReadPVBudget(d.f, d.size, d.name, &budget)
+			pv := lvmmeta.ReadPVBudgetContext(ctx, d.f, d.size, d.name, &budget)
 			if !hasSeq {
 				pv.Status = lvmmeta.StatusMetadataChanging // no diskseq: cannot bracket the read
 			} else {
@@ -352,6 +352,11 @@ func Run(ctx context.Context, req Request) Result {
 			pvs = append(pvs, pv)
 			if pv.Status == lvmmeta.StatusLimitExceeded {
 				res.Errors = append(res.Errors, "lvm metadata text exceeds MaxTotalText")
+				res.Partial = true
+				break
+			}
+			if pv.Status == lvmmeta.StatusCanceled {
+				res.Errors = append(res.Errors, "lvm probe canceled")
 				res.Partial = true
 				break
 			}

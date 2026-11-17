@@ -6,7 +6,10 @@ package lvmmeta
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
+	"io"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -420,6 +423,78 @@ func TestReadPVBudgetAggregate(t *testing.T) {
 	}
 }
 
+// cancelAfterReader wraps a ReaderAt and cancels ctx once it has served more
+// than stopAt reads, modeling a request deadline firing mid-device.
+type cancelAfterReader struct {
+	r      io.ReaderAt
+	stopAt int
+	stop   func()
+	n      int
+}
+
+func (c *cancelAfterReader) ReadAt(p []byte, off int64) (int, error) {
+	c.n++
+	if c.n > c.stopAt {
+		c.stop()
+	}
+	return c.r.ReadAt(p, off)
+}
+
+func TestReadPVBudgetContextPreCanceled(t *testing.T) {
+	img := buildImage(testVGMeta, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	r := &cancelAfterReader{r: bytes.NewReader(img), stopAt: -1, stop: func() {}}
+	pv := ReadPVBudgetContext(ctx, r, uint64(len(img)), "vdb", nil)
+	if pv.Status != StatusCanceled {
+		t.Fatalf("status = %s, want canceled", pv.Status)
+	}
+	if r.n != 0 {
+		t.Fatalf("reader called %d times on an already-canceled context", r.n)
+	}
+}
+
+func TestReadPVBudgetContextCancelBetweenReads(t *testing.T) {
+	img := buildImage(testVGMeta, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	// Cancel after the first label-sector read: the next pre-read check must
+	// abort before the MDA header is ever read.
+	r := &cancelAfterReader{r: bytes.NewReader(img), stopAt: 1, stop: cancel}
+	pv := ReadPVBudgetContext(ctx, r, uint64(len(img)), "vdb", nil)
+	if pv.Status != StatusCanceled {
+		t.Fatalf("status = %s, want canceled", pv.Status)
+	}
+	if r.n > 2 {
+		t.Fatalf("reader called %d times; want abort within 2 reads", r.n)
+	}
+}
+
+func TestReadPVBudgetContextPerDeviceCap(t *testing.T) {
+	// The per-device cap fires independently of the shared budget and does not
+	// zero the shared budget (unlike a shared-budget exhaustion).
+	res := &PVRead{Text: make([]byte, MaxDeviceText+1)}
+	budget := int64(MaxTotalText)
+	if got := enforceTextCaps(res, &budget); got != StatusLimitExceeded {
+		t.Fatalf("status = %s, want limit-exceeded", got)
+	}
+	if res.Text != nil {
+		t.Fatalf("text retained despite per-device cap: %d bytes", len(res.Text))
+	}
+	if budget != MaxTotalText {
+		t.Fatalf("shared budget changed on per-device breach: %d", budget)
+	}
+
+	// A shared-budget breach zeroes the budget.
+	res2 := &PVRead{Text: []byte("x")}
+	b2 := int64(0)
+	if got := enforceTextCaps(res2, &b2); got != StatusLimitExceeded {
+		t.Fatalf("status = %s, want limit-exceeded", got)
+	}
+	if b2 != 0 || res2.Text != nil {
+		t.Fatalf("budget=%d text=%v, want 0/nil", b2, res2.Text)
+	}
+}
+
 func TestUUIDCharset(t *testing.T) {
 	// LVM2 UUID alphabet (lib/id/id.c _c) is alphanumeric + '!' + '#', not hex.
 	mixed := strings.Repeat("Ab", 16) // 32 chars, mixed case
@@ -465,5 +540,192 @@ func TestParsePVHeaderRequiresTerminator(t *testing.T) {
 	_, _, _, _, _, st := parsePVHeader(b, 0)
 	if st != StatusPVHeaderOverrun {
 		t.Fatalf("status = %s, want pv-header-overrun", st)
+	}
+}
+
+// vgText builds a two-PV VG section (same VG UUID and seqno across copies);
+// extra is appended as an extra top-level field so two copies can differ in
+// text bytes while still parsing to the same VG.
+func vgText(seqno int, extra string) string {
+	return "vg1 {\n" +
+		"    id = \"aaaaaaaa-bbbb-cccc-dddd-eeeeffff0001\"\n" +
+		"    seqno = " + strconv.Itoa(seqno) + "\n" +
+		"    extent_size = 8192\n" +
+		"    physical_volumes {\n" +
+		"        pv0 {\n" +
+		"            id = \"11111111-2222-3333-4444-555555555555\"\n" +
+		"            device = \"/dev/vdb\"\n" +
+		"            dev_size = 10485760\n" +
+		"            pe_start = 2048\n" +
+		"            pe_count = 1024\n" +
+		"        }\n" +
+		"        pv1 {\n" +
+		"            id = \"22222222-3333-4444-5555-666677778888\"\n" +
+		"            device = \"/dev/vdc\"\n" +
+		"            dev_size = 10485760\n" +
+		"            pe_start = 2048\n" +
+		"            pe_count = 1024\n" +
+		"        }\n" +
+		"    }\n" +
+		"    logical_volumes {\n" +
+		"        lv1 {\n" +
+		"            id = \"99999999-8888-7777-6666-5555-444444444444\"\n" +
+		"            status = [\"READ\", \"WRITE\", \"VISIBLE\"]\n" +
+		"            segment_count = 1\n" +
+		"            segment1 {\n" +
+		"                start_extent = 0\n" +
+		"                extent_count = 128\n" +
+		"                type = \"striped\"\n" +
+		"                stripe_count = 1\n" +
+		"                stripes = [\"pv0\", 0]\n" +
+		"            }\n" +
+		"        }\n" +
+		"    }\n" +
+		extra +
+		"}\n"
+}
+
+func TestParseVGMalformedDevSize(t *testing.T) {
+	// dev_size in sectors must not wrap when multiplied to bytes (C9).
+	text := `vg1 {
+    id = "aaaaaaaa-bbbb-cccc-dddd-eeeeffff0001"
+    seqno = 1
+    extent_size = 8192
+    physical_volumes {
+        pv0 {
+            id = "11111111-2222-3333-4444-555555555555"
+            device = "/dev/vdb"
+            dev_size = 36028797018963969
+            pe_start = 2048
+            pe_count = 1024
+        }
+    }
+}`
+	root, err := parseText([]byte(text))
+	if err != nil {
+		t.Fatalf("parse text: %v", err)
+	}
+	vg, err := ParseVG("vg1", findVGNode(root))
+	if err != nil {
+		t.Fatalf("ParseVG: %v", err)
+	}
+	if len(vg.PVs) != 1 || !vg.PVs[0].Malformed {
+		t.Fatalf("pv = %+v, want Malformed", vg.PVs)
+	}
+	if vg.PVs[0].DevSize != 0 {
+		t.Fatalf("dev size = %d, want 0 (not wrapped)", vg.PVs[0].DevSize)
+	}
+}
+
+func TestAssembleMalformedDevSize(t *testing.T) {
+	text := `vg1 {
+    id = "aaaaaaaa-bbbb-cccc-dddd-eeeeffff0001"
+    seqno = 1
+    extent_size = 8192
+    physical_volumes {
+        pv0 {
+            id = "11111111-2222-3333-4444-555555555555"
+            device = "/dev/vdb"
+            dev_size = 36028797018963969
+            pe_start = 2048
+            pe_count = 1024
+        }
+    }
+}`
+	pv := PVRead{Device: "vdb", Status: StatusOK, Text: []byte(text), Label: &Label{PVUUID: "11111111222233334444555555555555"}}
+	inv := Assemble([]PVRead{pv})
+	if len(inv.VGs) != 1 || inv.VGs[0].State != StateMalformed {
+		t.Fatalf("vgs = %+v, want partial-malformed", inv.VGs)
+	}
+}
+
+func TestAssembleInconsistentDeterministic(t *testing.T) {
+	// Same VG UUID + same seqno but different content must be inconsistent,
+	// regardless of input order. The two devices are distinct PVs.
+	a := vgText(5, "")
+	b := vgText(5, "    extra_flag = 1\n")
+	pvA := PVRead{Device: "a", Status: StatusOK, Text: []byte(a), Label: &Label{PVUUID: "11111111222233334444555555555555"}}
+	pvB := PVRead{Device: "b", Status: StatusOK, Text: []byte(b), Label: &Label{PVUUID: "22222222333344445555666677778888"}}
+
+	inv1 := Assemble([]PVRead{pvA, pvB})
+	inv2 := Assemble([]PVRead{pvB, pvA})
+	if len(inv1.VGs) != 1 || inv1.VGs[0].State != StateInconsistent {
+		t.Fatalf("order A,B: vgs = %+v, want inconsistent", inv1.VGs)
+	}
+	if len(inv2.VGs) != 1 || inv2.VGs[0].State != StateInconsistent {
+		t.Fatalf("order B,A: vgs = %+v, want inconsistent", inv2.VGs)
+	}
+	if inv1.VGs[0].UUID != inv2.VGs[0].UUID {
+		t.Fatalf("representative UUID differs by input order: %q vs %q", inv1.VGs[0].UUID, inv2.VGs[0].UUID)
+	}
+}
+
+func TestAssembleConsistentEqualSeqno(t *testing.T) {
+	// Identical same-seqno copies are consistent, not inconsistent.
+	a := vgText(5, "")
+	pvA := PVRead{Device: "a", Status: StatusOK, Text: []byte(a), Label: &Label{PVUUID: "11111111222233334444555555555555"}}
+	pvB := PVRead{Device: "b", Status: StatusOK, Text: []byte(a), Label: &Label{PVUUID: "22222222333344445555666677778888"}}
+	inv := Assemble([]PVRead{pvA, pvB})
+	if len(inv.VGs) != 1 || inv.VGs[0].State != StateComplete {
+		t.Fatalf("vgs = %+v, want complete", inv.VGs)
+	}
+}
+
+// buildImageTwoSlots builds one MDA whose header has both raw_locn slots:
+// slot0 (committed) and slot1 (precommit), each pointing at distinct text.
+func buildImageTwoSlots(committed, precommitted string) []byte {
+	const mdaOffset, mdaSize = 4096, 8192
+	img := make([]byte, mdaOffset+mdaSize)
+	s := img[0:512]
+	copy(s[0:8], labelID)
+	binary.LittleEndian.PutUint64(s[8:16], 0)
+	binary.LittleEndian.PutUint32(s[20:24], 32)
+	copy(s[24:32], lvm2Label)
+	copy(s[32:64], []byte(testPVUUID))
+	binary.LittleEndian.PutUint64(s[64:72], 10485760)
+	binary.LittleEndian.PutUint64(s[88:96], mdaOffset)
+	binary.LittleEndian.PutUint64(s[96:104], mdaSize)
+	binary.LittleEndian.PutUint32(s[16:20], crc(initCRC, s[20:512]))
+
+	h := img[mdaOffset : mdaOffset+512]
+	copy(h[4:20], ftMagic)
+	binary.LittleEndian.PutUint32(h[20:24], 1)
+	binary.LittleEndian.PutUint64(h[24:32], mdaOffset)
+	binary.LittleEndian.PutUint64(h[32:40], mdaSize)
+
+	slot0off := uint64(MDAHeaderSize)
+	slot1off := slot0off + uint64(len(committed))
+	// slot0 (committed) raw_locn at 40..64.
+	binary.LittleEndian.PutUint64(h[40:48], slot0off)
+	binary.LittleEndian.PutUint64(h[48:56], uint64(len(committed)))
+	binary.LittleEndian.PutUint32(h[56:60], crc(initCRC, []byte(committed)))
+	// slot1 (precommit) raw_locn at 64..88.
+	binary.LittleEndian.PutUint64(h[64:72], slot1off)
+	binary.LittleEndian.PutUint64(h[72:80], uint64(len(precommitted)))
+	binary.LittleEndian.PutUint32(h[80:84], crc(initCRC, []byte(precommitted)))
+
+	copy(img[mdaOffset+int(slot0off):], committed)
+	copy(img[mdaOffset+int(slot1off):], precommitted)
+	binary.LittleEndian.PutUint32(h[0:4], crc(initCRC, h[4:512]))
+	return img
+}
+
+func TestReadPVUsesCommittedSlot(t *testing.T) {
+	// A precommit slot (raw_locns[1]) with a higher seqno must be ignored by a
+	// normal read: only the committed slot0 is used (format-text.c
+	// _read_metadata_location_vg). Recovery is out of scope for this probe.
+	committed := strings.Replace(testVGMeta, "seqno = 2", "seqno = 2", 1)
+	precommitted := strings.Replace(testVGMeta, "seqno = 2", "seqno = 9", 1)
+	img := buildImageTwoSlots(committed, precommitted)
+	pv := ReadPV(bytes.NewReader(img), uint64(len(img)), "vdb")
+	if pv.Status != StatusOK {
+		t.Fatalf("status = %s", pv.Status)
+	}
+	root, err := parseText(pv.Text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := seq(findVGNode(root)); s != 2 {
+		t.Fatalf("selected seqno = %d, want 2 (committed slot0, not precommit)", s)
 	}
 }
