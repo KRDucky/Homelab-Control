@@ -37,18 +37,18 @@ Kernel md/device-mapper UUID observations can be collected safely from sysfs ind
 Accepted from the independent review (`.dev` review ledger, not in Git): keep the existing broker unit unchanged; any native probe is a **separate, disabled-by-default unit** with a closed typed protocol. Verified from kernel source: device-mapper status ioctls require `CAP_SYS_ADMIN` (`drivers/md/dm-ioctl.c`, `ctl_ioctl`). Proposed phasing, for owner decision:
 
 1. **Phase 1 (no new privilege, implemented):** unprivileged sysfs identity, md runtime state, and parsers for metadata-only `lvs`/`pvs` reports. Production hc-api attaches no LVM report today.
-2. **Phase 2 (owner decision O-1):** a separate read-only probe unit running `lvs`/`pvs --readonly` (hints disabled by a fixed in-template config) and `blkid -p -c /dev/null` on enumerated, revalidated devices. Proposed restrictions: `PrivateDevices=no` with `DevicePolicy=closed` and `r`-only `DeviceAllow=` for reviewed block majors, empty capability bounding set, `ReadOnlyPaths=/dev`, `PrivateNetwork=yes`, no `[Install]` enablement, per-device child timeouts, skipping suspended dm, multipath, nbd/rbd/iSCSI, sr and fd devices, on-demand only (blkid wakes standby disks). Needs its own SELinux context, tests from review §B4 and KVM evidence.
+2. **Phase 2 (owner-approved O-1, implementation and isolated validation only):** a separate read-only probe unit running `lvs`/`pvs --readonly` (hints disabled by a fixed in-template config) and `blkid -p -c /dev/null` on enumerated, revalidated devices. Target restrictions: `PrivateDevices=no` with `DevicePolicy=closed` and `r`-only `DeviceAllow=` for explicitly reviewed block-device classes, empty capability bounding set, no character devices or `CAP_SYS_ADMIN`, `PrivateNetwork=yes`, no `[Install]` enablement, per-device child timeouts, skipping suspended dm, multipath, nbd/rbd/iSCSI, sr, fd, removable and USB devices, and explicit POST only (blkid wakes standby disks). It needs its own SELinux/AppArmor policy and KVM/systemd-container evidence. Owner approval does not authorize enabling it on a host or production deployment.
 3. **Phase 3 (owner decision O-2):** live dm status for LVM RAID/cache health. Requires `CAP_SYS_ADMIN`, i.e. full device-mapper control; any helper would need an ioctl-number allow-list enforced in code (systemd cannot filter ioctl numbers) and a separate security review. Not proposed for M2.
 
-Until O-1 is decided, M2-4 can be reviewed only as a metadata/fixture slice: the Storage page cannot show LVM or signature data on real hosts.
+Until implementation and isolated validation close the O-1 gates, M2-4 remains a metadata/fixture slice: the Storage page cannot show LVM or signature data on real hosts.
 
-## O-1 helper (2026-11-17, proposal — UNACCEPTED, fail closed)
+## O-1 helper (2026-11-17, owner-approved development; fail-closed until validated)
 
 The O-1 native probe helper is implemented as a separately packaged,
-disabled-by-default unit. It does not weaken hc-broker and is not invoked by
-hc-api or hc-broker. It is **fail closed**: the unit runs unprivileged with no
-capabilities and no device access, so it cannot read a block device until the
-device-open mechanism is authorised by the owner.
+disabled-by-default unit. The owner has authorized continuing its implementation
+and isolated validation. It does not weaken hc-broker and is not invoked by
+hc-api or hc-broker. It remains **fail closed** until the approved read-only
+device policy, identity handling, and distro security evidence are implemented.
 
 - **Binary:** `hc-storage-probe` (`backend/cmd/hc-storage-probe`), built from
   `backend/internal/storageprobe`. It reads one closed typed Request from
@@ -87,19 +87,19 @@ device-open mechanism is authorised by the owner.
   as the second package allowed to execute programs. A static unit test asserts
   the fail-closed policy.
 
-**Release blockers (not production-ready):** the helper is inert: it has no
-device access by design, and the reviewed device-open mechanism (broker
-fd-passing via SCM_RIGHTS, or an owner re-decision on O-1's device grant) is
-not built; a dedicated SELinux context and KVM/systemd-container evidence are
-absent; the broker-side `storage.probe` scope (explicit CSRF-protected POST, no
-default grant, never attached to polling GET) is not wired; synthetic tests use
-fake tools and do not validate real distributions or hardware; LVM field lists
-must be validated against the storageinfo parsers during integration. Live
-dm-status (O-2, `CAP_SYS_ADMIN`) is deliberately not implemented.
+**Release blockers (not production-ready):** the owner approved O-1 development
+and isolated validation, but the device-open mechanism and identity handling
+are not implemented; a dedicated SELinux/AppArmor policy and KVM/systemd-
+container evidence are absent; the broker-side `storage.probe` scope (explicit
+CSRF-protected POST, no default grant, never attached to polling GET) is not
+wired; synthetic tests use fake tools and do not validate real distributions or
+hardware; LVM field lists must be validated against the storageinfo parsers
+during integration. Live dm-status (O-2, `CAP_SYS_ADMIN`) is deliberately not
+implemented.
 
 ## O-1 helper — final repair notes (2026-11-17)
 
-- **Identity pinning:** the helper resolves each name to `/dev/block/MAJ:MIN`,
+- **Identity handling (not yet sufficient for activation):** the helper resolves each name to `/dev/block/MAJ:MIN`,
   opens `O_NOFOLLOW`, fstat-checks block type + rdev (stdlib `makedev`) and
   reads `diskseq` before/after. In the fail-closed unit the open always fails
   (no device access), so every device is reported as `skip` + `Partial` rather
@@ -127,10 +127,10 @@ dm-status (O-2, `CAP_SYS_ADMIN`) is deliberately not implemented.
 - **Output:** blkid export is key-allow-listed with LABEL/PARTLABEL dropped
   and every value bounded to 255 printable bytes; LVM reports are bounded raw
   JSON (fixed field list, consumed by `storageinfo` parsers); the reply is
-  frame-capped (24 MiB) via an encoded-size preflight with HTML escaping off and
-  a bounded marshal, so an oversized result is rejected before allocation.
+  frame-capped (24 MiB) via an encoded-size preflight with HTML escaping off,
+  and the writer rejects over-limit frames.
 
-Remaining unverified gates (helper stays inert/unaccepted): O-1 device-open
-owner decision; dedicated SELinux policy; KVM/systemd-container evidence; real
-lvs/pvs output validation; and the broker integration (CSRF POST + non-default
+Remaining gates (helper stays inert): implement identity pinning through child
+tool opens; dedicated SELinux/AppArmor policy; KVM/systemd-container evidence;
+real lvs/pvs output validation; and broker integration (CSRF POST + non-default
 `storage.probe` scope + audit/rate limit, never a polling GET).

@@ -23,7 +23,7 @@ The mandatory sequence and exclusions are in `docs/m2/M2-ROADMAP.md` and `docs/m
 | PR-1 durable state/audit/logs | Merged read-only foundation. | Reconcile current CI and acceptance evidence with the roadmap; resolve any remaining audit durability/retention policy for production. |
 | M2-2 service operations | Merged; acceptance record exists. | Preserve its security conditions; production activation remains a separate owner decision. |
 | M2-3 service configuration | Skeleton on main; implementation and container evidence are documented, but not accepted. | Close owner review decisions and design review findings; run the prepared KVM acceptance procedure only with its required authorization; complete distro/security/browser evidence. |
-| M2-4 storage inventory | Read-only metadata collector and fixture parsers exist. The separate O-1 helper is integrated in the isolated review branch but remains unaccepted and inert. Its current `PrivateDevices=yes` unit cannot read devices, and its child tools do not consume the opened fd, so the path is not ready for activation. | O-1 device-access/identity design, SELinux policy, KVM/systemd-container evidence and real LVM-tool validation remain open; live LVM/RAID/cache and hardware evidence are missing; ZFS/Btrfs/mergerfs scope and distro acceptance remain open. No storage write path is authorized by this slice. |
+| M2-4 storage inventory | Read-only metadata collector and fixture parsers exist. O-1 development and isolated validation are owner-approved; the separate helper remains inert, and the current `PrivateDevices=yes` unit cannot read devices. Child tools do not consume the opened fd, so it is not ready for activation. | Implement the approved read-only device policy and identity handling, then complete SELinux/AppArmor, KVM/systemd-container and real LVM-tool validation; live LVM/RAID/cache and hardware evidence are missing; ZFS/Btrfs/mergerfs scope and distro acceptance remain open. No storage write path or host/production activation is authorized by this slice. |
 | M2-5 drive layout Stage A | Manual, explicitly unverified layout implementation; keyboard and drag/drop assignment, redacted export, additive import, and per-chassis optimistic concurrency are implemented in this isolated review branch. Existing-layout mutations carry versions and reject stale writes with 409; create/import remain additive. | D-12 is open pending HBA Viewer source/reuse terms. Browser/axe and backend acceptance are outstanding; no owner acceptance or merge is implied. |
 | M2-6 hostname/timezone | Plan/apply backend and UI skeletons exist. A reviewed change now reports conflict when host settings converge between plan and apply. | Complete design/security review, user documentation, CI/browser and distro/KVM acceptance, and obtain owner acceptance. Go verification could not be repeated in this environment. No production apply is authorized. |
 | File manager | Confined read-only roots and listing skeleton. | ADR 0012 and acceptance are open; complete security review and required isolated/browser/distribution evidence. No write operations are in scope. |
@@ -54,9 +54,9 @@ evidence must be accepted. Current main does not satisfy that gate.
 
 ## Immediate next sequence
 
-1. Resolve D-12 (source/reuse terms for M2-5) and O-1 (native read-only probe boundary for M2-4), or explicitly
-   record a scope change through the owner decision process.
-2. Complete M2-5 and M2-4 within those approved boundaries; do not infer hardware access or storage writes.
+1. Resolve D-12 (source/reuse terms for M2-5); complete the newly approved O-1 implementation and isolated
+   evidence without enabling the socket on host/production or probing real host disks.
+2. Complete M2-5 and M2-4 within their approved boundaries; do not infer hardware discovery or storage writes.
 3. Close M2-3, M2-6 and file-manager reviews and acceptance evidence, then obtain the M2 close decision.
 4. Only then finish and accept M3 Theme/Plugin SDK.
 5. Run the production-readiness and deployment gates as a separate owner-approved release step.
