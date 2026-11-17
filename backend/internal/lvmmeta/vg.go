@@ -107,6 +107,10 @@ type Segment struct {
 	ExtentCount uint64
 	Type        string
 	Parsed      bool
+	// Malformed is set when a required numeric scalar (start_extent,
+	// extent_count) is missing or invalid; the LV/VG must then never be
+	// reported complete.
+	Malformed   bool
 	Stripes     []Area
 	StripeSize  uint64
 	Raid        *RaidSeg
@@ -126,6 +130,10 @@ type LV struct {
 	Status   []string
 	Flags    []string
 	Segments []Segment
+	// Malformed is set when segment_count is missing/invalid, segment rows are
+	// non-contiguous, or a segment scalar is malformed; the VG must then never
+	// be reported complete.
+	Malformed bool
 }
 
 // VGPV is one physical volume in a VG's metadata.
@@ -267,23 +275,40 @@ func parseLV(name string, n *Node) LV {
 	}
 	lv.Status = stringArray(n.child("status"))
 	lv.Flags = stringArray(n.child("flags"))
-	for i := 1; i <= MaxSegmentsPerLV; i++ {
-		seg := n.child("segment" + strconv.Itoa(i))
+
+	// segment_count is required; segments must be numbered 1..segment_count
+	// contiguously. A gap or oversized count must not silently truncate the LV
+	// while leaving the VG complete.
+	count, ok := requiredUint(n, "segment_count")
+	if !ok || count > MaxSegmentsPerLV {
+		lv.Malformed = true
+	}
+	for i := uint64(1); i <= count && i <= MaxSegmentsPerLV; i++ {
+		seg := n.child("segment" + strconv.FormatUint(i, 10))
 		if seg == nil {
+			lv.Malformed = true // gap in segment numbering
 			break
 		}
-		lv.Segments = append(lv.Segments, parseSegment(seg))
+		s := parseSegment(seg)
+		if s.Malformed {
+			lv.Malformed = true
+		}
+		lv.Segments = append(lv.Segments, s)
 	}
 	return lv
 }
 
 func parseSegment(n *Node) Segment {
 	s := Segment{Parsed: true}
-	if d := n.child("start_extent"); d != nil {
-		s.StartExtent, _ = strconv.ParseUint(d.Value, 10, 64)
+	if v, ok := requiredUint(n, "start_extent"); ok {
+		s.StartExtent = v
+	} else {
+		s.Malformed = true
 	}
-	if d := n.child("extent_count"); d != nil {
-		s.ExtentCount, _ = strconv.ParseUint(d.Value, 10, 64)
+	if v, ok := requiredUint(n, "extent_count"); ok {
+		s.ExtentCount = v
+	} else {
+		s.Malformed = true
 	}
 	if d := n.child("type"); d != nil {
 		s.Type = d.Value
@@ -523,7 +548,7 @@ func Assemble(pvs []PVRead) Inventory {
 				missing = true
 			}
 		}
-		malformed := vg.Malformed || hasMalformedPV(vg)
+		malformed := vg.Malformed || hasMalformedPV(vg) || hasMalformedLV(vg)
 		unsupported := hasUnsupportedSegment(vg)
 		prefix := "vg " + vg.Name + ": "
 		if missing {
@@ -569,6 +594,17 @@ type vgCandidate struct {
 func hasMalformedPV(vg *VG) bool {
 	for _, pv := range vg.PVs {
 		if pv.Malformed {
+			return true
+		}
+	}
+	return false
+}
+
+// hasMalformedLV reports whether any LV has a malformed segment_count, a gap in
+// segment numbering, or a malformed segment scalar.
+func hasMalformedLV(vg *VG) bool {
+	for _, lv := range vg.LVs {
+		if lv.Malformed {
 			return true
 		}
 	}
