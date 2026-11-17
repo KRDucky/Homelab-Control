@@ -1,13 +1,14 @@
 // SPDX-FileCopyrightText: 2026 The Homelab Control Authors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useCallback, useState, type KeyboardEvent } from 'react';
+import { useCallback, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import {
   ApiError,
   assignBay,
   createChassis,
   deleteChassis,
   getLayout,
+  importLayout,
   unassignBay,
   updateChassis,
   type CellKind,
@@ -33,6 +34,7 @@ import { explain, useData } from '../useData';
 // statements, shown as "manual, unverified". Nothing here touches the host.
 
 const CHASSIS_KINDS: ChassisKind[] = ['server', 'shelf', 'external', 'desktop'];
+const MAX_IMPORT_BYTES = 8 * 1024 * 1024;
 type Selected = { chassis: number; row: number; col: number };
 
 function specOf(
@@ -83,6 +85,7 @@ export function DriveBays({
   const [cellDraft, setCellDraft] = useState<{ kind: CellKind; label: string } | null>(null);
   const [drive, setDrive] = useState('');
   const [resize, setResize] = useState<{ id: number; name: string; rows: number; cols: number } | null>(null);
+  const importRef = useRef<HTMLInputElement>(null);
   const layout = saved ?? data;
 
   async function run(action: () => Promise<DriveLayout>, done: string) {
@@ -106,6 +109,42 @@ export function DriveBays({
       }
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleImport(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setMessage('');
+    if (file.size > MAX_IMPORT_BYTES) {
+      setMessage('Import refused: the file exceeds the 8 MiB limit.');
+      event.target.value = '';
+      return;
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(await file.text());
+    } catch {
+      setMessage('Import refused: the file is not valid JSON.');
+      event.target.value = '';
+      return;
+    }
+    const chassis = (parsed as { chassis?: unknown } | null)?.chassis;
+    if (!Array.isArray(chassis)) {
+      setMessage('Import refused: the file has no chassis array.');
+      event.target.value = '';
+      return;
+    }
+    setBusy(true);
+    try {
+      setSaved(await importLayout(chassis, csrf));
+      setMessage('Layout imported (geometry added; assignment identities discarded).');
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) onUnauthorized();
+      setMessage(err instanceof ApiError ? err.message : 'Import failed.');
+    } finally {
+      setBusy(false);
+      event.target.value = '';
     }
   }
 
@@ -190,6 +229,24 @@ export function DriveBays({
         >
           Export layout (identifiers redacted)
         </button>
+        <input
+          ref={importRef}
+          type="file"
+          accept="application/json,.json"
+          style={{ display: 'none' }}
+          onChange={handleImport}
+        />
+        <button
+          type="button"
+          className="ghost"
+          disabled={!canManage || busy}
+          onClick={() => importRef.current?.click()}
+        >
+          Import layout
+        </button>
+        <span className="muted">
+          Import adds unassigned geometry only; assignment identities are discarded.
+        </span>
       </div>
       {layout.chassis.length === 0 && <p className="muted">No chassis has been described yet.</p>}
       {layout.chassis.map((c) => (

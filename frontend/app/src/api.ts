@@ -961,6 +961,12 @@ export function unassignBay(id: number, row: number, col: number, csrf: string) 
   return checkedLayout(sendJSON<DriveLayout>('DELETE', bayPath(id, row, col), csrf));
 }
 
+/** Import a previously exported chassis array (geometry only). The server
+ * discards ids, timestamps and assignment identities and adds additively. */
+export function importLayout(chassis: unknown[], csrf: string): Promise<DriveLayout> {
+  return checkedLayout(sendJSON<DriveLayout>('POST', `${layoutBase}/import`, csrf, { chassis }));
+}
+
 // ---- M4-1b: read-only Software Center --------------------------------------
 
 export interface SoftwarePackage {
