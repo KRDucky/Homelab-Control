@@ -243,10 +243,10 @@ func TestSelectCopyCollision(t *testing.T) {
 
 func TestParseTextTokenLimit(t *testing.T) {
 	// A syntactically valid prefix followed by more tokens than MaxTokens must
-	// error, not be accepted as a complete document.
+	// error with a typed limit error, not be accepted as a complete document.
 	body := "vg1 { " + strings.Repeat("k = 1 ", MaxTokens/3+10) + "}"
-	if _, err := parseText([]byte(body)); err == nil {
-		t.Fatal("expected token limit error")
+	if _, err := parseText([]byte(body)); err == nil || !strings.Contains(err.Error(), "token limit") {
+		t.Fatalf("err = %v, want token limit error", err)
 	}
 }
 

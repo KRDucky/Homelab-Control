@@ -10,19 +10,25 @@ import (
 	"io"
 )
 
-// Compile-time limits. Aggregate limits are enforced in Assemble.
+// Compile-time limits. The per-copy text cap is enforced in ReadPV/ReadPVBudget;
+// the aggregate MaxTotalText budget is enforced in ReadPVBudget (and defensively
+// in Assemble).
 const (
-	SectorSize        = 512
-	LabelScanSectors  = 4
-	IDLen             = 32
-	MaxDataAreas      = 8
-	MaxMetadataAreas  = 2
-	MaxRawLocns       = 4
-	MDAHeaderSize     = 512
-	MaxMetadataText   = 4 << 20
-	MaxTotalText      = 16 << 20
-	MaxDepth          = 8
-	MaxTokens         = 2_000_000
+	SectorSize       = 512
+	LabelScanSectors = 4
+	IDLen            = 32
+	MaxDataAreas     = 8
+	MaxMetadataAreas = 2
+	MaxRawLocns      = 4
+	MDAHeaderSize    = 512
+	MaxMetadataText  = 4 << 20
+	MaxTotalText     = 16 << 20
+	MaxDepth         = 8
+	// MaxTokens bounds the tokenizer's slice: at ~32 bytes/token (plus string
+	// data and the AST), 200k tokens stay well under the unit's 64 MiB
+	// MemoryMax, so a dense hostile text fails closed with a typed error rather
+	// than OOM.
+	MaxTokens         = 200_000
 	MaxString         = 4096
 	MaxArray          = 65536
 	MaxVGs            = 64
