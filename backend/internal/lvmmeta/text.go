@@ -41,7 +41,7 @@ func parseText(b []byte) (map[string]*Node, error) {
 	}
 	p := &parser{toks: toks, depth: 0}
 	root := map[string]*Node{}
-	for p.more() && !p.peekIs('}') {
+	for p.more() && !p.peekIs(tokRBrace) {
 		n, err := p.parseNode()
 		if err != nil {
 			return nil, err
@@ -121,6 +121,10 @@ func tokenize(b []byte) ([]token, error) {
 			for j < len(b) && isIdentByte(b[j]) {
 				j++
 			}
+			if j == i {
+				// Unknown byte: always advance, but fail closed.
+				return nil, fmt.Errorf("invalid byte %q at offset %d", c, i)
+			}
 			word := string(b[i:j])
 			if _, err := strconv.ParseInt(word, 10, 64); err == nil {
 				toks = append(toks, token{tokInt, word, i})
@@ -139,7 +143,7 @@ func tokenize(b []byte) ([]token, error) {
 
 func isIdentByte(c byte) bool {
 	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' ||
-		c == '_' || c == '-' || c == '.' || c == '/'
+		c == '_' || c == '-' || c == '.' || c == '/' || c == '+'
 }
 
 // scanString reads a double-quoted string with \" and \\ escapes.
@@ -197,7 +201,9 @@ func (p *parser) next() token {
 }
 
 func (p *parser) ident() string {
-	if p.more() && (p.toks[p.pos].kind == tokIdent) {
+	// A key may be an identifier or an all-digit name (a bare number in key
+	// position is a name, not a value).
+	if p.more() && (p.toks[p.pos].kind == tokIdent || p.toks[p.pos].kind == tokInt) {
 		return p.next().text
 	}
 	return ""

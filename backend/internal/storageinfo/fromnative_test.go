@@ -80,11 +80,11 @@ func TestFromNativeSegmentRelations(t *testing.T) {
 		t.Fatalf("raid segment = %+v", raid.Segments[0])
 	}
 	thin := byName["thin_lv"]
-	if thin.PoolUUID != "44444444-5555-6666-7777-888899990000" || thin.OriginUUID != "33333333-4444-5555-6666-777788889999" {
+	if thin.PoolUUID != "444444-4455-5566-6677-7788-8899-990000" || thin.OriginUUID != "333333-3344-4455-5566-6677-7788-889999" {
 		t.Fatalf("thin lv = %+v", thin)
 	}
 	cache := byName["cache_lv"]
-	if cache.PoolUUID != "44444444-5555-6666-7777-888899990000" || cache.OriginUUID != "33333333-4444-5555-6666-777788889999" {
+	if cache.PoolUUID != "444444-4455-5566-6677-7788-8899-990000" || cache.OriginUUID != "333333-3344-4455-5566-6677-7788-889999" {
 		t.Fatalf("cache lv = %+v", cache)
 	}
 }

@@ -419,3 +419,23 @@ func TestReadPVBudgetAggregate(t *testing.T) {
 		t.Fatalf("budget went negative: %d", budget)
 	}
 }
+
+func TestUUIDCharset(t *testing.T) {
+	// LVM2 UUID alphabet (lib/id/id.c _c) is alphanumeric + '!' + '#', not hex.
+	mixed := strings.Repeat("Ab", 16) // 32 chars, mixed case
+	if len(mixed) != IDLen {
+		t.Fatalf("test len %d != IDLen %d", len(mixed), IDLen)
+	}
+	if got := uuidString([]byte(mixed)); got != mixed {
+		t.Fatalf("uuidString = %q, want %q (exact case preserved)", got, mixed)
+	}
+	withSpecial := strings.Repeat("A", 30) + "!#"
+	if got := uuidString([]byte(withSpecial)); got != withSpecial {
+		t.Fatalf("special-char uuid = %q", got)
+	}
+	// Out-of-alphabet characters are rejected.
+	bad := strings.Repeat("*", IDLen)
+	if got := uuidString([]byte(bad)); got != "" {
+		t.Fatalf("out-of-alphabet uuid accepted: %q", got)
+	}
+}
