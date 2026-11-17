@@ -99,7 +99,7 @@ type MDACopy struct {
 	TextCRC  uint32
 	Ignored  bool
 	Status   CopyStatus
-	Text     []byte
+	Text     []byte `json:"-"` // never serialized to clients
 }
 
 // PVRead is the result of reading one device.
@@ -108,7 +108,7 @@ type PVRead struct {
 	Status PVStatus
 	Label  *Label
 	Copies []MDACopy
-	Text   []byte // chosen copy; never exported to clients
+	Text   []byte `json:"-"` // never serialized to clients
 }
 
 // readAt is a bounded readerAt wrapper that fails on any read past size.
