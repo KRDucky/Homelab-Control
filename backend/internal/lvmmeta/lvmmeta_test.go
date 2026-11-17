@@ -280,6 +280,27 @@ func TestParseSegmentUnsupported(t *testing.T) {
 	}
 }
 
+func TestAssembleUnsupportedSegmentPartial(t *testing.T) {
+	text := `contents = "Text Format Volume Group"
+version = 1
+vg1 {
+    id = "AAAAAAAA-BBBB-CCCC-DDDD-EEEE-FFFF00000001"
+    seqno = 1
+    extent_size = 8192
+    physical_volumes { pv0 { id = "abcdef12-3456-7890-abcd-ef1234567890" device = "/dev/vdb" } }
+    logical_volumes { lv1 { id = "99999999-8888-7777-6666-5555-444444444444" segment_count = 1 segment1 { start_extent = 0 extent_count = 1 type = "cache" } } }
+}`
+	img := buildImage(text, nil)
+	pv := ReadPV(bytes.NewReader(img), uint64(len(img)), "vdb")
+	if pv.Status != StatusOK {
+		t.Fatalf("status = %s", pv.Status)
+	}
+	inv := Assemble([]PVRead{pv})
+	if len(inv.VGs) != 1 || inv.VGs[0].State != StateUnsupported {
+		t.Fatalf("VG state = %+v, want partial-unsupported-segment", inv.VGs)
+	}
+}
+
 // FuzzReadPVNoPanic feeds hostile bytes through ReadPV and asserts no panic and
 // that any failure is a typed status.
 func FuzzReadPVNoPanic(f *testing.F) {
