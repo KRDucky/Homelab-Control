@@ -88,3 +88,59 @@ func TestFromNativeSegmentRelations(t *testing.T) {
 		t.Fatalf("cache lv = %+v", cache)
 	}
 }
+
+func TestFromNativeMalformedExtentSize(t *testing.T) {
+	// extent_size * 512 must not wrap (C9): a hostile value becomes a typed
+	// note and the segment byte mapping is omitted, never a wrapped size.
+	inv := lvmmeta.Inventory{VGs: []lvmmeta.VG{{
+		UUID:       "aaaaaaaabbbbccccddddeeeeffff0001",
+		Name:       "vg1",
+		ExtentSize: 36028797018963969, // > MaxUint64/512
+		LVs: []lvmmeta.LV{
+			{UUID: "99999999888877776666555544444444", Name: "lv1", Segments: []lvmmeta.Segment{{Type: "striped", Parsed: true, StartExtent: 0, ExtentCount: 128, Stripes: []lvmmeta.Area{{PVKey: "pv0"}}}}},
+		},
+	}}}
+	out, notes := FromNative(inv)
+	if len(out.Volumes) != 1 {
+		t.Fatalf("volumes = %+v", out.Volumes)
+	}
+	seg := out.Volumes[0].Segments[0]
+	if seg.StartBytes != nil || seg.SizeBytes != nil {
+		t.Fatalf("segment bytes = %+v, want nil on overflow", seg)
+	}
+	found := false
+	for _, n := range notes {
+		if strings.Contains(n, "malformed-extent-size") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("notes = %v, want malformed-extent-size", notes)
+	}
+}
+
+func TestFromNativeMalformedSegmentSize(t *testing.T) {
+	// start_extent/extent_count * extent_bytes must not wrap (C9).
+	inv := lvmmeta.Inventory{VGs: []lvmmeta.VG{{
+		UUID:       "aaaaaaaabbbbccccddddeeeeffff0001",
+		Name:       "vg1",
+		ExtentSize: 8192,
+		LVs: []lvmmeta.LV{
+			{UUID: "99999999888877776666555544444444", Name: "lv1", Segments: []lvmmeta.Segment{{Type: "striped", Parsed: true, StartExtent: ^uint64(0), ExtentCount: 1, Stripes: []lvmmeta.Area{{PVKey: "pv0"}}}}},
+		},
+	}}}
+	out, notes := FromNative(inv)
+	seg := out.Volumes[0].Segments[0]
+	if seg.StartBytes != nil || seg.SizeBytes != nil {
+		t.Fatalf("segment bytes = %+v, want nil on overflow", seg)
+	}
+	found := false
+	for _, n := range notes {
+		if strings.Contains(n, "malformed-segment-size") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("notes = %v, want malformed-segment-size", notes)
+	}
+}

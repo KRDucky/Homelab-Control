@@ -20,7 +20,12 @@ func FromNative(inv lvmmeta.Inventory) (LVMInventory, []string) {
 
 	for _, vg := range inv.VGs {
 		vgUUID := dashUUID(vg.UUID)
-		extentBytes := vg.ExtentSize * 512
+		// extent_size is in 512-byte sectors; convert with overflow check so a
+		// hostile value becomes a typed note, never a wrapped byte count.
+		extentBytes, extentOK := mulChecked(vg.ExtentSize, 512)
+		if !extentOK {
+			notes = append(notes, "malformed-extent-size:"+vg.Name)
+		}
 
 		// VG-scoped LV name -> UUID, for resolving segment component names.
 		lvUUID := make(map[string]string, len(vg.LVs))
@@ -68,8 +73,11 @@ func FromNative(inv lvmmeta.Inventory) (LVMInventory, []string) {
 				Health: "unknown", // runtime health is O-2
 			}
 			for _, seg := range lv.Segments {
-				mapped, rel := fromNativeSegment(seg, extentBytes, lvUUID)
+				mapped, rel, malformed := fromNativeSegment(seg, extentBytes, extentOK, lvUUID)
 				slv.Segments = append(slv.Segments, mapped)
+				if malformed {
+					notes = append(notes, "malformed-segment-size:"+lv.Name)
+				}
 				if slv.OriginUUID == "" {
 					slv.OriginUUID = rel.Origin
 				}
@@ -98,6 +106,8 @@ func FromNative(inv lvmmeta.Inventory) (LVMInventory, []string) {
 			notes = append(notes, "vg "+vg.Name+": inconsistent metadata")
 		case lvmmeta.StateNoMetadata:
 			notes = append(notes, "vg "+vg.Name+": no metadata")
+		case lvmmeta.StateMalformed:
+			notes = append(notes, "vg "+vg.Name+": partial (malformed size)")
 		}
 	}
 	return out, notes
@@ -114,14 +124,20 @@ type segRel struct {
 
 // fromNativeSegment maps one native segment into an LVMSegment plus the UUID
 // relations its component names resolve to. Unknown types stay Parsed=false and
-// are not invented.
-func fromNativeSegment(s lvmmeta.Segment, extentBytes uint64, lvUUID map[string]string) (LVMSegment, segRel) {
+// are not invented. The bool result is true when a size multiplication
+// overflowed and the byte fields were omitted (typed partial, never wrapped).
+func fromNativeSegment(s lvmmeta.Segment, extentBytes uint64, extentOK bool, lvUUID map[string]string) (LVMSegment, segRel, bool) {
 	o := LVMSegment{Type: s.Type}
-	if extentBytes > 0 {
-		start := s.StartExtent * extentBytes
-		size := s.ExtentCount * extentBytes
-		o.StartBytes = &start
-		o.SizeBytes = &size
+	malformed := false
+	if extentOK && extentBytes > 0 {
+		start, ok1 := mulChecked(s.StartExtent, extentBytes)
+		size, ok2 := mulChecked(s.ExtentCount, extentBytes)
+		if ok1 && ok2 {
+			o.StartBytes = &start
+			o.SizeBytes = &size
+		} else {
+			malformed = true
+		}
 	}
 
 	var rel segRel
@@ -153,7 +169,15 @@ func fromNativeSegment(s lvmmeta.Segment, extentBytes uint64, lvUUID map[string]
 		// striped / linear
 		o.Devices = areaNames(s.Stripes)
 	}
-	return o, rel
+	return o, rel, malformed
+}
+
+// mulChecked returns a*b and whether it overflowed (C9 checked arithmetic).
+func mulChecked(a, b uint64) (uint64, bool) {
+	if b != 0 && a > ^uint64(0)/b {
+		return 0, false
+	}
+	return a * b, true
 }
 
 // areaNames joins the PV keys (or hidden LV names) of areas as display text.
