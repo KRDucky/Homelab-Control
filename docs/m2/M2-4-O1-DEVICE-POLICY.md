@@ -113,9 +113,14 @@ more specific design and are **not** implemented here:
   re-open via `/proc/self/fd`, which is again subject to the device policy; this
   is unverified and would require a new helper code path.
 
-Decision requested from the owner/hc-lead: accept the class-level static policy
-for **isolated validation only**, or require one of the narrower designs before
-any host activation. Until decided, activation stays blocked.
+**Decision recorded.** The class-level static policy is accepted **only for
+isolated validation**, under the owner decision "O-1 decision updates to ALL
+AHEAD GO" (2026-11-17), which `docs/m2/OWNER-DECISIONS.md` records as approval
+for implementation and isolated validation, not host activation. Before any host
+or production activation a narrower design (per-request transient unit, fd
+passing, or another reviewed by-id model) **and a separate owner authorization**
+are required. Until both exist, host activation stays blocked and the unit stays
+disabled by default.
 
 ## Startup self-check (contract for hc-go; not enforceable in the unit)
 

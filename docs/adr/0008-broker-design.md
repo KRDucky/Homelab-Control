@@ -305,7 +305,7 @@ production activation. Details and residual privilege:
   `TestStorageProbeServiceFailClosed` and `tests/packaging/storage-probe-policy-check.sh` enforce this.
 - **Residual.** The static unit permits raw reads of all disks in those classes, including
   USB (`sd`); it does not satisfy Amendment 7's "named by-id nodes, no wildcards". Narrower
-  designs (per-request transient unit; fd passing) need their own review. Owner decision open.
+  designs (per-request transient unit; fd passing) need their own review. The class-level policy is accepted only for isolated validation (owner O-1 decision); a narrower design and separate owner authorization are required before any host activation.
 - **MAC.** `SELinuxContext=hc_storage_probe_t` / `AppArmorProfile=hc-storage-probe` fail closed when
   the LSM is active and the policy is missing. No unconfined, `lib_t` or `bin_t` shortcut.
 - **Startup.** The `/proc/devices` group self-check is the helper's duty (Exec lines inside the
