@@ -337,11 +337,22 @@ func Run(ctx context.Context, req Request) Result {
 		res.Partial = true
 	} else {
 		pvs := make([]lvmmeta.PVRead, 0, len(devs))
+		budget := int64(lvmmeta.MaxTotalText)
 		for _, d := range devs {
-			pvs = append(pvs, lvmmeta.ReadPV(d.f, d.size, d.name))
+			pv := lvmmeta.ReadPVBudget(d.f, d.size, d.name, &budget)
+			pvs = append(pvs, pv)
+			if pv.Status == lvmmeta.StatusLimitExceeded {
+				res.Errors = append(res.Errors, "lvm metadata text exceeds MaxTotalText")
+				res.Partial = true
+				break
+			}
 		}
 		inv := lvmmeta.Assemble(pvs)
 		res.LVM = &inv
+		if len(inv.Notes) > 0 {
+			res.Errors = append(res.Errors, inv.Notes...)
+			res.Partial = true
+		}
 	}
 
 	for _, d := range devs {

@@ -386,3 +386,36 @@ func TestAssembleTotalTextCap(t *testing.T) {
 		t.Fatalf("retained %d bytes > MaxTotalText %d", total, MaxTotalText)
 	}
 }
+
+func TestReadPVBudgetExhausted(t *testing.T) {
+	img := buildImage(testVGMeta, nil)
+	budget := int64(10)
+	pv := ReadPVBudget(bytes.NewReader(img), uint64(len(img)), "vdb", &budget)
+	if pv.Status != StatusLimitExceeded {
+		t.Fatalf("status = %s, want limit-exceeded", pv.Status)
+	}
+	if pv.Text != nil {
+		t.Fatalf("text retained despite exhausted budget: %d bytes", len(pv.Text))
+	}
+	if budget != 0 {
+		t.Fatalf("budget = %d, want 0", budget)
+	}
+}
+
+func TestReadPVBudgetAggregate(t *testing.T) {
+	img := buildImage(testVGMeta, nil)
+	budget := int64(2000)
+	total := 0
+	for i := 0; i < 100; i++ {
+		pv := ReadPVBudget(bytes.NewReader(img), uint64(len(img)), "vdb", &budget)
+		if pv.Text != nil {
+			total += len(pv.Text)
+		}
+	}
+	if total > 2000 {
+		t.Fatalf("retained %d bytes > budget 2000", total)
+	}
+	if budget < 0 {
+		t.Fatalf("budget went negative: %d", budget)
+	}
+}
