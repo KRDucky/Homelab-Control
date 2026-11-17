@@ -193,9 +193,9 @@ var sysBlockRoot = "/sys/class/block"
 var devBlockRoot = "/dev/block"
 
 // device is one enumerated, revalidated, non-skipped block device whose
-// /dev/block/MAJ:MIN node passed the helper's fstat check. The fd is held for
-// cleanup, but child tools still reopen the path; this proposal is not ready
-// for activation until O-1 resolves that identity gap.
+// /dev/block/MAJ:MIN node passed the helper's fstat block+rdev check. The fd
+// is held and inherited by blkid so it reads this exact device; lvs/pvs remain
+// path-based (see the design doc for that unresolved identity gap).
 type device struct {
 	name string
 	path string
@@ -220,10 +220,10 @@ type Result struct {
 	Partial bool              `json:"partial"`
 }
 
-// Run executes the fixed templates. Devices are revalidated and class-filtered;
-// the shipped unit currently has no device access, so resolution fails closed
-// and reports Partial. A future device grant must resolve the name-to-node
-// race and ensure child tools read the same validated device before activation.
+// Run executes the fixed templates. Devices are revalidated and class-filtered,
+// then opened and fstat-verified; blkid reads the pinned fd, lvs/pvs read the
+// filtered device set. When identity cannot be verified (e.g. no device access
+// in the current unit), the device is reported and the result is Partial.
 func Run(ctx context.Context, req Request) Result {
 	res := Result{Version: 1, Blkid: map[string]string{}}
 	if !admit() {
@@ -298,14 +298,14 @@ func Run(ctx context.Context, req Request) Result {
 	defer os.RemoveAll(lvmDir)
 	lvmEnv := []string{"LVM_SYSTEM_DIR=" + lvmDir}
 
-	lvs, err := run(ctx, reportTimeout, maxReportBytes, "lvs", lvsArgs(probeNames), lvmEnv)
+	lvs, err := run(ctx, reportTimeout, maxReportBytes, "lvs", lvsArgs(probeNames), lvmEnv, nil)
 	if err != nil {
 		res.Errors = append(res.Errors, "lvs: "+err.Error())
 		res.Partial = true
 	}
 	res.LVS = lvs
 
-	pvs, err := run(ctx, reportTimeout, maxReportBytes, "pvs", pvsArgs(probeNames), lvmEnv)
+	pvs, err := run(ctx, reportTimeout, maxReportBytes, "pvs", pvsArgs(probeNames), lvmEnv, nil)
 	if err != nil {
 		res.Errors = append(res.Errors, "pvs: "+err.Error())
 		res.Partial = true
@@ -314,7 +314,9 @@ func Run(ctx context.Context, req Request) Result {
 
 	for _, d := range devs {
 		before, hasSeq := diskseq(d.name)
-		out, err := run(ctx, blkidTimeout, maxBlkidBytes, "blkid", blkidArgs(d.path), nil)
+		// blkid reads the exact opened device through the inherited fd, not a
+		// re-resolved kernel-name path.
+		out, err := run(ctx, blkidTimeout, maxBlkidBytes, "blkid", blkidArgs(blkidProcfd), nil, []*os.File{d.f})
 		if err == nil && hasSeq {
 			after, ok := diskseq(d.name)
 			if !ok || after != before {
@@ -386,8 +388,13 @@ func lvmConfig(names []string) string {
 	return "devices{hints=\"none\" filter=[" + strings.Join(patterns, ",") + "]}"
 }
 
+// blkidProcfd is the path blkid receives for the device. The device fd is the
+// first ExtraFile (child fd 3), so /proc/self/fd/3 re-opens that exact pinned
+// device rather than a re-resolved kernel-name path.
+const blkidProcfd = "/proc/self/fd/3"
+
 // blkidArgs is the fixed blkid template: read-only probe, no cache read or
-// write, export output, one already-resolved device node.
+// write, export output, one pinned device node (a proc fd path).
 func blkidArgs(path string) []string {
 	return []string{"-p", "-c", "/dev/null", "-o", "export", path}
 }
@@ -521,11 +528,10 @@ func wholeDisk(name string) string {
 	return filepath.Base(filepath.Dir(target))
 }
 
-// resolveDevice reads /sys/block/<name>/dev, attempts to open the stable
-// /dev/block MAJ:MIN node, and fstat-checks block type + rdev. This helper
-// remains inert: the service's PrivateDevices=yes makes that open fail, and
-// the current child templates use paths rather than this fd. O-1 must settle
-// both node identity and child-open semantics before any activation.
+// resolveDevice reads /sys/class/block/<name>/dev, opens the stable
+// /dev/block MAJ:MIN node (following the symlink), and fstat-checks the opened
+// fd is a block device whose rdev matches. The fd is held so blkid reads this
+// exact device; lvs/pvs remain path-based (see docs for that unresolved gap).
 func resolveDevice(name string) (*device, error) {
 	dev, err := readTrimErr(sysBlockRoot + "/" + name + "/dev")
 	if err != nil {
@@ -548,12 +554,12 @@ func resolveDevice(name string) (*device, error) {
 	return &device{name: name, path: path, f: f}, nil
 }
 
-// openAndVerify opens path read-only without following symlinks and confirms
-// it is a block device whose rdev equals the MAJ:MIN resolved from sysfs. It
-// is a var so synthetic tests can inject a fake fd; production uses the real
-// devtmpfs node.
+// openAndVerify opens path read-only, following the /dev/block symlink to the
+// real devtmpfs node, and confirms the opened fd is a block device whose rdev
+// equals the MAJ:MIN resolved from sysfs. Identity is pinned to the opened fd,
+// not the path. It is a var so synthetic tests can inject a fake fd.
 var openAndVerify = func(path string, maj, min uint64) (*os.File, error) {
-	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_CLOEXEC, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -600,8 +606,10 @@ func diskseq(name string) (string, bool) {
 
 // run executes one fixed binary with the given args, a scrubbed environment
 // plus extraEnv, a size-capped stdout and a timeout that kills the whole
-// process group.
-func run(ctx context.Context, timeout time.Duration, max int, tool string, args, extraEnv []string) (string, error) {
+// process group. extraFiles are inherited as child fds 3.. so a tool can read
+// the exact opened device through /proc/self/fd/N instead of re-resolving a
+// kernel-name path.
+func run(ctx context.Context, timeout time.Duration, max int, tool string, args, extraEnv []string, extraFiles []*os.File) (string, error) {
 	bin := binaries[tool]
 	if bin == "" {
 		return "", fmt.Errorf("%s is not registered", tool)
@@ -610,6 +618,7 @@ func run(ctx context.Context, timeout time.Duration, max int, tool string, args,
 	defer cancel()
 	cmd := exec.CommandContext(childCtx, bin, args...)
 	cmd.Env = append(append([]string{}, env...), extraEnv...)
+	cmd.ExtraFiles = extraFiles
 	cmd.Stdin = nil
 	var stdout cappedBuffer
 	stdout.max = max
