@@ -25,6 +25,11 @@ fixture-tested end to end:
 - **Guards**: an occupied bay exposes unassign only (never a second assign), so nothing is overwritten;
   grid edits that would drop or de-bay an assigned cell are refused by the API; assignment accepts only
   one observed whole disk with an unambiguous assignable-tier identity.
+- **Assignment input**: a drive is assigned to an eligible vacant bay by **drag-and-drop** or by
+  **keyboard** (arrow-key navigation selects the bay, then the select/button assign flow); an occupied
+  bay is never a drop target and never offers assign.
+- **Export**: the layout can be exported with assignment identifiers **redacted by default** (tier only,
+  e.g. `wwn:[redacted]`), so no serial/WWN value is written to the download.
 
 ### Acceptance fixture
 
@@ -35,14 +40,18 @@ fixture-tested end to end:
 - assignment guard: `assignable` accepts only whole disks with an observed assignable tier; `unassignedDrives`
   splits eligible from ineligible;
 - UI: keyboard grid selection + assign by persistent identity (CSRF and `persistent_id` body asserted),
-  and occupied-bay unassign with no overwrite path (DELETE to the bay route asserted).
+  drag-and-drop onto a vacant bay (PUT to the bay route asserted), occupied-bay unassign with no overwrite
+  path, and 409-conflict re-sync;
+- export: `redactIdentity`/`redactedLayout` mask identities to their tier, and the export button is present.
 
-## Explicit deferrals (not delivered in this slice)
+## Remaining gaps (not delivered)
 
-- keyboard-complete and drag-and-drop **assignment** (grid arrow-key navigation is present for
-  accessibility, but the full assign/unassign flow is not keyboard-only or drag-drop);
-- JSON **export/import** (including identifier redaction);
-- **optimistic revision / concurrency** behavior;
+- **import** of an exported layout: blocked on a dedicated, validated API route. The existing per-bay
+  assign route re-collects a live storage observation and refuses redacted/historical/absent identities,
+  so a safe import (schema/size validation, redacted-identifier semantics) cannot be replayed through the
+  current API without a new backend route (hc-go).
+- **optimistic revision / concurrency**: the UI re-syncs after a 409 conflict, but the API has no
+  version/If-Match check, so two concurrent editors can still both write.
 - the **location badge** on other storage views (Stage B);
 - a **Playwright + axe** real-browser fixture (the acceptance fixture above is a Vitest/jsdom synthetic
   fixture only).
