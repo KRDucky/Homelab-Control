@@ -6,6 +6,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -27,6 +28,7 @@ import (
 type LayoutStore interface {
 	List(context.Context) ([]state.Chassis, error)
 	Create(context.Context, state.ChassisSpec, time.Time) (int64, error)
+	Import(context.Context, []state.ChassisSpec, time.Time) (int, error)
 	Update(context.Context, int64, state.ChassisSpec, time.Time) error
 	Delete(context.Context, int64) error
 	Assign(ctx context.Context, id int64, row, col int, identity, by string, at time.Time) error
@@ -297,5 +299,84 @@ func (s *Server) handleLayoutUnassign(w http.ResponseWriter, r *http.Request, se
 	}
 	s.layoutWrite(w, r, sess, "layout.bay.unassign", bayDetail(id, row, col), http.StatusOK, func() error {
 		return s.layouts.Unassign(r.Context(), id, row, col, time.Now())
+	})
+}
+
+// The M2-5 layout import accepts an exported chassis schema: a list of
+// chassis geometry (name, kind, rows, cols, cells). Export-only fields that
+// carry identity or provenance — id, created_at/updated_at, and each cell's
+// assignment object — are accepted and discarded so imported geometry is
+// always unassigned and can never introduce a serial or WWN. Everything else
+// is strict: unknown or trailing fields are rejected.
+type layoutImportRequest struct {
+	Chassis []layoutImportChassis `json:"chassis"`
+}
+
+type layoutImportChassis struct {
+	Name  string             `json:"name"`
+	Kind  string             `json:"kind"`
+	Rows  int                `json:"rows"`
+	Cols  int                `json:"cols"`
+	Cells []layoutImportCell `json:"cells"`
+	// Discarded export-only fields.
+	ID        json.RawMessage `json:"id,omitempty"`
+	CreatedAt json.RawMessage `json:"created_at,omitempty"`
+	UpdatedAt json.RawMessage `json:"updated_at,omitempty"`
+}
+
+type layoutImportCell struct {
+	Row   int    `json:"row"`
+	Col   int    `json:"col"`
+	Kind  string `json:"kind"`
+	Label string `json:"label"`
+	// Discarded: an assignment object (identity, provenance, confidence,
+	// assigned_by, assigned_at). Imported geometry is always unassigned.
+	Assignment json.RawMessage `json:"assignment,omitempty"`
+}
+
+func (c layoutImportChassis) spec() state.ChassisSpec {
+	cells := make([]state.CellSpec, 0, len(c.Cells))
+	for _, cell := range c.Cells {
+		cells = append(cells, state.CellSpec{Row: cell.Row, Col: cell.Col, Kind: cell.Kind, Label: cell.Label})
+	}
+	return state.ChassisSpec{Name: c.Name, Kind: c.Kind, Rows: c.Rows, Cols: c.Cols, Cells: cells}
+}
+
+// layoutImportMaxBytes bounds the import body: a full export of 32 chassis,
+// each up to 24x24 cells, stays well under this. The cap is enforced before
+// any parsing so an oversized body is refused without reading it all.
+const layoutImportMaxBytes = 8 << 20
+
+// handleLayoutImport imports chassis geometry additively in one atomic
+// transaction. It never replaces or deletes existing chassis and never stores
+// assignment or identity values. The audit detail records counts only.
+func (s *Server) handleLayoutImport(w http.ResponseWriter, r *http.Request, sess *auth.Session, _ string) {
+	if !s.layoutAvailable(w) {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, layoutImportMaxBytes)
+	var req layoutImportRequest
+	if !decodeStrict(w, r, &req) {
+		return
+	}
+	if len(req.Chassis) == 0 {
+		writeError(w, http.StatusBadRequest, "invalid_layout", "The import contains no chassis.")
+		return
+	}
+	specs := make([]state.ChassisSpec, 0, len(req.Chassis))
+	cells := 0
+	for _, c := range req.Chassis {
+		spec := c.spec()
+		if spec.Validate() != nil {
+			writeError(w, http.StatusBadRequest, "invalid_layout", "The import is invalid or exceeds the supported limits.")
+			return
+		}
+		cells += len(spec.Cells)
+		specs = append(specs, spec)
+	}
+	detail := "chassis=" + strconv.Itoa(len(specs)) + " cells=" + strconv.Itoa(cells)
+	s.layoutWrite(w, r, sess, "layout.import", detail, http.StatusOK, func() error {
+		_, err := s.layouts.Import(r.Context(), specs, time.Now())
+		return err
 	})
 }
