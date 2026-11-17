@@ -5,6 +5,7 @@
 package lvmmeta
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 	"strings"
@@ -32,6 +33,11 @@ type Node struct {
 // parseText parses the whole lvm2 config text into a tree. It enforces
 // token/depth/string/array limits and fails closed on any syntax error.
 func parseText(b []byte) (map[string]*Node, error) {
+	// The metadata text is NUL-terminated on disk (the CRC covers the bytes
+	// including the terminator, but the grammar stops at it).
+	if i := bytes.IndexByte(b, 0); i >= 0 {
+		b = b[:i]
+	}
 	if !utf8.Valid(b) {
 		return nil, fmt.Errorf("text is not valid UTF-8")
 	}

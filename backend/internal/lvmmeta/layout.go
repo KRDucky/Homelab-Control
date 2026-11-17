@@ -228,6 +228,11 @@ func readPV(r io.ReaderAt, size uint64, device string, budget *int64) PVRead {
 		}
 	}
 
+	if len(res.Copies) == 0 {
+		// A PV label with no metadata area (e.g. pvcreate before vgcreate) is a
+		// valid, complete read — there is no VG metadata to extract.
+		return res
+	}
 	res.Text, res.Status = selectCopy(res.Copies)
 	// Drop every copy's raw text now that the best was chosen; only res.Text is
 	// retained, so no unbounded aggregate of per-copy texts is kept.
@@ -410,7 +415,9 @@ func readMDA(rd readAt, mda DiskLocn) ([]MDACopy, PVStatus) {
 		})
 	}
 	if len(copies) == 0 {
-		return nil, StatusMetadataIgnored
+		// No raw_locn copy at all (e.g. a freshly pvcreate'd PV) is a valid,
+		// empty metadata area, not an error.
+		return nil, StatusOK
 	}
 	return copies, StatusOK
 }
