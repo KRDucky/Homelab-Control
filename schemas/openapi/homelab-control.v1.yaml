@@ -2224,7 +2224,7 @@ paths:
         content: { application/json: { schema: { $ref: '#/components/schemas/LayoutImport' } } }
       responses:
         '200': { description: Imported; the full layout is returned, content: { application/json: { schema: { $ref: '#/components/schemas/DriveLayout' } } } }
-        '400': { description: Invalid, malformed or oversized body, unknown/trailing fields, or limits exceeded, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '400': { description: Invalid or malformed body, unknown/trailing fields, or limits exceeded, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: 'Missing layout.manage, or Origin/CSRF rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '413': { description: Request body exceeds the import size cap, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
