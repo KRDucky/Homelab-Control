@@ -54,16 +54,24 @@ func unitSetting(t *testing.T, body, key string) (string, bool) {
 	return vals[len(vals)-1], true
 }
 
-// TestStorageProbeServiceFailClosed is the static service-unit guard: the
-// helper must run as a throwaway unprivileged user with no capabilities and no
-// device access (fail closed) until the device-open mechanism is authorised.
-// Each critical key is asserted as a singleton with an exact value.
+// TestStorageProbeServiceFailClosed is the static service-unit guard for the
+// O-1 read-only block-device helper (docs/m2/M2-4-O1-DEVICE-POLICY.md): a
+// throwaway unprivileged user, no capabilities, a closed device policy that
+// grants exactly the reviewed block groups read-only, an opt-in marker so the
+// unit is disabled by default, and fail-closed MAC bindings. Each critical key
+// is a singleton with an exact value. tests/packaging/storage-probe-policy-check.sh
+// is the complete, shell-level version of this guard (it also mutates the units
+// to prove each rule rejects violations).
 func TestStorageProbeServiceFailClosed(t *testing.T) {
 	svc := readUnit(t, "homelab-control-storage-probe@.service")
 
 	for key, want := range map[string]string{
+		"ConditionPathExists":     "/etc/homelab-control/storage-probe.enabled",
+		"RefuseManualStart":       "yes",
 		"DynamicUser":             "yes",
-		"PrivateDevices":          "yes",
+		"SupplementaryGroups":     "disk",
+		"PrivateDevices":          "no",
+		"DevicePolicy":            "closed",
 		"CapabilityBoundingSet":   "",
 		"AmbientCapabilities":     "",
 		"NoNewPrivileges":         "yes",
@@ -75,11 +83,15 @@ func TestStorageProbeServiceFailClosed(t *testing.T) {
 		"RestrictAddressFamilies": "AF_UNIX",
 		"LockPersonality":         "yes",
 		"MemoryDenyWriteExecute":  "yes",
+		"SystemCallErrorNumber":   "EPERM",
+		"SELinuxContext":          "system_u:system_r:hc_storage_probe_t:s0",
+		"AppArmorProfile":         "hc-storage-probe",
 		"MemoryMax":               "64M",
 		"TasksMax":                "16",
 		"LimitCORE":               "0",
 		"TimeoutStartSec":         "30",
 		"Type":                    "oneshot",
+		"ExecStart":               "/usr/lib/homelab-control/hc-storage-probe",
 	} {
 		if got, ok := unitSetting(t, svc, key); !ok || got != want {
 			t.Errorf("service %s=%q, want %q (present=%v)", key, got, want, ok)
@@ -89,17 +101,50 @@ func TestStorageProbeServiceFailClosed(t *testing.T) {
 		t.Error("service must deny raw-io and other system-call groups")
 	}
 
+	// DeviceAllow is the only grant of raw block access: exactly the reviewed
+	// groups, each read-only, with no duplicates and no empty reset.
+	want := []string{"block-sd r", "block-blkext r", "block-virtblk r", "block-md r"}
+	got := unitAssignments(svc, "DeviceAllow")
+	if len(got) != len(want) {
+		t.Errorf("DeviceAllow=%q, want exactly %q", got, want)
+	}
+	for _, w := range want {
+		found := 0
+		for _, g := range got {
+			if g == w {
+				found++
+			}
+		}
+		if found != 1 {
+			t.Errorf("DeviceAllow %q appears %d times, want 1", w, found)
+		}
+	}
+
+	// systemd grants block-loop and block-blkext "rwm" for these keys
+	// (systemd.exec(5)), which would make blkext writable.
 	for _, key := range []string{
-		"DeviceAllow", "User", "WantedBy", "RequiredBy",
-		"ExecStartPre", "ExecStartPost", "ExecStop",
+		"User", "Group", "WantedBy", "RequiredBy", "Alias", "Also",
+		"ExecStartPost", "ExecStop", "ExecReload",
+		"RootImage", "RootDirectory", "RootVolatile", "MountImages", "ExtensionImages",
+		"BindPaths", "BindReadOnlyPaths", "TemporaryFileSystem",
 	} {
 		if unitHasKey(svc, key) {
 			t.Errorf("service must not set %s", key)
 		}
 	}
-	for _, sub := range []string{"char-", "block-"} {
-		if strings.Contains(svc, sub) {
-			t.Errorf("service must not contain device grant %q", sub)
+	// Exec lines run inside the helper's MAC domain, which cannot exec grep or a
+	// shell; the /proc/devices self-check belongs to the helper itself.
+	for _, key := range []string{"ExecStartPre", "ExecStopPost", "ExecCondition"} {
+		if unitHasKey(svc, key) {
+			t.Errorf("service must not set %s", key)
+		}
+	}
+	// No char devices, loop/dm/other block classes, wildcards or device paths.
+	for _, sub := range []string{"char-", "block-loop", "block-*", "block-dm", "block-nbd", "block-zram", "/dev", " rw", " rm", " w", " m\n"} {
+		for _, line := range unitAssignments(svc, "DeviceAllow") {
+			if strings.Contains(line+"\n", sub) {
+				t.Errorf("DeviceAllow %q contains forbidden %q", line, sub)
+			}
 		}
 	}
 	// No [Install] section header (a comment mentioning it is allowed).
@@ -127,6 +172,9 @@ func TestStorageProbeSocketAccept(t *testing.T) {
 	}
 	if got, ok := unitSetting(t, sock, "SocketMode"); !ok || got != "0600" {
 		t.Errorf("socket SocketMode=%q (present=%v), want 0600", got, ok)
+	}
+	if got, ok := unitSetting(t, sock, "ConditionPathExists"); !ok || got != "/etc/homelab-control/storage-probe.enabled" {
+		t.Errorf("socket ConditionPathExists=%q (present=%v), want the opt-in marker", got, ok)
 	}
 	if unitHasKey(sock, "WantedBy") || unitHasKey(sock, "RequiredBy") {
 		t.Error("socket must not be enabled at boot")
