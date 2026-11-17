@@ -49,6 +49,7 @@ backend:
 	cd backend && CGO_ENABLED=0 $(GO) build $(GOFLAGS_BUILD) -ldflags '$(LDFLAGS)' -o ../$(OUT)/hc-api ./cmd/hc-api
 	cd backend && CGO_ENABLED=0 $(GO) build $(GOFLAGS_BUILD) -ldflags '$(LDFLAGS)' -o ../$(OUT)/hlctl ./cmd/hlctl
 	cd backend && CGO_ENABLED=0 $(GO) build $(GOFLAGS_BUILD) -ldflags '$(LDFLAGS)' -o ../$(OUT)/hc-broker ./cmd/hc-broker
+	cd backend && CGO_ENABLED=0 $(GO) build $(GOFLAGS_BUILD) -ldflags '$(LDFLAGS)' -o ../$(OUT)/hc-storage-probe ./cmd/hc-storage-probe
 	cd $(RUST_DIR) && $(CARGO) fetch --locked
 	cd $(RUST_DIR) && reg=$$(ls -d "$(CARGO_HOME_DIR)"/registry/src/index.crates.io-* 2>/dev/null | head -1); \
 	  RUSTFLAGS="$(RUSTFLAGS_BUILD)$${reg:+ --remap-path-prefix=$$reg=/crates}" \
@@ -57,7 +58,7 @@ backend:
 	cp $(RUST_BIN) $(OUT)/hc-audit-retention
 
 build: frontend backend
-	cd $(OUT) && sha256sum hc-api hc-broker hlctl hc-audit-retention > SHA256SUMS && cat SHA256SUMS
+	cd $(OUT) && sha256sum hc-api hc-broker hlctl hc-audit-retention hc-storage-probe > SHA256SUMS && cat SHA256SUMS
 
 test: test-go test-rust test-frontend test-release
 

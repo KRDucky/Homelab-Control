@@ -41,3 +41,38 @@ Accepted from the independent review (`.dev` review ledger, not in Git): keep th
 3. **Phase 3 (owner decision O-2):** live dm status for LVM RAID/cache health. Requires `CAP_SYS_ADMIN`, i.e. full device-mapper control; any helper would need an ioctl-number allow-list enforced in code (systemd cannot filter ioctl numbers) and a separate security review. Not proposed for M2.
 
 Until O-1 is decided, M2-4 can be reviewed only as a metadata/fixture slice: the Storage page cannot show LVM or signature data on real hosts.
+
+## O-1 helper implemented (2026-11-16, proposal — not shipped)
+
+The O-1 native probe helper is now implemented as a separately packaged,
+disabled-by-default unit, per the review outcome. It does not weaken hc-broker
+and it is not invoked by hc-api or hc-broker yet.
+
+- **Binary:** `hc-storage-probe` (`backend/cmd/hc-storage-probe`), built from
+  `backend/internal/storageprobe`. It reads one closed typed Request from
+  stdin and writes one closed typed Result to stdout.
+- **Templates (fixed, no caller argv/path):** `lvs --readonly --reportformat
+  json --units b --nosuffix -a --segments -o <fixed fields> --config
+  devices{hints=0}`; `pvs --readonly --segments --reportformat json --units b
+  --nosuffix -o <fixed fields> --config devices{hints=0}`; and `blkid -p -c
+  /dev/null -o export /dev/<name>` for each enumerated device.
+- **Guards:** the environment is replaced (LANG=C, LC_ALL=C, minimal PATH);
+  per-command output is size-capped and time-bounded via a process-group kill;
+  devices are revalidated against `/sys/block` and a name is only ever joined
+  to a fixed `/dev/` prefix. LVM hints are disabled and no command writes to a
+  device or mount.
+- **Unit:** `homelab-control-storage-probe.service` + `.socket`, with no
+  `[Install]` enablement (disabled by default), `PrivateDevices=no`,
+  `DevicePolicy=closed`, `DeviceAllow=block-* r`, empty capability bounding
+  set, `ReadOnlyPaths=/dev /sys/block`, `PrivateNetwork=yes`. Socket at
+  `/run/homelab-control/storage-probe.sock` (0600).
+- **Guard:** `internal/storageprobe/` is added to `allowedExecRoots` (ADR 0008)
+  as the second package allowed to execute programs.
+
+Remaining gaps (not production-ready): the broker-side invocation that
+connects to the socket and sends a Request/reads a Result is not wired; the
+synthetic tests use fake `lvs`/`pvs`/`blkid` and do not validate real
+distributions or hardware; the field lists must be validated against the
+storageinfo parsers during integration; a dedicated SELinux context and
+KVM/systemd-container evidence are still required before activation. Live
+dm-status (O-2, `CAP_SYS_ADMIN`) is deliberately not implemented.
