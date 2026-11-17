@@ -5,6 +5,7 @@
 package lvmmeta
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 )
@@ -204,11 +205,11 @@ func ReadPV(r io.ReaderAt, size uint64, device string) PVRead {
 }
 
 // selectCopy picks the highest-seqno valid copy; equal-seqno copies with
-// different content mark the device metadata-inconsistent.
+// different content mark the device metadata-inconsistent. Content is compared
+// byte-for-byte (never by CRC, which can collide).
 func selectCopy(copies []MDACopy) ([]byte, PVStatus) {
 	var bestText []byte
 	bestSeq := uint64(0)
-	bestCRC := uint32(0)
 	inconsistent := false
 	for i := range copies {
 		c := &copies[i]
@@ -224,9 +225,8 @@ func selectCopy(copies []MDACopy) ([]byte, PVStatus) {
 		if bestText == nil || s > bestSeq {
 			bestSeq = s
 			bestText = c.Text
-			bestCRC = c.TextCRC
 			inconsistent = false
-		} else if s == bestSeq && c.TextCRC != bestCRC {
+		} else if s == bestSeq && !bytes.Equal(c.Text, bestText) {
 			inconsistent = true
 		}
 	}

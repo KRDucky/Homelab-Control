@@ -226,6 +226,21 @@ func TestReadPVInconsistentEqualSeqno(t *testing.T) {
 	}
 }
 
+func TestSelectCopyCollision(t *testing.T) {
+	// Two same-seqno copies whose text differs but whose CRC is forced equal
+	// (a collision) must still be inconsistent: content is compared byte-wise,
+	// never by CRC.
+	a := []byte("vg1 { seqno = 3 extent_size = 8192 }")
+	b := []byte("vg1 { seqno = 3 extent_size = 4096 }")
+	copies := []MDACopy{
+		{Status: CopyOK, Text: a, TextCRC: 42},
+		{Status: CopyOK, Text: b, TextCRC: 42},
+	}
+	if _, st := selectCopy(copies); st != StatusMetadataInconsistent {
+		t.Fatalf("status = %s, want metadata-inconsistent", st)
+	}
+}
+
 func TestParseTextTokenLimit(t *testing.T) {
 	// A syntactically valid prefix followed by more tokens than MaxTokens must
 	// error, not be accepted as a complete document.
