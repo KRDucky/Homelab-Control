@@ -1,0 +1,47 @@
+[Unit]
+Description=Homelab Control read-only storage probe (M2-4, disabled by default)
+Documentation=file:///usr/share/doc/homelab-control/docs/m2/M2-4-DESIGN-REVIEW.md
+Requires=homelab-control-storage-probe.socket
+After=homelab-control-storage-probe.socket
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/homelab-control/hc-storage-probe
+# Closed typed protocol: one Request on stdin, one Result on stdout, then exit.
+StandardInput=socket
+StandardOutput=socket
+StandardError=journal
+
+# O-1 native-probe restrictions (owner decision; review proposal, not shipped).
+# The helper runs as root only to open host block devices read-only; it holds
+# no capabilities, cannot write a device or mount, and has no network.
+PrivateDevices=no
+DevicePolicy=closed
+DeviceAllow=block-* r
+CapabilityBoundingSet=
+AmbientCapabilities=
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateNetwork=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictAddressFamilies=AF_UNIX
+ReadOnlyPaths=/dev /sys/block
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@resources @mount @swap @reboot @raw-io @module @obsolete @debug @cpu-emulation @clock
+UMask=0077
+TimeoutStartSec=30
+
+# No [Install] section: the helper cannot be enabled at boot.

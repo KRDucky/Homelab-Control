@@ -38,7 +38,7 @@ var forbiddenCalls = map[string]bool{
 
 // allowedExecRoots lists the only directories allowed to execute programs.
 // Adding an entry requires security review (ADR 0008).
-var allowedExecRoots = []string{"internal/broker/runner/"}
+var allowedExecRoots = []string{"internal/broker/runner/", "internal/storageprobe/"}
 
 func TestNoProcessExecution(t *testing.T) {
 	root, err := filepath.Abs("../..")
