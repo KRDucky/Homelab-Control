@@ -414,13 +414,14 @@ func reviewHostSettings(ctx context.Context, env *Env, a hostSettingsArgs) (Host
 			return obs, nil, "", &proto.Error{Code: proto.CodeBadRequest, Message: "this time zone is not in timedatectl list-timezones on this host"}
 		}
 	}
-	changes, would, err := planChanges(obs, a)
+	changes, _, err := planChanges(obs, a)
 	if err != nil {
 		return obs, changes, "", err
 	}
-	if would == 0 {
-		return obs, changes, "", &proto.Error{Code: proto.CodeBadRequest, Message: "nothing would change; the requested values already match hostnamectl/timedatectl"}
-	}
+	// Always return the state digest, even when the requested values already
+	// match (would == 0). The plan layer rejects "nothing would change"; the
+	// apply layer uses the digest to report a conflict when the host converged
+	// since the plan was reviewed.
 	return obs, changes, hostSettingsDigest(obs, a), nil
 }
 
@@ -441,6 +442,15 @@ func hostSettingsPlan(ctx context.Context, env *Env, raw json.RawMessage) (any, 
 	obs, changes, digest, err := reviewHostSettings(ctx, env, a)
 	if err != nil {
 		return nil, err
+	}
+	would := 0
+	for _, c := range changes {
+		if c.Outcome == "would-change" {
+			would++
+		}
+	}
+	if would == 0 {
+		return nil, &proto.Error{Code: proto.CodeBadRequest, Message: "nothing would change; the requested values already match hostnamectl/timedatectl"}
 	}
 	if env.Writes.Locked(hostSettingsLock) {
 		return nil, &proto.Error{Code: proto.CodeBusy, Message: "another host-settings operation is in progress"}

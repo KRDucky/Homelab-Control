@@ -314,6 +314,28 @@ func TestHostSettingsUnchangedRefused(t *testing.T) {
 	}
 }
 
+func TestHostSettingsApplyConflictWhenAlreadyConverged(t *testing.T) {
+	h := newHSEnv(t)
+	plan, err := hostSettingsPlan(context.Background(), h.env, hsArgs(ptr("nas-01"), nil, nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The host has since converged to the requested value (a concurrent apply
+	// or a manual change). Revalidation must report a conflict, not run again
+	// and not report "nothing would change".
+	h.fake.mu.Lock()
+	h.fake.static = "nas-01"
+	h.fake.mu.Unlock()
+	_, err = hostSettingsApply(context.Background(), h.env, hsApplyArgs(ptr("nas-01"), nil, nil, plan.(HostSettingsPlan).Token))
+	var pe *proto.Error
+	if !errors.As(err, &pe) || pe.Code != proto.CodeConflict {
+		t.Fatalf("converged apply: %v", err)
+	}
+	if len(h.fake.acts) != 0 {
+		t.Fatalf("converged apply executed: %v", h.fake.acts)
+	}
+}
+
 func TestHostSettingsBusy(t *testing.T) {
 	h := newHSEnv(t)
 	plan, err := hostSettingsPlan(context.Background(), h.env, hsArgs(ptr("nas-01"), nil, nil))
