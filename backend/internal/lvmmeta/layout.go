@@ -58,22 +58,23 @@ type Label struct {
 type PVStatus string
 
 const (
-	StatusNotLVM           PVStatus = "not-lvm"
-	StatusOK               PVStatus = "ok"
-	StatusAmbiguousLabel   PVStatus = "ambiguous-label"
-	StatusLabelBadCRC      PVStatus = "label-bad-crc"
-	StatusUnsupportedType  PVStatus = "unsupported-label-type"
-	StatusPVHeaderOverrun  PVStatus = "pv-header-overrun"
-	StatusReadError        PVStatus = "read-error"
-	StatusMDABadMagic      PVStatus = "mda-bad-magic"
-	StatusMDABadCRC        PVStatus = "mda-bad-crc"
-	StatusMDAOutOfRange    PVStatus = "mda-out-of-range"
-	StatusMetadataIgnored  PVStatus = "metadata-ignored"
-	StatusMetadataTooLarge PVStatus = "metadata-too-large"
-	StatusMetadataBadCRC   PVStatus = "metadata-bad-crc"
-	StatusMetadataChanging PVStatus = "metadata-changing"
-	StatusTextParseError   PVStatus = "text-parse-error"
-	StatusLimitExceeded    PVStatus = "limit-exceeded"
+	StatusNotLVM               PVStatus = "not-lvm"
+	StatusOK                   PVStatus = "ok"
+	StatusAmbiguousLabel       PVStatus = "ambiguous-label"
+	StatusLabelBadCRC          PVStatus = "label-bad-crc"
+	StatusUnsupportedType      PVStatus = "unsupported-label-type"
+	StatusPVHeaderOverrun      PVStatus = "pv-header-overrun"
+	StatusReadError            PVStatus = "read-error"
+	StatusMDABadMagic          PVStatus = "mda-bad-magic"
+	StatusMDABadCRC            PVStatus = "mda-bad-crc"
+	StatusMDAOutOfRange        PVStatus = "mda-out-of-range"
+	StatusMetadataIgnored      PVStatus = "metadata-ignored"
+	StatusMetadataTooLarge     PVStatus = "metadata-too-large"
+	StatusMetadataBadCRC       PVStatus = "metadata-bad-crc"
+	StatusMetadataChanging     PVStatus = "metadata-changing"
+	StatusMetadataInconsistent PVStatus = "metadata-inconsistent"
+	StatusTextParseError       PVStatus = "text-parse-error"
+	StatusLimitExceeded        PVStatus = "limit-exceeded"
 )
 
 // CopyStatus describes one metadata copy.
@@ -161,18 +162,21 @@ func ReadPV(r io.ReaderAt, size uint64, device string) PVRead {
 	res.Label = found
 	res.Status = StatusOK
 
-	// Read metadata areas and extract the first valid metadata text copy.
+	// Read metadata areas, extract every valid copy's text, and select the
+	// highest-seqno copy. Prior-MDA copies must not be re-read with a later
+	// MDA's start/size, so iterate only the indices appended this round.
 	for i, mda := range found.MDAs {
 		if i >= MaxMetadataAreas {
 			break
 		}
+		start := len(res.Copies)
 		copies, st := readMDA(rd, mda)
 		res.Copies = append(res.Copies, copies...)
 		if st != StatusOK {
 			res.Status = st
 			return res
 		}
-		for j := range res.Copies {
+		for j := start; j < len(res.Copies); j++ {
 			c := &res.Copies[j]
 			if c.Ignored {
 				c.Status = CopyIgnored
@@ -189,12 +193,50 @@ func ReadPV(r io.ReaderAt, size uint64, device string) PVRead {
 			}
 			c.Text = text
 			c.Status = CopyOK
-			if res.Text == nil {
-				res.Text = text
-			}
 		}
 	}
+
+	res.Text, res.Status = selectCopy(res.Copies)
+	if res.Status != StatusOK {
+		return res
+	}
 	return res
+}
+
+// selectCopy picks the highest-seqno valid copy; equal-seqno copies with
+// different content mark the device metadata-inconsistent.
+func selectCopy(copies []MDACopy) ([]byte, PVStatus) {
+	var bestText []byte
+	bestSeq := uint64(0)
+	bestCRC := uint32(0)
+	inconsistent := false
+	for i := range copies {
+		c := &copies[i]
+		if c.Status != CopyOK || c.Text == nil {
+			continue
+		}
+		root, err := parseText(c.Text)
+		if err != nil {
+			continue
+		}
+		s := seq(findVGNode(root))
+		c.Seqno = s
+		if bestText == nil || s > bestSeq {
+			bestSeq = s
+			bestText = c.Text
+			bestCRC = c.TextCRC
+			inconsistent = false
+		} else if s == bestSeq && c.TextCRC != bestCRC {
+			inconsistent = true
+		}
+	}
+	if bestText == nil {
+		return nil, StatusMetadataIgnored
+	}
+	if inconsistent {
+		return bestText, StatusMetadataInconsistent
+	}
+	return bestText, StatusOK
 }
 
 func labelSize() uint64 { return SectorSize }

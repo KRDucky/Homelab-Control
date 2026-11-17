@@ -35,7 +35,11 @@ func parseText(b []byte) (map[string]*Node, error) {
 	if !utf8.Valid(b) {
 		return nil, fmt.Errorf("text is not valid UTF-8")
 	}
-	p := &parser{toks: tokenize(b), depth: 0}
+	toks, err := tokenize(b)
+	if err != nil {
+		return nil, err
+	}
+	p := &parser{toks: toks, depth: 0}
 	root := map[string]*Node{}
 	for p.more() && !p.peekIs('}') {
 		n, err := p.parseNode()
@@ -72,8 +76,10 @@ type token struct {
 }
 
 // tokenize splits the config text into tokens, dropping comments and
-// whitespace, and enforcing the string and token limits.
-func tokenize(b []byte) []token {
+// whitespace, and enforcing the string and token limits. It returns an error
+// (never a truncated token slice) when a limit is exceeded or a string is
+// unterminated, so a complete-looking prefix cannot be accepted as success.
+func tokenize(b []byte) ([]token, error) {
 	var toks []token
 	i := 0
 	for i < len(b) {
@@ -106,8 +112,7 @@ func tokenize(b []byte) []token {
 		case c == '"':
 			s, j, ok := scanString(b, i)
 			if !ok {
-				toks = append(toks, token{tokString, "", i})
-				return toks
+				return nil, fmt.Errorf("string too long or unterminated at offset %d", i)
 			}
 			toks = append(toks, token{tokString, s, i})
 			i = j
@@ -125,11 +130,11 @@ func tokenize(b []byte) []token {
 			i = j
 		}
 		if len(toks) > MaxTokens {
-			return toks
+			return nil, fmt.Errorf("token limit exceeded")
 		}
 	}
 	toks = append(toks, token{tokEOF, "", len(b)})
-	return toks
+	return toks, nil
 }
 
 func isIdentByte(c byte) bool {
