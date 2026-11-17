@@ -92,3 +92,29 @@ func TestStorageProbeSuccess(t *testing.T) {
 		t.Fatalf("probe response did not include the graph/signature: %s", body)
 	}
 }
+
+func TestApplyProbeOutcomePreservesWorseStatus(t *testing.T) {
+	// A successful probe must not erase a pre-existing partial base graph.
+	g := storageinfo.Graph{Status: "partial", Notes: []string{}}
+	applyProbeOutcome(&g, storageProbeResult{Version: 1, Code: "", Partial: false})
+	if g.Status != "partial" {
+		t.Fatalf("ok probe erased partial base status: %q", g.Status)
+	}
+
+	// A partial probe on an ok base becomes partial and appends notes.
+	g2 := storageinfo.Graph{Status: "ok"}
+	applyProbeOutcome(&g2, storageProbeResult{Version: 1, Code: "", Partial: true, Errors: []string{"e1"}})
+	if g2.Status != "partial" {
+		t.Fatalf("partial probe did not set partial: %q", g2.Status)
+	}
+	if len(g2.Notes) != 1 || g2.Notes[0] != "e1" {
+		t.Fatalf("notes not appended: %v", g2.Notes)
+	}
+
+	// device_policy_unresolved is unavailable regardless of the base.
+	g3 := storageinfo.Graph{Status: "ok"}
+	applyProbeOutcome(&g3, storageProbeResult{Version: 1, Code: "device_policy_unresolved", Partial: true})
+	if g3.Status != "unavailable" {
+		t.Fatalf("refusal did not set unavailable: %q", g3.Status)
+	}
+}

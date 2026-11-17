@@ -329,6 +329,8 @@ func brokerError(w http.ResponseWriter, err error) {
 			writeError(w, http.StatusGatewayTimeout, "timeout", pe.Message)
 		case proto.CodeBusy:
 			writeError(w, http.StatusServiceUnavailable, "busy", "The privileged helper is busy; try again.")
+		case proto.CodeRateLimited:
+			writeError(w, http.StatusTooManyRequests, "rate_limited", pe.Message)
 		case proto.CodeModuleDisabled:
 			writeError(w, http.StatusNotFound, "not_found", "This module is disabled on this host.")
 		default:

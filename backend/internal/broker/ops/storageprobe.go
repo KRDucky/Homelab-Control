@@ -11,6 +11,8 @@ import (
 	"io"
 	"net"
 	"os"
+	"sync"
+	"time"
 
 	"homelab-control/backend/internal/broker/proto"
 )
@@ -18,6 +20,40 @@ import (
 // storageProbeSocket is the fixed root-only socket-activated helper path. The
 // systemd unit owns this socket (root:root 0600); the op is only its client.
 const storageProbeSocket = "/run/homelab-control/storage-probe.sock"
+
+// Broker-side interval rate limit. The helper's own limiter resets on every
+// socket activation (Accept=yes starts a fresh process), so the broker — a
+// long-running process — must bound how often it wakes disks.
+var (
+	probeRateMu      sync.Mutex
+	probeLastRun     time.Time
+	minProbeInterval = 30 * time.Second
+)
+
+// probeRateLimit refuses a probe inside minProbeInterval of the last one.
+func probeRateLimit(now time.Time) error {
+	probeRateMu.Lock()
+	defer probeRateMu.Unlock()
+	if now.Sub(probeLastRun) < minProbeInterval {
+		return &proto.Error{Code: proto.CodeRateLimited, Message: "storage probe rate-limited; retry shortly"}
+	}
+	probeLastRun = now
+	return nil
+}
+
+// validateProbeResult rejects an unsupported helper protocol version or an
+// unknown result code so the API never treats them as success.
+func validateProbeResult(res storageProbeResult) error {
+	if res.Version != 1 {
+		return fmt.Errorf("probe result version %d unsupported", res.Version)
+	}
+	switch res.Code {
+	case "", "device_policy_unresolved":
+		return nil
+	default:
+		return fmt.Errorf("probe result code %q unsupported", res.Code)
+	}
+}
 
 // storageProbeMaxResponse bounds the helper's typed Result read. It is a
 // provable bound: at most maxDevices(64) × maxBlkidBytes(64 KiB) = 4 MiB of
@@ -48,6 +84,9 @@ type storageProbeResult struct {
 // lvs/pvs/blkid; it only relays a closed request and reads a capped response.
 func storageProbe(ctx context.Context, _ *Env, raw json.RawMessage) (any, error) {
 	if err := requireNoArgs(raw); err != nil {
+		return nil, err
+	}
+	if err := probeRateLimit(time.Now()); err != nil {
 		return nil, err
 	}
 	names, err := enumerateBlockDevices()
@@ -111,6 +150,9 @@ func callProbeHelper(ctx context.Context, req storageProbeRequest) (storageProbe
 	var res storageProbeResult
 	if err := json.Unmarshal(b, &res); err != nil {
 		return zero, fmt.Errorf("decoding probe result: %w", err)
+	}
+	if err := validateProbeResult(res); err != nil {
+		return zero, err
 	}
 	return res, nil
 }
