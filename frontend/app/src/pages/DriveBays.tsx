@@ -91,6 +91,12 @@ export function DriveBays({
           ? err.message
           : 'The server did not respond; nothing is known to have changed.',
       );
+      // A conflict means the layout changed elsewhere: drop the stale snapshot
+      // and re-sync to the server's current state instead of lingering stale.
+      if (err instanceof ApiError && err.status === 409) {
+        setSaved(null);
+        live.onRetry();
+      }
     } finally {
       setBusy(false);
     }
@@ -136,7 +142,7 @@ export function DriveBays({
       row: Math.min(c.rows - 1, Math.max(0, at.row + move[0])),
       col: Math.min(c.cols - 1, Math.max(0, at.col + move[1])),
     };
-    setFocus(next);
+    select(next);
     event.currentTarget.querySelector<HTMLButtonElement>(`[data-bay="${next.row}-${next.col}"]`)?.focus();
   }
 

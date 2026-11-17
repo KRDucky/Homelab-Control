@@ -178,6 +178,106 @@ describe('Drives & bays panel', () => {
     expect(del?.[0]).toBe('/api/v1/storage/layout/chassis/7/bays/0/0/assignment');
     expect((del?.[1]?.headers as Record<string, string>)['X-CSRF-Token']).toBe('example-csrf');
   });
+
+  it('selects a bay with arrow keys so assignment is keyboard-reachable', async () => {
+    const nas: Chassis = {
+      id: 7,
+      name: 'Example NAS',
+      kind: 'server',
+      rows: 1,
+      cols: 2,
+      created_at: '2026-11-06T00:00:00Z',
+      updated_at: '2026-11-06T00:00:00Z',
+      cells: [
+        { row: 0, col: 0, kind: 'hdd-3.5', label: 'Bay 1' },
+        { row: 0, col: 1, kind: 'hdd-3.5', label: 'Bay 2' },
+      ],
+    };
+    const layout: DriveLayout = { chassis: [nas] };
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify(layout), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    render(
+      <DriveBays
+        csrf="example-csrf"
+        nodes={[disk({})]}
+        canManage
+        preference="wwn"
+        onUnauthorized={() => undefined}
+      />,
+    );
+    const first = await screen.findByRole('button', { name: /Bay 1: No drive assigned/ });
+    first.focus();
+    fireEvent.keyDown(first, { key: 'ArrowRight' });
+    // Arrow keys both focus and select the bay, so the assign control is reachable.
+    expect(await screen.findByLabelText('Drive to assign')).toBeTruthy();
+    expect(document.activeElement?.getAttribute('data-bay')).toBe('0-1');
+  });
+
+  it('re-syncs to the server after a conflicted layout change', async () => {
+    const assignedCell: LayoutCell = {
+      row: 0,
+      col: 0,
+      kind: 'hdd-3.5',
+      label: 'Bay 1',
+      assignment: {
+        identity: 'wwn:naa.5000000000000f01',
+        provenance: 'manual',
+        confidence: 'unverified',
+        assigned_by: 'admin',
+        assigned_at: '2026-11-06T00:00:00Z',
+      },
+    };
+    const nas: Chassis = {
+      id: 7,
+      name: 'Example NAS',
+      kind: 'server',
+      rows: 1,
+      cols: 1,
+      created_at: '2026-11-06T00:00:00Z',
+      updated_at: '2026-11-06T00:00:00Z',
+      cells: [assignedCell],
+    };
+    const v1: DriveLayout = { chassis: [nas] };
+    const v2: DriveLayout = { chassis: [{ ...nas, name: 'Example NAS (renamed elsewhere)' }] };
+    let gets = 0;
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === 'DELETE') {
+        return new Response(
+          JSON.stringify({ error: 'layout_conflict', message: 'Refused: this would drop an assignment.' }),
+          {
+            status: 409,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        );
+      }
+      gets += 1;
+      return new Response(JSON.stringify(gets === 1 ? v1 : v2), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(
+      <DriveBays
+        csrf="example-csrf"
+        nodes={[disk({})]}
+        canManage
+        preference="wwn"
+        onUnauthorized={() => undefined}
+      />,
+    );
+    await screen.findByRole('button', { name: /Bay 1: Present/ });
+    fireEvent.click(screen.getByRole('button', { name: 'Delete chassis Example NAS' }));
+    await screen.findByText(/Refused:/);
+    // After the conflict the page drops the stale snapshot and re-syncs.
+    await screen.findByRole('heading', { name: /renamed elsewhere/ });
+  });
 });
 
 describe('assignment guard', () => {
