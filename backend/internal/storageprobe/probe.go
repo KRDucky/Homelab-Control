@@ -197,6 +197,50 @@ var sysBlockRoot = "/sys/class/block"
 // devBlockRoot is udev's /dev/block MAJ:MIN namespace; entries may be symlinks.
 var devBlockRoot = "/dev/block"
 
+// procDevicesPath is the kernel's device-major registry. It is a var so
+// synthetic tests can point it at a fixture.
+var procDevicesPath = "/proc/devices"
+
+// requiredBlockGroups are the reviewed block-device classes the helper is
+// authorised to probe (owner-approved O-1 class-level DeviceAllow). The helper
+// refuses to probe unless every one is present in /proc/devices.
+var requiredBlockGroups = []string{"sd", "blkext", "virtblk", "md"}
+
+// checkDeviceGroups reads /proc/devices and verifies every required block group
+// is registered. It returns an error naming any missing group, so the helper
+// can refuse (fail closed) before any probe.
+func checkDeviceGroups() error {
+	b, err := os.ReadFile(procDevicesPath)
+	if err != nil {
+		return fmt.Errorf("reading %s: %w", procDevicesPath, err)
+	}
+	present := map[string]bool{}
+	inBlock := false
+	for _, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "Block devices:" {
+			inBlock = true
+			continue
+		}
+		if !inBlock || line == "" {
+			continue
+		}
+		if fields := strings.Fields(line); len(fields) >= 2 {
+			present[fields[1]] = true
+		}
+	}
+	var missing []string
+	for _, g := range requiredBlockGroups {
+		if !present[g] {
+			missing = append(missing, g)
+		}
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("block device classes not available: %s", strings.Join(missing, ", "))
+	}
+	return nil
+}
+
 // device is one enumerated, revalidated, non-skipped block device whose
 // /dev/block/MAJ:MIN node passed the helper's fstat block+rdev check. The fd
 // is held and inherited by blkid so it reads this exact device; lvs/pvs remain
@@ -237,6 +281,14 @@ func Run(ctx context.Context, req Request) Result {
 		return res
 	}
 	defer release()
+
+	// Startup self-check: refuse (fail closed) before any probe unless every
+	// reviewed block-device class is present in /proc/devices.
+	if err := checkDeviceGroups(); err != nil {
+		res.Errors = append(res.Errors, "probe refused: "+err.Error())
+		res.Partial = true
+		return res
+	}
 
 	// Request-wide deadline bounds total probe wall time across all devices.
 	totalCtx, cancel := context.WithTimeout(ctx, totalTimeout)
