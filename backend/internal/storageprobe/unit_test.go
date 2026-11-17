@@ -23,59 +23,117 @@ func readUnit(t *testing.T, name string) string {
 	return string(b)
 }
 
-// TestStorageProbeServiceFailClosed is the static service-unit guard: the
-// helper must run unprivileged with no capabilities and no device access
-// (fail closed) until the device-open mechanism is authorised.
-func TestStorageProbeServiceFailClosed(t *testing.T) {
-	svc := readUnit(t, "homelab-control-storage-probe@.service")
-	for _, want := range []string{
-		"DynamicUser=yes",
-		"PrivateDevices=yes",
-		"CapabilityBoundingSet=\n",
-		"AmbientCapabilities=\n",
-		"NoNewPrivileges=yes",
-		"StandardInput=socket",
-		"StandardOutput=socket",
-		"PrivateNetwork=yes",
-		"ProtectSystem=strict",
-		"RestrictAddressFamilies=AF_UNIX",
-		"@raw-io",
-		"ProtectKernelModules=yes",
-		"LockPersonality=yes",
-		"MemoryDenyWriteExecute=yes",
-	} {
-		if !strings.Contains(svc, want) {
-			t.Fatalf("service missing %q", want)
+// unitAssignments returns every value assigned to a systemd key in a unit
+// body, ignoring comments and section headers.
+func unitAssignments(body, key string) []string {
+	var out []string
+	for _, line := range strings.Split(body, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "[") {
+			continue
+		}
+		if strings.HasPrefix(line, key+"=") {
+			out = append(out, strings.TrimPrefix(line, key+"="))
 		}
 	}
-	for _, banned := range []string{
-		"\nDeviceAllow", // no cgroup device grants at all
-		"char-*",
-		"block-*",
-		"\n[Install]", // no enablement section
-		"User=root",
-		"User=homelab-control",
-		"CapabilityBoundingSet=CAP",
-		"AmbientCapabilities=CAP",
+	return out
+}
+
+// unitSetting returns systemd's effective value (last assignment wins). It
+// fails the test if a key is assigned more than once, so a later conflicting
+// assignment (e.g. a second PrivateDevices=no) cannot hide behind a first.
+func unitSetting(t *testing.T, body, key string) (string, bool) {
+	t.Helper()
+	vals := unitAssignments(body, key)
+	if len(vals) == 0 {
+		return "", false
+	}
+	if len(vals) > 1 {
+		t.Errorf("unit key %s assigned %d times %q; systemd uses the last", key, len(vals), vals)
+	}
+	return vals[len(vals)-1], true
+}
+
+// TestStorageProbeServiceFailClosed is the static service-unit guard: the
+// helper must run as a throwaway unprivileged user with no capabilities and no
+// device access (fail closed) until the device-open mechanism is authorised.
+// Each critical key is asserted as a singleton with an exact value.
+func TestStorageProbeServiceFailClosed(t *testing.T) {
+	svc := readUnit(t, "homelab-control-storage-probe@.service")
+
+	for key, want := range map[string]string{
+		"DynamicUser":             "yes",
+		"PrivateDevices":          "yes",
+		"CapabilityBoundingSet":   "",
+		"AmbientCapabilities":     "",
+		"NoNewPrivileges":         "yes",
+		"StandardInput":           "socket",
+		"StandardOutput":          "socket",
+		"PrivateNetwork":          "yes",
+		"ProtectSystem":           "strict",
+		"ProtectKernelModules":    "yes",
+		"RestrictAddressFamilies": "AF_UNIX",
+		"LockPersonality":         "yes",
+		"MemoryDenyWriteExecute":  "yes",
+		"MemoryMax":               "64M",
+		"TasksMax":                "16",
+		"LimitCORE":               "0",
+		"TimeoutStartSec":         "30",
+		"Type":                    "oneshot",
 	} {
-		if strings.Contains(svc, banned) {
-			t.Fatalf("service must not contain %q", banned)
+		if got, ok := unitSetting(t, svc, key); !ok || got != want {
+			t.Errorf("service %s=%q, want %q (present=%v)", key, got, want, ok)
+		}
+	}
+	if !strings.Contains(svc, "SystemCallFilter=~@") || !strings.Contains(svc, "@raw-io") {
+		t.Error("service must deny raw-io and other system-call groups")
+	}
+
+	for _, key := range []string{
+		"DeviceAllow", "User", "WantedBy", "RequiredBy",
+		"ExecStartPre", "ExecStartPost", "ExecStop",
+	} {
+		if unitHasKey(svc, key) {
+			t.Errorf("service must not set %s", key)
+		}
+	}
+	for _, sub := range []string{"char-", "block-"} {
+		if strings.Contains(svc, sub) {
+			t.Errorf("service must not contain device grant %q", sub)
+		}
+	}
+	// No [Install] section header (a comment mentioning it is allowed).
+	for _, line := range strings.Split(svc, "\n") {
+		if strings.TrimSpace(line) == "[Install]" {
+			t.Error("service must not have an [Install] section")
 		}
 	}
 }
 
+func unitHasKey(body, key string) bool {
+	return len(unitAssignments(body, key)) > 0
+}
+
 func TestStorageProbeSocketAccept(t *testing.T) {
 	sock := readUnit(t, "homelab-control-storage-probe.socket")
-	if !strings.Contains(sock, "Accept=yes") {
-		t.Fatalf("socket missing Accept=yes")
+	if got, ok := unitSetting(t, sock, "Accept"); !ok || got != "yes" {
+		t.Errorf("socket Accept=%q (present=%v), want yes", got, ok)
 	}
-	if !strings.Contains(sock, "MaxConnections=1") {
-		t.Fatalf("socket missing MaxConnections=1")
+	if got, ok := unitSetting(t, sock, "MaxConnections"); !ok || got != "1" {
+		t.Errorf("socket MaxConnections=%q (present=%v), want 1", got, ok)
 	}
-	if !strings.Contains(sock, "ListenStream=/run/homelab-control/storage-probe.sock") {
-		t.Fatalf("socket missing ListenStream")
+	if got, ok := unitSetting(t, sock, "ListenStream"); !ok || got != "/run/homelab-control/storage-probe.sock" {
+		t.Errorf("socket ListenStream=%q (present=%v)", got, ok)
 	}
-	if strings.Contains(sock, "\n[Install]") || strings.Contains(sock, "WantedBy=") {
-		t.Fatalf("socket must not be enabled at boot")
+	if got, ok := unitSetting(t, sock, "SocketMode"); !ok || got != "0600" {
+		t.Errorf("socket SocketMode=%q (present=%v), want 0600", got, ok)
+	}
+	if unitHasKey(sock, "WantedBy") || unitHasKey(sock, "RequiredBy") {
+		t.Error("socket must not be enabled at boot")
+	}
+	for _, line := range strings.Split(sock, "\n") {
+		if strings.TrimSpace(line) == "[Install]" {
+			t.Error("socket must not have an [Install] section")
+		}
 	}
 }

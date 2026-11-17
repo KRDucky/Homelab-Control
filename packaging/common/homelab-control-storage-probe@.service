@@ -44,5 +44,8 @@ SystemCallFilter=@system-service
 SystemCallFilter=~@resources @mount @swap @reboot @raw-io @module @obsolete @debug @cpu-emulation @clock
 UMask=0077
 TimeoutStartSec=30
+MemoryMax=64M
+TasksMax=16
+LimitCORE=0
 
 # No [Install] section: the helper cannot be enabled at boot.

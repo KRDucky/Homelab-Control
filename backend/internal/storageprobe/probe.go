@@ -10,9 +10,10 @@
 //
 // Security properties:
 //   - No caller path, binary or free-form argument: the templates are fixed
-//     here. A device is resolved through /sys/class/block/<name>/dev to the stable
-//     /dev/block/MAJ:MIN node, opened O_NOFOLLOW, and fstat-checked to be a
-//     block device whose rdev matches the resolved MAJ:MIN.
+//     here. Device resolution is currently an inert, fail-closed proposal:
+//     PrivateDevices=yes hides device nodes, and the helper does not pass a
+//     validated open fd to child tools. Do not activate or wire it until O-1
+//     resolves device identity and child-open semantics.
 //   - The environment is replaced with a minimal, locale-forced set; LVM runs
 //     against a private empty LVM_SYSTEM_DIR so no host lvm.conf or devices
 //     file is read, and BLKID_FILE/BLKID_DEBUG are never inherited.
@@ -38,14 +39,15 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"unicode/utf8"
 )
 
 // Fixed resource bounds.
 const (
 	maxReportBytes = 8 << 20 // per LVM report
 	maxBlkidBytes  = 64 << 10
-	maxStderrBytes = 4 << 10 // bounded child stderr; never returned
-	reportTimeout  = 12 * time.Second
+	maxStderrBytes = 4 << 10         // bounded child stderr; never returned
+	reportTimeout  = 5 * time.Second // LVM budget: lvs+pvs ≤ ~10s, leaving time for blkid
 	blkidTimeout   = 5 * time.Second
 	maxDevices     = 64 // device names accepted per request
 )
@@ -113,30 +115,68 @@ func ResolveToolPaths() error {
 	return nil
 }
 
-// secureToolPath returns the first candidate that exists, is a regular file
-// (not a symlink), is not writable by group or other, and is owned by root.
+// secureToolPath returns the first candidate whose resolved target and its
+// directory chain are secure: a regular, root-owned, non-writable file. The
+// original path is returned (not the resolved one) so a multi-call binary such
+// as lvs -> lvm dispatches on argv[0] correctly; the resolved target was the
+// thing verified.
 func secureToolPath(candidates []string) (string, error) {
 	for _, p := range candidates {
-		fi, err := os.Lstat(p)
+		resolved, err := filepath.EvalSymlinks(p)
 		if err != nil {
 			continue
 		}
-		if fi.Mode()&os.ModeSymlink != 0 {
+		if err := checkSecureFile(resolved); err != nil {
 			continue
 		}
-		if !fi.Mode().IsRegular() {
-			continue
-		}
-		if fi.Mode().Perm()&0o022 != 0 {
-			continue
-		}
-		st, ok := fi.Sys().(*syscall.Stat_t)
-		if !ok || st.Uid != 0 {
+		if err := checkSecureDirs(resolved); err != nil {
 			continue
 		}
 		return p, nil
 	}
 	return "", fmt.Errorf("no secure binary (checked %v)", candidates)
+}
+
+func checkSecureFile(path string) error {
+	fi, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if !fi.Mode().IsRegular() {
+		return fmt.Errorf("not a regular file")
+	}
+	if fi.Mode().Perm()&0o022 != 0 {
+		return fmt.Errorf("group/other writable")
+	}
+	st, ok := fi.Sys().(*syscall.Stat_t)
+	if !ok || st.Uid != 0 {
+		return fmt.Errorf("not root-owned")
+	}
+	return nil
+}
+
+// checkSecureDirs walks the resolved path's ancestors to the filesystem root
+// and requires each to be root-owned and non-writable by group/other, so an
+// unprivileged user cannot swap the file through a writable directory.
+func checkSecureDirs(path string) error {
+	for dir := filepath.Dir(path); ; dir = filepath.Dir(dir) {
+		fi, err := os.Stat(dir)
+		if err != nil {
+			return err
+		}
+		if fi.Mode().Perm()&0o022 != 0 {
+			return fmt.Errorf("directory %s group/other writable", dir)
+		}
+		st, ok := fi.Sys().(*syscall.Stat_t)
+		if !ok || st.Uid != 0 {
+			return fmt.Errorf("directory %s not root-owned", dir)
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+	}
+	return nil
 }
 
 // env is the scrubbed child environment: no inherited PATH, secrets, locale or
@@ -149,12 +189,13 @@ var env = []string{"LANG=C", "LC_ALL=C", "PATH=/usr/sbin:/usr/bin:/sbin:/bin"}
 // synthetic tests can point it at a fixture tree.
 var sysBlockRoot = "/sys/class/block"
 
-// devBlockRoot is where the stable MAJ:MIN device nodes live (devtmpfs).
+// devBlockRoot is udev's /dev/block MAJ:MIN namespace; entries may be symlinks.
 var devBlockRoot = "/dev/block"
 
 // device is one enumerated, revalidated, non-skipped block device whose
-// /dev/block/MAJ:MIN node was opened and verified. f is held open for the
-// lifetime of the probe.
+// /dev/block/MAJ:MIN node passed the helper's fstat check. The fd is held for
+// cleanup, but child tools still reopen the path; this proposal is not ready
+// for activation until O-1 resolves that identity gap.
 type device struct {
 	name string
 	path string
@@ -179,9 +220,10 @@ type Result struct {
 	Partial bool              `json:"partial"`
 }
 
-// Run executes the fixed templates. Devices are revalidated by name, class-
-// filtered, and TOCTOU-resolved before any command runs; an invalid, missing,
-// skipped or unresolvable device is reported, not opened.
+// Run executes the fixed templates. Devices are revalidated and class-filtered;
+// the shipped unit currently has no device access, so resolution fails closed
+// and reports Partial. A future device grant must resolve the name-to-node
+// race and ensure child tools read the same validated device before activation.
 func Run(ctx context.Context, req Request) Result {
 	res := Result{Version: 1, Blkid: map[string]string{}}
 	if !admit() {
@@ -230,6 +272,9 @@ func Run(ctx context.Context, req Request) Result {
 	} else if len(devs) == 0 {
 		res.Errors = append(res.Errors, "no eligible devices to probe")
 		res.Partial = true
+	}
+	if len(devs) == 0 {
+		return res // skip LVM/blkid entirely when nothing is probeable
 	}
 	defer func() {
 		for _, d := range devs {
@@ -329,12 +374,16 @@ func pvsArgs(names []string) []string {
 // accepts only the enumerated device names and rejects everything else, so no
 // host device file or other disk is ever scanned.
 func lvmConfig(names []string) string {
-	accept := make([]string, 0, len(names)+1)
+	patterns := make([]string, 0, len(names)+1)
 	for _, n := range names {
-		accept = append(accept, "a|^/dev/"+regexp.QuoteMeta(n)+"$|")
+		// blockName guarantees the name is only [a-zA-Z0-9_.!:-], so the single
+		// regex metacharacter is '.', escaped as a character class so the LVM
+		// config string needs no backslash and cannot break out of the quotes.
+		dev := strings.ReplaceAll(n, ".", "[.]")
+		patterns = append(patterns, `"a|^/dev/`+dev+`$|"`)
 	}
-	accept = append(accept, "r|.*|")
-	return "devices{hints=0 filter=[" + strings.Join(accept, ",") + "]}"
+	patterns = append(patterns, `"r|.*|"`)
+	return "devices{hints=\"none\" filter=[" + strings.Join(patterns, ",") + "]}"
 }
 
 // blkidArgs is the fixed blkid template: read-only probe, no cache read or
@@ -345,28 +394,50 @@ func blkidArgs(path string) []string {
 
 // blkidAllowedKeys and blkidAllowedPrefixes are the allow-list for blkid -p -o
 // export output; every other key is dropped so untrusted media strings never
-// reach the caller unfiltered.
+// reach the caller unfiltered. LABEL/PARTLABEL are deliberately excluded (raw
+// on-disk, attacker-controlled strings).
 var (
 	blkidAllowedKeys = map[string]bool{
 		"DEVNAME": true, "TYPE": true, "USAGE": true, "VERSION": true,
-		"PTTYPE": true, "PTUUID": true, "LABEL": true, "UUID": true,
-		"PARTUUID": true, "PARTLABEL": true,
+		"PTTYPE": true, "PTUUID": true, "UUID": true, "PARTUUID": true,
 	}
 	blkidAllowedPrefixes = []string{"PART_ENTRY_"}
 )
 
+// maxFieldValueBytes bounds any single blkid field value; longer or control-
+// character-bearing values are dropped.
+const maxFieldValueBytes = 255
+
 func filterBlkidExport(raw string) string {
 	var keep []string
 	for _, line := range strings.Split(raw, "\n") {
-		key, _, found := strings.Cut(line, "=")
+		key, val, found := strings.Cut(line, "=")
 		if !found {
 			continue
 		}
-		if blkidAllowedKeys[key] || hasAllowedPrefix(key) {
-			keep = append(keep, line)
+		if !(blkidAllowedKeys[key] || hasAllowedPrefix(key)) {
+			continue
 		}
+		if !cleanValue(val) {
+			continue
+		}
+		keep = append(keep, line)
 	}
 	return strings.Join(keep, "\n")
+}
+
+// cleanValue reports whether a blkid field value is safe to return: bounded
+// and free of control bytes.
+func cleanValue(v string) bool {
+	if len(v) > maxFieldValueBytes {
+		return false
+	}
+	for i := 0; i < len(v); i++ {
+		if v[i] < 0x20 || v[i] == 0x7f {
+			return false
+		}
+	}
+	return true
 }
 
 func hasAllowedPrefix(key string) bool {
@@ -450,9 +521,11 @@ func wholeDisk(name string) string {
 	return filepath.Base(filepath.Dir(target))
 }
 
-// resolveDevice reads /sys/block/<name>/dev, opens the stable /dev/block
-// MAJ:MIN node O_NOFOLLOW, and fstat-checks that it is a block device whose
-// rdev matches. The open fd is kept to pin the resolved node for the probe.
+// resolveDevice reads /sys/block/<name>/dev, attempts to open the stable
+// /dev/block MAJ:MIN node, and fstat-checks block type + rdev. This helper
+// remains inert: the service's PrivateDevices=yes makes that open fail, and
+// the current child templates use paths rather than this fd. O-1 must settle
+// both node identity and child-open semantics before any activation.
 func resolveDevice(name string) (*device, error) {
 	dev, err := readTrimErr(sysBlockRoot + "/" + name + "/dev")
 	if err != nil {
@@ -581,8 +654,83 @@ func (c *cappedBuffer) Write(p []byte) (int, error) {
 	return c.buf.Write(p)
 }
 
-// MarshalResponse serialises a Result for the closed typed protocol.
-func MarshalResponse(res Result) ([]byte, error) { return json.Marshal(res) }
+// WriteResponse encodes res to w, rejecting the result before encoding when
+// the exact encoded-length preflight exceeds the frame cap. The encoder writes
+// one completed JSON frame directly to a capped writer, avoiding a second
+// response-sized buffer.
+func WriteResponse(w io.Writer, res Result, maxResponseBytes int) error {
+	if maxResponseBytes < 0 || preflightBytes(res) > maxResponseBytes {
+		return fmt.Errorf("response exceeds %d bytes", maxResponseBytes)
+	}
+	enc := json.NewEncoder(&cappedFrameWriter{w: w, max: maxResponseBytes})
+	enc.SetEscapeHTML(false)
+	return enc.Encode(res)
+}
+
+// cappedFrameWriter strips Encoder.Encode's trailing newline and refuses the
+// complete frame before forwarding it if it exceeds the protocol limit.
+type cappedFrameWriter struct {
+	w   io.Writer
+	max int
+}
+
+func (c *cappedFrameWriter) Write(p []byte) (int, error) {
+	if len(p) > 0 && p[len(p)-1] == '\n' {
+		p = p[:len(p)-1]
+	}
+	if len(p) > c.max {
+		return 0, fmt.Errorf("response exceeds %d bytes", c.max)
+	}
+	n, err := c.w.Write(p)
+	if err == nil && n != len(p) {
+		return n, io.ErrShortWrite
+	}
+	return n, err
+}
+
+// preflightBytes is a safe upper bound on the marshalled size with HTML
+// escaping disabled: the exact encoded length of every string plus a generous
+// fixed-syntax allowance and per-entry separator over-count.
+func preflightBytes(res Result) int {
+	const syntax = 128
+	n := syntax
+	n += jsonStringLen(res.LVS)
+	n += jsonStringLen(res.PVS)
+	for k, v := range res.Blkid {
+		n += jsonStringLen(k) + jsonStringLen(v) + 3 // key : value ,
+	}
+	for _, e := range res.Errors {
+		n += jsonStringLen(e) + 2 // value ,
+	}
+	return n
+}
+
+// jsonStringLen returns the exact number of bytes encoding/json would emit for
+// s as a JSON string (including the surrounding quotes) with HTML escaping
+// disabled. It mirrors appendString: invalid UTF-8 bytes and control bytes
+// become six-byte \u00XX (or \ufffd), quotes/backslashes and the common
+// escapes are two bytes, U+2028/U+2029 are always escaped to six bytes, and
+// everything else is emitted as its UTF-8 bytes.
+func jsonStringLen(s string) int {
+	n := 2 // opening and closing quotes
+	for i := 0; i < len(s); {
+		r, size := utf8.DecodeRuneInString(s[i:])
+		switch {
+		case r == utf8.RuneError && size == 1:
+			n += 6 // \ufffd
+		case r == '"' || r == '\\' || r == '\b' || r == '\f' || r == '\n' || r == '\r' || r == '\t':
+			n += 2
+		case r < 0x20:
+			n += 6 // \u00XX
+		case r == '\u2028' || r == '\u2029':
+			n += 6
+		default:
+			n += size
+		}
+		i += size
+	}
+	return n
+}
 
 // UnmarshalRequest parses a closed typed Request. It rejects unknown fields,
 // duplicate fields, trailing data, and unsupported protocol versions.

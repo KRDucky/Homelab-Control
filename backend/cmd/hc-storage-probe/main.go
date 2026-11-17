@@ -22,8 +22,9 @@ import (
 // this proves the request is oversized, so a truncated request is rejected.
 const maxRequestBytes = 1 << 20
 
-// maxResponseBytes is the closed-protocol output frame cap. Result fields are
-// individually bounded; this is the hard frame limit on the marshalled reply.
+// maxResponseBytes is the closed-protocol output frame cap. LVM reports are
+// individually capped at 8 MiB; this leaves room for both reports, blkid data,
+// and protocol framing while keeping the response below the unit memory cap.
 const maxResponseBytes = 24 << 20
 
 func main() {
@@ -55,18 +56,20 @@ func run() error {
 		return fmt.Errorf("request: %w", err)
 	}
 	if err := storageprobe.ResolveToolPaths(); err != nil {
-		return fmt.Errorf("tools: %w", err)
+		// Missing/insecure tools must surface as a typed Partial result through
+		// the closed protocol, not only a nonzero exit.
+		res := storageprobe.Result{Version: 1, Partial: true, Errors: []string{"tool unavailable: " + err.Error()}}
+		return writeResult(res)
 	}
 	res := storageprobe.Run(context.Background(), req)
-	out, err := storageprobe.MarshalResponse(res)
-	if err != nil {
+	return writeResult(res)
+}
+
+// writeResult encodes a Result through the bounded frame writer and writes one
+// complete protocol frame to stdout.
+func writeResult(res storageprobe.Result) error {
+	if err := storageprobe.WriteResponse(os.Stdout, res, maxResponseBytes); err != nil {
 		return fmt.Errorf("response: %w", err)
-	}
-	if len(out) > maxResponseBytes {
-		return fmt.Errorf("response too large: %d bytes, max %d", len(out), maxResponseBytes)
-	}
-	if _, err := os.Stdout.Write(out); err != nil {
-		return fmt.Errorf("writing response: %w", err)
 	}
 	return nil
 }
