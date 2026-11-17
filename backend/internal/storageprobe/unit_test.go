@@ -29,7 +29,7 @@ func readUnit(t *testing.T, name string) string {
 func TestStorageProbeServiceFailClosed(t *testing.T) {
 	svc := readUnit(t, "homelab-control-storage-probe@.service")
 	for _, want := range []string{
-		"User=homelab-control",
+		"DynamicUser=yes",
 		"PrivateDevices=yes",
 		"CapabilityBoundingSet=\n",
 		"AmbientCapabilities=\n",
@@ -40,6 +40,9 @@ func TestStorageProbeServiceFailClosed(t *testing.T) {
 		"ProtectSystem=strict",
 		"RestrictAddressFamilies=AF_UNIX",
 		"@raw-io",
+		"ProtectKernelModules=yes",
+		"LockPersonality=yes",
+		"MemoryDenyWriteExecute=yes",
 	} {
 		if !strings.Contains(svc, want) {
 			t.Fatalf("service missing %q", want)
@@ -51,6 +54,7 @@ func TestStorageProbeServiceFailClosed(t *testing.T) {
 		"block-*",
 		"\n[Install]", // no enablement section
 		"User=root",
+		"User=homelab-control",
 		"CapabilityBoundingSet=CAP",
 		"AmbientCapabilities=CAP",
 	} {

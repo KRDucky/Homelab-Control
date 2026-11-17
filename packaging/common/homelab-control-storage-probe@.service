@@ -13,11 +13,12 @@ StandardOutput=socket
 StandardError=journal
 
 # O-1 native-probe restrictions (proposal; UNACCEPTED — fail closed).
-# Runs unprivileged with no capabilities and no device access: the helper opens
-# no block or char device itself. It is inert until a reviewed device-open
-# mechanism (broker fd-passing, or an owner re-decision on O-1's device grant)
-# is authorised. No char devices, no DeviceAllow, no CAP_SYS_RAWIO.
-User=homelab-control
+# Runs as a throwaway unprivileged user with no capabilities and no device
+# access: the helper opens no block or char device itself. It is inert until a
+# reviewed device-open mechanism (broker fd-passing, or an owner re-decision on
+# O-1's device grant) is authorised. No char devices, no DeviceAllow, no
+# CAP_SYS_RAWIO, no persistent account.
+DynamicUser=yes
 PrivateDevices=yes
 CapabilityBoundingSet=
 AmbientCapabilities=

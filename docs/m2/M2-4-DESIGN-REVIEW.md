@@ -92,3 +92,35 @@ default grant, never attached to polling GET) is not wired; synthetic tests use
 fake tools and do not validate real distributions or hardware; LVM field lists
 must be validated against the storageinfo parsers during integration. Live
 dm-status (O-2, `CAP_SYS_ADMIN`) is deliberately not implemented.
+
+## O-1 helper — final repair notes (2026-11-17)
+
+- **Identity pinning:** the helper resolves each name to `/dev/block/MAJ:MIN`,
+  opens `O_NOFOLLOW`, fstat-checks block type + rdev (stdlib `makedev`) and
+  reads `diskseq` before/after. In the fail-closed unit the open always fails
+  (no device access), so every device is reported as `skip` + `Partial` rather
+  than implying validated identity.
+- **LVM config:** `devices{hints=0 filter=[…]}` + private empty
+  `LVM_SYSTEM_DIR`. The filter follows the documented LVM `a|regex|`/`r|regex|`
+  format, but it is **unverified** here (no lvs/pvs binary in this
+  environment); it must be validated on a real LVM host before activation.
+  blkid's `-p -c /dev/null -o export` flags were confirmed against
+  `/usr/sbin/blkid -h` (no device probed).
+- **Deadlines/rate:** the helper's request-wide deadline is 25s, below the
+  unit's `TimeoutStartSec=30`. The in-process rate window and semaphore are
+  per-instance (each `Accept=yes` connection is a new process); the real
+  serialisation is the socket's `MaxConnections=1`, and cross-instance rate
+  limiting remains a broker/action concern.
+- **Account:** the helper runs `DynamicUser=yes` (throwaway unprivileged UID,
+  no persistent account) instead of a shared or new account.
+- **Binary resolution:** `ResolveToolPaths` picks lvs/pvs/blkid from reviewed
+  distro paths only, requiring a regular, root-owned, non-group/other-writable
+  file (no symlink). Missing or insecure binaries fail closed.
+- **Output:** blkid export is key-allow-listed; LVM reports are bounded raw
+  JSON (fixed field list, consumed by `storageinfo` parsers); the marshalled
+  reply is frame-capped at 24 MiB.
+
+Remaining unverified gates (helper stays inert/unaccepted): O-1 device-open
+owner decision; dedicated SELinux policy; KVM/systemd-container evidence; real
+lvs/pvs output validation; and the broker integration (CSRF POST + non-default
+`storage.probe` scope + audit/rate limit, never a polling GET).
