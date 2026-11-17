@@ -115,6 +115,13 @@ var migrations = []migration{
 			FOREIGN KEY (chassis_id, row_index, col_index) REFERENCES layout_cells(chassis_id, row_index, col_index)
 		) STRICT`,
 	}},
+	{4, "layout optimistic-concurrency version", []string{
+		// Monotonic per-chassis revision used as a compare-and-swap token: a
+		// mutation carries the version the client last saw and is refused (409)
+		// when the chassis moved since, so two clients sharing one snapshot
+		// cannot both silently overwrite.
+		`ALTER TABLE layout_chassis ADD COLUMN version INTEGER NOT NULL DEFAULT 1`,
+	}},
 }
 
 // SchemaVersion is the newest schema this binary understands.

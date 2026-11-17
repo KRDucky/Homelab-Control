@@ -32,6 +32,7 @@ var (
 	ErrLayoutNotFound = errors.New("layout: not found")
 	ErrLayoutConflict = errors.New("layout: conflicts with an existing assignment")
 	ErrLayoutInvalid  = errors.New("layout: invalid request")
+	ErrLayoutStale    = errors.New("layout: stale version")
 )
 
 var chassisKinds = map[string]bool{"server": true, "shelf": true, "external": true, "desktop": true}
@@ -67,6 +68,7 @@ type Chassis struct {
 	Kind      string       `json:"kind"`
 	Rows      int          `json:"rows"`
 	Cols      int          `json:"cols"`
+	Version   int64        `json:"version"`
 	CreatedAt time.Time    `json:"created_at"`
 	UpdatedAt time.Time    `json:"updated_at"`
 	Cells     []LayoutCell `json:"cells"`
@@ -158,7 +160,7 @@ func stamp(t time.Time) string { return t.UTC().Format(time.RFC3339Nano) }
 
 // List returns every chassis with its cells and assignments.
 func (l *LayoutStore) List(ctx context.Context) ([]Chassis, error) {
-	rows, err := l.db.sql.QueryContext(ctx, `SELECT id,name,kind,row_count,col_count,created_at,updated_at FROM layout_chassis ORDER BY id`)
+	rows, err := l.db.sql.QueryContext(ctx, `SELECT id,name,kind,row_count,col_count,version,created_at,updated_at FROM layout_chassis ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +169,7 @@ func (l *LayoutStore) List(ctx context.Context) ([]Chassis, error) {
 	for rows.Next() {
 		var c Chassis
 		var created, updated string
-		if err := rows.Scan(&c.ID, &c.Name, &c.Kind, &c.Rows, &c.Cols, &created, &updated); err != nil {
+		if err := rows.Scan(&c.ID, &c.Name, &c.Kind, &c.Rows, &c.Cols, &c.Version, &created, &updated); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -296,9 +298,33 @@ func (l *LayoutStore) Import(ctx context.Context, specs []ChassisSpec, at time.T
 	return len(specs), nil
 }
 
+// casBump advances a chassis' version and updated_at only when the stored
+// version equals expectedVersion. A mismatch is ErrLayoutStale (the chassis
+// moved since the client's snapshot) or ErrLayoutNotFound. The update is a
+// single compare-and-swap, so two writers sharing one snapshot cannot both
+// succeed.
+func casBump(ctx context.Context, tx *sql.Tx, id, expectedVersion int64, at time.Time) error {
+	res, err := tx.ExecContext(ctx, `UPDATE layout_chassis SET updated_at=?, version=version+1 WHERE id=? AND version=?`, stamp(at), id, expectedVersion)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 1 {
+		return nil
+	}
+	var exists int
+	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM layout_chassis WHERE id=?`, id).Scan(&exists); err != nil {
+		return err
+	}
+	if exists == 0 {
+		return ErrLayoutNotFound
+	}
+	return ErrLayoutStale
+}
+
 // Update replaces a chassis' name, kind, size and cells. It is refused when
-// any assigned bay would leave the grid or stop being a bay.
-func (l *LayoutStore) Update(ctx context.Context, id int64, spec ChassisSpec, at time.Time) error {
+// any assigned bay would leave the grid or stop being a bay, and when the
+// supplied version does not match the stored one (optimistic concurrency).
+func (l *LayoutStore) Update(ctx context.Context, id int64, spec ChassisSpec, expectedVersion int64, at time.Time) error {
 	if err := spec.Validate(); err != nil {
 		return err
 	}
@@ -307,13 +333,20 @@ func (l *LayoutStore) Update(ctx context.Context, id int64, spec ChassisSpec, at
 		return err
 	}
 	defer tx.Rollback() //nolint:errcheck // no-op after Commit
-	res, err := tx.ExecContext(ctx, `UPDATE layout_chassis SET name=?,kind=?,row_count=?,col_count=?,updated_at=? WHERE id=?`,
-		spec.Name, spec.Kind, spec.Rows, spec.Cols, stamp(at), id)
+	res, err := tx.ExecContext(ctx, `UPDATE layout_chassis SET name=?,kind=?,row_count=?,col_count=?,updated_at=?,version=version+1 WHERE id=? AND version=?`,
+		spec.Name, spec.Kind, spec.Rows, spec.Cols, stamp(at), id, expectedVersion)
 	if err != nil {
 		return err
 	}
 	if n, _ := res.RowsAffected(); n != 1 {
-		return ErrLayoutNotFound
+		var exists int
+		if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM layout_chassis WHERE id=?`, id).Scan(&exists); err != nil {
+			return err
+		}
+		if exists == 0 {
+			return ErrLayoutNotFound
+		}
+		return ErrLayoutStale
 	}
 	next := map[[2]int]string{}
 	for _, c := range spec.cells() {
@@ -347,8 +380,9 @@ func (l *LayoutStore) Update(ctx context.Context, id int64, spec ChassisSpec, at
 	return tx.Commit()
 }
 
-// Delete removes a chassis without assignments.
-func (l *LayoutStore) Delete(ctx context.Context, id int64) error {
+// Delete removes a chassis without assignments. It is refused when the
+// supplied version does not match the stored one (optimistic concurrency).
+func (l *LayoutStore) Delete(ctx context.Context, id int64, expectedVersion int64) error {
 	tx, err := l.db.sql.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -370,8 +404,13 @@ func (l *LayoutStore) Delete(ctx context.Context, id int64) error {
 	if _, err := tx.ExecContext(ctx, `DELETE FROM layout_cells WHERE chassis_id=?`, id); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM layout_chassis WHERE id=?`, id); err != nil {
+	res, err := tx.ExecContext(ctx, `DELETE FROM layout_chassis WHERE id=? AND version=?`, id, expectedVersion)
+	if err != nil {
 		return err
+	}
+	if n, _ := res.RowsAffected(); n != 1 {
+		// Existence was checked above, so a zero here is a version mismatch.
+		return ErrLayoutStale
 	}
 	return tx.Commit()
 }
@@ -379,7 +418,7 @@ func (l *LayoutStore) Delete(ctx context.Context, id int64) error {
 // Assign records a manual, unverified assignment. An occupied bay, a non-bay
 // cell or an identity already assigned elsewhere is a conflict: nothing is
 // overwritten or moved.
-func (l *LayoutStore) Assign(ctx context.Context, id int64, row, col int, identity, by string, at time.Time) error {
+func (l *LayoutStore) Assign(ctx context.Context, id int64, row, col int, identity, by string, expectedVersion int64, at time.Time) error {
 	if !ValidAssignableIdentity(identity) || by == "" {
 		return ErrLayoutInvalid
 	}
@@ -410,14 +449,15 @@ func (l *LayoutStore) Assign(ctx context.Context, id int64, row, col int, identi
 		id, row, col, identity, by, stamp(at)); err != nil {
 		return fmt.Errorf("record assignment: %w", err)
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE layout_chassis SET updated_at=? WHERE id=?`, stamp(at), id); err != nil {
+	if err := casBump(ctx, tx, id, expectedVersion, at); err != nil {
 		return err
 	}
 	return tx.Commit()
 }
 
 // Unassign removes one bay's assignment, whether or not the drive is present.
-func (l *LayoutStore) Unassign(ctx context.Context, id int64, row, col int, at time.Time) error {
+// It is refused when the supplied version does not match the stored one.
+func (l *LayoutStore) Unassign(ctx context.Context, id int64, row, col int, expectedVersion int64, at time.Time) error {
 	tx, err := l.db.sql.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -430,7 +470,7 @@ func (l *LayoutStore) Unassign(ctx context.Context, id int64, row, col int, at t
 	if n, _ := res.RowsAffected(); n != 1 {
 		return ErrLayoutNotFound
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE layout_chassis SET updated_at=? WHERE id=?`, stamp(at), id); err != nil {
+	if err := casBump(ctx, tx, id, expectedVersion, at); err != nil {
 		return err
 	}
 	return tx.Commit()
