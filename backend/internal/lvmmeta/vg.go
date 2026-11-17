@@ -127,9 +127,9 @@ type VGPV struct {
 	Key        string
 	UUID       string
 	DeviceHint string
-	DevSize    uint64
-	PEStart    uint64
-	PECount    uint64
+	DevSize    uint64 // bytes (text dev_size is sectors; converted)
+	PEStart    uint64 // sectors
+	PECount    uint64 // extents
 	Flags      []string
 	Device     string
 	Presence   Presence
@@ -203,7 +203,10 @@ func parseVGPV(key string, n *Node) VGPV {
 		p.DeviceHint = d.Value
 	}
 	if d := n.child("dev_size"); d != nil {
-		p.DevSize, _ = strconv.ParseUint(d.Value, 10, 64)
+		// Text dev_size is in 512-byte sectors (lvm2 internal unit); the graph
+		// and identity checks use bytes, so convert.
+		sectors, _ := strconv.ParseUint(d.Value, 10, 64)
+		p.DevSize = sectors * 512
 	}
 	if d := n.child("pe_start"); d != nil {
 		p.PEStart, _ = strconv.ParseUint(d.Value, 10, 64)
