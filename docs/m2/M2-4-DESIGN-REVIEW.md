@@ -78,11 +78,10 @@ device-open mechanism is authorised by the owner.
   and time-bounded via a `Setsid` process-group kill; an in-process cap and
   rate window limit on-demand probes (blkid can wake disks).
 - **Unit:** `homelab-control-storage-probe@.service` (template) + `.socket`
-  (`Accept=yes`), no `[Install]`. The service runs `User=homelab-control`,
-  `PrivateDevices=yes`, empty capability bounding set, no `DeviceAllow` (no
-  char or block device access), `PrivateNetwork=yes`. Socket at
-  `/run/homelab-control/storage-probe.sock` (0600). **Correction:** the current
-  unit uses `DynamicUser=yes`, not `User=homelab-control`; the socket has no
+  (`Accept=yes`), no `[Install]`. The service runs `DynamicUser=yes`,
+  `PrivateDevices=yes`, an empty capability bounding set, no `DeviceAllow` (no
+  char or block device access), and `PrivateNetwork=yes`. The socket is at
+  `/run/homelab-control/storage-probe.sock` (0600). The socket has no
   `[Install]`, and no broker caller is wired.
 - **Guard:** `internal/storageprobe/` is added to `allowedExecRoots` (ADR 0008)
   as the second package allowed to execute programs. A static unit test asserts
