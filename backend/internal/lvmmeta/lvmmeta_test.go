@@ -153,6 +153,88 @@ func TestReadPVNotLVM(t *testing.T) {
 	}
 }
 
+// mdaSpec is one metadata area in a multi-MDA fixture.
+type mdaSpec struct {
+	offset, size uint64
+	text         string
+}
+
+// buildMultiMDA builds a label with several MDA disk_locn entries and their
+// headers/text, grounded in layout.h.
+func buildMultiMDA(mdas []mdaSpec) []byte {
+	total := uint64(512)
+	for _, m := range mdas {
+		if m.offset+m.size > total {
+			total = m.offset + m.size
+		}
+	}
+	img := make([]byte, total)
+	s := img[0:512]
+	copy(s[0:8], labelID)
+	binary.LittleEndian.PutUint64(s[8:16], 0)
+	binary.LittleEndian.PutUint32(s[20:24], 32)
+	copy(s[24:32], lvm2Label)
+	copy(s[32:64], []byte(testPVUUID))
+	binary.LittleEndian.PutUint64(s[64:72], 10485760)
+	pos := 88 // data areas NULL at 72..88; then MDA disk_locns
+	for _, m := range mdas {
+		binary.LittleEndian.PutUint64(s[pos:pos+8], m.offset)
+		binary.LittleEndian.PutUint64(s[pos+8:pos+16], m.size)
+		pos += 16
+	}
+	binary.LittleEndian.PutUint32(s[16:20], crc(initCRC, s[20:512]))
+	for _, m := range mdas {
+		h := img[m.offset : m.offset+512]
+		copy(h[4:20], ftMagic)
+		binary.LittleEndian.PutUint32(h[20:24], 1)
+		binary.LittleEndian.PutUint64(h[24:32], m.offset)
+		binary.LittleEndian.PutUint64(h[32:40], m.size)
+		binary.LittleEndian.PutUint64(h[40:48], MDAHeaderSize)
+		binary.LittleEndian.PutUint64(h[48:56], uint64(len(m.text)))
+		binary.LittleEndian.PutUint32(h[56:60], crc(initCRC, []byte(m.text)))
+		copy(img[m.offset+MDAHeaderSize:], m.text)
+		binary.LittleEndian.PutUint32(h[0:4], crc(initCRC, h[4:512]))
+	}
+	return img
+}
+
+func TestReadPVSelectsHighestSeqno(t *testing.T) {
+	stale := strings.Replace(testVGMeta, "seqno = 2", "seqno = 2", 1)
+	fresh := strings.Replace(testVGMeta, "seqno = 2", "seqno = 5", 1)
+	img := buildMultiMDA([]mdaSpec{{4096, 8192, stale}, {12288, 8192, fresh}})
+	pv := ReadPV(bytes.NewReader(img), uint64(len(img)), "vdb")
+	if pv.Status != StatusOK {
+		t.Fatalf("status = %s", pv.Status)
+	}
+	root, err := parseText(pv.Text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := seq(findVGNode(root)); s != 5 {
+		t.Fatalf("selected seqno = %d, want 5", s)
+	}
+}
+
+func TestReadPVInconsistentEqualSeqno(t *testing.T) {
+	a := strings.Replace(testVGMeta, "seqno = 2", "seqno = 3", 1)
+	b := strings.Replace(testVGMeta, "seqno = 2", "seqno = 3", 1)
+	b = strings.Replace(b, "extent_size = 8192", "extent_size = 4096", 1)
+	img := buildMultiMDA([]mdaSpec{{4096, 8192, a}, {12288, 8192, b}})
+	pv := ReadPV(bytes.NewReader(img), uint64(len(img)), "vdb")
+	if pv.Status != StatusMetadataInconsistent {
+		t.Fatalf("status = %s, want metadata-inconsistent", pv.Status)
+	}
+}
+
+func TestParseTextTokenLimit(t *testing.T) {
+	// A syntactically valid prefix followed by more tokens than MaxTokens must
+	// error, not be accepted as a complete document.
+	body := "vg1 { " + strings.Repeat("k = 1 ", MaxTokens/3+10) + "}"
+	if _, err := parseText([]byte(body)); err == nil {
+		t.Fatal("expected token limit error")
+	}
+}
+
 func TestParseTextMalformed(t *testing.T) {
 	for _, bad := range []string{
 		"vg1 { id = }",
