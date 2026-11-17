@@ -1,6 +1,6 @@
 # M0–M3 production-readiness status
 
-**Reconciled:** 2026-11-17 against public `origin/main` at `59170f772e907d21a41842401c292c610e7ff4b3`.
+**Reconciled:** 2026-11-17 against `origin/main` at `59170f772e907d21a41842401c292c610e7ff4b3` plus the isolated `dreggbot/m0-m3-readiness` implementation branch.
 **Verdict:** not production-ready; M2 is not closed, so M3 acceptance remains gated. This is a readiness
 reconciliation, not owner acceptance, a deployment authorization, or a substitute for the milestone
 acceptance records.
@@ -23,9 +23,9 @@ The mandatory sequence and exclusions are in `docs/m2/M2-ROADMAP.md` and `docs/m
 | PR-1 durable state/audit/logs | Merged read-only foundation. | Reconcile current CI and acceptance evidence with the roadmap; resolve any remaining audit durability/retention policy for production. |
 | M2-2 service operations | Merged; acceptance record exists. | Preserve its security conditions; production activation remains a separate owner decision. |
 | M2-3 service configuration | Skeleton on main; implementation and container evidence are documented, but not accepted. | Close owner review decisions and design review findings; run the prepared KVM acceptance procedure only with its required authorization; complete distro/security/browser evidence. |
-| M2-4 storage inventory | Read-only metadata collector and fixture parsers exist. O-1 development and isolated validation are owner-approved; the separate helper remains inert, and the current `PrivateDevices=yes` unit cannot read devices. Child tools do not consume the opened fd, so it is not ready for activation. | Implement the approved read-only device policy and identity handling, then complete SELinux/AppArmor, KVM/systemd-container and real LVM-tool validation; live LVM/RAID/cache and hardware evidence are missing; ZFS/Btrfs/mergerfs scope and distro acceptance remain open. No storage write path or host/production activation is authorized by this slice. |
+| M2-4 storage inventory | O-1 helper, reviewed closed device policy, typed broker op, explicit CSRF POST, non-default scope, audit, rate limit and UI action are implemented on this isolated branch. LVM remains gated off; helper is not enabled on a host. | Complete disposable systemd/KVM/container and SELinux/AppArmor evidence; validate real LVM tools before enabling LVM; collect supported-distro and hardware evidence. M2-4 remains unaccepted. No storage writes or host/production activation are authorized. |
 | M2-5 drive layout Stage A | Manual, explicitly unverified layout implementation; keyboard and drag/drop assignment, redacted export, additive import, and per-chassis optimistic concurrency are implemented in this isolated review branch. Existing-layout mutations carry versions and reject stale writes with 409; create/import remain additive. | D-12 is open pending HBA Viewer source/reuse terms. Browser/axe and backend acceptance are outstanding; no owner acceptance or merge is implied. |
-| M2-6 hostname/timezone | Plan/apply backend and UI skeletons exist. A reviewed change now reports conflict when host settings converge between plan and apply. | Complete design/security review, user documentation, CI/browser and distro/KVM acceptance, and obtain owner acceptance. Go verification could not be repeated in this environment. No production apply is authorized. |
+| M2-6 hostname/timezone | Plan/apply backend and UI skeletons exist. Apply revalidation reports conflict when host settings converge between plan and apply. Full Go tests, vet and build pass on this branch with the expected `022` umask. | Complete design/security review, user documentation, frontend CI/browser and distro/KVM acceptance, and obtain owner acceptance. No production apply is authorized. |
 | File manager | Confined read-only roots and listing skeleton. | ADR 0012 and acceptance are open; complete security review and required isolated/browser/distribution evidence. No write operations are in scope. |
 
 **M3 entry gate:** all six M2 roadmap slices above plus the file manager, their security checklists, and required
@@ -54,8 +54,8 @@ evidence must be accepted. Current main does not satisfy that gate.
 
 ## Immediate next sequence
 
-1. Resolve D-12 (source/reuse terms for M2-5); complete the newly approved O-1 implementation and isolated
-   evidence without enabling the socket on host/production or probing real host disks.
+1. Resolve D-12 (source/reuse terms for M2-5); complete O-1 isolated runtime evidence without enabling
+   the socket on host/production or probing real host disks.
 2. Complete M2-5 and M2-4 within their approved boundaries; do not infer hardware discovery or storage writes.
 3. Close M2-3, M2-6 and file-manager reviews and acceptance evidence, then obtain the M2 close decision.
 4. Only then finish and accept M3 Theme/Plugin SDK.

@@ -17,4 +17,4 @@ RemoveOnStop=yes
 
 # No [Install] section: the socket is not enabled at boot. If explicitly
 # started in a disposable validation environment, each accepted connection
-# starts one helper instance. No broker caller is wired.
+# starts one helper instance. The broker caller is available, but packages do not enable it.
