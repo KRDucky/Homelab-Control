@@ -146,7 +146,11 @@ type VGPV struct {
 	PECount    uint64 // extents
 	Flags      []string
 	Device     string
-	Presence   Presence
+	// DeviceNumber is the probed device's major:minor for the PV, copied from
+	// the matching PVRead by Assemble. It is empty when no probed device
+	// matched this PV (missing/not-found).
+	DeviceNumber string
+	Presence     Presence
 	// Malformed is set when a numeric field cannot be converted safely (parse
 	// error or overflow); the VG must then never be reported complete.
 	Malformed bool
@@ -532,6 +536,7 @@ func Assemble(pvs []PVRead) Inventory {
 			for _, pv := range pvs {
 				if pv.Label != nil && pv.Label.PVUUID == vg.PVs[i].UUID {
 					vg.PVs[i].Device = pv.Device
+					vg.PVs[i].DeviceNumber = pv.DeviceNumber
 					seen[vg.PVs[i].UUID]++
 				}
 			}

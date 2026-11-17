@@ -891,3 +891,18 @@ func TestMalformedSegmentStructure(t *testing.T) {
 		})
 	}
 }
+
+func TestAssembleDeviceNumber(t *testing.T) {
+	// The probed device's major:minor is threaded from PVRead to the matched
+	// VGPV so the graph can nominate a candidate block device.
+	img := buildImage(testVGMeta, nil)
+	pv := ReadPV(bytes.NewReader(img), uint64(len(img)), "vdb")
+	pv.DeviceNumber = "8:0"
+	inv := Assemble([]PVRead{pv})
+	if len(inv.VGs) != 1 || len(inv.VGs[0].PVs) != 1 {
+		t.Fatalf("vgs = %+v", inv.VGs)
+	}
+	if inv.VGs[0].PVs[0].DeviceNumber != "8:0" {
+		t.Fatalf("device number not threaded: %+v", inv.VGs[0].PVs[0])
+	}
+}

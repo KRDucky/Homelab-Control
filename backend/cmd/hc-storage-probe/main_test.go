@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"homelab-control/backend/internal/lvmmeta"
 	"homelab-control/backend/internal/storageprobe"
 )
 
@@ -48,6 +49,21 @@ func TestWriteResponseBounded(t *testing.T) {
 	}
 	if buf2.Len() != 0 {
 		t.Fatalf("partial output written on overflow: %q", buf2.String())
+	}
+}
+
+func TestWriteResponseBoundedLVM(t *testing.T) {
+	// The LVM inventory is marshalled in preflightBytes, so a large payload
+	// must be rejected before any bytes are written.
+	long := strings.Repeat("v", 4096)
+	inv := lvmmeta.Inventory{VGs: []lvmmeta.VG{{UUID: "aaaaaaaabbbbccccddddeeeeffff0001", Name: long}}}
+	res := storageprobe.Result{Version: 1, LVM: &inv}
+	var buf bytes.Buffer
+	if err := storageprobe.WriteResponse(&buf, res, 100); err == nil {
+		t.Fatal("expected LVM payload to exceed the frame cap")
+	}
+	if buf.Len() != 0 {
+		t.Fatalf("partial output written on LVM overflow: %d bytes", buf.Len())
 	}
 }
 

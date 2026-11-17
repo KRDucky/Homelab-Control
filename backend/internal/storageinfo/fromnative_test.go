@@ -31,7 +31,7 @@ func TestFromNative(t *testing.T) {
 	if len(out.PhysicalVolumes) != 2 {
 		t.Fatalf("pvs = %+v", out.PhysicalVolumes)
 	}
-	if out.PhysicalVolumes[0].DeviceLink != "verified" || out.PhysicalVolumes[0].MissingState != "present" {
+	if out.PhysicalVolumes[0].DeviceLink != "" || out.PhysicalVolumes[0].MissingState != "present" {
 		t.Fatalf("pv0 = %+v", out.PhysicalVolumes[0])
 	}
 	if !out.PhysicalVolumes[1].Missing || out.PhysicalVolumes[1].MissingState != "missing" {
@@ -169,5 +169,26 @@ func TestFromNativeAccumulatesNotes(t *testing.T) {
 	}
 	if !hasMalformed || !hasUnsupported {
 		t.Fatalf("notes = %v, want both malformed size and unsupported segment", notes)
+	}
+}
+
+func TestFromNativeDeviceNumber(t *testing.T) {
+	// The PV's device major:minor is forwarded so linkPV can nominate a block.
+	inv := lvmmeta.Inventory{VGs: []lvmmeta.VG{{
+		UUID: "aaaaaaaabbbbccccddddeeeeffff0001",
+		Name: "vg1",
+		PVs: []lvmmeta.VGPV{
+			{UUID: "abcdef1234567890abcdef1234567890", DevSize: 536870912, DeviceNumber: "8:0", Presence: lvmmeta.PresencePresent},
+		},
+	}}}
+	out, _ := FromNative(inv)
+	if len(out.PhysicalVolumes) != 1 {
+		t.Fatalf("pvs = %+v", out.PhysicalVolumes)
+	}
+	if out.PhysicalVolumes[0].DeviceNumber != "8:0" {
+		t.Fatalf("device number = %q, want 8:0", out.PhysicalVolumes[0].DeviceNumber)
+	}
+	if out.Mode != ModeMetadataOnly {
+		t.Fatalf("mode = %q, want metadata-only", out.Mode)
 	}
 }
