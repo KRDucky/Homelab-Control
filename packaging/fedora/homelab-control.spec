@@ -27,9 +27,9 @@ make build VERSION=%{version}
 %install
 install -Dm0755 build/hc-api %{buildroot}%{_bindir}/hc-api
 install -Dm0755 build/hlctl %{buildroot}%{_bindir}/hlctl
-install -Dm0755 build/hc-storage-probe %{buildroot}%{_libexecdir}/homelab-control/hc-storage-probe
+install -Dm0755 build/hc-storage-probe %{buildroot}/usr/lib/homelab-control/hc-storage-probe
 install -Dm0644 packaging/common/homelab-control.service %{buildroot}%{_unitdir}/homelab-control.service
-install -Dm0644 packaging/common/homelab-control-storage-probe.service %{buildroot}%{_unitdir}/homelab-control-storage-probe.service
+install -Dm0644 packaging/common/homelab-control-storage-probe@.service %{buildroot}%{_unitdir}/homelab-control-storage-probe@.service
 install -Dm0644 packaging/common/homelab-control-storage-probe.socket %{buildroot}%{_unitdir}/homelab-control-storage-probe.socket
 install -Dm0644 packaging/common/sysusers.conf %{buildroot}%{_sysusersdir}/homelab-control.conf
 install -Dm0640 packaging/common/hc-api.env %{buildroot}%{_sysconfdir}/homelab-control/hc-api.env
@@ -51,10 +51,10 @@ install -Dm0640 packaging/common/hc-api.env %{buildroot}%{_sysconfdir}/homelab-c
 %doc README.md
 %{_bindir}/hc-api
 %{_bindir}/hlctl
-%dir %{_libexecdir}/homelab-control
-%{_libexecdir}/homelab-control/hc-storage-probe
+%dir /usr/lib/homelab-control
+/usr/lib/homelab-control/hc-storage-probe
 %{_unitdir}/homelab-control.service
-%{_unitdir}/homelab-control-storage-probe.service
+%{_unitdir}/homelab-control-storage-probe@.service
 %{_unitdir}/homelab-control-storage-probe.socket
 %{_sysusersdir}/homelab-control.conf
 %dir %attr(0750,root,homelab-control) %{_sysconfdir}/homelab-control

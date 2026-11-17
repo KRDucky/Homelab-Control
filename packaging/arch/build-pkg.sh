@@ -20,7 +20,7 @@ pkgver=$(hc_arch_pkgver "$ver_in")
 work=${HC_MAKEPKG_DIR:-/tmp/homelab-control-makepkg}
 rm -rf "$work"; mkdir -p "$work"; trap 'rm -rf "$work"' EXIT
 cp "$root/build/hc-api" "$root/build/hc-broker" "$root/build/hlctl" "$root/build/hc-audit-retention" "$root/build/hc-storage-probe" "$work/"
-cp "$root"/packaging/common/{homelab-control.service,homelab-control-broker.service,homelab-control-broker.socket,homelab-control-storage-helper.service,homelab-control-storage-probe.service,homelab-control-storage-probe.socket,homelab-control-audit-retention.service,homelab-control-audit-retention.timer,sysusers.conf,hc-api.env,audit-retention.conf} "$work/"
+cp "$root"/packaging/common/{homelab-control.service,homelab-control-broker.service,homelab-control-broker.socket,homelab-control-storage-helper.service,homelab-control-storage-probe@.service,homelab-control-storage-probe.socket,homelab-control-audit-retention.service,homelab-control-audit-retention.timer,sysusers.conf,hc-api.env,audit-retention.conf} "$work/"
 cp "$root/LICENSE.md" "$root/NOTICE.md" "$root/README.md" "$root/docs/compliance/THIRD-PARTY-NOTICES.md" "$work/"
 cat > "$work/homelab-control.install" <<'INST'
 post_install() {
@@ -54,7 +54,7 @@ depends=('systemd')
 backup=('etc/homelab-control/hc-api.env' 'etc/homelab-control/audit-retention.conf')
 install=homelab-control.install
 options=('!debug' '!strip')
-source=(hc-api hc-broker hlctl hc-audit-retention hc-storage-probe homelab-control.service homelab-control-broker.service homelab-control-broker.socket homelab-control-storage-helper.service homelab-control-storage-probe.service homelab-control-storage-probe.socket homelab-control-audit-retention.service homelab-control-audit-retention.timer sysusers.conf hc-api.env audit-retention.conf LICENSE.md NOTICE.md THIRD-PARTY-NOTICES.md README.md)
+source=(hc-api hc-broker hlctl hc-audit-retention hc-storage-probe homelab-control.service homelab-control-broker.service homelab-control-broker.socket homelab-control-storage-helper.service homelab-control-storage-probe@.service homelab-control-storage-probe.socket homelab-control-audit-retention.service homelab-control-audit-retention.timer sysusers.conf hc-api.env audit-retention.conf LICENSE.md NOTICE.md THIRD-PARTY-NOTICES.md README.md)
 sha256sums=(SKIP SKIP SKIP SKIP SKIP SKIP SKIP SKIP SKIP SKIP SKIP SKIP SKIP SKIP SKIP SKIP SKIP)
 
 package() {
@@ -63,7 +63,7 @@ package() {
   install -Dm0755 hc-broker "\$pkgdir/usr/lib/homelab-control/hc-broker"
   install -Dm0755 hc-storage-probe "\$pkgdir/usr/lib/homelab-control/hc-storage-probe"
   install -Dm0755 hc-audit-retention "\$pkgdir/usr/bin/hc-audit-retention"
-  for u in homelab-control.service homelab-control-broker.service homelab-control-broker.socket homelab-control-storage-helper.service homelab-control-storage-probe.service homelab-control-storage-probe.socket homelab-control-audit-retention.service homelab-control-audit-retention.timer; do
+  for u in homelab-control.service homelab-control-broker.service homelab-control-broker.socket homelab-control-storage-helper.service homelab-control-storage-probe@.service homelab-control-storage-probe.socket homelab-control-audit-retention.service homelab-control-audit-retention.timer; do
     install -Dm0644 "\$u" "\$pkgdir/usr/lib/systemd/system/\$u"
   done
   install -Dm0644 sysusers.conf "\$pkgdir/usr/lib/sysusers.d/homelab-control.conf"

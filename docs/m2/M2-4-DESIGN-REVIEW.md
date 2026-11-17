@@ -42,37 +42,53 @@ Accepted from the independent review (`.dev` review ledger, not in Git): keep th
 
 Until O-1 is decided, M2-4 can be reviewed only as a metadata/fixture slice: the Storage page cannot show LVM or signature data on real hosts.
 
-## O-1 helper implemented (2026-11-16, proposal — not shipped)
+## O-1 helper (2026-11-17, proposal — UNACCEPTED, fail closed)
 
-The O-1 native probe helper is now implemented as a separately packaged,
-disabled-by-default unit, per the review outcome. It does not weaken hc-broker
-and it is not invoked by hc-api or hc-broker yet.
+The O-1 native probe helper is implemented as a separately packaged,
+disabled-by-default unit. It does not weaken hc-broker and is not invoked by
+hc-api or hc-broker. It is **fail closed**: the unit runs unprivileged with no
+capabilities and no device access, so it cannot read a block device until the
+device-open mechanism is authorised by the owner.
 
 - **Binary:** `hc-storage-probe` (`backend/cmd/hc-storage-probe`), built from
   `backend/internal/storageprobe`. It reads one closed typed Request from
   stdin and writes one closed typed Result to stdout.
-- **Templates (fixed, no caller argv/path):** `lvs --readonly --reportformat
-  json --units b --nosuffix -a --segments -o <fixed fields> --config
-  devices{hints=0}`; `pvs --readonly --segments --reportformat json --units b
-  --nosuffix -o <fixed fields> --config devices{hints=0}`; and `blkid -p -c
-  /dev/null -o export /dev/<name>` for each enumerated device.
-- **Guards:** the environment is replaced (LANG=C, LC_ALL=C, minimal PATH);
-  per-command output is size-capped and time-bounded via a process-group kill;
-  devices are revalidated against `/sys/block` and a name is only ever joined
-  to a fixed `/dev/` prefix. LVM hints are disabled and no command writes to a
-  device or mount.
-- **Unit:** `homelab-control-storage-probe.service` + `.socket`, with no
-  `[Install]` enablement (disabled by default), `PrivateDevices=no`,
-  `DevicePolicy=closed`, `DeviceAllow=block-* r`, empty capability bounding
-  set, `ReadOnlyPaths=/dev /sys/block`, `PrivateNetwork=yes`. Socket at
+- **Device resolution (TOCTOU-safe):** each enumerated name is revalidated
+  against `/sys/class/block` (whole disks and partitions, via `Stat` so the
+  sysfs symlinks are followed), resolved to `MAJ:MIN` from its `dev` file,
+  opened at the stable `/dev/block/MAJ:MIN` node `O_NOFOLLOW`, and fstat-checked
+  to be a block device whose rdev matches the resolved `MAJ:MIN`; the sysfs
+  `diskseq` is read before and after each probe. No raw `/dev/<name>` path is
+  ever handed to a tool.
+- **Skip by default:** loop/zram/ram/sr/fd/nbd/rbd and device-mapper (multipath,
+  LVM, crypt); removable and USB media (via the resolved `device` sysfs link);
+  devices whose sysfs state is not `running`. Partitions inherit their whole
+  disk's classification. Skips are reported, not silently probed.
+- **Templates (fixed, no caller argv/path):** `lvs/pvs --readonly
+  --reportformat json --units b --nosuffix -a --segments -o <fixed fields>
+  --config devices{hints=0 filter=[…]}` against a private empty
+  `LVM_SYSTEM_DIR` (no host lvm.conf or devices file), and `blkid -p -c
+  /dev/null -o export` per resolved node. blkid output is allow-listed by key
+  (DEVNAME/TYPE/UUID/…/PART_ENTRY_*), so untrusted media strings are dropped.
+- **Guards:** environment replaced (LANG=C, LC_ALL=C, minimal PATH; no
+  BLKID_FILE/BLKID_DEBUG/LVM_SYSTEM_DIR inherited); per-command output capped
+  and time-bounded via a `Setsid` process-group kill; an in-process cap and
+  rate window limit on-demand probes (blkid can wake disks).
+- **Unit:** `homelab-control-storage-probe@.service` (template) + `.socket`
+  (`Accept=yes`), no `[Install]`. The service runs `User=homelab-control`,
+  `PrivateDevices=yes`, empty capability bounding set, no `DeviceAllow` (no
+  char or block device access), `PrivateNetwork=yes`. Socket at
   `/run/homelab-control/storage-probe.sock` (0600).
 - **Guard:** `internal/storageprobe/` is added to `allowedExecRoots` (ADR 0008)
-  as the second package allowed to execute programs.
+  as the second package allowed to execute programs. A static unit test asserts
+  the fail-closed policy.
 
-Remaining gaps (not production-ready): the broker-side invocation that
-connects to the socket and sends a Request/reads a Result is not wired; the
-synthetic tests use fake `lvs`/`pvs`/`blkid` and do not validate real
-distributions or hardware; the field lists must be validated against the
-storageinfo parsers during integration; a dedicated SELinux context and
-KVM/systemd-container evidence are still required before activation. Live
+**Release blockers (not production-ready):** the helper is inert: it has no
+device access by design, and the reviewed device-open mechanism (broker
+fd-passing via SCM_RIGHTS, or an owner re-decision on O-1's device grant) is
+not built; a dedicated SELinux context and KVM/systemd-container evidence are
+absent; the broker-side `storage.probe` scope (explicit CSRF-protected POST, no
+default grant, never attached to polling GET) is not wired; synthetic tests use
+fake tools and do not validate real distributions or hardware; LVM field lists
+must be validated against the storageinfo parsers during integration. Live
 dm-status (O-2, `CAP_SYS_ADMIN`) is deliberately not implemented.

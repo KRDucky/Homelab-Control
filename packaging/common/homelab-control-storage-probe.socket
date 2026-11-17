@@ -3,11 +3,11 @@ Description=Homelab Control read-only storage probe socket (M2-4)
 
 [Socket]
 ListenStream=/run/homelab-control/storage-probe.sock
-Accept=no
+Accept=yes
 SocketMode=0600
 SocketUser=root
 SocketGroup=root
 
-[Install]
-# Deliberately not enabled at boot. The broker activates the helper on demand
-# only for individually registered storage.read operations.
+# No [Install] section: the socket is not enabled at boot. Each accepted
+# connection starts one homelab-control-storage-probe@ instance on demand, only
+# for a reviewed storage.read operation.
