@@ -1,4 +1,16 @@
-# M2-4 read-only storage design review (in progress)
+# M2-4 read-only storage design review (implementation integrated; acceptance open)
+
+**Status update, 2026-11-17:** The O-1 helper, typed broker operation, explicit
+CSRF-protected `POST /api/v1/storage/probe`, non-default `storage.probe` scope,
+count-only audit, broker-side rate limit, OpenAPI contract, and UI action are
+implemented on the isolated readiness branch. LVM remains disabled by default
+because its device identity binding is not yet proven. The separate helper unit
+and MAC policy are disabled by default and limited to isolated validation. This
+does **not** close M2-4 acceptance: systemd/device-policy, SELinux/AppArmor,
+real LVM output, KVM/container and supported-distribution evidence remain
+outstanding. Older proposal text below records design history; this update and
+the final repair notes supersede conflicting claims that the route, broker
+client, startup check, or policy are absent.
 
 Owner authorized M2-4 development and isolated tests on 2026-11-05, including LVM2 RAID/cache visibility and Serial/ID versus WWN labels. This is not storage-write, KVM or production-activation authorization. Existing file-manager and M2-3 worktrees are separate.
 
@@ -12,7 +24,7 @@ Schema migration 2 adds identifier-bearing graph snapshots to the existing priva
 
 Snapshots are bounded to 8 MiB each and the four latest observations. Insert and retention run in one transaction. Unknown or different boot IDs, future timestamps, and expired observations are stale; no historical graph is promoted to current after a collection failure. Saving app state is not a device write. Deleted SQLite rows are not claimed securely erased; retention bounds live records, not WAL/backup disk consumption. API responses distinguish persisted snapshots from ephemeral mode and withhold data if an enabled snapshot store fails. No snapshot-history endpoint exists yet.
 
-## Native probe privilege review — proposal, not registered
+## Native probe privilege review — original proposal (superseded by O-1 below)
 
 The current root broker has `root-read` handlers and an unprivileged program runner. Its `root-exec` handle is explicitly confined to reviewed service write operations. Do not simply run `blkid` or `lvs` through that write handle from a new read op, add the API account to `disk`, or increase broker capabilities.
 
@@ -20,7 +32,9 @@ Proposed next slice: a separately typed, closed root-read-exec handle, made avai
 
 `blkid` must probe only enumerated/revalidated local block devices and never use or trust a stale cache as current proof. Avoid unbounded all-host scans or opening network filesystems. LVM reports must be non-mutating, with fixed fields/JSON/byte units, no caller config/profile/selection, and capability detection per installed version. LVM reporting may ordinarily update hints/caches or require locks; confirm an actually read-only invocation and distinguish metadata-only from live-kernel RAID/cache health. Do not infer health when the chosen read-only mode cannot observe it. Parser tests alone do not settle this security or compatibility review.
 
-Native root-read execution is not implemented yet. Until independently reviewed and tested in new disposable fixtures/containers, the production collector remains unprivileged metadata only. SSD cache, LVM RAID/PV member joins, ZFS/Btrfs/mergerfs and signature collection remain incomplete and prevent M2-4 acceptance.
+This paragraph describes the state before O-1 implementation. The later O-1
+sections document the current implementation. SSD cache, LVM RAID/PV member
+joins, ZFS/Btrfs/mergerfs and acceptance evidence remain incomplete.
 
 ## Confirmed native-probe integration constraint (2026-11-05)
 
@@ -28,7 +42,7 @@ The packaged broker service explicitly has `PrivateDevices=yes`, a strict system
 
 A metadata-only LVM report cannot substitute for observed live health: [the upstream lvs manual](https://man7.org/linux/man-pages/man8/lvs.8.html) documents that `--readonly` does not communicate with device-mapper. Requesting RAID/cache counters in that mode must not invent runtime values.
 
-Recommended design direction for independent review: keep the existing broker unchanged; use a separately packaged, disabled-by-default read-only storage-probe helper with a closed typed protocol and reviewed native templates. Specify its device namespace, read-only device allow-list and kernel status needs explicitly; do not silently grant broad capabilities or block-write access. Activation and SELinux/hardening evidence remain gates. A service template is present in the package sources, but it is unaccepted, not registered or activated on a host, and has no device access. Current metadata collector and UI remain partial until this is resolved.
+This was the pre-O-1 recommendation. The implementation now follows the separate-helper design and reviewed device policy; it remains disabled by default. Runtime activation is limited to disposable validation, and acceptance still requires the evidence listed below.
 
 Kernel md/device-mapper UUID observations can be collected safely from sysfs independently. UUID joins to LVM reports follow the upstream [UUID builder](https://github.com/lvmteam/lvm2/blob/main/libdm/libdm-string.c) and [layer rules](https://github.com/lvmteam/lvm2/blob/main/lib/misc/lvm-string.c); layer-suffixed mappings are not guessed to be the top LV. This is independently written format handling, not copied upstream implementation.
 
@@ -42,15 +56,18 @@ Accepted from the independent review (`.dev` review ledger, not in Git): keep th
 
 O-1 device and MAC policy (unit keys, reviewed block classes, residual privilege, SELinux/AppArmor) is specified in `docs/m2/M2-4-O1-DEVICE-POLICY.md`; where it differs from earlier text here (for example removable/USB skipping), that document governs: USB skipping is helper behaviour, not a cgroup restriction.
 
-Until implementation and isolated validation close the O-1 gates, M2-4 remains a metadata/fixture slice: the Storage page cannot show LVM or signature data on real hosts.
+O-1 implementation is now present, but runtime validation and M2-4 acceptance
+remain open. LVM is still gated off; signature collection is available only
+through the explicit, disabled-by-default O-1 path.
 
 ## O-1 helper (2026-11-17, owner-approved development; fail-closed until validated)
 
 The O-1 native probe helper is implemented as a separately packaged,
 disabled-by-default unit. The owner has authorized continuing its implementation
-and isolated validation. It does not weaken hc-broker and is not invoked by
-hc-api or hc-broker. It remains **fail closed** until the approved read-only
-device policy, identity handling, and distro security evidence are implemented.
+and isolated validation. It does not weaken hc-broker; the broker invokes it
+only through the fixed typed `storage.probe` operation and root-only socket.
+Runtime evidence remains incomplete, and the unit must not be activated on a
+host or in production.
 
 - **Binary:** `hc-storage-probe` (`backend/cmd/hc-storage-probe`), built from
   `backend/internal/storageprobe`. It reads one closed typed Request from
@@ -75,30 +92,32 @@ device policy, identity handling, and distro security evidence are implemented.
   --config devices{hints="none" filter=[…]}` against a private empty
   `LVM_SYSTEM_DIR` (no host lvm.conf or devices file), and `blkid -p -c
   /dev/null -o export` per resolved node. blkid output is allow-listed by key
-  (DEVNAME/TYPE/UUID/…/PART_ENTRY_*), so untrusted media strings are dropped.
+  (LABEL/PARTLABEL are dropped; retained values are bounded), so raw
+  user-controlled media strings are not copied into the result.
 - **Guards:** environment replaced (LANG=C, LC_ALL=C, minimal PATH; no
   BLKID_FILE/BLKID_DEBUG/LVM_SYSTEM_DIR inherited); per-command output capped
   and time-bounded via a `Setsid` process-group kill; an in-process cap and
   rate window limit on-demand probes (blkid can wake disks).
 - **Unit:** `homelab-control-storage-probe@.service` (template) + `.socket`
-  (`Accept=yes`), no `[Install]`. The service runs `DynamicUser=yes`,
-  `PrivateDevices=yes`, an empty capability bounding set, no `DeviceAllow` (no
-  char or block device access), and `PrivateNetwork=yes`. The socket is at
-  `/run/homelab-control/storage-probe.sock` (0600). The socket has no
-  `[Install]`, and no broker caller is wired.
-- **Guard:** `internal/storageprobe/` is added to `allowedExecRoots` (ADR 0008)
-  as the second package allowed to execute programs. A static unit test asserts
-  the fail-closed policy.
+  (`Accept=yes`, `MaxConnections=1`), no `[Install]`. The service runs
+  `DynamicUser=yes`, `PrivateDevices=no`, `DevicePolicy=closed` with only the
+  four reviewed read-only block classes, an empty capability bounding set,
+  and `PrivateNetwork=yes`. The root-only socket is at
+  `/run/homelab-control/storage-probe.sock` (0600); packages do not enable it.
+- **Guard:** executable use is narrowly allowed for the helper implementation;
+  the guard prevents `hc-api`, `hlctl` and the broker from linking the helper.
+  Static unit and packaging guards assert the reviewed disabled-by-default
+  policy.
 
 **Release blockers (not production-ready):** the owner approved O-1 development
 and isolated validation, but the device-open mechanism and identity handling
-are not implemented; a dedicated SELinux/AppArmor policy and KVM/systemd-
-container evidence are absent; the broker-side `storage.probe` scope (explicit
-CSRF-protected POST, no default grant, never attached to polling GET) is not
-wired; synthetic tests use fake tools and do not validate real distributions or
-hardware; LVM field lists must be validated against the storageinfo parsers
-during integration. Live dm-status (O-2, `CAP_SYS_ADMIN`) is deliberately not
-implemented.
+are not production-ready; the dedicated SELinux/AppArmor policy and
+KVM/systemd-container runtime evidence are unverified; the `storage.probe`
+route, non-default scope, CSRF POST, audit, rate limit, OpenAPI contract and UI
+action are wired and covered by synthetic tests. Those tests use fixtures/fake
+tools and do not validate real distributions or hardware. LVM remains disabled
+until its device identity binding and output are validated. Live dm-status
+(O-2, `CAP_SYS_ADMIN`) is deliberately not implemented.
 
 ## O-1 helper — final repair notes (2026-11-17)
 
@@ -133,12 +152,14 @@ implemented.
 - **Output:** blkid export is key-allow-listed with LABEL/PARTLABEL dropped
   and every value bounded to 255 printable bytes; LVM reports are bounded raw
   JSON (fixed field list, consumed by `storageinfo` parsers); the reply is
-  frame-capped (24 MiB) via an encoded-size preflight with HTML escaping off,
+  frame-capped (3 MiB helper / 4 MiB broker) via an encoded-size preflight with HTML escaping off,
   and the writer rejects over-limit frames.
 
-Remaining gates (helper stays inert): pin lvs/pvs to the opened device set
-(LVM does not consume a single inherited fd for its scan; needs a real lvm
-binary or an owner decision to confirm `--devices /proc/self/fd/N` is safe);
-dedicated SELinux/AppArmor policy; KVM/systemd-container evidence; real lvs/pvs
-output validation; and broker integration (CSRF POST + non-default
-`storage.probe` scope + audit/rate limit, never a polling GET).
+Remaining gates (unit stays disabled by default): prove LVM device-set behavior
+with real `lvs`/`pvs` binaries before enabling LVM; validate the SELinux module
+and AppArmor profile in supported disposable environments; verify systemd
+device-policy enforcement and fail-closed behavior in KVM/systemd-container
+tests; and validate packaging and outputs across supported distributions. The
+broker route, non-default scope, audit, rate limit, OpenAPI contract and UI
+action are implemented and covered by synthetic tests. No host activation or
+real-device probe was performed.

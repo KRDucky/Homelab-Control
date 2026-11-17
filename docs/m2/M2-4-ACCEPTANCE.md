@@ -1,6 +1,6 @@
 # M2-4 storage inventory — acceptance checklist (not accepted)
 
-Status 2026-11-05: **not ready for acceptance or merge.** This lists what is evidenced and what remains. Nothing here is an owner decision.
+Status 2026-11-17: **O-1 implementation integrated on the isolated readiness branch; M2-4 is not ready for acceptance or merge.** The owner authorized O-1 implementation and isolated validation. This checklist records evidence and remaining gates; it is not owner acceptance.
 
 | # | Criterion | Status | Evidence |
 |---|---|---|---|
@@ -8,8 +8,8 @@ Status 2026-11-05: **not ready for acceptance or merge.** This lists what is evi
 | 2 | Identity: WWN only from validated NAA (types 2/5/6, correct length, non-zero) or EUI designators, case-canonicalized for duplicate detection; malformed/locally-assigned values kept as raw `wwid-unclassified`; vendor-derived wwid ranked below serial; NVMe controller serial scoped; partitions never inherit disk IDs; duplicates ambiguous, never merged | Done (synthetic fixtures; formats from kernel `scsi_vpd_lun_id`/`wwid_show`) — not validated on real vendor hardware (row 4) | `TestCanonicalWWIDValidatesKernelDesignatorFormats`, `TestEquivalentWWNSpellingsAreDuplicatesAndMalformedIsNotWWNTier` |
 | 3 | Serial/ID default with WWN choice, all identifiers retained, display never changes identity | Done (fixtures, browser) | UI tests; browser fixture |
 | 4 | Serial/ID sources on real SATA/SAS/virtio/NVMe hosts | **Open** — sysfs sources implemented; not observed on real hardware or KVM | — |
-| 5 | LVM RAID / SSD cache: LV, PV, VG, segment, cache mode/policy, RAID composition, UUID joins for LV/VG/PV relationships, metadata-only vs live mode; `pv_missing`/`pv_major` semantics and duplicate-row consistency per lvm2 source; PV→disk link only `verified` with signature + size + same-boot revalidation, else `provisional` (no claim) or `withheld` | Parsers and link rules done (fixtures); **no native collector attached**, so production can show at most provisional PV→disk links | `storageinfo` tests incl. `TestPVLink*`, `TestPVS*` |
-| 6 | Native LVM/blkid collection | **Blocked on owner decision O-1** (separate disabled read-only probe unit; `M2-4-DESIGN-REVIEW.md`) | — |
+| 5 | LVM RAID / SSD cache: LV, PV, VG, segment, cache mode/policy, RAID composition, UUID joins for LV/VG/PV relationships, metadata-only vs live mode; `pv_missing`/`pv_major` semantics and duplicate-row consistency per lvm2 source; PV→disk link only `verified` with signature + size + same-boot revalidation, else `provisional` (no claim) or `withheld` | Parsers and link rules done (fixtures); native LVM collection remains disabled pending identity and real-tool validation; complete LVM graph joins are not claimed | `storageinfo` tests incl. `TestPVLink*`, `TestPVS*`; `M2-4-DESIGN-REVIEW.md` |
+| 6 | Native LVM/blkid collection | O-1 helper, broker op, explicit CSRF POST, non-default scope and UI action implemented; LVM is gated off; runtime and distro acceptance open | `M2-4-DESIGN-REVIEW.md`; `M2-4-O1-DEVICE-POLICY.md`; API/broker/storageprobe tests |
 | 7 | Live LVM RAID/cache health | **Not observable without `CAP_SYS_ADMIN`** (O-2); reported as unknown | `M2-4-STORAGE-SCOPE.md` |
 | 8 | md runtime state from sysfs | Done (fixtures) | `TestCollectMDRuntimeStateWithoutDerivingHealth` |
 | 9 | ZFS, Btrfs multi-device, mergerfs | **Open** | — |

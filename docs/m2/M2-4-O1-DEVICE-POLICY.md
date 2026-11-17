@@ -122,7 +122,7 @@ passing, or another reviewed by-id model) **and a separate owner authorization**
 are required. Until both exist, host activation stays blocked and the unit stays
 disabled by default.
 
-## Startup self-check (contract for hc-go; not enforceable in the unit)
+## Startup self-check (implemented in helper; runtime gate remains)
 
 systemd adds a `DeviceAllow=` group only if it is listed in `/proc/devices` when
 the unit starts; an unlisted group is silently ignored. That can only *narrow*
@@ -135,16 +135,16 @@ unit would never start; the guard therefore bans every Exec line except
 
 1. Read `/proc/devices` (block section).
 2. Require **every** reviewed group (`sd`, `blkext`, `virtblk`, `md`) to be
-   listed. If any is missing, exit non-zero with a typed refusal (for example
-   `device_policy_unresolved`, naming the missing groups) and probe nothing.
-   In a validation VM load the matching drivers (`virtio_blk`, `md_mod`, ...).
+   listed. If any is missing, return the typed
+   `device_policy_unresolved` refusal and probe nothing. In a validation VM
+   load the matching drivers (`virtio_blk`, `md_mod`, ...).
 3. A device whose open fails with EPERM/EACCES is reported as `denied`
    (partial result), never as an empty inventory.
 
-Open question for the owner: strict-all (above) is fail-closed but refuses to run
-on hosts lacking, say, virtio-blk. A relaxed variant (require at least the
-classes of devices to be probed) is also fail-safe because grants can never
-exceed the reviewed set; this document recommends strict-all for O-1 validation.
+The helper implements this strict-all policy and returns the typed
+`device_policy_unresolved` refusal before probing when any group is missing.
+Synthetic tests cover the refusal; behavior against target systemd/kernel
+combinations remains unverified.
 
 ## MAC policy
 
