@@ -53,3 +53,38 @@ func TestFromNative(t *testing.T) {
 		t.Fatalf("notes = %v, want an unsupported note", notes)
 	}
 }
+
+func TestFromNativeSegmentRelations(t *testing.T) {
+	vg := lvmmeta.VG{
+		UUID:       "aaaaaaaabbbbccccddddeeeeffff0001",
+		Name:       "vg1",
+		ExtentSize: 8192,
+		LVs: []lvmmeta.LV{
+			{UUID: "11111111222233334444555566666666", Name: "data_lv"},
+			{UUID: "22222222333344445555666677778888", Name: "meta_lv"},
+			{UUID: "33333333444455556666777788889999", Name: "origin_lv"},
+			{UUID: "44444444555566667777888899990000", Name: "pool_lv"},
+			{UUID: "55555555666677778888999900001111", Name: "raid_lv", Segments: []lvmmeta.Segment{{Type: "raid1", Parsed: true, Raid: &lvmmeta.RaidSeg{DeviceCount: 2, Images: []lvmmeta.Area{{PVKey: "pv0"}, {PVKey: "pv1"}}, Metas: []lvmmeta.Area{{PVKey: "pv0"}, {PVKey: "pv1"}}}}}},
+			{UUID: "66666666777788889999000011112222", Name: "thin_lv", Segments: []lvmmeta.Segment{{Type: "thin", Parsed: true, Thin: &lvmmeta.ThinSeg{ThinPool: "pool_lv", Origin: "origin_lv"}}}},
+			{UUID: "77777777888899990000111122223333", Name: "cache_lv", Segments: []lvmmeta.Segment{{Type: "cache", Parsed: true, Cache: &lvmmeta.CacheSeg{CachePool: "pool_lv", Origin: "origin_lv"}}}},
+		},
+	}
+	out, _ := FromNative(lvmmeta.Inventory{VGs: []lvmmeta.VG{vg}})
+	byName := map[string]LogicalVolume{}
+	for _, lv := range out.Volumes {
+		byName[lv.Name] = lv
+	}
+
+	raid := byName["raid_lv"]
+	if raid.Segments[0].Devices != "pv0,pv1" || raid.Segments[0].MetadataDevices != "pv0,pv1" {
+		t.Fatalf("raid segment = %+v", raid.Segments[0])
+	}
+	thin := byName["thin_lv"]
+	if thin.PoolUUID != "44444444-5555-6666-7777-888899990000" || thin.OriginUUID != "33333333-4444-5555-6666-777788889999" {
+		t.Fatalf("thin lv = %+v", thin)
+	}
+	cache := byName["cache_lv"]
+	if cache.PoolUUID != "44444444-5555-6666-7777-888899990000" || cache.OriginUUID != "33333333-4444-5555-6666-777788889999" {
+		t.Fatalf("cache lv = %+v", cache)
+	}
+}

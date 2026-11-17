@@ -22,6 +22,12 @@ func FromNative(inv lvmmeta.Inventory) (LVMInventory, []string) {
 		vgUUID := dashUUID(vg.UUID)
 		extentBytes := vg.ExtentSize * 512
 
+		// VG-scoped LV name -> UUID, for resolving segment component names.
+		lvUUID := make(map[string]string, len(vg.LVs))
+		for _, lv := range vg.LVs {
+			lvUUID[lv.Name] = dashUUID(lv.UUID)
+		}
+
 		for _, pv := range vg.PVs {
 			spv := PhysicalVolume{
 				UUID:   dashUUID(pv.UUID),
@@ -62,7 +68,20 @@ func FromNative(inv lvmmeta.Inventory) (LVMInventory, []string) {
 				Health: "unknown", // runtime health is O-2
 			}
 			for _, seg := range lv.Segments {
-				slv.Segments = append(slv.Segments, fromNativeSegment(seg, extentBytes))
+				mapped, rel := fromNativeSegment(seg, extentBytes, lvUUID)
+				slv.Segments = append(slv.Segments, mapped)
+				if slv.OriginUUID == "" {
+					slv.OriginUUID = rel.Origin
+				}
+				if slv.PoolUUID == "" {
+					slv.PoolUUID = rel.Pool
+				}
+				if slv.DataUUID == "" {
+					slv.DataUUID = rel.Data
+				}
+				if slv.MetadataUUID == "" {
+					slv.MetadataUUID = rel.Metadata
+				}
 				if !seg.Parsed {
 					notes = append(notes, "unsupported-segment-type:"+seg.Type)
 				}
@@ -84,7 +103,19 @@ func FromNative(inv lvmmeta.Inventory) (LVMInventory, []string) {
 	return out, notes
 }
 
-func fromNativeSegment(s lvmmeta.Segment, extentBytes uint64) LVMSegment {
+// segRel carries UUID relations a segment contributes to its parent LV,
+// resolved from VG-scoped LV names.
+type segRel struct {
+	Origin   string
+	Pool     string
+	Data     string
+	Metadata string
+}
+
+// fromNativeSegment maps one native segment into an LVMSegment plus the UUID
+// relations its component names resolve to. Unknown types stay Parsed=false and
+// are not invented.
+func fromNativeSegment(s lvmmeta.Segment, extentBytes uint64, lvUUID map[string]string) (LVMSegment, segRel) {
 	o := LVMSegment{Type: s.Type}
 	if extentBytes > 0 {
 		start := s.StartExtent * extentBytes
@@ -92,16 +123,46 @@ func fromNativeSegment(s lvmmeta.Segment, extentBytes uint64) LVMSegment {
 		o.StartBytes = &start
 		o.SizeBytes = &size
 	}
-	devs := make([]string, 0, len(s.Stripes))
-	for _, a := range s.Stripes {
-		devs = append(devs, a.PVKey)
-	}
-	o.Devices = strings.Join(devs, ",")
-	if s.CachePool != nil {
+
+	var rel segRel
+	resolve := func(name string) string { return lvUUID[name] }
+
+	switch {
+	case s.Raid != nil:
+		o.Devices = areaNames(s.Raid.Images)
+		o.MetadataDevices = areaNames(s.Raid.Metas)
+	case s.ThinPool != nil:
+		rel.Data = resolve(s.ThinPool.DataLV)
+		rel.Metadata = resolve(s.ThinPool.MetadataLV)
+	case s.Thin != nil:
+		rel.Pool = resolve(s.Thin.ThinPool)
+		rel.Origin = resolve(s.Thin.Origin)
+	case s.CachePool != nil:
+		rel.Data = resolve(s.CachePool.DataLV)
+		rel.Metadata = resolve(s.CachePool.MetadataLV)
 		o.CacheMode = s.CachePool.CacheMode
 		o.CachePolicy = s.CachePool.Policy
+	case s.Cache != nil:
+		rel.Pool = resolve(s.Cache.CachePool)
+		rel.Origin = resolve(s.Cache.Origin)
+	case s.Mirror != nil:
+		o.Devices = areaNames(s.Mirror.Legs)
+	case s.Snapshot != nil:
+		rel.Origin = resolve(s.Snapshot.Origin)
+	default:
+		// striped / linear
+		o.Devices = areaNames(s.Stripes)
 	}
-	return o
+	return o, rel
+}
+
+// areaNames joins the PV keys (or hidden LV names) of areas as display text.
+func areaNames(areas []lvmmeta.Area) string {
+	names := make([]string, 0, len(areas))
+	for _, a := range areas {
+		names = append(names, a.PVKey)
+	}
+	return strings.Join(names, ",")
 }
 
 // dashUUID formats a 32-char undashed hex UUID as 8-4-4-4-12. Non-UUID-length
