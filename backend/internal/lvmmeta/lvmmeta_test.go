@@ -439,3 +439,16 @@ func TestUUIDCharset(t *testing.T) {
 		t.Fatalf("out-of-alphabet uuid accepted: %q", got)
 	}
 }
+
+func TestAssembleNoDoubleOrphan(t *testing.T) {
+	// A PV already classified (over-cap -> Text nil) must not be re-added to
+	// orphans by the parse pass.
+	pvs := []PVRead{{Device: "over", Status: StatusLimitExceeded, Text: nil}}
+	inv := Assemble(pvs)
+	if len(inv.Orphans) != 0 {
+		t.Fatalf("orphans = %d, want 0 (no double-add)", len(inv.Orphans))
+	}
+	if len(inv.PVs) != 1 || inv.PVs[0].Status != StatusLimitExceeded {
+		t.Fatalf("PVs = %+v", inv.PVs)
+	}
+}
