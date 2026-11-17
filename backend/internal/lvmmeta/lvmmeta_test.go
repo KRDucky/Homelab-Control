@@ -266,7 +266,7 @@ func TestParseTextMalformed(t *testing.T) {
 }
 
 func TestParseSegmentUnsupported(t *testing.T) {
-	root, err := parseText([]byte("vg1 { logical_volumes { lv1 { segment1 { type = \"vdo\" } } } }"))
+	root, err := parseText([]byte("vg1 { logical_volumes { lv1 { segment_count = 1 segment1 { start_extent = 0 extent_count = 1 type = \"vdo\" } } } }"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -306,9 +306,9 @@ vg1 {
 
 func TestParseTypedSegments(t *testing.T) {
 	text := `vg1 { logical_volumes {
-		lv_raid { segment1 { type = "raid1" device_count = 2 region_size = 128 stripe_size = 64 raids = ["pv0", 0, "pv1", 0] } }
-		lv_cache { segment1 { type = "cache" cache_pool = "cpool" origin = "originlv" } }
-		lv_thin { segment1 { type = "thin" thin_pool = "tpool" device_id = 1 transaction_id = 7 } }
+		lv_raid { segment_count = 1 segment1 { start_extent = 0 extent_count = 1 type = "raid1" device_count = 2 region_size = 128 stripe_size = 64 raids = ["pv0", 0, "pv1", 0] } }
+		lv_cache { segment_count = 1 segment1 { start_extent = 0 extent_count = 1 type = "cache" cache_pool = "cpool" origin = "originlv" } }
+		lv_thin { segment_count = 1 segment1 { start_extent = 0 extent_count = 1 type = "thin" thin_pool = "tpool" device_id = 1 transaction_id = 7 } }
 	} }`
 	root, err := parseText([]byte(text))
 	if err != nil {
@@ -816,6 +816,72 @@ func TestMalformedRequiredScalars(t *testing.T) {
 				}
 			} else if len(vg.PVs) != 1 || !vg.PVs[0].Malformed {
 				t.Fatalf("pv Malformed = false: %+v", vg.PVs)
+			}
+			pv := PVRead{Device: "vdb", Status: StatusOK, Text: []byte(text), Label: &Label{PVUUID: testPVUUID}}
+			inv := Assemble([]PVRead{pv})
+			if len(inv.VGs) != 1 || inv.VGs[0].State != StateMalformed {
+				t.Fatalf("assemble state = %+v, want partial-malformed", inv.VGs)
+			}
+		})
+	}
+}
+
+func malformedSegmentVGText(lvBody string) string {
+	return `contents = "Text Format Volume Group"
+version = 1
+vg1 {
+    id = "aaaaaaaa-bbbb-cccc-dddd-eeeeffff0001"
+    seqno = 1
+    extent_size = 8192
+    physical_volumes {
+        pv0 {
+            id = "abcdef12-3456-7890-abcd-ef1234567890"
+            device = "/dev/vdb"
+            dev_size = 10485760
+            pe_start = 2048
+            pe_count = 1024
+        }
+    }
+    logical_volumes {
+        lv1 {
+` + lvBody + `
+        }
+    }
+}`
+}
+
+func TestMalformedSegmentStructure(t *testing.T) {
+	// A gap in segment numbering, a missing/invalid segment_count, or a
+	// missing/non-numeric start_extent/extent_count must mark the LV/VG
+	// malformed, never truncate silently and stay complete.
+	tests := []struct{ name, lvBody string }{
+		{"gap", `id = "99999999-8888-7777-6666-5555-444444444444" segment_count = 2
+            segment1 { start_extent = 0 extent_count = 1 type = "striped" stripe_count = 1 stripes = ["pv0", 0] }
+            segment3 { start_extent = 1 extent_count = 1 type = "striped" stripe_count = 1 stripes = ["pv0", 0] }`},
+		{"segment_count-missing", `id = "99999999-8888-7777-6666-5555-444444444444"
+            segment1 { start_extent = 0 extent_count = 1 type = "striped" stripe_count = 1 stripes = ["pv0", 0] }`},
+		{"segment_count-invalid", `id = "99999999-8888-7777-6666-5555-444444444444" segment_count = xyz
+            segment1 { start_extent = 0 extent_count = 1 type = "striped" stripe_count = 1 stripes = ["pv0", 0] }`},
+		{"start_extent-invalid", `id = "99999999-8888-7777-6666-5555-444444444444" segment_count = 1
+            segment1 { start_extent = xyz extent_count = 1 type = "striped" stripe_count = 1 stripes = ["pv0", 0] }`},
+		{"extent_count-invalid", `id = "99999999-8888-7777-6666-5555-444444444444" segment_count = 1
+            segment1 { start_extent = 0 extent_count = xyz type = "striped" stripe_count = 1 stripes = ["pv0", 0] }`},
+		{"start_extent-missing", `id = "99999999-8888-7777-6666-5555-444444444444" segment_count = 1
+            segment1 { extent_count = 1 type = "striped" stripe_count = 1 stripes = ["pv0", 0] }`},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			text := malformedSegmentVGText(tc.lvBody)
+			root, err := parseText([]byte(text))
+			if err != nil {
+				t.Fatalf("parse text: %v", err)
+			}
+			vg, err := ParseVG("vg1", findVGNode(root))
+			if err != nil {
+				t.Fatalf("ParseVG: %v", err)
+			}
+			if len(vg.LVs) != 1 || !vg.LVs[0].Malformed {
+				t.Fatalf("lv not malformed: %+v", vg.LVs)
 			}
 			pv := PVRead{Device: "vdb", Status: StatusOK, Text: []byte(text), Label: &Label{PVUUID: testPVUUID}}
 			inv := Assemble([]PVRead{pv})
