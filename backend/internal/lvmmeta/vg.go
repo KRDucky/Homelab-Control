@@ -396,6 +396,9 @@ func Assemble(pvs []PVRead) Inventory {
 
 	byUUID := map[string][]*Node{}
 	for _, pv := range pvs {
+		if pv.Text == nil {
+			continue // already classified (e.g. over-cap) in the budget pass
+		}
 		root, err := parseText(pv.Text)
 		if err != nil {
 			inv.Orphans = append(inv.Orphans, pv)

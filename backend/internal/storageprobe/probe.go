@@ -339,7 +339,16 @@ func Run(ctx context.Context, req Request) Result {
 		pvs := make([]lvmmeta.PVRead, 0, len(devs))
 		budget := int64(lvmmeta.MaxTotalText)
 		for _, d := range devs {
+			before, hasSeq := diskseq(d.name)
 			pv := lvmmeta.ReadPVBudget(d.f, d.size, d.name, &budget)
+			if !hasSeq {
+				pv.Status = lvmmeta.StatusMetadataChanging // no diskseq: cannot bracket the read
+			} else {
+				after, ok := diskseq(d.name)
+				if !ok || after != before {
+					pv.Status = lvmmeta.StatusMetadataChanging
+				}
+			}
 			pvs = append(pvs, pv)
 			if pv.Status == lvmmeta.StatusLimitExceeded {
 				res.Errors = append(res.Errors, "lvm metadata text exceeds MaxTotalText")
@@ -730,6 +739,13 @@ func preflightBytes(res Result) int {
 	}
 	for _, e := range res.Errors {
 		n += jsonStringLen(e) + 2 // value ,
+	}
+	if res.LVM != nil {
+		// The native LVM inventory is a struct, not a string; marshal it to
+		// bound its contribution (it is already capped by the parse limits).
+		if b, err := json.Marshal(res.LVM); err == nil {
+			n += len(b)
+		}
 	}
 	return n
 }
