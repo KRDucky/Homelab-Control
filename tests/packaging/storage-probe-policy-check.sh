@@ -195,7 +195,7 @@ check_selinux() { # te fc
               "allow ${SEL_TYPE} fixed_disk_device_t:blk_file { getattr open read ioctl };" \
               "neverallow ${SEL_TYPE} self:capability { sys_admin sys_rawio sys_module mknod dac_override dac_read_search sys_ptrace net_admin net_raw };" \
               "neverallow ${SEL_TYPE} fixed_disk_device_t:blk_file { write append create unlink rename setattr relabelfrom relabelto };" \
-              "neverallow ${SEL_TYPE} fs_type:filesystem { mount remount unmount };"; do
+              "neverallow ${SEL_TYPE} filesystem_type:filesystem { mount remount unmount };"; do
     printf '%s\n' "$body" | grep -qF "$need" || bad "SELinux source lacks: $need"
   done
   # Everything except the neverallow assertions must avoid shortcuts.
@@ -348,7 +348,7 @@ self_test() {
   mutate te      "capability grant"               '/^allow hc_storage_probe_t self:fifo_file/a allow hc_storage_probe_t self:capability sys_rawio;'
   mutate te      "removable raw read"             '/^allow hc_storage_probe_t self:fifo_file/a storage_raw_read_removable_device(hc_storage_probe_t)'
   mutate te      "shell exec"                     '/^allow hc_storage_probe_t self:fifo_file/a corecmd_exec_shell(hc_storage_probe_t)'
-  mutate te      "neverallow removed"             '/^neverallow hc_storage_probe_t fs_type/d'
+  mutate te      "neverallow removed"             '/^neverallow hc_storage_probe_t filesystem_type/d'
   mutate te      "bin_t shortcut"                 '/^allow hc_storage_probe_t self:fifo_file/a allow hc_storage_probe_t bin_t:file { execute };'
   mutate fc      "libexec context"                's#/usr/lib/homelab-control#/usr/libexec/homelab-control#'
   mutate fc      "wrong type"                     's/hc_storage_probe_exec_t/bin_t/'

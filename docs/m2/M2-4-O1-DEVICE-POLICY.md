@@ -6,10 +6,13 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 # M2-4 O-1 read-only storage probe: device access and MAC policy
 
-Status: **Proposed, for independent review.** Owner approval (2026-11-17,
-`docs/m2/OWNER-DECISIONS.md`, "Storage probe O-1") covers implementation and
-isolated validation only. Nothing here is enabled, started, loaded or probed on
-any host. Nothing wires a broker caller to the helper.
+Status: **Implemented and integrated on the isolated readiness branch; disabled
+by default and not accepted for host or production activation.** The owner
+approved implementation and isolated validation (2026-11-17,
+`docs/m2/OWNER-DECISIONS.md`, "Storage probe O-1"). The helper was started and
+its SELinux policy loaded only in a disposable Fedora 44 VM. The typed broker
+caller and explicit CSRF POST are wired; packages do not enable or load the
+helper.
 
 ## What ships
 
@@ -183,20 +186,67 @@ cd backend && go vet ./internal/storageprobe/ ./internal/guard/ && go test ./int
 git diff --check
 ```
 
-## Evidence still missing (not claimed)
+## Fedora 44 VM validation (2026-11-17)
 
-Run only in a disposable VM, never on a host:
+The exact source at commit `ce76000d` plus the recorded SELinux syntax fix was
+tested in a disposable Fedora 44 guest (kernel 6.19.10, systemd 259.10,
+SELinux targeted policy 44.11, enforcing). Evidence and checksums are preserved
+under `/mnt/tank/claude-vms/artifacts/hc-m24-o1-ce76000d/` and
+`/mnt/tank/claude-vms/artifacts/hc-m24-o1-ce76000d-policy-retest2/`.
 
-- SELinux: `build-selinux-policy.sh` compile, load, AVC capture
-  (`ausearch -m avc`), confirm `neverallow` assertions compile, confirm the helper
-  transitions into `hc_storage_probe_t`, and `blkid`/`lvs`/`pvs` run in-domain.
-  The source is uncompiled and untested; interface names (for example
-  `init_rw_stream_sockets`) and the `blkid` file context are unverified.
-- AppArmor: `apparmor_parser -Q` parse, enforce, `aa-logprof` review of denials.
-- systemd: `$`-quoting, BPF device-policy enforcement (a write open of a block
-  node must fail with EPERM; a read must succeed), `DeviceAllow` group
-  resolution per distro, `@system-service` coverage for `blkid`/`lvs`, and
-  confirmation that a missing LSM policy makes the instance fail.
-- Evidence that unresolved groups are ignored on the target systemd versions.
-- The helper's startup self-check (hc-go) and the broker caller are not
-  implemented here.
+- `systemd-analyze verify` passed for the socket and template. The socket is
+  static/preset-disabled; without the marker it does not listen, and a manual
+  template start is refused.
+- On the attached synthetic virtio disk only, the cgroup device policy allowed
+  reads and returned `EPERM` for write and read-write opens. Omitting the
+  `virtblk` allow group or using an empty allow-list denied reads as well.
+- The helper's strict `/proc/devices` check passed with the required groups;
+  fixtures missing `virtblk`, `md` or `blkext` returned typed
+  `device_policy_unresolved` before probing. A real socket request read blkid
+  metadata from the synthetic disk and reported LVM as disabled/partial.
+- The source SELinux module initially failed to compile. The fixed source now
+  compiles with `build-selinux-policy.sh`, installs in enforcing mode, and the
+  helper runs in `hc_storage_probe_t` against the synthetic disk with no AVCs.
+  Policy inspection found no block-device write permission and no capabilities.
+  Negative checks denied block writes and `dac_override`/`dac_read_search`.
+- LVM config syntax and read-only invocation passed against the synthetic PV/LV
+  outside the unit sandbox; `strace` showed no successful write opens and
+  `/etc/lvm` and `/run/lvm` did not change. **Inside the actual DynamicUser unit,
+  `lvs`/`pvs` could not access `/dev/mapper/control` and returned unusable
+  reports. LVM stays disabled.**
+- In `systemd-nspawn`, the outer read-only device policy blocked writes only
+  when the payload used `--keep-unit`; without it, the payload landed in
+  `machine.slice`. The inner unit's device policy was not enforced in that
+  container. This does not establish supported container behavior.
+- Fedora did not provide an AppArmor parser and had no AppArmor LSM, so the
+  AppArmor profile remains unparsed and unenforced.
+
+The VM was shut down gracefully with autostart disabled. Its overlay, synthetic
+disk, source copies and logs remain preserved. The original evidence manifest
+had a stale checksum for the pre-shutdown guest-state log; this is documented in
+`t9d-finalization-note.txt`, and a corrected current manifest is
+`t9e-evidence-current.sha256`.
+
+## Remaining gates (not accepted)
+
+- LVM device-set identity remains path-based; more importantly, real LVM output
+  is unusable inside the service sandbox. Keep `LVMEnabled` false until a
+  reviewed sandbox design and synthetic-guest verification resolve this.
+- The AppArmor profile has not been parsed or exercised in a supported Debian
+  or Ubuntu guest. Fedora results do not validate AppArmor or other distros.
+- The `systemd-nspawn` result is partial; the inner policy is not enforced in
+  that container configuration. Supported-container fail-closed behavior is
+  not established.
+- No real SATA/SAS/NVMe vendor hardware, USB/removable media, or production
+  host was probed. CI and package-build evidence across supported distributions
+  is still required.
+- The class-level static device grant is authorized for isolated validation
+  only. A narrower by-id access design and a separate owner decision are still
+  required before any host or production activation.
+- Fedora's base SELinux policy lets the helper domain read some `etc_t` files,
+  including `/etc/homelab-control/hc-api.env`; the helper policy no longer adds
+  `files_read_etc_files`. A VM check confirmed that the service's exact
+  `InaccessiblePaths` setting denies access to the environment file both with
+  and without the helper SELinux domain. The static policy guard requires this
+  path mask. This result is specific to the tested Fedora 44 unit and does not
+  establish behavior on other systemd versions.

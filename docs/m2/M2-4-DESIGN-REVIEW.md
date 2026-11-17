@@ -3,16 +3,18 @@
 **Status update, 2026-11-17:** The O-1 helper, typed broker operation, explicit
 CSRF-protected `POST /api/v1/storage/probe`, non-default `storage.probe` scope,
 count-only audit, broker-side rate limit, OpenAPI contract, and UI action are
-implemented on the isolated readiness branch. LVM remains disabled by default
-because its device identity binding is not yet proven. The separate helper unit
-and MAC policy are disabled by default and limited to isolated validation. This
-does **not** close M2-4 acceptance: systemd/device-policy, SELinux/AppArmor,
-real LVM output, KVM/container and supported-distribution evidence remain
-outstanding. Older proposal text below records design history; this update and
-the final repair notes supersede conflicting claims that the route, broker
+implemented on the isolated readiness branch. LVM remains disabled by default:
+although config syntax and read-only execution passed on a synthetic PV/LV, the
+actual unit sandbox cannot use the resulting reports because it cannot access
+`/dev/mapper/control`. Fedora 44 KVM tests verified systemd device filtering and
+the corrected SELinux module against a synthetic disk. The AppArmor profile,
+container behavior, real hardware, CI and cross-distribution packaging remain
+open. The helper unit stays disabled by default; these results do **not** close
+M2-4 acceptance. Older proposal text below records design history; this update
+and the final repair notes supersede conflicting claims that the route, broker
 client, startup check, or policy are absent.
 
-Owner authorized M2-4 development and isolated tests on 2026-11-05, including LVM2 RAID/cache visibility and Serial/ID versus WWN labels. This is not storage-write, KVM or production-activation authorization. Existing file-manager and M2-3 worktrees are separate.
+Owner authorized M2-4 development and isolated tests on 2026-11-05, including LVM2 RAID/cache visibility and Serial/ID versus WWN labels. On 2026-11-17 the owner additionally authorized O-1 VM testing. This does not authorize storage writes to the host or production activation. Existing file-manager and M2-3 worktrees are separate.
 
 ## Implemented boundary
 
@@ -56,9 +58,10 @@ Accepted from the independent review (`.dev` review ledger, not in Git): keep th
 
 O-1 device and MAC policy (unit keys, reviewed block classes, residual privilege, SELinux/AppArmor) is specified in `docs/m2/M2-4-O1-DEVICE-POLICY.md`; where it differs from earlier text here (for example removable/USB skipping), that document governs: USB skipping is helper behaviour, not a cgroup restriction.
 
-O-1 implementation is now present, but runtime validation and M2-4 acceptance
-remain open. LVM is still gated off; signature collection is available only
-through the explicit, disabled-by-default O-1 path.
+O-1 implementation and part of its Fedora VM validation are present, but
+runtime validation and M2-4 acceptance remain open. LVM is still gated off;
+signature collection is available only through the explicit,
+disabled-by-default O-1 path.
 
 ## O-1 helper (2026-11-17, owner-approved development; fail-closed until validated)
 
@@ -109,15 +112,18 @@ host or in production.
   Static unit and packaging guards assert the reviewed disabled-by-default
   policy.
 
-**Release blockers (not production-ready):** the owner approved O-1 development
-and isolated validation, but the device-open mechanism and identity handling
-are not production-ready; the dedicated SELinux/AppArmor policy and
-KVM/systemd-container runtime evidence are unverified; the `storage.probe`
-route, non-default scope, CSRF POST, audit, rate limit, OpenAPI contract and UI
-action are wired and covered by synthetic tests. Those tests use fixtures/fake
-tools and do not validate real distributions or hardware. LVM remains disabled
-until its device identity binding and output are validated. Live dm-status
-(O-2, `CAP_SYS_ADMIN`) is deliberately not implemented.
+**Release blockers (not production-ready):** LVM stays disabled because reports
+are unusable inside the actual helper sandbox, despite config/read-only checks
+passing outside it. The SELinux policy has only been validated on Fedora 44.
+Fedora's base SELinux policy lets the helper domain read some `etc_t` files,
+including `hc-api.env`; the helper policy no longer adds
+`files_read_etc_files`. The exact service `InaccessiblePaths` setting was
+tested and denied access to `hc-api.env` with and without the SELinux domain.
+The AppArmor profile, container behavior, real hardware, CI and supported-distro
+packaging remain open. The `storage.probe` route, non-default scope, CSRF POST,
+audit, rate limit, OpenAPI contract and UI action are wired and covered by
+synthetic tests. Live dm-status (O-2, `CAP_SYS_ADMIN`) is deliberately not
+implemented.
 
 ## O-1 helper — final repair notes (2026-11-17)
 
@@ -130,12 +136,14 @@ until its device identity binding and output are validated. Live dm-status
   (weaker). When identity cannot be verified (e.g. no device access in the
   fail-closed unit), every device is reported `skip` + `Partial`.
 - **LVM config:** `devices{hints="none" filter=[…]}` + private empty
-  `LVM_SYSTEM_DIR`. The `hints="none"` and quoted `"a|regex|"`/`"r|regex|"` filter patterns follow
-  the LVM primary docs, but are **unverified** here (no lvs/pvs binary in this
-  environment); they must be validated on a real LVM host before activation.
-  blkid's `-p -c /dev/null -o export` flags were confirmed against
-  `/usr/sbin/blkid -h` (no device probed). lvs/pvs are skipped when no devices
-  are eligible, and the LVM phase budget (5s each) reserves time for blkid.
+  `LVM_SYSTEM_DIR` compiled and ran with lvm2 2.03.38 against a synthetic PV/LV
+  in Fedora 44. `strace` found no successful write opens and `/etc/lvm` and
+  `/run/lvm` were unchanged. Inside the actual `DynamicUser` service sandbox,
+  `lvs`/`pvs` cannot access `/dev/mapper/control`, so their reports are not
+  usable and `LVMEnabled` remains false. This does not prove behavior on other
+  lvm2 versions or distributions. blkid's `-p -c /dev/null -o export` flags
+  were confirmed against `/usr/sbin/blkid -h` and exercised only on a synthetic
+  guest disk.
 - **Deadlines/rate:** the helper's request-wide deadline is 25s, below the
   unit's `TimeoutStartSec=30`. The in-process rate window and semaphore are
   per-instance (each `Accept=yes` connection is a new process); the real
@@ -155,11 +163,10 @@ until its device identity binding and output are validated. Live dm-status
   frame-capped (3 MiB helper / 4 MiB broker) via an encoded-size preflight with HTML escaping off,
   and the writer rejects over-limit frames.
 
-Remaining gates (unit stays disabled by default): prove LVM device-set behavior
-with real `lvs`/`pvs` binaries before enabling LVM; validate the SELinux module
-and AppArmor profile in supported disposable environments; verify systemd
-device-policy enforcement and fail-closed behavior in KVM/systemd-container
-tests; and validate packaging and outputs across supported distributions. The
-broker route, non-default scope, audit, rate limit, OpenAPI contract and UI
-action are implemented and covered by synthetic tests. No host activation or
-real-device probe was performed.
+Remaining gates (unit stays disabled by default): design a usable and reviewed
+LVM sandbox before enabling the collector; parse/enforce AppArmor in a
+supported Debian/Ubuntu VM; resolve systemd-nspawn/device-policy containment;
+validate packaging and outputs across supported distributions. The broker
+route, non-default scope, audit, rate limit, OpenAPI contract and UI action are
+implemented and covered by synthetic tests. The Fedora VM used only a
+synthetic disk; no host activation or real hardware probe was performed.
