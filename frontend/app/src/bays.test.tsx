@@ -4,7 +4,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { Chassis, DriveLayout, LayoutCell } from './api';
-import { bayState, unassignedDrives } from './bayModel';
+import { assignable, bayState, unassignedDrives } from './bayModel';
 import { DriveBays } from './pages/DriveBays';
 import type { StorageNode } from './storageModel';
 
@@ -120,5 +120,103 @@ describe('Drives & bays panel', () => {
     expect((put?.[1]?.headers as Record<string, string>)['X-CSRF-Token']).toBe('example-csrf');
     await waitFor(() => expect(screen.getByRole('button', { name: /Bay 2: Present/ })).toBeTruthy());
     expect(screen.getByText(/Manual, unverified — stated by admin/)).toBeTruthy();
+  });
+
+  it('unassigns an occupied bay and never offers to overwrite it', async () => {
+    const bay: LayoutCell = {
+      row: 0,
+      col: 0,
+      kind: 'hdd-3.5',
+      label: 'Bay 1',
+      assignment: {
+        identity: 'wwn:naa.5000000000000f01',
+        provenance: 'manual',
+        confidence: 'unverified',
+        assigned_by: 'admin',
+        assigned_at: '2026-11-06T00:00:00Z',
+      },
+    };
+    const nas: Chassis = {
+      id: 7,
+      name: 'Example NAS',
+      kind: 'server',
+      rows: 1,
+      cols: 1,
+      created_at: '2026-11-06T00:00:00Z',
+      updated_at: '2026-11-06T00:00:00Z',
+      cells: [bay],
+    };
+    const before: DriveLayout = { chassis: [nas] };
+    const after: DriveLayout = {
+      chassis: [{ ...nas, cells: [{ row: 0, col: 0, kind: 'hdd-3.5', label: 'Bay 1' }] }],
+    };
+    const fetchMock = vi.fn(
+      async (_url: string, init?: RequestInit) =>
+        new Response(JSON.stringify(init?.method === 'DELETE' ? after : before), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    render(
+      <DriveBays
+        csrf="example-csrf"
+        nodes={[disk({})]}
+        canManage
+        preference="wwn"
+        onUnauthorized={() => undefined}
+      />,
+    );
+    const occupied = await screen.findByRole('button', { name: /Bay 1: Present/ });
+    fireEvent.click(occupied);
+    // An occupied bay exposes unassign, never a second assign (no overwrite).
+    expect(screen.getByRole('button', { name: 'Unassign drive' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Assign drive' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Unassign drive' }));
+    await screen.findByText('Assignment removed.');
+    const del = fetchMock.mock.calls.find(([, init]) => init?.method === 'DELETE');
+    expect(del?.[0]).toBe('/api/v1/storage/layout/chassis/7/bays/0/0/assignment');
+    expect((del?.[1]?.headers as Record<string, string>)['X-CSRF-Token']).toBe('example-csrf');
+  });
+});
+
+describe('assignment guard', () => {
+  it('accepts only whole disks with an observed assignable tier', () => {
+    expect(assignable(disk({}))).toBe(true);
+    expect(assignable(disk({ persistent_id: 'serial:S123' }))).toBe(true);
+    expect(assignable(disk({ persistent_id: 'nvme-uuid:abc' }))).toBe(true);
+    expect(assignable(disk({ kind: 'part' }))).toBe(false);
+    expect(assignable(disk({ identity_status: 'ambiguous' }))).toBe(false);
+    expect(assignable(disk({ persistent_id: 'by-id:foo' }))).toBe(false);
+    expect(assignable(disk({ persistent_id: '' }))).toBe(false);
+    expect(assignable(disk({ persistent_id: 'wwn:' }))).toBe(false);
+  });
+
+  it('splits unassigned disks into eligible and ineligible', () => {
+    const good = disk({});
+    const weak = disk({ id: 'n-weak', name: 'sdb', persistent_id: 'by-id:foo' });
+    const part = disk({ id: 'n-part', name: 'sda1', kind: 'part', persistent_id: 'wwn:naa.x' });
+    const { eligible, ineligible } = unassignedDrives([good, weak, part], []);
+    expect(eligible.map((n) => n.id)).toEqual(['n-a']);
+    expect(ineligible.map((n) => n.id)).toEqual(['n-weak']);
+  });
+});
+
+describe('bay reconciliation states', () => {
+  it('reports non-bay, vacant and unobserved cells', () => {
+    expect(bayState({ row: 0, col: 0, kind: 'empty', label: '' }, [])).toEqual({ state: 'empty' });
+    expect(bayState({ row: 0, col: 0, kind: 'disabled', label: '' }, [])).toEqual({ state: 'disabled' });
+    expect(bayState({ row: 0, col: 0, kind: 'reserved', label: '' }, [])).toEqual({ state: 'reserved' });
+    expect(bayState({ row: 0, col: 0, kind: 'hdd-3.5', label: '' }, [])).toEqual({ state: 'vacant' });
+    expect(bayState(assigned, undefined)).toEqual({ state: 'unknown' });
+  });
+
+  it('treats a partition or a duplicated identity as a mismatch', () => {
+    const part = disk({ kind: 'part' });
+    expect(bayState(assigned, [part]).state).toBe('mismatch');
+    const dup = disk({
+      identifiers: [{ kind: 'wwn', value: 'naa.5000000000000f01', source: 'fixture', ambiguous: true }],
+    });
+    expect(bayState(assigned, [dup]).state).toBe('mismatch');
   });
 });
