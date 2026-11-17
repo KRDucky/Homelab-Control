@@ -137,7 +137,7 @@ func fixture(t *testing.T) (base, blkidLog string) {
 	writeScript(t, filepath.Join(bin, "blkid"), "#!/bin/sh\nfor a in \"$@\"; do last=$a; done\necho \"$last\" >> '"+blkidLog+"'\necho 'TYPE=LVM2_member'\necho 'UUID=abc'\necho 'SECRET_KEY=hunter2'\n")
 
 	// Point the package at the fixture and restore it afterwards.
-	oldSys, oldBin, oldOpen, oldMin, oldLast := sysBlockRoot, binaries, openAndVerify, minRunInterval, lastRun
+	oldSys, oldBin, oldOpen, oldMin, oldLast, oldLVM := sysBlockRoot, binaries, openAndVerify, minRunInterval, lastRun, LVMEnabled
 	sysBlockRoot = sys
 	binaries = map[string]string{
 		"lvs":   filepath.Join(bin, "lvs"),
@@ -149,8 +149,9 @@ func fixture(t *testing.T) (base, blkidLog string) {
 	}
 	minRunInterval = 0
 	lastRun = time.Time{}
+	LVMEnabled = true
 	t.Cleanup(func() {
-		sysBlockRoot, binaries, openAndVerify, minRunInterval, lastRun = oldSys, oldBin, oldOpen, oldMin, oldLast
+		sysBlockRoot, binaries, openAndVerify, minRunInterval, lastRun, LVMEnabled = oldSys, oldBin, oldOpen, oldMin, oldLast, oldLVM
 	})
 	return base, blkidLog
 }
@@ -299,6 +300,30 @@ func TestLvmConfig(t *testing.T) {
 	}
 }
 
+func TestLVMDisabledByDefault(t *testing.T) {
+	// lvs/pvs scan by path and their fd identity binding is unproven, so the
+	// activation path must keep LVM absent: LVMEnabled defaults false and the
+	// result is Partial with an explicit note.
+	_, _ = fixture(t)
+	LVMEnabled = false
+	res := Run(context.Background(), Request{Version: 1, Devices: []string{"sda"}})
+	if res.LVS != "" || res.PVS != "" {
+		t.Fatalf("LVM should be absent when disabled: LVS=%q PVS=%q", res.LVS, res.PVS)
+	}
+	if !res.Partial {
+		t.Fatalf("expected Partial when LVM is gated off: %+v", res)
+	}
+	found := false
+	for _, e := range res.Errors {
+		if strings.Contains(e, "lvm disabled") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("missing lvm-disabled note: %+v", res.Errors)
+	}
+}
+
 func TestMakedev(t *testing.T) {
 	for _, tc := range []struct {
 		maj, min, want uint64
@@ -439,7 +464,7 @@ func TestRunTotalDeadline(t *testing.T) {
 	writeScript(t, filepath.Join(bin, "pvs"), "#!/bin/sh\necho '{}'\n")
 	writeScript(t, filepath.Join(bin, "blkid"), "#!/bin/sh\nsleep 2\necho 'TYPE=x'\n")
 
-	oldSys, oldBin, oldOpen, oldTotal, oldMin, oldLast := sysBlockRoot, binaries, openAndVerify, totalTimeout, minRunInterval, lastRun
+	oldSys, oldBin, oldOpen, oldTotal, oldMin, oldLast, oldLVM := sysBlockRoot, binaries, openAndVerify, totalTimeout, minRunInterval, lastRun, LVMEnabled
 	sysBlockRoot = sys
 	binaries = map[string]string{
 		"lvs":   filepath.Join(bin, "lvs"),
@@ -452,8 +477,9 @@ func TestRunTotalDeadline(t *testing.T) {
 	totalTimeout = 200 * time.Millisecond
 	minRunInterval = 0
 	lastRun = time.Time{}
+	LVMEnabled = true // so Partial comes from the deadline, not the LVM gate
 	t.Cleanup(func() {
-		sysBlockRoot, binaries, openAndVerify, totalTimeout, minRunInterval, lastRun = oldSys, oldBin, oldOpen, oldTotal, oldMin, oldLast
+		sysBlockRoot, binaries, openAndVerify, totalTimeout, minRunInterval, lastRun, LVMEnabled = oldSys, oldBin, oldOpen, oldTotal, oldMin, oldLast, oldLVM
 	})
 
 	start := time.Now()

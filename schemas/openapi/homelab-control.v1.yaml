@@ -44,7 +44,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, storage.read, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read, zfs.read, lvm.read] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, storage.read, storage.probe, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read, zfs.read, lvm.read] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }

@@ -66,6 +66,11 @@ var (
 	// so the helper reports a clean deadline instead of being SIGKILLed first.
 	// The real cross-instance serialisation is the socket's MaxConnections.
 	totalTimeout = 25 * time.Second
+
+	// LVMEnabled gates lvs/pvs. It is false by default: lvs/pvs scan devices
+	// by path and their fd identity binding is not proven, so an activation
+	// path must keep LVM absent until that is demonstrated.
+	LVMEnabled = false
 )
 
 // LVM report field lists. These request exactly the fields the storageinfo
@@ -287,30 +292,38 @@ func Run(ctx context.Context, req Request) Result {
 		probeNames[i] = d.name
 	}
 
-	// LVM: private empty config dir + fixed filter so no host lvm.conf or
-	// devices file influences the scan, and only enumerated devices are seen.
-	lvmDir, err := os.MkdirTemp("", "hc-storage-probe-lvm-")
-	if err != nil {
-		res.Errors = append(res.Errors, "lvm: "+err.Error())
+	// LVM is gated behind LVMEnabled: lvs/pvs scan devices by path, and their
+	// fd identity binding is not yet proven, so they must not run on an
+	// activation path. When disabled, the result is Partial and LVM is absent.
+	if !LVMEnabled {
+		res.Errors = append(res.Errors, "lvm disabled: lvs/pvs device identity binding is unproven")
 		res.Partial = true
-		return res
-	}
-	defer os.RemoveAll(lvmDir)
-	lvmEnv := []string{"LVM_SYSTEM_DIR=" + lvmDir}
+	} else {
+		// LVM: private empty config dir + fixed filter so no host lvm.conf or
+		// devices file influences the scan, and only enumerated devices are seen.
+		lvmDir, err := os.MkdirTemp("", "hc-storage-probe-lvm-")
+		if err != nil {
+			res.Errors = append(res.Errors, "lvm: "+err.Error())
+			res.Partial = true
+			return res
+		}
+		lvmEnv := []string{"LVM_SYSTEM_DIR=" + lvmDir}
 
-	lvs, err := run(ctx, reportTimeout, maxReportBytes, "lvs", lvsArgs(probeNames), lvmEnv, nil)
-	if err != nil {
-		res.Errors = append(res.Errors, "lvs: "+err.Error())
-		res.Partial = true
-	}
-	res.LVS = lvs
+		lvs, err := run(ctx, reportTimeout, maxReportBytes, "lvs", lvsArgs(probeNames), lvmEnv, nil)
+		if err != nil {
+			res.Errors = append(res.Errors, "lvs: "+err.Error())
+			res.Partial = true
+		}
+		res.LVS = lvs
 
-	pvs, err := run(ctx, reportTimeout, maxReportBytes, "pvs", pvsArgs(probeNames), lvmEnv, nil)
-	if err != nil {
-		res.Errors = append(res.Errors, "pvs: "+err.Error())
-		res.Partial = true
+		pvs, err := run(ctx, reportTimeout, maxReportBytes, "pvs", pvsArgs(probeNames), lvmEnv, nil)
+		if err != nil {
+			res.Errors = append(res.Errors, "pvs: "+err.Error())
+			res.Partial = true
+		}
+		res.PVS = pvs
+		_ = os.RemoveAll(lvmDir)
 	}
-	res.PVS = pvs
 
 	for _, d := range devs {
 		before, hasSeq := diskseq(d.name)
