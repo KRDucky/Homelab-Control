@@ -19,8 +19,11 @@ import (
 // systemd unit owns this socket (root:root 0600); the op is only its client.
 const storageProbeSocket = "/run/homelab-control/storage-probe.sock"
 
-// storageProbeMaxResponse bounds the helper's typed Result read.
-const storageProbeMaxResponse = 1 << 20
+// storageProbeMaxResponse bounds the helper's typed Result read. It is a
+// provable bound: at most maxDevices(64) × maxBlkidBytes(64 KiB) = 4 MiB of
+// blkid output (LVM is gated off, so no LVS/PVS payload), plus JSON framing
+// and errors — comfortably under 8 MiB.
+const storageProbeMaxResponse = 8 << 20
 
 // storageProbeRequest is the closed helper request (protocol version 1).
 type storageProbeRequest struct {
