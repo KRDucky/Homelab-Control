@@ -15,7 +15,7 @@ const testVGMeta = `contents = "Text Format Volume Group"
 version = 1
 
 vg1 {
-    id = "AAAAAAAA-BBBB-CCCC-DDDD-EEEE-FFFF00000001"
+    id = "aaaaaaaa-bbbb-cccc-dddd-eeeeffff0001"
     seqno = 2
     extent_size = 8192
     status = ["RESIZEABLE", "READ", "WRITE"]
@@ -284,7 +284,7 @@ func TestAssembleUnsupportedSegmentPartial(t *testing.T) {
 	text := `contents = "Text Format Volume Group"
 version = 1
 vg1 {
-    id = "AAAAAAAA-BBBB-CCCC-DDDD-EEEE-FFFF00000001"
+    id = "aaaaaaaa-bbbb-cccc-dddd-eeeeffff0001"
     seqno = 1
     extent_size = 8192
     physical_volumes { pv0 { id = "abcdef12-3456-7890-abcd-ef1234567890" device = "/dev/vdb" } }
@@ -347,4 +347,42 @@ func FuzzReadPVNoPanic(f *testing.F) {
 			_, _ = parseText(pv.Text)
 		}
 	})
+}
+
+func TestAssembleMalformedVGNode(t *testing.T) {
+	for _, text := range []string{
+		"vg1 { seqno = 1 }",           // missing id
+		"vg1 { id { x = 1 } }",        // wrong-kind id (section)
+		"vg1 { id = \"not-a-uuid\" }", // invalid UUID value
+	} {
+		img := buildImage(text, nil)
+		pv := ReadPV(bytes.NewReader(img), uint64(len(img)), "vdb")
+		if pv.Status != StatusOK {
+			t.Fatalf("status = %s for %q", pv.Status, text)
+		}
+		inv := Assemble([]PVRead{pv})
+		if len(inv.VGs) != 0 || len(inv.Orphans) == 0 {
+			t.Fatalf("text %q: VGs=%d Orphans=%d, want orphan (no panic)", text, len(inv.VGs), len(inv.Orphans))
+		}
+	}
+}
+
+func TestAssembleTotalTextCap(t *testing.T) {
+	big := bytes.Repeat([]byte("x"), MaxTotalText/2+1)
+	pvs := []PVRead{
+		{Device: "a", Status: StatusOK, Text: big},
+		{Device: "b", Status: StatusOK, Text: big},
+		{Device: "c", Status: StatusOK, Text: big},
+	}
+	inv := Assemble(pvs)
+	if len(inv.Notes) == 0 {
+		t.Fatal("expected an over-cap note")
+	}
+	total := 0
+	for _, pv := range inv.PVs {
+		total += len(pv.Text)
+	}
+	if total > MaxTotalText {
+		t.Fatalf("retained %d bytes > MaxTotalText %d", total, MaxTotalText)
+	}
 }

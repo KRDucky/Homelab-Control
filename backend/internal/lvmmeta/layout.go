@@ -198,6 +198,11 @@ func ReadPV(r io.ReaderAt, size uint64, device string) PVRead {
 	}
 
 	res.Text, res.Status = selectCopy(res.Copies)
+	// Drop every copy's raw text now that the best was chosen; only res.Text is
+	// retained, so no unbounded aggregate of per-copy texts is kept.
+	for i := range res.Copies {
+		res.Copies[i].Text = nil
+	}
 	if res.Status != StatusOK {
 		return res
 	}

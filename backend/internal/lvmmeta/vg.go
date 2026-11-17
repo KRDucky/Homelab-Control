@@ -153,6 +153,8 @@ type Inventory struct {
 	VGs     []VG
 	PVs     []PVRead
 	Orphans []PVRead
+	// Notes carries typed aggregate outcomes (e.g. metadata text over cap).
+	Notes []string
 }
 
 // ParseVG maps the parsed VG section into a typed VG.
@@ -353,13 +355,43 @@ func undash(s string) string {
 	return string(out)
 }
 
+// vgUUID returns the lowercased undashed VG UUID from a VG section's id child,
+// and whether it is a valid scalar UUID. Missing or wrong-kind id is not valid.
+func vgUUID(n *Node) (string, bool) {
+	id := n.child("id")
+	if id == nil || id.Kind != kindScalar || id.Value == "" {
+		return "", false
+	}
+	u := uuidString([]byte(undash(id.Value)))
+	return u, u != ""
+}
+
 // Assemble groups PV reads by VG UUID, chooses the highest-seqno copy and
 // marks missing/duplicate PVs. It never drops unknown data; inconsistent
 // copies are flagged.
 func Assemble(pvs []PVRead) Inventory {
 	inv := Inventory{PVs: pvs}
+
+	// Enforce the aggregate metadata-text budget before grouping: a device
+	// whose retained text no longer fits is classified orphan/limit-exceeded and
+	// its text is dropped, so no unbounded aggregate is kept.
+	budget := int64(MaxTotalText)
+	for i := range pvs {
+		pv := &pvs[i]
+		if pv.Text == nil {
+			continue
+		}
+		if int64(len(pv.Text)) > budget {
+			inv.Notes = append(inv.Notes, "metadata text exceeds MaxTotalText")
+			pv.Text = nil
+			pv.Status = StatusLimitExceeded
+			inv.Orphans = append(inv.Orphans, *pv)
+			continue
+		}
+		budget -= int64(len(pv.Text))
+	}
+
 	byUUID := map[string][]*Node{}
-	byName := map[string]*Node{}
 	for _, pv := range pvs {
 		root, err := parseText(pv.Text)
 		if err != nil {
@@ -371,11 +403,13 @@ func Assemble(pvs []PVRead) Inventory {
 			inv.Orphans = append(inv.Orphans, pv)
 			continue
 		}
-		id := undash(vgNode.child("id").Value)
-		byUUID[id] = append(byUUID[id], vgNode)
-		if _, ok := byName[id]; !ok {
-			byName[id] = vgNode
+		id, ok := vgUUID(vgNode)
+		if !ok {
+			// Malformed VG section: missing or wrong-kind id. Never dereference it.
+			inv.Orphans = append(inv.Orphans, pv)
+			continue
 		}
+		byUUID[id] = append(byUUID[id], vgNode)
 	}
 	for uuid, nodes := range byUUID {
 		best := nodes[0]
