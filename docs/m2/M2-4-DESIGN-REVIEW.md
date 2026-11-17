@@ -81,7 +81,9 @@ device-open mechanism is authorised by the owner.
   (`Accept=yes`), no `[Install]`. The service runs `User=homelab-control`,
   `PrivateDevices=yes`, empty capability bounding set, no `DeviceAllow` (no
   char or block device access), `PrivateNetwork=yes`. Socket at
-  `/run/homelab-control/storage-probe.sock` (0600).
+  `/run/homelab-control/storage-probe.sock` (0600). **Correction:** the current
+  unit uses `DynamicUser=yes`, not `User=homelab-control`; the socket has no
+  `[Install]`, and no broker caller is wired.
 - **Guard:** `internal/storageprobe/` is added to `allowedExecRoots` (ADR 0008)
   as the second package allowed to execute programs. A static unit test asserts
   the fail-closed policy.
@@ -116,7 +118,7 @@ dm-status (O-2, `CAP_SYS_ADMIN`) is deliberately not implemented.
   serialisation is the socket's `MaxConnections=1`, and cross-instance rate
   limiting remains a broker/action concern.
 - **Account:** the helper runs `DynamicUser=yes` (throwaway unprivileged UID,
-  no persistent account) instead of a shared or new account.
+  no persistent account); it does not use the shared `homelab-control` user.
 - **Binary resolution:** `ResolveToolPaths` picks lvs/pvs/blkid from reviewed
   distro paths only, resolving symlinks and requiring the resolved target and
   every ancestor directory to be root-owned and non-group/other-writable (a
