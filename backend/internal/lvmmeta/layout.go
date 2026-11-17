@@ -119,6 +119,10 @@ type PVRead struct {
 	Label  *Label
 	Copies []MDACopy
 	Text   []byte `json:"-"` // never serialized to clients
+	// DeviceNumber is the probed device's major:minor (from sysfs, via the
+	// helper's fstat-verified open). It is a separate observation, not a
+	// persistent ID, and is only used to nominate a candidate block device.
+	DeviceNumber string
 }
 
 // readAt is a bounded readerAt wrapper that fails on any read past size.

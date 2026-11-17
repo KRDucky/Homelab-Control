@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"homelab-control/backend/internal/broker/proto"
+	"homelab-control/backend/internal/lvmmeta"
 )
 
 // storageProbeSocket is the fixed root-only socket-activated helper path. The
@@ -70,11 +71,12 @@ type storageProbeRequest struct {
 // storageProbeResult mirrors the helper's closed typed Result. It is returned
 // to the API verbatim; callers classify it by Code, not free text.
 type storageProbeResult struct {
-	Version int               `json:"version"`
-	Code    string            `json:"code,omitempty"`
-	Blkid   map[string]string `json:"blkid,omitempty"`
-	Errors  []string          `json:"errors,omitempty"`
-	Partial bool              `json:"partial"`
+	Version int                `json:"version"`
+	Code    string             `json:"code,omitempty"`
+	LVM     *lvmmeta.Inventory `json:"lvm,omitempty"`
+	Blkid   map[string]string  `json:"blkid,omitempty"`
+	Errors  []string           `json:"errors,omitempty"`
+	Partial bool               `json:"partial"`
 }
 
 // storageProbe enumerates /sys/class/block and asks the socket-activated

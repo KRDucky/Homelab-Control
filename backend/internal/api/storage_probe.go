@@ -13,17 +13,19 @@ import (
 	"time"
 
 	"homelab-control/backend/internal/auth"
+	"homelab-control/backend/internal/lvmmeta"
 	"homelab-control/backend/internal/storageinfo"
 )
 
 // storageProbeResult mirrors the broker op's closed helper Result. It is
 // decoded from the broker call and never exposed as the endpoint response.
 type storageProbeResult struct {
-	Version int               `json:"version"`
-	Code    string            `json:"code,omitempty"`
-	Blkid   map[string]string `json:"blkid,omitempty"`
-	Errors  []string          `json:"errors,omitempty"`
-	Partial bool              `json:"partial"`
+	Version int                `json:"version"`
+	Code    string             `json:"code,omitempty"`
+	LVM     *lvmmeta.Inventory `json:"lvm,omitempty"`
+	Blkid   map[string]string  `json:"blkid,omitempty"`
+	Errors  []string           `json:"errors,omitempty"`
+	Partial bool               `json:"partial"`
 }
 
 // handleStorageProbe triggers the on-demand native probe (O-1). It is an
@@ -91,6 +93,14 @@ func (s *Server) handleStorageProbe(w http.ResponseWriter, r *http.Request, sess
 		return
 	}
 	mergeProbeSignatures(&g, probe.Blkid)
+	if probe.LVM != nil {
+		// Fold the native on-disk LVM inventory into the graph. No same-boot
+		// revalidation observation is available here, so PV-to-disk links are at
+		// best provisional (never verified) — addPhysicalVolumes/linkPV decides.
+		lvmInv, lvmNotes := storageinfo.FromNative(*probe.LVM)
+		storageinfo.AddLVM(&g, lvmInv)
+		g.Notes = append(g.Notes, lvmNotes...)
+	}
 	applyProbeOutcome(&g, probe)
 
 	if err = s.auditLog("storage.probe", sess.Username, r, "collected", "nodes="+strconv.Itoa(len(g.Nodes))); err != nil {

@@ -12,6 +12,7 @@ import (
 
 	"homelab-control/backend/internal/auth"
 	"homelab-control/backend/internal/broker/proto"
+	"homelab-control/backend/internal/lvmmeta"
 	"homelab-control/backend/internal/storageinfo"
 )
 
@@ -141,5 +142,69 @@ func TestStorageProbeRateLimited(t *testing.T) {
 	}
 	if rr.Header().Get("Retry-After") != "30" {
 		t.Fatalf("Retry-After = %q, want 30", rr.Header().Get("Retry-After"))
+	}
+}
+
+func TestStorageProbeLVMGraph(t *testing.T) {
+	h, fb := probeHarness(t, auth.ScopeStorageProbe)
+	fb.results["storage.probe"] = storageProbeResult{
+		Version: 1,
+		LVM: &lvmmeta.Inventory{VGs: []lvmmeta.VG{{
+			UUID:       "aaaaaaaabbbbccccddddeeeeffff0001",
+			Name:       "vg1",
+			Seqno:      1,
+			ExtentSize: 8192,
+			State:      lvmmeta.StateComplete,
+			PVs: []lvmmeta.VGPV{{
+				UUID: "abcdef1234567890abcdef1234567890", DevSize: 536870912, DeviceNumber: "8:0", Presence: lvmmeta.PresencePresent,
+			}},
+			LVs: []lvmmeta.LV{{
+				UUID: "99999999888877776666555544444444", Name: "lv1",
+				Segments: []lvmmeta.Segment{{Type: "striped", Parsed: true, StartExtent: 0, ExtentCount: 128}},
+			}},
+		}}},
+	}
+	rr := h.do("POST", "/api/v1/storage/probe", "", map[string]string{"X-CSRF-Token": h.csrf, "Origin": testOrigin})
+	if rr.Code != http.StatusOK {
+		t.Fatalf("got %d %s", rr.Code, rr.Body)
+	}
+	body := rr.Body.String()
+	for _, want := range []string{"lvm-vg", "lvm-lv", "lvm-pv"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("LVM graph missing %q: %s", want, body)
+		}
+	}
+}
+
+func TestStorageProbeUnsupportedPartial(t *testing.T) {
+	h, fb := probeHarness(t, auth.ScopeStorageProbe)
+	fb.results["storage.probe"] = storageProbeResult{
+		Version: 1,
+		Partial: true,
+		Errors:  []string{"vg vg1: partial (unsupported segment type)"},
+		LVM: &lvmmeta.Inventory{VGs: []lvmmeta.VG{{
+			UUID:  "aaaaaaaabbbbccccddddeeeeffff0001",
+			Name:  "vg1",
+			State: lvmmeta.StateUnsupported,
+			Notes: []string{"vg vg1: partial (unsupported segment type)"},
+			PVs: []lvmmeta.VGPV{{
+				UUID: "abcdef1234567890abcdef1234567890", DevSize: 536870912, Presence: lvmmeta.PresencePresent,
+			}},
+			LVs: []lvmmeta.LV{{
+				UUID: "99999999888877776666555544444444", Name: "lv1",
+				Segments: []lvmmeta.Segment{{Type: "writecache", Parsed: false}},
+			}},
+		}}},
+	}
+	rr := h.do("POST", "/api/v1/storage/probe", "", map[string]string{"X-CSRF-Token": h.csrf, "Origin": testOrigin})
+	if rr.Code != http.StatusOK {
+		t.Fatalf("got %d %s", rr.Code, rr.Body)
+	}
+	body := rr.Body.String()
+	if !strings.Contains(body, `"status":"partial"`) {
+		t.Fatalf("partial status missing: %s", body)
+	}
+	if !strings.Contains(body, "unsupported-segment-type") {
+		t.Fatalf("unsupported-segment note missing: %s", body)
 	}
 }

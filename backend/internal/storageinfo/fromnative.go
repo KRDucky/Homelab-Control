@@ -15,7 +15,7 @@ import (
 // the single graph-linking logic. Notes carry typed partial/unsupported/
 // withheld outcomes. Unresolved segment types are never reported complete.
 func FromNative(inv lvmmeta.Inventory) (LVMInventory, []string) {
-	out := LVMInventory{Mode: "native", Source: "on-disk metadata", Volumes: []LogicalVolume{}, PhysicalVolumes: []PhysicalVolume{}}
+	out := LVMInventory{Mode: ModeMetadataOnly, Source: "on-disk metadata", Volumes: []LogicalVolume{}, PhysicalVolumes: []PhysicalVolume{}}
 	var notes []string
 
 	for _, vg := range inv.VGs {
@@ -35,31 +35,27 @@ func FromNative(inv lvmmeta.Inventory) (LVMInventory, []string) {
 
 		for _, pv := range vg.PVs {
 			spv := PhysicalVolume{
-				UUID:   dashUUID(pv.UUID),
-				VGUUID: vgUUID,
-				VGName: vg.Name,
+				UUID:         dashUUID(pv.UUID),
+				VGUUID:       vgUUID,
+				VGName:       vg.Name,
+				DeviceNumber: pv.DeviceNumber,
 			}
 			if pv.DevSize > 0 {
 				spv.DevSizeBytes = &pv.DevSize
 			}
+			// DeviceLink/DeviceLinkReason are decided by addPhysicalVolumes/
+			// linkPV (verified/provisional/withheld/no-device), never here.
 			switch pv.Presence {
 			case lvmmeta.PresencePresent:
 				spv.MissingState = "present"
-				spv.DeviceLink = "verified"
 			case lvmmeta.PresenceMissingFlag:
 				spv.Missing = true
 				spv.MissingState = "missing"
-				spv.DeviceLink = "withheld"
-				spv.DeviceLinkReason = "MISSING flag"
 			case lvmmeta.PresenceDuplicate:
 				spv.Ambiguous = true
 				spv.MissingState = "not-reported"
-				spv.DeviceLink = "withheld"
-				spv.DeviceLinkReason = "duplicate PV UUID"
 			default:
 				spv.MissingState = "not-reported"
-				spv.DeviceLink = "no-device"
-				spv.DeviceLinkReason = "PV not found among probed devices"
 			}
 			out.PhysicalVolumes = append(out.PhysicalVolumes, spv)
 		}

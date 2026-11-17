@@ -228,6 +228,8 @@ type device struct {
 	path string
 	f    *os.File
 	size uint64 // device size in bytes (sysfs size * 512)
+	maj  uint64 // sysfs dev major (for PV device-number nomination)
+	min  uint64 // sysfs dev minor
 }
 
 // Request is the closed typed input. Devices are kernel block names only.
@@ -331,6 +333,7 @@ func Run(ctx context.Context, req Request) Result {
 	for _, d := range devs {
 		before, hasSeq := diskseq(d.name)
 		pv := lvmmeta.ReadPVBudgetContext(ctx, d.f, d.size, d.name, &budget)
+		pv.DeviceNumber = fmt.Sprintf("%d:%d", d.maj, d.min)
 		if !hasSeq {
 			pv.Status = lvmmeta.StatusMetadataChanging // no diskseq: cannot bracket the read
 		} else {
@@ -570,7 +573,7 @@ func resolveDevice(name string) (*device, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &device{name: name, path: path, f: f, size: deviceSizeBytes(name)}, nil
+	return &device{name: name, path: path, f: f, size: deviceSizeBytes(name), maj: maj, min: min}, nil
 }
 
 // deviceSizeBytes reads /sys/class/block/<name>/size (512-byte sectors) and
