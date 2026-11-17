@@ -379,19 +379,23 @@ func Assemble(pvs []PVRead) Inventory {
 	// whose retained text no longer fits is classified orphan/limit-exceeded and
 	// its text is dropped, so no unbounded aggregate is kept.
 	budget := int64(MaxTotalText)
+	overCap := false
 	for i := range pvs {
 		pv := &pvs[i]
 		if pv.Text == nil {
 			continue
 		}
 		if int64(len(pv.Text)) > budget {
-			inv.Notes = append(inv.Notes, "metadata text exceeds MaxTotalText")
 			pv.Text = nil
 			pv.Status = StatusLimitExceeded
 			inv.Orphans = append(inv.Orphans, *pv)
+			overCap = true
 			continue
 		}
 		budget -= int64(len(pv.Text))
+	}
+	if overCap {
+		inv.Notes = append(inv.Notes, "metadata text exceeds MaxTotalText")
 	}
 
 	byUUID := map[string][]*Node{}

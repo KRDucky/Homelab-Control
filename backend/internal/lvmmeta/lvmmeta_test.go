@@ -452,3 +452,18 @@ func TestAssembleNoDoubleOrphan(t *testing.T) {
 		t.Fatalf("PVs = %+v", inv.PVs)
 	}
 }
+
+func TestParsePVHeaderRequiresTerminator(t *testing.T) {
+	b := make([]byte, 512)
+	copy(b[0:32], []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
+	binary.LittleEndian.PutUint64(b[32:40], 1048576)
+	// Fill both disk_locn lists with non-zero entries and no NULL terminator.
+	for i := 40; i+16 <= 512; i += 16 {
+		binary.LittleEndian.PutUint64(b[i:i+8], 1)
+		binary.LittleEndian.PutUint64(b[i+8:i+16], 1)
+	}
+	_, _, _, _, _, st := parsePVHeader(b, 0)
+	if st != StatusPVHeaderOverrun {
+		t.Fatalf("status = %s, want pv-header-overrun", st)
+	}
+}
