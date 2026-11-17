@@ -96,25 +96,19 @@ func (s *Server) handleStorageProbe(w http.ResponseWriter, r *http.Request, sess
 	writeJSON(w, http.StatusOK, storageResponse{CollectedAt: collectedAt, ReadOnly: true, Graph: g})
 }
 
-// mergeProbeSignatures folds blkid TYPE/UUID onto the graph nodes whose name
-// matches the probed device. It never invents nodes for unknown devices.
+// mergeProbeSignatures folds blkid TYPE/UUID into the graph as signature nodes,
+// claims and has-signature edges (consistent with storageinfo.Build), never as
+// bare fields on block nodes.
 func mergeProbeSignatures(g *storageinfo.Graph, blkid map[string]string) {
 	if len(blkid) == 0 {
 		return
 	}
-	for i := range g.Nodes {
-		export, ok := blkid[g.Nodes[i].Name]
-		if !ok {
-			continue
-		}
+	sigs := make(map[string]storageinfo.BlkidSignature, len(blkid))
+	for name, export := range blkid {
 		fsType, uuid := parseBlkidExport(export)
-		if fsType != "" {
-			g.Nodes[i].FSType = fsType
-		}
-		if uuid != "" {
-			g.Nodes[i].SignatureUUID = uuid
-		}
+		sigs[name] = storageinfo.BlkidSignature{FSType: fsType, UUID: uuid}
 	}
+	storageinfo.MergeBlkidSignatures(g, sigs)
 }
 
 // applyProbeOutcome sets graph.status/notes from the typed helper result:
