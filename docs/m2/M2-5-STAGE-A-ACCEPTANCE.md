@@ -28,6 +28,9 @@ fixture-tested end to end:
 - **Assignment input**: a drive is assigned to an eligible vacant bay by **drag-and-drop** or by
   **keyboard** (arrow-key navigation selects the bay, then the select/button assign flow); an occupied
   bay is never a drop target and never offers assign.
+- **Optimistic concurrency**: update/assign bodies carry the chassis `version` (the per-chassis
+  compare-and-swap token) and delete/unassign send `?version=`; a stale version is a 409
+  `layout_conflict`, which drops the snapshot and re-syncs the layout.
 - **Export**: the layout can be exported with assignment identifiers **redacted by default** (tier only,
   e.g. `wwn:[redacted]`), so no serial/WWN value is written to the download.
 - **Import**: a JSON file can be imported (POST `/api/v1/storage/layout/import`, scope `layout.manage`):
@@ -53,8 +56,6 @@ fixture-tested end to end:
 
 ## Remaining gaps (not delivered)
 
-- **optimistic revision / concurrency**: the UI re-syncs after a 409 conflict, but the API has no
-  version/If-Match check, so two concurrent editors can still both write.
 - the **location badge** on other storage views (Stage B);
 - a **Playwright + axe** real-browser fixture (the acceptance fixture above is a Vitest/jsdom synthetic
   fixture only).
