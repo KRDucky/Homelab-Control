@@ -6,12 +6,31 @@ package storageprobe
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestJSONStringLenMatchesEncoder(t *testing.T) {
+	values := []string{
+		`quotes " and slash \\`,
+		"controls \b\f\n\r\t\x00\x1f",
+		"unicode é \u2028 \u2029",
+		string([]byte{'x', 0xff, 'y'}),
+	}
+	for _, value := range values {
+		encoded, err := json.Marshal(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := jsonStringLen(value); got != len(encoded) {
+			t.Errorf("jsonStringLen(%q)=%d, encoder emitted %d bytes (%s)", value, got, len(encoded), encoded)
+		}
+	}
+}
 
 // writeScript writes an executable fake tool. It is test-only and never runs
 // on the host; the tools are synthetic fixtures.
@@ -180,26 +199,54 @@ func TestRunCollectsAndRevalidates(t *testing.T) {
 }
 
 func TestFilterBlkidExport(t *testing.T) {
-	raw := "DEVNAME=/dev/sda\nTYPE=LVM2_member\nUUID=abc\nSECRET_KEY=hunter2\nPART_ENTRY_NUMBER=1\nSOME_NOISE=zz\n"
+	raw := "DEVNAME=/dev/sda\nTYPE=LVM2_member\nUUID=abc\nSECRET_KEY=hunter2\nPART_ENTRY_NUMBER=1\nSOME_NOISE=zz\nLABEL=user-controlled\nPARTLABEL=p\n"
 	out := filterBlkidExport(raw)
 	for _, want := range []string{"DEVNAME=", "TYPE=", "UUID=", "PART_ENTRY_NUMBER="} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing allowed key %s in %q", want, out)
 		}
 	}
-	for _, bad := range []string{"SECRET_KEY", "SOME_NOISE"} {
+	for _, bad := range []string{"SECRET_KEY", "SOME_NOISE", "LABEL", "PARTLABEL"} {
 		if strings.Contains(out, bad) {
 			t.Fatalf("leaked key %s in %q", bad, out)
 		}
 	}
 }
 
+func TestFilterBlkidExportBoundsValues(t *testing.T) {
+	// A value longer than maxFieldValueBytes, and one with a control byte, are
+	// dropped; the rest of the line's key is not enough to keep it.
+	long := strings.Repeat("a", maxFieldValueBytes+1)
+	raw := "TYPE=" + long + "\nUUID=ok\nPTTYPE=" + string([]byte{0x01}) + "x\n"
+	out := filterBlkidExport(raw)
+	if !strings.Contains(out, "UUID=ok") {
+		t.Fatalf("safe value dropped: %q", out)
+	}
+	if strings.Contains(out, "TYPE=") || strings.Contains(out, "PTTYPE=") {
+		t.Fatalf("unsafe value kept: %q", out)
+	}
+}
+
 func TestLvmConfig(t *testing.T) {
 	c := lvmConfig([]string{"sda", "nvme0n1"})
-	for _, want := range []string{"hints=0", "a|^/dev/sda$|", "a|^/dev/nvme0n1$|", "r|.*|"} {
+	for _, want := range []string{
+		"hints=\"none\"",
+		`"a|^/dev/sda$|"`,
+		`"a|^/dev/nvme0n1$|"`,
+		`"r|.*|"`,
+	} {
 		if !strings.Contains(c, want) {
 			t.Fatalf("lvmConfig missing %q in %q", want, c)
 		}
+	}
+	// The only regex metacharacter a block name can carry is '.', which must be
+	// escaped as a character class (no backslash) inside the quoted pattern.
+	c2 := lvmConfig([]string{"vda.1"})
+	if !strings.Contains(c2, `"a|^/dev/vda[.]1$|"`) {
+		t.Fatalf("dot not escaped: %q", c2)
+	}
+	if strings.Contains(c2, `\`) {
+		t.Fatalf("lvmConfig introduced a backslash: %q", c2)
 	}
 }
 
@@ -393,35 +440,65 @@ func TestRunEmptyRequestPartial(t *testing.T) {
 func TestSecureToolPath(t *testing.T) {
 	dir := t.TempDir()
 	w := filepath.Join(dir, "w")
-	if err := os.WriteFile(w, []byte("x"), 0o777); err != nil {
+	if err := os.WriteFile(w, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	l := filepath.Join(dir, "l")
-	if err := os.Symlink("/bin/sh", l); err != nil {
+	if err := os.Chmod(w, 0o777); err != nil { // force writable despite umask
+		t.Fatal(err)
+	}
+	sw := filepath.Join(dir, "sw")
+	if err := os.Symlink(w, sw); err != nil {
 		t.Fatal(err)
 	}
 	missing := filepath.Join(dir, "nope")
-	ok := filepath.Join(dir, "ok")
-	if err := os.WriteFile(ok, []byte("x"), 0o755); err != nil {
-		t.Fatal(err)
-	}
 
 	if _, err := secureToolPath([]string{w}); err == nil {
 		t.Fatal("group/other-writable binary accepted")
 	}
-	if _, err := secureToolPath([]string{l}); err == nil {
-		t.Fatal("symlink binary accepted")
+	// A symlink is resolved and its target is checked: a symlink to a writable
+	// file is rejected on the target, not the symlink itself.
+	if _, err := secureToolPath([]string{sw}); err == nil {
+		t.Fatal("symlink-to-writable binary accepted")
 	}
 	if _, err := secureToolPath([]string{missing}); err == nil {
 		t.Fatal("missing binary accepted")
 	}
+	// The accept path needs a root-owned, non-writable directory chain (e.g.
+	// /usr/sbin) and is exercised only in production; no host probe here.
+}
+
+func TestCheckSecureFile(t *testing.T) {
+	dir := t.TempDir()
+	writable := filepath.Join(dir, "w")
+	if err := os.WriteFile(writable, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(writable, 0o777); err != nil { // force writable despite umask
+		t.Fatal(err)
+	}
+	if err := checkSecureFile(writable); err == nil || !strings.Contains(err.Error(), "writable") {
+		t.Fatalf("writable file: %v", err)
+	}
+
+	regular := filepath.Join(dir, "r")
+	if err := os.WriteFile(regular, []byte("x"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	if os.Getuid() == 0 {
-		if p, err := secureToolPath([]string{ok}); err != nil || p != ok {
-			t.Fatalf("root-owned secure binary not accepted: %v", err)
+		if err := checkSecureFile(regular); err != nil {
+			t.Fatalf("root-owned secure file rejected: %v", err)
 		}
 	} else {
-		if _, err := secureToolPath([]string{ok}); err == nil {
-			t.Fatal("non-root-owned binary accepted (UID check missing)")
+		if err := checkSecureFile(regular); err == nil || !strings.Contains(err.Error(), "root-owned") {
+			t.Fatalf("non-root-owned file: %v", err)
 		}
+	}
+
+	adir := filepath.Join(dir, "d")
+	if err := os.Mkdir(adir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkSecureFile(adir); err == nil || !strings.Contains(err.Error(), "regular") {
+		t.Fatalf("directory: %v", err)
 	}
 }

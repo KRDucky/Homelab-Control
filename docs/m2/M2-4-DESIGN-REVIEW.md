@@ -20,7 +20,7 @@ Proposed next slice: a separately typed, closed root-read-exec handle, made avai
 
 `blkid` must probe only enumerated/revalidated local block devices and never use or trust a stale cache as current proof. Avoid unbounded all-host scans or opening network filesystems. LVM reports must be non-mutating, with fixed fields/JSON/byte units, no caller config/profile/selection, and capability detection per installed version. LVM reporting may ordinarily update hints/caches or require locks; confirm an actually read-only invocation and distinguish metadata-only from live-kernel RAID/cache health. Do not infer health when the chosen read-only mode cannot observe it. Parser tests alone do not settle this security or compatibility review.
 
-Native root-read execution is not wired or authorized. A candidate helper is implemented on the isolated review branch, but remains unaccepted and fail-closed with no device access; until the O-1 device-access decision, security review and disposable-system evidence are complete, the production collector remains unprivileged metadata only. SSD cache, LVM RAID/PV member joins, ZFS/Btrfs/mergerfs and signature collection remain incomplete and prevent M2-4 acceptance.
+Native root-read execution is not implemented yet. Until independently reviewed and tested in new disposable fixtures/containers, the production collector remains unprivileged metadata only. SSD cache, LVM RAID/PV member joins, ZFS/Btrfs/mergerfs and signature collection remain incomplete and prevent M2-4 acceptance.
 
 ## Confirmed native-probe integration constraint (2026-11-05)
 
@@ -28,7 +28,7 @@ The packaged broker service explicitly has `PrivateDevices=yes`, a strict system
 
 A metadata-only LVM report cannot substitute for observed live health: [the upstream lvs manual](https://man7.org/linux/man-pages/man8/lvs.8.html) documents that `--readonly` does not communicate with device-mapper. Requesting RAID/cache counters in that mode must not invent runtime values.
 
-Recommended design direction for independent review: keep the existing broker unchanged; use a separately packaged, disabled-by-default read-only storage-probe helper with a closed typed protocol and reviewed native templates. Specify its device namespace, read-only device allow-list and kernel status needs explicitly; do not silently grant broad capabilities or block-write access. Activation and SELinux/hardening evidence remain gates. This helper is a proposal only: no service, capability change or root read command is currently installed or registered. Current metadata collector and UI remain partial until this is resolved.
+Recommended design direction for independent review: keep the existing broker unchanged; use a separately packaged, disabled-by-default read-only storage-probe helper with a closed typed protocol and reviewed native templates. Specify its device namespace, read-only device allow-list and kernel status needs explicitly; do not silently grant broad capabilities or block-write access. Activation and SELinux/hardening evidence remain gates. A service template is present in the package sources, but it is unaccepted, not registered or activated on a host, and has no device access. Current metadata collector and UI remain partial until this is resolved.
 
 Kernel md/device-mapper UUID observations can be collected safely from sysfs independently. UUID joins to LVM reports follow the upstream [UUID builder](https://github.com/lvmteam/lvm2/blob/main/libdm/libdm-string.c) and [layer rules](https://github.com/lvmteam/lvm2/blob/main/lib/misc/lvm-string.c); layer-suffixed mappings are not guessed to be the top LV. This is independently written format handling, not copied upstream implementation.
 
@@ -53,20 +53,23 @@ device-open mechanism is authorised by the owner.
 - **Binary:** `hc-storage-probe` (`backend/cmd/hc-storage-probe`), built from
   `backend/internal/storageprobe`. It reads one closed typed Request from
   stdin and writes one closed typed Result to stdout.
-- **Device resolution (TOCTOU-safe):** each enumerated name is revalidated
-  against `/sys/class/block` (whole disks and partitions, via `Stat` so the
-  sysfs symlinks are followed), resolved to `MAJ:MIN` from its `dev` file,
-  opened at the stable `/dev/block/MAJ:MIN` node `O_NOFOLLOW`, and fstat-checked
-  to be a block device whose rdev matches the resolved `MAJ:MIN`; the sysfs
-  `diskseq` is read before and after each probe. No raw `/dev/<name>` path is
-  ever handed to a tool.
+- **Device resolution (inert; not TOCTOU-safe for activation):** the helper
+  revalidates names against `/sys/class/block` and attempts to open
+  `/dev/block/MAJ:MIN`, but the shipped `PrivateDevices=yes` unit hides device
+  nodes, so this open fails closed. The code does not pass that validated fd
+  into `blkid`/LVM; those templates use paths and could reopen a different
+  device if names changed. `/dev/block` symlink behavior also needs validation.
+  Do not activate or wire this helper until O-1 defines a device-open model that
+  pins identity across the helper and child tools. Current results mark every
+  unavailable or skipped device partial; they must not be interpreted as a
+  complete inventory.
 - **Skip by default:** loop/zram/ram/sr/fd/nbd/rbd and device-mapper (multipath,
   LVM, crypt); removable and USB media (via the resolved `device` sysfs link);
   devices whose sysfs state is not `running`. Partitions inherit their whole
   disk's classification. Skips are reported, not silently probed.
 - **Templates (fixed, no caller argv/path):** `lvs/pvs --readonly
   --reportformat json --units b --nosuffix -a --segments -o <fixed fields>
-  --config devices{hints=0 filter=[…]}` against a private empty
+  --config devices{hints="none" filter=[…]}` against a private empty
   `LVM_SYSTEM_DIR` (no host lvm.conf or devices file), and `blkid -p -c
   /dev/null -o export` per resolved node. blkid output is allow-listed by key
   (DEVNAME/TYPE/UUID/…/PART_ENTRY_*), so untrusted media strings are dropped.
@@ -100,12 +103,13 @@ dm-status (O-2, `CAP_SYS_ADMIN`) is deliberately not implemented.
   reads `diskseq` before/after. In the fail-closed unit the open always fails
   (no device access), so every device is reported as `skip` + `Partial` rather
   than implying validated identity.
-- **LVM config:** `devices{hints=0 filter=[…]}` + private empty
-  `LVM_SYSTEM_DIR`. The filter follows the documented LVM `a|regex|`/`r|regex|`
-  format, but it is **unverified** here (no lvs/pvs binary in this
-  environment); it must be validated on a real LVM host before activation.
+- **LVM config:** `devices{hints="none" filter=[…]}` + private empty
+  `LVM_SYSTEM_DIR`. The `hints="none"` and quoted `"a|regex|"`/`"r|regex|"` filter patterns follow
+  the LVM primary docs, but are **unverified** here (no lvs/pvs binary in this
+  environment); they must be validated on a real LVM host before activation.
   blkid's `-p -c /dev/null -o export` flags were confirmed against
-  `/usr/sbin/blkid -h` (no device probed).
+  `/usr/sbin/blkid -h` (no device probed). lvs/pvs are skipped when no devices
+  are eligible, and the LVM phase budget (5s each) reserves time for blkid.
 - **Deadlines/rate:** the helper's request-wide deadline is 25s, below the
   unit's `TimeoutStartSec=30`. The in-process rate window and semaphore are
   per-instance (each `Accept=yes` connection is a new process); the real
@@ -114,11 +118,16 @@ dm-status (O-2, `CAP_SYS_ADMIN`) is deliberately not implemented.
 - **Account:** the helper runs `DynamicUser=yes` (throwaway unprivileged UID,
   no persistent account) instead of a shared or new account.
 - **Binary resolution:** `ResolveToolPaths` picks lvs/pvs/blkid from reviewed
-  distro paths only, requiring a regular, root-owned, non-group/other-writable
-  file (no symlink). Missing or insecure binaries fail closed.
-- **Output:** blkid export is key-allow-listed; LVM reports are bounded raw
-  JSON (fixed field list, consumed by `storageinfo` parsers); the marshalled
-  reply is frame-capped at 24 MiB.
+  distro paths only, resolving symlinks and requiring the resolved target and
+  every ancestor directory to be root-owned and non-group/other-writable (a
+  multi-call `lvs -> lvm` symlink is executed by its original name so argv[0]
+  dispatches correctly). Missing or insecure binaries fail closed and surface
+  as a typed Partial result.
+- **Output:** blkid export is key-allow-listed with LABEL/PARTLABEL dropped
+  and every value bounded to 255 printable bytes; LVM reports are bounded raw
+  JSON (fixed field list, consumed by `storageinfo` parsers); the reply is
+  frame-capped (24 MiB) via an encoded-size preflight with HTML escaping off and
+  a bounded marshal, so an oversized result is rejected before allocation.
 
 Remaining unverified gates (helper stays inert/unaccepted): O-1 device-open
 owner decision; dedicated SELinux policy; KVM/systemd-container evidence; real
