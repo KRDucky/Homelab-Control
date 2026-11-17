@@ -781,3 +781,47 @@ func TestAssembleMalformedAndUnsupported(t *testing.T) {
 		t.Fatalf("notes = %v, want both malformed size and unsupported segment", vg.Notes)
 	}
 }
+
+func TestMalformedRequiredScalars(t *testing.T) {
+	// A CRC-valid but malformed required scalar (missing or non-numeric) must
+	// mark the VG/PV malformed and partial, never a silent zero + complete.
+	tests := []struct {
+		name      string
+		old, repl string
+		vgLevel   bool
+	}{
+		{"seqno-invalid", "seqno = 2", "seqno = xyz", true},
+		{"extent_size-invalid", "extent_size = 8192", "extent_size = xyz", true},
+		{"pe_start-invalid", "pe_start = 2048", "pe_start = xyz", false},
+		{"pe_count-invalid", "pe_count = 1024", "pe_count = xyz", false},
+		{"seqno-missing", "    seqno = 2\n", "", true},
+		{"extent_size-missing", "    extent_size = 8192\n", "", true},
+		{"pe_start-missing", "            pe_start = 2048\n", "", false},
+		{"pe_count-missing", "            pe_count = 1024\n", "", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			text := strings.Replace(testVGMeta, tc.old, tc.repl, 1)
+			root, err := parseText([]byte(text))
+			if err != nil {
+				t.Fatalf("parse text: %v", err)
+			}
+			vg, err := ParseVG("vg1", findVGNode(root))
+			if err != nil {
+				t.Fatalf("ParseVG: %v", err)
+			}
+			if tc.vgLevel {
+				if !vg.Malformed {
+					t.Fatalf("VG.Malformed = false for %q", tc.name)
+				}
+			} else if len(vg.PVs) != 1 || !vg.PVs[0].Malformed {
+				t.Fatalf("pv Malformed = false: %+v", vg.PVs)
+			}
+			pv := PVRead{Device: "vdb", Status: StatusOK, Text: []byte(text), Label: &Label{PVUUID: testPVUUID}}
+			inv := Assemble([]PVRead{pv})
+			if len(inv.VGs) != 1 || inv.VGs[0].State != StateMalformed {
+				t.Fatalf("assemble state = %+v, want partial-malformed", inv.VGs)
+			}
+		})
+	}
+}

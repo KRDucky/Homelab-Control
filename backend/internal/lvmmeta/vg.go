@@ -155,6 +155,9 @@ type VG struct {
 	PVs        []VGPV
 	LVs        []LV
 	State      VGState
+	// Malformed is set when a required VG-level scalar (seqno, extent_size) is
+	// missing or invalid; the VG must then never be reported complete.
+	Malformed bool
 	// Notes accumulates every partial condition (missing PV, inconsistent,
 	// malformed size, unsupported segment) so no single State value hides a
 	// second one.
@@ -179,11 +182,15 @@ func ParseVG(name string, n *Node) (*VG, error) {
 	if id := n.child("id"); id != nil && id.Kind == kindScalar {
 		vg.UUID = undash(id.Value)
 	}
-	if seq := n.child("seqno"); seq != nil && seq.Kind == kindScalar {
-		vg.Seqno, _ = strconv.ParseUint(seq.Value, 10, 64)
+	if v, ok := requiredUint(n, "seqno"); ok {
+		vg.Seqno = v
+	} else {
+		vg.Malformed = true
 	}
-	if es := n.child("extent_size"); es != nil && es.Kind == kindScalar {
-		vg.ExtentSize, _ = strconv.ParseUint(es.Value, 10, 64)
+	if v, ok := requiredUint(n, "extent_size"); ok {
+		vg.ExtentSize = v
+	} else {
+		vg.Malformed = true
 	}
 	vg.Status = stringArray(n.child("status"))
 	vg.Flags = stringArray(n.child("flags"))
@@ -215,7 +222,7 @@ func parseVGPV(key string, n *Node) VGPV {
 	if d := n.child("device"); d != nil {
 		p.DeviceHint = d.Value
 	}
-	if d := n.child("dev_size"); d != nil {
+	if d := n.child("dev_size"); d != nil && d.Kind == kindScalar {
 		// Text dev_size is in 512-byte sectors (lvm2 internal unit); the graph
 		// and identity checks use bytes, so convert. Overflow is rejected, never
 		// wrapped (C9): a hostile sector count becomes a typed partial VG.
@@ -227,12 +234,18 @@ func parseVGPV(key string, n *Node) VGPV {
 		} else {
 			p.Malformed = true
 		}
+	} else {
+		p.Malformed = true // dev_size is required
 	}
-	if d := n.child("pe_start"); d != nil {
-		p.PEStart, _ = strconv.ParseUint(d.Value, 10, 64)
+	if v, ok := requiredUint(n, "pe_start"); ok {
+		p.PEStart = v
+	} else {
+		p.Malformed = true
 	}
-	if d := n.child("pe_count"); d != nil {
-		p.PECount, _ = strconv.ParseUint(d.Value, 10, 64)
+	if v, ok := requiredUint(n, "pe_count"); ok {
+		p.PECount = v
+	} else {
+		p.Malformed = true
 	}
 	p.Flags = stringArray(n.child("flags"))
 	p.Presence = PresenceMissingFlag
@@ -335,6 +348,21 @@ func uintChild(n *Node, name string) uint64 {
 		return v
 	}
 	return 0
+}
+
+// requiredUint reads a required scalar uint child; ok is false when the child
+// is missing, wrong-kind, or not a valid base-10 uint64 (C9: a malformed
+// required scalar must become typed partial, never a silent zero).
+func requiredUint(n *Node, name string) (uint64, bool) {
+	d := n.child(name)
+	if d == nil || d.Kind != kindScalar {
+		return 0, false
+	}
+	v, err := strconv.ParseUint(d.Value, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return v, true
 }
 
 // strChild reads a child's string value, "" when absent.
@@ -495,7 +523,7 @@ func Assemble(pvs []PVRead) Inventory {
 				missing = true
 			}
 		}
-		malformed := hasMalformedPV(vg)
+		malformed := vg.Malformed || hasMalformedPV(vg)
 		unsupported := hasUnsupportedSegment(vg)
 		prefix := "vg " + vg.Name + ": "
 		if missing {
