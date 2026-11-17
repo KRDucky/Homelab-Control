@@ -723,6 +723,16 @@ export function getStorage(csrf: string): Promise<StorageInventory> {
   return request<StorageInventory>('/api/v1/storage', { headers: { 'X-CSRF-Token': csrf } });
 }
 
+/** On-demand read-only probe: enumerates and revalidates devices server-side
+ * and returns the enriched inventory in the same shape as getStorage. This is
+ * an explicit CSRF-protected POST (scope storage.probe), never a polling GET. */
+export function probeStorage(csrf: string): Promise<StorageInventory> {
+  return request<StorageInventory>('/api/v1/storage/probe', {
+    method: 'POST',
+    headers: { 'X-CSRF-Token': csrf },
+  });
+}
+
 // M2-6 skeleton: read-only host settings and a non-executing preview.
 export interface HostSetting {
   value?: string;
