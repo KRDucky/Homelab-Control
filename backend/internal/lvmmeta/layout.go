@@ -124,10 +124,20 @@ type readAt struct {
 }
 
 func (a readAt) ReadAt(p []byte, off int64) (int, error) {
-	if off < 0 || uint64(off)+uint64(len(p)) > a.size {
+	if off < 0 {
+		return 0, fmt.Errorf("read past end of device")
+	}
+	end, overflow := addU64(uint64(off), uint64(len(p)))
+	if overflow || end > a.size {
 		return 0, fmt.Errorf("read past end of device")
 	}
 	return a.r.ReadAt(p, off)
+}
+
+// addU64 returns a+b and whether it overflowed (C9 checked arithmetic).
+func addU64(a, b uint64) (uint64, bool) {
+	sum := a + b
+	return sum, sum < a
 }
 
 // ReadPV reads the label, MDA headers and metadata text from r within
@@ -316,31 +326,36 @@ func parsePVHeader(b []byte, mdaBase uint64) (uuid string, devSize uint64, data,
 	devSize = leUint64(b[IDLen : IDLen+8])
 	pos := IDLen + 8
 
-	// Data areas.
+	// Data areas: must be NULL-terminated; a list that runs off the 512-byte
+	// sector without a zero disk_locn is malformed (C8).
+	term := false
 	for len(data) <= MaxDataAreas && pos+16 <= len(b) {
 		off := leUint64(b[pos : pos+8])
 		sz := leUint64(b[pos+8 : pos+16])
 		pos += 16
 		if off == 0 && sz == 0 {
+			term = true
 			break
 		}
 		data = append(data, DiskLocn{Offset: off, Size: sz})
 	}
-	if len(data) > MaxDataAreas {
-		return "", 0, nil, nil, 0, StatusLimitExceeded
+	if !term || len(data) > MaxDataAreas {
+		return "", 0, nil, nil, 0, StatusPVHeaderOverrun
 	}
-	// Metadata areas.
+	// Metadata areas: same NULL-termination requirement.
+	term = false
 	for len(mdas) <= MaxMetadataAreas && pos+16 <= len(b) {
 		off := leUint64(b[pos : pos+8])
 		sz := leUint64(b[pos+8 : pos+16])
 		pos += 16
 		if off == 0 && sz == 0 {
+			term = true
 			break
 		}
 		mdas = append(mdas, DiskLocn{Offset: off, Size: sz})
 	}
-	if len(mdas) > MaxMetadataAreas {
-		return "", 0, nil, nil, 0, StatusLimitExceeded
+	if !term || len(mdas) > MaxMetadataAreas {
+		return "", 0, nil, nil, 0, StatusPVHeaderOverrun
 	}
 	// Optional pv_header_extension: version + flags (8 bytes) if present.
 	if pos+8 <= len(b) {
@@ -403,25 +418,42 @@ func readMDA(rd readAt, mda DiskLocn) ([]MDACopy, PVStatus) {
 // extractText reads one raw_locn copy's metadata text from the circular MDA
 // area, handling wrap, and validates its checksum (format-text.c _vg_read_raw).
 func extractText(rd readAt, mdaStart, mdaSize uint64, copy MDACopy) ([]byte, PVStatus) {
-	if copy.Offset >= mdaSize || copy.TextSize > mdaSize-MDAHeaderSize || copy.TextSize > MaxMetadataText {
+	// Bounds are overflow-checked (C9).
+	if copy.Offset >= mdaSize || mdaSize < MDAHeaderSize {
+		return nil, StatusMetadataTooLarge
+	}
+	avail := mdaSize - MDAHeaderSize
+	if copy.TextSize > avail || copy.TextSize > MaxMetadataText {
+		return nil, StatusMetadataTooLarge
+	}
+	end, overflow := addU64(copy.Offset, copy.TextSize)
+	if overflow {
 		return nil, StatusMetadataTooLarge
 	}
 	var wrap uint64
-	if copy.Offset+copy.TextSize > mdaSize {
-		wrap = copy.Offset + copy.TextSize - mdaSize
+	if end > mdaSize {
+		wrap = end - mdaSize
 	}
 	head := copy.TextSize - wrap
 	out := make([]byte, 0, copy.TextSize)
 	if head > 0 {
 		b := make([]byte, head)
-		if _, err := rd.ReadAt(b, int64(mdaStart+copy.Offset)); err != nil {
+		start, overflow := addU64(mdaStart, copy.Offset)
+		if overflow {
+			return nil, StatusMDAOutOfRange
+		}
+		if _, err := rd.ReadAt(b, int64(start)); err != nil {
 			return nil, StatusReadError
 		}
 		out = append(out, b...)
 	}
 	if wrap > 0 {
 		b := make([]byte, wrap)
-		if _, err := rd.ReadAt(b, int64(mdaStart+MDAHeaderSize)); err != nil {
+		start, overflow := addU64(mdaStart, MDAHeaderSize)
+		if overflow {
+			return nil, StatusMDAOutOfRange
+		}
+		if _, err := rd.ReadAt(b, int64(start)); err != nil {
 			return nil, StatusReadError
 		}
 		out = append(out, b...)
