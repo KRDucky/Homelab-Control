@@ -164,7 +164,7 @@ func TestRunCollectsAndRevalidates(t *testing.T) {
 	}}
 	res := Run(context.Background(), req)
 
-	// Probed devices: whole disk + partition, resolved via /dev/block/MAJ:MIN.
+	// Probed devices: whole disk + partition, identity pinned via inherited fd.
 	for _, want := range []string{"sda", "sda1", "nvme0n1p1"} {
 		if _, ok := res.Blkid[want]; !ok {
 			t.Fatalf("device %q not probed: %+v", want, res)
@@ -182,19 +182,68 @@ func TestRunCollectsAndRevalidates(t *testing.T) {
 		}
 	}
 
-	// The fake blkid logged the resolved /dev/block paths, never /dev/<name>.
+	// The fake blkid logged the pinned proc-fd path, never a kernel-name or
+	// /dev/block path.
 	log, err := os.ReadFile(blkidLog)
 	if err != nil {
 		t.Fatal(err)
 	}
 	got := string(log)
-	for _, want := range []string{"/dev/block/8:0", "/dev/block/8:1", "/dev/block/259:1"} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("blkid did not get resolved path %s; log: %q", want, got)
-		}
+	if !strings.Contains(got, "/proc/self/fd/3") {
+		t.Fatalf("blkid did not get the pinned proc fd path; log: %q", got)
 	}
-	if strings.Contains(got, "/dev/sda\n") || strings.Contains(got, "/dev/sda ") {
-		t.Fatalf("blkid got raw /dev/<name> instead of /dev/block/MAJ:MIN: %q", got)
+	if strings.Contains(got, "/dev/block/") || strings.Contains(got, "/dev/sda") {
+		t.Fatalf("blkid got a re-resolved path instead of the pinned fd: %q", got)
+	}
+}
+
+func TestBlkidReadsPinnedFd(t *testing.T) {
+	base := t.TempDir()
+	sys := filepath.Join(base, "block")
+	devs := filepath.Join(base, "devs")
+	if err := os.MkdirAll(sys, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(devs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mkdev(t, devs, "sda", "8:0", "", "0", "")
+	link(t, sys, devs, "sda")
+
+	// A temp file stands in for the pinned device. Its content must be what the
+	// fake blkid reads through the inherited fd (/proc/self/fd/3), not a path.
+	pinned := filepath.Join(base, "device")
+	if err := os.WriteFile(pinned, []byte("PINNED-DEVICE"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	bin := filepath.Join(base, "bin")
+	if err := os.MkdirAll(bin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeScript(t, filepath.Join(bin, "lvs"), "#!/bin/sh\necho '{}'\n")
+	writeScript(t, filepath.Join(bin, "pvs"), "#!/bin/sh\necho '{}'\n")
+	writeScript(t, filepath.Join(bin, "blkid"), "#!/bin/sh\necho \"TYPE=$(cat /proc/self/fd/3)\"\n")
+
+	oldSys, oldBin, oldOpen, oldMin, oldLast := sysBlockRoot, binaries, openAndVerify, minRunInterval, lastRun
+	sysBlockRoot = sys
+	binaries = map[string]string{
+		"lvs":   filepath.Join(bin, "lvs"),
+		"pvs":   filepath.Join(bin, "pvs"),
+		"blkid": filepath.Join(bin, "blkid"),
+	}
+	openAndVerify = func(path string, maj, min uint64) (*os.File, error) {
+		return os.Open(pinned)
+	}
+	minRunInterval = 0
+	lastRun = time.Time{}
+	t.Cleanup(func() {
+		sysBlockRoot, binaries, openAndVerify, minRunInterval, lastRun = oldSys, oldBin, oldOpen, oldMin, oldLast
+	})
+
+	res := Run(context.Background(), Request{Version: 1, Devices: []string{"sda"}})
+	if got := res.Blkid["sda"]; !strings.Contains(got, "TYPE=PINNED-DEVICE") {
+		t.Fatalf("blkid did not read the pinned fd (got %q)", got)
 	}
 }
 
@@ -355,7 +404,7 @@ func TestRunSuppressesFailedOutput(t *testing.T) {
 	binaries = map[string]string{"lvs": filepath.Join(bin, "lvs")}
 	t.Cleanup(func() { binaries = old })
 
-	out, err := run(context.Background(), 5*time.Second, 1<<20, "lvs", nil, nil)
+	out, err := run(context.Background(), 5*time.Second, 1<<20, "lvs", nil, nil, nil)
 	if err == nil {
 		t.Fatal("expected error for failing command")
 	}

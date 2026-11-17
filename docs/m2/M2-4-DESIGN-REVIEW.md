@@ -53,16 +53,17 @@ device policy, identity handling, and distro security evidence are implemented.
 - **Binary:** `hc-storage-probe` (`backend/cmd/hc-storage-probe`), built from
   `backend/internal/storageprobe`. It reads one closed typed Request from
   stdin and writes one closed typed Result to stdout.
-- **Device resolution (inert; not TOCTOU-safe for activation):** the helper
-  revalidates names against `/sys/class/block` and attempts to open
-  `/dev/block/MAJ:MIN`, but the shipped `PrivateDevices=yes` unit hides device
-  nodes, so this open fails closed. The code does not pass that validated fd
-  into `blkid`/LVM; those templates use paths and could reopen a different
-  device if names changed. `/dev/block` symlink behavior also needs validation.
-  Do not activate or wire this helper until O-1 defines a device-open model that
-  pins identity across the helper and child tools. Current results mark every
-  unavailable or skipped device partial; they must not be interpreted as a
-  complete inventory.
+- **Device resolution (blkid fd-pinned; LVM path-based):** each name is
+  revalidated against `/sys/class/block`, resolved to `/dev/block/MAJ:MIN`,
+  opened following the symlink, and fstat-checked to be a block device whose
+  rdev matches the resolved MAJ:MIN, with `diskseq` read before/after. blkid
+  reads that exact fd via `/proc/self/fd/3` (the fd is inherited as the first
+  extra file), so its identity is pinned to the opened device, not a re-resolved
+  path. lvs/pvs cannot safely consume a single inherited fd: they scan a device
+  *set* by path, so they stay on the fixed `devices{filter=[…]}` filter plus a
+  `diskseq` recheck — a weaker TOCTOU posture, documented below as the remaining
+  LVM blocker. When identity cannot be verified (e.g. the fail-closed unit has
+  no device access), the device is reported and the result is Partial.
 - **Skip by default:** loop/zram/ram/sr/fd/nbd/rbd and device-mapper (multipath,
   LVM, crypt); removable and USB media (via the resolved `device` sysfs link);
   devices whose sysfs state is not `running`. Partitions inherit their whole
@@ -99,11 +100,14 @@ implemented.
 
 ## O-1 helper — final repair notes (2026-11-17)
 
-- **Identity handling (not yet sufficient for activation):** the helper resolves each name to `/dev/block/MAJ:MIN`,
-  opens `O_NOFOLLOW`, fstat-checks block type + rdev (stdlib `makedev`) and
-  reads `diskseq` before/after. In the fail-closed unit the open always fails
-  (no device access), so every device is reported as `skip` + `Partial` rather
-  than implying validated identity.
+- **Identity handling (blkid fd-pinned; LVM still path-based):** each name is
+  resolved to `/dev/block/MAJ:MIN`, opened following the symlink, fstat-checked
+  block+rdev, and `diskseq`-checked before/after. blkid reads the pinned fd via
+  `/proc/self/fd/3` (fd inherited as the first extra file), so it cannot
+  re-resolve a kernel-name path. lvs/pvs cannot consume a single inherited fd
+  for their device scan, so they remain on the fixed filter + `diskseq` recheck
+  (weaker). When identity cannot be verified (e.g. no device access in the
+  fail-closed unit), every device is reported `skip` + `Partial`.
 - **LVM config:** `devices{hints="none" filter=[…]}` + private empty
   `LVM_SYSTEM_DIR`. The `hints="none"` and quoted `"a|regex|"`/`"r|regex|"` filter patterns follow
   the LVM primary docs, but are **unverified** here (no lvs/pvs binary in this
@@ -130,7 +134,9 @@ implemented.
   frame-capped (24 MiB) via an encoded-size preflight with HTML escaping off,
   and the writer rejects over-limit frames.
 
-Remaining gates (helper stays inert): implement identity pinning through child
-tool opens; dedicated SELinux/AppArmor policy; KVM/systemd-container evidence;
-real lvs/pvs output validation; and broker integration (CSRF POST + non-default
+Remaining gates (helper stays inert): pin lvs/pvs to the opened device set
+(LVM does not consume a single inherited fd for its scan; needs a real lvm
+binary or an owner decision to confirm `--devices /proc/self/fd/N` is safe);
+dedicated SELinux/AppArmor policy; KVM/systemd-container evidence; real lvs/pvs
+output validation; and broker integration (CSRF POST + non-default
 `storage.probe` scope + audit/rate limit, never a polling GET).
