@@ -372,3 +372,56 @@ func TestRunTotalDeadline(t *testing.T) {
 		t.Fatalf("expected Partial under deadline: %+v", res)
 	}
 }
+
+func TestRunEmptyRequestPartial(t *testing.T) {
+	fixture(t)
+	res := Run(context.Background(), Request{Version: 1})
+	if !res.Partial {
+		t.Fatalf("empty request should be partial: %+v", res)
+	}
+	found := false
+	for _, e := range res.Errors {
+		if strings.Contains(e, "no devices requested") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("missing no-devices error: %+v", res.Errors)
+	}
+}
+
+func TestSecureToolPath(t *testing.T) {
+	dir := t.TempDir()
+	w := filepath.Join(dir, "w")
+	if err := os.WriteFile(w, []byte("x"), 0o777); err != nil {
+		t.Fatal(err)
+	}
+	l := filepath.Join(dir, "l")
+	if err := os.Symlink("/bin/sh", l); err != nil {
+		t.Fatal(err)
+	}
+	missing := filepath.Join(dir, "nope")
+	ok := filepath.Join(dir, "ok")
+	if err := os.WriteFile(ok, []byte("x"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := secureToolPath([]string{w}); err == nil {
+		t.Fatal("group/other-writable binary accepted")
+	}
+	if _, err := secureToolPath([]string{l}); err == nil {
+		t.Fatal("symlink binary accepted")
+	}
+	if _, err := secureToolPath([]string{missing}); err == nil {
+		t.Fatal("missing binary accepted")
+	}
+	if os.Getuid() == 0 {
+		if p, err := secureToolPath([]string{ok}); err != nil || p != ok {
+			t.Fatalf("root-owned secure binary not accepted: %v", err)
+		}
+	} else {
+		if _, err := secureToolPath([]string{ok}); err == nil {
+			t.Fatal("non-root-owned binary accepted (UID check missing)")
+		}
+	}
+}

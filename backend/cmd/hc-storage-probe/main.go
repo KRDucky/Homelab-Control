@@ -22,6 +22,10 @@ import (
 // this proves the request is oversized, so a truncated request is rejected.
 const maxRequestBytes = 1 << 20
 
+// maxResponseBytes is the closed-protocol output frame cap. Result fields are
+// individually bounded; this is the hard frame limit on the marshalled reply.
+const maxResponseBytes = 24 << 20
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, "hc-storage-probe:", err)
@@ -50,10 +54,16 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("request: %w", err)
 	}
+	if err := storageprobe.ResolveToolPaths(); err != nil {
+		return fmt.Errorf("tools: %w", err)
+	}
 	res := storageprobe.Run(context.Background(), req)
 	out, err := storageprobe.MarshalResponse(res)
 	if err != nil {
 		return fmt.Errorf("response: %w", err)
+	}
+	if len(out) > maxResponseBytes {
+		return fmt.Errorf("response too large: %d bytes, max %d", len(out), maxResponseBytes)
 	}
 	if _, err := os.Stdout.Write(out); err != nil {
 		return fmt.Errorf("writing response: %w", err)

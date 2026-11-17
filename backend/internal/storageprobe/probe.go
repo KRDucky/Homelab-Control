@@ -60,9 +60,10 @@ var (
 	lastRun        time.Time
 	minRunInterval = time.Second
 	// totalTimeout bounds the whole Run across all devices. It is a var so
-	// tests can shrink it; the real cross-instance serialisation is the
-	// socket's MaxConnections.
-	totalTimeout = 60 * time.Second
+	// tests can shrink it; it must stay below the unit's TimeoutStartSec (30s)
+	// so the helper reports a clean deadline instead of being SIGKILLed first.
+	// The real cross-instance serialisation is the socket's MaxConnections.
+	totalTimeout = 25 * time.Second
 )
 
 // LVM report field lists. These request exactly the fields the storageinfo
@@ -82,11 +83,60 @@ const (
 var blockName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.!:-]{0,254}$`)
 
 // binaries maps a fixed tool to its absolute path. It is a var so synthetic
-// tests can point at fake scripts; production uses the fixed reviewed paths.
+// tests can point at fake scripts; production resolves secure paths at startup
+// via ResolveToolPaths.
 var binaries = map[string]string{
 	"lvs":   "/usr/sbin/lvs",
 	"pvs":   "/usr/sbin/pvs",
 	"blkid": "/usr/sbin/blkid",
+}
+
+// toolCandidates lists reviewed absolute paths per tool across distros, in
+// preference order. Only these exact paths are ever accepted.
+var toolCandidates = map[string][]string{
+	"lvs":   {"/usr/sbin/lvs", "/sbin/lvs", "/usr/bin/lvs"},
+	"pvs":   {"/usr/sbin/pvs", "/sbin/pvs", "/usr/bin/pvs"},
+	"blkid": {"/usr/sbin/blkid", "/sbin/blkid", "/usr/bin/blkid"},
+}
+
+// ResolveToolPaths locates each tool at a reviewed path and verifies it is a
+// regular, root-owned, non-writable-by-others file (no symlink escape). It
+// fails closed if any tool is missing or insecure.
+func ResolveToolPaths() error {
+	for tool := range binaries {
+		path, err := secureToolPath(toolCandidates[tool])
+		if err != nil {
+			return fmt.Errorf("%s: %w", tool, err)
+		}
+		binaries[tool] = path
+	}
+	return nil
+}
+
+// secureToolPath returns the first candidate that exists, is a regular file
+// (not a symlink), is not writable by group or other, and is owned by root.
+func secureToolPath(candidates []string) (string, error) {
+	for _, p := range candidates {
+		fi, err := os.Lstat(p)
+		if err != nil {
+			continue
+		}
+		if fi.Mode()&os.ModeSymlink != 0 {
+			continue
+		}
+		if !fi.Mode().IsRegular() {
+			continue
+		}
+		if fi.Mode().Perm()&0o022 != 0 {
+			continue
+		}
+		st, ok := fi.Sys().(*syscall.Stat_t)
+		if !ok || st.Uid != 0 {
+			continue
+		}
+		return p, nil
+	}
+	return "", fmt.Errorf("no secure binary (checked %v)", candidates)
 }
 
 // env is the scrubbed child environment: no inherited PATH, secrets, locale or
@@ -166,9 +216,20 @@ func Run(ctx context.Context, req Request) Result {
 		d, err := resolveDevice(n)
 		if err != nil {
 			res.Errors = append(res.Errors, "skip "+n+": "+err.Error())
+			res.Partial = true
 			continue
 		}
 		devs = append(devs, d)
+	}
+
+	// Empty or fully-ineligible input must be an explicit partial result, not
+	// a clean empty success.
+	if len(req.Devices) == 0 {
+		res.Errors = append(res.Errors, "no devices requested")
+		res.Partial = true
+	} else if len(devs) == 0 {
+		res.Errors = append(res.Errors, "no eligible devices to probe")
+		res.Partial = true
 	}
 	defer func() {
 		for _, d := range devs {
