@@ -292,29 +292,6 @@ func TestFilterBlkidExportBoundsValues(t *testing.T) {
 	}
 }
 
-func TestLvmConfig(t *testing.T) {
-	c := lvmConfig([]string{"sda", "nvme0n1"})
-	for _, want := range []string{
-		"hints=\"none\"",
-		`"a|^/dev/sda$|"`,
-		`"a|^/dev/nvme0n1$|"`,
-		`"r|.*|"`,
-	} {
-		if !strings.Contains(c, want) {
-			t.Fatalf("lvmConfig missing %q in %q", want, c)
-		}
-	}
-	// The only regex metacharacter a block name can carry is '.', which must be
-	// escaped as a character class (no backslash) inside the quoted pattern.
-	c2 := lvmConfig([]string{"vda.1"})
-	if !strings.Contains(c2, `"a|^/dev/vda[.]1$|"`) {
-		t.Fatalf("dot not escaped: %q", c2)
-	}
-	if strings.Contains(c2, `\`) {
-		t.Fatalf("lvmConfig introduced a backslash: %q", c2)
-	}
-}
-
 func TestLVMDisabledByDefault(t *testing.T) {
 	// lvs/pvs scan by path and their fd identity binding is unproven, so the
 	// activation path must keep LVM absent: LVMEnabled defaults false and the

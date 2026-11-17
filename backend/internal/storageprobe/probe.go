@@ -40,14 +40,14 @@ import (
 	"syscall"
 	"time"
 	"unicode/utf8"
+
+	"homelab-control/backend/internal/lvmmeta"
 )
 
 // Fixed resource bounds.
 const (
-	maxReportBytes = 8 << 20         // per LVM report
-	maxBlkidBytes  = 16 << 10        // per-device blkid cap: 64×16 KiB = 1 MiB raw, ~2 MiB encoded
-	maxStderrBytes = 4 << 10         // bounded child stderr; never returned
-	reportTimeout  = 5 * time.Second // LVM budget: lvs+pvs ≤ ~10s, leaving time for blkid
+	maxBlkidBytes  = 16 << 10 // per-device blkid cap: 64×16 KiB = 1 MiB raw, ~2 MiB encoded
+	maxStderrBytes = 4 << 10  // bounded child stderr; never returned
 	blkidTimeout   = 5 * time.Second
 	maxDevices     = 64 // device names accepted per request
 )
@@ -73,19 +73,6 @@ var (
 	LVMEnabled = false
 )
 
-// LVM report field lists. These request exactly the fields the storageinfo
-// parsers consume; "original" JSON (string-valued columns) is used, with byte
-// units and no suffix, so json_std numeric output is never produced.
-const (
-	lvsFields = "lv_uuid,lv_name,vg_uuid,vg_name,lv_parent,lv_size,lv_attr," +
-		"lv_health_status,raid_sync_action,sync_percent,cache_total_blocks," +
-		"cache_used_blocks,cache_dirty_blocks,origin_uuid,pool_lv_uuid," +
-		"data_lv_uuid,metadata_lv_uuid,segtype,seg_start,seg_size,cache_mode," +
-		"cache_policy,devices,metadata_devices"
-	pvsFields = "pv_uuid,pv_name,vg_uuid,vg_name,pv_attr,pv_missing,pv_major," +
-		"pv_minor,dev_size,lv_uuid,pvseg_start,pvseg_size"
-)
-
 // blockName is the kernel block-device name grammar (sdX, nvmeNnM, dm-N, …).
 var blockName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.!:-]{0,254}$`)
 
@@ -93,16 +80,12 @@ var blockName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.!:-]{0,254}$`)
 // tests can point at fake scripts; production resolves secure paths at startup
 // via ResolveToolPaths.
 var binaries = map[string]string{
-	"lvs":   "/usr/sbin/lvs",
-	"pvs":   "/usr/sbin/pvs",
 	"blkid": "/usr/sbin/blkid",
 }
 
 // toolCandidates lists reviewed absolute paths per tool across distros, in
 // preference order. Only these exact paths are ever accepted.
 var toolCandidates = map[string][]string{
-	"lvs":   {"/usr/sbin/lvs", "/sbin/lvs", "/usr/bin/lvs"},
-	"pvs":   {"/usr/sbin/pvs", "/sbin/pvs", "/usr/bin/pvs"},
 	"blkid": {"/usr/sbin/blkid", "/sbin/blkid", "/usr/bin/blkid"},
 }
 
@@ -249,6 +232,7 @@ type device struct {
 	name string
 	path string
 	f    *os.File
+	size uint64 // device size in bytes (sysfs size * 512)
 }
 
 // Request is the closed typed input. Devices are kernel block names only.
@@ -261,13 +245,14 @@ type Request struct {
 // json reports; Blkid maps a device name to its allow-listed blkid -o export
 // output.
 type Result struct {
-	Version int               `json:"version"`
-	Code    string            `json:"code,omitempty"` // closed result/refusal code; "" = normal
-	LVS     string            `json:"lvs,omitempty"`
-	PVS     string            `json:"pvs,omitempty"`
-	Blkid   map[string]string `json:"blkid,omitempty"`
-	Errors  []string          `json:"errors,omitempty"`
-	Partial bool              `json:"partial"`
+	Version int                `json:"version"`
+	Code    string             `json:"code,omitempty"` // closed result/refusal code; "" = normal
+	LVS     string             `json:"lvs,omitempty"`
+	PVS     string             `json:"pvs,omitempty"`
+	LVM     *lvmmeta.Inventory `json:"lvm,omitempty"` // native on-disk reader output (LVMEnabled)
+	Blkid   map[string]string  `json:"blkid,omitempty"`
+	Errors  []string           `json:"errors,omitempty"`
+	Partial bool               `json:"partial"`
 }
 
 // Closed result codes. CodeDevicePolicyUnresolved is the typed fail-closed
@@ -345,42 +330,18 @@ func Run(ctx context.Context, req Request) Result {
 		}
 	}()
 
-	probeNames := make([]string, len(devs))
-	for i, d := range devs {
-		probeNames[i] = d.name
-	}
-
-	// LVM is gated behind LVMEnabled: lvs/pvs scan devices by path, and their
-	// fd identity binding is not yet proven, so they must not run on an
-	// activation path. When disabled, the result is Partial and LVM is absent.
+	// LVM is gated behind LVMEnabled. When enabled, the native read-only LVM
+	// metadata reader parses the already-pinned fds (no lvs/pvs execution).
 	if !LVMEnabled {
-		res.Errors = append(res.Errors, "lvm disabled: lvs/pvs device identity binding is unproven")
+		res.Errors = append(res.Errors, "lvm disabled: native LVM reader is off")
 		res.Partial = true
 	} else {
-		// LVM: private empty config dir + fixed filter so no host lvm.conf or
-		// devices file influences the scan, and only enumerated devices are seen.
-		lvmDir, err := os.MkdirTemp("", "hc-storage-probe-lvm-")
-		if err != nil {
-			res.Errors = append(res.Errors, "lvm: "+err.Error())
-			res.Partial = true
-			return res
+		pvs := make([]lvmmeta.PVRead, 0, len(devs))
+		for _, d := range devs {
+			pvs = append(pvs, lvmmeta.ReadPV(d.f, d.size, d.name))
 		}
-		lvmEnv := []string{"LVM_SYSTEM_DIR=" + lvmDir}
-
-		lvs, err := run(ctx, reportTimeout, maxReportBytes, "lvs", lvsArgs(probeNames), lvmEnv, nil)
-		if err != nil {
-			res.Errors = append(res.Errors, "lvs: "+err.Error())
-			res.Partial = true
-		}
-		res.LVS = lvs
-
-		pvs, err := run(ctx, reportTimeout, maxReportBytes, "pvs", pvsArgs(probeNames), lvmEnv, nil)
-		if err != nil {
-			res.Errors = append(res.Errors, "pvs: "+err.Error())
-			res.Partial = true
-		}
-		res.PVS = pvs
-		_ = os.RemoveAll(lvmDir)
+		inv := lvmmeta.Assemble(pvs)
+		res.LVM = &inv
 	}
 
 	for _, d := range devs {
@@ -425,39 +386,6 @@ func admit() bool {
 }
 
 func release() { <-runSem }
-
-// lvsArgs is the fixed lvs template: read-only, hints disabled, fixed private
-// device filter, byte units, all LVs with their segments, fixed fields.
-func lvsArgs(names []string) []string {
-	return []string{
-		"--readonly", "--reportformat", "json", "--units", "b", "--nosuffix",
-		"-a", "--segments", "-o", lvsFields, "--config", lvmConfig(names),
-	}
-}
-
-// pvsArgs is the fixed pvs --segments template.
-func pvsArgs(names []string) []string {
-	return []string{
-		"--readonly", "--segments", "--reportformat", "json", "--units", "b",
-		"--nosuffix", "-o", pvsFields, "--config", lvmConfig(names),
-	}
-}
-
-// lvmConfig builds a fixed LVM devices{} override: hints off and a filter that
-// accepts only the enumerated device names and rejects everything else, so no
-// host device file or other disk is ever scanned.
-func lvmConfig(names []string) string {
-	patterns := make([]string, 0, len(names)+1)
-	for _, n := range names {
-		// blockName guarantees the name is only [a-zA-Z0-9_.!:-], so the single
-		// regex metacharacter is '.', escaped as a character class so the LVM
-		// config string needs no backslash and cannot break out of the quotes.
-		dev := strings.ReplaceAll(n, ".", "[.]")
-		patterns = append(patterns, `"a|^/dev/`+dev+`$|"`)
-	}
-	patterns = append(patterns, `"r|.*|"`)
-	return "devices{hints=\"none\" filter=[" + strings.Join(patterns, ",") + "]}"
-}
 
 // blkidProcfd is the path blkid receives for the device. The device fd is the
 // first ExtraFile (child fd 3), so /proc/self/fd/3 re-opens that exact pinned
@@ -622,7 +550,17 @@ func resolveDevice(name string) (*device, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &device{name: name, path: path, f: f}, nil
+	return &device{name: name, path: path, f: f, size: deviceSizeBytes(name)}, nil
+}
+
+// deviceSizeBytes reads /sys/class/block/<name>/size (512-byte sectors) and
+// returns the device size in bytes. It is 0 when unreadable.
+func deviceSizeBytes(name string) uint64 {
+	sectors, err := strconv.ParseUint(readTrim(sysBlockRoot+"/"+name+"/size"), 10, 64)
+	if err != nil {
+		return 0
+	}
+	return sectors * 512
 }
 
 // openAndVerify opens path read-only, following the /dev/block symlink to the
