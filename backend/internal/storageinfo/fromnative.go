@@ -165,11 +165,15 @@ func areaNames(areas []lvmmeta.Area) string {
 	return strings.Join(names, ",")
 }
 
-// dashUUID formats a 32-char undashed hex UUID as 8-4-4-4-12. Non-UUID-length
-// strings are returned unchanged.
+// dashUUID formats a 32-char undashed LVM2 UUID as 6-4-4-4-4-4-6 (the
+// id_write_format group sizes). A '#-prefixed' new-format UUID is returned
+// undashed. Non-32-char strings are returned unchanged.
 func dashUUID(undashed string) string {
 	if len(undashed) != 32 {
 		return undashed
 	}
-	return undashed[0:8] + "-" + undashed[8:12] + "-" + undashed[12:16] + "-" + undashed[16:20] + "-" + undashed[20:32]
+	if undashed[0] == '#' {
+		return undashed
+	}
+	return undashed[0:6] + "-" + undashed[6:10] + "-" + undashed[10:14] + "-" + undashed[14:18] + "-" + undashed[18:22] + "-" + undashed[22:26] + "-" + undashed[26:32]
 }

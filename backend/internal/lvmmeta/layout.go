@@ -432,21 +432,21 @@ func extractText(rd readAt, mdaStart, mdaSize uint64, copy MDACopy) ([]byte, PVS
 	return out, StatusOK
 }
 
-// uuidString validates IDLen bytes as an undashed hex UUID and lowercases it.
+// uuidString validates IDLen bytes as an LVM2 UUID and returns the exact value
+// (preserving case). The LVM2 alphabet (lib/id/id.c _c) is alphanumeric plus
+// '!' and '#', not hex.
 func uuidString(b []byte) string {
 	if len(b) != IDLen {
 		return ""
 	}
-	out := make([]byte, len(b))
-	for i, c := range b {
-		switch {
-		case c >= '0' && c <= '9' || c >= 'a' && c <= 'f':
-			out[i] = c
-		case c >= 'A' && c <= 'F':
-			out[i] = c + ('a' - 'A')
-		default:
+	for _, c := range b {
+		if !isIDChar(c) {
 			return ""
 		}
 	}
-	return string(out)
+	return string(b)
+}
+
+func isIDChar(c byte) bool {
+	return c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '!' || c == '#'
 }
