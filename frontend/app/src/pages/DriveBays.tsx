@@ -285,7 +285,7 @@ export function DriveBays({
                           if (!(canManage && !x.assignment && BAY_KINDS.has(x.kind)) || !id) return;
                           select({ chassis: c.id, row, col });
                           run(
-                            () => assignBay(c.id, row, col, id, csrf),
+                            () => assignBay(c.id, row, col, id, c.version, csrf),
                             'Drive assigned (manual, unverified).',
                           );
                         }}
@@ -346,7 +346,7 @@ export function DriveBays({
                       );
                       setResize(null);
                       setSelected(null);
-                      run(() => updateChassis(c.id, spec, csrf), `Saved ${resize.name}.`);
+                      run(() => updateChassis(c.id, spec, c.version, csrf), `Saved ${resize.name}.`);
                     }}
                   >
                     Save chassis
@@ -365,7 +365,7 @@ export function DriveBays({
                 type="button"
                 className="ghost"
                 disabled={busy}
-                onClick={() => run(() => deleteChassis(c.id, csrf), `Deleted ${c.name}.`)}
+                onClick={() => run(() => deleteChassis(c.id, c.version, csrf), `Deleted ${c.name}.`)}
               >
                 Delete chassis {c.name}
               </button>
@@ -483,6 +483,7 @@ export function DriveBays({
                       updateChassis(
                         chassis.id,
                         specOf(chassis, { row: cell.row, col: cell.col, ...cellDraft }),
+                        chassis.version,
                         csrf,
                       ),
                     'Bay saved.',
@@ -496,7 +497,10 @@ export function DriveBays({
                   type="button"
                   disabled={busy}
                   onClick={() =>
-                    run(() => unassignBay(chassis.id, cell.row, cell.col, csrf), 'Assignment removed.')
+                    run(
+                      () => unassignBay(chassis.id, cell.row, cell.col, chassis.version, csrf),
+                      'Assignment removed.',
+                    )
                   }
                 >
                   Unassign drive
@@ -524,7 +528,7 @@ export function DriveBays({
                       disabled={busy || !drive}
                       onClick={() =>
                         run(
-                          () => assignBay(chassis.id, cell.row, cell.col, drive, csrf),
+                          () => assignBay(chassis.id, cell.row, cell.col, drive, chassis.version, csrf),
                           'Drive assigned (manual, unverified).',
                         )
                       }

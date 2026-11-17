@@ -899,6 +899,7 @@ export interface Chassis {
   kind: ChassisKind;
   rows: number;
   cols: number;
+  version: number;
   created_at: string;
   updated_at: string;
   cells: LayoutCell[];
@@ -945,20 +946,44 @@ export function getLayout(csrf: string): Promise<DriveLayout> {
 export function createChassis(spec: ChassisSpec, csrf: string): Promise<DriveLayout> {
   return checkedLayout(sendJSON<DriveLayout>('POST', `${layoutBase}/chassis`, csrf, spec));
 }
-export function updateChassis(id: number, spec: ChassisSpec, csrf: string): Promise<DriveLayout> {
-  return checkedLayout(sendJSON<DriveLayout>('PUT', `${layoutBase}/chassis/${id}`, csrf, spec));
-}
-export function deleteChassis(id: number, csrf: string): Promise<DriveLayout> {
-  return checkedLayout(sendJSON<DriveLayout>('DELETE', `${layoutBase}/chassis/${id}`, csrf));
-}
-/** The drive is named only by its persistent identity, never a kernel name. */
-export function assignBay(id: number, row: number, col: number, persistentID: string, csrf: string) {
+export function updateChassis(
+  id: number,
+  spec: ChassisSpec,
+  version: number,
+  csrf: string,
+): Promise<DriveLayout> {
   return checkedLayout(
-    sendJSON<DriveLayout>('PUT', bayPath(id, row, col), csrf, { persistent_id: persistentID }),
+    sendJSON<DriveLayout>('PUT', `${layoutBase}/chassis/${id}`, csrf, { ...spec, version }),
   );
 }
-export function unassignBay(id: number, row: number, col: number, csrf: string) {
-  return checkedLayout(sendJSON<DriveLayout>('DELETE', bayPath(id, row, col), csrf));
+export function deleteChassis(id: number, version: number, csrf: string): Promise<DriveLayout> {
+  return checkedLayout(
+    request<DriveLayout>(`${layoutBase}/chassis/${id}?version=${version}`, {
+      method: 'DELETE',
+      headers: { 'X-CSRF-Token': csrf },
+    }),
+  );
+}
+/** The drive is named only by its persistent identity, never a kernel name. */
+export function assignBay(
+  id: number,
+  row: number,
+  col: number,
+  persistentID: string,
+  version: number,
+  csrf: string,
+) {
+  return checkedLayout(
+    sendJSON<DriveLayout>('PUT', bayPath(id, row, col), csrf, { persistent_id: persistentID, version }),
+  );
+}
+export function unassignBay(id: number, row: number, col: number, version: number, csrf: string) {
+  return checkedLayout(
+    request<DriveLayout>(`${bayPath(id, row, col)}?version=${version}`, {
+      method: 'DELETE',
+      headers: { 'X-CSRF-Token': csrf },
+    }),
+  );
 }
 
 /** Import a previously exported chassis array (geometry only). The server

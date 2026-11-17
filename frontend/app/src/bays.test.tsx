@@ -72,6 +72,7 @@ describe('Drives & bays panel', () => {
       kind: 'server',
       rows: 1,
       cols: 2,
+      version: 1,
       created_at: '2026-11-06T00:00:00Z',
       updated_at: '2026-11-06T00:00:00Z',
       cells: [bay1, { row: 0, col: 1, kind: 'hdd-3.5', label: 'Bay 2' }],
@@ -116,7 +117,10 @@ describe('Drives & bays panel', () => {
     await screen.findByText('Drive assigned (manual, unverified).');
     const put = fetchMock.mock.calls.find(([, init]) => init?.method === 'PUT');
     expect(put?.[0]).toBe('/api/v1/storage/layout/chassis/7/bays/0/1/assignment');
-    expect(JSON.parse(String(put?.[1]?.body))).toEqual({ persistent_id: 'wwn:naa.5000000000000f01' });
+    expect(JSON.parse(String(put?.[1]?.body))).toEqual({
+      persistent_id: 'wwn:naa.5000000000000f01',
+      version: 1,
+    });
     expect((put?.[1]?.headers as Record<string, string>)['X-CSRF-Token']).toBe('example-csrf');
     await waitFor(() => expect(screen.getByRole('button', { name: /Bay 2: Present/ })).toBeTruthy());
     expect(screen.getByText(/Manual, unverified — stated by admin/)).toBeTruthy();
@@ -142,6 +146,7 @@ describe('Drives & bays panel', () => {
       kind: 'server',
       rows: 1,
       cols: 1,
+      version: 1,
       created_at: '2026-11-06T00:00:00Z',
       updated_at: '2026-11-06T00:00:00Z',
       cells: [bay],
@@ -175,7 +180,7 @@ describe('Drives & bays panel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Unassign drive' }));
     await screen.findByText('Assignment removed.');
     const del = fetchMock.mock.calls.find(([, init]) => init?.method === 'DELETE');
-    expect(del?.[0]).toBe('/api/v1/storage/layout/chassis/7/bays/0/0/assignment');
+    expect(del?.[0]).toBe('/api/v1/storage/layout/chassis/7/bays/0/0/assignment?version=1');
     expect((del?.[1]?.headers as Record<string, string>)['X-CSRF-Token']).toBe('example-csrf');
   });
 
@@ -186,6 +191,7 @@ describe('Drives & bays panel', () => {
       kind: 'server',
       rows: 1,
       cols: 2,
+      version: 1,
       created_at: '2026-11-06T00:00:00Z',
       updated_at: '2026-11-06T00:00:00Z',
       cells: [
@@ -239,6 +245,7 @@ describe('Drives & bays panel', () => {
       kind: 'server',
       rows: 1,
       cols: 1,
+      version: 1,
       created_at: '2026-11-06T00:00:00Z',
       updated_at: '2026-11-06T00:00:00Z',
       cells: [assignedCell],
@@ -287,6 +294,7 @@ describe('Drives & bays panel', () => {
       kind: 'server',
       rows: 1,
       cols: 1,
+      version: 1,
       created_at: '2026-11-06T00:00:00Z',
       updated_at: '2026-11-06T00:00:00Z',
       cells: [bay],
@@ -341,7 +349,10 @@ describe('Drives & bays panel', () => {
     await screen.findByText('Drive assigned (manual, unverified).');
     const put = fetchMock.mock.calls.find(([, init]) => init?.method === 'PUT');
     expect(put?.[0]).toBe('/api/v1/storage/layout/chassis/7/bays/0/0/assignment');
-    expect(JSON.parse(String(put?.[1]?.body))).toEqual({ persistent_id: 'wwn:naa.5000000000000f01' });
+    expect(JSON.parse(String(put?.[1]?.body))).toEqual({
+      persistent_id: 'wwn:naa.5000000000000f01',
+      version: 1,
+    });
   });
 });
 
@@ -401,6 +412,7 @@ describe('export redaction', () => {
       kind: 'server',
       rows: 1,
       cols: 1,
+      version: 1,
       created_at: '2026-11-06T00:00:00Z',
       updated_at: '2026-11-06T00:00:00Z',
       cells: [assigned],
