@@ -17,6 +17,10 @@ const (
 	StatePartialMissing VGState = "partial-missing-pv"
 	StateInconsistent   VGState = "inconsistent"
 	StateNoMetadata     VGState = "no-metadata"
+	// StateUnsupported marks a VG whose metadata contains a segment type the
+	// parser does not yet cover; it must never be reported as a complete
+	// inventory.
+	StateUnsupported VGState = "partial-unsupported-segment"
 )
 
 // Presence describes whether a VG's PV was found among the probed devices.
@@ -287,9 +291,26 @@ func Assemble(pvs []PVRead) Inventory {
 				vg.State = StatePartialMissing
 			}
 		}
+		// Any unsupported segment type makes the VG partial, never complete.
+		if hasUnsupportedSegment(vg) {
+			vg.State = StateUnsupported
+		}
 		inv.VGs = append(inv.VGs, *vg)
 	}
 	return inv
+}
+
+// hasUnsupportedSegment reports whether any LV has a segment the parser does
+// not yet cover.
+func hasUnsupportedSegment(vg *VG) bool {
+	for _, lv := range vg.LVs {
+		for _, seg := range lv.Segments {
+			if !seg.Parsed {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // findVGNode returns the single VG section among the top-level keys, ignoring
