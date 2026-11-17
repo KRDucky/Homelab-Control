@@ -21,8 +21,6 @@ import (
 type storageProbeResult struct {
 	Version int               `json:"version"`
 	Code    string            `json:"code,omitempty"`
-	LVS     string            `json:"lvs,omitempty"`
-	PVS     string            `json:"pvs,omitempty"`
 	Blkid   map[string]string `json:"blkid,omitempty"`
 	Errors  []string          `json:"errors,omitempty"`
 	Partial bool              `json:"partial"`

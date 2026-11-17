@@ -3,23 +3,24 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // Package storageprobe is the M2-4 native read-only storage probe (owner
-// decision O-1): a separately packaged, disabled-by-default helper that runs
-// fixed, non-mutating LVM and blkid templates on enumerated, revalidated
-// block devices. It is the second place allowed to execute programs (ADR 0008;
-// guard allowedExecRoots), alongside internal/broker/runner.
+// decision O-1): a separately packaged, disabled-by-default helper that reads
+// LVM on-disk metadata directly (stdlib parser, no lvs/pvs execution) and runs
+// one fixed blkid template on enumerated, revalidated block devices. It is the
+// second place allowed to execute programs (ADR 0008; guard allowedExecRoots),
+// alongside internal/broker/runner.
 //
 // Security properties:
-//   - No caller path, binary or free-form argument: the templates are fixed
-//     here. Device resolution is currently an inert, fail-closed proposal:
-//     PrivateDevices=yes hides device nodes, and the helper does not pass a
-//     validated open fd to child tools. Do not activate or wire it until O-1
-//     resolves device identity and child-open semantics.
-//   - The environment is replaced with a minimal, locale-forced set; LVM runs
-//     against a private empty LVM_SYSTEM_DIR so no host lvm.conf or devices
-//     file is read, and BLKID_FILE/BLKID_DEBUG are never inherited.
-//   - LVM is constrained to the enumerated devices by a fixed filter, runs
-//     --readonly with hints disabled; blkid probes read-only with no cache.
-//     Nothing is written to a device or a mount.
+//   - No caller path, binary or free-form argument: blkid's template is fixed
+//     here and reads the pinned fd. Device resolution is currently an inert,
+//     fail-closed proposal: PrivateDevices=yes hides device nodes, and the
+//     helper does not pass a validated open fd to child tools. Do not activate
+//     or wire it until O-1 resolves device identity and child-open semantics.
+//   - The environment is replaced with a minimal, locale-forced set;
+//     BLKID_FILE/BLKID_DEBUG are never inherited. The native LVM reader never
+//     executes an LVM binary, so no host lvm.conf or devices file is read.
+//   - blkid probes read-only with no cache and a fixed template; the native LVM
+//     reader only parses the already-open fd. Nothing is written to a device
+//     or a mount.
 //   - Each command has a size-capped output and a timeout that kills the
 //     process group. At most one helper Run is admitted per rate window.
 package storageprobe
@@ -66,11 +67,6 @@ var (
 	// so the helper reports a clean deadline instead of being SIGKILLed first.
 	// The real cross-instance serialisation is the socket's MaxConnections.
 	totalTimeout = 25 * time.Second
-
-	// LVMEnabled gates lvs/pvs. It is false by default: lvs/pvs scan devices
-	// by path and their fd identity binding is not proven, so an activation
-	// path must keep LVM absent until that is demonstrated.
-	LVMEnabled = false
 )
 
 // blockName is the kernel block-device name grammar (sdX, nvmeNnM, dm-N, …).
@@ -105,9 +101,8 @@ func ResolveToolPaths() error {
 
 // secureToolPath returns the first candidate whose resolved target and its
 // directory chain are secure: a regular, root-owned, non-writable file. The
-// original path is returned (not the resolved one) so a multi-call binary such
-// as lvs -> lvm dispatches on argv[0] correctly; the resolved target was the
-// thing verified.
+// original path is returned (not the resolved one) so a multi-call binary
+// dispatches on argv[0] correctly; the resolved target was the thing verified.
 func secureToolPath(candidates []string) (string, error) {
 	for _, p := range candidates {
 		resolved, err := filepath.EvalSymlinks(p)
@@ -168,7 +163,7 @@ func checkSecureDirs(path string) error {
 }
 
 // env is the scrubbed child environment: no inherited PATH, secrets, locale or
-// blkid/LVM state (BLKID_FILE, BLKID_DEBUG, LVM_SYSTEM_DIR are never present).
+// blkid state (BLKID_FILE, BLKID_DEBUG are never present).
 var env = []string{"LANG=C", "LC_ALL=C", "PATH=/usr/sbin:/usr/bin:/sbin:/bin"}
 
 // sysBlockRoot is the sysfs block root used for device enumeration and
@@ -226,8 +221,8 @@ func checkDeviceGroups() error {
 
 // device is one enumerated, revalidated, non-skipped block device whose
 // /dev/block/MAJ:MIN node passed the helper's fstat block+rdev check. The fd
-// is held and inherited by blkid so it reads this exact device; lvs/pvs remain
-// path-based (see the design doc for that unresolved identity gap).
+// is held and inherited by blkid, and parsed in place by the native LVM
+// reader, so both read this exact device.
 type device struct {
 	name string
 	path string
@@ -241,15 +236,13 @@ type Request struct {
 	Devices []string `json:"devices"`
 }
 
-// Result is the closed typed output. LVS/PVS carry raw lvs/pvs --reportformat
-// json reports; Blkid maps a device name to its allow-listed blkid -o export
-// output.
+// Result is the closed typed output. LVM carries the native read-only on-disk
+// reader's inventory; Blkid maps a device name to its allow-listed blkid -o
+// export output.
 type Result struct {
 	Version int                `json:"version"`
 	Code    string             `json:"code,omitempty"` // closed result/refusal code; "" = normal
-	LVS     string             `json:"lvs,omitempty"`
-	PVS     string             `json:"pvs,omitempty"`
-	LVM     *lvmmeta.Inventory `json:"lvm,omitempty"` // native on-disk reader output (LVMEnabled)
+	LVM     *lvmmeta.Inventory `json:"lvm,omitempty"`  // native on-disk reader output
 	Blkid   map[string]string  `json:"blkid,omitempty"`
 	Errors  []string           `json:"errors,omitempty"`
 	Partial bool               `json:"partial"`
@@ -260,9 +253,10 @@ type Result struct {
 const CodeDevicePolicyUnresolved = "device_policy_unresolved"
 
 // Run executes the fixed templates. Devices are revalidated and class-filtered,
-// then opened and fstat-verified; blkid reads the pinned fd, lvs/pvs read the
-// filtered device set. When identity cannot be verified (e.g. no device access
-// in the current unit), the device is reported and the result is Partial.
+// then opened and fstat-verified; the native read-only LVM reader parses the
+// pinned fds and blkid reads the same pinned fd. When identity cannot be
+// verified (e.g. no device access in the current unit), the device is reported
+// and the result is Partial.
 func Run(ctx context.Context, req Request) Result {
 	res := Result{Version: 1, Blkid: map[string]string{}}
 	if !admit() {
@@ -330,41 +324,42 @@ func Run(ctx context.Context, req Request) Result {
 		}
 	}()
 
-	// LVM is gated behind LVMEnabled. When enabled, the native read-only LVM
-	// metadata reader parses the already-pinned fds (no lvs/pvs execution).
-	if !LVMEnabled {
-		res.Errors = append(res.Errors, "lvm disabled: native LVM reader is off")
-		res.Partial = true
-	} else {
-		pvs := make([]lvmmeta.PVRead, 0, len(devs))
-		budget := int64(lvmmeta.MaxTotalText)
-		for _, d := range devs {
-			before, hasSeq := diskseq(d.name)
-			pv := lvmmeta.ReadPVBudgetContext(ctx, d.f, d.size, d.name, &budget)
-			if !hasSeq {
-				pv.Status = lvmmeta.StatusMetadataChanging // no diskseq: cannot bracket the read
-			} else {
-				after, ok := diskseq(d.name)
-				if !ok || after != before {
-					pv.Status = lvmmeta.StatusMetadataChanging
-				}
-			}
-			pvs = append(pvs, pv)
-			if pv.Status == lvmmeta.StatusLimitExceeded {
-				res.Errors = append(res.Errors, "lvm metadata text exceeds MaxTotalText")
-				res.Partial = true
-				break
-			}
-			if pv.Status == lvmmeta.StatusCanceled {
-				res.Errors = append(res.Errors, "lvm probe canceled")
-				res.Partial = true
-				break
+	// The native read-only LVM metadata reader parses the already-pinned fds
+	// (no lvs/pvs execution); it is the default LVM path for the probe.
+	pvs := make([]lvmmeta.PVRead, 0, len(devs))
+	budget := int64(lvmmeta.MaxTotalText)
+	for _, d := range devs {
+		before, hasSeq := diskseq(d.name)
+		pv := lvmmeta.ReadPVBudgetContext(ctx, d.f, d.size, d.name, &budget)
+		if !hasSeq {
+			pv.Status = lvmmeta.StatusMetadataChanging // no diskseq: cannot bracket the read
+		} else {
+			after, ok := diskseq(d.name)
+			if !ok || after != before {
+				pv.Status = lvmmeta.StatusMetadataChanging
 			}
 		}
-		inv := lvmmeta.Assemble(pvs)
-		res.LVM = &inv
-		if len(inv.Notes) > 0 {
-			res.Errors = append(res.Errors, inv.Notes...)
+		pvs = append(pvs, pv)
+		if pv.Status == lvmmeta.StatusLimitExceeded {
+			res.Errors = append(res.Errors, "lvm metadata text exceeds MaxTotalText")
+			res.Partial = true
+			break
+		}
+		if pv.Status == lvmmeta.StatusCanceled {
+			res.Errors = append(res.Errors, "lvm probe canceled")
+			res.Partial = true
+			break
+		}
+	}
+	inv := lvmmeta.Assemble(pvs)
+	res.LVM = &inv
+	if len(inv.Notes) > 0 {
+		res.Errors = append(res.Errors, inv.Notes...)
+		res.Partial = true
+	}
+	for i := range inv.VGs {
+		if len(inv.VGs[i].Notes) > 0 {
+			res.Errors = append(res.Errors, inv.VGs[i].Notes...)
 			res.Partial = true
 		}
 	}
@@ -554,8 +549,8 @@ func wholeDisk(name string) string {
 
 // resolveDevice reads /sys/class/block/<name>/dev, opens the stable
 // /dev/block MAJ:MIN node (following the symlink), and fstat-checks the opened
-// fd is a block device whose rdev matches. The fd is held so blkid reads this
-// exact device; lvs/pvs remain path-based (see docs for that unresolved gap).
+// fd is a block device whose rdev matches. The fd is held so blkid and the
+// native LVM reader read this exact device.
 func resolveDevice(name string) (*device, error) {
 	dev, err := readTrimErr(sysBlockRoot + "/" + name + "/dev")
 	if err != nil {
@@ -737,8 +732,6 @@ func (c *cappedFrameWriter) Write(p []byte) (int, error) {
 func preflightBytes(res Result) int {
 	const syntax = 128
 	n := syntax
-	n += jsonStringLen(res.LVS)
-	n += jsonStringLen(res.PVS)
 	for k, v := range res.Blkid {
 		n += jsonStringLen(k) + jsonStringLen(v) + 3 // key : value ,
 	}

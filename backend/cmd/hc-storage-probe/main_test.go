@@ -54,7 +54,7 @@ func TestWriteResponseBounded(t *testing.T) {
 func TestWriteResponsePreflightExpansion(t *testing.T) {
 	// Each quote byte expands to two (\"), so the preflight must reject a value
 	// whose escaped size exceeds the cap before any marshal writes bytes.
-	res := storageprobe.Result{Version: 1, LVS: strings.Repeat("\"", 100)}
+	res := storageprobe.Result{Version: 1, Errors: []string{strings.Repeat("\"", 100)}}
 	var buf bytes.Buffer
 	if err := storageprobe.WriteResponse(&buf, res, 300); err == nil {
 		t.Fatal("expected preflight rejection for expanding string")
@@ -67,7 +67,7 @@ func TestWriteResponsePreflightExpansion(t *testing.T) {
 func TestWriteResponseControlBytes(t *testing.T) {
 	// Control bytes encode to six-byte \u00XX sequences, so the preflight must
 	// count them as 6 (not 2) and reject before marshal, emitting no bytes.
-	res := storageprobe.Result{Version: 1, LVS: strings.Repeat("\x01", 20)}
+	res := storageprobe.Result{Version: 1, Errors: []string{strings.Repeat("\x01", 20)}}
 	var buf bytes.Buffer
 	if err := storageprobe.WriteResponse(&buf, res, 200); err == nil {
 		t.Fatal("expected control-heavy preflight rejection")
