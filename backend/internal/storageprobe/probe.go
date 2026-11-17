@@ -262,12 +262,17 @@ type Request struct {
 // output.
 type Result struct {
 	Version int               `json:"version"`
+	Code    string            `json:"code,omitempty"` // closed result/refusal code; "" = normal
 	LVS     string            `json:"lvs,omitempty"`
 	PVS     string            `json:"pvs,omitempty"`
 	Blkid   map[string]string `json:"blkid,omitempty"`
 	Errors  []string          `json:"errors,omitempty"`
 	Partial bool              `json:"partial"`
 }
+
+// Closed result codes. CodeDevicePolicyUnresolved is the typed fail-closed
+// refusal when a required block-device class is absent from /proc/devices.
+const CodeDevicePolicyUnresolved = "device_policy_unresolved"
 
 // Run executes the fixed templates. Devices are revalidated and class-filtered,
 // then opened and fstat-verified; blkid reads the pinned fd, lvs/pvs read the
@@ -285,6 +290,7 @@ func Run(ctx context.Context, req Request) Result {
 	// Startup self-check: refuse (fail closed) before any probe unless every
 	// reviewed block-device class is present in /proc/devices.
 	if err := checkDeviceGroups(); err != nil {
+		res.Code = CodeDevicePolicyUnresolved
 		res.Errors = append(res.Errors, "probe refused: "+err.Error())
 		res.Partial = true
 		return res

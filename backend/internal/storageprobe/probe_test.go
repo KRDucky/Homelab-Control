@@ -359,6 +359,42 @@ func TestCheckDeviceGroups(t *testing.T) {
 	}
 }
 
+func TestRefusalCodeNoProbe(t *testing.T) {
+	base := t.TempDir()
+	old := procDevicesPath
+	t.Cleanup(func() { procDevicesPath = old })
+	// Missing md → typed refusal.
+	procDevicesPath = fakeProcDevices(t, base, "Block devices:\n  8 sd\n  252 virtblk\n  259 blkext\n")
+
+	opened := false
+	oldOpen := openAndVerify
+	openAndVerify = func(path string, maj, min uint64) (*os.File, error) {
+		opened = true
+		return nil, os.ErrClosed
+	}
+	t.Cleanup(func() { openAndVerify = oldOpen })
+
+	res := Run(context.Background(), Request{Version: 1, Devices: []string{"sda"}})
+	if res.Code != CodeDevicePolicyUnresolved {
+		t.Fatalf("code = %q, want %q", res.Code, CodeDevicePolicyUnresolved)
+	}
+	if !res.Partial {
+		t.Fatal("expected Partial")
+	}
+	if opened {
+		t.Fatal("device was opened despite refusal")
+	}
+
+	// The wire result preserves the typed refusal code.
+	var buf strings.Builder
+	if err := WriteResponse(&buf, res, 1<<20); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), `"code":"device_policy_unresolved"`) {
+		t.Fatalf("wire result missing typed code: %s", buf.String())
+	}
+}
+
 func TestMakedev(t *testing.T) {
 	for _, tc := range []struct {
 		maj, min, want uint64
