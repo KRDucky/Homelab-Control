@@ -111,21 +111,35 @@ func mergeProbeSignatures(g *storageinfo.Graph, blkid map[string]string) {
 	storageinfo.MergeBlkidSignatures(g, sigs)
 }
 
-// applyProbeOutcome sets graph.status/notes from the typed helper result:
-// device_policy_unresolved (or a broker refusal) is "unavailable", Partial is
-// "partial", otherwise "ok". Helper errors are carried as notes.
+// applyProbeOutcome sets graph.status/notes from the typed helper result
+// without erasing a worse base status. device_policy_unresolved is
+// "unavailable", Partial is "partial", otherwise "ok"; the worse of the base
+// and probe status wins, and helper errors are appended as notes.
 func applyProbeOutcome(g *storageinfo.Graph, probe storageProbeResult) {
+	probeStatus := "ok"
 	switch probe.Code {
 	case "device_policy_unresolved":
-		g.Status = "unavailable"
+		probeStatus = "unavailable"
 	default:
 		if probe.Partial {
-			g.Status = "partial"
-		} else {
-			g.Status = "ok"
+			probeStatus = "partial"
 		}
 	}
+	if statusRank(probeStatus) > statusRank(g.Status) {
+		g.Status = probeStatus
+	}
 	g.Notes = append(g.Notes, probe.Errors...)
+}
+
+func statusRank(s string) int {
+	switch s {
+	case "partial":
+		return 1
+	case "unavailable":
+		return 2
+	default:
+		return 0 // "ok" and empty
+	}
 }
 
 // parseBlkidExport reads the allow-listed TYPE and UUID from a blkid -o export
