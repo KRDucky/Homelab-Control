@@ -44,8 +44,8 @@ import (
 
 // Fixed resource bounds.
 const (
-	maxReportBytes = 8 << 20 // per LVM report
-	maxBlkidBytes  = 64 << 10
+	maxReportBytes = 8 << 20         // per LVM report
+	maxBlkidBytes  = 16 << 10        // per-device blkid cap: 64×16 KiB = 1 MiB raw, ~2 MiB encoded
 	maxStderrBytes = 4 << 10         // bounded child stderr; never returned
 	reportTimeout  = 5 * time.Second // LVM budget: lvs+pvs ≤ ~10s, leaving time for blkid
 	blkidTimeout   = 5 * time.Second

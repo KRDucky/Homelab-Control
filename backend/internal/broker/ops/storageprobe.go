@@ -55,11 +55,11 @@ func validateProbeResult(res storageProbeResult) error {
 	}
 }
 
-// storageProbeMaxResponse bounds the helper's typed Result read. It is a
-// provable bound: at most maxDevices(64) × maxBlkidBytes(64 KiB) = 4 MiB of
-// blkid output (LVM is gated off, so no LVS/PVS payload), plus JSON framing
-// and errors — comfortably under 8 MiB.
-const storageProbeMaxResponse = 8 << 20
+// storageProbeMaxResponse bounds the helper's typed Result read. It matches
+// the helper's own 3 MiB frame cap (64 × 16 KiB blkid worst-case-escaped +
+// errors/framing), and stays under proto.MaxResponse (4 MiB) so the broker can
+// re-frame the op result.
+const storageProbeMaxResponse = 3 << 20
 
 // storageProbeRequest is the closed helper request (protocol version 1).
 type storageProbeRequest struct {

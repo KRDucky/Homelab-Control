@@ -7,6 +7,7 @@ package storageprobe
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -392,6 +393,24 @@ func TestRefusalCodeNoProbe(t *testing.T) {
 	}
 	if !strings.Contains(buf.String(), `"code":"device_policy_unresolved"`) {
 		t.Fatalf("wire result missing typed code: %s", buf.String())
+	}
+}
+
+func TestMaxResultUnderBrokerCap(t *testing.T) {
+	// Worst case: maxDevices devices, each blkid value at the per-device cap and
+	// full of quote bytes (2x JSON escaping). The whole Result must stay under
+	// the broker's 4 MiB proto.MaxResponse.
+	blkid := map[string]string{}
+	for i := 0; i < maxDevices; i++ {
+		blkid[fmt.Sprintf("sd%d", i)] = strings.Repeat("\"", maxBlkidBytes-1)
+	}
+	res := Result{Version: 1, Blkid: blkid}
+	var buf strings.Builder
+	if err := WriteResponse(&buf, res, 3<<20); err != nil {
+		t.Fatalf("max result rejected: %v", err)
+	}
+	if buf.Len() >= 4<<20 {
+		t.Fatalf("max result %d bytes exceeds broker 4 MiB cap", buf.Len())
 	}
 }
 
