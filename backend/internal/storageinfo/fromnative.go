@@ -97,18 +97,9 @@ func FromNative(inv lvmmeta.Inventory) (LVMInventory, []string) {
 			out.Volumes = append(out.Volumes, slv)
 		}
 
-		switch vg.State {
-		case lvmmeta.StateUnsupported:
-			notes = append(notes, "vg "+vg.Name+": partial (unsupported segment type)")
-		case lvmmeta.StatePartialMissing:
-			notes = append(notes, "vg "+vg.Name+": partial (missing PV)")
-		case lvmmeta.StateInconsistent:
-			notes = append(notes, "vg "+vg.Name+": inconsistent metadata")
-		case lvmmeta.StateNoMetadata:
-			notes = append(notes, "vg "+vg.Name+": no metadata")
-		case lvmmeta.StateMalformed:
-			notes = append(notes, "vg "+vg.Name+": partial (malformed size)")
-		}
+		// The VG's accumulated notes cover every partial condition; the single
+		// State is only the dominant classification, so no reason is dropped.
+		notes = append(notes, vg.Notes...)
 	}
 	return out, notes
 }

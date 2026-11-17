@@ -144,3 +144,30 @@ func TestFromNativeMalformedSegmentSize(t *testing.T) {
 		t.Fatalf("notes = %v, want malformed-segment-size", notes)
 	}
 }
+
+func TestFromNativeAccumulatesNotes(t *testing.T) {
+	// A VG that is both malformed and has an unsupported segment must emit both
+	// typed notes, not just the dominant one.
+	inv := lvmmeta.Inventory{VGs: []lvmmeta.VG{{
+		UUID:  "aaaaaaaabbbbccccddddeeeeffff0001",
+		Name:  "vg1",
+		State: lvmmeta.StateUnsupported,
+		Notes: []string{"vg vg1: partial (malformed size)", "vg vg1: partial (unsupported segment type)"},
+		PVs: []lvmmeta.VGPV{
+			{Key: "pv0", UUID: "abcdef1234567890abcdef1234567890", Presence: lvmmeta.PresencePresent},
+		},
+	}}}
+	_, notes := FromNative(inv)
+	hasMalformed, hasUnsupported := false, false
+	for _, n := range notes {
+		if strings.Contains(n, "malformed size") {
+			hasMalformed = true
+		}
+		if strings.Contains(n, "unsupported segment type") {
+			hasUnsupported = true
+		}
+	}
+	if !hasMalformed || !hasUnsupported {
+		t.Fatalf("notes = %v, want both malformed size and unsupported segment", notes)
+	}
+}

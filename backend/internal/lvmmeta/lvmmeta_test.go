@@ -729,3 +729,55 @@ func TestReadPVUsesCommittedSlot(t *testing.T) {
 		t.Fatalf("selected seqno = %d, want 2 (committed slot0, not precommit)", s)
 	}
 }
+
+func TestAssembleMalformedAndUnsupported(t *testing.T) {
+	// A VG with both a malformed dev_size and an unsupported segment must keep
+	// both conditions: State is the dominant one, but Notes accumulate all.
+	text := `vg1 {
+    id = "aaaaaaaa-bbbb-cccc-dddd-eeeeffff0001"
+    seqno = 1
+    extent_size = 8192
+    physical_volumes {
+        pv0 {
+            id = "11111111-2222-3333-4444-555555555555"
+            device = "/dev/vdb"
+            dev_size = 36028797018963969
+            pe_start = 2048
+            pe_count = 1024
+        }
+    }
+    logical_volumes {
+        lv1 {
+            id = "99999999-8888-7777-6666-5555-444444444444"
+            status = ["READ", "WRITE", "VISIBLE"]
+            segment_count = 1
+            segment1 {
+                start_extent = 0
+                extent_count = 128
+                type = "vdo"
+            }
+        }
+    }
+}`
+	pv := PVRead{Device: "vdb", Status: StatusOK, Text: []byte(text), Label: &Label{PVUUID: "11111111222233334444555555555555"}}
+	inv := Assemble([]PVRead{pv})
+	if len(inv.VGs) != 1 {
+		t.Fatalf("vgs = %+v", inv.VGs)
+	}
+	vg := inv.VGs[0]
+	if vg.State != StateUnsupported {
+		t.Fatalf("state = %s, want %s (dominant)", vg.State, StateUnsupported)
+	}
+	hasMalformed, hasUnsupported := false, false
+	for _, n := range vg.Notes {
+		if strings.Contains(n, "malformed size") {
+			hasMalformed = true
+		}
+		if strings.Contains(n, "unsupported segment") {
+			hasUnsupported = true
+		}
+	}
+	if !hasMalformed || !hasUnsupported {
+		t.Fatalf("notes = %v, want both malformed size and unsupported segment", vg.Notes)
+	}
+}

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 // VGState is the closed per-VG state.
@@ -154,6 +155,10 @@ type VG struct {
 	PVs        []VGPV
 	LVs        []LV
 	State      VGState
+	// Notes accumulates every partial condition (missing PV, inconsistent,
+	// malformed size, unsupported segment) so no single State value hides a
+	// second one.
+	Notes []string
 }
 
 // Inventory is the assembled result for a probe request.
@@ -270,7 +275,14 @@ func parseSegment(n *Node) Segment {
 	if d := n.child("type"); d != nil {
 		s.Type = d.Value
 	}
-	switch s.Type {
+	// LVM2 appends feature flags to the base type as "+FLAG" (e.g.
+	// "cache-pool+METADATA_FORMAT", "cache+CACHE_USES_CACHEVOL"); the base
+	// type is everything before the first '+'.
+	base := s.Type
+	if i := strings.IndexByte(base, '+'); i >= 0 {
+		base = base[:i]
+	}
+	switch base {
 	case "striped":
 		s.StripeSize = uintChild(n, "stripe_size")
 		s.Stripes = areaList(n.child("stripes"))
@@ -458,8 +470,10 @@ func Assemble(pvs []PVRead) Inventory {
 			continue
 		}
 		vg.UUID = uuid
-		vg.State = StateComplete
-		// Mark presence.
+		// Mark presence and accumulate every partial condition as a typed note
+		// so the dominant State never hides a second one (e.g. malformed size
+		// plus unsupported segment).
+		var duplicate, missing bool
 		seen := map[string]int{}
 		for i := range vg.PVs {
 			for _, pv := range pvs {
@@ -470,28 +484,43 @@ func Assemble(pvs []PVRead) Inventory {
 			}
 			if seen[vg.PVs[i].UUID] > 1 {
 				vg.PVs[i].Presence = PresenceDuplicate
-				vg.State = StateInconsistent
+				duplicate = true
 			} else if seen[vg.PVs[i].UUID] == 1 {
 				vg.PVs[i].Presence = PresencePresent
 			} else if hasFlag(vg.PVs[i].Flags, "MISSING") {
 				vg.PVs[i].Presence = PresenceMissingFlag
-				vg.State = StatePartialMissing
+				missing = true
 			} else {
 				vg.PVs[i].Presence = PresenceNotFound
-				vg.State = StatePartialMissing
+				missing = true
 			}
 		}
-		// Same-seqno-different-content copies across PVs are inconsistent.
-		if inconsistent {
-			vg.State = StateInconsistent
+		malformed := hasMalformedPV(vg)
+		unsupported := hasUnsupportedSegment(vg)
+		prefix := "vg " + vg.Name + ": "
+		if missing {
+			vg.Notes = append(vg.Notes, prefix+"partial (missing PV)")
 		}
-		// A malformed numeric field makes the VG partial, never complete.
-		if hasMalformedPV(vg) {
-			vg.State = StateMalformed
+		if duplicate || inconsistent {
+			vg.Notes = append(vg.Notes, prefix+"inconsistent metadata")
 		}
-		// Any unsupported segment type makes the VG partial, never complete.
-		if hasUnsupportedSegment(vg) {
+		if malformed {
+			vg.Notes = append(vg.Notes, prefix+"partial (malformed size)")
+		}
+		if unsupported {
+			vg.Notes = append(vg.Notes, prefix+"partial (unsupported segment type)")
+		}
+		switch {
+		case unsupported:
 			vg.State = StateUnsupported
+		case malformed:
+			vg.State = StateMalformed
+		case duplicate || inconsistent:
+			vg.State = StateInconsistent
+		case missing:
+			vg.State = StatePartialMissing
+		default:
+			vg.State = StateComplete
 		}
 		inv.VGs = append(inv.VGs, *vg)
 	}
