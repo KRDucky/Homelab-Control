@@ -72,8 +72,6 @@ type storageProbeRequest struct {
 type storageProbeResult struct {
 	Version int               `json:"version"`
 	Code    string            `json:"code,omitempty"`
-	LVS     string            `json:"lvs,omitempty"`
-	PVS     string            `json:"pvs,omitempty"`
 	Blkid   map[string]string `json:"blkid,omitempty"`
 	Errors  []string          `json:"errors,omitempty"`
 	Partial bool              `json:"partial"`
@@ -81,7 +79,7 @@ type storageProbeResult struct {
 
 // storageProbe enumerates /sys/class/block and asks the socket-activated
 // helper to probe them. The broker itself never opens a device or runs
-// lvs/pvs/blkid; it only relays a closed request and reads a capped response.
+// blkid; it only relays a closed request and reads a capped response.
 func storageProbe(ctx context.Context, _ *Env, raw json.RawMessage) (any, error) {
 	if err := requireNoArgs(raw); err != nil {
 		return nil, err

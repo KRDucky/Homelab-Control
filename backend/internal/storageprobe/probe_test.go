@@ -10,9 +10,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"homelab-control/backend/internal/lvmmeta"
 )
 
 func TestJSONStringLenMatchesEncoder(t *testing.T) {
@@ -139,22 +142,18 @@ func fixture(t *testing.T) (base, blkidLog string) {
 	writeFile(t, filepath.Join(devs, "sdd", "device", "state"), "offline\n")
 	link(t, sys, devs, "sdd")
 
-	// Fake tools.
+	// Fake tool.
 	bin := filepath.Join(base, "bin")
 	if err := os.MkdirAll(bin, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	writeScript(t, filepath.Join(bin, "lvs"), "#!/bin/sh\necho '{\"report\":[{\"lv\":[{\"lv_uuid\":\"u1\"}]}]}'\n")
-	writeScript(t, filepath.Join(bin, "pvs"), "#!/bin/sh\necho '{\"report\":[{\"pv\":[{\"pv_uuid\":\"p1\"}]}]}'\n")
 	blkidLog = filepath.Join(base, "blkid.log")
 	writeScript(t, filepath.Join(bin, "blkid"), "#!/bin/sh\nfor a in \"$@\"; do last=$a; done\necho \"$last\" >> '"+blkidLog+"'\necho 'TYPE=LVM2_member'\necho 'UUID=abc'\necho 'SECRET_KEY=hunter2'\n")
 
 	// Point the package at the fixture and restore it afterwards.
-	oldSys, oldBin, oldOpen, oldMin, oldLast, oldLVM, oldProc := sysBlockRoot, binaries, openAndVerify, minRunInterval, lastRun, LVMEnabled, procDevicesPath
+	oldSys, oldBin, oldOpen, oldMin, oldLast, oldProc := sysBlockRoot, binaries, openAndVerify, minRunInterval, lastRun, procDevicesPath
 	sysBlockRoot = sys
 	binaries = map[string]string{
-		"lvs":   filepath.Join(bin, "lvs"),
-		"pvs":   filepath.Join(bin, "pvs"),
 		"blkid": filepath.Join(bin, "blkid"),
 	}
 	openAndVerify = func(path string, maj, min uint64) (*os.File, error) {
@@ -163,9 +162,8 @@ func fixture(t *testing.T) (base, blkidLog string) {
 	procDevicesPath = fakeProcDevices(t, base, allGroupsProcDevices)
 	minRunInterval = 0
 	lastRun = time.Time{}
-	LVMEnabled = true
 	t.Cleanup(func() {
-		sysBlockRoot, binaries, openAndVerify, minRunInterval, lastRun, LVMEnabled, procDevicesPath = oldSys, oldBin, oldOpen, oldMin, oldLast, oldLVM, oldProc
+		sysBlockRoot, binaries, openAndVerify, minRunInterval, lastRun, procDevicesPath = oldSys, oldBin, oldOpen, oldMin, oldLast, oldProc
 	})
 	return base, blkidLog
 }
@@ -292,27 +290,74 @@ func TestFilterBlkidExportBoundsValues(t *testing.T) {
 	}
 }
 
-func TestLVMDisabledByDefault(t *testing.T) {
-	// lvs/pvs scan by path and their fd identity binding is unproven, so the
-	// activation path must keep LVM absent: LVMEnabled defaults false and the
-	// result is Partial with an explicit note.
+func TestNativeLVMDefault(t *testing.T) {
+	// The native read-only LVM reader is the default (no LVMEnabled gate): a
+	// probe always produces an LVM inventory, never an "lvm disabled" refusal.
 	_, _ = fixture(t)
-	LVMEnabled = false
 	res := Run(context.Background(), Request{Version: 1, Devices: []string{"sda"}})
-	if res.LVS != "" || res.PVS != "" {
-		t.Fatalf("LVM should be absent when disabled: LVS=%q PVS=%q", res.LVS, res.PVS)
+	if res.LVM == nil {
+		t.Fatalf("native LVM inventory missing by default: %+v", res)
 	}
-	if !res.Partial {
-		t.Fatalf("expected Partial when LVM is gated off: %+v", res)
-	}
-	found := false
 	for _, e := range res.Errors {
 		if strings.Contains(e, "lvm disabled") {
-			found = true
+			t.Fatalf("unexpected lvm-disabled note: %+v", res.Errors)
 		}
 	}
-	if !found {
-		t.Fatalf("missing lvm-disabled note: %+v", res.Errors)
+}
+
+func TestNativeLVMUnsupportedPartial(t *testing.T) {
+	// A device whose on-disk metadata contains an unsupported segment type
+	// (writecache) must fold into a partial result, never a clean complete one.
+	img, err := os.ReadFile(filepath.Join("..", "lvmmeta", "testdata", "writecache-01-attached.raw"))
+	if err != nil {
+		t.Skipf("writecache fixture not available: %v", err)
+	}
+	tmpImg := filepath.Join(t.TempDir(), "sda.img")
+	if err := os.WriteFile(tmpImg, img, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	base := t.TempDir()
+	sys := filepath.Join(base, "block")
+	devs := filepath.Join(base, "devs")
+	if err := os.MkdirAll(sys, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(devs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mkdev(t, devs, "sda", "8:0", "123", "", "")
+	writeFile(t, filepath.Join(devs, "sda", "size"), strconv.FormatUint(uint64(len(img)/512), 10)+"\n")
+	link(t, sys, devs, "sda")
+
+	bin := filepath.Join(base, "bin")
+	if err := os.MkdirAll(bin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeScript(t, filepath.Join(bin, "blkid"), "#!/bin/sh\necho 'TYPE=LVM2_member'\n")
+
+	oldSys, oldBin, oldOpen, oldMin, oldLast, oldProc := sysBlockRoot, binaries, openAndVerify, minRunInterval, lastRun, procDevicesPath
+	sysBlockRoot = sys
+	binaries = map[string]string{"blkid": filepath.Join(bin, "blkid")}
+	openAndVerify = func(path string, maj, min uint64) (*os.File, error) {
+		return os.Open(tmpImg)
+	}
+	procDevicesPath = fakeProcDevices(t, base, allGroupsProcDevices)
+	minRunInterval = 0
+	lastRun = time.Time{}
+	t.Cleanup(func() {
+		sysBlockRoot, binaries, openAndVerify, minRunInterval, lastRun, procDevicesPath = oldSys, oldBin, oldOpen, oldMin, oldLast, oldProc
+	})
+
+	res := Run(context.Background(), Request{Version: 1, Devices: []string{"sda"}})
+	if !res.Partial {
+		t.Fatalf("expected partial for unsupported segment: %+v", res)
+	}
+	if res.LVM == nil || len(res.LVM.VGs) != 1 {
+		t.Fatalf("lvm = %+v", res.LVM)
+	}
+	if res.LVM.VGs[0].State != lvmmeta.StateUnsupported {
+		t.Fatalf("VG state = %s, want partial-unsupported-segment", res.LVM.VGs[0].State)
 	}
 }
 
@@ -527,15 +572,11 @@ func TestRunTotalDeadline(t *testing.T) {
 	if err := os.MkdirAll(bin, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	writeScript(t, filepath.Join(bin, "lvs"), "#!/bin/sh\necho '{}'\n")
-	writeScript(t, filepath.Join(bin, "pvs"), "#!/bin/sh\necho '{}'\n")
 	writeScript(t, filepath.Join(bin, "blkid"), "#!/bin/sh\nsleep 2\necho 'TYPE=x'\n")
 
-	oldSys, oldBin, oldOpen, oldTotal, oldMin, oldLast, oldLVM, oldProc := sysBlockRoot, binaries, openAndVerify, totalTimeout, minRunInterval, lastRun, LVMEnabled, procDevicesPath
+	oldSys, oldBin, oldOpen, oldTotal, oldMin, oldLast, oldProc := sysBlockRoot, binaries, openAndVerify, totalTimeout, minRunInterval, lastRun, procDevicesPath
 	sysBlockRoot = sys
 	binaries = map[string]string{
-		"lvs":   filepath.Join(bin, "lvs"),
-		"pvs":   filepath.Join(bin, "pvs"),
 		"blkid": filepath.Join(bin, "blkid"),
 	}
 	openAndVerify = func(path string, maj, min uint64) (*os.File, error) {
@@ -545,9 +586,8 @@ func TestRunTotalDeadline(t *testing.T) {
 	totalTimeout = 200 * time.Millisecond
 	minRunInterval = 0
 	lastRun = time.Time{}
-	LVMEnabled = true // so Partial comes from the deadline, not the LVM gate
 	t.Cleanup(func() {
-		sysBlockRoot, binaries, openAndVerify, totalTimeout, minRunInterval, lastRun, LVMEnabled, procDevicesPath = oldSys, oldBin, oldOpen, oldTotal, oldMin, oldLast, oldLVM, oldProc
+		sysBlockRoot, binaries, openAndVerify, totalTimeout, minRunInterval, lastRun, procDevicesPath = oldSys, oldBin, oldOpen, oldTotal, oldMin, oldLast, oldProc
 	})
 
 	start := time.Now()

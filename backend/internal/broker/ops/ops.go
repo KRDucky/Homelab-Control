@@ -174,8 +174,8 @@ func Registry() map[string]Op {
 		// M2-4 O-1 (owner-approved implementation/isolated validation): the
 		// broker is only a bounded client of the root-only socket-activated
 		// probe helper. It enumerates block names and relays a closed request;
-		// it never opens a device or runs lvs/pvs/blkid itself. LVM stays gated
-		// off in the helper until its fd identity binding is proven.
+		// it never opens a device or runs blkid itself. The helper's native LVM
+		// reader is the default LVM path (no lvs/pvs execution).
 		{Name: "storage.probe", Scope: "storage.probe", Privilege: PrivRootRead, Timeout: 35 * time.Second,
 			Description: "On-demand native storage probe (blkid signatures on enumerated devices); wakes disks", Handle: storageProbe},
 	}
