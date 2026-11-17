@@ -38,7 +38,11 @@ const (
 	ScopePodmanRead     = "podman.read"
 	ScopeKubernetesRead = "kubernetes.read"
 	// ScopeStorageRead allows storage metadata and identifying labels. Never granted by default.
-	ScopeStorageRead  = "storage.read"
+	ScopeStorageRead = "storage.read"
+	// ScopeStorageProbe triggers the on-demand native storage probe (O-1), which
+	// wakes disks to read blkid/LVM signatures. Never granted by default; it is
+	// a separate, explicit action scope.
+	ScopeStorageProbe = "storage.probe"
 	ScopeSystemRead   = "system.read"   // overview, legacy Webmin status
 	ScopeServicesRead = "services.read" // systemd unit list (M1)
 	ScopeHardwareRead = "hardware.read" // hardware inventory incl. DMI serials (M1)
@@ -115,6 +119,7 @@ var KnownScopes = map[string]bool{
 	ScopePodmanRead:           true,
 	ScopeKubernetesRead:       true,
 	ScopeStorageRead:          true,
+	ScopeStorageProbe:         true,
 	ScopeSystemRead:           true,
 	ScopeServicesRead:         true,
 	ScopeHardwareRead:         true,
