@@ -30,9 +30,10 @@ fixture-tested end to end:
   bay is never a drop target and never offers assign.
 - **Export**: the layout can be exported with assignment identifiers **redacted by default** (tier only,
   e.g. `wwn:[redacted]`), so no serial/WWN value is written to the download.
-- **Import**: validated chassis geometry imports additively; any exported IDs, timestamps and
-  assignment objects are discarded, so imports never restore or reveal an identity and never replace
-  existing chassis.
+- **Import**: a JSON file can be imported (POST `/api/v1/storage/layout/import`, scope `layout.manage`):
+  the file is size-capped at 8 MiB before read, parsed and validated for a `chassis` array, and imported
+  additively. Exported IDs, timestamps and assignment identities are discarded, so imports only add
+  unassigned geometry and never replace existing chassis; state refreshes on success and errors surface.
 
 ### Acceptance fixture
 
@@ -45,9 +46,10 @@ fixture-tested end to end:
 - UI: keyboard grid selection + assign by persistent identity (CSRF and `persistent_id` body asserted),
   drag-and-drop onto a vacant bay (PUT to the bay route asserted), occupied-bay unassign with no overwrite
   path, and 409-conflict re-sync;
-- export: `redactIdentity`/`redactedLayout` mask identities to their tier, and the export button is present.
-- API import: strict schema/size validation, count-only audit, additive atomic storage, and assignment
-  discard are covered by API/state fixtures.
+- export: `redactIdentity`/`redactedLayout` mask identities to their tier, and the export button is present;
+- import: a valid chassis array is POSTed with CSRF, and oversized/non-JSON files are refused before any
+  request. API/state fixtures cover strict schema/size validation, count-only audit, additive atomic
+  storage, and assignment discard.
 
 ## Remaining gaps (not delivered)
 

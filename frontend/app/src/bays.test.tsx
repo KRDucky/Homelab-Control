@@ -435,3 +435,90 @@ describe('export redaction', () => {
     expect(screen.getByRole('button', { name: 'Export layout (identifiers redacted)' })).toBeTruthy();
   });
 });
+
+describe('layout import', () => {
+  function fileInput(container: HTMLElement) {
+    return container.querySelector('input[type="file"]') as HTMLInputElement;
+  }
+
+  it('imports a chassis array with CSRF and discards identities server-side', async () => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      void init; // the read and the import both answer empty; assertions check the request shape
+      return new Response(JSON.stringify({ chassis: [] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { container } = render(
+      <DriveBays
+        csrf="example-csrf"
+        nodes={[]}
+        canManage
+        preference="wwn"
+        onUnauthorized={() => undefined}
+      />,
+    );
+    await screen.findByText('No chassis has been described yet.');
+    const payload = { chassis: [{ name: 'Rack', kind: 'server', rows: 2, cols: 3, cells: [] }] };
+    fireEvent.change(fileInput(container), {
+      target: { files: [new File([JSON.stringify(payload)], 'layout.json', { type: 'application/json' })] },
+    });
+    await screen.findByText(/Layout imported/);
+    const post = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST');
+    expect(post?.[0]).toBe('/api/v1/storage/layout/import');
+    expect(JSON.parse(String(post?.[1]?.body))).toEqual(payload);
+    expect((post?.[1]?.headers as Record<string, string>)['X-CSRF-Token']).toBe('example-csrf');
+  });
+
+  it('refuses an oversized import file before reading it', async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ chassis: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const { container } = render(
+      <DriveBays
+        csrf="example-csrf"
+        nodes={[]}
+        canManage
+        preference="wwn"
+        onUnauthorized={() => undefined}
+      />,
+    );
+    await screen.findByText('No chassis has been described yet.');
+    const big = new File([new Uint8Array(8 * 1024 * 1024 + 1)], 'big.json', { type: 'application/json' });
+    fireEvent.change(fileInput(container), { target: { files: [big] } });
+    await screen.findByText(/exceeds the 8 MiB limit/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses a non-JSON import file', async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ chassis: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const { container } = render(
+      <DriveBays
+        csrf="example-csrf"
+        nodes={[]}
+        canManage
+        preference="wwn"
+        onUnauthorized={() => undefined}
+      />,
+    );
+    await screen.findByText('No chassis has been described yet.');
+    fireEvent.change(fileInput(container), {
+      target: { files: [new File(['not json'], 'bad.json', { type: 'application/json' })] },
+    });
+    await screen.findByText(/not valid JSON/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
