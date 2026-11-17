@@ -231,13 +231,14 @@ components:
         assignment: { $ref: '#/components/schemas/LayoutAssignment' }
     Chassis:
       type: object
-      required: [id, name, kind, rows, cols, created_at, updated_at, cells]
+      required: [id, name, kind, rows, cols, version, created_at, updated_at, cells]
       properties:
         id: { type: integer }
         name: { type: string, maxLength: 64 }
         kind: { type: string, enum: [server, shelf, external, desktop] }
         rows: { type: integer, minimum: 1, maximum: 24 }
         cols: { type: integer, minimum: 1, maximum: 24 }
+        version: { type: integer, minimum: 1, description: Monotonic per-chassis revision; the optimistic-concurrency compare-and-swap token for mutations. }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
         cells: { type: array, items: { $ref: '#/components/schemas/LayoutCell' } }
@@ -251,6 +252,28 @@ components:
         kind: { type: string, enum: [server, shelf, external, desktop] }
         rows: { type: integer, minimum: 1, maximum: 24 }
         cols: { type: integer, minimum: 1, maximum: 24 }
+        cells:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [row, col, kind]
+            properties:
+              row: { type: integer, minimum: 0, maximum: 23 }
+              col: { type: integer, minimum: 0, maximum: 23 }
+              kind: { type: string, enum: [hdd-3.5, ssd-2.5, nvme-m2, nvme-u2, tray, empty, disabled, reserved] }
+              label: { type: string, maxLength: 64 }
+    ChassisUpdate:
+      type: object
+      additionalProperties: false
+      required: [name, kind, rows, cols, version]
+      description: A chassis geometry plus the optimistic-concurrency version the client last observed; a mismatch is a 409 layout_conflict.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 64 }
+        kind: { type: string, enum: [server, shelf, external, desktop] }
+        rows: { type: integer, minimum: 1, maximum: 24 }
+        cols: { type: integer, minimum: 1, maximum: 24 }
+        version: { type: integer, minimum: 1 }
         cells:
           type: array
           items:
@@ -2231,28 +2254,29 @@ paths:
         '503': { description: 'State database or audit unavailable, or the change could not be audited (nothing changed when the requested record fails)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /storage/layout/chassis/{id}:
     put:
-      summary: Replace a chassis' name, kind, size and cells. Refused (409) when an assigned bay would leave the grid or stop being a bay.
+      summary: Replace a chassis' name, kind, size and cells. Refused (409) when an assigned bay would leave the grid or stop being a bay, or when the supplied version does not match the stored one (optimistic concurrency).
       security: [{ session: [] }]
       x-required-scope: layout.manage
       parameters:
         - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
       requestBody:
         required: true
-        content: { application/json: { schema: { $ref: '#/components/schemas/ChassisSpec' } } }
+        content: { application/json: { schema: { $ref: '#/components/schemas/ChassisUpdate' } } }
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DriveLayout' } } } }
         '400': { description: Invalid body or limits exceeded, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '404': { description: No such chassis, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '409': { description: Would drop or invalidate an existing assignment, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Would drop or invalidate an existing assignment, or the layout changed since it was loaded, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: 'Missing layout.manage, or Origin/CSRF rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: 'State database or audit unavailable, or the change could not be audited (nothing changed when the requested record fails)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
     delete:
-      summary: Delete a chassis. Refused (409) while any of its bays has an assignment.
+      summary: Delete a chassis. Refused (409) while any of its bays has an assignment, or when the supplied version does not match the stored one.
       security: [{ session: [] }]
       x-required-scope: layout.manage
       parameters:
         - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: version, in: query, required: true, schema: { type: integer, minimum: 1 }, description: Optimistic-concurrency version from GET /storage/layout }
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DriveLayout' } } } }
         '404': { description: No such chassis, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
@@ -2271,7 +2295,7 @@ paths:
         - { name: col, in: path, required: true, schema: { type: integer, minimum: 0, maximum: 23 } }
       requestBody:
         required: true
-        content: { application/json: { schema: { type: object, additionalProperties: false, required: [persistent_id], properties: { persistent_id: { type: string, maxLength: 512 } } } } }
+        content: { application/json: { schema: { type: object, additionalProperties: false, required: [persistent_id, version], properties: { persistent_id: { type: string, maxLength: 512 }, version: { type: integer, minimum: 1 } } } } }
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DriveLayout' } } } }
         '400': { description: Invalid body or identity tier not assignable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
@@ -2288,9 +2312,11 @@ paths:
         - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
         - { name: row, in: path, required: true, schema: { type: integer, minimum: 0, maximum: 23 } }
         - { name: col, in: path, required: true, schema: { type: integer, minimum: 0, maximum: 23 } }
+        - { name: version, in: query, required: true, schema: { type: integer, minimum: 1 }, description: Optimistic-concurrency version from GET /storage/layout }
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DriveLayout' } } } }
         '404': { description: No assignment at that bay, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: The layout changed since it was loaded, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: 'Missing layout.manage, or Origin/CSRF rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: 'State database or audit unavailable, or the change could not be audited (nothing changed when the requested record fails)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }

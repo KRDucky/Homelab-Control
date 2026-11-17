@@ -29,10 +29,10 @@ type LayoutStore interface {
 	List(context.Context) ([]state.Chassis, error)
 	Create(context.Context, state.ChassisSpec, time.Time) (int64, error)
 	Import(context.Context, []state.ChassisSpec, time.Time) (int, error)
-	Update(context.Context, int64, state.ChassisSpec, time.Time) error
-	Delete(context.Context, int64) error
-	Assign(ctx context.Context, id int64, row, col int, identity, by string, at time.Time) error
-	Unassign(ctx context.Context, id int64, row, col int, at time.Time) error
+	Update(context.Context, int64, state.ChassisSpec, int64, time.Time) error
+	Delete(context.Context, int64, int64) error
+	Assign(ctx context.Context, id int64, row, col int, identity, by string, expectedVersion int64, at time.Time) error
+	Unassign(ctx context.Context, id int64, row, col int, expectedVersion int64, at time.Time) error
 }
 
 // WithLayouts attaches the state database's layout store. Without it the
@@ -45,6 +45,14 @@ type layoutResponse struct {
 
 type assignRequest struct {
 	PersistentID string `json:"persistent_id"`
+	Version      int64  `json:"version"`
+}
+
+// layoutUpdateRequest wraps ChassisSpec with the optimistic-concurrency
+// version the client last observed; a mismatch is a 409 layout_conflict.
+type layoutUpdateRequest struct {
+	state.ChassisSpec
+	Version int64 `json:"version"`
 }
 
 func (s *Server) layoutAvailable(w http.ResponseWriter) bool {
@@ -120,6 +128,18 @@ func bayPath(r *http.Request) (id int64, row, col int, ok bool) {
 	return id, int(rr), int(cc), ok1 && ok2 && ok3
 }
 
+// queryVersion parses the `version` query parameter: a positive integer used
+// as the optimistic-concurrency compare-and-swap token for body-less methods
+// (DELETE).
+func queryVersion(r *http.Request) (int64, bool) {
+	v := r.URL.Query().Get("version")
+	if v == "" || len(v) > 12 || strings.TrimLeft(v, "0123456789") != "" {
+		return 0, false
+	}
+	n, err := strconv.ParseInt(v, 10, 64)
+	return n, err == nil && n >= 1
+}
+
 // layoutWrite runs one audited change: a "requested" record must be written
 // before anything changes (fail closed), then the outcome is recorded. Audit
 // details name the chassis and bay, never a serial or WWN.
@@ -135,6 +155,8 @@ func (s *Server) layoutWrite(w http.ResponseWriter, r *http.Request, sess *auth.
 			code, name, msg = http.StatusBadRequest, "invalid_layout", "The layout request is invalid or exceeds the supported limits."
 		case errors.Is(err, state.ErrLayoutNotFound):
 			code, name, msg = http.StatusNotFound, "not_found", "No such chassis, bay or assignment."
+		case errors.Is(err, state.ErrLayoutStale):
+			code, name, msg = http.StatusConflict, "layout_conflict", "The layout changed since it was loaded. Reload and retry."
 		case errors.Is(err, state.ErrLayoutConflict):
 			code, name, msg = http.StatusConflict, "layout_conflict", "Refused: this would overwrite, move or drop an existing drive assignment. Unassign it explicitly first."
 		}
@@ -172,20 +194,24 @@ func (s *Server) handleLayoutUpdate(w http.ResponseWriter, r *http.Request, sess
 		return
 	}
 	id, ok := pathInt(r, "id", 1, 1<<53)
-	var spec state.ChassisSpec
 	if !ok {
 		writeError(w, http.StatusNotFound, "not_found", "No such chassis.")
 		return
 	}
-	if !decodeStrict(w, r, &spec) {
+	var req layoutUpdateRequest
+	if !decodeStrict(w, r, &req) {
 		return
 	}
-	if spec.Validate() != nil {
+	if req.ChassisSpec.Validate() != nil {
 		writeError(w, http.StatusBadRequest, "invalid_layout", "The layout request is invalid or exceeds the supported limits.")
 		return
 	}
+	if req.Version < 1 {
+		writeError(w, http.StatusBadRequest, "invalid_layout", "A layout version is required.")
+		return
+	}
 	s.layoutWrite(w, r, sess, "layout.chassis.update", "chassis="+strconv.FormatInt(id, 10), http.StatusOK, func() error {
-		return s.layouts.Update(r.Context(), id, spec, time.Now())
+		return s.layouts.Update(r.Context(), id, req.ChassisSpec, req.Version, time.Now())
 	})
 }
 
@@ -198,8 +224,13 @@ func (s *Server) handleLayoutDelete(w http.ResponseWriter, r *http.Request, sess
 		writeError(w, http.StatusNotFound, "not_found", "No such chassis.")
 		return
 	}
+	v, ok := queryVersion(r)
+	if !ok {
+		writeError(w, http.StatusBadRequest, "invalid_layout", "A layout version is required.")
+		return
+	}
 	s.layoutWrite(w, r, sess, "layout.chassis.delete", "chassis="+strconv.FormatInt(id, 10), http.StatusOK, func() error {
-		return s.layouts.Delete(r.Context(), id)
+		return s.layouts.Delete(r.Context(), id, v)
 	})
 }
 
@@ -235,6 +266,10 @@ func (s *Server) handleLayoutAssign(w http.ResponseWriter, r *http.Request, sess
 		writeError(w, http.StatusBadRequest, "identity_not_assignable", "Only a drive with an observed WWN, NVMe namespace UUID or serial identity can be assigned.")
 		return
 	}
+	if req.Version < 1 {
+		writeError(w, http.StatusBadRequest, "invalid_layout", "A layout version is required.")
+		return
+	}
 	if s.storageCollect == nil || s.storageSem == nil {
 		writeError(w, http.StatusServiceUnavailable, "storage_unavailable", "Storage metadata collection is unavailable.")
 		return
@@ -259,7 +294,7 @@ func (s *Server) handleLayoutAssign(w http.ResponseWriter, r *http.Request, sess
 	}
 	tier, _, _ := strings.Cut(req.PersistentID, ":")
 	s.layoutWrite(w, r, sess, "layout.bay.assign", bayDetail(id, row, col)+" tier="+tier, http.StatusOK, func() error {
-		return s.layouts.Assign(r.Context(), id, row, col, req.PersistentID, sess.Username, time.Now())
+		return s.layouts.Assign(r.Context(), id, row, col, req.PersistentID, sess.Username, req.Version, time.Now())
 	})
 }
 
@@ -297,8 +332,13 @@ func (s *Server) handleLayoutUnassign(w http.ResponseWriter, r *http.Request, se
 		writeError(w, http.StatusNotFound, "not_found", "No such bay.")
 		return
 	}
+	v, ok := queryVersion(r)
+	if !ok {
+		writeError(w, http.StatusBadRequest, "invalid_layout", "A layout version is required.")
+		return
+	}
 	s.layoutWrite(w, r, sess, "layout.bay.unassign", bayDetail(id, row, col), http.StatusOK, func() error {
-		return s.layouts.Unassign(r.Context(), id, row, col, time.Now())
+		return s.layouts.Unassign(r.Context(), id, row, col, v, time.Now())
 	})
 }
 

@@ -85,11 +85,18 @@ Every write needs an audit logger and runs in this order:
 
 Without a state database, the layout routes return 503. There is no in-memory fallback that pretends to persist.
 
+### Optimistic concurrency
+Each chassis carries a monotonic integer `version` (returned by `GET /storage/layout`). Every
+mutation of an existing chassis (update, delete, assign, unassign) carries the version the client
+last saw — in the request body for PUT, as a `version` query parameter for DELETE — and is a
+compare-and-swap: the mutation succeeds only when the stored version still matches, then advances it.
+A mismatch returns a stable 409 `layout_conflict` and nothing changes, so two clients sharing one
+snapshot cannot both silently overwrite. Create and import are additive and therefore carry no
+version; imported geometry is always unassigned.
+
 ## Deferred (not delivered in this slice)
 Each of these is deferred, not claimed as delivered:
 - `last_seen`;
-- optimistic-concurrency revisions (the UI re-syncs after a 409 conflict, but the API has no
-  version/If-Match check);
 - assignment by weaker identity tiers;
 - the location badge on other storage views (Stage B);
 - SES and controller discovery (Stage C);

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -123,7 +124,7 @@ func TestLayoutAssignHappyPathIsManualAuditedAndRedacted(t *testing.T) {
 	if rr := h.do("POST", "/api/v1/storage/layout/chassis", chassisBody, writeHeaders(h)); rr.Code != http.StatusCreated {
 		t.Fatal(rr.Code, rr.Body.String())
 	}
-	rr := h.do("PUT", "/api/v1/storage/layout/chassis/1/bays/0/0/assignment", `{"persistent_id":"`+layoutWWN+`"}`, writeHeaders(h))
+	rr := h.do("PUT", "/api/v1/storage/layout/chassis/1/bays/0/0/assignment", `{"persistent_id":"`+layoutWWN+`","version":1}`, writeHeaders(h))
 	if rr.Code != http.StatusOK || *calls != 1 {
 		t.Fatal(rr.Code, rr.Body.String())
 	}
@@ -145,8 +146,8 @@ func TestLayoutAssignRefusesUnsafeIdentitiesAndReplacement(t *testing.T) {
 	if rr := h.do("POST", "/api/v1/storage/layout/chassis", chassisBody, writeHeaders(h)); rr.Code != http.StatusCreated {
 		t.Fatal(rr.Code)
 	}
-	assign := func(bay, id string) int {
-		return h.do("PUT", "/api/v1/storage/layout/chassis/1/bays/"+bay+"/assignment", `{"persistent_id":"`+id+`"}`, writeHeaders(h)).Code
+	assign := func(bay, id string, version int64) int {
+		return h.do("PUT", "/api/v1/storage/layout/chassis/1/bays/"+bay+"/assignment", `{"persistent_id":"`+id+`","version":`+strconv.FormatInt(version, 10)+`}`, writeHeaders(h)).Code
 	}
 	cases := map[string][2]any{
 		"ambiguous serial": {"serial:CLONE", http.StatusConflict},
@@ -156,21 +157,21 @@ func TestLayoutAssignRefusesUnsafeIdentitiesAndReplacement(t *testing.T) {
 		"device number":    {"8:0", http.StatusBadRequest},
 	}
 	for name, c := range cases {
-		if got := assign("0/0", c[0].(string)); got != c[1].(int) {
+		if got := assign("0/0", c[0].(string), 1); got != c[1].(int) {
 			t.Errorf("%s: %d, want %d", name, got, c[1])
 		}
 	}
-	if code := assign("0/0", layoutWWN); code != http.StatusOK {
+	if code := assign("0/0", layoutWWN, 1); code != http.StatusOK {
 		t.Fatal(code)
 	}
 	// The original drive disappears and a replacement with a new identity appears.
 	h.srv.storageCollect = func(context.Context) (storageinfo.Graph, error) {
 		return storageinfo.Build([]storageinfo.Block{{Name: "sda", DeviceNumber: "8:0", Kind: "block", WWID: "naa.5000000000000f02"}}, nil), nil
 	}
-	if code := assign("0/0", "wwn:naa.5000000000000f02"); code != http.StatusConflict {
+	if code := assign("0/0", "wwn:naa.5000000000000f02", 2); code != http.StatusConflict {
 		t.Fatal("replacement overwrote an occupied bay:", code)
 	}
-	if code := assign("1/1", "wwn:naa.5000000000000f02"); code != http.StatusConflict {
+	if code := assign("1/1", "wwn:naa.5000000000000f02", 2); code != http.StatusConflict {
 		t.Fatal("assigned to a disabled cell:", code)
 	}
 	list, _ := db.Layouts().List(context.Background())
@@ -178,10 +179,10 @@ func TestLayoutAssignRefusesUnsafeIdentitiesAndReplacement(t *testing.T) {
 		t.Fatal("missing drive's stored assignment was changed", a)
 	}
 	// Explicit unassign, then assign: the only replacement path.
-	if rr := h.do("DELETE", "/api/v1/storage/layout/chassis/1/bays/0/0/assignment", "", writeHeaders(h)); rr.Code != http.StatusOK {
+	if rr := h.do("DELETE", "/api/v1/storage/layout/chassis/1/bays/0/0/assignment?version=2", "", writeHeaders(h)); rr.Code != http.StatusOK {
 		t.Fatal(rr.Code)
 	}
-	if code := assign("0/0", "wwn:naa.5000000000000f02"); code != http.StatusOK {
+	if code := assign("0/0", "wwn:naa.5000000000000f02", 3); code != http.StatusOK {
 		t.Fatal(code)
 	}
 }
@@ -205,7 +206,7 @@ func TestLayoutReadRequiresCSRFAndAuditBeforeRelease(t *testing.T) {
 	if rr := h.do("POST", "/api/v1/storage/layout/chassis", chassisBody, writeHeaders(h)); rr.Code != http.StatusCreated {
 		t.Fatal(rr.Code)
 	}
-	if rr := h.do("PUT", "/api/v1/storage/layout/chassis/1/bays/0/0/assignment", `{"persistent_id":"`+layoutWWN+`"}`, writeHeaders(h)); rr.Code != http.StatusOK {
+	if rr := h.do("PUT", "/api/v1/storage/layout/chassis/1/bays/0/0/assignment", `{"persistent_id":"`+layoutWWN+`","version":1}`, writeHeaders(h)); rr.Code != http.StatusOK {
 		t.Fatal(rr.Code, rr.Body.String())
 	}
 	before := h.audit.String()
@@ -324,5 +325,22 @@ func TestLayoutImportOversizeRefused(t *testing.T) {
 	big := `{"chassis":[{"name":"` + strings.Repeat("a", layoutImportMaxBytes) + `","kind":"server","rows":1,"cols":1}]}`
 	if rr := h.do("POST", "/api/v1/storage/layout/import", big, writeHeaders(h)); rr.Code != http.StatusRequestEntityTooLarge {
 		t.Fatalf("oversize body accepted: %d", rr.Code)
+	}
+}
+
+func TestLayoutOptimisticConcurrencyReturnsConflict(t *testing.T) {
+	h, _, _ := layoutHarness(t, []string{auth.ScopeLayoutManage})
+	if rr := h.do("POST", "/api/v1/storage/layout/chassis", chassisBody, writeHeaders(h)); rr.Code != http.StatusCreated {
+		t.Fatal(rr.Code)
+	}
+	update := `{"name":"Renamed","kind":"server","rows":2,"cols":2,"version":1}`
+	if rr := h.do("PUT", "/api/v1/storage/layout/chassis/1", update, writeHeaders(h)); rr.Code != http.StatusOK {
+		t.Fatal(rr.Code, rr.Body)
+	}
+	// A stale writer using the same snapshot version is refused with a stable
+	// 409 layout_conflict, not a silent overwrite.
+	rr := h.do("PUT", "/api/v1/storage/layout/chassis/1", update, writeHeaders(h))
+	if rr.Code != http.StatusConflict || !strings.Contains(rr.Body.String(), "layout_conflict") {
+		t.Fatalf("stale update: %d %s", rr.Code, rr.Body.String())
 	}
 }
