@@ -40,7 +40,7 @@ install -Dm0755 $root/build/hlctl %{buildroot}/usr/bin/hlctl
 install -Dm0755 $root/build/hc-broker %{buildroot}/usr/lib/homelab-control/hc-broker
 install -Dm0755 $root/build/hc-storage-probe %{buildroot}/usr/lib/homelab-control/hc-storage-probe
 install -Dm0755 $root/build/hc-audit-retention %{buildroot}/usr/bin/hc-audit-retention
-for u in homelab-control.service homelab-control-broker.service homelab-control-broker.socket homelab-control-storage-helper.service homelab-control-storage-probe.service homelab-control-storage-probe.socket homelab-control-audit-retention.service homelab-control-audit-retention.timer; do
+for u in homelab-control.service homelab-control-broker.service homelab-control-broker.socket homelab-control-storage-helper.service homelab-control-storage-probe@.service homelab-control-storage-probe.socket homelab-control-audit-retention.service homelab-control-audit-retention.timer; do
   install -Dm0644 $root/packaging/common/\$u %{buildroot}/usr/lib/systemd/system/\$u
 done
 install -Dm0644 $root/packaging/common/sysusers.conf %{buildroot}/usr/lib/sysusers.d/homelab-control.conf
@@ -88,7 +88,7 @@ if [ -d /run/systemd/system ]; then systemctl daemon-reload >/dev/null 2>&1 || :
 /usr/lib/systemd/system/homelab-control-broker.service
 /usr/lib/systemd/system/homelab-control-broker.socket
 /usr/lib/systemd/system/homelab-control-storage-helper.service
-/usr/lib/systemd/system/homelab-control-storage-probe.service
+/usr/lib/systemd/system/homelab-control-storage-probe@.service
 /usr/lib/systemd/system/homelab-control-storage-probe.socket
 /usr/lib/systemd/system/homelab-control-audit-retention.service
 /usr/lib/systemd/system/homelab-control-audit-retention.timer

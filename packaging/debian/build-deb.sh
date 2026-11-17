@@ -24,7 +24,7 @@ install -Dm0644 "$root/packaging/common/homelab-control-broker.service" "$stage/
 install -Dm0644 "$root/packaging/common/homelab-control-broker.socket" "$stage/usr/lib/systemd/system/homelab-control-broker.socket"
 install -Dm0644 "$root/packaging/common/homelab-control.service" "$stage/usr/lib/systemd/system/homelab-control.service"
 install -Dm0644 "$root/packaging/common/homelab-control-storage-helper.service" "$stage/usr/lib/systemd/system/homelab-control-storage-helper.service"
-install -Dm0644 "$root/packaging/common/homelab-control-storage-probe.service" "$stage/usr/lib/systemd/system/homelab-control-storage-probe.service"
+install -Dm0644 "$root/packaging/common/homelab-control-storage-probe@.service" "$stage/usr/lib/systemd/system/homelab-control-storage-probe@.service"
 install -Dm0644 "$root/packaging/common/homelab-control-storage-probe.socket" "$stage/usr/lib/systemd/system/homelab-control-storage-probe.socket"
 install -Dm0644 "$root/packaging/common/homelab-control-audit-retention.service" "$stage/usr/lib/systemd/system/homelab-control-audit-retention.service"
 install -Dm0644 "$root/packaging/common/homelab-control-audit-retention.timer" "$stage/usr/lib/systemd/system/homelab-control-audit-retention.timer"
