@@ -248,6 +248,7 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/operations", auth.ScopeAuditRead, s.handleOperations)
 	s.handle("GET /api/v1/hardware", auth.ScopeHardwareRead, s.handleHardware)
 	s.handle("GET /api/v1/storage", auth.ScopeStorageRead, s.handleStorage)
+	s.handle("POST /api/v1/storage/probe", auth.ScopeStorageProbe, s.handleStorageProbe)
 	s.handle("GET /api/v1/files/roots", auth.ScopeFilesRead, s.handleFilesRoots)
 	s.handle("GET /api/v1/files/entries", auth.ScopeFilesRead, s.handleFilesEntries)
 	// M2-5 Stage A: application-owned manual drive-bay layout (no host writes).
