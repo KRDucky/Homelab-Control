@@ -221,9 +221,19 @@ check_apparmor() { # profile
   [ -r "$f" ] || { bad "AppArmor profile is missing"; return 1; }
   body=$(strip_policy "$f")
   printf '%s\n' "$body" | grep -qxF "profile ${AA_PROFILE} ${EXEC} flags=(enforce) {" || bad "profile header must be: profile ${AA_PROFILE} ${EXEC} flags=(enforce) {"
-  for need in "deny capability," "deny network," "deny mount," "deny ptrace,"; do
+  for need in "deny capability," "deny mount," "deny ptrace," "deny network inet," "deny network inet6," \
+              "deny network netlink," "deny network packet," "deny network bluetooth," "deny network vsock," \
+              "unix (receive, send, getattr, shutdown) type=stream," '@{PROC}/@{pid}/cgroup r,'; do
     printf '%s\n' "$body" | grep -qxF "  $need" || printf '%s\n' "$body" | grep -qxF "$need" || bad "AppArmor profile lacks: $need"
   done
+  # A blanket network rule (allow or deny) is wrong: "deny network," also matches
+  # AF_UNIX and overrides the unix rule, so the confined helper cannot read its
+  # socket (Debian 13 audit: operation=recvmsg class=net family=unix denied).
+  if printf '%s\n' "$body" | grep -qE '^[[:space:]]*(deny[[:space:]]+)?(audit[[:space:]]+)?network[[:space:]]*,'; then
+    bad "blanket 'network,' rule (allow or deny) breaks AF_UNIX: use per-family denies"
+  fi
+  # LVM is read natively; the profile must not allow executing lvm, lvs or pvs.
+  printf '%s\n' "$body" | grep -qE '/(lvm|lvs|pvs)([[:space:]]|\*|,)' && bad "AppArmor profile must not exec lvm/lvs/pvs (native reader)"
   while IFS= read -r line; do
     line=${line#"${line%%[![:space:]]*}"}
     case "$line" in
@@ -354,8 +364,18 @@ self_test() {
   mutate fc      "wrong type"                     's/hc_storage_probe_exec_t/bin_t/'
   mutate aa      "device write"                   's#^  /dev/sd\[a-z\]\* r,#  /dev/sd[a-z]* rw,#'
   mutate aa      "capability allowed"             's/^  deny capability,/  capability sys_admin,/'
-  mutate aa      "network allowed"                's/^  deny network,/  network,/'
-  mutate aa      "unconfined exec"                's#^  /{usr/,}{s,}bin/lvm ix,#  /{usr/,}{s,}bin/lvm Ux,#'
+  mutate aa      "blanket network allow"          's/^  deny network inet,/  network,/'
+  mutate aa      "blanket deny network (AF_UNIX)" 's/^  deny network inet,/  deny network,/'
+  mutate aa      "inet deny removed"              '/^  deny network inet,/d'
+  mutate aa      "inet6 deny removed"             '/^  deny network inet6,/d'
+  mutate aa      "netlink deny removed"           '/^  deny network netlink,/d'
+  mutate aa      "packet deny removed"            '/^  deny network packet,/d'
+  mutate aa      "bluetooth deny removed"         '/^  deny network bluetooth,/d'
+  mutate aa      "vsock deny removed"             '/^  deny network vsock,/d'
+  mutate aa      "unix rule removed"              '/^  unix (receive/d'
+  mutate aa      "cgroup read removed"            '/@{PROC}\/@{pid}\/cgroup r,/d'
+  mutate aa      "lvm exec allowed"               's#^  /{usr/,}{s,}bin/blkid ix,#  /{usr/,}{s,}bin/blkid ix,\n  /{usr/,}{s,}bin/lvm ix,#'
+  mutate aa      "unconfined exec"                's#^  /{usr/,}{s,}bin/blkid ix,#  /{usr/,}{s,}bin/blkid Ux,#'
   mutate aa      "complain mode"                  's/flags=(enforce)/flags=(complain)/'
   mutate aa      "broad device rule"              's#^  /dev/block/ r,#  /dev/** rw,#'
   mutate aa      "profile renamed"                's/^profile hc-storage-probe /profile other /'

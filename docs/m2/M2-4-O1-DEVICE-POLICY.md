@@ -168,9 +168,23 @@ scripts never load policy.
   domain transitions. Compile-only: `build-selinux-policy.sh` never loads the
   module. `removable_device_t` is intentionally not granted.
 - **AppArmor (Debian/Ubuntu).** Profile `hc-storage-probe`, enforce mode,
-  `deny capability/network/mount/ptrace`, `ix`-only child exec, read-only device
-  patterns per class, no `Ux`/`Pux`, no shell. Shipped as a conffile; loaded by
-  the administrator in a validation VM.
+  `deny capability/mount/ptrace`, per-family `deny network` (inet, inet6,
+  netlink, packet, bluetooth, vsock) with the inherited AF_UNIX connection
+  allowed by an explicit `unix` rule, `ix`-only exec of `blkid` (LVM metadata is
+  read natively; `lvm`/`lvs`/`pvs` are not executable), read-only device
+  patterns per class, no `Ux`/`Pux`, no shell. Shipped as a conffile and not
+  loaded by package scripts; Debian's `apparmor.service` loads it at boot, or
+  an administrator loads it by hand.
+  **Root cause of the Debian 13 failure (found 2026-11-17):** the first profile
+  had a blanket `deny network,`. In AppArmor a rule without a family matches
+  every family including AF_UNIX, and a `deny` overrides the later `unix (...)`
+  allow, so the confined helper was denied `recvmsg` on its own systemd socket
+  (audit: `operation="recvmsg" class="net" family="unix" denied_mask="receive"`)
+  and exited silently without even reaching journald. `apparmor_parser -Q -T`
+  accepts both the broken and the fixed profile, so a parse check cannot catch
+  it; `tests/packaging/storage-probe-policy-check.sh` now rejects any blanket
+  `network,` rule and requires the per-family denies, the `unix` rule and the
+  `@{PROC}/@{pid}/cgroup r,` read (the Go runtime reads it; denied otherwise).
 - **Arch / openSUSE / others.** No MAC policy is shipped. On those distros the
   helper stays unsupported for any activation until a policy exists; the unit
   still ships disabled. (AppArmor on openSUSE and SELinux on Arch are not
@@ -218,8 +232,20 @@ under `/mnt/tank/claude-vms/artifacts/hc-m24-o1-ce76000d/` and
   when the payload used `--keep-unit`; without it, the payload landed in
   `machine.slice`. The inner unit's device policy was not enforced in that
   container. This does not establish supported container behavior.
-- Fedora did not provide an AppArmor parser and had no AppArmor LSM, so the
-  AppArmor profile remains unparsed and unenforced.
+- Fedora has no AppArmor LSM. AppArmor was exercised separately on Debian 13
+  (below).
+- **Debian 13.7 KVM (`/mnt/tank/claude-vms/artifacts/m24-apparmor-debian13-20261117/REPORT.md`,
+  kernel 6.12.107, systemd 257, apparmor_parser 4.1.0).** The shipped profile
+  parsed (`-Q -T -r` rc 0) and loaded in enforce mode, but the helper failed
+  closed and silently because of `deny network,` (root cause above). A variant
+  with per-family denies plus the cgroup read, kept outside the repo, ran
+  confined in enforce mode against a synthetic virtio disk with no denials and
+  returned blkid metadata. The same run showed: the unit refuses
+  (`device_policy_unresolved`) when `sd`/`md` are not registered in a
+  virtio-only guest (load `sd_mod md_mod` first), the instance fails to start
+  when the profile is not loaded (change_onexec "label not found"), and the
+  confined helper cannot read `/etc/homelab-control` or exec `/bin/sh`. A write
+  open of the synthetic disk got EPERM from the cgroup policy.
 
 The VM was shut down gracefully with autostart disabled. Its overlay, synthetic
 disk, source copies and logs remain preserved. The original evidence manifest
@@ -232,8 +258,13 @@ had a stale checksum for the pre-shutdown guest-state log; this is documented in
 - LVM device-set identity remains path-based; more importantly, real LVM output
   is unusable inside the service sandbox. Keep `LVMEnabled` false until a
   reviewed sandbox design and synthetic-guest verification resolve this.
-- The AppArmor profile has not been parsed or exercised in a supported Debian
-  or Ubuntu guest. Fedora results do not validate AppArmor or other distros.
+- AppArmor: the profile in this branch is the Debian 13 test variant plus two
+  least-privilege removals (the `lvm` exec rule and the unused private-tmp
+  rules), which are not yet re-run in a guest. Still required in a disposable
+  Debian 13 (and Ubuntu LTS) guest: re-run the confined probe with this exact
+  file, `AF_INET`/`AF_NETLINK` denial from inside the profile, partition and
+  md/NVMe nodes, and no `apparmor="DENIED"` entries beyond the expected
+  confinement checks.
 - The `systemd-nspawn` result is partial; the inner policy is not enforced in
   that container configuration. Supported-container fail-closed behavior is
   not established.
@@ -250,3 +281,33 @@ had a stale checksum for the pre-shutdown guest-state log; this is documented in
   and without the helper SELinux domain. The static policy guard requires this
   path mask. This result is specific to the tested Fedora 44 unit and does not
   establish behavior on other systemd versions.
+
+## Debian/Ubuntu AppArmor validation plan (disposable guest only)
+
+Run inside a disposable Debian 13 (and an Ubuntu LTS) KVM guest with a
+synthetic virtio disk; never on a host. The existing guest
+`hc-m24-apparmor-debian13-20261117` (shut off, autostart disabled) can be
+reused. Copy this branch's files into the guest; do not install anything on the
+host.
+
+1. Parse: `apparmor_parser -Q -T -r packaging/debian/apparmor/usr.lib.homelab-control.hc-storage-probe` (rc 0). A parse alone does not prove the network
+   rules; step 4 does.
+2. Load in enforce mode: install the file to `/etc/apparmor.d/`, then
+   `apparmor_parser -r <file>` and `aa-status | grep hc-storage-probe` (enforce).
+3. Prepare the guest: `modprobe sd_mod md_mod virtio_blk`; `touch
+   /etc/homelab-control/storage-probe.enabled`; start
+   `homelab-control-storage-probe.socket`; send one request for the synthetic disk.
+   Expect blkid metadata, `lvm` reported disabled/partial by design, and no
+   `apparmor="DENIED"` lines in `journalctl -k` other than the checks below.
+4. Network: from inside the profile attempt `AF_INET`, `AF_INET6` and
+   `AF_NETLINK` socket creation (for example with a tiny test binary labelled
+   by a copy of the profile) and confirm denial; confirm the unix connection
+   still works.
+5. Confinement: reads of `/etc/homelab-control/*`, `/etc/hostname` and exec of
+   `/bin/sh` are denied; write opens of the synthetic disk fail (EPERM from the
+   cgroup policy, EACCES from AppArmor).
+6. Fail closed: `apparmor_parser -R <file>` then start an instance; it must fail
+   with change_onexec "label not found" and the helper must not run.
+7. Cleanup: remove the marker, stop the socket, unload the profile, shut the
+   guest down gracefully (autostart stays disabled). Keep the audit log as
+   evidence.

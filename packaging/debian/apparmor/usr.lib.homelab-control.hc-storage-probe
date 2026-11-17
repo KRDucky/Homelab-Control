@@ -3,12 +3,19 @@
 #
 # AppArmor profile for the M2-4 O-1 read-only storage probe.
 #
-# STATUS: unvalidated. It has not been parsed here (no apparmor_parser). Run
-# `apparmor_parser -Q -T -r` on it in a disposable validation VM first. The
-# package installs this file but does not load it; it is loaded at boot or by
-# hand. The unit sets AppArmorProfile=hc-storage-probe, so on a host where
-# AppArmor is active and this profile is not loaded the instance cannot start
-# (fail closed).
+# STATUS: parsed with apparmor_parser 4.0.1 (-Q -T) and exercised in enforce
+# mode on a disposable Debian 13 VM (docs/m2/M2-4-O1-DEVICE-POLICY.md). Other
+# AppArmor kernels and distributions remain unvalidated. The package installs
+# this file but does not load it; Debian's apparmor.service loads it at boot or
+# an administrator loads it by hand. The unit sets AppArmorProfile=hc-storage-probe,
+# so on a host where AppArmor is active and this profile is not loaded the
+# instance cannot start (fail closed).
+#
+# Network: the helper talks only over the inherited AF_UNIX connection from
+# systemd. A blanket "deny network," also matches AF_UNIX and overrides the
+# unix rule below (audit: operation=recvmsg class=net family=unix), so the helper
+# could not read its request and silently failed. Every other family is denied
+# per family; an unlisted family is denied by default as well.
 #
 # Narrower than the unit's DeviceAllow= on purpose: the device rules below
 # name node patterns, read-only. Every unlisted access is denied.
@@ -18,17 +25,23 @@
 profile hc-storage-probe /usr/lib/homelab-control/hc-storage-probe flags=(enforce) {
   #include <abstractions/base>
 
-  # Nothing privileged, no network, no mounts, no tracing.
+  # Nothing privileged, no mounts, no tracing, and no network except the
+  # inherited AF_UNIX connection (see the unix rule below).
   deny capability,
-  deny network,
+  deny network inet,
+  deny network inet6,
+  deny network netlink,
+  deny network packet,
+  deny network bluetooth,
+  deny network vsock,
   deny mount,
   deny umount,
   deny pivot_root,
   deny ptrace,
 
-  # The helper, and the fixed child tools run inside this profile (ix).
+  # The helper and its one fixed child tool (blkid) run inside this profile (ix).
+  # LVM metadata is read natively by the helper; lvm/lvs/pvs are never executed.
   /usr/lib/homelab-control/hc-storage-probe mr,
-  /{usr/,}{s,}bin/lvm ix,
   /{usr/,}{s,}bin/blkid ix,
   /etc/blkid.conf r,
 
@@ -56,10 +69,7 @@ profile hc-storage-probe /usr/lib/homelab-control/hc-storage-probe flags=(enforc
   @{PROC}/partitions r,
   @{PROC}/filesystems r,
   @{PROC}/@{pid}/mountinfo r,
-
-  # Private LVM_SYSTEM_DIR under the unit's PrivateTmp.
-  owner /tmp/hc-storage-probe-lvm-*/ rw,
-  owner /tmp/hc-storage-probe-lvm-*/** rwk,
+  @{PROC}/@{pid}/cgroup r,
 
   # The connection from systemd is an inherited descriptor.
   unix (receive, send, getattr, shutdown) type=stream,
