@@ -22,10 +22,11 @@ import (
 // this proves the request is oversized, so a truncated request is rejected.
 const maxRequestBytes = 1 << 20
 
-// maxResponseBytes is the closed-protocol output frame cap. LVM reports are
-// individually capped at 8 MiB; this leaves room for both reports, blkid data,
-// and protocol framing while keeping the response below the unit memory cap.
-const maxResponseBytes = 24 << 20
+// maxResponseBytes is the closed-protocol output frame cap. It is a provable
+// bound: 64 devices × 16 KiB blkid = 1 MiB raw (LVM is gated off), which
+// worst-case JSON-escapes to ~2 MiB, plus errors/framing — comfortably under
+// 3 MiB and the broker's 4 MiB proto.MaxResponse.
+const maxResponseBytes = 3 << 20
 
 func main() {
 	if err := run(); err != nil {

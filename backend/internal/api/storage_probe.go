@@ -77,6 +77,12 @@ func (s *Server) handleStorageProbe(w http.ResponseWriter, r *http.Request, sess
 		brokerError(w, err)
 		return
 	}
+	// A typed helper refusal is an HTTP 503, not a 200 with graph.status.
+	if probe.Code == "device_policy_unresolved" {
+		_ = s.auditLog("storage.probe", sess.Username, r, "unavailable", "device_policy_unresolved")
+		writeError(w, http.StatusServiceUnavailable, "storage_probe_unavailable", "The storage probe helper refused: required block-device classes are not available.")
+		return
+	}
 
 	// Collect the unprivileged base graph, then fold in the probe outcome.
 	collectedAt := time.Now().UTC()

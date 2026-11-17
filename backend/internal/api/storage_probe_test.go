@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"homelab-control/backend/internal/auth"
+	"homelab-control/backend/internal/broker/proto"
 	"homelab-control/backend/internal/storageinfo"
 )
 
@@ -116,5 +117,29 @@ func TestApplyProbeOutcomePreservesWorseStatus(t *testing.T) {
 	applyProbeOutcome(&g3, storageProbeResult{Version: 1, Code: "device_policy_unresolved", Partial: true})
 	if g3.Status != "unavailable" {
 		t.Fatalf("refusal did not set unavailable: %q", g3.Status)
+	}
+}
+
+func TestStorageProbeRefusalIsUnavailable(t *testing.T) {
+	h, fb := probeHarness(t, auth.ScopeStorageProbe)
+	fb.results["storage.probe"] = storageProbeResult{Version: 1, Code: "device_policy_unresolved", Partial: true, Errors: []string{"probe refused: block device classes not available: md"}}
+	rr := h.do("POST", "/api/v1/storage/probe", "", map[string]string{"X-CSRF-Token": h.csrf, "Origin": testOrigin})
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Fatalf("got %d %s", rr.Code, rr.Body)
+	}
+	if !strings.Contains(rr.Body.String(), "storage_probe_unavailable") {
+		t.Fatalf("missing storage_probe_unavailable code: %s", rr.Body)
+	}
+}
+
+func TestStorageProbeRateLimited(t *testing.T) {
+	h, fb := probeHarness(t, auth.ScopeStorageProbe)
+	fb.errs["storage.probe"] = &proto.Error{Code: proto.CodeRateLimited, Message: "storage probe rate-limited; retry shortly"}
+	rr := h.do("POST", "/api/v1/storage/probe", "", map[string]string{"X-CSRF-Token": h.csrf, "Origin": testOrigin})
+	if rr.Code != http.StatusTooManyRequests {
+		t.Fatalf("got %d %s", rr.Code, rr.Body)
+	}
+	if rr.Header().Get("Retry-After") != "30" {
+		t.Fatalf("Retry-After = %q, want 30", rr.Header().Get("Retry-After"))
 	}
 }

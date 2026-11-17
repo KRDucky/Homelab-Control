@@ -2213,7 +2213,7 @@ paths:
   /storage/probe:
     post:
       summary: On-demand native storage probe (O-1); wakes disks, never attached to polling GET
-      description: Reads blkid signatures (fd-pinned) on enumerated, revalidated devices via the broker. LVM is gated off until its fd identity binding is proven. Count-only audit; single-flight. An empty body is required (400 otherwise); devices are enumerated server-side, never caller-supplied. The session X-CSRF-Token header is required. storage.probe is never granted by default. Returns the same snake_case StorageInventory as GET /storage, with partial/refusal folded into graph.status/notes.
+      description: Reads blkid signatures (fd-pinned) on enumerated, revalidated devices via the broker. LVM is gated off until its fd identity binding is proven. Count-only audit; single-flight; broker-side rate limit. An empty body is required (400 otherwise); devices are enumerated server-side, never caller-supplied. The session X-CSRF-Token header is required. storage.probe is never granted by default. Partial results are folded into graph.status/notes; a device_policy_unresolved helper refusal is a 503 storage_probe_unavailable.
       security: [{ session: [] }]
       parameters:
         - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
@@ -2224,7 +2224,8 @@ paths:
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: Missing storage.probe permission or missing/invalid CSRF token, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '409': { description: Probe already in flight, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '503': { description: Broker or probe helper unavailable/busy, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '429': { description: Broker-side rate limit exceeded (Retry-After header in seconds), content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Broker/probe helper unavailable, busy, or refused (device_policy_unresolved -> storage_probe_unavailable), content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /storage/layout:
     get:
       summary: Stored manual drive-bay layout (M2-5 Stage A). Application state only; no collection or host access.
