@@ -4,6 +4,7 @@ Description=Homelab Control read-only storage probe socket (M2-4)
 [Socket]
 ListenStream=/run/homelab-control/storage-probe.sock
 Accept=yes
+MaxConnections=1
 SocketMode=0600
 SocketUser=root
 SocketGroup=root

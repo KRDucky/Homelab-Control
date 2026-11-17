@@ -44,6 +44,7 @@ import (
 const (
 	maxReportBytes = 8 << 20 // per LVM report
 	maxBlkidBytes  = 64 << 10
+	maxStderrBytes = 4 << 10 // bounded child stderr; never returned
 	reportTimeout  = 12 * time.Second
 	blkidTimeout   = 5 * time.Second
 	maxDevices     = 64 // device names accepted per request
@@ -58,6 +59,10 @@ var (
 	runMu          sync.Mutex
 	lastRun        time.Time
 	minRunInterval = time.Second
+	// totalTimeout bounds the whole Run across all devices. It is a var so
+	// tests can shrink it; the real cross-instance serialisation is the
+	// socket's MaxConnections.
+	totalTimeout = 60 * time.Second
 )
 
 // LVM report field lists. These request exactly the fields the storageinfo
@@ -136,15 +141,26 @@ func Run(ctx context.Context, req Request) Result {
 	}
 	defer release()
 
-	names := validDevices(req.Devices)
+	// Request-wide deadline bounds total probe wall time across all devices.
+	totalCtx, cancel := context.WithTimeout(ctx, totalTimeout)
+	defer cancel()
+	ctx = totalCtx
+
+	names, dropped := validDevices(req.Devices)
 	if len(req.Devices) > maxDevices {
 		res.Errors = append(res.Errors, fmt.Sprintf("request truncated: %d devices, max %d", len(req.Devices), maxDevices))
+		res.Partial = true
+	}
+	for _, n := range dropped {
+		res.Errors = append(res.Errors, "invalid device "+strconv.Quote(n))
+		res.Partial = true
 	}
 
 	var devs []*device
 	for _, n := range names {
 		if r := skipReason(n); r != "" {
 			res.Errors = append(res.Errors, "skipped "+n+": "+r)
+			res.Partial = true
 			continue
 		}
 		d, err := resolveDevice(n)
@@ -301,33 +317,36 @@ func hasAllowedPrefix(key string) bool {
 	return false
 }
 
-// validDevices bounds the request: at most maxDevices names are kept, names
-// are de-duplicated, and only syntactically valid, existing sysfs block devices
-// survive revalidation. Work is also bounded for large invalid/duplicate input.
-func validDevices(names []string) []string {
+// validDevices bounds the request: at most maxDevices valid names are kept,
+// names are de-duplicated, and syntactically invalid or missing devices are
+// returned in dropped so Run can report them. Work is also bounded for large
+// invalid/duplicate input.
+func validDevices(names []string) (valid, dropped []string) {
 	seen := make(map[string]bool, maxDevices)
-	out := make([]string, 0, maxDevices)
+	valid = make([]string, 0, maxDevices)
 	limit := maxDevices * 2 // bound total work even for invalid/duplicate input
 	if len(names) < limit {
 		limit = len(names)
 	}
 	for _, n := range names[:limit] {
-		if len(out) >= maxDevices {
+		if len(valid) >= maxDevices {
 			break
 		}
 		if seen[n] {
 			continue
 		}
+		seen[n] = true
 		if !blockName.MatchString(n) || strings.Contains(n, "/") {
+			dropped = append(dropped, n)
 			continue
 		}
 		if fi, err := os.Stat(sysBlockRoot + "/" + n); err != nil || !fi.IsDir() {
+			dropped = append(dropped, n)
 			continue
 		}
-		seen[n] = true
-		out = append(out, n)
+		valid = append(valid, n)
 	}
-	return out
+	return valid, dropped
 }
 
 // skipReason reports why a device is excluded by default, or "" when it is
@@ -458,25 +477,27 @@ func run(ctx context.Context, timeout time.Duration, max int, tool string, args,
 	cmd := exec.CommandContext(childCtx, bin, args...)
 	cmd.Env = append(append([]string{}, env...), extraEnv...)
 	cmd.Stdin = nil
-	var out cappedBuffer
-	out.max = max
-	cmd.Stdout = &out
-	cmd.Stderr = &out
+	var stdout cappedBuffer
+	stdout.max = max
+	var stderr cappedBuffer
+	stderr.max = maxStderrBytes
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
 	cmd.WaitDelay = 2 * time.Second
 
 	err := cmd.Run()
-	if out.tooBig {
-		return out.buf.String(), fmt.Errorf("%s output exceeded %d bytes", tool, max)
+	if stdout.tooBig {
+		return "", fmt.Errorf("%s output exceeded %d bytes", tool, max)
 	}
 	if err != nil {
 		if childCtx.Err() != nil {
-			return out.buf.String(), fmt.Errorf("%s timed out", tool)
+			return "", fmt.Errorf("%s timed out", tool)
 		}
-		return out.buf.String(), fmt.Errorf("%s: %w", tool, err)
+		return "", fmt.Errorf("%s exited: %w", tool, err)
 	}
-	return out.buf.String(), nil
+	return stdout.buf.String(), nil
 }
 
 // cappedBuffer bounds the bytes a child may write before its output is

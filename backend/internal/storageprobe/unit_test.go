@@ -65,6 +65,9 @@ func TestStorageProbeSocketAccept(t *testing.T) {
 	if !strings.Contains(sock, "Accept=yes") {
 		t.Fatalf("socket missing Accept=yes")
 	}
+	if !strings.Contains(sock, "MaxConnections=1") {
+		t.Fatalf("socket missing MaxConnections=1")
+	}
 	if !strings.Contains(sock, "ListenStream=/run/homelab-control/storage-probe.sock") {
 		t.Fatalf("socket missing ListenStream")
 	}

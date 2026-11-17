@@ -280,17 +280,95 @@ func TestValidDevicesBoundsAndDedups(t *testing.T) {
 	t.Cleanup(func() { sysBlockRoot = old })
 
 	names := []string{"sda", "sda", "sdb", "../evil", "a/b", "nonexistent"}
-	got := validDevices(names)
+	got, dropped := validDevices(names)
 	if len(got) != 2 || got[0] != "sda" || got[1] != "sdb" {
 		t.Fatalf("dedup/revalidate wrong: %v", got)
+	}
+	if len(dropped) != 3 {
+		t.Fatalf("dropped = %v, want 3 invalid names", dropped)
 	}
 
 	huge := make([]string, 1000)
 	for i := range huge {
 		huge[i] = "sda"
 	}
-	got = validDevices(huge)
+	got, _ = validDevices(huge)
 	if len(got) != 1 || got[0] != "sda" {
 		t.Fatalf("huge dedup wrong: %v", got)
+	}
+}
+
+func TestRunSuppressesFailedOutput(t *testing.T) {
+	bin := filepath.Join(t.TempDir(), "bin")
+	if err := os.MkdirAll(bin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeScript(t, filepath.Join(bin, "lvs"), "#!/bin/sh\necho 'stdout-secret'\necho 'stderr-secret' >&2\nexit 3\n")
+	old := binaries
+	binaries = map[string]string{"lvs": filepath.Join(bin, "lvs")}
+	t.Cleanup(func() { binaries = old })
+
+	out, err := run(context.Background(), 5*time.Second, 1<<20, "lvs", nil, nil)
+	if err == nil {
+		t.Fatal("expected error for failing command")
+	}
+	if out != "" {
+		t.Fatalf("failed stdout leaked: %q", out)
+	}
+	for _, secret := range []string{"stdout-secret", "stderr-secret"} {
+		if strings.Contains(err.Error(), secret) {
+			t.Fatalf("failed output leaked into error: %v", err)
+		}
+	}
+}
+
+func TestRunTotalDeadline(t *testing.T) {
+	base := t.TempDir()
+	sys := filepath.Join(base, "block")
+	devs := filepath.Join(base, "devs")
+	if err := os.MkdirAll(sys, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(devs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mkdev(t, devs, "sda", "8:0", "", "0", "")
+	link(t, sys, devs, "sda")
+
+	bin := filepath.Join(base, "bin")
+	if err := os.MkdirAll(bin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeScript(t, filepath.Join(bin, "lvs"), "#!/bin/sh\necho '{}'\n")
+	writeScript(t, filepath.Join(bin, "pvs"), "#!/bin/sh\necho '{}'\n")
+	writeScript(t, filepath.Join(bin, "blkid"), "#!/bin/sh\nsleep 2\necho 'TYPE=x'\n")
+
+	oldSys, oldBin, oldOpen, oldTotal, oldMin, oldLast := sysBlockRoot, binaries, openAndVerify, totalTimeout, minRunInterval, lastRun
+	sysBlockRoot = sys
+	binaries = map[string]string{
+		"lvs":   filepath.Join(bin, "lvs"),
+		"pvs":   filepath.Join(bin, "pvs"),
+		"blkid": filepath.Join(bin, "blkid"),
+	}
+	openAndVerify = func(path string, maj, min uint64) (*os.File, error) {
+		return os.Open(os.DevNull)
+	}
+	totalTimeout = 200 * time.Millisecond
+	minRunInterval = 0
+	lastRun = time.Time{}
+	t.Cleanup(func() {
+		sysBlockRoot, binaries, openAndVerify, totalTimeout, minRunInterval, lastRun = oldSys, oldBin, oldOpen, oldTotal, oldMin, oldLast
+	})
+
+	start := time.Now()
+	res := Run(context.Background(), Request{Version: 1, Devices: []string{"sda"}})
+	if time.Since(start) > 2*time.Second {
+		t.Fatalf("total deadline not enforced: took %v", time.Since(start))
+	}
+	if _, ok := res.Blkid["sda"]; ok {
+		t.Fatalf("blkid should have been cut short by the deadline: %+v", res)
+	}
+	if !res.Partial {
+		t.Fatalf("expected Partial under deadline: %+v", res)
 	}
 }
