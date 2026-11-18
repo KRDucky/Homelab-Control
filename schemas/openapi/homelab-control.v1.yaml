@@ -2004,10 +2004,11 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [root, path, entries]
+                required: [root, path, omitted, entries]
                 properties:
                   root: { type: string }
                   path: { type: string }
+                  omitted: { type: integer, description: 'Number of names omitted because they are not faithfully representable (invalid UTF-8) or not navigable (a backslash).' }
                   entries:
                     type: array
                     items:

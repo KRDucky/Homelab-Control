@@ -5,7 +5,8 @@
 package api
 
 import (
-	"encoding/json"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"net/http"
 	"strconv"
@@ -22,6 +23,7 @@ type filesRootsResponse struct {
 type filesEntriesResponse struct {
 	Root    string            `json:"root"`
 	Path    string            `json:"path"`
+	Omitted int               `json:"omitted"` // names skipped: invalid UTF-8 or backslash
 	Entries []filesinfo.Entry `json:"entries"`
 }
 
@@ -73,27 +75,22 @@ func (s *Server) handleFilesEntries(w http.ResponseWriter, r *http.Request, sess
 		s.filesListError(w, err)
 		return
 	}
-	ents, err := s.files.List(id, rel)
+	ents, omitted, err := s.files.List(id, rel)
 	if err != nil {
 		s.filesListError(w, err)
 		return
 	}
-	// Audit root id + a short summary; the full relative path goes in Data so a
-	// deep path is not truncated by the 128-byte Detail sanitizer. Never
-	// contents, never the jail path.
-	data, err := json.Marshal(map[string]string{"path": cleaned})
-	if err != nil {
-		writeError(w, http.StatusServiceUnavailable, "audit_unavailable", "Directory entries cannot be returned because their access could not be audited.")
-		return
-	}
-	if err := s.auditLogData("files.entries.read", sess.Username, r, "returned", "root="+id, data); err != nil {
+	// Audit root id + relative path only. Never contents, never the jail path.
+	// A deep path is truncated by the 128-byte Detail sanitizer, so the detail
+	// carries a hash of the full path to preserve verifiable evidence.
+	if err := s.auditLog("files.entries.read", sess.Username, r, "returned", filesReadDetail(id, cleaned)); err != nil {
 		writeError(w, http.StatusServiceUnavailable, "audit_unavailable", "Directory entries cannot be returned because their access could not be audited.")
 		return
 	}
 	if ents == nil {
 		ents = []filesinfo.Entry{}
 	}
-	writeJSON(w, http.StatusOK, filesEntriesResponse{Root: id, Path: cleaned, Entries: ents})
+	writeJSON(w, http.StatusOK, filesEntriesResponse{Root: id, Path: cleaned, Omitted: omitted, Entries: ents})
 }
 
 func (s *Server) filesListError(w http.ResponseWriter, err error) {
@@ -115,4 +112,16 @@ func (s *Server) filesListError(w http.ResponseWriter, err error) {
 	default:
 		writeError(w, http.StatusBadRequest, "bad_request", "The directory could not be listed.")
 	}
+}
+
+// filesReadDetail builds the bounded audit Detail for a listing. A short path
+// stays readable; a deep path (the whole Detail would exceed the 128-byte
+// sanitizer) is replaced by a SHA-256 hash of the full path, so the exact path
+// remains verifiable without weakening the sanitizer or needing Event.Data.
+func filesReadDetail(rootID, path string) string {
+	if len("root="+rootID+" path="+path) <= 128 {
+		return "root=" + rootID + " path=" + path
+	}
+	sum := sha256.Sum256([]byte(path))
+	return "root=" + rootID + " path=" + hex.EncodeToString(sum[:16])
 }

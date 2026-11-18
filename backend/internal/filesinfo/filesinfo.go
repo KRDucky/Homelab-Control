@@ -305,42 +305,45 @@ func RelPath(p string) (string, error) {
 // List returns metadata for entries of root id at relative path. It never
 // follows a symlink (O_NOFOLLOW) and never reads file contents. The jail is
 // reopened each call with O_NOFOLLOW so a post-Load symlink swap is refused.
-func (s Set) List(id, rel string) ([]Entry, error) {
+// The second result is the number of names omitted because they are not
+// faithfully representable (invalid UTF-8) or not navigable (a backslash).
+func (s Set) List(id, rel string) ([]Entry, int, error) {
 	r, ok := s.root(id)
 	if !ok {
 		if !s.BrowseAvailable() {
-			return nil, ErrUnavailable
+			return nil, 0, ErrUnavailable
 		}
-		return nil, ErrUnknownRoot
+		return nil, 0, ErrUnknownRoot
 	}
 	rel, err := RelPath(rel)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	jail, err := os.OpenFile(r.Path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_DIRECTORY, 0)
 	if err != nil {
-		return nil, mapOpenErr(err)
+		return nil, 0, mapOpenErr(err)
 	}
 	defer jail.Close()
 	dir := jail
 	if rel != "." {
 		d, err := walkRel(jail, rel)
 		if err != nil {
-			return nil, mapOpenErr(err)
+			return nil, 0, mapOpenErr(err)
 		}
 		defer d.Close()
 		dir = d
 	}
 	ents, err := dir.ReadDir(MaxEntries + 1)
 	if err != nil && !errors.Is(err, io.EOF) {
-		return nil, err
+		return nil, 0, err
 	}
 	if len(ents) > MaxEntries {
-		return nil, ErrTooMany
+		return nil, 0, ErrTooMany
 	}
 	dfd := int(dir.Fd())
 	out := make([]Entry, 0, len(ents))
-	unstatable := 0
+	omitted := 0
+	permFailed := false
 	for _, de := range ents {
 		name := de.Name()
 		if name == "" || name == "." || name == ".." {
@@ -348,23 +351,29 @@ func (s Set) List(id, rel string) ([]Entry, error) {
 		}
 		// Omit names the JSON layer cannot represent faithfully (invalid UTF-8
 		// becomes an ambiguous U+FFFD) or that RelPath refuses (a backslash),
-		// so the listing never advertises an unnavigable or colliding row.
+		// so the listing never advertises an unnavigable or colliding row; the
+		// caller surfaces the count instead of a silent empty listing.
 		if !utf8.ValidString(name) || strings.Contains(name, "\\") {
+			omitted++
 			continue
 		}
 		e, err := statEntry(dfd, name)
 		if err != nil {
-			unstatable++
+			if errors.Is(err, syscall.EACCES) || errors.Is(err, syscall.EPERM) {
+				permFailed = true
+			}
 			continue
 		}
 		out = append(out, e)
 	}
 	// A readable but non-searchable directory (mode r--) lists names, yet every
-	// Fstatat fails with EACCES. Report that instead of a misleading empty 200.
-	if len(out) == 0 && unstatable > 0 {
-		return nil, ErrPermission
+	// Fstatat fails with EACCES/EPERM. Report that instead of a misleading
+	// empty 200. Non-permission stat failures (e.g. a racing unlink) are
+	// tolerated as before, so a torn listing is not an access error.
+	if len(out) == 0 && permFailed {
+		return nil, 0, ErrPermission
 	}
-	return out, nil
+	return out, omitted, nil
 }
 
 // walkRel opens each RelPath component from jail with openat+O_NOFOLLOW.

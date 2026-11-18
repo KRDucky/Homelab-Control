@@ -465,3 +465,65 @@ func TestLayoutImportAcceptsOver64KiB(t *testing.T) {
 		t.Fatalf("valid >64 KiB import refused: %d %s", rr.Code, rr.Body.String())
 	}
 }
+
+func TestLayoutImportAcceptsRedactedExportAssigned(t *testing.T) {
+	// hc-ui's redacted export emits per-cell `assigned` (a JSON boolean). The
+	// importer must accept and discard it; geometry is always unassigned.
+	h, _, _ := layoutHarness(t, []string{auth.ScopeLayoutManage})
+	body := `{"chassis":[{"name":"Exported","kind":"server","rows":1,"cols":2,"cells":[
+		{"row":0,"col":0,"kind":"hdd-3.5","label":"Bay 1","assigned":true},
+		{"row":0,"col":1,"kind":"empty","assigned":false}
+	]}]}`
+	rr := h.do("POST", "/api/v1/storage/layout/import", body, writeHeaders(h))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("redacted export refused: %d %s", rr.Code, rr.Body.String())
+	}
+	var resp layoutResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range resp.Chassis {
+		for _, cell := range c.Cells {
+			if cell.Assignment != nil {
+				t.Fatalf("imported cell carries an assignment: %+v", cell)
+			}
+		}
+	}
+}
+
+// bigChassisBody builds a single 24x24 chassis whose maximum-length (64-rune,
+// 2-byte) labels push the JSON over the general 64 KiB body cap but far under
+// the chassis cap.
+func bigChassisBody() string {
+	label := strings.Repeat("\u00e9", 64) // 64 runes, 128 bytes
+	var b strings.Builder
+	b.WriteString(`{"name":"Big","kind":"server","rows":24,"cols":24,"cells":[`)
+	for r := 0; r < 24; r++ {
+		for c := 0; c < 24; c++ {
+			if r+c > 0 {
+				b.WriteString(",")
+			}
+			b.WriteString(`{"row":`)
+			b.WriteString(strconv.Itoa(r))
+			b.WriteString(`,"col":`)
+			b.WriteString(strconv.Itoa(c))
+			b.WriteString(`,"kind":"hdd-3.5","label":"`)
+			b.WriteString(label)
+			b.WriteString(`"}`)
+		}
+	}
+	b.WriteString(`]}`)
+	return b.String()
+}
+
+func TestLayoutChassisBodyOver64KiB(t *testing.T) {
+	h, _, _ := layoutHarness(t, []string{auth.ScopeLayoutManage})
+	body := bigChassisBody()
+	if len(body) <= 64<<10 {
+		t.Fatalf("test body too small: %d bytes", len(body))
+	}
+	rr := h.do("POST", "/api/v1/storage/layout/chassis", body, writeHeaders(h))
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("valid >64 KiB chassis create refused: %d %s", rr.Code, rr.Body.String())
+	}
+}

@@ -389,6 +389,9 @@ type layoutImportCell struct {
 	// Discarded: an assignment object (identity, provenance, confidence,
 	// assigned_by, assigned_at). Imported geometry is always unassigned.
 	Assignment json.RawMessage `json:"assignment,omitempty"`
+	// Discarded: the redacted export's per-cell `assigned` marker (a JSON
+	// boolean). Imported geometry is always unassigned.
+	Assigned *bool `json:"assigned,omitempty"`
 }
 
 func (c layoutImportChassis) spec() state.ChassisSpec {
@@ -403,6 +406,10 @@ func (c layoutImportChassis) spec() state.ChassisSpec {
 // each up to 24x24 cells, stays well under this. The cap is enforced before
 // any parsing so an oversized body is refused without reading it all.
 const layoutImportMaxBytes = 8 << 20
+
+// layoutChassisMaxBytes bounds a single-chassis create/update body: a 24x24
+// grid with maximum-length (256-byte) labels stays well under this.
+const layoutChassisMaxBytes = 1 << 20
 
 // handleLayoutImport imports chassis geometry additively in one atomic
 // transaction. It never replaces or deletes existing chassis and never stores

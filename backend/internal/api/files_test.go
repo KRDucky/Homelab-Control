@@ -5,6 +5,8 @@
 package api
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -13,8 +15,10 @@ import (
 	"strings"
 	"testing"
 
+	"homelab-control/backend/internal/audit"
 	"homelab-control/backend/internal/auth"
 	"homelab-control/backend/internal/filesinfo"
+	"homelab-control/backend/internal/state"
 )
 
 func filesJail(t *testing.T) string {
@@ -225,9 +229,26 @@ func TestFilesCapabilityDegradedWhenBrowsable(t *testing.T) {
 	}
 }
 
-func TestFilesAuditPreservesDeepPath(t *testing.T) {
+func TestFilesAuditStateStorePreservesDeepPath(t *testing.T) {
+	// Production audit store (state DB) rejects Event.Data, so the deep-path
+	// evidence must live in the bounded Detail as a path hash; the listing must
+	// still succeed (200), not 503.
 	h, jail := filesHarness(t, []string{auth.ScopeFilesRead})
-	// A relative path longer than the 128-byte Detail sanitizer.
+	dbdir := t.TempDir()
+	if err := os.Chmod(dbdir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	db, err := state.Open(filepath.Join(dbdir, "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	al, err := audit.OpenStore(db.Audit())
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.srv.audit = al
+
 	var parts []string
 	for i := 0; i < 40; i++ {
 		parts = append(parts, fmt.Sprintf("seg%02d", i))
@@ -241,9 +262,17 @@ func TestFilesAuditPreservesDeepPath(t *testing.T) {
 	}
 	rr := h.do("GET", "/api/v1/files/entries?root=lab&path="+rel, "", filesHeaders(h))
 	if rr.Code != http.StatusOK {
-		t.Fatal(rr.Code, rr.Body.String())
+		t.Fatalf("listing failed under state audit store: %d %s", rr.Code, rr.Body.String())
 	}
-	if !strings.Contains(h.audit.String(), `"path":"`+rel+`"`) {
-		t.Fatalf("audit did not preserve the full path: %s", h.audit.String())
+	last, err := db.Audit().Last()
+	if err != nil || last == nil {
+		t.Fatalf("audit record missing: %v", err)
+	}
+	sum := sha256.Sum256([]byte(rel))
+	if !strings.Contains(last.Detail, hex.EncodeToString(sum[:16])) {
+		t.Fatalf("path hash not preserved in detail: %+v", last)
+	}
+	if len(last.Data) != 0 {
+		t.Fatalf("state audit record carries Data: %s", last.Data)
 	}
 }
