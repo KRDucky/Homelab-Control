@@ -54,8 +54,8 @@ func New(env *ops.Env, al *audit.Logger, allowed ...uint32) *Server {
 		AllowedUIDs: allowed, Env: env, Audit: al, MaxInFlight: 8, registry: ops.Registry(),
 		ClassCaps: map[ops.AdmissionClass]int{
 			ops.AdmissionControlPlan:  1,
-			ops.AdmissionControlApply: 1,
-			ops.AdmissionServicesRead: 3,
+			ops.AdmissionControlApply: 2,
+			ops.AdmissionServicesRead: 2,
 			ops.AdmissionSystemRead:   1,
 			ops.AdmissionPackages:     1,
 			ops.AdmissionProbe:        1,

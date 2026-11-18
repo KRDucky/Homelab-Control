@@ -459,8 +459,8 @@ func TestClassCapacities(t *testing.T) {
 	f := start(t)
 	want := map[ops.AdmissionClass]int{
 		ops.AdmissionControlPlan:  1,
-		ops.AdmissionControlApply: 1,
-		ops.AdmissionServicesRead: 3,
+		ops.AdmissionControlApply: 2,
+		ops.AdmissionServicesRead: 2,
 		ops.AdmissionSystemRead:   1,
 		ops.AdmissionPackages:     1,
 		ops.AdmissionProbe:        1,
@@ -572,7 +572,7 @@ func TestClassSlotReleasedWhenGlobalFull(t *testing.T) {
 // saturated: control has its own capacity and is never starved by reads.
 func TestControlAdmittedUnderReadSaturation(t *testing.T) {
 	f := start(t)
-	rel1 := startBlockingOps(t, f, "test.svc", ops.AdmissionServicesRead, 3)
+	rel1 := startBlockingOps(t, f, "test.svc", ops.AdmissionServicesRead, 2)
 	defer rel1()
 	rel2 := startBlockingOps(t, f, "test.sys", ops.AdmissionSystemRead, 1)
 	defer rel2()
@@ -596,5 +596,52 @@ func TestInfoSlotRefusesSecond(t *testing.T) {
 	defer release()
 	if _, err := call(t, f, "broker.info"); code(err) != proto.CodeBusy {
 		t.Fatalf("2nd info request: want busy, got %v", err)
+	}
+}
+
+// TestEveryClassRefusesAtCap fills each configured class to its cap and proves
+// the next same-class operation is refused. A large global semaphore isolates
+// the class gate from the global backstop.
+func TestEveryClassRefusesAtCap(t *testing.T) {
+	f := start(t)
+	f.srv.sem = make(chan struct{}, 1024)
+	for cls, classCap := range f.srv.ClassCaps {
+		name := "test.fill." + string(cls)
+		release := startBlockingOps(t, f, name, cls, classCap)
+		if _, err := call(t, f, name); code(err) != proto.CodeBusy {
+			release()
+			t.Fatalf("class %s (cap %d): next op = %v, want busy", cls, classCap, err)
+		}
+		release()
+	}
+}
+
+func TestControlApplyAdmittedUnderReadSaturation(t *testing.T) {
+	f := start(t)
+	rel1 := startBlockingOps(t, f, "test.svc", ops.AdmissionServicesRead, 2)
+	defer rel1()
+	rel2 := startBlockingOps(t, f, "test.sys", ops.AdmissionSystemRead, 1)
+	defer rel2()
+	rel3 := startBlockingOps(t, f, "test.pkg", ops.AdmissionPackages, 1)
+	defer rel3()
+	rel4 := startBlockingOps(t, f, "test.prb", ops.AdmissionProbe, 1)
+	defer rel4()
+	rel5 := startBlockingOps(t, f, "test.info", ops.AdmissionInfo, 1)
+	defer rel5()
+	f.srv.registry["test.apply"] = ops.Op{Name: "test.apply", Admission: ops.AdmissionControlApply, Timeout: time.Second,
+		Handle: func(context.Context, *ops.Env, json.RawMessage) (any, error) { return "ok", nil }}
+	if _, err := call(t, f, "test.apply"); err != nil {
+		t.Fatalf("control apply under read saturation: %v", err)
+	}
+}
+
+func TestControlApplyAdmittedWhilePlanFull(t *testing.T) {
+	f := start(t)
+	planRelease := startBlockingOps(t, f, "test.plan", ops.AdmissionControlPlan, 1)
+	defer planRelease()
+	f.srv.registry["test.apply"] = ops.Op{Name: "test.apply", Admission: ops.AdmissionControlApply, Timeout: time.Second,
+		Handle: func(context.Context, *ops.Env, json.RawMessage) (any, error) { return "ok", nil }}
+	if _, err := call(t, f, "test.apply"); err != nil {
+		t.Fatalf("control apply while plan full: %v", err)
 	}
 }
