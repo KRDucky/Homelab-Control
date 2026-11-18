@@ -273,3 +273,25 @@ func TestSecureCookieModeUsesHostPrefix(t *testing.T) {
 		t.Fatal("HSTS missing in secure mode")
 	}
 }
+
+func TestRequestBodyCapTargetsLayoutResources(t *testing.T) {
+	tests := []struct {
+		method string
+		path   string
+		want   int64
+	}{
+		{http.MethodPost, "/api/v1/storage/layout/import", layoutImportMaxBytes},
+		{http.MethodPost, "/api/v1/storage/layout/chassis", layoutChassisMaxBytes},
+		{http.MethodPut, "/api/v1/storage/layout/chassis/4", layoutChassisMaxBytes},
+		{http.MethodPut, "/api/v1/storage/layout/chassis/4/bays/0/0/assignment", 64 << 10},
+		{http.MethodDelete, "/api/v1/storage/layout/chassis/4", 64 << 10},
+	}
+	for _, tt := range tests {
+		t.Run(tt.method+" "+tt.path, func(t *testing.T) {
+			r := httptest.NewRequest(tt.method, tt.path, nil)
+			if got := requestBodyCap(r); got != tt.want {
+				t.Fatalf("requestBodyCap(%s %s) = %d, want %d", tt.method, tt.path, got, tt.want)
+			}
+		})
+	}
+}

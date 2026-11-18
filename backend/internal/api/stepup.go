@@ -6,6 +6,8 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -27,11 +29,25 @@ func decodeStrict(w http.ResponseWriter, r *http.Request, dst any) bool {
 	}
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
-	if err := dec.Decode(dst); err != nil || dec.More() {
-		writeError(w, http.StatusBadRequest, "bad_request", "invalid JSON body")
+	if err := dec.Decode(dst); err != nil {
+		writeJSONDecodeError(w, err)
+		return false
+	}
+	var trailing any
+	if err := dec.Decode(&trailing); err != io.EOF {
+		writeJSONDecodeError(w, err)
 		return false
 	}
 	return true
+}
+
+func writeJSONDecodeError(w http.ResponseWriter, err error) {
+	var maxBytesErr *http.MaxBytesError
+	if errors.As(err, &maxBytesErr) {
+		writeError(w, http.StatusRequestEntityTooLarge, "body_too_large", "request body exceeds the size limit")
+		return
+	}
+	writeError(w, http.StatusBadRequest, "bad_request", "invalid JSON body")
 }
 
 type stepUpRequest struct {

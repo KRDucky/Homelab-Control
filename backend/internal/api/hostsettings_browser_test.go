@@ -5,6 +5,7 @@
 package api
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -14,11 +15,14 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"homelab-control/backend/internal/audit"
 	"homelab-control/backend/internal/auth"
+	"homelab-control/backend/internal/broker/proto"
+	"homelab-control/backend/internal/brokerclient"
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/state"
 )
@@ -27,8 +31,10 @@ import (
 // server, never a production mode. Its only host-settings source is a private
 // copy of the labelled synthetic tree testdata/hostsettings. Credentials live
 // in a private handoff file, never command arguments, evidence logs, browser
-// exports or Git. Preview only: this fixture has no broker, never runs
-// hostnamectl or timedatectl, and is not acceptance.
+// exports or Git. A preview-only broker stand-in answers broker.info so an
+// apply-capable user sees apply_available, but host.settings.plan/apply fail
+// closed: the fixture never runs hostnamectl or timedatectl, and is not
+// acceptance.
 func TestHostSettingsBrowserFixture(t *testing.T) {
 	runtimeDir := os.Getenv("HC_HOST_SETTINGS_BROWSER_DIR")
 	if runtimeDir == "" {
@@ -88,6 +94,7 @@ func TestHostSettingsBrowserFixture(t *testing.T) {
 	users := &auth.UsersFile{Version: 1, Users: []auth.User{
 		{Username: "preview", PasswordHash: hash, Scopes: []string{auth.ScopeSystemRead, auth.ScopeHostSettingsPreview}},
 		{Username: "limited", PasswordHash: hash, Scopes: []string{auth.ScopeSystemRead}},
+		{Username: "apply", PasswordHash: hash, Scopes: []string{auth.ScopeSystemRead, auth.ScopeHostSettingsPreview, auth.ScopeHostSettingsApply}},
 	}}
 	collector := &hostinfo.Collector{Roots: hostinfo.Roots{
 		Proc: filepath.Join(metadata, "proc"),
@@ -100,7 +107,9 @@ func TestHostSettingsBrowserFixture(t *testing.T) {
 		t.Fatalf("fixture observations: %+v", hs)
 	}
 
+	broker := &browserBroker{}
 	server := New(Config{}, auth.NewStore(users), al, collector, os.DirFS(uiPath)).
+		WithBroker(broker).
 		WithSessionStore(db.Sessions())
 	listener, e := net.Listen("tcp", "127.0.0.1:0")
 	if e != nil {
@@ -116,6 +125,7 @@ func TestHostSettingsBrowserFixture(t *testing.T) {
 		"url":              "http://" + listener.Addr().String(),
 		"username":         "preview",
 		"limited_username": "limited",
+		"apply_username":   "apply",
 		"password":         password,
 	})
 	if e != nil {
@@ -140,7 +150,7 @@ func TestHostSettingsBrowserFixture(t *testing.T) {
 			t.Fatal("browser fixture timed out awaiting stop marker")
 		case <-ticker.C:
 			if _, e = os.Stat(filepath.Join(runtimeDir, "stop")); e == nil {
-				t.Log("fixture shutdown: synthetic hostsettings testdata only; no hostnamectl/timedatectl")
+				t.Logf("fixture shutdown: plan_calls=%d apply_calls=%d; synthetic hostsettings testdata only; no hostnamectl/timedatectl", broker.planCalls.Load(), broker.applyCalls.Load())
 				return
 			}
 		}
@@ -182,4 +192,39 @@ func copyHostSettingsTree(dst, src string) error {
 		}
 		return os.WriteFile(target, b, 0600)
 	})
+}
+
+// browserBroker is a preview-only broker stand-in for the labelled browser
+// fixture. It answers broker.info (writes_available, exec, ops) so the API
+// reports apply_available to the apply-capable user, but host.settings.plan
+// and host.settings.apply always fail closed — the fixture never runs
+// hostnamectl or timedatectl. The counters are logged at shutdown so a browser
+// exercise can assert the confirm UI never reached plan/apply.
+type browserBroker struct {
+	planCalls  atomic.Int64
+	applyCalls atomic.Int64
+}
+
+func (b *browserBroker) Call(_ context.Context, op string, _ proto.Actor, out any) error {
+	if op == "broker.info" {
+		raw, _ := json.Marshal(map[string]any{
+			"version":          "fixture",
+			"systemd_booted":   true,
+			"writes_available": true,
+			"exec_available":   []string{"systemctl", "hostnamectl", "timedatectl"},
+			"ops":              []map[string]string{{"name": "broker.info"}, {"name": "host.settings.plan"}, {"name": "host.settings.apply"}},
+		})
+		return json.Unmarshal(raw, out)
+	}
+	switch op {
+	case "host.settings.plan":
+		b.planCalls.Add(1)
+	case "host.settings.apply":
+		b.applyCalls.Add(1)
+	}
+	return brokerclient.ErrUnavailable
+}
+
+func (b *browserBroker) CallWithArgs(ctx context.Context, op string, args any, actor proto.Actor, out any) error {
+	return b.Call(ctx, op, actor, out)
 }

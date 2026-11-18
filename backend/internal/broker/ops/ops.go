@@ -171,6 +171,13 @@ func Registry() map[string]Op {
 			Description: "Configured repositories and package sources with third-party and unsigned flags (args: family)", Handle: packagesSources},
 		{Name: "packages.search", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second,
 			Description: "Search the local package cache of one family (args: family, q)", Handle: packagesSearch, AuditArgs: packagesAuditArgs},
+		// M2-4 O-1 (owner-approved implementation/isolated validation): the
+		// broker is only a bounded client of the root-only socket-activated
+		// probe helper. It enumerates block names and relays a closed request;
+		// it never opens a device or runs blkid itself. The helper's native LVM
+		// reader is the default LVM path (no lvs/pvs execution).
+		{Name: "storage.probe", Scope: "storage.probe", Privilege: PrivRootRead, Timeout: 35 * time.Second,
+			Description: "On-demand native storage probe (blkid signatures on enumerated devices); wakes disks", Handle: storageProbe},
 	}
 	m := make(map[string]Op, len(ops))
 	for _, o := range ops {

@@ -723,6 +723,16 @@ export function getStorage(csrf: string): Promise<StorageInventory> {
   return request<StorageInventory>('/api/v1/storage', { headers: { 'X-CSRF-Token': csrf } });
 }
 
+/** On-demand read-only probe: enumerates and revalidates devices server-side
+ * and returns the enriched inventory in the same shape as getStorage. This is
+ * an explicit CSRF-protected POST (scope storage.probe), never a polling GET. */
+export function probeStorage(csrf: string): Promise<StorageInventory> {
+  return request<StorageInventory>('/api/v1/storage/probe', {
+    method: 'POST',
+    headers: { 'X-CSRF-Token': csrf },
+  });
+}
+
 // M2-6 skeleton: read-only host settings and a non-executing preview.
 export interface HostSetting {
   value?: string;
@@ -863,6 +873,9 @@ export interface FileEntriesResponse {
   root: string;
   path: string;
   entries: FileEntry[];
+  /** Number of directory names omitted because they are not faithfully
+   * representable (invalid UTF-8) or not navigable (a backslash). */
+  omitted: number;
 }
 
 export function getFileRoots(csrf: string): Promise<FileRootsResponse> {
@@ -899,6 +912,7 @@ export interface Chassis {
   kind: ChassisKind;
   rows: number;
   cols: number;
+  version: number;
   created_at: string;
   updated_at: string;
   cells: LayoutCell[];
@@ -945,20 +959,50 @@ export function getLayout(csrf: string): Promise<DriveLayout> {
 export function createChassis(spec: ChassisSpec, csrf: string): Promise<DriveLayout> {
   return checkedLayout(sendJSON<DriveLayout>('POST', `${layoutBase}/chassis`, csrf, spec));
 }
-export function updateChassis(id: number, spec: ChassisSpec, csrf: string): Promise<DriveLayout> {
-  return checkedLayout(sendJSON<DriveLayout>('PUT', `${layoutBase}/chassis/${id}`, csrf, spec));
-}
-export function deleteChassis(id: number, csrf: string): Promise<DriveLayout> {
-  return checkedLayout(sendJSON<DriveLayout>('DELETE', `${layoutBase}/chassis/${id}`, csrf));
-}
-/** The drive is named only by its persistent identity, never a kernel name. */
-export function assignBay(id: number, row: number, col: number, persistentID: string, csrf: string) {
+export function updateChassis(
+  id: number,
+  spec: ChassisSpec,
+  version: number,
+  csrf: string,
+): Promise<DriveLayout> {
   return checkedLayout(
-    sendJSON<DriveLayout>('PUT', bayPath(id, row, col), csrf, { persistent_id: persistentID }),
+    sendJSON<DriveLayout>('PUT', `${layoutBase}/chassis/${id}`, csrf, { ...spec, version }),
   );
 }
-export function unassignBay(id: number, row: number, col: number, csrf: string) {
-  return checkedLayout(sendJSON<DriveLayout>('DELETE', bayPath(id, row, col), csrf));
+export function deleteChassis(id: number, version: number, csrf: string): Promise<DriveLayout> {
+  return checkedLayout(
+    request<DriveLayout>(`${layoutBase}/chassis/${id}?version=${version}`, {
+      method: 'DELETE',
+      headers: { 'X-CSRF-Token': csrf },
+    }),
+  );
+}
+/** The drive is named only by its persistent identity, never a kernel name. */
+export function assignBay(
+  id: number,
+  row: number,
+  col: number,
+  persistentID: string,
+  version: number,
+  csrf: string,
+) {
+  return checkedLayout(
+    sendJSON<DriveLayout>('PUT', bayPath(id, row, col), csrf, { persistent_id: persistentID, version }),
+  );
+}
+export function unassignBay(id: number, row: number, col: number, version: number, csrf: string) {
+  return checkedLayout(
+    request<DriveLayout>(`${bayPath(id, row, col)}?version=${version}`, {
+      method: 'DELETE',
+      headers: { 'X-CSRF-Token': csrf },
+    }),
+  );
+}
+
+/** Import a previously exported chassis array (geometry only). The server
+ * discards ids, timestamps and assignment identities and adds additively. */
+export function importLayout(chassis: unknown[], csrf: string): Promise<DriveLayout> {
+  return checkedLayout(sendJSON<DriveLayout>('POST', `${layoutBase}/import`, csrf, { chassis }));
 }
 
 // ---- M4-1b: read-only Software Center --------------------------------------

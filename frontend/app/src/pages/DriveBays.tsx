@@ -1,13 +1,14 @@
 // SPDX-FileCopyrightText: 2026 The Homelab Control Authors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useCallback, useState, type KeyboardEvent } from 'react';
+import { useCallback, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import {
   ApiError,
   assignBay,
   createChassis,
   deleteChassis,
   getLayout,
+  importLayout,
   unassignBay,
   updateChassis,
   type CellKind,
@@ -16,7 +17,14 @@ import {
   type ChassisSpec,
   type DriveLayout,
 } from '../api';
-import { BAY_KINDS, BAY_STATE_TEXT, CELL_KINDS, bayState, unassignedDrives } from '../bayModel';
+import {
+  BAY_KINDS,
+  BAY_STATE_TEXT,
+  CELL_KINDS,
+  bayState,
+  redactedLayout,
+  unassignedDrives,
+} from '../bayModel';
 import { formatBytes } from '../format';
 import { driveLabel, type DriveLabelPreference, type StorageNode } from '../storageModel';
 import { Section } from '../ui';
@@ -26,6 +34,7 @@ import { explain, useData } from '../useData';
 // statements, shown as "manual, unverified". Nothing here touches the host.
 
 const CHASSIS_KINDS: ChassisKind[] = ['server', 'shelf', 'external', 'desktop'];
+const MAX_IMPORT_BYTES = 8 * 1024 * 1024;
 type Selected = { chassis: number; row: number; col: number };
 
 function specOf(
@@ -76,6 +85,7 @@ export function DriveBays({
   const [cellDraft, setCellDraft] = useState<{ kind: CellKind; label: string } | null>(null);
   const [drive, setDrive] = useState('');
   const [resize, setResize] = useState<{ id: number; name: string; rows: number; cols: number } | null>(null);
+  const importRef = useRef<HTMLInputElement>(null);
   const layout = saved ?? data;
 
   async function run(action: () => Promise<DriveLayout>, done: string) {
@@ -91,8 +101,50 @@ export function DriveBays({
           ? err.message
           : 'The server did not respond; nothing is known to have changed.',
       );
+      // A conflict means the layout changed elsewhere: drop the stale snapshot
+      // and re-sync to the server's current state instead of lingering stale.
+      if (err instanceof ApiError && err.status === 409) {
+        setSaved(null);
+        live.onRetry();
+      }
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleImport(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setMessage('');
+    if (file.size > MAX_IMPORT_BYTES) {
+      setMessage('Import refused: the file exceeds the 8 MiB limit.');
+      event.target.value = '';
+      return;
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(await file.text());
+    } catch {
+      setMessage('Import refused: the file is not valid JSON.');
+      event.target.value = '';
+      return;
+    }
+    const chassis = (parsed as { chassis?: unknown } | null)?.chassis;
+    if (!Array.isArray(chassis)) {
+      setMessage('Import refused: the file has no chassis array.');
+      event.target.value = '';
+      return;
+    }
+    setBusy(true);
+    try {
+      setSaved(await importLayout(chassis, csrf));
+      setMessage('Layout imported (geometry added; assignment identities discarded).');
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) onUnauthorized();
+      setMessage(err instanceof ApiError ? err.message : 'Import failed.');
+    } finally {
+      setBusy(false);
+      event.target.value = '';
     }
   }
 
@@ -136,7 +188,7 @@ export function DriveBays({
       row: Math.min(c.rows - 1, Math.max(0, at.row + move[0])),
       col: Math.min(c.cols - 1, Math.max(0, at.col + move[1])),
     };
-    setFocus(next);
+    select(next);
     event.currentTarget.querySelector<HTMLButtonElement>(`[data-bay="${next.row}-${next.col}"]`)?.focus();
   }
 
@@ -159,6 +211,46 @@ export function DriveBays({
       <p role="status" aria-live="polite">
         {message}
       </p>
+      <div className="toolbar">
+        <button
+          type="button"
+          className="ghost"
+          onClick={() => {
+            const blob = new Blob([JSON.stringify(redactedLayout(layout), null, 2)], {
+              type: 'application/json',
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'homelab-control-layout-redacted.json';
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+        >
+          Export layout (identifiers redacted)
+        </button>
+        <input
+          ref={importRef}
+          type="file"
+          accept="application/json,.json"
+          style={{ display: 'none' }}
+          onChange={handleImport}
+        />
+        <button
+          type="button"
+          className="ghost"
+          disabled={!canManage || busy}
+          onClick={() => importRef.current?.click()}
+        >
+          Import layout
+        </button>
+        <span className="muted">
+          Import adds unassigned geometry only; assignment identities are discarded.
+        </span>
+        <span className="muted">
+          Export keeps names and labels as written and omits drive identities and assignment metadata.
+        </span>
+      </div>
       {layout.chassis.length === 0 && <p className="muted">No chassis has been described yet.</p>}
       {layout.chassis.map((c) => (
         <div key={c.id}>
@@ -187,6 +279,20 @@ export function DriveBays({
                         data-bay={`${row}-${col}`}
                         tabIndex={isFocus ? 0 : -1}
                         onClick={() => select({ chassis: c.id, row, col })}
+                        onDragOver={(e) => {
+                          if (canManage && !x.assignment && BAY_KINDS.has(x.kind)) e.preventDefault();
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          if (busy || !(canManage && !x.assignment && BAY_KINDS.has(x.kind))) return;
+                          const id = e.dataTransfer.getData('application/x-hc-drive');
+                          if (!id) return;
+                          select({ chassis: c.id, row, col });
+                          run(
+                            () => assignBay(c.id, row, col, id, c.version, csrf),
+                            'Drive assigned (manual, unverified).',
+                          );
+                        }}
                         aria-label={`${bayName(c, row, col)}: ${BAY_STATE_TEXT[st]}`}
                       >
                         {x.label || `R${row + 1}C${col + 1}`}
@@ -244,7 +350,7 @@ export function DriveBays({
                       );
                       setResize(null);
                       setSelected(null);
-                      run(() => updateChassis(c.id, spec, csrf), `Saved ${resize.name}.`);
+                      run(() => updateChassis(c.id, spec, c.version, csrf), `Saved ${resize.name}.`);
                     }}
                   >
                     Save chassis
@@ -263,7 +369,7 @@ export function DriveBays({
                 type="button"
                 className="ghost"
                 disabled={busy}
-                onClick={() => run(() => deleteChassis(c.id, csrf), `Deleted ${c.name}.`)}
+                onClick={() => run(() => deleteChassis(c.id, c.version, csrf), `Deleted ${c.name}.`)}
               >
                 Delete chassis {c.name}
               </button>
@@ -381,6 +487,7 @@ export function DriveBays({
                       updateChassis(
                         chassis.id,
                         specOf(chassis, { row: cell.row, col: cell.col, ...cellDraft }),
+                        chassis.version,
                         csrf,
                       ),
                     'Bay saved.',
@@ -394,7 +501,10 @@ export function DriveBays({
                   type="button"
                   disabled={busy}
                   onClick={() =>
-                    run(() => unassignBay(chassis.id, cell.row, cell.col, csrf), 'Assignment removed.')
+                    run(
+                      () => unassignBay(chassis.id, cell.row, cell.col, chassis.version, csrf),
+                      'Assignment removed.',
+                    )
                   }
                 >
                   Unassign drive
@@ -422,7 +532,7 @@ export function DriveBays({
                       disabled={busy || !drive}
                       onClick={() =>
                         run(
-                          () => assignBay(chassis.id, cell.row, cell.col, drive, csrf),
+                          () => assignBay(chassis.id, cell.row, cell.col, drive, chassis.version, csrf),
                           'Drive assigned (manual, unverified).',
                         )
                       }
@@ -443,7 +553,15 @@ export function DriveBays({
       ) : (
         <ul aria-label="Unassigned drives">
           {free.eligible.map((node) => (
-            <li key={node.id} className="mono">
+            <li
+              key={node.id}
+              className="mono"
+              draggable={canManage}
+              onDragStart={(e) => {
+                e.dataTransfer.setData('application/x-hc-drive', node.persistent_id ?? '');
+                e.dataTransfer.effectAllowed = 'move';
+              }}
+            >
               {driveLabel(node, preference).value}
             </li>
           ))}

@@ -6,6 +6,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -27,10 +28,11 @@ import (
 type LayoutStore interface {
 	List(context.Context) ([]state.Chassis, error)
 	Create(context.Context, state.ChassisSpec, time.Time) (int64, error)
-	Update(context.Context, int64, state.ChassisSpec, time.Time) error
-	Delete(context.Context, int64) error
-	Assign(ctx context.Context, id int64, row, col int, identity, by string, at time.Time) error
-	Unassign(ctx context.Context, id int64, row, col int, at time.Time) error
+	Import(context.Context, []state.ChassisSpec, time.Time) (int, error)
+	Update(context.Context, int64, state.ChassisSpec, int64, time.Time) error
+	Delete(context.Context, int64, int64) error
+	Assign(ctx context.Context, id int64, row, col int, identity, by string, expectedVersion int64, at time.Time) error
+	Unassign(ctx context.Context, id int64, row, col int, expectedVersion int64, at time.Time) error
 }
 
 // WithLayouts attaches the state database's layout store. Without it the
@@ -43,6 +45,14 @@ type layoutResponse struct {
 
 type assignRequest struct {
 	PersistentID string `json:"persistent_id"`
+	Version      int64  `json:"version"`
+}
+
+// layoutUpdateRequest wraps ChassisSpec with the optimistic-concurrency
+// version the client last observed; a mismatch is a 409 layout_conflict.
+type layoutUpdateRequest struct {
+	state.ChassisSpec
+	Version int64 `json:"version"`
 }
 
 func (s *Server) layoutAvailable(w http.ResponseWriter) bool {
@@ -57,13 +67,30 @@ func (s *Server) layoutAvailable(w http.ResponseWriter) bool {
 	return true
 }
 
-func (s *Server) writeLayout(w http.ResponseWriter, r *http.Request, status int) {
+func (s *Server) writeLayout(w http.ResponseWriter, r *http.Request, sess *auth.Session, status int) {
 	list, err := s.layouts.List(r.Context())
 	if err != nil {
 		writeError(w, http.StatusServiceUnavailable, "state_unavailable", "The drive-bay layout could not be read.")
 		return
 	}
+	if !sess.HasScope(auth.ScopeStorageRead) {
+		redactLayoutIdentities(list)
+	}
 	writeJSON(w, status, layoutResponse{Chassis: list})
+}
+
+// redactLayoutIdentities blanks every stored assignment identity (serial/WWN)
+// in place. A layout.manage caller without storage.read may write and see the
+// geometry and assignment metadata, but never the persistent identities, which
+// are released only through the audited storage read path.
+func redactLayoutIdentities(list []state.Chassis) {
+	for i := range list {
+		for j := range list[i].Cells {
+			if a := list[i].Cells[j].Assignment; a != nil {
+				a.Identity = ""
+			}
+		}
+	}
 }
 
 // handleLayout returns the stored layout. Assignments carry stored serial/WWN
@@ -118,6 +145,18 @@ func bayPath(r *http.Request) (id int64, row, col int, ok bool) {
 	return id, int(rr), int(cc), ok1 && ok2 && ok3
 }
 
+// queryVersion parses the `version` query parameter: a positive integer used
+// as the optimistic-concurrency compare-and-swap token for body-less methods
+// (DELETE).
+func queryVersion(r *http.Request) (int64, bool) {
+	v := r.URL.Query().Get("version")
+	if v == "" || len(v) > 12 || strings.TrimLeft(v, "0123456789") != "" {
+		return 0, false
+	}
+	n, err := strconv.ParseInt(v, 10, 64)
+	return n, err == nil && n >= 1
+}
+
 // layoutWrite runs one audited change: a "requested" record must be written
 // before anything changes (fail closed), then the outcome is recorded. Audit
 // details name the chassis and bay, never a serial or WWN.
@@ -133,6 +172,8 @@ func (s *Server) layoutWrite(w http.ResponseWriter, r *http.Request, sess *auth.
 			code, name, msg = http.StatusBadRequest, "invalid_layout", "The layout request is invalid or exceeds the supported limits."
 		case errors.Is(err, state.ErrLayoutNotFound):
 			code, name, msg = http.StatusNotFound, "not_found", "No such chassis, bay or assignment."
+		case errors.Is(err, state.ErrLayoutStale):
+			code, name, msg = http.StatusConflict, "layout_conflict", "The layout changed since it was loaded. Reload and retry."
 		case errors.Is(err, state.ErrLayoutConflict):
 			code, name, msg = http.StatusConflict, "layout_conflict", "Refused: this would overwrite, move or drop an existing drive assignment. Unassign it explicitly first."
 		}
@@ -144,7 +185,7 @@ func (s *Server) layoutWrite(w http.ResponseWriter, r *http.Request, sess *auth.
 		writeError(w, http.StatusServiceUnavailable, "audit_unavailable", "The layout change was saved, but its outcome could not be audited.")
 		return
 	}
-	s.writeLayout(w, r, status)
+	s.writeLayout(w, r, sess, status)
 }
 
 func (s *Server) handleLayoutCreate(w http.ResponseWriter, r *http.Request, sess *auth.Session, _ string) {
@@ -170,20 +211,24 @@ func (s *Server) handleLayoutUpdate(w http.ResponseWriter, r *http.Request, sess
 		return
 	}
 	id, ok := pathInt(r, "id", 1, 1<<53)
-	var spec state.ChassisSpec
 	if !ok {
 		writeError(w, http.StatusNotFound, "not_found", "No such chassis.")
 		return
 	}
-	if !decodeStrict(w, r, &spec) {
+	var req layoutUpdateRequest
+	if !decodeStrict(w, r, &req) {
 		return
 	}
-	if spec.Validate() != nil {
+	if req.ChassisSpec.Validate() != nil {
 		writeError(w, http.StatusBadRequest, "invalid_layout", "The layout request is invalid or exceeds the supported limits.")
 		return
 	}
+	if req.Version < 1 {
+		writeError(w, http.StatusBadRequest, "invalid_layout", "A layout version is required.")
+		return
+	}
 	s.layoutWrite(w, r, sess, "layout.chassis.update", "chassis="+strconv.FormatInt(id, 10), http.StatusOK, func() error {
-		return s.layouts.Update(r.Context(), id, spec, time.Now())
+		return s.layouts.Update(r.Context(), id, req.ChassisSpec, req.Version, time.Now())
 	})
 }
 
@@ -196,8 +241,13 @@ func (s *Server) handleLayoutDelete(w http.ResponseWriter, r *http.Request, sess
 		writeError(w, http.StatusNotFound, "not_found", "No such chassis.")
 		return
 	}
+	v, ok := queryVersion(r)
+	if !ok {
+		writeError(w, http.StatusBadRequest, "invalid_layout", "A layout version is required.")
+		return
+	}
 	s.layoutWrite(w, r, sess, "layout.chassis.delete", "chassis="+strconv.FormatInt(id, 10), http.StatusOK, func() error {
-		return s.layouts.Delete(r.Context(), id)
+		return s.layouts.Delete(r.Context(), id, v)
 	})
 }
 
@@ -233,6 +283,10 @@ func (s *Server) handleLayoutAssign(w http.ResponseWriter, r *http.Request, sess
 		writeError(w, http.StatusBadRequest, "identity_not_assignable", "Only a drive with an observed WWN, NVMe namespace UUID or serial identity can be assigned.")
 		return
 	}
+	if req.Version < 1 {
+		writeError(w, http.StatusBadRequest, "invalid_layout", "A layout version is required.")
+		return
+	}
 	if s.storageCollect == nil || s.storageSem == nil {
 		writeError(w, http.StatusServiceUnavailable, "storage_unavailable", "Storage metadata collection is unavailable.")
 		return
@@ -257,7 +311,7 @@ func (s *Server) handleLayoutAssign(w http.ResponseWriter, r *http.Request, sess
 	}
 	tier, _, _ := strings.Cut(req.PersistentID, ":")
 	s.layoutWrite(w, r, sess, "layout.bay.assign", bayDetail(id, row, col)+" tier="+tier, http.StatusOK, func() error {
-		return s.layouts.Assign(r.Context(), id, row, col, req.PersistentID, sess.Username, time.Now())
+		return s.layouts.Assign(r.Context(), id, row, col, req.PersistentID, sess.Username, req.Version, time.Now())
 	})
 }
 
@@ -295,7 +349,98 @@ func (s *Server) handleLayoutUnassign(w http.ResponseWriter, r *http.Request, se
 		writeError(w, http.StatusNotFound, "not_found", "No such bay.")
 		return
 	}
+	v, ok := queryVersion(r)
+	if !ok {
+		writeError(w, http.StatusBadRequest, "invalid_layout", "A layout version is required.")
+		return
+	}
 	s.layoutWrite(w, r, sess, "layout.bay.unassign", bayDetail(id, row, col), http.StatusOK, func() error {
-		return s.layouts.Unassign(r.Context(), id, row, col, time.Now())
+		return s.layouts.Unassign(r.Context(), id, row, col, v, time.Now())
+	})
+}
+
+// The M2-5 layout import accepts an exported chassis schema: a list of
+// chassis geometry (name, kind, rows, cols, cells). Export-only fields that
+// carry identity or provenance — id, created_at/updated_at, and each cell's
+// assignment object — are accepted and discarded so imported geometry is
+// always unassigned and can never introduce a serial or WWN. Everything else
+// is strict: unknown or trailing fields are rejected.
+type layoutImportRequest struct {
+	Chassis []layoutImportChassis `json:"chassis"`
+}
+
+type layoutImportChassis struct {
+	Name  string             `json:"name"`
+	Kind  string             `json:"kind"`
+	Rows  int                `json:"rows"`
+	Cols  int                `json:"cols"`
+	Cells []layoutImportCell `json:"cells"`
+	// Discarded export-only fields.
+	ID        json.RawMessage `json:"id,omitempty"`
+	CreatedAt json.RawMessage `json:"created_at,omitempty"`
+	UpdatedAt json.RawMessage `json:"updated_at,omitempty"`
+}
+
+type layoutImportCell struct {
+	Row   int    `json:"row"`
+	Col   int    `json:"col"`
+	Kind  string `json:"kind"`
+	Label string `json:"label"`
+	// Discarded: an assignment object (identity, provenance, confidence,
+	// assigned_by, assigned_at). Imported geometry is always unassigned.
+	Assignment json.RawMessage `json:"assignment,omitempty"`
+	// Discarded: the redacted export's per-cell `assigned` marker (a JSON
+	// boolean). Imported geometry is always unassigned.
+	Assigned *bool `json:"assigned,omitempty"`
+}
+
+func (c layoutImportChassis) spec() state.ChassisSpec {
+	cells := make([]state.CellSpec, 0, len(c.Cells))
+	for _, cell := range c.Cells {
+		cells = append(cells, state.CellSpec{Row: cell.Row, Col: cell.Col, Kind: cell.Kind, Label: cell.Label})
+	}
+	return state.ChassisSpec{Name: c.Name, Kind: c.Kind, Rows: c.Rows, Cols: c.Cols, Cells: cells}
+}
+
+// layoutImportMaxBytes bounds the import body: a full export of 32 chassis,
+// each up to 24x24 cells, stays well under this. The cap is enforced before
+// any parsing so an oversized body is refused without reading it all.
+const layoutImportMaxBytes = 8 << 20
+
+// layoutChassisMaxBytes bounds a single-chassis create/update body: a 24x24
+// grid with maximum-length (256-byte) labels stays well under this.
+const layoutChassisMaxBytes = 1 << 20
+
+// handleLayoutImport imports chassis geometry additively in one atomic
+// transaction. It never replaces or deletes existing chassis and never stores
+// assignment or identity values. The audit detail records counts only.
+func (s *Server) handleLayoutImport(w http.ResponseWriter, r *http.Request, sess *auth.Session, _ string) {
+	if !s.layoutAvailable(w) {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, layoutImportMaxBytes)
+	var req layoutImportRequest
+	if !decodeStrict(w, r, &req) {
+		return
+	}
+	if len(req.Chassis) == 0 {
+		writeError(w, http.StatusBadRequest, "invalid_layout", "The import contains no chassis.")
+		return
+	}
+	specs := make([]state.ChassisSpec, 0, len(req.Chassis))
+	cells := 0
+	for _, c := range req.Chassis {
+		spec := c.spec()
+		if spec.Validate() != nil {
+			writeError(w, http.StatusBadRequest, "invalid_layout", "The import is invalid or exceeds the supported limits.")
+			return
+		}
+		cells += len(spec.Cells)
+		specs = append(specs, spec)
+	}
+	detail := "chassis=" + strconv.Itoa(len(specs)) + " cells=" + strconv.Itoa(cells)
+	s.layoutWrite(w, r, sess, "layout.import", detail, http.StatusOK, func() error {
+		_, err := s.layouts.Import(r.Context(), specs, time.Now())
+		return err
 	})
 }

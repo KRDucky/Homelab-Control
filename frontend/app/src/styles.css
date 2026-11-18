@@ -68,6 +68,7 @@ code {
 .log-msg {
   font-family: var(--hc-font-mono);
   font-size: 0.9375em;
+  unicode-bidi: isolate;
 }
 
 .muted {

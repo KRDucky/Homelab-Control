@@ -1,0 +1,28 @@
+{
+  "result": "pass",
+  "checks": [
+    "real login and storage endpoint",
+    "synthetic data explicitly labelled",
+    "keyboard access to resource filter",
+    "independent relationship table",
+    "physical location remains unknown",
+    "RAID segment observed from parsed report fixture",
+    "SSD cache mode and policy displayed",
+    "dirty cache blocks displayed",
+    "PV allocation joined by LV UUID",
+    "PV device number shown",
+    "PV disk link labelled provisional, not verified",
+    "desktop accessibility",
+    "fresh snapshot clears snapshot-local selection",
+    "WWN preference survives reload",
+    "cookie-only storage read refused (CSRF token required)",
+    "actual API persists observation",
+    "mobile layout has no document overflow",
+    "mobile accessibility",
+    "sign out revokes storage access",
+    "missing scope refused by actual API",
+    "restricted browser never receives drive controls",
+    "no page script errors"
+  ],
+  "source": "Actual API/session/database; labelled synthetic kernel/LVM fixture only. No native-probe or KVM acceptance."
+}

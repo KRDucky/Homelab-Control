@@ -1,0 +1,95 @@
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# M2-4 O-1 read-only storage probe (hc-storage-probe): SELinux domain.
+#
+# STATUS: compiled, loaded and exercised only in a disposable Fedora 44 VM on
+# 2026-11-18. Cross-distro SELinux behavior remains unvalidated. Packages never
+# load this module. The unit names this domain with SELinuxContext=, so on a
+# host where SELinux is active and this module is absent the instance fails to
+# start (fail closed). Do not run the helper unconfined, and do not relabel the
+# binary bin_t or lib_t as a shortcut.
+#
+# Interface names follow selinux-policy (Fedora/RHEL 8+); the tested policy
+# version and remaining distro coverage are recorded in the M2-4 O-1 evidence.
+
+policy_module(homelab_control_storage_probe, 0.1.0)
+
+########################################
+# Declarations
+########################################
+
+type hc_storage_probe_t;
+type hc_storage_probe_exec_t;
+
+require {
+	attribute filesystem_type;
+	type fixed_disk_device_t;
+	type device_t;
+	type null_device_t;
+	type zero_device_t;
+	type random_device_t;
+	type urandom_device_t;
+	type cgroup_t;
+	type fsadm_exec_t;
+}
+
+# Interface calls expand to policy rules, so keep them after the module's
+# complete require block.
+init_daemon_domain(hc_storage_probe_t, hc_storage_probe_exec_t)
+
+# The unit sets NoNewPrivileges=yes; without these permissions the transition
+# from init_t into the domain is denied.
+allow init_t hc_storage_probe_t:process2 { nnp_transition nosuid_transition };
+
+########################################
+# Local policy
+########################################
+
+# Process handling for the Go runtime and the fixed child tools (setsid and a
+# process-group kill on timeout). No capability of any kind is granted: the unit
+# has an empty bounding set and this policy must not add one.
+allow hc_storage_probe_t self:process { fork sigchld signal sigkill signull getsched setpgid };
+allow hc_storage_probe_t self:fifo_file rw_fifo_file_perms;
+
+# The accepted connection from systemd (Accept=yes) and the journal stream.
+init_rw_stream_sockets(hc_storage_probe_t)
+logging_send_syslog_msg(hc_storage_probe_t)
+
+# Own binary and shared libraries.
+can_exec(hc_storage_probe_t, hc_storage_probe_exec_t)
+libs_use_ld_so(hc_storage_probe_t)
+libs_use_shared_libs(hc_storage_probe_t)
+corecmd_search_bin(hc_storage_probe_t)
+
+# The helper runs blkid as its only child tool, inside this domain. With
+# NoNewPrivileges a transition into fsadm_t would be denied anyway.
+can_exec(hc_storage_probe_t, fsadm_exec_t)
+
+# Read-only raw access to fixed disks (sd, blkext/NVMe, virtio-blk, md nodes are
+# fixed_disk_device_t). Exact permission list instead of the broad storage_raw_*
+# interfaces: no write, no append, no lock. removable_device_t is not granted.
+allow hc_storage_probe_t fixed_disk_device_t:blk_file { getattr open read ioctl };
+
+# Navigate /dev and read the udev symlinks (/dev/block/MAJ:MIN, /dev/disk/*).
+allow hc_storage_probe_t device_t:dir { getattr search open read };
+allow hc_storage_probe_t device_t:lnk_file { getattr read };
+
+# Standard pseudo devices that DevicePolicy=closed and os/exec need.
+allow hc_storage_probe_t null_device_t:chr_file { getattr open read write };
+allow hc_storage_probe_t zero_device_t:chr_file { getattr open read };
+allow hc_storage_probe_t { random_device_t urandom_device_t }:chr_file { getattr open read };
+
+# Kernel state: sysfs block topology and /proc/devices, /proc/partitions.
+dev_read_sysfs(hc_storage_probe_t)
+kernel_read_system_state(hc_storage_probe_t)
+# Go runtime traverses the cgroup2 mount root while discovering process limits.
+allow hc_storage_probe_t cgroup_t:dir search;
+
+########################################
+# Assertions (compile-time, must never be weakened)
+########################################
+
+neverallow hc_storage_probe_t self:capability { sys_admin sys_rawio sys_module mknod dac_override dac_read_search sys_ptrace net_admin net_raw };
+neverallow hc_storage_probe_t fixed_disk_device_t:blk_file { write append create unlink rename setattr relabelfrom relabelto };
+neverallow hc_storage_probe_t filesystem_type:filesystem { mount remount unmount };

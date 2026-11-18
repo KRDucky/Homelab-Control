@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // Package modules is the minimal, compiled-in module registry (M2-3; D-10
-// proposed implementation, docs/m2/M2-3-DESIGN-REVIEW.md §5). A module
+// approved architecture, docs/m2/M2-3-DESIGN-REVIEW.md §5). A module
 // declares the API route prefix and broker op prefix it owns; an
 // administrator can disable it in a root-owned file read at start by both
 // hc-api and hc-broker. Disabled modules have no routes (404, identical to an
@@ -52,6 +52,15 @@ var registry = []Module{
 		APIPrefix:   "/api/v1/services",
 		OpPrefix:    "services.",
 		Path:        "/services",
+	},
+	{
+		ID:          "storage",
+		Title:       "Storage",
+		Description: "read-only disk inventory, on-demand probing and manual drive-bay layouts",
+		Scopes:      []string{"storage.read", "storage.probe", "layout.manage"},
+		APIPrefix:   "/api/v1/storage",
+		OpPrefix:    "storage.",
+		Path:        "/storage",
 	},
 	{
 		ID:          "packages",

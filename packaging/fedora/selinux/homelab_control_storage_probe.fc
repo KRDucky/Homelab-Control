@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# The helper lives in /usr/lib/homelab-control (all packages). Do NOT move it to
+# /usr/libexec: bin_t there transitions to unconfined_service_t.
+
+/usr/lib/homelab-control/hc-storage-probe	--	gen_context(system_u:object_r:hc_storage_probe_exec_t,s0)

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -123,7 +124,7 @@ func TestLayoutAssignHappyPathIsManualAuditedAndRedacted(t *testing.T) {
 	if rr := h.do("POST", "/api/v1/storage/layout/chassis", chassisBody, writeHeaders(h)); rr.Code != http.StatusCreated {
 		t.Fatal(rr.Code, rr.Body.String())
 	}
-	rr := h.do("PUT", "/api/v1/storage/layout/chassis/1/bays/0/0/assignment", `{"persistent_id":"`+layoutWWN+`"}`, writeHeaders(h))
+	rr := h.do("PUT", "/api/v1/storage/layout/chassis/1/bays/0/0/assignment", `{"persistent_id":"`+layoutWWN+`","version":1}`, writeHeaders(h))
 	if rr.Code != http.StatusOK || *calls != 1 {
 		t.Fatal(rr.Code, rr.Body.String())
 	}
@@ -145,8 +146,8 @@ func TestLayoutAssignRefusesUnsafeIdentitiesAndReplacement(t *testing.T) {
 	if rr := h.do("POST", "/api/v1/storage/layout/chassis", chassisBody, writeHeaders(h)); rr.Code != http.StatusCreated {
 		t.Fatal(rr.Code)
 	}
-	assign := func(bay, id string) int {
-		return h.do("PUT", "/api/v1/storage/layout/chassis/1/bays/"+bay+"/assignment", `{"persistent_id":"`+id+`"}`, writeHeaders(h)).Code
+	assign := func(bay, id string, version int64) int {
+		return h.do("PUT", "/api/v1/storage/layout/chassis/1/bays/"+bay+"/assignment", `{"persistent_id":"`+id+`","version":`+strconv.FormatInt(version, 10)+`}`, writeHeaders(h)).Code
 	}
 	cases := map[string][2]any{
 		"ambiguous serial": {"serial:CLONE", http.StatusConflict},
@@ -156,21 +157,21 @@ func TestLayoutAssignRefusesUnsafeIdentitiesAndReplacement(t *testing.T) {
 		"device number":    {"8:0", http.StatusBadRequest},
 	}
 	for name, c := range cases {
-		if got := assign("0/0", c[0].(string)); got != c[1].(int) {
+		if got := assign("0/0", c[0].(string), 1); got != c[1].(int) {
 			t.Errorf("%s: %d, want %d", name, got, c[1])
 		}
 	}
-	if code := assign("0/0", layoutWWN); code != http.StatusOK {
+	if code := assign("0/0", layoutWWN, 1); code != http.StatusOK {
 		t.Fatal(code)
 	}
 	// The original drive disappears and a replacement with a new identity appears.
 	h.srv.storageCollect = func(context.Context) (storageinfo.Graph, error) {
 		return storageinfo.Build([]storageinfo.Block{{Name: "sda", DeviceNumber: "8:0", Kind: "block", WWID: "naa.5000000000000f02"}}, nil), nil
 	}
-	if code := assign("0/0", "wwn:naa.5000000000000f02"); code != http.StatusConflict {
+	if code := assign("0/0", "wwn:naa.5000000000000f02", 2); code != http.StatusConflict {
 		t.Fatal("replacement overwrote an occupied bay:", code)
 	}
-	if code := assign("1/1", "wwn:naa.5000000000000f02"); code != http.StatusConflict {
+	if code := assign("1/1", "wwn:naa.5000000000000f02", 2); code != http.StatusConflict {
 		t.Fatal("assigned to a disabled cell:", code)
 	}
 	list, _ := db.Layouts().List(context.Background())
@@ -178,10 +179,10 @@ func TestLayoutAssignRefusesUnsafeIdentitiesAndReplacement(t *testing.T) {
 		t.Fatal("missing drive's stored assignment was changed", a)
 	}
 	// Explicit unassign, then assign: the only replacement path.
-	if rr := h.do("DELETE", "/api/v1/storage/layout/chassis/1/bays/0/0/assignment", "", writeHeaders(h)); rr.Code != http.StatusOK {
+	if rr := h.do("DELETE", "/api/v1/storage/layout/chassis/1/bays/0/0/assignment?version=2", "", writeHeaders(h)); rr.Code != http.StatusOK {
 		t.Fatal(rr.Code)
 	}
-	if code := assign("0/0", "wwn:naa.5000000000000f02"); code != http.StatusOK {
+	if code := assign("0/0", "wwn:naa.5000000000000f02", 3); code != http.StatusOK {
 		t.Fatal(code)
 	}
 }
@@ -205,7 +206,7 @@ func TestLayoutReadRequiresCSRFAndAuditBeforeRelease(t *testing.T) {
 	if rr := h.do("POST", "/api/v1/storage/layout/chassis", chassisBody, writeHeaders(h)); rr.Code != http.StatusCreated {
 		t.Fatal(rr.Code)
 	}
-	if rr := h.do("PUT", "/api/v1/storage/layout/chassis/1/bays/0/0/assignment", `{"persistent_id":"`+layoutWWN+`"}`, writeHeaders(h)); rr.Code != http.StatusOK {
+	if rr := h.do("PUT", "/api/v1/storage/layout/chassis/1/bays/0/0/assignment", `{"persistent_id":"`+layoutWWN+`","version":1}`, writeHeaders(h)); rr.Code != http.StatusOK {
 		t.Fatal(rr.Code, rr.Body.String())
 	}
 	before := h.audit.String()
@@ -237,5 +238,292 @@ func TestLayoutReadRequiresCSRFAndAuditBeforeRelease(t *testing.T) {
 	}
 	if list, _ := db.Layouts().List(context.Background()); list[0].Cells[0].Assignment == nil {
 		t.Fatal("refused read changed stored state")
+	}
+}
+
+func TestLayoutImportHappyPathAdditiveAndRedacted(t *testing.T) {
+	h, _, _ := layoutHarness(t, []string{auth.ScopeLayoutManage})
+	// Seed an existing chassis to prove import is additive (never replaces it).
+	if rr := h.do("POST", "/api/v1/storage/layout/chassis", chassisBody, writeHeaders(h)); rr.Code != http.StatusCreated {
+		t.Fatal(rr.Code, rr.Body)
+	}
+	body := `{"chassis":[{"id":999,"name":"Import A","kind":"shelf","rows":1,"cols":2,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z","cells":[
+		{"row":0,"col":0,"kind":"hdd-3.5","label":"A1","assignment":{"identity":"wwn:naa.5000000000000f01","provenance":"manual","confidence":"unverified","assigned_by":"x","assigned_at":"2026-01-01T00:00:00Z"}},
+		{"row":0,"col":1,"kind":"empty"}
+	]}]}`
+	rr := h.do("POST", "/api/v1/storage/layout/import", body, writeHeaders(h))
+	if rr.Code != http.StatusOK {
+		t.Fatal(rr.Code, rr.Body)
+	}
+	if s := rr.Body.String(); strings.Contains(s, "naa.5000000000000f01") || strings.Contains(s, "wwn:") || strings.Contains(s, "assigned_by") {
+		t.Fatalf("import leaked identity/assignment: %s", s)
+	}
+	var resp layoutResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Chassis) != 2 {
+		t.Fatalf("expected 2 chassis (existing + imported), got %d", len(resp.Chassis))
+	}
+	if resp.Chassis[0].Name != "Main NAS" {
+		t.Fatalf("existing chassis was not preserved: %+v", resp.Chassis[0])
+	}
+	for _, c := range resp.Chassis {
+		for _, cell := range c.Cells {
+			if cell.Assignment != nil {
+				t.Fatalf("imported geometry carries an assignment: %+v", cell)
+			}
+		}
+	}
+}
+
+func TestLayoutImportRejectsUnknownAndMalformed(t *testing.T) {
+	h, _, _ := layoutHarness(t, []string{auth.ScopeLayoutManage})
+	cases := map[string]string{
+		"top-level unknown":  `{"chassis":[],"evil":1}`,
+		"chassis unknown":    `{"chassis":[{"name":"x","kind":"server","rows":1,"cols":1,"evil":1}]}`,
+		"cell unknown":       `{"chassis":[{"name":"x","kind":"server","rows":1,"cols":1,"cells":[{"row":0,"col":0,"kind":"empty","evil":1}]}]}`,
+		"trailing data":      `{"chassis":[]} {}`,
+		"malformed":          `{"chassis":`,
+		"empty import":       `{"chassis":[]}`,
+		"invalid geometry":   `{"chassis":[{"name":"x","kind":"server","rows":99,"cols":1}]}`,
+		"wrong content type": `{"chassis":[]}`,
+	}
+	for name, body := range cases {
+		hdr := writeHeaders(h)
+		if name == "wrong content type" {
+			hdr["Content-Type"] = "text/plain"
+		}
+		if rr := h.do("POST", "/api/v1/storage/layout/import", body, hdr); rr.Code != http.StatusBadRequest && rr.Code != http.StatusUnsupportedMediaType {
+			t.Fatalf("%s: got %d, want 400/415: %s", name, rr.Code, rr.Body)
+		}
+	}
+}
+
+func TestLayoutImportRollsBackAtomically(t *testing.T) {
+	h, db, _ := layoutHarness(t, []string{auth.ScopeLayoutManage})
+	// One valid chassis followed by one invalid one: the whole import must roll
+	// back, leaving no partial chassis.
+	body := `{"chassis":[
+		{"name":"Good","kind":"server","rows":2,"cols":2,"cells":[{"row":0,"col":0,"kind":"empty"}]},
+		{"name":"Bad","kind":"server","rows":99,"cols":2}
+	]}`
+	if rr := h.do("POST", "/api/v1/storage/layout/import", body, writeHeaders(h)); rr.Code != http.StatusBadRequest {
+		t.Fatal(rr.Code, rr.Body)
+	}
+	list, err := db.Layouts().List(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 0 {
+		t.Fatalf("rollback failed: %d chassis persisted", len(list))
+	}
+}
+
+func TestLayoutImportOversizeRefused(t *testing.T) {
+	h, _, _ := layoutHarness(t, []string{auth.ScopeLayoutManage})
+	big := `{"chassis":[{"name":"` + strings.Repeat("a", layoutImportMaxBytes) + `","kind":"server","rows":1,"cols":1}]}`
+	if rr := h.do("POST", "/api/v1/storage/layout/import", big, writeHeaders(h)); rr.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("oversize body accepted: %d", rr.Code)
+	}
+}
+
+func TestLayoutOptimisticConcurrencyReturnsConflict(t *testing.T) {
+	h, _, _ := layoutHarness(t, []string{auth.ScopeLayoutManage})
+	if rr := h.do("POST", "/api/v1/storage/layout/chassis", chassisBody, writeHeaders(h)); rr.Code != http.StatusCreated {
+		t.Fatal(rr.Code)
+	}
+	update := `{"name":"Renamed","kind":"server","rows":2,"cols":2,"version":1}`
+	if rr := h.do("PUT", "/api/v1/storage/layout/chassis/1", update, writeHeaders(h)); rr.Code != http.StatusOK {
+		t.Fatal(rr.Code, rr.Body)
+	}
+	// A stale writer using the same snapshot version is refused with a stable
+	// 409 layout_conflict, not a silent overwrite.
+	rr := h.do("PUT", "/api/v1/storage/layout/chassis/1", update, writeHeaders(h))
+	if rr.Code != http.StatusConflict || !strings.Contains(rr.Body.String(), "layout_conflict") {
+		t.Fatalf("stale update: %d %s", rr.Code, rr.Body.String())
+	}
+}
+
+// A session with layout.manage but no storage.read may edit the grid, but every
+// write response must redact stored serial/WWN identities (M2-5 security
+// review Medium). The identity is released only to storage.read.
+func TestLayoutWritesRedactIdentitiesWithoutStorageRead(t *testing.T) {
+	h, _, _ := layoutHarness(t, []string{auth.ScopeStorageRead, auth.ScopeLayoutManage})
+	if rr := h.do("POST", "/api/v1/storage/layout/chassis", chassisBody, writeHeaders(h)); rr.Code != http.StatusCreated {
+		t.Fatal(rr.Code, rr.Body.String())
+	}
+	if rr := h.do("PUT", "/api/v1/storage/layout/chassis/1/bays/0/0/assignment", `{"persistent_id":"`+layoutWWN+`","version":1}`, writeHeaders(h)); rr.Code != http.StatusOK {
+		t.Fatal(rr.Code, rr.Body.String())
+	}
+
+	// A second user with only layout.manage.
+	hash, _ := auth.HashPassword("manage-only-pass", auth.MinIterations)
+	h.users.Users = append(h.users.Users, auth.User{Username: "manageonly", PasswordHash: hash, Scopes: []string{auth.ScopeLayoutManage}})
+	h.srv.users = auth.NewStore(h.users)
+	if rr := h.login("manageonly", "manage-only-pass"); rr.Code != http.StatusOK {
+		t.Fatal(rr.Code, rr.Body.String())
+	}
+	noLeak := func(body string) {
+		t.Helper()
+		if strings.Contains(body, "5000000000000f01") {
+			t.Fatalf("manage-only write leaked a stored identity: %s", body)
+		}
+	}
+
+	// create (second chassis) — the response still lists the assigned chassis.
+	rr := h.do("POST", "/api/v1/storage/layout/chassis", `{"name":"Second","kind":"server","rows":1,"cols":1,"cells":[{"row":0,"col":0,"kind":"empty"}]}`, writeHeaders(h))
+	if rr.Code != http.StatusCreated {
+		t.Fatal(rr.Code, rr.Body.String())
+	}
+	noLeak(rr.Body.String())
+
+	// update chassis 1 (version 2 after assign).
+	rr = h.do("PUT", "/api/v1/storage/layout/chassis/1", `{"name":"Renamed","kind":"server","rows":2,"cols":2,"cells":[{"row":0,"col":0,"kind":"hdd-3.5","label":"Bay 1"},{"row":1,"col":1,"kind":"disabled"}],"version":2}`, writeHeaders(h))
+	if rr.Code != http.StatusOK {
+		t.Fatal(rr.Code, rr.Body.String())
+	}
+	noLeak(rr.Body.String())
+
+	// import (additive).
+	rr = h.do("POST", "/api/v1/storage/layout/import", `{"chassis":[{"name":"Imported","kind":"shelf","rows":1,"cols":1,"cells":[{"row":0,"col":0,"kind":"empty"}]}]}`, writeHeaders(h))
+	if rr.Code != http.StatusOK {
+		t.Fatal(rr.Code, rr.Body.String())
+	}
+	noLeak(rr.Body.String())
+
+	// delete the second chassis (its own version 1).
+	rr = h.do("DELETE", "/api/v1/storage/layout/chassis/2?version=1", "", writeHeaders(h))
+	if rr.Code != http.StatusOK {
+		t.Fatal(rr.Code, rr.Body.String())
+	}
+	noLeak(rr.Body.String())
+
+	// The both-scopes user still sees the identity (redaction is scoped, not
+	// destructive).
+	if rr := h.login("full", "full-password-1234"); rr.Code != http.StatusOK {
+		t.Fatal(rr.Code, rr.Body.String())
+	}
+	if rr := h.do("GET", "/api/v1/storage/layout", "", readHeaders(h)); rr.Code != http.StatusOK || !strings.Contains(rr.Body.String(), "5000000000000f01") {
+		t.Fatal("storage.read no longer sees the stored identity:", rr.Code, rr.Body.String())
+	}
+
+	// unassign as manage-only (version 3 after the update); the response must
+	// not disclose the identity that was just removed.
+	if rr := h.login("manageonly", "manage-only-pass"); rr.Code != http.StatusOK {
+		t.Fatal(rr.Code, rr.Body.String())
+	}
+	rr = h.do("DELETE", "/api/v1/storage/layout/chassis/1/bays/0/0/assignment?version=3", "", writeHeaders(h))
+	if rr.Code != http.StatusOK {
+		t.Fatal(rr.Code, rr.Body.String())
+	}
+	noLeak(rr.Body.String())
+}
+
+// bigLayoutImport builds a valid import (two 24x24 chassis with 64-char labels)
+// whose JSON is comfortably over 64 KiB but far under 8 MiB, proving the import
+// path honors its own cap instead of the general 64 KiB body cap.
+func bigLayoutImport() string {
+	label := strings.Repeat("x", 64)
+	var b strings.Builder
+	b.WriteString(`{"chassis":[`)
+	for ch := 0; ch < 2; ch++ {
+		if ch > 0 {
+			b.WriteString(",")
+		}
+		b.WriteString(`{"name":"Big`)
+		b.WriteString(strconv.Itoa(ch))
+		b.WriteString(`","kind":"server","rows":24,"cols":24,"cells":[`)
+		for r := 0; r < 24; r++ {
+			for c := 0; c < 24; c++ {
+				if r+c > 0 {
+					b.WriteString(",")
+				}
+				b.WriteString(`{"row":`)
+				b.WriteString(strconv.Itoa(r))
+				b.WriteString(`,"col":`)
+				b.WriteString(strconv.Itoa(c))
+				b.WriteString(`,"kind":"hdd-3.5","label":"`)
+				b.WriteString(label)
+				b.WriteString(`"}`)
+			}
+		}
+		b.WriteString(`]}`)
+	}
+	b.WriteString(`]}`)
+	return b.String()
+}
+
+func TestLayoutImportAcceptsOver64KiB(t *testing.T) {
+	h, _, _ := layoutHarness(t, []string{auth.ScopeLayoutManage})
+	body := bigLayoutImport()
+	if len(body) <= 64<<10 {
+		t.Fatalf("test body too small (%d bytes), want > 64 KiB", len(body))
+	}
+	rr := h.do("POST", "/api/v1/storage/layout/import", body, writeHeaders(h))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("valid >64 KiB import refused: %d %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestLayoutImportAcceptsRedactedExportAssigned(t *testing.T) {
+	// hc-ui's redacted export emits per-cell `assigned` (a JSON boolean). The
+	// importer must accept and discard it; geometry is always unassigned.
+	h, _, _ := layoutHarness(t, []string{auth.ScopeLayoutManage})
+	body := `{"chassis":[{"name":"Exported","kind":"server","rows":1,"cols":2,"cells":[
+		{"row":0,"col":0,"kind":"hdd-3.5","label":"Bay 1","assigned":true},
+		{"row":0,"col":1,"kind":"empty","assigned":false}
+	]}]}`
+	rr := h.do("POST", "/api/v1/storage/layout/import", body, writeHeaders(h))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("redacted export refused: %d %s", rr.Code, rr.Body.String())
+	}
+	var resp layoutResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range resp.Chassis {
+		for _, cell := range c.Cells {
+			if cell.Assignment != nil {
+				t.Fatalf("imported cell carries an assignment: %+v", cell)
+			}
+		}
+	}
+}
+
+// bigChassisBody builds a single 24x24 chassis whose maximum-length (64-rune,
+// 2-byte) labels push the JSON over the general 64 KiB body cap but far under
+// the chassis cap.
+func bigChassisBody() string {
+	label := strings.Repeat("\u00e9", 64) // 64 runes, 128 bytes
+	var b strings.Builder
+	b.WriteString(`{"name":"Big","kind":"server","rows":24,"cols":24,"cells":[`)
+	for r := 0; r < 24; r++ {
+		for c := 0; c < 24; c++ {
+			if r+c > 0 {
+				b.WriteString(",")
+			}
+			b.WriteString(`{"row":`)
+			b.WriteString(strconv.Itoa(r))
+			b.WriteString(`,"col":`)
+			b.WriteString(strconv.Itoa(c))
+			b.WriteString(`,"kind":"hdd-3.5","label":"`)
+			b.WriteString(label)
+			b.WriteString(`"}`)
+		}
+	}
+	b.WriteString(`]}`)
+	return b.String()
+}
+
+func TestLayoutChassisBodyOver64KiB(t *testing.T) {
+	h, _, _ := layoutHarness(t, []string{auth.ScopeLayoutManage})
+	body := bigChassisBody()
+	if len(body) <= 64<<10 {
+		t.Fatalf("test body too small: %d bytes", len(body))
+	}
+	rr := h.do("POST", "/api/v1/storage/layout/chassis", body, writeHeaders(h))
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("valid >64 KiB chassis create refused: %d %s", rr.Code, rr.Body.String())
 	}
 }

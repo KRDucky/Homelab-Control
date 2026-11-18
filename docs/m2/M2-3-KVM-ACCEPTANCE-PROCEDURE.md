@@ -1,13 +1,25 @@
-# M2-3 KVM acceptance procedure (prepared for owner authorization; NOT run)
+# M2-3 KVM acceptance procedure (Phase A and B authorized; NOT run)
 
-**Status:** procedure only. No KVM guest has been created, started or modified for M2-3. Nothing below may be
-done before the owner's explicit authorization (next section). By the standing assignment VM work is Codex's
-(`docs/evidence/m2/vm-final-main-d812995e/README.md`); Claude Code does not operate VMs. Container evidence
+**Status update (2026-11-18):** the owner authorized fresh disposable guests, Phase A and Phase B, and
+opening an M2 PR. Draft PR #118 is open. No M2-3 guest has been created, started or modified. The existing
+artifact `13413879518` from CI run `42026882569` was built for `40801659` and is stale for this candidate.
+CI run `44273801378` (run #326) was triggered for the preceding PR head `5ab1810d`; it is not the current
+PR head and must not supply the VM package. Wait for successful exact-head CI and its package/provenance,
+then run the authorized procedure and update the inputs below. PR review is authorized; merge and deployment
+are not. Existing retained guests are out of scope and must not be touched.
+
+The owner directed this M2 validation to Claude's VMs on 2026-11-18. Execute through the authorized
+`claude-baremetal` MCP service, using `qemu:///system` pool `claude-vms-zfs` and the storage policy below.
+The earlier Codex workstation-VM assignment is superseded for this run. Container evidence
 (`docs/evidence/m2/m2-3/`) does **not** satisfy this procedure: containers share the workstation kernel, have
 no real boot and ran with SELinux disabled.
 
-## Authorization required before any guest operation
-The owner must authorize, in their own words, after reviewing the safety corrections:
+## Authorization recorded
+The owner authorized both phases on 2026-11-18 after being shown that Phase A includes fresh disposable
+guests, CI-built packages, distro test dependencies, a retained disk-only snapshot per guest, and guest
+retention, while Phase B deliberately uses a test wrapper and SIGKILLs the broker. This covers only the
+operations below in disposable guests. It does not authorize push/merge, production activation or guest
+deletion. The original scope is:
 1. **Creating** new disposable KVM guests for M2-3 — Ubuntu 26.04.1 (systemd 259), **Ubuntu 22.04.5 (systemd
    249, required: the only version where the unloaded-change gate relies on the generator directory as reload
    marker)** and Fedora 44 with SELinux **Enforcing** (optionally upstream Arch) — from distribution cloud

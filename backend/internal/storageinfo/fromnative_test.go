@@ -1,0 +1,194 @@
+// SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+package storageinfo
+
+import (
+	"strings"
+	"testing"
+
+	"homelab-control/backend/internal/lvmmeta"
+)
+
+func TestFromNative(t *testing.T) {
+	inv := lvmmeta.Inventory{VGs: []lvmmeta.VG{{
+		UUID:       "aaaaaaaabbbbccccddddeeeeffff0001",
+		Name:       "vg1",
+		ExtentSize: 8192,
+		State:      lvmmeta.StateUnsupported,
+		PVs: []lvmmeta.VGPV{
+			{Key: "pv0", UUID: "abcdef1234567890abcdef1234567890", Device: "vdb", DevSize: 10485760, Presence: lvmmeta.PresencePresent},
+			{Key: "pv1", UUID: "00000000000000000000000000000000", Presence: lvmmeta.PresenceMissingFlag, Flags: []string{"MISSING"}},
+		},
+		LVs: []lvmmeta.LV{
+			{UUID: "99999999888877776666555544444444", Name: "lv1", Segments: []lvmmeta.Segment{{Type: "striped", Parsed: true, StartExtent: 0, ExtentCount: 128, Stripes: []lvmmeta.Area{{PVKey: "pv0"}}}}},
+			{UUID: "11112222333344445555666677778888", Name: "lv2", Segments: []lvmmeta.Segment{{Type: "vdo", Parsed: false}}},
+		},
+	}}}
+
+	out, notes := FromNative(inv)
+	if len(out.PhysicalVolumes) != 2 {
+		t.Fatalf("pvs = %+v", out.PhysicalVolumes)
+	}
+	if out.PhysicalVolumes[0].DeviceLink != "" || out.PhysicalVolumes[0].MissingState != "present" {
+		t.Fatalf("pv0 = %+v", out.PhysicalVolumes[0])
+	}
+	if !out.PhysicalVolumes[1].Missing || out.PhysicalVolumes[1].MissingState != "missing" {
+		t.Fatalf("pv1 = %+v", out.PhysicalVolumes[1])
+	}
+	if len(out.Volumes) != 2 || out.Volumes[0].Health != "unknown" {
+		t.Fatalf("volumes = %+v", out.Volumes)
+	}
+	if out.Volumes[0].Segments[0].Type != "striped" || out.Volumes[0].Segments[0].Devices != "pv0" {
+		t.Fatalf("lv1 segments = %+v", out.Volumes[0].Segments)
+	}
+	found := false
+	for _, n := range notes {
+		if strings.Contains(n, "unsupported") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("notes = %v, want an unsupported note", notes)
+	}
+}
+
+func TestFromNativeSegmentRelations(t *testing.T) {
+	vg := lvmmeta.VG{
+		UUID:       "aaaaaaaabbbbccccddddeeeeffff0001",
+		Name:       "vg1",
+		ExtentSize: 8192,
+		LVs: []lvmmeta.LV{
+			{UUID: "11111111222233334444555566666666", Name: "data_lv"},
+			{UUID: "22222222333344445555666677778888", Name: "meta_lv"},
+			{UUID: "33333333444455556666777788889999", Name: "origin_lv"},
+			{UUID: "44444444555566667777888899990000", Name: "pool_lv"},
+			{UUID: "55555555666677778888999900001111", Name: "raid_lv", Segments: []lvmmeta.Segment{{Type: "raid1", Parsed: true, Raid: &lvmmeta.RaidSeg{DeviceCount: 2, Images: []lvmmeta.Area{{PVKey: "pv0"}, {PVKey: "pv1"}}, Metas: []lvmmeta.Area{{PVKey: "pv0"}, {PVKey: "pv1"}}}}}},
+			{UUID: "66666666777788889999000011112222", Name: "thin_lv", Segments: []lvmmeta.Segment{{Type: "thin", Parsed: true, Thin: &lvmmeta.ThinSeg{ThinPool: "pool_lv", Origin: "origin_lv"}}}},
+			{UUID: "77777777888899990000111122223333", Name: "cache_lv", Segments: []lvmmeta.Segment{{Type: "cache", Parsed: true, Cache: &lvmmeta.CacheSeg{CachePool: "pool_lv", Origin: "origin_lv"}}}},
+		},
+	}
+	out, _ := FromNative(lvmmeta.Inventory{VGs: []lvmmeta.VG{vg}})
+	byName := map[string]LogicalVolume{}
+	for _, lv := range out.Volumes {
+		byName[lv.Name] = lv
+	}
+
+	raid := byName["raid_lv"]
+	if raid.Segments[0].Devices != "pv0,pv1" || raid.Segments[0].MetadataDevices != "pv0,pv1" {
+		t.Fatalf("raid segment = %+v", raid.Segments[0])
+	}
+	thin := byName["thin_lv"]
+	if thin.PoolUUID != "444444-4455-5566-6677-7788-8899-990000" || thin.OriginUUID != "333333-3344-4455-5566-6677-7788-889999" {
+		t.Fatalf("thin lv = %+v", thin)
+	}
+	cache := byName["cache_lv"]
+	if cache.PoolUUID != "444444-4455-5566-6677-7788-8899-990000" || cache.OriginUUID != "333333-3344-4455-5566-6677-7788-889999" {
+		t.Fatalf("cache lv = %+v", cache)
+	}
+}
+
+func TestFromNativeMalformedExtentSize(t *testing.T) {
+	// extent_size * 512 must not wrap (C9): a hostile value becomes a typed
+	// note and the segment byte mapping is omitted, never a wrapped size.
+	inv := lvmmeta.Inventory{VGs: []lvmmeta.VG{{
+		UUID:       "aaaaaaaabbbbccccddddeeeeffff0001",
+		Name:       "vg1",
+		ExtentSize: 36028797018963969, // > MaxUint64/512
+		LVs: []lvmmeta.LV{
+			{UUID: "99999999888877776666555544444444", Name: "lv1", Segments: []lvmmeta.Segment{{Type: "striped", Parsed: true, StartExtent: 0, ExtentCount: 128, Stripes: []lvmmeta.Area{{PVKey: "pv0"}}}}},
+		},
+	}}}
+	out, notes := FromNative(inv)
+	if len(out.Volumes) != 1 {
+		t.Fatalf("volumes = %+v", out.Volumes)
+	}
+	seg := out.Volumes[0].Segments[0]
+	if seg.StartBytes != nil || seg.SizeBytes != nil {
+		t.Fatalf("segment bytes = %+v, want nil on overflow", seg)
+	}
+	found := false
+	for _, n := range notes {
+		if strings.Contains(n, "malformed-extent-size") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("notes = %v, want malformed-extent-size", notes)
+	}
+}
+
+func TestFromNativeMalformedSegmentSize(t *testing.T) {
+	// start_extent/extent_count * extent_bytes must not wrap (C9).
+	inv := lvmmeta.Inventory{VGs: []lvmmeta.VG{{
+		UUID:       "aaaaaaaabbbbccccddddeeeeffff0001",
+		Name:       "vg1",
+		ExtentSize: 8192,
+		LVs: []lvmmeta.LV{
+			{UUID: "99999999888877776666555544444444", Name: "lv1", Segments: []lvmmeta.Segment{{Type: "striped", Parsed: true, StartExtent: ^uint64(0), ExtentCount: 1, Stripes: []lvmmeta.Area{{PVKey: "pv0"}}}}},
+		},
+	}}}
+	out, notes := FromNative(inv)
+	seg := out.Volumes[0].Segments[0]
+	if seg.StartBytes != nil || seg.SizeBytes != nil {
+		t.Fatalf("segment bytes = %+v, want nil on overflow", seg)
+	}
+	found := false
+	for _, n := range notes {
+		if strings.Contains(n, "malformed-segment-size") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("notes = %v, want malformed-segment-size", notes)
+	}
+}
+
+func TestFromNativeAccumulatesNotes(t *testing.T) {
+	// A VG that is both malformed and has an unsupported segment must emit both
+	// typed notes, not just the dominant one.
+	inv := lvmmeta.Inventory{VGs: []lvmmeta.VG{{
+		UUID:  "aaaaaaaabbbbccccddddeeeeffff0001",
+		Name:  "vg1",
+		State: lvmmeta.StateUnsupported,
+		Notes: []string{"vg vg1: partial (malformed size)", "vg vg1: partial (unsupported segment type)"},
+		PVs: []lvmmeta.VGPV{
+			{Key: "pv0", UUID: "abcdef1234567890abcdef1234567890", Presence: lvmmeta.PresencePresent},
+		},
+	}}}
+	_, notes := FromNative(inv)
+	hasMalformed, hasUnsupported := false, false
+	for _, n := range notes {
+		if strings.Contains(n, "malformed size") {
+			hasMalformed = true
+		}
+		if strings.Contains(n, "unsupported segment type") {
+			hasUnsupported = true
+		}
+	}
+	if !hasMalformed || !hasUnsupported {
+		t.Fatalf("notes = %v, want both malformed size and unsupported segment", notes)
+	}
+}
+
+func TestFromNativeDeviceNumber(t *testing.T) {
+	// The PV's device major:minor is forwarded so linkPV can nominate a block.
+	inv := lvmmeta.Inventory{VGs: []lvmmeta.VG{{
+		UUID: "aaaaaaaabbbbccccddddeeeeffff0001",
+		Name: "vg1",
+		PVs: []lvmmeta.VGPV{
+			{UUID: "abcdef1234567890abcdef1234567890", DevSize: 536870912, DeviceNumber: "8:0", Presence: lvmmeta.PresencePresent},
+		},
+	}}}
+	out, _ := FromNative(inv)
+	if len(out.PhysicalVolumes) != 1 {
+		t.Fatalf("pvs = %+v", out.PhysicalVolumes)
+	}
+	if out.PhysicalVolumes[0].DeviceNumber != "8:0" {
+		t.Fatalf("device number = %q, want 8:0", out.PhysicalVolumes[0].DeviceNumber)
+	}
+	if out.Mode != ModeMetadataOnly {
+		t.Fatalf("mode = %q, want metadata-only", out.Mode)
+	}
+}

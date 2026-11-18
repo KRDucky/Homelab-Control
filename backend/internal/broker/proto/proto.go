@@ -74,6 +74,9 @@ const (
 	CodeTimeout     = "timeout"
 	CodeBusy        = "busy"
 	CodeInternal    = "internal"
+	// CodeRateLimited is a broker-side interval rate limit (e.g. the storage
+	// probe, whose helper would otherwise wake disks on every call).
+	CodeRateLimited = "rate_limited"
 	// Write-operation codes (ADR 0011).
 	CodeConflict       = "conflict"         // target changed since the plan
 	CodeInvalidToken   = "invalid_token"    // plan token unknown, expired, used or not bound to this request

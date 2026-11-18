@@ -65,9 +65,9 @@ async fn conn(db: &Path) -> SqliteConnection {
 }
 
 impl Fx {
-    /// A database with the Go schema (version 3) and `ages` records (age in days, oldest first).
+    /// A database with the current Go schema (version 4) and `ages` records (age in days, oldest first).
     fn new(tag: &str, ages: &[i128]) -> Fx {
-        Self::with_schema(tag, ages, Some(3))
+        Self::with_schema(tag, ages, Some(4))
     }
 
     fn with_schema(tag: &str, ages: &[i128], version: Option<i64>) -> Fx {
@@ -616,7 +616,7 @@ fn early_archiving_uses_pages_and_blocks_on_reclaim_failure() {
 
 #[test]
 fn unknown_or_missing_schema_fails_safe() {
-    for v in [Some(2), Some(4), None] {
+    for v in [Some(2), Some(3), Some(5), None] {
         let fx = Fx::with_schema("schema", &[100, 100, 0], v);
         let before = snapshot(&fx.root);
         assert!(block(run(&fx.opts(30, 60))).is_err(), "{v:?}");

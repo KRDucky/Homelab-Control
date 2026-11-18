@@ -38,7 +38,7 @@ var forbiddenCalls = map[string]bool{
 
 // allowedExecRoots lists the only directories allowed to execute programs.
 // Adding an entry requires security review (ADR 0008).
-var allowedExecRoots = []string{"internal/broker/runner/"}
+var allowedExecRoots = []string{"internal/broker/runner/", "internal/storageprobe/"}
 
 func TestNoProcessExecution(t *testing.T) {
 	root, err := filepath.Abs("../..")
@@ -58,9 +58,11 @@ func TestNoProcessExecution(t *testing.T) {
 			return nil
 		}
 		rel, _ := filepath.Rel(root, path)
+		allowExec := false
 		for _, a := range allowedExecRoots {
 			if strings.HasPrefix(rel, a) {
-				return nil
+				allowExec = true
+				break
 			}
 		}
 		f, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly|parser.ParseComments)
@@ -69,6 +71,9 @@ func TestNoProcessExecution(t *testing.T) {
 		}
 		for _, imp := range f.Imports {
 			p, _ := strconv.Unquote(imp.Path.Value)
+			if p == "os/exec" && allowExec {
+				continue // os/exec is the reviewed exemption (ADR 0008)
+			}
 			if why, bad := forbiddenImports[p]; bad && why != "" {
 				t.Errorf("%s imports %q (%s) — forbidden by ADR 0001", rel, p, why)
 			}
@@ -204,6 +209,42 @@ func TestUnprivilegedBinariesDoNotLinkPrivilegedCode(t *testing.T) {
 		}
 		if len(visited) < 3 {
 			t.Fatalf("import walk for %s visited only %d packages", main, len(visited))
+		}
+	}
+}
+
+// TestStorageProbeNoLinkPrivilegedCode asserts the inert M2-4 probe helper and
+// its package never link broker privileged code. The helper is a separate,
+// fail-closed unit and must stay stdlib + its own tree.
+func TestStorageProbeNoLinkPrivilegedCode(t *testing.T) {
+	root, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, start := range []string{
+		"homelab-control/backend/cmd/hc-storage-probe",
+		"homelab-control/backend/internal/storageprobe",
+	} {
+		visited := map[string]bool{}
+		queue := []string{start}
+		for len(queue) > 0 {
+			p := queue[0]
+			queue = queue[1:]
+			if visited[p] {
+				continue
+			}
+			visited[p] = true
+			for _, imp := range moduleImports(t, root, p) {
+				if strings.HasPrefix(imp, "homelab-control/backend/internal/broker/") {
+					t.Errorf("%s links privileged broker package %s", start, imp)
+				}
+				if strings.HasPrefix(imp, "homelab-control/backend/") {
+					queue = append(queue, imp)
+				}
+			}
+		}
+		if len(visited) < 1 {
+			t.Fatalf("import walk for %s visited no packages", start)
 		}
 	}
 }

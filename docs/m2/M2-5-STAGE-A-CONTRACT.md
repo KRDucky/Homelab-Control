@@ -7,7 +7,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 Status: development contract for the Stage A core (`MODULE-ARCHITECTURE.md` §5, roadmap PR M2-5).
 This is routine design within the authorized development slice. It is **not** an owner acceptance and
-**not** a merge decision. D-12 (HBA Viewer reuse) remains open; nothing here is taken from that project.
+**not** a merge decision. D-12 source and concept reconciliation are recorded in
+`OWNER-DECISIONS.md`; this implementation reuses the bay-layout concept without copying upstream code.
 
 ## What it is
 An application-owned, manually labelled chassis grid stored in hc-api's `state.db`. An administrator records
@@ -65,6 +66,7 @@ M2-4 collector.
 |---|---|---|
 | `GET /storage/layout` | `storage.read` + session CSRF header | Stored layout only, no collection. Released only after an access audit record (`storage.layout.read`, counts only, never serial/WWN) is written; 403 without CSRF before read/audit; 503 when audit is absent or fails. |
 | `POST /storage/layout/chassis` | `layout.manage` | Create a chassis. |
+| `POST /storage/layout/import` | `layout.manage` | Import chassis geometry additively (never replaces or deletes existing chassis). Strict JSON (unknown/trailing fields rejected) with an 8 MiB body cap; one atomic transaction. Any `id`, timestamp or per-cell `assignment`/identity in the payload is discarded, so imported geometry is always unassigned and can never introduce a serial/WWN. |
 | `PUT /storage/layout/chassis/{id}` | `layout.manage` | Replace the name, kind, size and cells. |
 | `DELETE /storage/layout/chassis/{id}` | `layout.manage` | Refused while the chassis has assignments. |
 | `PUT /storage/layout/chassis/{id}/bays/{row}/{col}/assignment` | `layout.manage` **and** `storage.read` | Body `{persistent_id}`. Collects a fresh observation. |
@@ -84,15 +86,28 @@ Every write needs an audit logger and runs in this order:
 
 Without a state database, the layout routes return 503. There is no in-memory fallback that pretends to persist.
 
+### Optimistic concurrency
+Each chassis carries a monotonic integer `version` (returned by `GET /storage/layout`). Every
+mutation of an existing chassis (update, delete, assign, unassign) carries the version the client
+last saw — in the request body for PUT, as a `version` query parameter for DELETE — and is a
+compare-and-swap: the mutation succeeds only when the stored version still matches, then advances it.
+A mismatch returns a stable 409 `layout_conflict` and nothing changes, so two clients sharing one
+snapshot cannot both silently overwrite. Create and import are additive and therefore carry no
+version; imported geometry is always unassigned.
+
 ## Deferred (not delivered in this slice)
 Each of these is deferred, not claimed as delivered:
-- drag-and-drop;
-- JSON export and import, including redaction;
 - `last_seen`;
-- optimistic-concurrency revisions;
 - assignment by weaker identity tiers;
 - the location badge on other storage views (Stage B);
 - SES and controller discovery (Stage C);
 - identify LEDs (Stage D);
 - a Playwright + axe flow;
 - the HBA Viewer reconciliation (D-12).
+
+> **Roadmap reconciliation.** `docs/m2/M2-ROADMAP.md` §2 (PR M2-5 scope) requires drive assignment
+> by **both drag-and-drop and keyboard**, and **export/import with identifiers redacted by default**.
+> Those requirements supersede the earlier deferrals and are delivered in Stage A: drag-and-drop and
+> keyboard assignment are implemented in the Storage UI; export redacts identifiers by default; import
+> accepts the exported chassis geometry additively, discards identity/assignment fields, and never
+> replaces or deletes existing chassis.

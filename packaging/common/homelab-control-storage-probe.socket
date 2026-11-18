@@ -1,0 +1,20 @@
+[Unit]
+Description=Homelab Control read-only storage probe socket (M2-4 O-1)
+Documentation=file:///usr/share/doc/homelab-control/docs/m2/M2-4-O1-DEVICE-POLICY.md
+# Opt-in marker: starting this socket does nothing unless an administrator has
+# created this file in a disposable validation environment. No package ships it.
+ConditionPathExists=/etc/homelab-control/storage-probe.enabled
+
+[Socket]
+ListenStream=/run/homelab-control/storage-probe.sock
+Accept=yes
+MaxConnections=1
+SocketMode=0600
+SocketUser=root
+SocketGroup=root
+DirectoryMode=0755
+RemoveOnStop=yes
+
+# No [Install] section: the socket is not enabled at boot. If explicitly
+# started in a disposable validation environment, each accepted connection
+# starts one helper instance. The broker caller is available, but packages do not enable it.

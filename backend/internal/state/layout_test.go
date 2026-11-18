@@ -7,6 +7,7 @@ package state
 import (
 	"context"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -31,7 +32,7 @@ func TestLayoutMigrationFromVersionTwoKeepsBackupAndSnapshots(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if v, _ := db.Version(context.Background()); v != 3 || db.Backup == "" {
+	if v, _ := db.Version(context.Background()); v != 4 || db.Backup == "" {
 		t.Fatalf("version %d backup %q", v, db.Backup)
 	}
 	if _, ok, err := db.StorageSnapshots().Latest(context.Background()); !ok || err != nil {
@@ -52,7 +53,7 @@ func TestLayoutPersistsAcrossReopenAndNeverOverwritesAssignments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Layouts().Assign(ctx, id, 0, 0, "wwn:naa.5000000000000f01", "admin", now); err != nil {
+	if err := db.Layouts().Assign(ctx, id, 0, 0, "wwn:naa.5000000000000f01", "admin", 1, now); err != nil {
 		t.Fatal(err)
 	}
 	db.Close()
@@ -73,11 +74,11 @@ func TestLayoutPersistsAcrossReopenAndNeverOverwritesAssignments(t *testing.T) {
 	}
 
 	conflicts := map[string]error{
-		"occupied bay":           l.Assign(ctx, id, 0, 0, "serial:OTHER", "admin", now),
-		"identity elsewhere":     l.Assign(ctx, id, 0, 1, "wwn:naa.5000000000000f01", "admin", now),
-		"non-bay cell":           l.Assign(ctx, id, 1, 2, "serial:OTHER", "admin", now),
-		"shrink drops assigned":  l.Update(ctx, id, ChassisSpec{Name: "Main NAS", Kind: "server", Rows: 1, Cols: 1, Cells: []CellSpec{{Row: 0, Col: 0, Kind: "empty"}}}, now),
-		"delete with assignment": l.Delete(ctx, id),
+		"occupied bay":           l.Assign(ctx, id, 0, 0, "serial:OTHER", "admin", 2, now),
+		"identity elsewhere":     l.Assign(ctx, id, 0, 1, "wwn:naa.5000000000000f01", "admin", 2, now),
+		"non-bay cell":           l.Assign(ctx, id, 1, 2, "serial:OTHER", "admin", 2, now),
+		"shrink drops assigned":  l.Update(ctx, id, ChassisSpec{Name: "Main NAS", Kind: "server", Rows: 1, Cols: 1, Cells: []CellSpec{{Row: 0, Col: 0, Kind: "empty"}}}, 2, now),
+		"delete with assignment": l.Delete(ctx, id, 2),
 	}
 	for name, err := range conflicts {
 		if !errors.Is(err, ErrLayoutConflict) {
@@ -85,22 +86,22 @@ func TestLayoutPersistsAcrossReopenAndNeverOverwritesAssignments(t *testing.T) {
 		}
 	}
 	for _, weak := range []string{"by-id:ata-X", "t10-vendor-id:ATA X", "sda", "8:0", "block:abc", "serial:"} {
-		if err := l.Assign(ctx, id, 0, 1, weak, "admin", now); !errors.Is(err, ErrLayoutInvalid) {
+		if err := l.Assign(ctx, id, 0, 1, weak, "admin", 2, now); !errors.Is(err, ErrLayoutInvalid) {
 			t.Errorf("%q accepted: %v", weak, err)
 		}
 	}
 	// A shrink that keeps the assigned bay is allowed and keeps the assignment.
-	if err := l.Update(ctx, id, ChassisSpec{Name: "NAS", Kind: "shelf", Rows: 1, Cols: 2}, now); err != nil {
+	if err := l.Update(ctx, id, ChassisSpec{Name: "NAS", Kind: "shelf", Rows: 1, Cols: 2}, 2, now); err != nil {
 		t.Fatal(err)
 	}
 	list, _ = l.List(ctx)
 	if len(list[0].Cells) != 2 || list[0].Cells[0].Assignment == nil || list[0].Name != "NAS" {
 		t.Fatalf("update lost the assignment: %+v", list[0])
 	}
-	if err := l.Unassign(ctx, id, 0, 0, now); err != nil {
+	if err := l.Unassign(ctx, id, 0, 0, 3, now); err != nil {
 		t.Fatal(err)
 	}
-	if err := l.Delete(ctx, id); err != nil {
+	if err := l.Delete(ctx, id, 4); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -121,5 +122,103 @@ func TestLayoutSpecBounds(t *testing.T) {
 		if s.Validate() == nil {
 			t.Errorf("spec %d accepted: %+v", i, s)
 		}
+	}
+}
+
+func TestLayoutImportAdditiveAtomicAndCapped(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(dir(t), "state.db")
+	db, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	now := time.Now()
+	l := db.Layouts()
+
+	// Seed one existing chassis to prove import is additive.
+	if _, err := l.Create(ctx, ChassisSpec{Name: "Existing", Kind: "server", Rows: 1, Cols: 1}, now); err != nil {
+		t.Fatal(err)
+	}
+	n, err := l.Import(ctx, []ChassisSpec{
+		{Name: "A", Kind: "shelf", Rows: 2, Cols: 2},
+		{Name: "B", Kind: "external", Rows: 1, Cols: 1, Cells: []CellSpec{{Row: 0, Col: 0, Kind: "hdd-3.5"}}},
+	}, now)
+	if err != nil || n != 2 {
+		t.Fatalf("import: %v %d", err, n)
+	}
+	if list, _ := l.List(ctx); len(list) != 3 {
+		t.Fatalf("expected 3 chassis, got %d", len(list))
+	}
+
+	// Atomic: one invalid chassis rolls back the whole import.
+	if _, err := l.Import(ctx, []ChassisSpec{
+		{Name: "Good", Kind: "server", Rows: 1, Cols: 1},
+		{Name: "Bad", Kind: "server", Rows: 99, Cols: 1},
+	}, now); !errors.Is(err, ErrLayoutInvalid) {
+		t.Fatalf("invalid import: %v", err)
+	}
+	if list, _ := l.List(ctx); len(list) != 3 {
+		t.Fatalf("partial import persisted: %d", len(list))
+	}
+
+	// Cap: importing beyond MaxLayoutChassis is refused atomically (3 exist).
+	many := make([]ChassisSpec, MaxLayoutChassis)
+	for i := range many {
+		many[i] = ChassisSpec{Name: fmt.Sprintf("C%d", i), Kind: "server", Rows: 1, Cols: 1}
+	}
+	if _, err := l.Import(ctx, many, now); !errors.Is(err, ErrLayoutInvalid) {
+		t.Fatalf("cap not enforced: %v", err)
+	}
+	if list, _ := l.List(ctx); len(list) != 3 {
+		t.Fatalf("cap import persisted: %d", len(list))
+	}
+}
+
+func TestLayoutOptimisticConcurrency(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(dir(t), "state.db")
+	db, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	now := time.Now()
+	l := db.Layouts()
+	id, err := l.Create(ctx, ChassisSpec{Name: "A", Kind: "server", Rows: 2, Cols: 2}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Update with the snapshot version (1) succeeds and bumps to 2.
+	if err := l.Update(ctx, id, ChassisSpec{Name: "A2", Kind: "server", Rows: 2, Cols: 2}, 1, now); err != nil {
+		t.Fatal(err)
+	}
+	// A second writer using the same snapshot (version 1) is refused.
+	if err := l.Update(ctx, id, ChassisSpec{Name: "A3", Kind: "server", Rows: 2, Cols: 2}, 1, now); !errors.Is(err, ErrLayoutStale) {
+		t.Fatalf("stale update accepted: %v", err)
+	}
+	// Assign with the current version (2) succeeds and bumps to 3.
+	if err := l.Assign(ctx, id, 0, 0, "serial:X", "admin", 2, now); err != nil {
+		t.Fatal(err)
+	}
+	// Stale unassign (version 2, now at 3) is refused.
+	if err := l.Unassign(ctx, id, 0, 0, 2, now); !errors.Is(err, ErrLayoutStale) {
+		t.Fatalf("stale unassign accepted: %v", err)
+	}
+	// A stale delete on an unassigned chassis is refused without removing it.
+	id2, err := l.Create(ctx, ChassisSpec{Name: "B", Kind: "server", Rows: 1, Cols: 1}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := l.Delete(ctx, id2, 2); !errors.Is(err, ErrLayoutStale) {
+		t.Fatalf("stale delete accepted: %v", err)
+	}
+	if list, _ := l.List(ctx); len(list) != 2 {
+		t.Fatalf("stale delete removed a chassis: %d", len(list))
+	}
+	// The current version still deletes an unassigned chassis.
+	if err := l.Delete(ctx, id2, 1); err != nil {
+		t.Fatalf("current-version delete failed: %v", err)
 	}
 }

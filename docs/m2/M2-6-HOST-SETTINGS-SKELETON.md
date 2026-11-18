@@ -1,6 +1,6 @@
 # M2-6 host settings — working slice (not accepted)
 
-Status 2026-11-06: owner-authorized apply after the read-only skeleton (PR #40 on main). The backend implements GET, preview, plan and apply. **This is not M2-6 acceptance.** ADR 0008 Amendment 4 and ADR 0011 M2-6 extension remain **Proposed**. Isolated fixtures only; no production or retained-host apply.
+Status 2026-11-18: local closeout candidate includes the owner-authorized apply path after the read-only skeleton. The backend implements GET, preview, plan and apply. Browser evidence now exercises the apply-capable user's confirmation UI against a fail-closed fake broker. **This is not owner acceptance.** ADR 0008 Amendment 4 and ADR 0011 M2-6 extension remain **Proposed**. Isolated fixtures only; no production or retained-host apply.
 
 ## What exists
 
@@ -41,11 +41,11 @@ Sources (`backend/internal/hostinfo/hostsettings.go`): `/proc/sys/kernel/hostnam
 ## Tests
 
 - Go: `internal/hostinfo/hostsettings_test.go` (fixture reads, not-set vs unavailable, link confinement, validators); `internal/api/hostsettings_test.go` (401/403, Origin and CSRF refusals, separate non-default preview and apply scopes, preview leaves a hashed copy of the fixture tree unchanged and reports `executed:false`, preview-only user 403 on plan/apply, audit has no values). Broker: `internal/broker/ops/hostsettings_write_test.go` (isolated fake; replay, conflict, stop on first failed field). `guard` OpenAPI route/scope test covers GET, preview, plan and apply.
-- Vitest: `frontend/app/src/hostsettings.test.tsx` (observed display, preview CSRF, Apply gated on scope + `apply_available` + `valid`, no plan/apply from preview, TLS warning from the plan, no password field).
-- Opt-in Go fixture `TestHostSettingsBrowserFixture` (`backend/internal/api/hostsettings_browser_test.go`, `HC_HOST_SETTINGS_BROWSER_DIR`) plus `tests/e2e/host_settings_browser.py`: labelled copy of `testdata/hostsettings` only. Preview never posts plan or apply. The fixture has no broker and never runs `hostnamectl` or `timedatectl`. Skip unless the runtime dir already exists mode 0700; fatal if euid 0. Not in CI. Not live host apply, not M2-6 acceptance, not M2 close.
+- Vitest: `frontend/app/src/hostsettings.test.tsx` (observed display, preview CSRF, Apply gated on scope + `apply_available` + `valid`, no plan/apply from preview, TLS warning from the plan, no password field, cancel closes the confirm dialog without `/apply`).
+- Opt-in Go fixture `TestHostSettingsBrowserFixture` (`backend/internal/api/hostsettings_browser_test.go`, `HC_HOST_SETTINGS_BROWSER_DIR`) plus `tests/e2e/host_settings_browser.py`: labelled copy of `testdata/hostsettings` only. The preview-only account never posts plan/apply; the apply-capable account opens the confirmation dialog, causing one dry-run `/plan` request to a fail-closed fake broker, then closes without `/apply`. Browser result: 34 checks passed, zero desktop/mobile axe violations, no 390×844 overflow; fixture log reports `plan_calls=1 apply_calls=0`. The fixture never runs `hostnamectl` or `timedatectl`. Skip unless the runtime dir already exists mode 0700; fatal if euid 0. Not in CI. Not live host apply or owner acceptance.
 - The fixture `backend/internal/hostinfo/testdata/hostsettings/` is synthetic and labelled; its zone files are not real tz data.
 
 ## Deferred (each needs its own owner decision)
 
 - Reading through `hostnamed`/`timedated` (D-Bus) for the host's live view instead of `hc-api`'s namespace.
-- Module-registry entry for host settings (today a core route, like storage), CI/browser-e2e coverage of the opt-in Playwright scripts, distribution and KVM evidence, user documentation, owner acceptance.
+- Module-registry entry for host settings (today a core route, like storage), CI coverage of the opt-in Playwright scripts, distribution and KVM evidence, user documentation, owner acceptance. Current browser evidence is local and synthetic; see `docs/m2/evidence/browser-2026-11-18/`.

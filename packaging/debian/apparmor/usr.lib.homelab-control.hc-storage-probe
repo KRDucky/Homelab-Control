@@ -1,0 +1,81 @@
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# AppArmor profile for the M2-4 O-1 read-only storage probe.
+#
+# STATUS: parsed with apparmor_parser 4.1.0 and exercised in enforce mode on a
+# disposable Debian 13 VM (docs/m2/M2-4-O1-DEVICE-POLICY.md). Other
+# AppArmor kernels and distributions remain unvalidated. The package installs
+# this file but does not load it; Debian's apparmor.service loads it at boot or
+# an administrator loads it by hand. The unit sets AppArmorProfile=hc-storage-probe,
+# so on a host where AppArmor is active and this profile is not loaded the
+# instance cannot start (fail closed).
+#
+# Network: the helper talks only over the inherited AF_UNIX connection from
+# systemd. A blanket "deny network," also matches AF_UNIX and overrides the
+# unix rule below (audit: operation=recvmsg class=net family=unix), so the helper
+# could not read its request and silently failed. Every other family is denied
+# per family; an unlisted family is denied by default as well.
+#
+# Narrower than the unit's DeviceAllow= on purpose: the device rules below
+# name node patterns, read-only. Every unlisted access is denied.
+
+#include <tunables/global>
+
+profile hc-storage-probe /usr/lib/homelab-control/hc-storage-probe flags=(enforce) {
+  #include <abstractions/base>
+
+  # Nothing privileged, no mounts, no tracing, and no network except the
+  # inherited AF_UNIX connection (see the unix rule below).
+  deny capability,
+  deny network inet,
+  deny network inet6,
+  deny network netlink,
+  deny network packet,
+  deny network bluetooth,
+  deny network vsock,
+  deny mount,
+  deny umount,
+  deny pivot_root,
+  deny ptrace,
+
+  # The helper and its one fixed child tool (blkid) run inside this profile (ix).
+  # LVM metadata is read natively by the helper; lvm/lvs/pvs are never executed.
+  /usr/lib/homelab-control/hc-storage-probe mr,
+  /{usr/,}{s,}bin/blkid ix,
+  /etc/blkid.conf r,
+
+  # Read-only raw block access, same classes as the unit: sd, NVMe (blkext),
+  # virtio-blk, md. No write, no lock, no mmap-exec on any device node.
+  /dev/sd[a-z]* r,
+  /dev/nvme[0-9]*n[0-9]* r,
+  /dev/vd[a-z]* r,
+  /dev/md[0-9]* r,
+  /dev/md/* r,
+  /dev/block/ r,
+  /dev/block/[0-9]*:[0-9]* r,
+  /dev/disk/ r,
+  /dev/disk/** r,
+
+  # Topology and kernel state, read-only.
+  /sys/block/ r,
+  /sys/block/** r,
+  /sys/class/block/ r,
+  /sys/class/block/** r,
+  /sys/dev/block/ r,
+  /sys/dev/block/** r,
+  /sys/devices/** r,
+  @{PROC}/devices r,
+  @{PROC}/partitions r,
+  @{PROC}/filesystems r,
+  @{PROC}/@{pid}/mountinfo r,
+  @{PROC}/@{pid}/cgroup r,
+
+  # The connection from systemd is an inherited descriptor.
+  unix (receive, send, getattr, shutdown) type=stream,
+
+  # hc-api secrets and state are never reachable (defence in depth).
+  deny /etc/homelab-control/** rwklmx,
+  deny /var/lib/homelab-control/** rwklmx,
+  deny /var/log/homelab-control{,-broker}/** rwklmx,
+}
