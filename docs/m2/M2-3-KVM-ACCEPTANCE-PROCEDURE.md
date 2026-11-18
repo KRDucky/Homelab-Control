@@ -1,12 +1,12 @@
 # M2-3 KVM acceptance procedure (Phase A and B authorized; NOT run)
 
-**Status update (2026-11-18):** the owner authorized fresh disposable guests, Phase A and Phase B, and
-opening an M2 PR. Draft PR #118 is open. No M2-3 guest has been created, started or modified. The existing
-artifact `13413879518` from CI run `42026882569` was built for `40801659` and is stale for this candidate.
-CI run `44273801378` (run #326) was triggered for the preceding PR head `5ab1810d`; it is not the current
-PR head and must not supply the VM package. Wait for successful exact-head CI and its package/provenance,
-then run the authorized procedure and update the inputs below. PR review is authorized; merge and deployment
-are not. Existing retained guests are out of scope and must not be touched.
+**Status update (2026-11-18):** PR #118 is merged; PR #119 is draft. Three disposable guests
+(`m23-pr118-u2604`, `m23-pr118-u2204`, `m23-pr118-f44`) exist in the authorized pool with autostart disabled
+and retained pre-Phase-A snapshots. The previous #118-artifact run passed service/enablement and long-expiry
+checks with the test-only burst, but the Webmin fixture failed on each guest. A fresh exact-#119 artifact run
+is pending; Phase A and Phase B remain incomplete. Before the next guest operation, pin the exact CI run and
+build artifact, package hashes and binary hashes in Inputs below. PR review is authorized; merge and deployment
+are not.
 
 The owner directed this M2 validation to Claude's VMs on 2026-11-18. Execute through the authorized
 `claude-baremetal` MCP service, using `qemu:///system` pool `claude-vms-zfs` and the storage policy below.
@@ -44,37 +44,15 @@ snapshots, `AGENTS.md`, the file-manager worktree, production hosts.
 > '%y %p %l\n'`) and `/run/systemd/system.control` after the first boot and in the Phase A log; the scenario
 > prints the former before section 6f.
 
-## Inputs (final validated revision)
-- **Product commit:** `c0f620dec2f9623350a03f9bf51505433071d1e2` (see `docs/m2/M2-3-ACCEPTANCE.md`, "Revisions").
-- **PR #36 head validated by CI:** `40801659e44a77749a6a172a8f6564ae1c733419`. Between the product commit and that
-  head only documentation, evidence and tests changed
-  (`git diff --stat c0f620de 40801659 -- backend frontend schemas packaging cmd` is empty). Commits after
-  `40801659` change only documentation (this provenance) — verify with
-  `git diff --stat 40801659 HEAD -- backend frontend schemas packaging cmd tests dev` (must be empty) before use.
-- **CI run:** `42026882569` on that head, attempt 1: **21 of 21 jobs succeeded**, including `systemd-ubuntu` on the
-  stock runner VM with netplan's runtime entries (M2-3 140/0, M2-2 86/0, smoke 70/0) and `systemd-ubuntu-2604`
-  (M2-3 141/0, M2-2 86/0, smoke 70/0). GitHub builds `pull_request` runs from the merge of the head into `main`:
-  merge ref `71fb621cf7d2a0169fad3e2198851a5b5e0c9009` (parents `81ee254f6fd1fb22531116a390903afd26b3918f`, `main`
-  on GitHub, and the head; tree `3eaa5278fd2163322c21aa5e6c4c0166f25b4b45`, **identical to the head's tree**). The
-  package versions name the merge ref (`g71fb621c`), not the head: same tree, so the same product code.
-- **Packages:** `gh run download 42026882569 -n build`, then `sha256sum -c SHA256SUMS` (binaries) and check:
-
-  | File | SHA-256 |
-  |---|---|
-  | `homelab-control_0.1.0+dev.1+100+g71fb621c_amd64.deb` | `9d313feb03fcd84095f8d5ca72e81b59308fca3d75dc1fc192429bec05de92e9` |
-  | `homelab-control-0.1.0-0.m1.v0_1_0_dev_1_100_g71fb621c.x86_64.rpm` | `21ec32f71d624563b5351fcfee1b6bb69caf5c08f6bf6b9cd6dfe26ac8e0d5d4` |
-
-  Recorded in `docs/evidence/m2/m2-3/review-c0f620de/ci/build-artifact-42026882569.sha256` (with the binaries'
-  hashes) and `ci/provenance.txt`. Superseded: run `42008315859` (product `eb2fc2d4`,
-  `review-eb2fc2d4/ci/`) — do not use its packages. Do not build packages locally for acceptance. If the
-  artifact has expired, re-run CI for the same head and record the new run and hashes. A new `pull_request`
-  run builds a **new merge commit**; the package version (`git describe`: commit count and `g<merge sha>`) and
-  `SOURCE_DATE_EPOCH` (the merge commit's time, `Makefile`) come from it, so file names and hashes change even
-  though the product tree is the same. This is not a contradiction of the reproducibility gate
-  (`release-dry-run` builds the same commit twice and compares): reproducibility holds for identical inputs,
-  and the merge commit is an input.
-- **Tests:** `tests/systemd/` and `compat/webmin/` from the PR head.
+## Inputs (pin before next guest operation)
+- Pin the exact successful PR #119 CI run and build artifact, including the artifact name and source revision.
+- Record and verify SHA-256 hashes for every package and binary used by the guest procedure. Include the hash
+  manifest location and verification output.
+- No run, artifact, package hash or binary hash is pinned for the fresh exact-#119 run yet. Do not use values
+  from the prior #118-artifact run or build acceptance packages locally.
 - **Images:** official cloud images, verified against their published checksums; record names and SHA-256.
+- **Tests:** use `tests/systemd/` and `compat/webmin/` from the exact PR #119 revision represented by the pinned
+  artifact.
 
 ## Guest setup (each guest)
 **Names used below.** On the workstation: `GUEST` = the guest's libvirt domain name, `GIP` = its address on the
@@ -174,7 +152,7 @@ service-operation checks. CI uses the same disposable-host override.
 1. `sha256sum /opt/hc/pkg.$HC_PKG_KIND` → the hash under "Inputs". Install: Ubuntu `apt-get install -y
    /opt/hc/pkg.deb`; Fedora `dnf -y install /opt/hc/pkg.rpm` (local file; no repository is added). Record
    `dpkg -s homelab-control` / `rpm -qi homelab-control` and `sha256sum /usr/bin/hc-api /usr/bin/hc-broker
-   /usr/bin/hlctl` → must equal the binaries' hashes in `build-artifact-42026882569.sha256`.
+   /usr/bin/hlctl` → must equal the binary hashes recorded in the pinned Inputs manifest.
 2. Loopback only: `sed -i 's|^HC_API_ARGS=.*|HC_API_ARGS=-listen 127.0.0.1:9180 -dev-insecure-http|'
    /etc/homelab-control/hc-api.env`; `grep HC_API_ARGS /etc/homelab-control/hc-api.env`.
 3. Accounts (passwords typed at the prompt, never on the command line or in logs): `hlctl user add --file
