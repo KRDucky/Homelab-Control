@@ -107,8 +107,9 @@ type Op struct {
 // AdmissionClass is the broker admission bucket for an operation.
 type AdmissionClass string
 
-// AdmissionSlow bounds the package queries and the storage probe: they can run
-// for tens of seconds and must not crowd out service plan/apply/enablement.
+// AdmissionSlow bounds the long read-only views: package queries, the storage
+// probe and the service read views. They can run for tens of seconds and must
+// not crowd out service plan/apply/enablement.
 const AdmissionSlow AdmissionClass = "slow"
 
 // Registry returns the compiled-in operation table.
@@ -120,9 +121,9 @@ func Registry() map[string]Op {
 			Description: "Installed upstream Webmin: version, listener, TLS and security posture (no secrets)", Handle: webminStatus},
 		{Name: "hardware.dmi.identity", Scope: "hardware.read", Privilege: PrivRootRead, Timeout: 2 * time.Second,
 			Description: "Root-only SMBIOS identifiers (system/board/chassis serials, product UUID)", Handle: dmiIdentity},
-		{Name: "services.systemd.list", Scope: "services.read", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second,
+		{Name: "services.systemd.list", Scope: "services.read", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second, Admission: AdmissionSlow,
 			Description: "systemd units with load/active/sub state and unit-file enablement", Handle: systemdList},
-		{Name: "services.unit.logs", Scope: "services.logs", Privilege: PrivUnprivilegedExec, Timeout: 15 * time.Second,
+		{Name: "services.unit.logs", Scope: "services.logs", Privilege: PrivUnprivilegedExec, Timeout: 15 * time.Second, Admission: AdmissionSlow,
 			Description: "Recent journal entries of one listed unit (args: unit, lines 1-500)", Handle: unitLogs,
 			AuditArgs: logsAuditArgs},
 		// M2-2 (ADR 0011; D-2…D-5). Plan is read-only (unprivileged systemctl
@@ -137,14 +138,14 @@ func Registry() map[string]Op {
 			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskReversible, RiskDisruptive}, LockDomain: "service:<unit id>",
 				Templates: []runner.RootTemplate{runner.RootSystemctlStart, runner.RootSystemctlStop, runner.RootSystemctlRestart, runner.RootSystemctlShow}}},
 		// M2-3 read-only views (unprivileged children, fixed argv).
-		{Name: "services.timers.list", Scope: "services.read", Privilege: PrivUnprivilegedExec, Timeout: 15 * time.Second,
+		{Name: "services.timers.list", Scope: "services.read", Privilege: PrivUnprivilegedExec, Timeout: 15 * time.Second, Admission: AdmissionSlow,
 			Description: "systemd timer units: schedule, last and next run, activated unit", Handle: timersList},
-		{Name: "services.sockets.list", Scope: "services.read", Privilege: PrivUnprivilegedExec, Timeout: 15 * time.Second,
+		{Name: "services.sockets.list", Scope: "services.read", Privilege: PrivUnprivilegedExec, Timeout: 15 * time.Second, Admission: AdmissionSlow,
 			Description: "systemd socket units: listen addresses and activated units", Handle: socketsList},
-		{Name: "services.unit.detail", Scope: "services.read", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second,
+		{Name: "services.unit.detail", Scope: "services.read", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second, Admission: AdmissionSlow,
 			Description: "One unit from the inventory: identity, unit-file origin, dependencies, last exit and restart counter (args: unit)",
 			Handle:      unitDetail, AuditArgs: viewAuditArgs},
-		{Name: "services.unit.contents", Scope: "services.files", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second,
+		{Name: "services.unit.contents", Scope: "services.files", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second, Admission: AdmissionSlow,
 			Description: "Read-only, redacted and size-capped unit file and drop-ins of one unit, as the service account can read them (args: unit)",
 			Handle:      unitContents, AuditArgs: viewAuditArgs},
 		// M2-3 boot-time enable/disable (ADR 0011; docs/m2/M2-3-DESIGN-REVIEW.md).
