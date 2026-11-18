@@ -10,6 +10,8 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
+	"unicode"
 
 	"homelab-control/backend/internal/auth"
 	"homelab-control/backend/internal/filesinfo"
@@ -115,13 +117,12 @@ func (s *Server) filesListError(w http.ResponseWriter, err error) {
 }
 
 // filesReadDetail builds the bounded audit Detail for a listing. A short path
-// stays readable; a deep path (the whole Detail would exceed the 128-byte
-// sanitizer) is replaced by a SHA-256 hash of the full path, so the exact path
-// remains verifiable without weakening the sanitizer or needing Event.Data.
+// stays readable; a deep or control-bearing path is represented by the first
+// 128 bits of its SHA-256 digest, so sanitization does not alter its evidence.
 func filesReadDetail(rootID, path string) string {
-	if len("root="+rootID+" path="+path) <= 128 {
+	if len("root="+rootID+" path="+path) <= 128 && !strings.ContainsFunc(path, unicode.IsControl) {
 		return "root=" + rootID + " path=" + path
 	}
 	sum := sha256.Sum256([]byte(path))
-	return "root=" + rootID + " path=" + hex.EncodeToString(sum[:16])
+	return "root=" + rootID + " path_sha256=" + hex.EncodeToString(sum[:16])
 }
