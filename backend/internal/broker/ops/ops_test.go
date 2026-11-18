@@ -368,3 +368,53 @@ func TestShowPropertiesMatchRunner(t *testing.T) {
 		t.Fatalf("parser %v\nrunner %v", want, got)
 	}
 }
+
+func TestAdmissionClasses(t *testing.T) {
+	want := map[string]AdmissionClass{
+		"broker.info":               AdmissionInfo,
+		"legacy.webmin.status":      AdmissionSystemRead,
+		"hardware.dmi.identity":     AdmissionSystemRead,
+		"services.systemd.list":     AdmissionServicesRead,
+		"services.unit.logs":        AdmissionServicesRead,
+		"services.unit.plan":        AdmissionControlPlan,
+		"services.unit.apply":       AdmissionControlApply,
+		"services.timers.list":      AdmissionServicesRead,
+		"services.sockets.list":     AdmissionServicesRead,
+		"services.unit.detail":      AdmissionServicesRead,
+		"services.unit.contents":    AdmissionServicesRead,
+		"services.enablement.plan":  AdmissionControlPlan,
+		"services.enablement.apply": AdmissionControlApply,
+		"operations.journal.list":   AdmissionSystemRead,
+		"host.settings.plan":        AdmissionControlPlan,
+		"host.settings.apply":       AdmissionControlApply,
+		"packages.installed":        AdmissionPackages,
+		"packages.updates":          AdmissionPackages,
+		"packages.sources":          AdmissionPackages,
+		"packages.search":           AdmissionPackages,
+		"storage.probe":             AdmissionProbe,
+	}
+	reg := Registry()
+	if len(reg) != len(want) {
+		t.Fatalf("registry has %d ops, test pins %d; update the table when ops change", len(reg), len(want))
+	}
+	for name, cls := range want {
+		op, ok := reg[name]
+		if !ok {
+			t.Errorf("op %q missing from registry", name)
+			continue
+		}
+		if op.Admission != cls {
+			t.Errorf("%s: admission = %q, want %q", name, op.Admission, cls)
+		}
+	}
+	// Every write op is in a control (plan or apply) class: reads never carry
+	// a WriteSpec and writes never land in a read class.
+	for name, op := range reg {
+		if op.Write == nil {
+			continue
+		}
+		if op.Admission != AdmissionControlPlan && op.Admission != AdmissionControlApply {
+			t.Errorf("%s: write op in non-control class %q", name, op.Admission)
+		}
+	}
+}

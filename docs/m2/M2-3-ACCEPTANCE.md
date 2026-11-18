@@ -1,7 +1,7 @@
 # M2-3 acceptance results (boot-time enable/disable, unit views, module registry)
 
-**Status:** implementation and evidence ready for owner review on branch
-`feature/m2-3-expanded-service-management`. **Not accepted, not merged, not activated in production.** The
+**Status:** implementation and partial exact-artifact evidence are on draft PR #119,
+`dreggbot/m2-3-admission-pr`. **Not accepted, not merged, not activated in production.** The
 owner's authorization of 2026-11-04 covers development and isolated testing only (`OWNER-DECISIONS.md`).
 
 **Revisions.**
@@ -28,12 +28,14 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
   `review-00fb7f2b/` (earlier rounds) and the
   CI run named in `M2-3-KVM-ACCEPTANCE-PROCEDURE.md`.
   The owner authorized M2-3 KVM Phase A and Phase B on 2026-11-18, and authorized opening an M2 PR
-  on 2026-11-18. Neither phase has run. GitHub still lists build artifact `13413879518` from run
-  `42026882569` on `40801659`; it is for the older validated tree. The current candidate changes
-  `server.go`, module registration and service write code since that revision, so those packages are
-  not valid evidence for the current candidate. Do not install them; obtain current-CI packages and
-  provenance from the M2 PR before guest testing. See `M2-3-KVM-ACCEPTANCE-PROCEDURE.md` for exact
-  provenance and the authorization boundary.
+  on 2026-11-18. The prior artifact from run `42026882569` on `40801659` remains stale and was
+  not used. Exact-artifact Phase A1/A2 ran on Ubuntu 26.04.1 and 22.04.5 from PR #119 run
+  `44317837412`; both passed. A clean Fedora 44 guest with SELinux Enforcing then passed A1 (307 PASS,
+  0 FAIL, one expected Phase B skip) and A2 (16 PASS, 0 FAIL; plan-only). RPM payload hashes are
+  package-specific and matched the installed binaries. An earlier retry on the existing guest stopped
+  before checks because its previous test account remained; the RPM was removed and its data and
+  snapshot were preserved. A3–A5 and Phase B remain unrun. See the partial sanitized evidence at
+  `../evidence/m2/m2-3/kvm-pr119-2026-11-18-a1-a2/README.md` and the exact-input procedure.
 
 "Pass" below means the stated evidence exists and passed; it is not the owner's acceptance.
 
@@ -68,7 +70,7 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
 | Secrets in unit contents | Pass (heuristic, **not a secrecy guarantee**; continuation lines fixed, R6; known gaps in design review §4; O-2) | `TestRedactLine`, `TestParseCat`; container: root-only drop-in reported unreadable, fixture secrets absent from API responses, audit, journal and logs |
 | No mask/unmask, editing, creation, generic daemon-reload, arbitrary commands, new dependencies | Pass | Template snapshot; `go.mod` and `package-lock.json` unchanged; ADR 0006 policy check |
 
-## Validation items (product commit `00fb7f2b`, `../evidence/m2/m2-3/review-00fb7f2b/`; rerun on `eb2fc2d4` and the final candidate `c0f620de` as noted)
+## Historical validation items (product commit `00fb7f2b`, `../evidence/m2/m2-3/review-00fb7f2b/`; rerun on `eb2fc2d4` and the final candidate `c0f620de` as noted)
 | Item | Result |
 |---|---|
 | Final candidate `c0f620de` (`review-c0f620de/`) | Five images, long waits: smoke 71/0, M2-2 89/0, M2-3 143–144/0 (incl. `services.files`), broker kill 20/0; browser B1–B20 20/20 on Ubuntu 26.04, 24.04+netplan and Fedora 44; reboot reproduction all refused (S1's own alias enable allowed); enable survey unchanged; probe 12; `make check` exit 0, nothing skipped; Go uid 1000 320 + 159 subtests, 0 failed. First runs with two test-design errors kept |
@@ -95,8 +97,11 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
 - **Owner approval of proposals P-1…P-6** (`OWNER-DECISIONS.md`; not decisions): root-owned module setting,
   a separate unit-file-content permission (not implemented), password for every boot-time change,
   `--no-reload` semantics, refused constructs, and the fail-closed gate for unloaded changes. D-10/P-1 is decided; M2-3 implementation review items remain open.
-- **No VM evidence** for M2-3 (containers only, SELinux disabled). The KVM procedure, including Fedora with
-  SELinux Enforcing and real reboots, is prepared (`M2-3-KVM-ACCEPTANCE-PROCEDURE.md`) and needs owner authorization.
+- **Current PR #119 KVM evidence is partial.** Ubuntu 26.04.1, Ubuntu 22.04.5, and Fedora 44 with
+  SELinux Enforcing passed exact-artifact A1/A2. Fedora A1's binary hash record was transcribed after
+  its temporary guest copy was removed, and the A2 in-run package hash sample was empty after RPM
+  removal; the package and its installed payload hashes were verified during A1. A3/browser, real
+  reboots and Phase B remain incomplete.
 - **CI wiring:** both existing systemd CI jobs now run the M2-3 scenario; a Fedora/Arch systemd CI job (roadmap §3) was **not** added.
 - **Not run:** Debian, openSUSE, Arch; the M2-3 browser workflow on Firefox/WebKit or on Ubuntu 24.04/22.04; screen reader;
   CI does not run the expiry waits or the broker kill (opt-in, disposable hosts).
