@@ -645,3 +645,53 @@ func TestControlApplyAdmittedWhilePlanFull(t *testing.T) {
 		t.Fatalf("control apply while plan full: %v", err)
 	}
 }
+
+// TestFullAllocationPinsGlobalBudget fills every work class to its exact
+// configured capacity simultaneously, proving the sum-to-8 invariant and that
+// a second apply proceeds under full read+plan saturation, then that one more
+// request per full class is refused at its class gate.
+func TestFullAllocationPinsGlobalBudget(t *testing.T) {
+	f := start(t) // production global capacity 8
+	relPlan := startBlockingOps(t, f, "fill.plan", ops.AdmissionControlPlan, 1)
+	relApply := startBlockingOps(t, f, "fill.apply", ops.AdmissionControlApply, 2)
+	relSvc := startBlockingOps(t, f, "fill.svc", ops.AdmissionServicesRead, 2)
+	relSys := startBlockingOps(t, f, "fill.sys", ops.AdmissionSystemRead, 1)
+	relPkg := startBlockingOps(t, f, "fill.pkg", ops.AdmissionPackages, 1)
+	relPrb := startBlockingOps(t, f, "fill.prb", ops.AdmissionProbe, 1)
+	defer relPlan()
+	defer relApply()
+	defer relSvc()
+	defer relSys()
+	defer relPkg()
+	defer relPrb()
+
+	// Every held op was admitted: the global budget is exactly consumed, never
+	// exceeded, so no request was rejected by the global gate.
+	if got := len(f.srv.sem); got != f.srv.MaxInFlight {
+		t.Fatalf("global in-flight = %d, want %d", got, f.srv.MaxInFlight)
+	}
+
+	cases := []struct {
+		name string
+		cls  ops.AdmissionClass
+	}{
+		{"extra.plan", ops.AdmissionControlPlan},
+		{"extra.apply", ops.AdmissionControlApply},
+		{"extra.svc", ops.AdmissionServicesRead},
+		{"extra.sys", ops.AdmissionSystemRead},
+		{"extra.pkg", ops.AdmissionPackages},
+		{"extra.prb", ops.AdmissionProbe},
+	}
+	audit := f.audit.String()
+	for _, tc := range cases {
+		f.srv.registry[tc.name] = ops.Op{Name: tc.name, Admission: tc.cls, Timeout: time.Second,
+			Handle: func(context.Context, *ops.Env, json.RawMessage) (any, error) { return "ok", nil }}
+		if _, err := call(t, f, tc.name); code(err) != proto.CodeBusy {
+			t.Fatalf("%s: want busy, got %v", tc.name, err)
+		}
+		audit = f.audit.String()
+		if !strings.Contains(audit, "admission="+string(tc.cls)+" gate=class") {
+			t.Errorf("%s: refused but not at its class gate: %s", tc.name, audit)
+		}
+	}
+}
