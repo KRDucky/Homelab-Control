@@ -369,48 +369,42 @@ func TestShowPropertiesMatchRunner(t *testing.T) {
 	}
 }
 
-func TestSlowAdmissionSet(t *testing.T) {
-	slow := map[string]bool{
-		"packages.installed":     true,
-		"packages.updates":       true,
-		"packages.sources":       true,
-		"packages.search":        true,
-		"storage.probe":          true,
-		"services.systemd.list":  true,
-		"services.unit.logs":     true,
-		"services.timers.list":   true,
-		"services.sockets.list":  true,
-		"services.unit.detail":   true,
-		"services.unit.contents": true,
+func TestAdmissionClasses(t *testing.T) {
+	want := map[string]AdmissionClass{
+		"broker.info":               AdmissionInfo,
+		"legacy.webmin.status":      AdmissionSystemRead,
+		"hardware.dmi.identity":     AdmissionSystemRead,
+		"services.systemd.list":     AdmissionServicesRead,
+		"services.unit.logs":        AdmissionServicesRead,
+		"services.unit.plan":        AdmissionControl,
+		"services.unit.apply":       AdmissionControl,
+		"services.timers.list":      AdmissionServicesRead,
+		"services.sockets.list":     AdmissionServicesRead,
+		"services.unit.detail":      AdmissionServicesRead,
+		"services.unit.contents":    AdmissionServicesRead,
+		"services.enablement.plan":  AdmissionControl,
+		"services.enablement.apply": AdmissionControl,
+		"operations.journal.list":   AdmissionSystemRead,
+		"host.settings.plan":        AdmissionControl,
+		"host.settings.apply":       AdmissionControl,
+		"packages.installed":        AdmissionPackages,
+		"packages.updates":          AdmissionPackages,
+		"packages.sources":          AdmissionPackages,
+		"packages.search":           AdmissionPackages,
+		"storage.probe":             AdmissionProbe,
 	}
 	reg := Registry()
-	// Every registered op is either in the slow set or unclassified; no other
-	// admission class exists.
-	for name, op := range reg {
-		if slow[name] {
-			if op.Admission != AdmissionSlow {
-				t.Errorf("%s: want AdmissionSlow, got %q", name, op.Admission)
-			}
-		} else if op.Admission != "" {
-			t.Errorf("%s: unexpected admission class %q", name, op.Admission)
-		}
+	if len(reg) != len(want) {
+		t.Fatalf("registry has %d ops, test pins %d; update the table when ops change", len(reg), len(want))
 	}
-	for name := range slow {
-		if _, ok := reg[name]; !ok {
-			t.Errorf("slow op %q missing from registry", name)
-		}
-	}
-	// Service write ops (plan/apply/enablement) stay unclassified.
-	for _, name := range []string{"services.unit.plan", "services.unit.apply", "services.enablement.plan", "services.enablement.apply"} {
+	for name, cls := range want {
 		op, ok := reg[name]
 		if !ok {
-			t.Fatalf("op %q missing", name)
+			t.Errorf("op %q missing from registry", name)
+			continue
 		}
-		if op.Admission != "" {
-			t.Errorf("%s: admission = %q, want unclassified", name, op.Admission)
-		}
-		if op.Write == nil {
-			t.Errorf("%s: expected a WriteSpec", name)
+		if op.Admission != cls {
+			t.Errorf("%s: admission = %q, want %q", name, op.Admission, cls)
 		}
 	}
 }
