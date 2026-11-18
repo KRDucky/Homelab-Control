@@ -38,15 +38,21 @@ type Server struct {
 	RootExec    *runner.Root
 	Audit       *audit.Logger
 	MaxInFlight int
-	registry    map[string]ops.Op
-	sem         chan struct{}
-	wg          sync.WaitGroup
+	// SlowInFlight bounds the AdmissionSlow class: long-running low-priority
+	// reads (package queries, storage probe) may hold at most this many
+	// concurrent slots, on top of the global MaxInFlight cap.
+	SlowInFlight int
+	registry     map[string]ops.Op
+	sem          chan struct{}
+	slowSem      chan struct{}
+	wg           sync.WaitGroup
 }
 
 // New creates a server.
 func New(env *ops.Env, al *audit.Logger, allowed ...uint32) *Server {
-	s := &Server{AllowedUIDs: allowed, Env: env, Audit: al, MaxInFlight: 8, registry: ops.Registry()}
+	s := &Server{AllowedUIDs: allowed, Env: env, Audit: al, MaxInFlight: 8, SlowInFlight: 3, registry: ops.Registry()}
 	s.sem = make(chan struct{}, s.MaxInFlight)
+	s.slowSem = make(chan struct{}, s.SlowInFlight)
 	return s
 }
 
@@ -160,14 +166,39 @@ func (s *Server) handle(ctx context.Context, c *net.UnixConn) {
 		s.reply(c, fail(proto.CodeForbidden, "actor lacks scope "+op.Scope))
 		return
 	}
-	select {
-	case s.sem <- struct{}{}:
-		defer func() { <-s.sem }()
-	default:
-		ev.Outcome = "busy"
-		s.log(ev)
-		s.reply(c, fail(proto.CodeBusy, "broker is busy"))
-		return
+	// Admission: slow low-priority reads first take a class slot (bounded at
+	// SlowInFlight), then a global slot. If global admission fails after the
+	// class slot was taken, the class slot is released immediately. Both are
+	// released on every exit path.
+	if op.Admission == ops.AdmissionSlow {
+		select {
+		case s.slowSem <- struct{}{}:
+		default:
+			ev.Outcome = "busy"
+			s.log(ev)
+			s.reply(c, fail(proto.CodeBusy, "broker is busy"))
+			return
+		}
+		select {
+		case s.sem <- struct{}{}:
+			defer func() { <-s.sem; <-s.slowSem }()
+		default:
+			<-s.slowSem // release the class slot: the global cap is what limits us
+			ev.Outcome = "busy"
+			s.log(ev)
+			s.reply(c, fail(proto.CodeBusy, "broker is busy"))
+			return
+		}
+	} else {
+		select {
+		case s.sem <- struct{}{}:
+			defer func() { <-s.sem }()
+		default:
+			ev.Outcome = "busy"
+			s.log(ev)
+			s.reply(c, fail(proto.CodeBusy, "broker is busy"))
+			return
+		}
 	}
 	if op.AuditArgs != nil {
 		argSummary = " " + op.AuditArgs(req.Args)
