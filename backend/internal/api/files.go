@@ -10,8 +10,6 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
-	"strings"
-	"unicode"
 
 	"homelab-control/backend/internal/auth"
 	"homelab-control/backend/internal/filesinfo"
@@ -117,12 +115,27 @@ func (s *Server) filesListError(w http.ResponseWriter, err error) {
 }
 
 // filesReadDetail builds the bounded audit Detail for a listing. A short path
-// stays readable; a deep or control-bearing path is represented by the first
-// 128 bits of its SHA-256 digest, so sanitization does not alter its evidence.
+// in the safe ASCII alphabet stays readable; other or deep paths use the first
+// 128 bits of their SHA-256 digest, so sanitization cannot alter evidence.
 func filesReadDetail(rootID, path string) string {
-	if len("root="+rootID+" path="+path) <= 128 && !strings.ContainsFunc(path, unicode.IsControl) {
+	if len("root="+rootID+" path="+path) <= 128 && auditPathLiteralSafe(path) {
 		return "root=" + rootID + " path=" + path
 	}
 	sum := sha256.Sum256([]byte(path))
 	return "root=" + rootID + " path_sha256=" + hex.EncodeToString(sum[:16])
+}
+
+// auditPathLiteralSafe permits only an unambiguous ASCII path alphabet in the
+// audit detail. Other names are hashed so sanitization and marker-like folder
+// names cannot make the log evidence ambiguous.
+func auditPathLiteralSafe(path string) bool {
+	for i := 0; i < len(path); i++ {
+		c := path[i]
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+			(c >= '0' && c <= '9') || c == '/' || c == '.' || c == '_' || c == '-' {
+			continue
+		}
+		return false
+	}
+	return true
 }

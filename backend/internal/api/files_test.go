@@ -277,9 +277,16 @@ func TestFilesAuditStateStorePreservesDeepPath(t *testing.T) {
 	}
 }
 
-func TestFilesReadDetailHashesControlCharacters(t *testing.T) {
-	detail := filesReadDetail("lab", "safe\nforged")
-	if strings.ContainsAny(detail, "\r\n") || !strings.Contains(detail, "path_sha256=") {
-		t.Fatalf("control-bearing path was not represented safely: %q", detail)
+func TestFilesReadDetailUsesUnambiguousPathRepresentation(t *testing.T) {
+	if got := filesReadDetail("lab", "safe/dir-1.txt"); got != "root=lab path=safe/dir-1.txt" {
+		t.Fatalf("safe path detail = %q", got)
+	}
+	for _, path := range []string{"safe\nforged", "a path_sha256=0123456789abcdef0123456789abcdef", "café"} {
+		detail := filesReadDetail("lab", path)
+		sum := sha256.Sum256([]byte(path))
+		want := "root=lab path_sha256=" + hex.EncodeToString(sum[:16])
+		if detail != want {
+			t.Errorf("path %q detail = %q, want %q", path, detail, want)
+		}
 	}
 }
