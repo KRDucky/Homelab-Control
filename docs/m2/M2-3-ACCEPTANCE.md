@@ -30,10 +30,11 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
   The owner authorized M2-3 KVM Phase A and Phase B on 2026-11-18, and authorized opening an M2 PR
   on 2026-11-18. The prior artifact from run `42026882569` on `40801659` remains stale and was
   not used. Exact-artifact Phase A1/A2 ran on Ubuntu 26.04.1 and 22.04.5 from PR #119 run
-  `44317837412`; both passed. The Fedora RPM package-specific payload hashes are pinned. A retry on
-  the existing guest stopped before test checks because its previous test account remained; the RPM
-  was removed and the guest data and snapshot were preserved. A clean Fedora guest A1/A2 run is
-  underway. Phase A3–A5 and Phase B remain unrun. See the partial sanitized evidence at
+  `44317837412`; both passed. A clean Fedora 44 guest with SELinux Enforcing then passed A1 (307 PASS,
+  0 FAIL, one expected Phase B skip) and A2 (16 PASS, 0 FAIL; plan-only). RPM payload hashes are
+  package-specific and matched the installed binaries. An earlier retry on the existing guest stopped
+  before checks because its previous test account remained; the RPM was removed and its data and
+  snapshot were preserved. A3–A5 and Phase B remain unrun. See the partial sanitized evidence at
   `../evidence/m2/m2-3/kvm-pr119-2026-11-18-a1-a2/README.md` and the exact-input procedure.
 
 "Pass" below means the stated evidence exists and passed; it is not the owner's acceptance.
@@ -96,10 +97,11 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
 - **Owner approval of proposals P-1…P-6** (`OWNER-DECISIONS.md`; not decisions): root-owned module setting,
   a separate unit-file-content permission (not implemented), password for every boot-time change,
   `--no-reload` semantics, refused constructs, and the fail-closed gate for unloaded changes. D-10/P-1 is decided; M2-3 implementation review items remain open.
-- **Current PR #119 KVM evidence is partial.** Ubuntu 26.04.1 and Ubuntu 22.04.5 passed exact-artifact
-  A1/A2; Fedora 44 A1/A2, A3/browser, real reboots and Phase B remain incomplete. A Fedora retry on
-  the existing guest stopped before tests because residual test data made the fresh-account setup fail;
-  that data and snapshot were preserved. A clean Fedora guest run is underway.
+- **Current PR #119 KVM evidence is partial.** Ubuntu 26.04.1, Ubuntu 22.04.5, and Fedora 44 with
+  SELinux Enforcing passed exact-artifact A1/A2. Fedora A1's binary hash record was transcribed after
+  its temporary guest copy was removed, and the A2 in-run package hash sample was empty after RPM
+  removal; the package and its installed payload hashes were verified during A1. A3/browser, real
+  reboots and Phase B remain incomplete.
 - **CI wiring:** both existing systemd CI jobs now run the M2-3 scenario; a Fedora/Arch systemd CI job (roadmap §3) was **not** added.
 - **Not run:** Debian, openSUSE, Arch; the M2-3 browser workflow on Firefox/WebKit or on Ubuntu 24.04/22.04; screen reader;
   CI does not run the expiry waits or the broker kill (opt-in, disposable hosts).
