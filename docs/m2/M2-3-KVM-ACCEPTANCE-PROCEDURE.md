@@ -1,13 +1,12 @@
 # M2-3 KVM acceptance procedure (Phase A and B authorized; NOT run)
 
 **Status update (2026-11-18):** the owner authorized fresh disposable guests, Phase A and Phase B, and
-authorized opening an M2 PR. No KVM guest has been created, started or modified for M2-3. GitHub reports
-that artifact `13413879518` from CI run `42026882569` is still available, but it was built for `40801659`.
-The integrated candidate (base `993c3758`, current staged changes) differs in `backend/internal/api/server.go`,
-`backend/internal/modules/modules.go`, and `backend/internal/broker/ops/services_write.go`, among other
-files. Therefore the old package does not verify this candidate and must not be installed. The next step is
-to open the authorized M2 PR, wait for its CI package and provenance, then run the approved procedure with
-those exact artifacts and update the inputs below. PR review is authorized; merge and deployment are not.
+opening an M2 PR. Draft PR #118 is open. No M2-3 guest has been created, started or modified. The existing
+artifact `13413879518` from CI run `42026882569` was built for `40801659` and is stale for this candidate.
+CI run `44273801378` (run #326) was triggered for the preceding PR head `5ab1810d`; it is not the current
+PR head and must not supply the VM package. Wait for successful exact-head CI and its package/provenance,
+then run the authorized procedure and update the inputs below. PR review is authorized; merge and deployment
+are not. Existing retained guests are out of scope and must not be touched.
 
 The owner directed this M2 validation to Claude's VMs on 2026-11-18. Execute through the authorized
 `claude-baremetal` MCP service, using `qemu:///system` pool `claude-vms-zfs` and the storage policy below.

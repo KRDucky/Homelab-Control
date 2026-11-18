@@ -1,15 +1,12 @@
-# Current status — local M2 closeout candidate (2026-11-18); M2 remains open
+# Current status — M2 closeout candidate PR #118 (2026-11-18); M2 remains open
 
-The working integration candidate is local branch `dreggbot/m2-acceptance-integration`; the M2-6
-closeout is committed at `993c3758`, and the assembled code/evidence candidate is being prepared for
-an authorized review PR. It includes a read-only File Manager UI over the existing confined API, M2-5
-identity redaction, export/drop safeguards and the focused File Manager display/backend repairs.
-Implementers report the frontend suite, Go suite, vet, build and synthetic browser checks passing on
-their isolated branches; those reports are not yet rerun on the integrated candidate. This host lacks
-Node/npm/Go. The new PR's exact-CI packages and provenance must precede M2-3 guest testing; no current-
-candidate guest run has happened. M2 remains **open** pending KVM/distro evidence, owner acceptance,
-ADR dispositions and final M2 sign-off. M2-4 is read-only inventory; its helper remains disabled by
-default. See
+The working integration is branch `dreggbot/m2-acceptance-integration` and draft PR #118. It includes
+M2-5 Stage A safeguards, the read-only File Manager UI and API repairs, and M2-6 closeout test repairs.
+An exact-head CI run is required for the current PR tree; the preceding run used an older head and is
+not package provenance for the current candidate. The exact PR artifact and provenance must precede
+M2-3 guest testing in Claude's disposable VM pool. No M2-3 guest run has happened. M2 remains **open**
+pending KVM and distro evidence, owner acceptance, ADR dispositions and final M2 sign-off. M2-4 is
+read-only inventory; its helper remains disabled by default. See
 [`m2/evidence/browser-2026-11-18/README.md`](m2/evidence/browser-2026-11-18/README.md).
 
 The historical reconciliation below remains a record of the 2026-11-07 main snapshot; it is not the

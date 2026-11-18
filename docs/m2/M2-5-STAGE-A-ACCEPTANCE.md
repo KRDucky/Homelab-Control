@@ -36,8 +36,10 @@ fixture-tested end to end:
   anonymized.
 - **Import**: a JSON file can be imported (POST `/api/v1/storage/layout/import`, scope `layout.manage`):
   the file is size-capped at 8 MiB before read, parsed and validated for a `chassis` array, and imported
-  additively. Exported IDs, timestamps and assignment identities are discarded, so imports only add
-  unassigned geometry and never replace existing chassis; state refreshes on success and errors surface.
+  additively. The redacted export's `assigned` marker is accepted and discarded. Exported IDs, timestamps
+  and assignment identities are discarded, so imports only add unassigned geometry and never replace
+  existing chassis; state refreshes on success and errors surface. Chassis create/update allow up to 1 MiB
+  for a full 24×24 labeled grid; other API requests retain the 64 KiB cap.
 
 ### Acceptance fixture
 
@@ -55,10 +57,11 @@ fixture-tested end to end:
   request. API/state fixtures cover strict schema/size validation, count-only audit, additive atomic
   storage, and assignment discard.
 
-The implementers report 234 frontend tests and the full Go suite passing on their isolated branches,
-including manage-only identity redaction, accepting a valid import larger than 64 KiB, rejecting imports
-over 8 MiB, and ignoring non-custom drag payloads. These reports are not yet verified on the integrated
-candidate; CI must rerun them.
+The implementers report 238 frontend tests and the full Go suite passing on their isolated branches,
+including manage-only identity redaction, exact redacted-export import shape, accepting a valid import
+larger than 64 KiB, rejecting imports over 8 MiB, accepting large chassis create/update requests, and
+ignoring non-custom drag payloads. These reports are not yet verified on the final integrated candidate;
+exact-head CI must rerun them.
 
 ## Remaining gaps (not delivered)
 
