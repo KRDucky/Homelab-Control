@@ -1,11 +1,13 @@
-# M2-3 KVM acceptance procedure (Phase A and B authorized; NOT run)
+# M2-3 KVM acceptance procedure (Phase A and B authorized; partial evidence)
 
-**Status update (2026-11-18):** PR #118 is merged; PR #119 is draft. Three disposable guests
+**Status update (2026-11-18):** PR #118 is merged; PR #119 is draft. Three retained disposable guests
 (`m23-pr118-u2604`, `m23-pr118-u2204`, `m23-pr118-f44`) exist in the authorized pool with autostart disabled
-and retained pre-Phase-A snapshots. The previous #118-artifact run passed service/enablement and long-expiry
-checks with the test-only burst, but the Webmin fixture failed on each guest. A fresh exact-#119 artifact run
-is pending; Phase A and Phase B remain incomplete. Before the next guest operation, pin the exact CI run and
-build artifact, package hashes and binary hashes in Inputs below. PR review is authorized; merge and deployment
+and retained pre-Phase-A snapshots. On exact PR #119 CI artifacts, Phase A1/A2 passed on Ubuntu 26.04.1 and
+22.04.5. Fedora's package-specific RPM payload hashes are pinned below. A Fedora retry on the existing
+guest stopped before test checks because residual test data prevented creation of the expected fresh
+account; the package was removed and that guest's data and snapshot were preserved. A clean Fedora guest
+A1/A2 run is underway. Fedora A3/browser, real reboots, and Phase B remain incomplete. Partial sanitized results:
+`docs/evidence/m2/m2-3/kvm-pr119-2026-11-18-a1-a2/README.md`. PR review is authorized; merge and deployment
 are not.
 
 The owner directed this M2 validation to Claude's VMs on 2026-11-18. Execute through the authorized
@@ -44,12 +46,29 @@ snapshots, `AGENTS.md`, the file-manager worktree, production hosts.
 > '%y %p %l\n'`) and `/run/systemd/system.control` after the first boot and in the Phase A log; the scenario
 > prints the former before section 6f.
 
-## Inputs (pin before next guest operation)
-- Pin the exact successful PR #119 CI run and build artifact, including the artifact name and source revision.
-- Record and verify SHA-256 hashes for every package and binary used by the guest procedure. Include the hash
-  manifest location and verification output.
-- No run, artifact, package hash or binary hash is pinned for the fresh exact-#119 run yet. Do not use values
-  from the prior #118-artifact run or build acceptance packages locally.
+## Inputs (pinned for exact PR #119 run)
+- GitHub Actions run: [44317837412](https://github.com/KRDucky/Homelab-Control/actions/runs/44317837412),
+  all 21 checks succeeded. PR head `04185f2894b78a4a55d87019b924d773a72d1ba6`; CI merge commit
+  `ffec9a42f1a9eecf79763c5bb9a22ba8baa16fb3`, with the same source tree as the PR head.
+- Artifact: `release-candidate`, ID `14434942030`, SHA-256
+  `d88afd5535d193f4afcc3c8f9e3419ff62a8eeb58be95f5e979692d8df3b2ece`.
+- Debian package SHA-256:
+  `01eba6ac510b22da27971fc8a97c8d84226e5269681fd33ef84fe2f0da6e2e33`.
+- Fedora RPM SHA-256:
+  `021a9f62933039696e1df54d0c9ba7014750eed0b4b83305910eb88dbc87a46c`.
+- Installed binary hashes are package-specific. Debian: hc-api
+  `972d5ecf2c2ca5de0face0b3c125166e0290f6e566f4ac671d4fa62d87334f1d`, hc-broker
+  `79fe64c6d2d1b629167420d998e70eb68ff00fd3cf9f04a8d2fbc2ed81c2798c`, hlctl
+  `b5fd23693e9b0175395ff1b16e7aeb55748c6d4478a3ddbef608c587a1177df8`. Fedora RPM: hc-api
+  `439d1de79420c9017c1b1b54ac7e499e010ae815877b7037e42dc8bf20cf5e75`, hc-broker
+  `e5ea6e5824d838b1535c270b931828652bbeeb38a3eeea392303870d6cfb7962`, hlctl
+  `e4f156e3c2bd35e395fc1de0a8425dec0b37567b3a113044d522a8d89aa580c2`.
+  The RPM payload hashes were independently extracted from the release RPM and matched the Fedora
+  guest's installed hashes. Full sanitized run results and hash records are in
+  `docs/evidence/m2/m2-3/kvm-pr119-2026-11-18-a1-a2/README.md`.
+- Exact test-source archive SHA-256:
+  `bd60a00c646e0ce2eb6915aca28e24dc940cfa712e43b7aa181363c211c87b14`; it includes the test
+  fixtures omitted from the release source tar.
 - **Images:** official cloud images, verified against their published checksums; record names and SHA-256.
 - **Tests:** use `tests/systemd/` and `compat/webmin/` from the exact PR #119 revision represented by the pinned
   artifact.
@@ -151,8 +170,9 @@ service-operation checks. CI uses the same disposable-host override.
 **A3 — reinstall for reboots and browser (exact package).**
 1. `sha256sum /opt/hc/pkg.$HC_PKG_KIND` → the hash under "Inputs". Install: Ubuntu `apt-get install -y
    /opt/hc/pkg.deb`; Fedora `dnf -y install /opt/hc/pkg.rpm` (local file; no repository is added). Record
-   `dpkg -s homelab-control` / `rpm -qi homelab-control` and `sha256sum /usr/bin/hc-api /usr/bin/hc-broker
-   /usr/bin/hlctl` → must equal the binary hashes recorded in the pinned Inputs manifest.
+   `dpkg -s homelab-control` / `rpm -qi homelab-control` and `sha256sum /usr/bin/hc-api
+   /usr/lib/homelab-control/hc-broker /usr/bin/hlctl` → must equal the package-specific binary hashes
+   recorded in the pinned Inputs above. RPM payload hashes differ from the generic binary tarball.
 2. Loopback only: `sed -i 's|^HC_API_ARGS=.*|HC_API_ARGS=-listen 127.0.0.1:9180 -dev-insecure-http|'
    /etc/homelab-control/hc-api.env`; `grep HC_API_ARGS /etc/homelab-control/hc-api.env`.
 3. Accounts (passwords typed at the prompt, never on the command line or in logs): `hlctl user add --file
