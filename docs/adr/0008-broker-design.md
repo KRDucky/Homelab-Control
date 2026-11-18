@@ -29,8 +29,8 @@ Measured privilege needs (Ubuntu 22.04/24.04, systemd 249/255):
    (root, for `hlctl broker` diagnostics). Anything else is rejected and audited.
 3. **Framing.** One request per connection: 4-byte big-endian length + JSON. Request ≤ 16 KiB, response
    ≤ 4 MiB and a 5 s read deadline. Admission is nonblocking: the eight global
-   in-flight slots are partitioned as control-plan (1), control-apply (1),
-   services-read (3), system-read (1), packages (1), and storage probe (1).
+   in-flight slots are partitioned as control-plan (1), control-apply (2),
+   services-read (2), system-read (1), packages (1), and storage probe (1).
    `broker.info` has a separate one-slot limit and does not consume a global
    slot. A full class or global limit refuses the request with `busy`; work is
    not queued.
