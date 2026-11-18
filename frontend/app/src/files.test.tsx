@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { App } from './App';
 
 // Test fixtures only — not a real host tree.
@@ -211,5 +211,172 @@ describe('files', () => {
     expect(screen.queryByRole('button', { name: /Permissions/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /Download/i })).toBeNull();
     expect(calls.some((c) => (c.init?.method ?? 'GET') !== 'GET')).toBe(false);
+  });
+
+  // Navigation and metadata UX (read-only). Fixture data only.
+  const nested = {
+    root: 'lab',
+    path: 'sub/deep',
+    entries: [
+      {
+        name: 'leaf.txt',
+        dir: false,
+        size: 2048,
+        owner: '0:0',
+        mode: 'urwxr-xr-x',
+        mtime: '2026-11-07T12:00:00Z',
+      },
+      {
+        name: 'link',
+        dir: false,
+        size: 7,
+        owner: '1000:1000',
+        mode: 'Lrwxrwxrwx',
+        mtime: '2026-11-07T12:00:00Z',
+      },
+      { name: 'dev0', dir: false, size: 0, owner: '0:6', mode: 'Drw-rw----', mtime: '2026-11-07T12:00:00Z' },
+    ],
+  };
+
+  function routedFetch(byPath: Record<string, unknown>, delays: Record<string, Promise<void>> = {}) {
+    calls = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const path = url.split('?')[0] ?? url;
+        calls.push({ key: `${init?.method ?? 'GET'} ${path}`, url, init });
+        if (path.endsWith('/auth/session'))
+          return new Response(JSON.stringify(session(['system.read', 'files.read'])), { status: 200 });
+        if (path.endsWith('/capabilities')) return new Response(JSON.stringify(caps), { status: 200 });
+        if (path.endsWith('/files/roots')) return new Response(JSON.stringify(roots), { status: 200 });
+        if (path.endsWith('/files/entries')) {
+          const rel = new URL(url, 'http://hc.test').searchParams.get('path') ?? '';
+          const wait = delays[rel];
+          if (wait) await wait;
+          const body = byPath[rel];
+          if (body === undefined)
+            return new Response(
+              JSON.stringify({ error: 'not_found', message: 'Unknown file root or path.' }),
+              { status: 404 },
+            );
+          return new Response(JSON.stringify(body), { status: 200 });
+        }
+        return new Response(JSON.stringify({ error: 'not_found' }), { status: 404 });
+      }),
+    );
+  }
+
+  const entryPaths = () =>
+    calls
+      .filter((c) => c.key === 'GET /api/v1/files/entries')
+      .map((c) => new URL(c.url, 'http://hc.test').searchParams.get('path'));
+
+  it('deep-links from the URL, goes up one level and keeps the location in history', async () => {
+    window.history.pushState(null, '', '/files?root=lab&path=sub%2Fdeep');
+    routedFetch({ '': rootEntries, sub: subEntries, 'sub/deep': nested });
+    render(<App />);
+    expect(await screen.findByText('leaf.txt')).toBeTruthy();
+    expect(entryPaths()[0]).toBe('sub/deep');
+    const up = screen.getByRole('button', { name: 'Up one level' });
+    fireEvent.click(up);
+    expect(await screen.findByText('inner.txt')).toBeTruthy();
+    expect(window.location.search).toBe('?root=lab&path=sub');
+    fireEvent.click(screen.getByRole('button', { name: 'Up one level' }));
+    expect(await screen.findByText('readme.txt')).toBeTruthy();
+    expect(window.location.search).toBe('?root=lab');
+    expect((screen.getByRole('button', { name: 'Up one level' }) as HTMLButtonElement).disabled).toBe(true);
+    // Back restores the previous folder from the URL.
+    await act(async () => {
+      window.history.back();
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    expect(await screen.findByText('inner.txt')).toBeTruthy();
+    expect(calls.some((c) => (c.init?.method ?? 'GET') !== 'GET')).toBe(false);
+  });
+
+  it('ignores an unknown root in the URL and opens the first allow-listed root', async () => {
+    window.history.pushState(null, '', '/files?root=other&path=x');
+    routedFetch({ '': rootEntries });
+    render(<App />);
+    expect(await screen.findByText('readme.txt')).toBeTruthy();
+    const first = calls.find((c) => c.key === 'GET /api/v1/files/entries');
+    const q = new URL(first?.url ?? '', 'http://hc.test').searchParams;
+    expect(q.get('root')).toBe('lab');
+    expect(q.get('path')).toBe('');
+  });
+
+  it('Alt+ArrowUp opens the parent folder', async () => {
+    window.history.pushState(null, '', '/files?root=lab&path=sub');
+    routedFetch({ '': rootEntries, sub: subEntries });
+    render(<App />);
+    const name = await screen.findByText('inner.txt');
+    fireEvent.keyDown(name, { key: 'ArrowUp', altKey: true });
+    expect(await screen.findByText('readme.txt')).toBeTruthy();
+  });
+
+  it('filters names in the current folder without another request', async () => {
+    routedFetch({ '': rootEntries });
+    render(<App />);
+    await screen.findByText('readme.txt');
+    const before = calls.length;
+    fireEvent.change(screen.getByLabelText('Filter by name'), { target: { value: 'READ' } });
+    expect(screen.getByText('1 of 2 items')).toBeTruthy();
+    const table = screen.getByRole('table', { name: 'Contents of Lab files' });
+    expect(within(table).queryByRole('button', { name: 'sub' })).toBeNull();
+    fireEvent.change(screen.getByLabelText('Filter by name'), { target: { value: 'nothing' } });
+    expect(screen.getByText('No names match the filter.')).toBeTruthy();
+    expect(calls.length).toBe(before);
+  });
+
+  it('shows metadata details with type, exact size, octal mode and special bits', async () => {
+    window.history.pushState(null, '', '/files?root=lab&path=sub%2Fdeep');
+    routedFetch({ 'sub/deep': nested });
+    render(<App />);
+    await screen.findByText('leaf.txt');
+    expect(screen.getByText('Symbolic link (not followed)')).toBeTruthy();
+    expect(screen.getByText('Block device')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Details for leaf.txt' }));
+    const details = screen.getByRole('region', { name: 'Details' });
+    expect(within(details).getByText(/2,048 bytes/)).toBeTruthy();
+    expect(within(details).getByText('4755')).toBeTruthy();
+    expect(within(details).getByText(/setuid/)).toBeTruthy();
+    expect(within(details).getByText('0:0')).toBeTruthy();
+    expect(within(details).getByText('2026-11-07T12:00:00Z')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Details for link' }));
+    expect(
+      within(screen.getByRole('region', { name: 'Details' })).getByText(/never followed or opened/),
+    ).toBeTruthy();
+    // A symlink is never a navigable folder.
+    expect(screen.queryByRole('button', { name: 'link' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
+    expect(screen.queryByRole('region', { name: 'Details' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Download|Permissions|New folder/i })).toBeNull();
+  });
+
+  it('keeps the newest folder when an older listing answers late', async () => {
+    let releaseSub: () => void = () => {};
+    const slowSub = new Promise<void>((r) => (releaseSub = r));
+    routedFetch({ '': rootEntries, sub: subEntries }, { sub: slowSub });
+    render(<App />);
+    await screen.findByText('readme.txt');
+    // Open sub (slow), then go back to the root (fast) before sub answers.
+    const table = screen.getByRole('table', { name: 'Contents of Lab files' });
+    fireEvent.click(within(table).getByRole('button', { name: 'sub' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lab files' }));
+    expect(await screen.findByText('readme.txt')).toBeTruthy();
+    await act(async () => {
+      releaseSub();
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    expect(screen.getByText('readme.txt')).toBeTruthy();
+    expect(screen.queryByText('inner.txt')).toBeNull();
+    expect(window.location.search).toBe('?root=lab');
+  });
+
+  it('shows the server refusal for a path it will not list', async () => {
+    window.history.pushState(null, '', '/files?root=lab&path=gone');
+    routedFetch({});
+    render(<App />);
+    expect((await screen.findByRole('alert')).textContent).toContain('Unknown file root or path.');
   });
 });

@@ -344,3 +344,78 @@ func TestLayoutOptimisticConcurrencyReturnsConflict(t *testing.T) {
 		t.Fatalf("stale update: %d %s", rr.Code, rr.Body.String())
 	}
 }
+
+// A session with layout.manage but no storage.read may edit the grid, but every
+// write response must redact stored serial/WWN identities (M2-5 security
+// review Medium). The identity is released only to storage.read.
+func TestLayoutWritesRedactIdentitiesWithoutStorageRead(t *testing.T) {
+	h, _, _ := layoutHarness(t, []string{auth.ScopeStorageRead, auth.ScopeLayoutManage})
+	if rr := h.do("POST", "/api/v1/storage/layout/chassis", chassisBody, writeHeaders(h)); rr.Code != http.StatusCreated {
+		t.Fatal(rr.Code, rr.Body.String())
+	}
+	if rr := h.do("PUT", "/api/v1/storage/layout/chassis/1/bays/0/0/assignment", `{"persistent_id":"`+layoutWWN+`","version":1}`, writeHeaders(h)); rr.Code != http.StatusOK {
+		t.Fatal(rr.Code, rr.Body.String())
+	}
+
+	// A second user with only layout.manage.
+	hash, _ := auth.HashPassword("manage-only-pass", auth.MinIterations)
+	h.users.Users = append(h.users.Users, auth.User{Username: "manageonly", PasswordHash: hash, Scopes: []string{auth.ScopeLayoutManage}})
+	h.srv.users = auth.NewStore(h.users)
+	if rr := h.login("manageonly", "manage-only-pass"); rr.Code != http.StatusOK {
+		t.Fatal(rr.Code, rr.Body.String())
+	}
+	noLeak := func(body string) {
+		t.Helper()
+		if strings.Contains(body, "5000000000000f01") {
+			t.Fatalf("manage-only write leaked a stored identity: %s", body)
+		}
+	}
+
+	// create (second chassis) — the response still lists the assigned chassis.
+	rr := h.do("POST", "/api/v1/storage/layout/chassis", `{"name":"Second","kind":"server","rows":1,"cols":1,"cells":[{"row":0,"col":0,"kind":"empty"}]}`, writeHeaders(h))
+	if rr.Code != http.StatusCreated {
+		t.Fatal(rr.Code, rr.Body.String())
+	}
+	noLeak(rr.Body.String())
+
+	// update chassis 1 (version 2 after assign).
+	rr = h.do("PUT", "/api/v1/storage/layout/chassis/1", `{"name":"Renamed","kind":"server","rows":2,"cols":2,"cells":[{"row":0,"col":0,"kind":"hdd-3.5","label":"Bay 1"},{"row":1,"col":1,"kind":"disabled"}],"version":2}`, writeHeaders(h))
+	if rr.Code != http.StatusOK {
+		t.Fatal(rr.Code, rr.Body.String())
+	}
+	noLeak(rr.Body.String())
+
+	// import (additive).
+	rr = h.do("POST", "/api/v1/storage/layout/import", `{"chassis":[{"name":"Imported","kind":"shelf","rows":1,"cols":1,"cells":[{"row":0,"col":0,"kind":"empty"}]}]}`, writeHeaders(h))
+	if rr.Code != http.StatusOK {
+		t.Fatal(rr.Code, rr.Body.String())
+	}
+	noLeak(rr.Body.String())
+
+	// delete the second chassis (its own version 1).
+	rr = h.do("DELETE", "/api/v1/storage/layout/chassis/2?version=1", "", writeHeaders(h))
+	if rr.Code != http.StatusOK {
+		t.Fatal(rr.Code, rr.Body.String())
+	}
+	noLeak(rr.Body.String())
+
+	// The both-scopes user still sees the identity (redaction is scoped, not
+	// destructive).
+	if rr := h.login("full", "full-password-1234"); rr.Code != http.StatusOK {
+		t.Fatal(rr.Code, rr.Body.String())
+	}
+	if rr := h.do("GET", "/api/v1/storage/layout", "", readHeaders(h)); rr.Code != http.StatusOK || !strings.Contains(rr.Body.String(), "5000000000000f01") {
+		t.Fatal("storage.read no longer sees the stored identity:", rr.Code, rr.Body.String())
+	}
+
+	// unassign as manage-only (version 3 after the update); the response must
+	// not disclose the identity that was just removed.
+	if rr := h.login("manageonly", "manage-only-pass"); rr.Code != http.StatusOK {
+		t.Fatal(rr.Code, rr.Body.String())
+	}
+	rr = h.do("DELETE", "/api/v1/storage/layout/chassis/1/bays/0/0/assignment?version=3", "", writeHeaders(h))
+	if rr.Code != http.StatusOK {
+		t.Fatal(rr.Code, rr.Body.String())
+	}
+	noLeak(rr.Body.String())
+}
