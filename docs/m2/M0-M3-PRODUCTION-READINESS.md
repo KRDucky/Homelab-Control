@@ -23,7 +23,7 @@ The mandatory sequence and exclusions are in `docs/m2/M2-ROADMAP.md` and `docs/m
 | PR-1 durable state/audit/logs | Merged read-only foundation. | Reconcile current CI and acceptance evidence with the roadmap; resolve any remaining audit durability/retention policy for production. |
 | M2-2 service operations | Merged; acceptance record exists. | Preserve its security conditions; production activation remains a separate owner decision. |
 | M2-3 service configuration | Skeleton on main; implementation and container evidence are documented, but not accepted. | Close owner review decisions and design review findings; run the prepared KVM acceptance procedure only with its required authorization; complete distro/security/browser evidence. |
-| M2-4 storage inventory | O-1 helper, closed device policy, typed broker op, explicit CSRF POST, non-default scope, audit, rate limit and UI action are implemented on this isolated branch. Fedora 44 KVM tests passed systemd device filtering and the corrected SELinux source on a synthetic disk. The service path mask denied access to `hc-api.env`. LVM remains gated off; helper is not enabled on the host. | M2-4 remains unaccepted: LVM reports are unusable inside the helper unit sandbox, AppArmor and distro packaging/CI remain unverified, systemd-nspawn containment is partial, and real hardware is untested. Close these gates and obtain owner acceptance. Host activation still requires a narrower by-id design and separate authorization. |
+| M2-4 storage inventory | **Accepted 2026-11-18 for the scoped read-only inventory** on the isolated branch. Native LVM metadata is wired through helper, broker, API graph and UI; Fedora 44 SELinux and Debian 13 AppArmor enforcing guest probes passed. Full evidence and explicit limits are in `M2-4-ACCEPTANCE.md`. Helper remains disabled by default. | No host/production activation. Ubuntu LTS, systemd-nspawn, broader distro/CI coverage, real vendor hardware and additional AppArmor negative/device variants remain deployment coverage follow-ups. A narrower by-id design and separate authorization are required before host activation. |
 | M2-5 drive layout Stage A | Manual, explicitly unverified layout implementation; keyboard and drag/drop assignment, redacted export, additive import, and per-chassis optimistic concurrency are implemented in this isolated review branch. Existing-layout mutations carry versions and reject stale writes with 409; create/import remain additive. | D-12 is open pending HBA Viewer source/reuse terms. Browser/axe and backend acceptance are outstanding; no owner acceptance or merge is implied. |
 | M2-6 hostname/timezone | Plan/apply backend and UI skeletons exist. Apply revalidation reports conflict when host settings converge between plan and apply. Full Go tests, vet and build pass on this branch with the expected `022` umask. | Complete design/security review, user documentation, frontend CI/browser and distro/KVM acceptance, and obtain owner acceptance. No production apply is authorized. |
 | File manager | Confined read-only roots and listing skeleton. | ADR 0012 and acceptance are open; complete security review and required isolated/browser/distribution evidence. No write operations are in scope. |
@@ -54,9 +54,8 @@ evidence must be accepted. Current main does not satisfy that gate.
 
 ## Immediate next sequence
 
-1. Resolve D-12 (source/reuse terms for M2-5); close remaining O-1 runtime gates without host activation
-   the socket on host/production or probing real host disks.
-2. Complete M2-5 and M2-4 within their approved boundaries; do not infer hardware discovery or storage writes.
+1. Resolve D-12 (source/reuse terms for M2-5); keep M2-4's helper disabled on the host.
+2. Complete M2-5 within its approved boundaries; do not infer hardware discovery or storage writes.
 3. Close M2-3, M2-6 and file-manager reviews and acceptance evidence, then obtain the M2 close decision.
 4. Only then finish and accept M3 Theme/Plugin SDK.
 5. Run the production-readiness and deployment gates as a separate owner-approved release step.

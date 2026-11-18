@@ -4,7 +4,7 @@
 # M2-4 O-1 read-only storage probe (hc-storage-probe): SELinux domain.
 #
 # STATUS: compiled, loaded and exercised only in a disposable Fedora 44 VM on
-# 2026-11-17. Cross-distro SELinux behavior remains unvalidated. Packages never
+# 2026-11-18. Cross-distro SELinux behavior remains unvalidated. Packages never
 # load this module. The unit names this domain with SELinuxContext=, so on a
 # host where SELinux is active and this module is absent the instance fails to
 # start (fail closed). Do not run the helper unconfined, and do not relabel the
@@ -21,7 +21,6 @@ policy_module(homelab_control_storage_probe, 0.1.0)
 
 type hc_storage_probe_t;
 type hc_storage_probe_exec_t;
-type hc_storage_probe_tmp_t;
 
 require {
 	attribute filesystem_type;
@@ -31,15 +30,13 @@ require {
 	type zero_device_t;
 	type random_device_t;
 	type urandom_device_t;
-	type lvm_exec_t;
+	type cgroup_t;
 	type fsadm_exec_t;
-	type tmp_t;
 }
 
 # Interface calls expand to policy rules, so keep them after the module's
 # complete require block.
 init_daemon_domain(hc_storage_probe_t, hc_storage_probe_exec_t)
-files_tmp_file(hc_storage_probe_tmp_t)
 
 # The unit sets NoNewPrivileges=yes; without these permissions the transition
 # from init_t into the domain is denied.
@@ -65,10 +62,8 @@ libs_use_ld_so(hc_storage_probe_t)
 libs_use_shared_libs(hc_storage_probe_t)
 corecmd_search_bin(hc_storage_probe_t)
 
-# Fixed child tools run INSIDE this domain (execute_no_trans). With
-# NoNewPrivileges a transition into lvm_t or fsadm_t would be denied anyway, and
-# those domains are broader than needed (lvm_t holds capabilities).
-can_exec(hc_storage_probe_t, lvm_exec_t)
+# The helper runs blkid as its only child tool, inside this domain. With
+# NoNewPrivileges a transition into fsadm_t would be denied anyway.
 can_exec(hc_storage_probe_t, fsadm_exec_t)
 
 # Read-only raw access to fixed disks (sd, blkext/NVMe, virtio-blk, md nodes are
@@ -88,13 +83,8 @@ allow hc_storage_probe_t { random_device_t urandom_device_t }:chr_file { getattr
 # Kernel state: sysfs block topology and /proc/devices, /proc/partitions.
 dev_read_sysfs(hc_storage_probe_t)
 kernel_read_system_state(hc_storage_probe_t)
-
-# Private LVM_SYSTEM_DIR under the unit's PrivateTmp.
-files_search_tmp(hc_storage_probe_t)
-allow hc_storage_probe_t tmp_t:dir { getattr search };
-manage_dirs_pattern(hc_storage_probe_t, hc_storage_probe_tmp_t, hc_storage_probe_tmp_t)
-manage_files_pattern(hc_storage_probe_t, hc_storage_probe_tmp_t, hc_storage_probe_tmp_t)
-files_tmp_filetrans(hc_storage_probe_t, hc_storage_probe_tmp_t, { dir file })
+# Go runtime traverses the cgroup2 mount root while discovering process limits.
+allow hc_storage_probe_t cgroup_t:dir search;
 
 ########################################
 # Assertions (compile-time, must never be weakened)
