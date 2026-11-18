@@ -89,13 +89,9 @@ export function unassignedDrives(nodes: StorageNode[], chassis: Chassis[]) {
   return { eligible: free.filter(assignable), ineligible: free.filter((node) => !assignable(node)) };
 }
 
-/** Mask a persistent identity to its tier only, never its serial/WWN value. */
-export function redactIdentity(identity: string): string {
-  const sep = identity.indexOf(':');
-  return sep > 0 ? `${identity.slice(0, sep)}:[redacted]` : '[redacted]';
-}
-
-/** A layout safe to export: every assignment identity is redacted by default. */
+/** A layout safe to export: geometry (chassis name/kind/rows/cols, cell kind
+ * and label) plus an `assigned` boolean only. Identities, the administrator
+ * account name, timestamps and provenance/confidence are never exported. */
 export function redactedLayout(layout: { chassis: Chassis[] }) {
   return {
     chassis: layout.chassis.map((c) => ({
@@ -108,9 +104,7 @@ export function redactedLayout(layout: { chassis: Chassis[] }) {
         col: cell.col,
         kind: cell.kind,
         label: cell.label,
-        ...(cell.assignment
-          ? { assignment: { ...cell.assignment, identity: redactIdentity(cell.assignment.identity) } }
-          : {}),
+        assigned: cell.assignment !== undefined,
       })),
     })),
   };

@@ -112,14 +112,25 @@ export function filterByName<T extends { name: string }>(entries: readonly T[], 
 }
 
 /** Escapes invisible control (Cc) and format (Cf) code points as visible
- * \uXXXX escapes, so a hostile name cannot spoof a different name or reorder
- * the surrounding text. The returned string is safe to render as text. */
+ * \uXXXX escapes, and a literal backslash as \\, so a hostile name cannot
+ * spoof a different name, reorder the surrounding text, or mimic an escape. */
 export function displayName(name: string): string {
   const controlOrFormat = /[\p{Cc}\p{Cf}]/u;
   let out = '';
   for (const ch of name) {
-    const cp = ch.codePointAt(0) ?? 0;
-    out += controlOrFormat.test(ch) ? `\\u${cp.toString(16).toUpperCase().padStart(4, '0')}` : ch;
+    if (ch === '\\') {
+      out += '\\\\';
+    } else if (controlOrFormat.test(ch)) {
+      const cp = ch.codePointAt(0) ?? 0;
+      out += `\\u${cp.toString(16).toUpperCase().padStart(4, '0')}`;
+    } else {
+      out += ch;
+    }
   }
   return out;
+}
+
+/** Escapes each `/`-separated path segment for display. */
+export function displayPath(path: string): string {
+  return path.split('/').map(displayName).join('/');
 }

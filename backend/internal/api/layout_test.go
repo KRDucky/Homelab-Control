@@ -419,3 +419,49 @@ func TestLayoutWritesRedactIdentitiesWithoutStorageRead(t *testing.T) {
 	}
 	noLeak(rr.Body.String())
 }
+
+// bigLayoutImport builds a valid import (two 24x24 chassis with 64-char labels)
+// whose JSON is comfortably over 64 KiB but far under 8 MiB, proving the import
+// path honors its own cap instead of the general 64 KiB body cap.
+func bigLayoutImport() string {
+	label := strings.Repeat("x", 64)
+	var b strings.Builder
+	b.WriteString(`{"chassis":[`)
+	for ch := 0; ch < 2; ch++ {
+		if ch > 0 {
+			b.WriteString(",")
+		}
+		b.WriteString(`{"name":"Big`)
+		b.WriteString(strconv.Itoa(ch))
+		b.WriteString(`","kind":"server","rows":24,"cols":24,"cells":[`)
+		for r := 0; r < 24; r++ {
+			for c := 0; c < 24; c++ {
+				if r+c > 0 {
+					b.WriteString(",")
+				}
+				b.WriteString(`{"row":`)
+				b.WriteString(strconv.Itoa(r))
+				b.WriteString(`,"col":`)
+				b.WriteString(strconv.Itoa(c))
+				b.WriteString(`,"kind":"hdd-3.5","label":"`)
+				b.WriteString(label)
+				b.WriteString(`"}`)
+			}
+		}
+		b.WriteString(`]}`)
+	}
+	b.WriteString(`]}`)
+	return b.String()
+}
+
+func TestLayoutImportAcceptsOver64KiB(t *testing.T) {
+	h, _, _ := layoutHarness(t, []string{auth.ScopeLayoutManage})
+	body := bigLayoutImport()
+	if len(body) <= 64<<10 {
+		t.Fatalf("test body too small (%d bytes), want > 64 KiB", len(body))
+	}
+	rr := h.do("POST", "/api/v1/storage/layout/import", body, writeHeaders(h))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("valid >64 KiB import refused: %d %s", rr.Code, rr.Body.String())
+	}
+}

@@ -1,16 +1,17 @@
 # M2-3 KVM acceptance procedure (Phase A and B authorized; NOT run)
 
-**Status update (2026-11-18):** the owner authorized fresh disposable guests, Phase A and Phase B in this
-conversation. No KVM guest has been created, started or modified for M2-3. Execution remains blocked until
-the test package and its provenance match the exact candidate: the integration candidate is based on
-`993c3758` and includes the File Manager UI plus acceptance documentation. The pinned `40801659` object and
-its CI package artifacts are absent from the original closeout checkout. No CI run or package artifact has
-been verified for the integrated tree. Do not use the stale packages. First produce a clean, exact candidate
-revision with matching CI artifacts and update the inputs below. Do not push or publish without the owner's
-approval.
+**Status update (2026-11-18):** the owner authorized fresh disposable guests, Phase A and Phase B, and
+authorized opening an M2 PR. No KVM guest has been created, started or modified for M2-3. GitHub reports
+that artifact `13413879518` from CI run `42026882569` is still available, but it was built for `40801659`.
+The integrated candidate (base `993c3758`, current staged changes) differs in `backend/internal/api/server.go`,
+`backend/internal/modules/modules.go`, and `backend/internal/broker/ops/services_write.go`, among other
+files. Therefore the old package does not verify this candidate and must not be installed. The next step is
+to open the authorized M2 PR, wait for its CI package and provenance, then run the approved procedure with
+those exact artifacts and update the inputs below. PR review is authorized; merge and deployment are not.
 
-By the standing assignment VM work is Codex's (`docs/evidence/m2/vm-final-main-d812995e/README.md`);
-Claude Code does not operate VMs. Container evidence
+The owner directed this M2 validation to Claude's VMs on 2026-11-18. Execute through the authorized
+`claude-baremetal` MCP service, using `qemu:///system` pool `claude-vms-zfs` and the storage policy below.
+The earlier Codex workstation-VM assignment is superseded for this run. Container evidence
 (`docs/evidence/m2/m2-3/`) does **not** satisfy this procedure: containers share the workstation kernel, have
 no real boot and ran with SELinux disabled.
 

@@ -287,3 +287,59 @@ func TestListPermissionIsNotEscape(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestListNonSearchableDirectory(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("permission test requires non-root")
+	}
+	d := filepath.Join(t.TempDir(), "jail")
+	if err := os.Mkdir(d, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	sub := filepath.Join(d, "sub")
+	if err := os.Mkdir(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sub, "inner.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Readable but not searchable: names list, stats fail with EACCES.
+	if err := os.Chmod(sub, 0o400); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(sub, 0o700) })
+	s, err := Parse([]byte(`{"version":1,"roots":[{"id":"lab","label":"Lab","path":"` + d + `"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.List("lab", "sub"); !errors.Is(err, ErrPermission) {
+		t.Fatalf("non-searchable directory: got %v, want ErrPermission", err)
+	}
+}
+
+func TestListSkipsUnnavigableNames(t *testing.T) {
+	d := filepath.Join(t.TempDir(), "jail")
+	if err := os.MkdirAll(d, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(d, "good.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(d, "bad\xff.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(d, `back\slash.txt`), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Parse([]byte(`{"version":1,"roots":[{"id":"lab","label":"Lab","path":"` + d + `"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ents, err := s.List("lab", ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ents) != 1 || ents[0].Name != "good.txt" {
+		t.Fatalf("expected only good.txt, got %+v", ents)
+	}
+}

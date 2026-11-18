@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { ApiError, getFileEntries, getFileRoots, type FileEntry, type FileRoot } from '../api';
 import { DataTable } from '../DataTable';
 import {
@@ -10,6 +10,7 @@ import {
   childPath,
   cleanPath,
   displayName,
+  displayPath,
   filterByName,
   locationSearch,
   parentPath,
@@ -58,12 +59,12 @@ function FilesTree({
     if (kids.length === 0) return null;
     return (
       <ul>
-        {kids.map((name) => {
+        {kids.map((name, i) => {
           const p = childPath(base, name);
           const current = rootId === currentRoot && p === currentPath;
           const open = rootId === currentRoot && (currentPath === p || currentPath.startsWith(`${p}/`));
           return (
-            <li key={name}>
+            <li key={`${i}\u0000${name}`}>
               <button
                 type="button"
                 aria-current={current ? 'true' : undefined}
@@ -92,7 +93,7 @@ function FilesTree({
                 onClick={() => onOpen(r.id, '')}
               >
                 <Icon name="folder" />
-                {r.label}
+                {displayName(r.label)}
               </button>
               {r.id === currentRoot && <Nodes rootId={r.id} base="" />}
             </li>
@@ -210,7 +211,7 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
           [dirKey(next.root, cleaned)]: next.entries.filter((e) => e.dir).map((e) => e.name),
         }));
         const n = next.entries.length;
-        setAnnounce(`${n} ${n === 1 ? 'item' : 'items'} in ${cleaned || 'the root folder'}`);
+        setAnnounce(`${n} ${n === 1 ? 'item' : 'items'} in ${displayPath(cleaned) || 'the root folder'}`);
         if (history !== 'none') {
           const url = `${window.location.pathname}${locationSearch({ root: next.root, path: cleaned })}`;
           if (history === 'push') window.history.pushState(null, '', url);
@@ -288,6 +289,11 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
   const up = parentPath(path);
   const shown = entries ? filterByName(entries, filter) : [];
   const detail = selected !== null && entries ? (entries[selected] ?? null) : null;
+  const indexOfEntry = useMemo(() => {
+    const m = new Map<FileEntry, number>();
+    (entries ?? []).forEach((e, i) => m.set(e, i));
+    return m;
+  }, [entries]);
 
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     if (e.altKey && e.key === 'ArrowUp' && up !== null && !busy) {
@@ -321,16 +327,16 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
           <div className="files-main">
             <div className="files-path">
               <h2 className="visually-hidden" tabIndex={-1} ref={locationRef}>
-                {path ? `${rootLabel}: ${path}` : rootLabel}
+                {path ? `${displayName(rootLabel)}: ${displayPath(path)}` : displayName(rootLabel)}
               </h2>
               <nav className="files-crumbs" aria-label="Breadcrumb">
                 <ol>
                   <li>
                     {path === '' ? (
-                      <span aria-current="page">{rootLabel}</span>
+                      <span aria-current="page">{displayName(rootLabel)}</span>
                     ) : (
                       <button type="button" onClick={() => open(rootId, '')}>
-                        {rootLabel}
+                        {displayName(rootLabel)}
                       </button>
                     )}
                   </li>
@@ -390,8 +396,10 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
             </div>
             {entries && (
               <DataTable
-                caption={path === '' ? `Contents of ${rootLabel}` : `Contents of ${path}`}
-                rowKey={(e) => `${entries.indexOf(e)}\u0000${e.name}`}
+                caption={
+                  path === '' ? `Contents of ${displayName(rootLabel)}` : `Contents of ${displayPath(path)}`
+                }
+                rowKey={(e) => `${indexOfEntry.get(e) ?? -1}\u0000${e.name}`}
                 emptyState={
                   busy
                     ? 'Reading directory…'
@@ -456,7 +464,7 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
                     id: 'details',
                     label: 'Details',
                     render: (e) => {
-                      const idx = entries.indexOf(e);
+                      const idx = indexOfEntry.get(e) ?? -1;
                       return (
                         <button
                           type="button"

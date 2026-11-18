@@ -340,16 +340,29 @@ func (s Set) List(id, rel string) ([]Entry, error) {
 	}
 	dfd := int(dir.Fd())
 	out := make([]Entry, 0, len(ents))
+	unstatable := 0
 	for _, de := range ents {
 		name := de.Name()
 		if name == "" || name == "." || name == ".." {
 			continue
 		}
+		// Omit names the JSON layer cannot represent faithfully (invalid UTF-8
+		// becomes an ambiguous U+FFFD) or that RelPath refuses (a backslash),
+		// so the listing never advertises an unnavigable or colliding row.
+		if !utf8.ValidString(name) || strings.Contains(name, "\\") {
+			continue
+		}
 		e, err := statEntry(dfd, name)
 		if err != nil {
+			unstatable++
 			continue
 		}
 		out = append(out, e)
+	}
+	// A readable but non-searchable directory (mode r--) lists names, yet every
+	// Fstatat fails with EACCES. Report that instead of a misleading empty 200.
+	if len(out) == 0 && unstatable > 0 {
+		return nil, ErrPermission
 	}
 	return out, nil
 }

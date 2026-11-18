@@ -247,6 +247,9 @@ export function DriveBays({
         <span className="muted">
           Import adds unassigned geometry only; assignment identities are discarded.
         </span>
+        <span className="muted">
+          Export keeps names and labels as written and omits drive identities and assignment metadata.
+        </span>
       </div>
       {layout.chassis.length === 0 && <p className="muted">No chassis has been described yet.</p>}
       {layout.chassis.map((c) => (
@@ -281,8 +284,9 @@ export function DriveBays({
                         }}
                         onDrop={(e) => {
                           e.preventDefault();
-                          const id = e.dataTransfer.getData('text/plain');
-                          if (!(canManage && !x.assignment && BAY_KINDS.has(x.kind)) || !id) return;
+                          if (busy || !(canManage && !x.assignment && BAY_KINDS.has(x.kind))) return;
+                          const id = e.dataTransfer.getData('application/x-hc-drive');
+                          if (!id) return;
                           select({ chassis: c.id, row, col });
                           run(
                             () => assignBay(c.id, row, col, id, c.version, csrf),
@@ -554,7 +558,7 @@ export function DriveBays({
               className="mono"
               draggable={canManage}
               onDragStart={(e) => {
-                e.dataTransfer.setData('text/plain', node.persistent_id ?? '');
+                e.dataTransfer.setData('application/x-hc-drive', node.persistent_id ?? '');
                 e.dataTransfer.effectAllowed = 'move';
               }}
             >
