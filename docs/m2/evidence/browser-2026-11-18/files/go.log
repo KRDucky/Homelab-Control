@@ -1,0 +1,17 @@
+go: downloading github.com/coreos/go-oidc/v3 v3.21.0
+go: downloading golang.org/x/oauth2 v0.37.0
+go: downloading golang.org/x/sys v0.48.0
+go: downloading modernc.org/sqlite v1.60.1
+go: downloading github.com/go-jose/go-jose/v4 v4.1.7
+go: downloading modernc.org/libc v1.77.1
+go: downloading modernc.org/memory v1.12.1
+go: downloading github.com/google/uuid v1.6.0
+go: downloading github.com/dustin/go-humanize v1.0.1
+go: downloading modernc.org/mathutil v1.7.1
+go: downloading github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec
+=== RUN   TestFilesBrowserFixture
+    files_browser_test.go:164: labelled isolated files fixture ready; credentials withheld; not live host browse or acceptance
+    files_browser_test.go:180: fixture shutdown: synthetic jail only; no host browse or privileged operations
+--- PASS: TestFilesBrowserFixture (1.33s)
+PASS
+ok  	homelab-control/backend/internal/api	1.399s

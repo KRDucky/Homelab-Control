@@ -19,9 +19,10 @@ Already settled, and not asked again:
 | D-7 | PR-1 | **Approved 2026-10-21** |
 | D-2, D-3, D-4, D-5 | PR M2-2 (first write) | **Approved 2026-10-23 (option A each)** |
 | D-8 | Roadmap shape after M2 | **Decided 2026-11-07 (keep `docs/project/04-ROADMAP.md`; Theme/Plugin SDK is M3)** |
-| D-9, D-10 | Roadmap shape | Open |
+| D-9 | Roadmap shape / M2-6 | **Decided 2026-11-18: keep hostname/timezone in M2** |
+| D-10 | Module packaging/toggling | **Approved 2026-11-18: P-1, built-in modules with root-owned `/etc/homelab-control/modules.json`** |
 | D-11 | Before package-manager read adapters (M4-1b) | **Decided 2026-11-07 for package-manager CLIs only; Docker/libvirt/ZFS/storcli remain Recommended (not decided)** |
-| D-12 | PR M2-5 (drive locator) | Open (HBA Viewer source to be provided) |
+| D-12 | PR M2-5 (drive locator) | **Source supplied and reviewed 2026-11-18; concept reuse recorded. No upstream code copied.** |
 
 ---
 
@@ -173,10 +174,18 @@ Does **not** reopen D-8. M3 remains Theme SDK + plugin SDK. Product scope, not i
 - Users and groups move to their own milestone: lockout, sudo and UID/GID ownership risks, and they are tied to identity work (PAM is still deferred).
 - **Alternative:** no host administration in M2.
 
+**Owner decision 2026-11-18:** Keep hostname and timezone in M2, following the recommended roadmap
+scope. This resolves D-9's scope choice; it does not accept M2-6's implementation or authorize
+production apply.
+
 ## D-10 Module packaging: built-in modules vs plugins
 - **Recommended:** first-party modules are **compiled into** `hc-api`/`hc-broker` as independent packages behind a module registry: capability detection, enable/disable, scopes, routes, broker ops.
 - Third-party plugins wait for the Plugin SDK (spec 06). This keeps one reviewed broker binary and avoids runtime code loading, which ADR 0001 forbids for privileged code anyway.
 - **Alternative:** design the plugin SDK first, so modules are plugins from day one. This is slower and adds a privileged-plugin review problem before any module exists.
+
+**Owner decision 2026-11-18:** Approve P-1: first-party modules are built in, and enablement is
+controlled by root-owned `/etc/homelab-control/modules.json`. This closes D-10's architecture choice;
+it does not accept every module implementation.
 
 ## D-11 Third-party integration libraries (policy for later milestones)
 Not needed for M2; recorded so it is not decided ad hoc.
@@ -206,10 +215,24 @@ Not needed for M2; recorded so it is not decided ad hoc.
 **Owner direction (2026-10-21):** reuse the existing HBA Viewer concept inside Homelab Control rather than
 building a separate drive-location system.
 
-**Status:** pending.
+**Status:** source supplied and reviewed; the HBA Viewer concept is reflected in M2-5 Stage A. No
+upstream code was copied because the supplied project is a separate Cockpit/Python application whose
+privileged helper, controller discovery, and persistence model do not fit this Go/React slice.
 - **Correction:** the owner clarified that the HBA Viewer and the Linux Storage Manager are **distinct projects**. The Storage Manager is not the intended source.
-- **Needed:** the HBA Viewer's location (repository or folder) and the reuse terms: concept-only re-implementation (recommended), or code contributed by the owner under GPL-3.0-or-later.
-- **Blocks:** PR M2-5 (drive locator). Nothing in PR-1.
+- **Owner decision 2026-11-18:** the owner selected code contributed under GPL-3.0-or-later.
+- **Source supplied by owner 2026-11-18:** https://github.com/KRDucky/hbaviewer-cockpit, reviewed at
+  `8061595c51cf21990a0ec9d0f33ea5afd514234e`. Its `LICENSE` is MIT and credits Ian (Cockpit port),
+  DevlinDelFuego (original Unraid-LSIUtil), and FugginOld (Unraid-HBAviewer fork). Do not describe it
+  as GPL or remove those credits. MIT is compatible with this GPL-3.0-or-later project; no source code
+  was copied in this slice, so no third-party notice was added.
+- **Disposition:** the relevant bay-layout concept is reused: user-defined enclosures and bays,
+  stable drive identity rather than `/dev` names, manual assignments, and explicit present/missing/
+  mismatch states. M2-5 Stage A implements those boundaries with the project’s existing Go/React and
+  state-store architecture. Hardware discovery, controller/LED actions, and the upstream privileged
+  Python/Cockpit runtime remain out of scope.
+- **Blocks:** none for M2-5 Stage A source identification or concept reconciliation. Any future code
+  import requires a file-level provenance/license review and preservation of the MIT notice; any
+  relicense of third-party code is not implied.
 
 ---
 
@@ -250,17 +273,17 @@ production changes and new dependencies, and M2-4, M2-5, M2-6 and M3 (M2-5 and M
 ### Items for the owner's review of M2-3
 | ID | Question | Implemented proposal (pending) |
 |---|---|---|
-| O-1 (D-10) | How first-party modules are packaged and toggled | Built-in, compiled-in modules behind `internal/modules`; the setting is the root-owned `/etc/homelab-control/modules.json`, not `state.db`, because the broker must enforce it without trusting `hc-api`; no UI/API to change it; invalid file disables all modules. D-10 itself stays **open** |
+| O-1 (D-10) | How first-party modules are packaged and toggled | Built-in, compiled-in modules behind `internal/modules`; root-owned `/etc/homelab-control/modules.json`; no UI/API to change it; invalid file disables all modules. P-1/D-10 approved 2026-11-18. |
 | O-2 | Scope for unit-file contents | (Superseded by P-2: `services.files`, 2026-11-05.) Originally reused `services.logs` (existing non-default scope for sensitive content). Alternative: a dedicated scope, e.g. `services.files` |
 | O-3 | Risk class of enable/disable | `disruptive` (step-up always), stricter than the roadmap's "persistent → reversible" |
 | O-4 | `--no-reload` | No manager reload (the excluded generic daemon-reload). The setting is written to disk at once and applied at the next boot **or earlier**, at any later daemon-reload or first load of a target (corrected 2026-11-04, probe 7 P19/P20); host `systemctl status` shows the old value until then |
 | O-5 | Refused constructs | `Also=`, `RequiredBy=`, `UpheldBy=`, `DefaultInstance=`, template instances, `.socket`/`.timer` enablement, SysV/generated/linked/runtime units are refused, not supported; each could be a later, separately reviewed extension |
 
 ### Design proposals for the owner's final approval (P-1…P-9) — PROPOSALS, NOT DECISIONS
-Status of every item below: **proposed, not approved.** The owner asked (2026-11-04) for these to be prepared
-for final approval; until the owner approves an item in their own words it is not a decision, and D-10
-remains open. Each item states what the branch implements now, so that approval or rejection has a concrete
-effect. Evidence: `M2-3-DESIGN-REVIEW.md` §1, §1.1, §1.2, §7, §8.
+Status of each item below is shown individually. The owner asked (2026-11-04) for these to be prepared
+for final approval; implementation authorization is not acceptance. P-1/D-10 was approved 2026-11-18;
+the other proposals remain open unless their row says otherwise. Each item states what the branch
+implements now. Evidence: `M2-3-DESIGN-REVIEW.md` §1, §1.1, §1.2, §7, §8.
 
 | ID | Proposal | Implemented on the branch now | If approved | If rejected |
 |---|---|---|---|---|
@@ -281,8 +304,8 @@ product commit named in `M2-3-ACCEPTANCE.md` ("Revisions").
 
 | ID | Subject | Owner decision so far (verbatim below) | Implementation | Still needed from the owner |
 |---|---|---|---|---|
-| D-10 | Module packaging and toggling | **None** (open) | Built-in modules + root-owned file (P-1) | Decide D-10 |
-| P-1 | Root-owned `/etc/homelab-control/modules.json` | None (proposal) | Implemented | Approve or choose another mechanism |
+| D-10 | Module packaging and toggling | **Approved 2026-11-18 (P-1)** | Built-in modules + root-owned file | Closed |
+| P-1 | Root-owned `/etc/homelab-control/modules.json` | **Approved 2026-11-18** | Implemented | Closed for architecture choice |
 | P-2 | Separate `services.files` permission for unit-file contents | **Implementation authorized** 2026-11-05 | Implemented (this round) | Accept the implementation |
 | P-3 | Step-up for every boot-time change (`disruptive`) | None (proposal) | Implemented | Approve |
 | P-4 | `--no-reload`, effective at the next reload or boot | None (proposal) | Implemented | Approve |
@@ -292,7 +315,7 @@ product commit named in `M2-3-ACCEPTANCE.md` ("Revisions").
 | P-8 | Runtime unit configuration: option 3 (narrow, fail-closed checks) | **Approach approved** 2026-11-05 (not the implementation) | Implemented (R19, R21–R25) | Accept the implementation |
 | P-9 | Enable judged against the next boot, not the current state | None (proposal; arose from the final review) | Implemented (R20, R23) | Approve and accept |
 
-Recommendations (not decisions): close D-10 with P-1; approve P-3…P-6 and P-9; accept P-2, P-7 and P-8 after
+Recommendations (not decisions): approve P-3…P-6 and P-9; accept P-2, P-7 and P-8 after
 reviewing `M2-3-DESIGN-REVIEW.md` §10–§12. Trade-offs: P-1 needs root and a restart to change; P-3 asks for the
 password at most every 5 minutes; P-4 can apply before a reboot (any later reload); P-5 leaves static,
 template and socket/timer-enabled units unmanaged; P-6 makes both actions wait for a reload or reboot after
@@ -418,10 +441,10 @@ than `enabled`), and needs the owner's choice.
 
 Owner direct project conversation instructions: “continue through M2-4 and through M2-6” and “work with claude on this”. This authorizes collaborative implementation and isolated tests of M2-4, M2-5 and M2-6, following each prerequisite and security/acceptance gate. M2-5 and M2-6 were already made mandatory, not optional. M2-4 includes LVM2 RAID and SSD-cache discovery and selectable Serial/ID (default) or WWN display with independent corroborated identity. M2-5 is the Stage A drive locator with app-state layouts and explicit manual/unverified provenance. M2-6 is hostname/static+pretty and timezone only, using reviewed ADR 0011 typed plan/confirm/apply operations.
 
-The owner previously authorized pushes/merges once satisfied and explicitly adding their DCO signature for M2-3/M2-4. That signature exception does not automatically extend to M2-5/M2-6. No owner design acceptance, retained-VM mutation/deletion, production settings/permissions or M3 approval is inferred. The O-1 update below separately authorizes disposable validation for the storage probe. Existing security blockers remain gates; source/license reuse decision D-12 remains unresolved where actual external source is unavailable. New source/helper designs remain review proposals until reviewed; development is not deployment.
+The owner previously authorized pushes/merges once satisfied and explicitly adding their DCO signature for M2-3/M2-4. That signature exception does not automatically extend to M2-5/M2-6. No owner design acceptance, retained-VM mutation/deletion, production settings/permissions or M3 approval is inferred. The O-1 update below separately authorizes disposable validation for the storage probe. D-12's supplied MIT source and concept-reuse disposition are recorded above. New source/helper designs remain review proposals until reviewed; development is not deployment.
 
 ## Storage probe O-1 (M2-4; distinct from O-1/D-10 module configuration)
 
-**Owner update, 2026-11-17:** “O-1 decision updates to ALL AHEAD GO.” This authorizes proceeding with the separate native, read-only storage-probe implementation and its isolated validation, including a narrowly designed read-only raw-block-device access policy for enumerated eligible devices. The helper may use only fixed `blkid` and `lvs`/`pvs --readonly` templates; no storage writes, mounts, character devices, `CAP_SYS_ADMIN`, or live device-mapper status (O-2). Device access must be constrained by a closed systemd device policy with read-only access to explicitly reviewed block-device classes, and the helper must report partial/unavailable results rather than treating denied access as an empty inventory. The API trigger must be an explicit CSRF-protected POST under a separate, non-default `storage.probe` scope, with count-only audit and broker-side rate limiting; no polling GET may probe disks.
+**Owner update, 2026-11-18:** “O-1 decision updates to ALL AHEAD GO.” This authorizes proceeding with the separate native, read-only storage-probe implementation and its isolated validation, including a narrowly designed read-only raw-block-device access policy for enumerated eligible devices. The helper reads native LVM metadata from pinned read-only descriptors and uses fixed `blkid` invocation only; it performs no storage writes, mounts, character-device access, `CAP_SYS_ADMIN`, or live device-mapper status reads (O-2). Device access is constrained by a closed systemd device policy with read-only access to reviewed block-device classes, and the helper reports partial/unavailable results rather than treating denied access as an empty inventory. The API trigger is an explicit CSRF-protected POST under the separate, non-default `storage.probe` scope, with count-only audit and broker-side rate limiting; no polling GET probes disks.
 
 This approval covers implementation and isolated testing only, including disposable validation for this O-1 work. Use disposable test media in disposable VMs/containers; do not probe host or production disks. It does not approve enabling the socket on a host, production activation/deployment, M2 acceptance, or O-2.

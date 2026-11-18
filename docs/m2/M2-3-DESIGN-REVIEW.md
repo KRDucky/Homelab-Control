@@ -379,10 +379,13 @@ units can therefore not be enabled or disabled from the UI, by any name.
   secrets in URL query strings, and keys whose names do not contain the listed words. See O-2.
 - **Timers and sockets** are listed with systemd's own fields; unknown or null values are shown as unknown.
 
-## 5. D-10: minimal module registry (proposed implementation, for owner review)
-D-10 remains **open**. This implements its recommended option (built-in, compiled-in modules) minimally:
-- `internal/modules` (no privileged code; imported by `hc-api` and `hc-broker`): one module, `services`,
-  declaring its title, scopes, API route prefix `/api/v1/services` and broker op prefix `services.`.
+## 5. D-10: minimal module registry (approved architecture; implementation review)
+D-10's architecture choice was approved 2026-11-18 as P-1 (built-in, compiled-in modules with a root-owned
+`/etc/homelab-control/modules.json`). This records the choice only; M2-3 implementation review and
+acceptance items below remain open:
+- `internal/modules` (no privileged code; imported by `hc-api` and `hc-broker`): compiled-in first-party
+  modules declare their title, scopes, API route prefix and broker op prefix. The initial M2-3 registry
+  contained `services`; storage is now also registered with its API, broker-operation and UI prefixes.
 - **Setting:** `/etc/homelab-control/modules.json` (`{"version":1,"disabled":["services"]}`), root-owned,
   not group/world-writable, not a symlink, strictly decoded. Missing file = defaults (all enabled). Any
   invalid file **disables every optional module** (fail closed) and is logged. The design note said "owner

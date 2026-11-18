@@ -144,7 +144,7 @@ func (s *Server) handle(ctx context.Context, c *net.UnixConn) {
 		s.reply(c, fail(proto.CodeUnknownOp, "no such operation"))
 		return
 	}
-	// Module registry (M2-3, D-10 proposal): ops of a module the administrator
+	// Module registry (M2-3, approved D-10 architecture): ops of a module the administrator
 	// disabled are refused before any scope check or handler runs.
 	if mod := modules.ForOp(op.Name); !s.Env.Modules.Enabled(mod) {
 		ev.Outcome = proto.CodeModuleDisabled

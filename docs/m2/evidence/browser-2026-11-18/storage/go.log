@@ -1,0 +1,17 @@
+go: downloading golang.org/x/sys v0.48.0
+go: downloading github.com/coreos/go-oidc/v3 v3.21.0
+go: downloading golang.org/x/oauth2 v0.37.0
+go: downloading github.com/go-jose/go-jose/v4 v4.1.7
+go: downloading modernc.org/sqlite v1.60.1
+go: downloading modernc.org/libc v1.77.1
+go: downloading github.com/dustin/go-humanize v1.0.1
+go: downloading github.com/google/uuid v1.6.0
+go: downloading modernc.org/mathutil v1.7.1
+go: downloading modernc.org/memory v1.12.1
+go: downloading github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec
+=== RUN   TestStorageBrowserFixture
+    storage_browser_test.go:145: labelled loopback fixture ready; credentials withheld
+    storage_browser_test.go:165: fixture shutdown: persisted observations verified; no host data or privileged operations
+--- PASS: TestStorageBrowserFixture (1.73s)
+PASS
+ok  	homelab-control/backend/internal/api	1.800s
