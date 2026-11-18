@@ -2,24 +2,30 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { ApiError, getFileEntries, getFileRoots, type FileEntry, type FileRoot } from '../api';
 import { DataTable } from '../DataTable';
+import {
+  KIND_LABEL,
+  childPath,
+  cleanPath,
+  displayName,
+  filterByName,
+  locationSearch,
+  parentPath,
+  parseMode,
+  readLocation,
+  type FilesLocation,
+} from '../filesModel';
 import { formatBytes } from '../format';
 import { Icon } from '../icons';
 import { explain } from '../useData';
 
-// Read-only HCIS FileBrowser port: tree + table + breadcrumbs. New folder,
-// Permissions and Download from the reference mock are not shown and never POST.
-// Preview never downloads content. files.read never implies a write.
-
-function jailPath(path: string): string {
-  return path === '.' ? '' : path;
-}
-
-function childPath(base: string, name: string): string {
-  return base ? `${base}/${name}` : name;
-}
+// Read-only HCIS FileBrowser port: tree + table + breadcrumbs + details. New
+// folder, Permissions and Download from the reference mock are not shown and
+// never POST. Nothing downloads content. files.read never implies a write. The
+// server enforces the confined roots; the UI only sends root ids and relative
+// paths it was given (ADR 0012).
 
 function dirKey(root: string, path: string): string {
   return `${root}\0${path}`;
@@ -28,6 +34,10 @@ function dirKey(root: string, path: string): string {
 function formatMtime(iso: string): string {
   const t = Date.parse(iso);
   return Number.isFinite(t) ? new Date(t).toLocaleString() : iso;
+}
+
+function kindOf(e: FileEntry) {
+  return parseMode(e.mode)?.kind ?? (e.dir ? 'directory' : 'other');
 }
 
 function FilesTree({
@@ -60,7 +70,7 @@ function FilesTree({
                 onClick={() => onOpen(rootId, p)}
               >
                 <Icon name="folder" />
-                <span className="mono">{name}</span>
+                <span className="mono">{displayName(name)}</span>
               </button>
               {open && <Nodes rootId={rootId} base={p} />}
             </li>
@@ -93,6 +103,77 @@ function FilesTree({
   );
 }
 
+function EntryDetails({ entry, onClose }: { entry: FileEntry; onClose: () => void }) {
+  const m = parseMode(entry.mode);
+  const special = m ? [m.setuid && 'setuid', m.setgid && 'setgid', m.sticky && 'sticky'].filter(Boolean) : [];
+  return (
+    <section className="files-details" aria-labelledby="files-details-title">
+      <header className="files-details-head">
+        <h2 id="files-details-title">Details</h2>
+        <button type="button" className="ghost small" onClick={onClose}>
+          Close details
+        </button>
+      </header>
+      <dl className="facts">
+        <div>
+          <dt>Name</dt>
+          <dd className="mono">{displayName(entry.name)}</dd>
+        </div>
+        <div>
+          <dt>Type</dt>
+          <dd>{KIND_LABEL[kindOf(entry)]}</dd>
+        </div>
+        <div>
+          <dt>Size</dt>
+          <dd>
+            {entry.dir ? (
+              <span className="muted">Not shown for folders</span>
+            ) : (
+              <>
+                {formatBytes(entry.size)} <span className="muted">({entry.size.toLocaleString()} bytes)</span>
+              </>
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>Owner (uid:gid)</dt>
+          <dd className="mono">{entry.owner}</dd>
+        </div>
+        <div>
+          <dt>Mode</dt>
+          <dd>
+            <span className="mono">{entry.mode}</span>
+            {m && (
+              <>
+                {' '}
+                <span className="muted">
+                  octal <span className="mono">{m.octal}</span>
+                  {special.length > 0 && `, ${special.join(', ')}`}
+                </span>
+              </>
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>Modified</dt>
+          <dd>
+            {entry.mtime ? (
+              <>
+                {formatMtime(entry.mtime)} <span className="muted mono">{entry.mtime}</span>
+              </>
+            ) : (
+              <span className="muted">Not reported</span>
+            )}
+          </dd>
+        </div>
+      </dl>
+      {kindOf(entry) === 'symlink' && (
+        <p className="muted">Symbolic links are listed but never followed or opened.</p>
+      )}
+    </section>
+  );
+}
+
 function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: () => void }) {
   const [roots, setRoots] = useState<FileRoot[] | null>(null);
   const [browseAvailable, setBrowseAvailable] = useState(true);
@@ -102,30 +183,66 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
   const [dirs, setDirs] = useState<Record<string, string[]>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [filter, setFilter] = useState('');
+  const [selected, setSelected] = useState<number | null>(null);
+  const [announce, setAnnounce] = useState('');
+  // Only the latest request may update the view: a slow earlier listing must not
+  // replace a newer one the user already navigated to.
+  const generation = useRef(0);
+  const locationRef = useRef<HTMLHeadingElement>(null);
 
   const loadEntries = useCallback(
-    async (id: string, rel: string) => {
+    async (id: string, rel: string, history: 'push' | 'replace' | 'none', focus: boolean) => {
+      const gen = ++generation.current;
       setBusy(true);
       setError(null);
       try {
         const next = await getFileEntries(id, rel, csrf);
-        const cleaned = jailPath(next.path);
+        if (gen !== generation.current) return;
+        const cleaned = cleanPath(next.path);
         setRootId(next.root);
         setPath(cleaned);
         setEntries(next.entries);
+        setFilter('');
+        setSelected(null);
         setDirs((prev) => ({
           ...prev,
           [dirKey(next.root, cleaned)]: next.entries.filter((e) => e.dir).map((e) => e.name),
         }));
+        const n = next.entries.length;
+        setAnnounce(`${n} ${n === 1 ? 'item' : 'items'} in ${cleaned || 'the root folder'}`);
+        if (history !== 'none') {
+          const url = `${window.location.pathname}${locationSearch({ root: next.root, path: cleaned })}`;
+          if (history === 'push') window.history.pushState(null, '', url);
+          else window.history.replaceState(null, '', url);
+        }
+        if (focus) window.setTimeout(() => locationRef.current?.focus(), 0);
       } catch (err) {
+        if (gen !== generation.current) return;
         if (err instanceof ApiError && err.status === 401) onUnauthorized();
         setEntries(null);
+        setSelected(null);
         setError(err instanceof ApiError ? err.message : explain(err as Error));
       } finally {
-        setBusy(false);
+        if (gen === generation.current) setBusy(false);
       }
     },
     [csrf, onUnauthorized],
+  );
+
+  const open = useCallback(
+    (id: string, rel: string) => void loadEntries(id, rel, 'push', true),
+    [loadEntries],
+  );
+
+  const startAt = useCallback(
+    (list: FileRoot[], loc: FilesLocation | null, history: 'replace' | 'none') => {
+      const wanted = loc && list.some((r) => r.id === loc.root) ? loc : null;
+      const first = list[0];
+      if (wanted) void loadEntries(wanted.root, wanted.path, history, false);
+      else if (first) void loadEntries(first.id, '', history, false);
+    },
+    [loadEntries],
   );
 
   const load = useCallback(async () => {
@@ -135,10 +252,8 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
       const r = await getFileRoots(csrf);
       setBrowseAvailable(r.browse_available);
       setRoots(r.roots);
-      const first = r.roots[0];
-      if (r.browse_available && first) {
-        setRootId(first.id);
-        await loadEntries(first.id, '');
+      if (r.browse_available && r.roots.length > 0) {
+        startAt(r.roots, readLocation(window.location.search), 'replace');
         return;
       }
       setBusy(false);
@@ -149,15 +264,37 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
       setError(err instanceof ApiError ? err.message : explain(err as Error));
       setBusy(false);
     }
-  }, [csrf, loadEntries, onUnauthorized]);
+  }, [csrf, onUnauthorized, startAt]);
 
   useEffect(() => {
     const t = window.setTimeout(() => void load(), 0);
     return () => window.clearTimeout(t);
   }, [load]);
 
+  // Back/forward restore the folder from the URL without adding history.
+  useEffect(() => {
+    const onPop = () => {
+      if (roots && roots.length > 0 && window.location.pathname === '/files') {
+        startAt(roots, readLocation(window.location.search), 'none');
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [roots, startAt]);
+
   const currentRoot = roots?.find((r) => r.id === rootId);
+  const rootLabel = currentRoot?.label ?? rootId;
   const parts = path.split('/').filter(Boolean);
+  const up = parentPath(path);
+  const shown = entries ? filterByName(entries, filter) : [];
+  const detail = selected !== null && entries ? (entries[selected] ?? null) : null;
+
+  function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    if (e.altKey && e.key === 'ArrowUp' && up !== null && !busy) {
+      e.preventDefault();
+      open(rootId, up);
+    }
+  }
 
   return (
     <>
@@ -170,30 +307,30 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
           {error}
         </p>
       )}
+      <p className="visually-hidden" role="status" aria-live="polite">
+        {announce}
+      </p>
       {roots && (!browseAvailable || roots.length === 0) && (
         <p className="banner" role="status">
           No browseable file roots are configured on this server.
         </p>
       )}
       {roots && browseAvailable && roots.length > 0 && (
-        <div className="files-browser">
-          <FilesTree
-            roots={roots}
-            currentRoot={rootId}
-            currentPath={path}
-            dirs={dirs}
-            onOpen={(id, rel) => void loadEntries(id, rel)}
-          />
+        <div className="files-browser" onKeyDown={onKeyDown}>
+          <FilesTree roots={roots} currentRoot={rootId} currentPath={path} dirs={dirs} onOpen={open} />
           <div className="files-main">
             <div className="files-path">
+              <h2 className="visually-hidden" tabIndex={-1} ref={locationRef}>
+                {path ? `${rootLabel}: ${path}` : rootLabel}
+              </h2>
               <nav className="files-crumbs" aria-label="Breadcrumb">
                 <ol>
                   <li>
                     {path === '' ? (
-                      <span aria-current="page">{currentRoot?.label ?? rootId}</span>
+                      <span aria-current="page">{rootLabel}</span>
                     ) : (
-                      <button type="button" onClick={() => void loadEntries(rootId, '')}>
-                        {currentRoot?.label ?? rootId}
+                      <button type="button" onClick={() => open(rootId, '')}>
+                        {rootLabel}
                       </button>
                     )}
                   </li>
@@ -204,15 +341,11 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
                       <li key={rel}>
                         {last ? (
                           <span className="mono" aria-current="page">
-                            {part}
+                            {displayName(part)}
                           </span>
                         ) : (
-                          <button
-                            type="button"
-                            className="mono"
-                            onClick={() => void loadEntries(rootId, rel)}
-                          >
-                            {part}
+                          <button type="button" className="mono" onClick={() => open(rootId, rel)}>
+                            {displayName(part)}
                           </button>
                         )}
                       </li>
@@ -221,15 +354,56 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
                 </ol>
               </nav>
             </div>
+            <div className="files-toolbar">
+              <button
+                type="button"
+                className="ghost small"
+                disabled={up === null || busy}
+                onClick={() => up !== null && open(rootId, up)}
+                aria-keyshortcuts="Alt+ArrowUp"
+              >
+                Up one level
+              </button>
+              <button
+                type="button"
+                className="ghost small"
+                disabled={busy || !rootId}
+                onClick={() => void loadEntries(rootId, path, 'none', false)}
+              >
+                Refresh
+              </button>
+              <label className="inline-field grow">
+                Filter by name
+                <input
+                  type="search"
+                  value={filter}
+                  maxLength={255}
+                  onChange={(e) => setFilter(e.target.value)}
+                  disabled={!entries}
+                />
+              </label>
+              {entries && (
+                <span className="muted" aria-live="polite">
+                  {filter.trim() ? `${shown.length} of ${entries.length} items` : `${entries.length} items`}
+                </span>
+              )}
+            </div>
             {entries && (
               <DataTable
-                caption={path === '' ? `Contents of ${currentRoot?.label ?? rootId}` : `Contents of ${path}`}
-                rowKey={(e) => e.name}
-                emptyState={busy ? 'Reading directory…' : 'This directory is empty.'}
+                caption={path === '' ? `Contents of ${rootLabel}` : `Contents of ${path}`}
+                rowKey={(e) => `${entries.indexOf(e)}\u0000${e.name}`}
+                emptyState={
+                  busy
+                    ? 'Reading directory…'
+                    : filter.trim()
+                      ? 'No names match the filter.'
+                      : 'This directory is empty.'
+                }
                 columns={[
                   {
                     id: 'name',
                     label: 'Name',
+                    rowHeader: true,
                     sortValue: (e) => `${e.dir ? '0' : '1'}${e.name}`,
                     render: (e) => (
                       <span className="files-name">
@@ -238,20 +412,26 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
                           <button
                             type="button"
                             className="mono"
-                            onClick={() => void loadEntries(rootId, childPath(path, e.name))}
+                            onClick={() => open(rootId, childPath(path, e.name))}
                           >
-                            {e.name}
+                            {displayName(e.name)}
                           </button>
                         ) : (
-                          <span className="mono">{e.name}</span>
+                          <span className="mono">{displayName(e.name)}</span>
                         )}
                       </span>
                     ),
                   },
                   {
+                    id: 'type',
+                    label: 'Type',
+                    sortValue: (e) => KIND_LABEL[kindOf(e)],
+                    render: (e) => KIND_LABEL[kindOf(e)],
+                  },
+                  {
                     id: 'size',
                     label: 'Size',
-                    sortValue: (e) => e.size,
+                    sortValue: (e) => (e.dir ? -1 : e.size),
                     render: (e) => (e.dir ? <span className="muted">—</span> : formatBytes(e.size)),
                   },
                   {
@@ -272,11 +452,30 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
                     sortValue: (e) => e.mtime,
                     render: (e) => e.mtime && formatMtime(e.mtime),
                   },
+                  {
+                    id: 'details',
+                    label: 'Details',
+                    render: (e) => {
+                      const idx = entries.indexOf(e);
+                      return (
+                        <button
+                          type="button"
+                          className="ghost small"
+                          aria-label={`Details for ${displayName(e.name)}`}
+                          aria-pressed={selected === idx}
+                          onClick={() => setSelected(selected === idx ? null : idx)}
+                        >
+                          Details
+                        </button>
+                      );
+                    },
+                  },
                 ]}
-                rows={entries}
+                rows={shown}
               />
             )}
             {busy && !entries && <p className="muted">Reading directory…</p>}
+            {detail && <EntryDetails entry={detail} onClose={() => setSelected(null)} />}
           </div>
         </div>
       )}
@@ -299,7 +498,7 @@ export function FilesPage({
         <h1 className="page-title">Files</h1>
         <p className="page-sub">
           Names, owners and modes inside allow-listed roots. Homelab Control never returns host paths, and
-          this page does not download file contents.
+          this page does not download file contents. Alt+Up opens the parent folder.
         </p>
       </header>
       {!canRead ? (

@@ -1,13 +1,16 @@
 # Current status — local M2 closeout candidate (2026-11-18); M2 remains open
 
-The current review candidate is local branch `dreggbot/m2-final-closeout` at `b07af70d`, based on
-`main` `59170f772e907d21a41842401c292c610e7ff4b3`; it is not pushed or merged. It records M2-4
-acceptance evidence and 107 passing synthetic browser checks across files, layout, storage and host
-settings. The closeout candidate registers storage with the root-owned module switch; its new
-storage-specific Go tests are not yet verified. M2 remains **open** pending M2-3 design/acceptance decisions and KVM evidence, M2-5, M2-6
-and file-manager owner acceptance, and the final M2 close decision. D-9 and D-10 are decided; D-12's
-supplied source has been reviewed and its concept-reuse disposition recorded. M2-4 is read-only
-inventory; its helper remains disabled by default. See
+The working integration candidate is local branch `dreggbot/m2-acceptance-integration` at
+`993c3758` plus a staged File Manager UI patch and documentation/evidence updates; it has not been
+pushed or merged. The M2-6 storage-module test repairs and confirmation-cancel coverage are committed
+at that base. The File Manager UI adds read-only navigation and metadata over the existing confined
+API; its implementer reports 47 fixture checks and clean axe/mobile results, but this environment
+cannot rerun frontend or Go tests (Node/npm/Go are unavailable). A static security review found no
+Critical/High/Medium issues and four Low findings, two of which have a focused UI repair underway.
+M2-3 Phase A and B VM testing is authorized, but blocked until a CI-built package and provenance for
+the exact clean candidate tree are available; no guest operation ran. M2 remains **open** pending
+M2-3 decisions and KVM evidence, M2-5/M2-6/File Manager owner acceptance, open ADRs, and final M2
+sign-off. M2-4 is read-only inventory; its helper remains disabled by default. See
 [`m2/evidence/browser-2026-11-18/README.md`](m2/evidence/browser-2026-11-18/README.md).
 
 The historical reconciliation below remains a record of the 2026-11-07 main snapshot; it is not the
@@ -232,11 +235,17 @@ remains disabled by default. This does not authorize host activation or close M2
 
 ## M2-5: manual drive-layout Stage A (local closeout candidate; owner acceptance open)
 
-Manual/unverified assignments, import/export, and versioned changes are implemented. Synthetic
-Playwright+axe evidence: 18 checks pass, desktop/mobile axe zero violations, no mobile overflow.
+Manual/unverified assignments, import/export, and versioned changes are implemented. hc-ui reports
+18 focused checks and 204 total Vitest checks passing, plus typecheck/lint/format; these results were
+not rerun in the integration environment. Synthetic Playwright+axe evidence: 18 checks pass,
+desktop/mobile axe zero violations, no mobile overflow.
 The owner-supplied `KRDucky/hbaviewer-cockpit` source is MIT-licensed. Its bay-layout concept informs
 Stage A; no upstream code or privileged Cockpit/Python runtime was copied. Credits and license
 compatibility are recorded in `OWNER-DECISIONS.md` and `MODULE-ARCHITECTURE.md`. No owner acceptance
+Static security review found a Medium issue: mutation responses can disclose serial/WWN to a
+`layout.manage`-only caller without `storage.read`. A targeted repair and regression coverage are
+underway. The review also identified three Low findings (redacted export retains metadata, import
+cap is 64 KiB despite the documented 8 MiB, and text/plain drops are accepted). No owner acceptance
 or merge is implied. See `docs/m2/M2-5-STAGE-A-ACCEPTANCE.md` and
 `docs/m2/evidence/browser-2026-11-18/`.
 
@@ -255,9 +264,12 @@ existing local account; scopes stay on the local account. Notes: [`docs/security
 ## M2-6: hostname and timezone apply (local closeout candidate; not owner-accepted)
 
 The synthetic Playwright fixture has 33 passing checks, zero desktop/mobile axe violations, and no
-mobile overflow. Its apply-capable account opens the confirmation UI; one dry-run plan reaches only a
-fail-closed fake broker, with zero apply requests. No host settings changed. Distro/KVM coverage,
-documentation and owner acceptance remain open.
+mobile overflow. DeepSeek added a confirmation-cancel regression test (reported in 205 total Vitest
+checks) and repaired two storage-module test expectations; focused Go, full frontend, vet, typecheck
+and lint checks were reported passing in its isolated branch, not rerun here. Its apply-capable
+account opens the confirmation UI; one dry-run plan reaches only a fail-closed fake broker, with zero
+apply requests. No host settings changed. Distro/KVM coverage, documentation and owner acceptance
+remain open.
 
 Owner-authorized collaborative development of hostname (static and pretty) and timezone apply. On `main`:
 read-only skeleton PR #40 (`1f885993`, 2026-11-06); apply backend PR #41 (`4c3c30a7`, 2026-11-07);
@@ -273,8 +285,12 @@ not production, not KVM acceptance, and not M2 close. Working notes:
 
 ## File manager: read-only listing (local closeout candidate; not accepted)
 
-The synthetic Playwright fixture has 33 passing checks, zero desktop/mobile axe violations, and no
-mobile overflow. ADR 0012 and owner acceptance remain open; no write operations are in scope.
+The new navigation/details UI implementer reports 47 fixture checks, zero desktop/mobile axe
+violations and no mobile overflow; evidence is preserved in `docs/m2/evidence/browser-2026-11-18/files-ui/`.
+The integration host cannot rerun these checks because Node/npm/Go are unavailable. Static review
+found no Critical/High/Medium issues but reported four Low findings: filename spoofing, invalid UTF-8
+or backslash names, unreadable directories appearing empty, and truncated audit paths. A UI repair for
+the first two is underway. ADR 0012 and owner acceptance remain open; no write operations are in scope.
 
 Owner `ask_ui` selected the file manager after squash-merging PR #42. Isolated **read-only** listing and
 stat of entries under allow-listed confined roots (`files.read`, never default). `hc-api` reopens each

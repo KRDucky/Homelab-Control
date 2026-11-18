@@ -27,7 +27,11 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
 - Evidence: `../evidence/m2/m2-3/review-c0f620de/` (final candidate), `review-eb2fc2d4/`, `review-f8d3af2e/`,
   `review-00fb7f2b/` (earlier rounds) and the
   CI run named in `M2-3-KVM-ACCEPTANCE-PROCEDURE.md`.
-  KVM validation is a separate, not yet authorized step.
+  The owner authorized M2-3 KVM Phase A and Phase B on 2026-11-18. Neither has run: the current
+  closeout candidate differs from the runbook's pinned CI revision, and that revision and its package
+  artifacts are absent from this checkout. Do not install the stale packages; generate CI packages and
+  provenance for the exact candidate first. See `M2-3-KVM-ACCEPTANCE-PROCEDURE.md` for the current
+  blocker and the authorization boundary.
 
 "Pass" below means the stated evidence exists and passed; it is not the owner's acceptance.
 
@@ -40,7 +44,7 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
 | Unit details: dependencies, unit-file path, last exit, restart counters | Pass | `TestBuildDetailDoesNotInventState`; container; browser B10 |
 | Bounded, read-only unit-file contents (`services.files`) | Pass | `TestParseCat` (64 KiB / 2,000 lines, control characters); container; browser B10 |
 | Unloaded, missing, static, generated, template, alias units without invented state | Pass | Detail notes for each case (unit tests); container: template, alias, not-in-inventory 404 |
-| Module registry, capability-aware navigation, disabled routes 404, broker ops refused | Pass for services; storage registry wiring added in M2-4 closeout candidate and awaits its exact test run | `TestDisabledModuleRoutes404`, `TestDisabledModuleOpsRefused`; storage: `TestStorageModuleDisabledBeforeCollectionOrBroker`, `TestDisabledStorageModuleRefusesProbe` (added; not run on this candidate) |
+| Module registry, capability-aware navigation, disabled routes 404, broker ops refused | Storage API/module disable tests passed on `993c3758`; the broker-server refusal regression is present but was not in the reported targeted test commands | `TestDisabledModuleRoutes404`, `TestStorageModuleDisabledBeforeCollectionOrBroker`, `TestDisabledStorageModuleRefusesProbe`; `TestDisabledModuleOpsRefused` remains to run |
 | D-10 design choice | Decided 2026-11-18: built-in modules with root-owned `modules.json` (P-1) | `OWNER-DECISIONS.md` D-10 |
 | No executable plugin framework | Pass | Compiled-in registry only; no loading |
 

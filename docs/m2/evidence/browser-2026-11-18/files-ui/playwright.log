@@ -1,0 +1,48 @@
+PASS real login and files heading
+PASS no host path text /tmp
+PASS no host path text /home
+PASS no host path text /etc
+PASS no host path text /tmp/hc-files-rt.Hj2W/jail
+PASS table lists readme.txt
+PASS root label Lab files
+PASS first entries GET uses empty path
+PASS roots and entries requests observed
+PASS X-CSRF-Token on /api/v1/files/roots
+PASS client did not set Origin on /api/v1/files/roots
+PASS X-CSRF-Token on /api/v1/files/entries
+PASS client did not set Origin on /api/v1/files/entries
+PASS cookie-only files roots refused (CSRF token required)
+PASS cookie-only files entries refused (CSRF token required)
+PASS New folder absent
+PASS Permissions absent
+PASS Download absent
+PASS no files write methods
+PASS files traffic is roots/entries GET only
+PASS opening sub is GET-only
+PASS opening sub does not download content
+PASS still no files write methods after sub
+PASS New folder still absent
+PASS Permissions still absent
+PASS Download still absent
+PASS folder location is in the URL
+PASS details show the octal mode
+PASS details never show file contents
+PASS up one level returns to the root
+PASS browser back restores the folder
+PASS Alt+ArrowUp opens the parent
+PASS filter keeps matching names
+PASS filter sends no request
+PASS deep link opens the folder after reload
+PASS escape path in the URL is refused by the server
+PASS New folder absent after navigation
+PASS Permissions absent after navigation
+PASS Download absent after navigation
+PASS no files write methods after navigation
+PASS desktop accessibility
+PASS mobile layout has no document overflow
+PASS mobile accessibility
+PASS limited account is told files.read is required
+PASS limited session has no files API 200
+PASS limited session never sees entry names
+PASS no page script errors
+RESULT 47 passed, 0 failed

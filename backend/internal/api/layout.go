@@ -67,13 +67,30 @@ func (s *Server) layoutAvailable(w http.ResponseWriter) bool {
 	return true
 }
 
-func (s *Server) writeLayout(w http.ResponseWriter, r *http.Request, status int) {
+func (s *Server) writeLayout(w http.ResponseWriter, r *http.Request, sess *auth.Session, status int) {
 	list, err := s.layouts.List(r.Context())
 	if err != nil {
 		writeError(w, http.StatusServiceUnavailable, "state_unavailable", "The drive-bay layout could not be read.")
 		return
 	}
+	if !sess.HasScope(auth.ScopeStorageRead) {
+		redactLayoutIdentities(list)
+	}
 	writeJSON(w, status, layoutResponse{Chassis: list})
+}
+
+// redactLayoutIdentities blanks every stored assignment identity (serial/WWN)
+// in place. A layout.manage caller without storage.read may write and see the
+// geometry and assignment metadata, but never the persistent identities, which
+// are released only through the audited storage read path.
+func redactLayoutIdentities(list []state.Chassis) {
+	for i := range list {
+		for j := range list[i].Cells {
+			if a := list[i].Cells[j].Assignment; a != nil {
+				a.Identity = ""
+			}
+		}
+	}
 }
 
 // handleLayout returns the stored layout. Assignments carry stored serial/WWN
@@ -168,7 +185,7 @@ func (s *Server) layoutWrite(w http.ResponseWriter, r *http.Request, sess *auth.
 		writeError(w, http.StatusServiceUnavailable, "audit_unavailable", "The layout change was saved, but its outcome could not be audited.")
 		return
 	}
-	s.writeLayout(w, r, status)
+	s.writeLayout(w, r, sess, status)
 }
 
 func (s *Server) handleLayoutCreate(w http.ResponseWriter, r *http.Request, sess *auth.Session, _ string) {
