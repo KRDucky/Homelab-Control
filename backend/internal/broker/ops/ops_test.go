@@ -368,3 +368,49 @@ func TestShowPropertiesMatchRunner(t *testing.T) {
 		t.Fatalf("parser %v\nrunner %v", want, got)
 	}
 }
+
+func TestSlowAdmissionSet(t *testing.T) {
+	slow := map[string]bool{
+		"packages.installed":     true,
+		"packages.updates":       true,
+		"packages.sources":       true,
+		"packages.search":        true,
+		"storage.probe":          true,
+		"services.systemd.list":  true,
+		"services.unit.logs":     true,
+		"services.timers.list":   true,
+		"services.sockets.list":  true,
+		"services.unit.detail":   true,
+		"services.unit.contents": true,
+	}
+	reg := Registry()
+	// Every registered op is either in the slow set or unclassified; no other
+	// admission class exists.
+	for name, op := range reg {
+		if slow[name] {
+			if op.Admission != AdmissionSlow {
+				t.Errorf("%s: want AdmissionSlow, got %q", name, op.Admission)
+			}
+		} else if op.Admission != "" {
+			t.Errorf("%s: unexpected admission class %q", name, op.Admission)
+		}
+	}
+	for name := range slow {
+		if _, ok := reg[name]; !ok {
+			t.Errorf("slow op %q missing from registry", name)
+		}
+	}
+	// Service write ops (plan/apply/enablement) stay unclassified.
+	for _, name := range []string{"services.unit.plan", "services.unit.apply", "services.enablement.plan", "services.enablement.apply"} {
+		op, ok := reg[name]
+		if !ok {
+			t.Fatalf("op %q missing", name)
+		}
+		if op.Admission != "" {
+			t.Errorf("%s: admission = %q, want unclassified", name, op.Admission)
+		}
+		if op.Write == nil {
+			t.Errorf("%s: expected a WriteSpec", name)
+		}
+	}
+}
