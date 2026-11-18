@@ -1989,7 +1989,7 @@ paths:
         Relative path inside an allow-listed jail. Empty path is the jail root.
         Uses in-process openat and O_NOFOLLOW; hc-api does not spawn; there is no broker file op.
         Jail escapes (.., extra slashes, symlink out) are refused. Audit records the root id and relative path
-        for short paths; deep or control-bearing paths use a labelled 128-bit SHA-256 digest to fit the bounded audit detail. It never records
+        for short paths in a conservative ASCII alphabet; other or deep paths use a labelled 128-bit SHA-256 digest to fit the bounded audit detail. It never records
         contents or the host jail path. Origin and X-CSRF-Token are required.
       security: [{ session: [] }]
       x-required-scope: files.read
