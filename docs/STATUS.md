@@ -1,16 +1,15 @@
 # Current status — local M2 closeout candidate (2026-11-18); M2 remains open
 
-The working integration candidate is local branch `dreggbot/m2-acceptance-integration` at
-`993c3758` plus a staged File Manager UI patch and documentation/evidence updates; it has not been
-pushed or merged. The M2-6 storage-module test repairs and confirmation-cancel coverage are committed
-at that base. The File Manager UI adds read-only navigation and metadata over the existing confined
-API; its implementer reports 47 fixture checks and clean axe/mobile results, but this environment
-cannot rerun frontend or Go tests (Node/npm/Go are unavailable). A static security review found no
-Critical/High/Medium issues and four Low findings, two of which have a focused UI repair underway.
-M2-3 Phase A and B VM testing is authorized, but blocked until a CI-built package and provenance for
-the exact clean candidate tree are available; no guest operation ran. M2 remains **open** pending
-M2-3 decisions and KVM evidence, M2-5/M2-6/File Manager owner acceptance, open ADRs, and final M2
-sign-off. M2-4 is read-only inventory; its helper remains disabled by default. See
+The working integration candidate is local branch `dreggbot/m2-acceptance-integration`; the M2-6
+closeout is committed at `993c3758`, and the assembled code/evidence candidate is being prepared for
+an authorized review PR. It includes a read-only File Manager UI over the existing confined API, M2-5
+identity redaction, export/drop safeguards and the focused File Manager display/backend repairs.
+Implementers report the frontend suite, Go suite, vet, build and synthetic browser checks passing on
+their isolated branches; those reports are not yet rerun on the integrated candidate. This host lacks
+Node/npm/Go. The new PR's exact-CI packages and provenance must precede M2-3 guest testing; no current-
+candidate guest run has happened. M2 remains **open** pending KVM/distro evidence, owner acceptance,
+ADR dispositions and final M2 sign-off. M2-4 is read-only inventory; its helper remains disabled by
+default. See
 [`m2/evidence/browser-2026-11-18/README.md`](m2/evidence/browser-2026-11-18/README.md).
 
 The historical reconciliation below remains a record of the 2026-11-07 main snapshot; it is not the
@@ -192,6 +191,12 @@ path ready for guest or host write tests.
 
 ## M2-3: expanded service management (development authorized 2026-11-04; implementation not accepted)
 
+**Current update (2026-11-18):** the owner authorized KVM Phase A and Phase B and opening an M2 PR. The
+historical CI artifact for `40801659` is still available, but current code changes to routing/CSRF,
+module registration and service-write support make it stale for this candidate. No VM has run yet.
+Use the exact CI package built from the M2 PR before testing. Merge and production activation remain
+separate decisions.
+
 The owner authorized M2-3 development and isolated testing on 2026-11-04; owner acceptance and production
 activation remain separate owner decisions (`docs/m2/OWNER-DECISIONS.md`, owner items O-1…O-5). The working
 skeleton is on `main` as PR #36 (`a548f52f`, 2026-11-06). This is not M2-3 acceptance, not production, not
@@ -242,11 +247,13 @@ desktop/mobile axe zero violations, no mobile overflow.
 The owner-supplied `KRDucky/hbaviewer-cockpit` source is MIT-licensed. Its bay-layout concept informs
 Stage A; no upstream code or privileged Cockpit/Python runtime was copied. Credits and license
 compatibility are recorded in `OWNER-DECISIONS.md` and `MODULE-ARCHITECTURE.md`. No owner acceptance
-Static security review found a Medium issue: mutation responses can disclose serial/WWN to a
-`layout.manage`-only caller without `storage.read`. A targeted repair and regression coverage are
-underway. The review also identified three Low findings (redacted export retains metadata, import
-cap is 64 KiB despite the documented 8 MiB, and text/plain drops are accepted). No owner acceptance
-or merge is implied. See `docs/m2/M2-5-STAGE-A-ACCEPTANCE.md` and
+Static review found and repaired the medium identity disclosure (write responses omit assignment
+identity without `storage.read`), plus three lows: export now omits identity and assignment metadata,
+uses a dedicated 8 MiB import cap, and accepts only the custom drive drag type while not busy. Backend
+follow-ups make non-searchable directories report permission errors and preserve deep paths in audit
+data. Implementers report focused regression coverage and full Go/UI checks passing on isolated
+branches; integrated-candidate checks remain outstanding. No owner acceptance or merge is implied.
+See `docs/m2/M2-5-STAGE-A-ACCEPTANCE.md` and
 `docs/m2/evidence/browser-2026-11-18/`.
 
 Stage A is manual chassis/bay layout in app state (no host writes, no new broker op). D-12 source
@@ -285,12 +292,13 @@ not production, not KVM acceptance, and not M2 close. Working notes:
 
 ## File manager: read-only listing (local closeout candidate; not accepted)
 
-The new navigation/details UI implementer reports 47 fixture checks, zero desktop/mobile axe
+The navigation/details UI implementer reports 47 synthetic fixture checks, zero desktop/mobile axe
 violations and no mobile overflow; evidence is preserved in `docs/m2/evidence/browser-2026-11-18/files-ui/`.
-The integration host cannot rerun these checks because Node/npm/Go are unavailable. Static review
-found no Critical/High/Medium issues but reported four Low findings: filename spoofing, invalid UTF-8
-or backslash names, unreadable directories appearing empty, and truncated audit paths. A UI repair for
-the first two is underway. ADR 0012 and owner acceptance remain open; no write operations are in scope.
+The integration host cannot rerun these checks because Node/npm/Go are unavailable. Static review's
+filename spoofing, table-detail collision, unreadable-directory and audit-path findings have focused
+repairs; invalid UTF-8/backslash navigation is still being resolved on the backend. Implementer test
+reports are not yet rerun on the integrated candidate. ADR 0012 and owner acceptance remain open; no
+write operations are in scope.
 
 Owner `ask_ui` selected the file manager after squash-merging PR #42. Isolated **read-only** listing and
 stat of entries under allow-listed confined roots (`files.read`, never default). `hc-api` reopens each

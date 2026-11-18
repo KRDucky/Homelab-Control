@@ -5,6 +5,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -77,9 +78,15 @@ func (s *Server) handleFilesEntries(w http.ResponseWriter, r *http.Request, sess
 		s.filesListError(w, err)
 		return
 	}
-	// Audit root id + relative path only. Never contents, never the jail path.
-	detail := "root=" + id + " path=" + cleaned
-	if err := s.auditLog("files.entries.read", sess.Username, r, "returned", detail); err != nil {
+	// Audit root id + a short summary; the full relative path goes in Data so a
+	// deep path is not truncated by the 128-byte Detail sanitizer. Never
+	// contents, never the jail path.
+	data, err := json.Marshal(map[string]string{"path": cleaned})
+	if err != nil {
+		writeError(w, http.StatusServiceUnavailable, "audit_unavailable", "Directory entries cannot be returned because their access could not be audited.")
+		return
+	}
+	if err := s.auditLogData("files.entries.read", sess.Username, r, "returned", "root="+id, data); err != nil {
 		writeError(w, http.StatusServiceUnavailable, "audit_unavailable", "Directory entries cannot be returned because their access could not be audited.")
 		return
 	}

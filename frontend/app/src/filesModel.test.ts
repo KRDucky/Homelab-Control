@@ -7,6 +7,7 @@ import {
   childPath,
   cleanPath,
   displayName,
+  displayPath,
   filterByName,
   locationSearch,
   parentPath,
@@ -105,5 +106,17 @@ describe('displayName', () => {
     expect(displayName('a\u0007b')).toBe('a\\u0007b'); // U+0007 BEL
     expect(displayName('a\u00adb')).toBe('a\\u00ADb'); // U+00AD SOFT HYPHEN
     expect(displayName('a\u2066b')).toBe('a\\u2066b'); // U+2066 LEFT-TO-RIGHT ISOLATE
+  });
+
+  it('escapes a literal backslash so escapes stay unambiguous', () => {
+    expect(displayName('a\\u202Eb')).toBe('a\\\\u202Eb'); // literal backslash-u-202E
+  });
+});
+
+describe('displayPath', () => {
+  it('escapes each segment of a path', () => {
+    expect(displayPath('a\u202eb/c')).toBe('a\\u202Eb/c');
+    expect(displayPath('a/b')).toBe('a/b');
+    expect(displayPath('')).toBe('');
   });
 });

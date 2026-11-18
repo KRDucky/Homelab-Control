@@ -4,7 +4,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { Chassis, DriveLayout, LayoutCell } from './api';
-import { assignable, bayState, redactedLayout, redactIdentity, unassignedDrives } from './bayModel';
+import { assignable, bayState, redactedLayout, unassignedDrives } from './bayModel';
 import { DriveBays } from './pages/DriveBays';
 import type { StorageNode } from './storageModel';
 
@@ -341,9 +341,10 @@ describe('Drives & bays panel', () => {
     const dataTransfer = {
       effectAllowed: '',
       setData: vi.fn(),
-      getData: vi.fn(() => 'wwn:naa.5000000000000f01'),
+      getData: vi.fn((t: string) => (t === 'application/x-hc-drive' ? 'wwn:naa.5000000000000f01' : '')),
     };
     fireEvent.dragStart(drive, { dataTransfer });
+    expect(dataTransfer.setData).toHaveBeenCalledWith('application/x-hc-drive', 'wwn:naa.5000000000000f01');
     fireEvent.dragOver(bayBtn, { dataTransfer });
     fireEvent.drop(bayBtn, { dataTransfer });
     await screen.findByText('Drive assigned (manual, unverified).');
@@ -353,6 +354,46 @@ describe('Drives & bays panel', () => {
       persistent_id: 'wwn:naa.5000000000000f01',
       version: 1,
     });
+  });
+
+  it('ignores a drop whose payload is not the drive drag type', async () => {
+    const bay: LayoutCell = { row: 0, col: 0, kind: 'hdd-3.5', label: 'Bay 1' };
+    const nas: Chassis = {
+      id: 7,
+      name: 'Example NAS',
+      kind: 'server',
+      rows: 1,
+      cols: 1,
+      version: 1,
+      created_at: '2026-11-06T00:00:00Z',
+      updated_at: '2026-11-06T00:00:00Z',
+      cells: [bay],
+    };
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ chassis: [nas] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    render(
+      <DriveBays
+        csrf="example-csrf"
+        nodes={[disk({})]}
+        canManage
+        preference="wwn"
+        onUnauthorized={() => undefined}
+      />,
+    );
+    const bayBtn = await screen.findByRole('button', { name: /Bay 1: No drive assigned/ });
+    const dataTransfer = {
+      effectAllowed: '',
+      setData: vi.fn(),
+      getData: vi.fn(() => ''), // only text/plain payload, not application/x-hc-drive
+    };
+    fireEvent.drop(bayBtn, { dataTransfer });
+    expect(fetchMock).toHaveBeenCalledTimes(1); // only the initial layout read, no assignment PUT
   });
 });
 
@@ -398,14 +439,7 @@ describe('bay reconciliation states', () => {
 });
 
 describe('export redaction', () => {
-  it('redacts identities to their tier only', () => {
-    expect(redactIdentity('wwn:naa.5000000000000f01')).toBe('wwn:[redacted]');
-    expect(redactIdentity('serial:S123')).toBe('serial:[redacted]');
-    expect(redactIdentity('nvme-uuid:abc')).toBe('nvme-uuid:[redacted]');
-    expect(redactIdentity('plain')).toBe('[redacted]');
-  });
-
-  it('redacts assignment identities in the exported layout', () => {
+  it('exports geometry and an assigned flag only, never identities or metadata', () => {
     const chassis: Chassis = {
       id: 7,
       name: 'Example NAS',
@@ -420,9 +454,32 @@ describe('export redaction', () => {
     const out = redactedLayout({ chassis: [chassis] });
     const [c] = out.chassis;
     expect(c?.name).toBe('Example NAS');
+    expect(c?.kind).toBe('server');
+    expect(c?.rows).toBe(1);
     expect(c?.cells[0]?.kind).toBe('hdd-3.5');
-    expect(c?.cells[0]?.assignment?.identity).toBe('wwn:[redacted]');
-    expect(c?.cells[0]?.assignment?.provenance).toBe('manual');
+    expect(c?.cells[0]?.label).toBe('Bay 1');
+    expect(c?.cells[0]?.assigned).toBe(true);
+    const serialized = JSON.stringify(out);
+    expect(serialized).not.toContain('naa.5000000000000f01');
+    expect(serialized).not.toContain('admin');
+    expect(serialized).not.toContain('provenance');
+    expect(serialized).not.toContain('assigned_by');
+  });
+
+  it('exports assigned:false for a vacant cell', () => {
+    const chassis: Chassis = {
+      id: 7,
+      name: 'Example NAS',
+      kind: 'server',
+      rows: 1,
+      cols: 1,
+      version: 1,
+      created_at: '2026-11-06T00:00:00Z',
+      updated_at: '2026-11-06T00:00:00Z',
+      cells: [{ row: 0, col: 0, kind: 'hdd-3.5', label: 'Bay 1' }],
+    };
+    const out = redactedLayout({ chassis: [chassis] });
+    expect(out.chassis[0]?.cells[0]?.assigned).toBe(false);
   });
 
   it('offers a redacted layout export', async () => {

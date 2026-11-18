@@ -6,6 +6,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -221,5 +222,28 @@ func TestFilesCapabilityDegradedWhenBrowsable(t *testing.T) {
 	c2 := caps(t, h2)["files"]
 	if c2.Status != CapForbidden {
 		t.Fatalf("%+v", c2)
+	}
+}
+
+func TestFilesAuditPreservesDeepPath(t *testing.T) {
+	h, jail := filesHarness(t, []string{auth.ScopeFilesRead})
+	// A relative path longer than the 128-byte Detail sanitizer.
+	var parts []string
+	for i := 0; i < 40; i++ {
+		parts = append(parts, fmt.Sprintf("seg%02d", i))
+	}
+	rel := strings.Join(parts, "/")
+	if err := os.MkdirAll(filepath.Join(jail, rel), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if len(rel) <= 128 {
+		t.Fatalf("test path too short: %d bytes", len(rel))
+	}
+	rr := h.do("GET", "/api/v1/files/entries?root=lab&path="+rel, "", filesHeaders(h))
+	if rr.Code != http.StatusOK {
+		t.Fatal(rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(h.audit.String(), `"path":"`+rel+`"`) {
+		t.Fatalf("audit did not preserve the full path: %s", h.audit.String())
 	}
 }

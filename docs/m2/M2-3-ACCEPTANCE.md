@@ -27,11 +27,13 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
 - Evidence: `../evidence/m2/m2-3/review-c0f620de/` (final candidate), `review-eb2fc2d4/`, `review-f8d3af2e/`,
   `review-00fb7f2b/` (earlier rounds) and the
   CI run named in `M2-3-KVM-ACCEPTANCE-PROCEDURE.md`.
-  The owner authorized M2-3 KVM Phase A and Phase B on 2026-11-18. Neither has run: the current
-  closeout candidate differs from the runbook's pinned CI revision, and that revision and its package
-  artifacts are absent from this checkout. Do not install the stale packages; generate CI packages and
-  provenance for the exact candidate first. See `M2-3-KVM-ACCEPTANCE-PROCEDURE.md` for the current
-  blocker and the authorization boundary.
+  The owner authorized M2-3 KVM Phase A and Phase B on 2026-11-18, and authorized opening an M2 PR
+  on 2026-11-18. Neither phase has run. GitHub still lists build artifact `13413879518` from run
+  `42026882569` on `40801659`; it is for the older validated tree. The current candidate changes
+  `server.go`, module registration and service write code since that revision, so those packages are
+  not valid evidence for the current candidate. Do not install them; obtain current-CI packages and
+  provenance from the M2 PR before guest testing. See `M2-3-KVM-ACCEPTANCE-PROCEDURE.md` for exact
+  provenance and the authorization boundary.
 
 "Pass" below means the stated evidence exists and passed; it is not the owner's acceptance.
 

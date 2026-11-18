@@ -31,8 +31,9 @@ fixture-tested end to end:
 - **Optimistic concurrency**: update/assign bodies carry the chassis `version` (the per-chassis
   compare-and-swap token) and delete/unassign send `?version=`; a stale version is a 409
   `layout_conflict`, which drops the snapshot and re-syncs the layout.
-- **Export**: the layout can be exported with assignment identifiers **redacted by default** (tier only,
-  e.g. `wwn:[redacted]`), so no serial/WWN value is written to the download.
+- **Export**: the layout can be exported without assignment identity or assignment metadata; it includes
+  geometry, labels and an `assigned` boolean only. Names and labels are exported as entered and are not
+  anonymized.
 - **Import**: a JSON file can be imported (POST `/api/v1/storage/layout/import`, scope `layout.manage`):
   the file is size-capped at 8 MiB before read, parsed and validated for a `chassis` array, and imported
   additively. Exported IDs, timestamps and assignment identities are discarded, so imports only add
@@ -49,10 +50,15 @@ fixture-tested end to end:
 - UI: keyboard grid selection + assign by persistent identity (CSRF and `persistent_id` body asserted),
   drag-and-drop onto a vacant bay (PUT to the bay route asserted), occupied-bay unassign with no overwrite
   path, and 409-conflict re-sync;
-- export: `redactIdentity`/`redactedLayout` mask identities to their tier, and the export button is present;
+- export: `redactedLayout` omits identities and assignment metadata and exports only an `assigned` boolean;
 - import: a valid chassis array is POSTed with CSRF, and oversized/non-JSON files are refused before any
   request. API/state fixtures cover strict schema/size validation, count-only audit, additive atomic
   storage, and assignment discard.
+
+The implementers report 234 frontend tests and the full Go suite passing on their isolated branches,
+including manage-only identity redaction, accepting a valid import larger than 64 KiB, rejecting imports
+over 8 MiB, and ignoring non-custom drag payloads. These reports are not yet verified on the integrated
+candidate; CI must rerun them.
 
 ## Remaining gaps (not delivered)
 

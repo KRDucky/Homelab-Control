@@ -420,7 +420,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(r.URL.Path, "/api/") {
 		h.Set("Cache-Control", "no-store")
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
+	// Body cap: 64 KiB for every /api request, except the layout import path,
+	// which is bounded by its own 8 MiB cap (layoutImportMaxBytes) so a valid
+	// chassis export is not truncated by the general cap.
+	bodyCap := int64(64 << 10)
+	if r.Method == http.MethodPost && r.URL.Path == "/api/v1/storage/layout/import" {
+		bodyCap = layoutImportMaxBytes
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, bodyCap)
 	s.mux.ServeHTTP(w, r)
 }
 
@@ -466,6 +473,21 @@ func (s *Server) auditLog(event, user string, r *http.Request, outcome, detail s
 		}
 	}
 	err := s.audit.Log(audit.Event{Event: event, User: user, Remote: remoteIP(r), Outcome: outcome, Detail: detail})
+	if err != nil {
+		log.Printf("audit write failed (event %s): %v", event, err)
+	}
+	return err
+}
+
+// auditLogData is auditLog with structured Data. The sanitized Detail remains
+// a short human summary (the audit logger caps it at 128 bytes); the full
+// record goes in Data, compact JSON bounded by audit.MaxData, which the hash
+// chain covers (the broker/writes pattern).
+func (s *Server) auditLogData(event, user string, r *http.Request, outcome, detail string, data []byte) error {
+	if s.audit == nil {
+		return nil
+	}
+	err := s.audit.Log(audit.Event{Event: event, User: user, Remote: remoteIP(r), Outcome: outcome, Detail: detail, Data: json.RawMessage(data)})
 	if err != nil {
 		log.Printf("audit write failed (event %s): %v", event, err)
 	}
