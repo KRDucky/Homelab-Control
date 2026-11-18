@@ -1,18 +1,16 @@
-# M2-4 read-only storage design review (implementation integrated; acceptance open)
+# M2-4 read-only storage design review (historical decisions and current implementation)
 
-**Status update, 2026-11-17:** The O-1 helper, typed broker operation, explicit
-CSRF-protected `POST /api/v1/storage/probe`, non-default `storage.probe` scope,
-count-only audit, broker-side rate limit, OpenAPI contract, and UI action are
-implemented on the isolated readiness branch. LVM remains disabled by default:
-although config syntax and read-only execution passed on a synthetic PV/LV, the
-actual unit sandbox cannot use the resulting reports because it cannot access
-`/dev/mapper/control`. Fedora 44 KVM tests verified systemd device filtering and
-the corrected SELinux module against a synthetic disk. The AppArmor profile,
-container behavior, real hardware, CI and cross-distribution packaging remain
-open. The helper unit stays disabled by default; these results do **not** close
-M2-4 acceptance. Older proposal text below records design history; this update
-and the final repair notes supersede conflicting claims that the route, broker
-client, startup check, or policy are absent.
+**Current status, 2026-11-18:** M2-4 is accepted for its scoped read-only
+inventory. The native LVM2 metadata reader is wired into the separate helper,
+broker, API graph and UI; the runtime executes `blkid` only (never `lvs`, `pvs`
+or `lvm`). The explicit CSRF-protected POST, non-default scope, audit,
+rate-limit, OpenAPI contract and UI action are implemented. The exact helper
+passed enforcing SELinux on Fedora 44 and enforcing AppArmor on Debian 13 in
+disposable KVM guests. See `M2-4-ACCEPTANCE.md` and
+`M2-4-O1-DEVICE-POLICY.md` for checksums and evidence. The service remains
+disabled by default; this acceptance does not authorize host activation or
+production deployment. Historical proposal sections below are design history,
+not current runtime behavior.
 
 Owner authorized M2-4 development and isolated tests on 2026-11-05, including LVM2 RAID/cache visibility and Serial/ID versus WWN labels. On 2026-11-17 the owner additionally authorized O-1 VM testing. This does not authorize storage writes to the host or production activation. Existing file-manager and M2-3 worktrees are separate.
 
@@ -34,9 +32,8 @@ Proposed next slice: a separately typed, closed root-read-exec handle, made avai
 
 `blkid` must probe only enumerated/revalidated local block devices and never use or trust a stale cache as current proof. Avoid unbounded all-host scans or opening network filesystems. LVM reports must be non-mutating, with fixed fields/JSON/byte units, no caller config/profile/selection, and capability detection per installed version. LVM reporting may ordinarily update hints/caches or require locks; confirm an actually read-only invocation and distinguish metadata-only from live-kernel RAID/cache health. Do not infer health when the chosen read-only mode cannot observe it. Parser tests alone do not settle this security or compatibility review.
 
-This paragraph describes the state before O-1 implementation. The later O-1
-sections document the current implementation. SSD cache, LVM RAID/PV member
-joins, ZFS/Btrfs/mergerfs and acceptance evidence remain incomplete.
+This paragraph describes the state before O-1 implementation. The native
+reader and current validation supersede the old report-execution proposal.
 
 ## Confirmed native-probe integration constraint (2026-11-05)
 
@@ -44,7 +41,9 @@ The packaged broker service explicitly has `PrivateDevices=yes`, a strict system
 
 A metadata-only LVM report cannot substitute for observed live health: [the upstream lvs manual](https://man7.org/linux/man-pages/man8/lvs.8.html) documents that `--readonly` does not communicate with device-mapper. Requesting RAID/cache counters in that mode must not invent runtime values.
 
-This was the pre-O-1 recommendation. The implementation now follows the separate-helper design and reviewed device policy; it remains disabled by default. Runtime activation is limited to disposable validation, and acceptance still requires the evidence listed below.
+This was the pre-O-1 recommendation. The implementation follows the
+separate-helper design and reviewed device policy. The helper remains disabled
+by default; runtime activation is limited to disposable validation.
 
 Kernel md/device-mapper UUID observations can be collected safely from sysfs independently. UUID joins to LVM reports follow the upstream [UUID builder](https://github.com/lvmteam/lvm2/blob/main/libdm/libdm-string.c) and [layer rules](https://github.com/lvmteam/lvm2/blob/main/lib/misc/lvm-string.c); layer-suffixed mappings are not guessed to be the top LV. This is independently written format handling, not copied upstream implementation.
 
@@ -52,16 +51,15 @@ Kernel md/device-mapper UUID observations can be collected safely from sysfs ind
 
 Accepted from the independent review (`.dev` review ledger, not in Git): keep the existing broker unit unchanged; any native probe is a **separate, disabled-by-default unit** with a closed typed protocol. Verified from kernel source: device-mapper status ioctls require `CAP_SYS_ADMIN` (`drivers/md/dm-ioctl.c`, `ctl_ioctl`). Proposed phasing, for owner decision:
 
-1. **Phase 1 (no new privilege, implemented):** unprivileged sysfs identity, md runtime state, and parsers for metadata-only `lvs`/`pvs` reports. Production hc-api attaches no LVM report today.
-2. **Phase 2 (owner-approved O-1, implementation and isolated validation only):** a separate read-only probe unit running `lvs`/`pvs --readonly` (hints disabled by a fixed in-template config) and `blkid -p -c /dev/null` on enumerated, revalidated devices. Target restrictions: `PrivateDevices=no` with `DevicePolicy=closed` and `r`-only `DeviceAllow=` for explicitly reviewed block-device classes, empty capability bounding set, no character devices or `CAP_SYS_ADMIN`, `PrivateNetwork=yes`, no `[Install]` enablement, per-device child timeouts, skipping suspended dm, multipath, nbd/rbd/iSCSI, sr, fd, removable and USB devices, and explicit POST only (blkid wakes standby disks). It needs its own SELinux/AppArmor policy and KVM/systemd-container evidence. Owner approval does not authorize enabling it on a host or production deployment.
+1. **Phase 1 (implemented):** unprivileged sysfs identity, md runtime state, signature graph, and bounded parsers/fixtures.
+2. **Phase 2 (owner-approved O-1; implemented and isolated-VM validated):** separate read-only helper, with native LVM2 metadata parsing from pinned descriptors and `blkid -p -c /dev/null` as the only child command. The closed device classes, empty capability set, no network, disabled-by-default unit, explicit POST and separate MAC policies remain. Owner approval does not authorize enabling it on a host or production deployment.
 3. **Phase 3 (owner decision O-2):** live dm status for LVM RAID/cache health. Requires `CAP_SYS_ADMIN`, i.e. full device-mapper control; any helper would need an ioctl-number allow-list enforced in code (systemd cannot filter ioctl numbers) and a separate security review. Not proposed for M2.
 
 O-1 device and MAC policy (unit keys, reviewed block classes, residual privilege, SELinux/AppArmor) is specified in `docs/m2/M2-4-O1-DEVICE-POLICY.md`; where it differs from earlier text here (for example removable/USB skipping), that document governs: USB skipping is helper behaviour, not a cgroup restriction.
 
-O-1 implementation and part of its Fedora VM validation are present, but
-runtime validation and M2-4 acceptance remain open. LVM is still gated off;
-signature collection is available only through the explicit,
-disabled-by-default O-1 path.
+O-1 implementation and Fedora/Debian VM validation are complete for the
+accepted scope. Signature and native LVM metadata collection occur only
+through the explicit, disabled-by-default O-1 path.
 
 ## O-1 helper (2026-11-17, owner-approved development; fail-closed until validated)
 
@@ -112,72 +110,42 @@ host or in production.
   Static unit and packaging guards assert the reviewed disabled-by-default
   policy.
 
-**Release blockers (not production-ready):** LVM stays disabled because reports
-are unusable inside the actual helper sandbox, despite config/read-only checks
-passing outside it. The SELinux policy has only been validated on Fedora 44.
+**Historical release blockers (superseded):** The earlier external LVM reports
+were unusable inside the helper sandbox. The native reader replaces them. The
+SELinux policy has been validated on Fedora 44 and AppArmor on Debian 13.
 Fedora's base SELinux policy lets the helper domain read some `etc_t` files,
 including `hc-api.env`; the helper policy no longer adds
 `files_read_etc_files`. The exact service `InaccessiblePaths` setting was
 tested and denied access to `hc-api.env` with and without the SELinux domain.
-The AppArmor profile, container behavior, real hardware, CI and supported-distro
-packaging remain open. The `storage.probe` route, non-default scope, CSRF POST,
-audit, rate limit, OpenAPI contract and UI action are wired and covered by
-synthetic tests. Live dm-status (O-2, `CAP_SYS_ADMIN`) is deliberately not
-implemented.
+The remaining non-blocking coverage limits are Ubuntu LTS, systemd-nspawn
+containment, physical vendor hardware, and CI/package builds across every
+supported distribution. The `storage.probe` route, non-default scope, CSRF
+POST, audit, rate limit, OpenAPI contract and UI action are wired and covered by
+tests. Live dm-status (O-2, `CAP_SYS_ADMIN`) is deliberately not implemented.
 
-## O-1 helper — final repair notes (2026-11-17)
+## Current O-1 implementation and verification (2026-11-18)
 
-- **Identity handling (blkid fd-pinned; LVM still path-based):** each name is
-  resolved to `/dev/block/MAJ:MIN`, opened following the symlink, fstat-checked
-  block+rdev, and `diskseq`-checked before/after. blkid reads the pinned fd via
-  `/proc/self/fd/3` (fd inherited as the first extra file), so it cannot
-  re-resolve a kernel-name path. lvs/pvs cannot consume a single inherited fd
-  for their device scan, so they remain on the fixed filter + `diskseq` recheck
-  (weaker). When identity cannot be verified (e.g. no device access in the
-  fail-closed unit), every device is reported `skip` + `Partial`.
-- **LVM config:** `devices{hints="none" filter=[…]}` + private empty
-  `LVM_SYSTEM_DIR` compiled and ran with lvm2 2.03.38 against a synthetic PV/LV
-  in Fedora 44. `strace` found no successful write opens and `/etc/lvm` and
-  `/run/lvm` were unchanged. Inside the actual `DynamicUser` service sandbox,
-  `lvs`/`pvs` cannot access `/dev/mapper/control`, so their reports are not
-  usable and `LVMEnabled` remains false. This does not prove behavior on other
-  lvm2 versions or distributions. blkid's `-p -c /dev/null -o export` flags
-  were confirmed against `/usr/sbin/blkid -h` and exercised only on a synthetic
-  guest disk.
-- **Deadlines/rate:** the helper's request-wide deadline is 25s, below the
-  unit's `TimeoutStartSec=30`. The in-process rate window and semaphore are
-  per-instance (each `Accept=yes` connection is a new process); the real
-  serialisation is the socket's `MaxConnections=1`, and cross-instance rate
-  limiting remains a broker/action concern.
-- **Account:** the helper runs `DynamicUser=yes` (throwaway unprivileged UID,
-  no persistent account); it does not use the shared `homelab-control` user.
-- **Binary resolution:** `ResolveToolPaths` picks lvs/pvs/blkid from reviewed
-  distro paths only, resolving symlinks and requiring the resolved target and
-  every ancestor directory to be root-owned and non-group/other-writable (a
-  multi-call `lvs -> lvm` symlink is executed by its original name so argv[0]
-  dispatches correctly). Missing or insecure binaries fail closed and surface
-  as a typed Partial result.
-- **Output:** blkid export is key-allow-listed with LABEL/PARTLABEL dropped
-  and every value bounded to 255 printable bytes; LVM reports are bounded raw
-  JSON (fixed field list, consumed by `storageinfo` parsers); the reply is
-  frame-capped (3 MiB helper / 4 MiB broker) via an encoded-size preflight with HTML escaping off,
-  and the writer rejects over-limit frames.
-
-Remaining gates (unit stays disabled by default): design a usable and reviewed
-LVM sandbox before enabling the collector; parse/enforce AppArmor in a
-supported Debian/Ubuntu VM; resolve systemd-nspawn/device-policy containment;
-validate packaging and outputs across supported distributions. The broker
-route, non-default scope, audit, rate limit, OpenAPI contract and UI action are
-implemented and covered by synthetic tests. The Fedora VM used only a
-synthetic disk; no host activation or real hardware probe was performed.
-
-## O-1 native reader — unsupported layouts (2026-11-17)
-
-The lvmmeta parser maps linear/striped segments; every other segment type
-(raid0/1/4/5/6/10, cache/cache-pool, thin/thin-pool, mirror, snapshot,
-writecache, vdo, integrity) is kept by name with `Parsed=false`, and Assemble
-marks the VG `partial-unsupported-segment` (never `complete`). Until typed
-RAID/cache coverage lands, such layouts are reported partial, never as a full
-inventory. Real LVM-generated byte fixtures (dual-MDA, stale seqno, linear,
-RAID/cache, multi-PV) and differential tests against lvs/pvs in the disposable
-VM remain the pre-wiring gate; the helper stays disabled-by-default.
+- The helper resolves each enumerated device through `/dev/block/MAJ:MIN`,
+  opens and verifies the block descriptor, and reads both blkid and native LVM
+  metadata from pinned descriptors. `blkid` is the only executed child tool;
+  lvs/pvs/lvm are not in the runtime path.
+- The native reader validates LVM labels, metadata-area/text CRCs, bounds,
+  required scalar fields and segment numbering. It reads committed metadata,
+  enforces per-device and aggregate byte/token limits, and returns typed
+  partial states for unsupported or malformed metadata. Checked-in fixtures
+  include 20 supported layouts with field-by-field comparisons to matching
+  `vgcfgbackup` references, plus malformed, unsupported and missing-PV cases.
+- The helper result is size-capped and version/code validated before the broker
+  relays it. The API converts it to a metadata-only graph. PV-to-disk links are
+  provisional or withheld until a same-boot revalidation and signature/size
+  corroboration; live RAID/cache health remains unknown.
+- The Fedora 44 SELinux enforcing retest produced a complete six-PV VG, one LV
+  and three striped segments with zero new denials after adding a narrow
+  `cgroup_t:dir search` permission. Debian 13 AppArmor enforcing also passed
+  with the corrected per-family network denies and inherited AF_UNIX rule.
+  Evidence and checksums are recorded in `M2-4-O1-DEVICE-POLICY.md`.
+- The service remains disabled by default. Remaining platform-coverage items
+  are Ubuntu LTS, systemd-nspawn containment, broader distro packaging/CI,
+  physical vendor hardware, and additional AppArmor negative/device variants.
+  They do not change the accepted read-only scope; host/production activation
+  remains a separate owner decision and requires a narrower device grant.

@@ -6,13 +6,11 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 # M2-4 O-1 read-only storage probe: device access and MAC policy
 
-Status: **Implemented and integrated on the isolated readiness branch; disabled
-by default and not accepted for host or production activation.** The owner
-approved implementation and isolated validation (2026-11-17,
-`docs/m2/OWNER-DECISIONS.md`, "Storage probe O-1"). The helper was started and
-its SELinux policy loaded only in a disposable Fedora 44 VM. The typed broker
-caller and explicit CSRF POST are wired; packages do not enable or load the
-helper.
+Status: **Accepted for isolated read-only inventory validation; still disabled
+by default and not authorized for host or production activation.** The owner
+approved O-1 implementation and disposable-VM testing. The exact helper and
+current Fedora SELinux and Debian AppArmor policies were exercised in enforcing
+mode in disposable guests. Packages do not enable or load the helper.
 
 ## What ships
 
@@ -163,9 +161,10 @@ scripts never load policy.
   `libexec`). Explicit `blk_file { getattr open read ioctl }` on
   `fixed_disk_device_t`; `neverallow` for write, `sys_admin`, `sys_rawio`,
   `mknod`, `dac_override`, mount and network. `process2
-  { nnp_transition nosuid_transition }` for `NoNewPrivileges`; child tools
-  (`blkid`, `lvs`, `pvs`) run in the same domain (`can_exec`) because NNP blocks
-  domain transitions. Compile-only: `build-selinux-policy.sh` never loads the
+  { nnp_transition nosuid_transition }` for `NoNewPrivileges`; `blkid` runs in
+  the same domain (`can_exec`) because NNP blocks domain transitions. The
+  helper reads LVM metadata natively and does not execute `lvs` or `pvs`.
+  Compile-only: `build-selinux-policy.sh` never loads the
   module. `removable_device_t` is intentionally not granted.
 - **AppArmor (Debian/Ubuntu).** Profile `hc-storage-probe`, enforce mode,
   `deny capability/mount/ptrace`, per-family `deny network` (inet, inet6,
@@ -194,13 +193,13 @@ scripts never load policy.
 
 ```
 bash -n tests/packaging/storage-probe-policy-check.sh
-tests/packaging/storage-probe-policy-check.sh      # also runs 67 mutation self-tests
+tests/packaging/storage-probe-policy-check.sh      # also runs 79 mutation self-tests
 make lint                                          # includes the guard
 cd backend && go vet ./internal/storageprobe/ ./internal/guard/ && go test ./internal/storageprobe/ ./internal/guard/
 git diff --check
 ```
 
-## Fedora 44 VM validation (2026-11-17)
+## Fedora 44 initial VM validation (2026-11-17; historical first run)
 
 The exact source at commit `ce76000d` plus the recorded SELinux syntax fix was
 tested in a disposable Fedora 44 guest (kernel 6.19.10, systemd 259.10,
@@ -217,30 +216,31 @@ under `/mnt/tank/claude-vms/artifacts/hc-m24-o1-ce76000d/` and
 - The helper's strict `/proc/devices` check passed with the required groups;
   fixtures missing `virtblk`, `md` or `blkext` returned typed
   `device_policy_unresolved` before probing. A real socket request read blkid
-  metadata from the synthetic disk and reported LVM as disabled/partial.
+  metadata. At this point the native LVM reader had not yet been integrated.
 - The source SELinux module initially failed to compile. The fixed source now
   compiles with `build-selinux-policy.sh`, installs in enforcing mode, and the
   helper runs in `hc_storage_probe_t` against the synthetic disk with no AVCs.
   Policy inspection found no block-device write permission and no capabilities.
   Negative checks denied block writes and `dac_override`/`dac_read_search`.
-- LVM config syntax and read-only invocation passed against the synthetic PV/LV
+- Historical prototype only: LVM config syntax and read-only invocation passed against the synthetic PV/LV
   outside the unit sandbox; `strace` showed no successful write opens and
   `/etc/lvm` and `/run/lvm` did not change. **Inside the actual DynamicUser unit,
   `lvs`/`pvs` could not access `/dev/mapper/control` and returned unusable
-  reports. LVM stays disabled.**
+  reports. The external-tool design was later replaced by the native reader.
 - In `systemd-nspawn`, the outer read-only device policy blocked writes only
   when the payload used `--keep-unit`; without it, the payload landed in
   `machine.slice`. The inner unit's device policy was not enforced in that
   container. This does not establish supported container behavior.
 - Fedora has no AppArmor LSM. AppArmor was exercised separately on Debian 13
   (below).
-- **Debian 13.7 KVM (`/mnt/tank/claude-vms/artifacts/m24-apparmor-debian13-20261117/REPORT.md`,
+- **Debian 13.7 initial KVM run (`/mnt/tank/claude-vms/artifacts/m24-apparmor-debian13-20261117/REPORT.md`,
   kernel 6.12.107, systemd 257, apparmor_parser 4.1.0).** The shipped profile
   parsed (`-Q -T -r` rc 0) and loaded in enforce mode, but the helper failed
   closed and silently because of `deny network,` (root cause above). A variant
   with per-family denies plus the cgroup read, kept outside the repo, ran
   confined in enforce mode against a synthetic virtio disk with no denials and
-  returned blkid metadata. The same run showed: the unit refuses
+  returned blkid metadata. This run prompted the committed profile correction
+  and was superseded by the exact-profile retest below. The same run showed: the unit refuses
   (`device_policy_unresolved`) when `sd`/`md` are not registered in a
   virtio-only guest (load `sd_mod md_mod` first), the instance fails to start
   when the profile is not loaded (change_onexec "label not found"), and the
@@ -253,61 +253,30 @@ had a stale checksum for the pre-shutdown guest-state log; this is documented in
 `t9d-finalization-note.txt`, and a corrected current manifest is
 `t9e-evidence-current.sha256`.
 
-## Remaining gates (not accepted)
+## Current validation and remaining deployment coverage
 
-- LVM device-set identity remains path-based; more importantly, real LVM output
-  is unusable inside the service sandbox. Keep `LVMEnabled` false until a
-  reviewed sandbox design and synthetic-guest verification resolve this.
-- AppArmor: the profile in this branch is the Debian 13 test variant plus two
-  least-privilege removals (the `lvm` exec rule and the unused private-tmp
-  rules), which are not yet re-run in a guest. Still required in a disposable
-  Debian 13 (and Ubuntu LTS) guest: re-run the confined probe with this exact
-  file, `AF_INET`/`AF_NETLINK` denial from inside the profile, partition and
-  md/NVMe nodes, and no `apparmor="DENIED"` entries beyond the expected
-  confinement checks.
-- The `systemd-nspawn` result is partial; the inner policy is not enforced in
-  that container configuration. Supported-container fail-closed behavior is
-  not established.
-- No real SATA/SAS/NVMe vendor hardware, USB/removable media, or production
-  host was probed. CI and package-build evidence across supported distributions
-  is still required.
-- The class-level static device grant is authorized for isolated validation
-  only. A narrower by-id access design and a separate owner decision are still
-  required before any host or production activation.
-- Fedora's base SELinux policy lets the helper domain read some `etc_t` files,
-  including `/etc/homelab-control/hc-api.env`; the helper policy no longer adds
-  `files_read_etc_files`. A VM check confirmed that the service's exact
-  `InaccessiblePaths` setting denies access to the environment file both with
-  and without the helper SELinux domain. The static policy guard requires this
-  path mask. This result is specific to the tested Fedora 44 unit and does not
-  establish behavior on other systemd versions.
+**Fedora 44 SELinux enforcing, 2026-11-18.** The exact source archive at
+`20b34900` was built offline in the disposable guest. After the first enforcing
+run exposed a single `cgroup_t:dir search` denial, the source policy added that
+narrow directory-search permission and the policy was rebuilt/reloaded. The
+second socket-activated request returned a complete native `fxsix` inventory
+(six PVs, one LV, three striped segments), with zero new SELinux/AppArmor
+denials. Write opens remained denied, the fixture VG/LV and PV prefixes were
+unchanged, and the helper was restored. Evidence:
+`/mnt/tank/claude-vms/artifacts/m24-fedora-native-selinux-20261118/retest-2/`.
 
-## Debian/Ubuntu AppArmor validation plan (disposable guest only)
+**Debian 13 AppArmor enforcing, 2026-11-17.** The corrected committed profile
+was loaded and the exact helper probe returned the synthetic inventory with no
+AppArmor denials. The earlier `deny network,` failure is fixed by per-family
+network denies while retaining the inherited AF_UNIX socket rule. Evidence:
+`/mnt/tank/claude-vms/artifacts/m24-apparmor-debian13-20261117/native-enforced-evidence-20261117/`.
 
-Run inside a disposable Debian 13 (and an Ubuntu LTS) KVM guest with a
-synthetic virtio disk; never on a host. The existing guest
-`hc-m24-apparmor-debian13-20261117` (shut off, autostart disabled) can be
-reused. Copy this branch's files into the guest; do not install anything on the
-host.
-
-1. Parse: `apparmor_parser -Q -T -r packaging/debian/apparmor/usr.lib.homelab-control.hc-storage-probe` (rc 0). A parse alone does not prove the network
-   rules; step 4 does.
-2. Load in enforce mode: install the file to `/etc/apparmor.d/`, then
-   `apparmor_parser -r <file>` and `aa-status | grep hc-storage-probe` (enforce).
-3. Prepare the guest: `modprobe sd_mod md_mod virtio_blk`; `touch
-   /etc/homelab-control/storage-probe.enabled`; start
-   `homelab-control-storage-probe.socket`; send one request for the synthetic disk.
-   Expect blkid metadata, `lvm` reported disabled/partial by design, and no
-   `apparmor="DENIED"` lines in `journalctl -k` other than the checks below.
-4. Network: from inside the profile attempt `AF_INET`, `AF_INET6` and
-   `AF_NETLINK` socket creation (for example with a tiny test binary labelled
-   by a copy of the profile) and confirm denial; confirm the unix connection
-   still works.
-5. Confinement: reads of `/etc/homelab-control/*`, `/etc/hostname` and exec of
-   `/bin/sh` are denied; write opens of the synthetic disk fail (EPERM from the
-   cgroup policy, EACCES from AppArmor).
-6. Fail closed: `apparmor_parser -R <file>` then start an instance; it must fail
-   with change_onexec "label not found" and the helper must not run.
-7. Cleanup: remove the marker, stop the socket, unload the profile, shut the
-   guest down gracefully (autostart stays disabled). Keep the audit log as
-   evidence.
+Remaining deployment coverage is not an M2-4 acceptance blocker: Ubuntu LTS,
+network-family negative probes from inside the profile, partition/md/NVMe
+variants, systemd-nspawn containment, other supported distro packaging, and
+physical vendor hardware were not validated. The helper stays disabled by
+default. The class-level static device grant is approved only for isolated
+validation; host or production activation needs a narrower reviewed design and
+a separate owner authorization. The Fedora `/etc/homelab-control/hc-api.env`
+path mask was confirmed to deny access in the tested unit. `systemd-nspawn`
+inner device-policy enforcement remains unsupported/unverified.

@@ -3,8 +3,8 @@
 #
 # AppArmor profile for the M2-4 O-1 read-only storage probe.
 #
-# STATUS: parsed with apparmor_parser 4.0.1 (-Q -T) and exercised in enforce
-# mode on a disposable Debian 13 VM (docs/m2/M2-4-O1-DEVICE-POLICY.md). Other
+# STATUS: parsed with apparmor_parser 4.1.0 and exercised in enforce mode on a
+# disposable Debian 13 VM (docs/m2/M2-4-O1-DEVICE-POLICY.md). Other
 # AppArmor kernels and distributions remain unvalidated. The package installs
 # this file but does not load it; Debian's apparmor.service loads it at boot or
 # an administrator loads it by hand. The unit sets AppArmorProfile=hc-storage-probe,

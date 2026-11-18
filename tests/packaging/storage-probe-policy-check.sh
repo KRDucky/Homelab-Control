@@ -193,6 +193,7 @@ check_selinux() { # te fc
   for need in "policy_module(homelab_control_storage_probe" "type ${SEL_TYPE};" \
               "init_daemon_domain(${SEL_TYPE}, hc_storage_probe_exec_t)" \
               "allow ${SEL_TYPE} fixed_disk_device_t:blk_file { getattr open read ioctl };" \
+              "allow ${SEL_TYPE} cgroup_t:dir search;" \
               "neverallow ${SEL_TYPE} self:capability { sys_admin sys_rawio sys_module mknod dac_override dac_read_search sys_ptrace net_admin net_raw };" \
               "neverallow ${SEL_TYPE} fixed_disk_device_t:blk_file { write append create unlink rename setattr relabelfrom relabelto };" \
               "neverallow ${SEL_TYPE} filesystem_type:filesystem { mount remount unmount };"; do
@@ -201,7 +202,7 @@ check_selinux() { # te fc
   # Everything except the neverallow assertions must avoid shortcuts.
   local allow
   allow=$(printf '%s\n' "$body" | grep -v '^neverallow')
-  for tok in unconfined permissive domain_unconfined bin_t lib_t libexec_t sys_admin sys_rawio sys_module \
+  for tok in unconfined permissive domain_unconfined bin_t lib_t libexec_t lvm_exec_t sys_admin sys_rawio sys_module \
              storage_raw_write storage_raw_read removable_device_t corecmd_exec_shell corecmd_exec_bin \
              tcp_socket udp_socket netlink mounton :capability dac_override; do
     printf '%s\n' "$allow" | grep -qF -- "$tok" && bad "SELinux source uses forbidden token '$tok'"
@@ -358,6 +359,8 @@ self_test() {
   mutate te      "capability grant"               '/^allow hc_storage_probe_t self:fifo_file/a allow hc_storage_probe_t self:capability sys_rawio;'
   mutate te      "removable raw read"             '/^allow hc_storage_probe_t self:fifo_file/a storage_raw_read_removable_device(hc_storage_probe_t)'
   mutate te      "shell exec"                     '/^allow hc_storage_probe_t self:fifo_file/a corecmd_exec_shell(hc_storage_probe_t)'
+  mutate te      "LVM executable grant"            '/^allow hc_storage_probe_t self:fifo_file/a can_exec(hc_storage_probe_t, lvm_exec_t)'
+  mutate te      "cgroup traversal removed"        '/^allow hc_storage_probe_t cgroup_t:dir search;$/d'
   mutate te      "neverallow removed"             '/^neverallow hc_storage_probe_t filesystem_type/d'
   mutate te      "bin_t shortcut"                 '/^allow hc_storage_probe_t self:fifo_file/a allow hc_storage_probe_t bin_t:file { execute };'
   mutate fc      "libexec context"                's#/usr/lib/homelab-control#/usr/libexec/homelab-control#'

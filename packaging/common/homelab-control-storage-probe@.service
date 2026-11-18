@@ -83,7 +83,7 @@ RestrictAddressFamilies=AF_UNIX
 SystemCallArchitectures=native
 SystemCallFilter=@system-service
 SystemCallFilter=~@resources @mount @swap @reboot @raw-io @module @obsolete @debug @cpu-emulation @clock
-# A denied system call returns EPERM instead of killing lvm/blkid with SIGSYS.
+# A denied system call returns EPERM instead of killing blkid with SIGSYS.
 SystemCallErrorNumber=EPERM
 # Belt and braces: hc-api secrets and state, and the host-shared /dev IPC dirs.
 InaccessiblePaths=-/etc/homelab-control -/var/lib/homelab-control -/var/log/homelab-control -/var/log/homelab-control-broker -/dev/shm -/dev/mqueue
