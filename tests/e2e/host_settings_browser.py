@@ -177,6 +177,41 @@ try:
             "limited session never posts plan or apply",
             not any(path_of(r["url"]).endswith(PLAN_APPLY) for r in limited_host),
         )
+        apply_user = config.get("apply_username")
+        if apply_user:
+            ap_ctx = browser.new_context(viewport={"width": 1280, "height": 900})
+            ap = ap_ctx.new_page()
+            apply_host = []
+            ap.on("request", capture_host(apply_host))
+            ap.goto(url + "/host-settings")
+            ap.get_by_label("Username", exact=True).fill(apply_user)
+            ap.get_by_label("Password", exact=True).fill(password)
+            ap.get_by_role("button", name="Sign in", exact=True).click()
+            ap.get_by_role("heading", name="Host settings", exact=True).wait_for()
+            ap.get_by_text("fixture-static", exact=True).wait_for()
+            ap.get_by_label("Static host name", exact=True).fill("nas-02")
+            ap.get_by_label("Time zone", exact=True).fill("Etc/UTC")
+            ap.get_by_role("button", name="Preview (does not apply)", exact=True).click()
+            ap.get_by_text("Preview result — not applied", exact=True).wait_for()
+            check(
+                "apply is offered with host.settings.apply",
+                ap.get_by_role("button", name="Apply these settings…").count() == 1,
+            )
+            ap.get_by_role("button", name="Apply these settings…").click()
+            ap.get_by_role("dialog").wait_for()
+            check(
+                "apply confirmation dialog opens",
+                ap.get_by_role("heading", name="Apply host settings", exact=True).is_visible(),
+            )
+            check("confirm UI shows a Close action", ap.get_by_role("button", name="Close").count() >= 1)
+            ap.get_by_role("button", name="Close").first.click()
+            # The dialog's dry-run plan POST is fail-closed by the preview-only
+            # broker; the hard guarantee here is that apply is never submitted.
+            check(
+                "apply user never posts apply",
+                not any(path_of(r["url"]).endswith("/host/settings/apply") for r in apply_host),
+            )
+            ap_ctx.close()
         check("no page script errors", not errors)
         limited.close()
         context.close()
