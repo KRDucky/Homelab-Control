@@ -873,6 +873,9 @@ export interface FileEntriesResponse {
   root: string;
   path: string;
   entries: FileEntry[];
+  /** Number of directory names omitted because they are not faithfully
+   * representable (invalid UTF-8) or not navigable (a backslash). */
+  omitted: number;
 }
 
 export function getFileRoots(csrf: string): Promise<FileRootsResponse> {

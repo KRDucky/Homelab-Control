@@ -187,6 +187,7 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
   const [filter, setFilter] = useState('');
   const [selected, setSelected] = useState<number | null>(null);
   const [announce, setAnnounce] = useState('');
+  const [omitted, setOmitted] = useState(0);
   // Only the latest request may update the view: a slow earlier listing must not
   // replace a newer one the user already navigated to.
   const generation = useRef(0);
@@ -204,6 +205,7 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
         setRootId(next.root);
         setPath(cleaned);
         setEntries(next.entries);
+        setOmitted(next.omitted ?? 0);
         setFilter('');
         setSelected(null);
         setDirs((prev) => ({
@@ -391,6 +393,11 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
               {entries && (
                 <span className="muted" aria-live="polite">
                   {filter.trim() ? `${shown.length} of ${entries.length} items` : `${entries.length} items`}
+                </span>
+              )}
+              {omitted > 0 && (
+                <span className="muted">
+                  {omitted} {omitted === 1 ? 'name' : 'names'} omitted — not safely displayable.
                 </span>
               )}
             </div>
