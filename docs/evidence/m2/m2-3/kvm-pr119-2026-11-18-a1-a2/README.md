@@ -36,7 +36,7 @@ its pinned SHA-256.
 |---|---|---|---|---|
 | Ubuntu 26.04.1 | 259.9 / 7.0.0-43-generic | AppArmor enabled | 308 PASS, 0 FAIL, 1 expected Phase B skip; exit 0 | 16 PASS, 0 FAIL; exit 0 |
 | Ubuntu 22.04.5 | 249.11 / 5.15.0-203-generic | AppArmor enabled | 308 PASS, 0 FAIL, 1 expected Phase B skip; exit 0 | 16 PASS, 0 FAIL; exit 0 |
-| Fedora 44 | 259.5 / 6.19.10-300.fc44 | SELinux Enforcing (targeted) | Not run | Not run |
+| Fedora 44 | 259.5 / 6.19.10-300.fc44 | SELinux Enforcing (targeted) | 307 PASS, 0 FAIL, 1 expected Phase B skip; exit 0 | 16 PASS, 0 FAIL; exit 0 |
 
 For both Ubuntu guests, A1 breakdown was 89 service-operation checks, 145
 enablement checks, and 74 systemd smoke checks. Long expiry waits (125 seconds
@@ -52,6 +52,25 @@ passed. A2 was a plan-only disable survey; no plan was applied. Results:
 - Review the refused-service reasons in the retained raw logs before deciding
   whether the disable policy over-refuses.
 
+For Fedora 44, A1 comprised 74 systemd-smoke checks, 89 service-operation
+checks, and 144 M2-3 enablement checks. SELinux stayed enforcing with no AVC or
+kernel denials, and there were no failed units. `systemd-analyze security`
+reported 1.6 for `homelab-control.service`. A2 found 29 enabled services: 8
+allowed and 21 refused (18 protected, two boot-pull cases, and one
+`WantedBy=`-specifier case). Plan times ranged from 47 to 720 ms; no plan was
+applied. The RPM and test-source archive hashes matched, installed payload
+hashes matched the pinned RPM values, and all 44,180 staged source files
+re-verified. One post-removal A2 hash sample was empty; the RPM itself was
+verified during A1. The A1 binary-hash record was transcribed after its
+temporary guest copy had been removed; the raw bundle retains the record and
+its provenance.
+
+The fresh Fedora guest used a new overlay on the verified, read-only Fedora
+44 base image, a dedicated NAT with no port forwards, and no filesystem shares.
+Its baseline snapshot was taken before package inputs and retained. Cloud-init,
+clock-sync, idle, and documented UnitPath checks passed; the first-boot gate
+probe found no listed services. The guest ended shut off with autostart disabled.
+
 The expected single A1 skip is the broker interruption scenario, reserved for
 Phase B. Neither A3/browser, real reboot checks, nor Phase B has run on these
 guests.
@@ -61,23 +80,29 @@ guests.
 The first Fedora package probe installed the exact RPM and then purged it. The
 archive hash matched. Its three installed executable hashes matched the
 package-specific RPM payload hashes above, but not the generic tarball hashes.
-No Fedora A1/A2 test ran before the stop. This was a manifest omission, not a
-product failure. The exact payload hashes are now recorded so a new authorized
-job can resume with an explicit per-package comparison.
+The package-specific expected hashes were then pinned before A1/A2 ran.
 
 The first Fedora A1 retry on the existing guest stopped before the test checks:
 the prior run had left an `admin` account and state database, so the harness's
 fresh-account setup refused to continue. The RPM was removed again and the
 existing data and snapshot were preserved. No A2, A3/A4/A5 or Phase B work ran
-in that attempt. A fresh, uniquely named Fedora guest is being used for the
-next A1/A2 attempt; its result will be recorded separately before acceptance is
-claimed.
+in that attempt. A fresh Fedora guest then passed A1 and A2. It was shut off
+with autostart disabled; its baseline snapshot and raw evidence were retained.
+A3, reboots, and Phase B remain outstanding.
+
+The successful run exposed two test-harness repeatability gaps: RPM erase
+preserves prior product test state, and the upstream Webmin fixture can leave
+an enabled unit and fixture files behind. Those were removed only in the new
+disposable guest between A1 and A2; a harness repair is in progress. Product
+RPM uninstall continues to preserve user state.
 
 ## Reproducible local evidence
 
 Raw logs and per-guest command output remain in the authorized VM-pool artifact
 bundle `m2-3-pr119-04185f28-inputs/phase-a-20261118/run-jONjjO/`; the unredacted
-files are retained locally and are not committed. The relevant files are
+files are retained locally and are not committed. Fedora A1/A2 raw logs and
+their SHA-256 manifest are retained in the separate bundle
+`m23-pr119-f44-a1a2-20261118/`. The relevant Ubuntu files are
 `u2604/m2-3-phase-a.log`,
 `u2604/m2-3-disable-survey.log`, `u2204/m2-3-phase-a.log`,
 `u2204/m2-3-disable-survey.log`, guest package/binary hash records, and

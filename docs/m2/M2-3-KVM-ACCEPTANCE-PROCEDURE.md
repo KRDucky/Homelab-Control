@@ -1,12 +1,13 @@
 # M2-3 KVM acceptance procedure (Phase A and B authorized; partial evidence)
 
 **Status update (2026-11-18):** PR #118 is merged; PR #119 is draft. Three retained disposable guests
-(`m23-pr118-u2604`, `m23-pr118-u2204`, `m23-pr118-f44`) exist in the authorized pool with autostart disabled
-and retained pre-Phase-A snapshots. On exact PR #119 CI artifacts, Phase A1/A2 passed on Ubuntu 26.04.1 and
-22.04.5. Fedora's package-specific RPM payload hashes are pinned below. A Fedora retry on the existing
-guest stopped before test checks because residual test data prevented creation of the expected fresh
-account; the package was removed and that guest's data and snapshot were preserved. A clean Fedora guest
-A1/A2 run is underway. Fedora A3/browser, real reboots, and Phase B remain incomplete. Partial sanitized results:
+(`m23-pr118-u2604`, `m23-pr118-u2204`, `m23-pr118-f44`) remain in the authorized pool with autostart disabled
+and retained pre-Phase-A snapshots. On exact PR #119 CI artifacts, Phase A1/A2 passed on Ubuntu 26.04.1,
+Ubuntu 22.04.5, and a clean Fedora 44 guest with SELinux enforcing. The fresh Fedora guest was shut down
+with autostart disabled, and its baseline snapshot and raw evidence were retained. Fedora A3/browser, real
+reboots, and Phase B remain incomplete. The earlier retry on the existing Fedora guest stopped before
+checks because residual test data blocked account setup; that guest's data and snapshot were preserved.
+Partial sanitized results:
 `docs/evidence/m2/m2-3/kvm-pr119-2026-11-18-a1-a2/README.md`. PR review is authorized; merge and deployment
 are not.
 

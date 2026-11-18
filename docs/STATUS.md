@@ -1,16 +1,17 @@
 # Current status — M2 closeout candidate PR #119 (2026-11-18); M2 remains open
 
 PR #118 was merged as `c54fe5cc`; it is the baseline, not the current closeout candidate. Draft PR #119
-(`dreggbot/m2-3-admission-pr`, head `04185f28`) carries the M2-3 broker admission and test/runbook
-repairs. Exact-head CI run [44317837412](https://github.com/KRDucky/Homelab-Control/actions/runs/44317837412)
-passed all 21 checks. The exact release-candidate artifact and source provenance are pinned in the
-M2-3 KVM procedure.
+(`dreggbot/m2-3-admission-pr`, product head `04185f28`) carries the M2-3 broker admission and test/runbook
+repairs. Documentation commit `6574c020` is the latest PR update. Exact product-head CI run
+[44317837412](https://github.com/KRDucky/Homelab-Control/actions/runs/44317837412) passed all 21 checks;
+the docs-only update's CI is still running. The exact release-candidate artifact and source provenance
+are pinned in the M2-3 KVM procedure.
 
-M2-3 Phase A1/A2 on that artifact passed on Ubuntu 26.04.1 and 22.04.5. Fedora 44's RPM payload was
-independently hashed and pinned separately from the generic binary tarball. A Fedora retry on the
-existing guest stopped before test checks because a prior test account remained; the package was
-removed and that guest's data and snapshot were preserved. A clean Fedora guest A1/A2 run is underway.
-Phase A3–A5 and Phase B remain unrun. Sanitized partial evidence is at
+M2-3 Phase A1/A2 on that artifact passed on Ubuntu 26.04.1, Ubuntu 22.04.5, and a clean Fedora 44
+guest with SELinux enforcing. Fedora's 307 PASS lines had zero failures and one expected Phase B skip;
+A2 passed 16 checks as a plan-only survey. The earlier retry on the existing Fedora guest stopped
+before checks because prior test state prevented fresh-account setup; that data and snapshot were
+preserved. Fedora A3/browser, reboots, and Phase B remain unrun. Sanitized evidence is at
 [`m2-3/kvm-pr119-2026-11-18-a1-a2/README.md`](evidence/m2/m2-3/kvm-pr119-2026-11-18-a1-a2/README.md).
 M2 remains **open** pending remaining technical and distro evidence, owner acceptance, ADR
 dispositions and final M2 sign-off. M2-4 is read-only inventory; its helper remains disabled by
