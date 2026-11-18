@@ -97,6 +97,7 @@ jobs:
             build/hc-api
             build/hc-broker
             build/hc-audit-retention
+            build/hc-storage-probe
             build/hlctl
             build/SHA256SUMS
             build/*.deb
@@ -133,7 +134,7 @@ jobs:
           path: build
       - name: makepkg (as unprivileged builder)
         run: |
-          chmod +x build/hc-api build/hc-broker build/hlctl build/hc-audit-retention
+          chmod +x build/hc-api build/hc-broker build/hlctl build/hc-audit-retention build/hc-storage-probe
           useradd -m builder
           chown -R builder "$GITHUB_WORKSPACE"
           su builder -c "cd '$GITHUB_WORKSPACE' && packaging/arch/build-pkg.sh '${GITHUB_SHA::8}'"
