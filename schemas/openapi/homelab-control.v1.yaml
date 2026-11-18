@@ -1987,9 +1987,10 @@ paths:
       summary: List directory entries under one confined root (metadata only; no content).
       description: >
         Relative path inside an allow-listed jail. Empty path is the jail root.
-        Uses in-process os.Root and O_NOFOLLOW; hc-api does not spawn; there is no broker file op.
-        Jail escapes (.., extra slashes, symlink out) are refused. Audit records root id and relative path only,
-        never contents and never the host jail path. Origin and X-CSRF-Token are required.
+        Uses in-process openat and O_NOFOLLOW; hc-api does not spawn; there is no broker file op.
+        Jail escapes (.., extra slashes, symlink out) are refused. Audit records the root id and relative path
+        for short paths; deep or control-bearing paths use a labelled 128-bit SHA-256 digest to fit the bounded audit detail. It never records
+        contents or the host jail path. Origin and X-CSRF-Token are required.
       security: [{ session: [] }]
       x-required-scope: files.read
       parameters:
@@ -2008,7 +2009,7 @@ paths:
                 properties:
                   root: { type: string }
                   path: { type: string }
-                  omitted: { type: integer, description: 'Number of names omitted because they are not faithfully representable (invalid UTF-8) or not navigable (a backslash).' }
+                  omitted: { type: integer, description: 'Number of names omitted because they are not faithfully representable, not navigable, or their metadata could not be read.' }
                   entries:
                     type: array
                     items:

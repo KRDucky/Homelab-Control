@@ -361,6 +361,7 @@ func (s Set) List(id, rel string) ([]Entry, int, error) {
 		if err != nil {
 			if errors.Is(err, syscall.EACCES) || errors.Is(err, syscall.EPERM) {
 				permFailed = true
+				omitted++
 			}
 			continue
 		}

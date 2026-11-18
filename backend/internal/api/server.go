@@ -434,9 +434,15 @@ func requestBodyCap(r *http.Request) int64 {
 	if r.Method == http.MethodPost && r.URL.Path == "/api/v1/storage/layout/import" {
 		return layoutImportMaxBytes
 	}
-	if (r.Method == http.MethodPost && r.URL.Path == "/api/v1/storage/layout/chassis") ||
-		(r.Method == http.MethodPut && strings.HasPrefix(r.URL.Path, "/api/v1/storage/layout/chassis/")) {
+	if r.Method == http.MethodPost && r.URL.Path == "/api/v1/storage/layout/chassis" {
 		return layoutChassisMaxBytes
+	}
+	const chassisPrefix = "/api/v1/storage/layout/chassis/"
+	if r.Method == http.MethodPut && strings.HasPrefix(r.URL.Path, chassisPrefix) {
+		id := strings.TrimPrefix(r.URL.Path, chassisPrefix)
+		if id != "" && !strings.Contains(id, "/") {
+			return layoutChassisMaxBytes
+		}
 	}
 	return 64 << 10
 }

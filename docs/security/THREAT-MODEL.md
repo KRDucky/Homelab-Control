@@ -196,7 +196,7 @@ not Accepted.
 | Tampering (jail escape) | `..`, extra slashes, last-component symlink to `/`, jail directory replaced with a symlink after load | `RelPath` before open; each `List` opens the jail with `O_RDONLY\|O_NOFOLLOW\|O_DIRECTORY` and walks relative components with `openat`+`O_NOFOLLOW`; a last-component symlink is never a directory | Implemented, tested (unit; isolated temp jails) |
 | Tampering (config) | Missing, empty, world-writable or symlinked `files.json`; root `/`, `/etc`, `/root`, `/proc`, `/sys`, `/home` | Same trust class as `modules.json`; fail closed (no browse); `forbiddenPath` is the lead list | Implemented, tested |
 | Tampering (CSRF) | Cookie-only GET of `path=` | CSRF token then Origin on identifier-bearing files GETs (`filesProtectedGET`); refusals not audited | Implemented, tested |
-| Information disclosure | Host jail path or file bytes in the API or audit | Public roots are id+label; entries are metadata; audit is `root=<id> path=<rel>`; jail-escape refusals are not audited | Implemented, tested |
+| Information disclosure | Host jail path or file bytes in the API or audit | Public roots are id+label; entries are metadata; short paths appear as `root=<id> path=<rel>`, deep/control-bearing paths as `root=<id> path_sha256=<128-bit digest>`; jail-escape refusals are not audited | Implemented, tested |
 | Elevation of privilege | Bridging filemin or a path-taking broker file-read | No filemin; no broker file op; hc-api does not spawn | Implemented, tested |
 
 Jail directory mode is not enforced (only `files.json`). Isolated fixtures only; this slice does not

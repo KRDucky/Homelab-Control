@@ -269,10 +269,17 @@ func TestFilesAuditStateStorePreservesDeepPath(t *testing.T) {
 		t.Fatalf("audit record missing: %v", err)
 	}
 	sum := sha256.Sum256([]byte(rel))
-	if !strings.Contains(last.Detail, hex.EncodeToString(sum[:16])) {
+	if !strings.Contains(last.Detail, "path_sha256="+hex.EncodeToString(sum[:16])) {
 		t.Fatalf("path hash not preserved in detail: %+v", last)
 	}
 	if len(last.Data) != 0 {
 		t.Fatalf("state audit record carries Data: %s", last.Data)
+	}
+}
+
+func TestFilesReadDetailHashesControlCharacters(t *testing.T) {
+	detail := filesReadDetail("lab", "safe\nforged")
+	if strings.ContainsAny(detail, "\r\n") || !strings.Contains(detail, "path_sha256=") {
+		t.Fatalf("control-bearing path was not represented safely: %q", detail)
 	}
 }
