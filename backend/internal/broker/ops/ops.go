@@ -97,65 +97,93 @@ type Op struct {
 	AuditArgs func(args json.RawMessage) string
 	// Write is set for write ops only.
 	Write *WriteSpec
+	// Admission selects the broker's admission-control bucket. Every op has a
+	// known non-empty class (see the constants below); the registry test pins
+	// the exact set and the server refuses an unclassified op.
+	Admission AdmissionClass
 }
+
+// AdmissionClass is the broker admission bucket for an operation. Each class
+// has a fixed nonblocking capacity; the global in-flight cap is the backstop.
+type AdmissionClass string
+
+const (
+	// AdmissionControlPlan covers service/host-settings plans (read-only, mint
+	// a token). Separate from applies so plans cannot occupy every apply slot.
+	AdmissionControlPlan AdmissionClass = "control-plan"
+	// AdmissionControlApply covers service/host-settings applies (root-exec).
+	AdmissionControlApply AdmissionClass = "control-apply"
+	// AdmissionServicesRead covers the long read-only service views.
+	AdmissionServicesRead AdmissionClass = "services-read"
+	// AdmissionSystemRead covers short root-read system metadata views.
+	AdmissionSystemRead AdmissionClass = "system-read"
+	// AdmissionPackages covers the package queries.
+	AdmissionPackages AdmissionClass = "packages"
+	// AdmissionProbe covers the storage probe (dedicated so package queries
+	// cannot occupy it).
+	AdmissionProbe AdmissionClass = "probe"
+	// AdmissionInfo covers broker.info (a tiny dedicated slot so it stays
+	// available under read-class saturation).
+	AdmissionInfo AdmissionClass = "info"
+)
 
 // Registry returns the compiled-in operation table.
 func Registry() map[string]Op {
 	ops := []Op{
-		{Name: "broker.info", Scope: "", Privilege: PrivNone, Timeout: time.Second,
+		{Name: "broker.info", Scope: "", Privilege: PrivNone, Timeout: time.Second, Admission: AdmissionInfo,
 			Description: "Broker version and the list of registered operations", Handle: brokerInfo},
-		{Name: "legacy.webmin.status", Scope: "system.read", Privilege: PrivRootRead, Timeout: 3 * time.Second,
+		{Name: "legacy.webmin.status", Scope: "system.read", Privilege: PrivRootRead, Timeout: 3 * time.Second, Admission: AdmissionSystemRead,
 			Description: "Installed upstream Webmin: version, listener, TLS and security posture (no secrets)", Handle: webminStatus},
-		{Name: "hardware.dmi.identity", Scope: "hardware.read", Privilege: PrivRootRead, Timeout: 2 * time.Second,
+		{Name: "hardware.dmi.identity", Scope: "hardware.read", Privilege: PrivRootRead, Timeout: 2 * time.Second, Admission: AdmissionSystemRead,
 			Description: "Root-only SMBIOS identifiers (system/board/chassis serials, product UUID)", Handle: dmiIdentity},
-		{Name: "services.systemd.list", Scope: "services.read", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second,
+		{Name: "services.systemd.list", Scope: "services.read", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second, Admission: AdmissionServicesRead,
 			Description: "systemd units with load/active/sub state and unit-file enablement", Handle: systemdList},
-		{Name: "services.unit.logs", Scope: "services.logs", Privilege: PrivUnprivilegedExec, Timeout: 15 * time.Second,
+		{Name: "services.unit.logs", Scope: "services.logs", Privilege: PrivUnprivilegedExec, Timeout: 15 * time.Second, Admission: AdmissionServicesRead,
 			Description: "Recent journal entries of one listed unit (args: unit, lines 1-500)", Handle: unitLogs,
 			AuditArgs: logsAuditArgs},
 		// M2-2 (ADR 0011; D-2…D-5). Plan is read-only (unprivileged systemctl
 		// show) and mints the token; apply is the only root-exec op.
-		{Name: "services.unit.plan", Scope: "services.operate", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second,
+		{Name: "services.unit.plan", Scope: "services.operate", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second, Admission: AdmissionControlPlan,
 			Description: "Review start/stop/restart of one .service unit: policy check, observed state, risk class and a single-use plan token (args: unit, action)",
 			Handle:      unitPlan, AuditArgs: writeAuditArgs,
 			Write: &WriteSpec{Phase: "plan", Risks: []string{RiskReversible, RiskDisruptive}, LockDomain: "service:<unit id>"}},
-		{Name: "services.unit.apply", Scope: "services.operate", Privilege: PrivRootExec, Timeout: 55 * time.Second,
+		{Name: "services.unit.apply", Scope: "services.operate", Privilege: PrivRootExec, Timeout: 55 * time.Second, Admission: AdmissionControlApply,
 			Description: "Execute a reviewed start/stop/restart with its plan token; journaled, verified by reading the state back (args: unit, action, token)",
 			Handle:      unitApply, AuditArgs: writeAuditArgs,
 			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskReversible, RiskDisruptive}, LockDomain: "service:<unit id>",
 				Templates: []runner.RootTemplate{runner.RootSystemctlStart, runner.RootSystemctlStop, runner.RootSystemctlRestart, runner.RootSystemctlShow}}},
 		// M2-3 read-only views (unprivileged children, fixed argv).
-		{Name: "services.timers.list", Scope: "services.read", Privilege: PrivUnprivilegedExec, Timeout: 15 * time.Second,
+		{Name: "services.timers.list", Scope: "services.read", Privilege: PrivUnprivilegedExec, Timeout: 15 * time.Second, Admission: AdmissionServicesRead,
 			Description: "systemd timer units: schedule, last and next run, activated unit", Handle: timersList},
-		{Name: "services.sockets.list", Scope: "services.read", Privilege: PrivUnprivilegedExec, Timeout: 15 * time.Second,
+		{Name: "services.sockets.list", Scope: "services.read", Privilege: PrivUnprivilegedExec, Timeout: 15 * time.Second, Admission: AdmissionServicesRead,
 			Description: "systemd socket units: listen addresses and activated units", Handle: socketsList},
-		{Name: "services.unit.detail", Scope: "services.read", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second,
+		{Name: "services.unit.detail", Scope: "services.read", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second, Admission: AdmissionServicesRead,
 			Description: "One unit from the inventory: identity, unit-file origin, dependencies, last exit and restart counter (args: unit)",
 			Handle:      unitDetail, AuditArgs: viewAuditArgs},
-		{Name: "services.unit.contents", Scope: "services.files", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second,
+		{Name: "services.unit.contents", Scope: "services.files", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second, Admission: AdmissionServicesRead,
 			Description: "Read-only, redacted and size-capped unit file and drop-ins of one unit, as the service account can read them (args: unit)",
 			Handle:      unitContents, AuditArgs: viewAuditArgs},
 		// M2-3 boot-time enable/disable (ADR 0011; docs/m2/M2-3-DESIGN-REVIEW.md).
 		// Plan reads [Install] as root in-process; apply is root-exec.
-		{Name: "services.enablement.plan", Scope: "services.configure", Privilege: PrivRootRead, Timeout: 15 * time.Second,
+		{Name: "services.enablement.plan", Scope: "services.configure", Privilege: PrivRootRead, Timeout: 15 * time.Second, Admission: AdmissionControlPlan,
 			Description: "Review enabling or disabling one .service unit at boot: policy, [Install] links, risk and a single-use plan token (args: unit, action)",
 			Handle:      unitEnablementPlan, AuditArgs: enablementAuditArgs,
 			Write: &WriteSpec{Phase: "plan", Risks: []string{RiskDisruptive}, LockDomain: "service:<unit id>+unit-files"}},
-		{Name: "services.enablement.apply", Scope: "services.configure", Privilege: PrivRootExec, Timeout: 55 * time.Second,
+		{Name: "services.enablement.apply", Scope: "services.configure", Privilege: PrivRootExec, Timeout: 55 * time.Second, Admission: AdmissionControlApply,
 			Description: "Execute a reviewed boot-time enable/disable with its plan token (no --now, no reload); journaled, verified by is-enabled and the links (args: unit, action, token)",
 			Handle:      unitEnablementApply, AuditArgs: enablementAuditArgs,
 			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskDisruptive}, LockDomain: "service:<unit id>+unit-files",
 				Templates: []runner.RootTemplate{runner.RootSystemctlEnable, runner.RootSystemctlDisable, runner.RootSystemctlIsEnabled,
 					runner.RootSystemctlShowInstall, runner.RootSystemctlShow, runner.RootSystemctlShowManager}}},
-		{Name: "operations.journal.list", Scope: "audit.read", Privilege: PrivRootRead, Timeout: 5 * time.Second,
+		{Name: "operations.journal.list", Scope: "audit.read", Privilege: PrivRootRead, Timeout: 5 * time.Second, Admission: AdmissionSystemRead,
 			Description: "The 100 most recent privileged operations from the broker journal, including interrupted ones", Handle: journalList},
 		// M2-6 (ADR 0011 extension, proposed): hostname and timezone.
 		// Plan is unprivileged hostnamectl/timedatectl status; apply is root-exec.
-		{Name: "host.settings.plan", Scope: "host.settings.apply", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second,
+		{Name: "host.settings.plan", Scope: "host.settings.apply", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second, Admission: AdmissionControlPlan,
 			Description: "Review setting the static host name, pretty host name and/or time zone: observed hostnamectl/timedatectl values, reversible risk, TLS/mDNS//etc/hosts warning and a single-use plan token",
 			Handle:      hostSettingsPlan, AuditArgs: hostSettingsAuditArgs,
 			Write: &WriteSpec{Phase: "plan", Risks: []string{RiskReversible}, LockDomain: "host-settings"}},
-		{Name: "host.settings.apply", Scope: "host.settings.apply", Privilege: PrivRootExec, Timeout: 55 * time.Second,
+		{Name: "host.settings.apply", Scope: "host.settings.apply", Privilege: PrivRootExec, Timeout: 55 * time.Second, Admission: AdmissionControlApply,
 			Description: "Execute a reviewed hostname/timezone change with its plan token; journaled, verified by reading hostnamectl/timedatectl back (args: requested fields and token)",
 			Handle:      hostSettingsApply, AuditArgs: hostSettingsAuditArgs,
 			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskReversible}, LockDomain: "host-settings",
@@ -163,20 +191,20 @@ func Registry() map[string]Op {
 					runner.RootHostnamectlStatus, runner.RootTimedatectlStatus, runner.RootTimedatectlListTimezones}}},
 		// M4-1b (ADR 0008 Amendment 5, Proposed): read-only Software Center
 		// queries, cache-only, unprivileged closed argv templates. No write.
-		{Name: "packages.installed", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second,
+		{Name: "packages.installed", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second, Admission: AdmissionPackages,
 			Description: "Installed packages of one distribution family, from the local package database (args: family)", Handle: packagesInstalled},
-		{Name: "packages.updates", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second,
+		{Name: "packages.updates", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second, Admission: AdmissionPackages,
 			Description: "Pending upgrades with old and new versions from the local cache, labelled with the metadata refresh time (args: family)", Handle: packagesUpdates},
-		{Name: "packages.sources", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second,
+		{Name: "packages.sources", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second, Admission: AdmissionPackages,
 			Description: "Configured repositories and package sources with third-party and unsigned flags (args: family)", Handle: packagesSources},
-		{Name: "packages.search", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second,
+		{Name: "packages.search", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second, Admission: AdmissionPackages,
 			Description: "Search the local package cache of one family (args: family, q)", Handle: packagesSearch, AuditArgs: packagesAuditArgs},
 		// M2-4 O-1 (owner-approved implementation/isolated validation): the
 		// broker is only a bounded client of the root-only socket-activated
 		// probe helper. It enumerates block names and relays a closed request;
 		// it never opens a device or runs blkid itself. The helper's native LVM
 		// reader is the default LVM path (no lvs/pvs execution).
-		{Name: "storage.probe", Scope: "storage.probe", Privilege: PrivRootRead, Timeout: 35 * time.Second,
+		{Name: "storage.probe", Scope: "storage.probe", Privilege: PrivRootRead, Timeout: 35 * time.Second, Admission: AdmissionProbe,
 			Description: "On-demand native storage probe (blkid signatures on enumerated devices); wakes disks", Handle: storageProbe},
 	}
 	m := make(map[string]Op, len(ops))

@@ -40,6 +40,10 @@ if [ -n "${HC_WEBMIN_SRC:-}" ] && [ ! -e /etc/webmin ]; then
       config_dir=/etc/webmin var_dir=/var/webmin perl=/usr/bin/perl port=10000 \
       login=admin password="webmin-smoke-$RANDOM-pw" ssl=0 atboot=0 nostart=1 nouninstall=1 \
       nopostinstall=1 noperlpath=1 autoos=1 autothird=1 ./setup.sh >/tmp/webmin-setup.log 2>&1 )
+fi
+# The disposable fixture can persist between smoke runs while its boot symlink
+# is deliberately disabled. Start it on every run, not only after first install.
+if [ -x /etc/webmin/start ]; then
   SYSTEMD_PAGER=cat TERM=dumb /etc/webmin/start >/dev/null 2>&1 || true
   sleep 2
 fi

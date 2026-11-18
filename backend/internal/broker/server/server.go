@@ -38,15 +38,35 @@ type Server struct {
 	RootExec    *runner.Root
 	Audit       *audit.Logger
 	MaxInFlight int
-	registry    map[string]ops.Op
-	sem         chan struct{}
-	wg          sync.WaitGroup
+	// ClassCaps is the fixed per-class nonblocking capacity. The expensive
+	// (root/subprocess) classes sum to MaxInFlight; broker.info has its own
+	// tiny slot so it stays available under read-class saturation.
+	ClassCaps map[ops.AdmissionClass]int
+	registry  map[string]ops.Op
+	sem       chan struct{}
+	classSem  map[ops.AdmissionClass]chan struct{}
+	wg        sync.WaitGroup
 }
 
 // New creates a server.
 func New(env *ops.Env, al *audit.Logger, allowed ...uint32) *Server {
-	s := &Server{AllowedUIDs: allowed, Env: env, Audit: al, MaxInFlight: 8, registry: ops.Registry()}
+	s := &Server{
+		AllowedUIDs: allowed, Env: env, Audit: al, MaxInFlight: 8, registry: ops.Registry(),
+		ClassCaps: map[ops.AdmissionClass]int{
+			ops.AdmissionControlPlan:  1,
+			ops.AdmissionControlApply: 2,
+			ops.AdmissionServicesRead: 2,
+			ops.AdmissionSystemRead:   1,
+			ops.AdmissionPackages:     1,
+			ops.AdmissionProbe:        1,
+			ops.AdmissionInfo:         1,
+		},
+	}
 	s.sem = make(chan struct{}, s.MaxInFlight)
+	s.classSem = make(map[ops.AdmissionClass]chan struct{}, len(s.ClassCaps))
+	for cls, cap := range s.ClassCaps {
+		s.classSem[cls] = make(chan struct{}, cap)
+	}
 	return s
 }
 
@@ -160,14 +180,42 @@ func (s *Server) handle(ctx context.Context, c *net.UnixConn) {
 		s.reply(c, fail(proto.CodeForbidden, "actor lacks scope "+op.Scope))
 		return
 	}
+	// Admission: every op has a known class with a fixed nonblocking capacity.
+	// A class slot is taken first; expensive (non-info) ops then take a global
+	// backstop slot, releasing the class slot immediately if global admission
+	// fails. broker.info takes only its dedicated slot so it stays available
+	// under read-class saturation.
+	cls := op.Admission
+	sem, ok := s.classSem[cls]
+	if !ok || cls == "" {
+		ev.Outcome = "internal"
+		s.log(ev)
+		s.reply(c, fail(proto.CodeInternal, "operation has no admission class"))
+		return
+	}
 	select {
-	case s.sem <- struct{}{}:
-		defer func() { <-s.sem }()
+	case sem <- struct{}{}:
 	default:
 		ev.Outcome = "busy"
+		ev.Detail = fmt.Sprintf("%s admission=%s gate=class inflight=%d/%d", req.Op, cls, len(sem), cap(sem))
 		s.log(ev)
 		s.reply(c, fail(proto.CodeBusy, "broker is busy"))
 		return
+	}
+	if cls != ops.AdmissionInfo {
+		select {
+		case s.sem <- struct{}{}:
+			defer func() { <-s.sem; <-sem }()
+		default:
+			<-sem // release the class slot: the global cap is what limits us
+			ev.Outcome = "busy"
+			ev.Detail = fmt.Sprintf("%s admission=%s gate=global inflight=%d/%d", req.Op, cls, len(s.sem), cap(s.sem))
+			s.log(ev)
+			s.reply(c, fail(proto.CodeBusy, "broker is busy"))
+			return
+		}
+	} else {
+		defer func() { <-sem }()
 	}
 	if op.AuditArgs != nil {
 		argSummary = " " + op.AuditArgs(req.Args)

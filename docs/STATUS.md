@@ -1,13 +1,21 @@
-# Current status — M2 closeout candidate PR #118 (2026-11-18); M2 remains open
+# Current status — M2 closeout candidate PR #119 (2026-11-18); M2 remains open
 
-The working integration is branch `dreggbot/m2-acceptance-integration` and draft PR #118. It includes
-M2-5 Stage A safeguards, the read-only File Manager UI and API repairs, and M2-6 closeout test repairs.
-An exact-head CI run is required for the current PR tree; the preceding run used an older head and is
-not package provenance for the current candidate. The exact PR artifact and provenance must precede
-M2-3 guest testing in Claude's disposable VM pool. No M2-3 guest run has happened. M2 remains **open**
-pending KVM and distro evidence, owner acceptance, ADR dispositions and final M2 sign-off. M2-4 is
-read-only inventory; its helper remains disabled by default. See
-[`m2/evidence/browser-2026-11-18/README.md`](m2/evidence/browser-2026-11-18/README.md).
+PR #118 was merged as `c54fe5cc`; it is the baseline, not the current closeout candidate. Draft PR #119
+(`dreggbot/m2-3-admission-pr`, product head `04185f28`) carries the M2-3 broker admission and test/runbook
+repairs. Documentation commit `6574c020` is the latest PR update. Exact product-head CI run
+[44317837412](https://github.com/KRDucky/Homelab-Control/actions/runs/44317837412) passed all 21 checks;
+the docs-only update's CI is still running. The exact release-candidate artifact and source provenance
+are pinned in the M2-3 KVM procedure.
+
+M2-3 Phase A1/A2 on that artifact passed on Ubuntu 26.04.1, Ubuntu 22.04.5, and a clean Fedora 44
+guest with SELinux enforcing. Fedora's 307 PASS lines had zero failures and one expected Phase B skip;
+A2 passed 16 checks as a plan-only survey. The earlier retry on the existing Fedora guest stopped
+before checks because prior test state prevented fresh-account setup; that data and snapshot were
+preserved. Fedora A3/browser, reboots, and Phase B remain unrun. Sanitized evidence is at
+[`m2-3/kvm-pr119-2026-11-18-a1-a2/README.md`](evidence/m2/m2-3/kvm-pr119-2026-11-18-a1-a2/README.md).
+M2 remains **open** pending remaining technical and distro evidence, owner acceptance, ADR
+dispositions and final M2 sign-off. M2-4 is read-only inventory; its helper remains disabled by
+default. See [the browser evidence](m2/evidence/browser-2026-11-18/README.md).
 
 The historical reconciliation below remains a record of the 2026-11-07 main snapshot; it is not the
 current M2 verdict.
