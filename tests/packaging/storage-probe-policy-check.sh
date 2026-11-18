@@ -65,7 +65,10 @@ single() { # section key expected-value
   v=$(vals "$1" "$2")
   [ "$v" = "$3" ] || bad "$1 $2='$v' (expected '$3')"
 }
-in_list() { local x=$1; shift; local i; for i in "$@"; do [ "$i" = "$x" ] && return 0; done; return 1; }
+in_list() {
+  local x=$1 list=$2
+  case " $list " in *" $x "*) return 0 ;; *) return 1 ;; esac
+}
 
 # check_keys FILE "allowed sections" "unit keys" "section keys" "multi-valued keys"
 check_keys() {
@@ -74,15 +77,14 @@ check_keys() {
   while IFS=$'\t' read -r sec key _; do
     [ -n "$sec" ] || continue
     if [ "$key" = "__noassign__" ]; then bad "line without '=' in $sec"; continue; fi
-    # shellcheck disable=SC2086
-    in_list "$sec" $secs || { bad "section $sec is not allowed"; continue; }
+    in_list "$sec" "$secs" || { bad "section $sec is not allowed"; continue; }
     [ "$key" = "__section__" ] && continue
     case "$sec" in
-      "[Unit]") in_list "$key" $ukeys || bad "key $key is not allowed in [Unit]" ;;
-      *)        in_list "$key" $skeys || bad "key $key is not allowed in $sec" ;;
+      "[Unit]") in_list "$key" "$ukeys" || bad "key $key is not allowed in [Unit]" ;;
+      *)        in_list "$key" "$skeys" || bad "key $key is not allowed in $sec" ;;
     esac
     n=$(count "$sec" "$key")
-    if [ "$n" -gt 1 ] && ! in_list "$key" $multi; then bad "$sec $key is assigned $n times"; fi
+    if [ "$n" -gt 1 ] && ! in_list "$key" "$multi"; then bad "$sec $key is assigned $n times"; fi
   done < <(printf '%s\n' "$P" | sort -u)
   if grep -q 'CAP_' "$f" && grep -vE '^[[:space:]]*[#;]' "$f" | grep -q 'CAP_'; then
     bad "a CAP_ capability appears in an assignment"
@@ -141,8 +143,9 @@ check_service() {
   # SystemCallFilter: the allow group plus the deny groups, nothing else.
   n=$(count "[Service]" SystemCallFilter)
   v=$(vals "[Service]" SystemCallFilter | sort | tr '\n' '|')
-  [ "$n" = 2 ] && [ "$v" = "$(printf '%s\n%s\n' "$DENY_SYSCALLS" '@system-service' | sort | tr '\n' '|')" ] \
-    || bad "SystemCallFilter must be exactly '@system-service' and '$DENY_SYSCALLS'"
+  if [ "$n" != 2 ] || [ "$v" != "$(printf '%s\n%s\n' "$DENY_SYSCALLS" '@system-service' | sort | tr '\n' '|')" ]; then
+    bad "SystemCallFilter must be exactly '@system-service' and '$DENY_SYSCALLS'"
+  fi
   # DeviceAllow: non-empty, only reviewed block groups, "r" only, exactly the reviewed set.
   n=$(count "[Service]" DeviceAllow)
   [ "$n" -ge 1 ] || bad "DeviceAllow allow-list is empty (fail closed: the unit needs the reviewed groups)"
@@ -188,7 +191,7 @@ strip_policy() { sed -e 's/[[:space:]]*#.*$//' -e '/^[[:space:]]*$/d' "$1"; }
 check_selinux() { # te fc
   local te=$1 fc=$2 body fc_body
   FAILS=0
-  [ -r "$te" ] && [ -r "$fc" ] || { bad "SELinux sources are missing"; return 1; }
+  if [ ! -r "$te" ] || [ ! -r "$fc" ]; then bad "SELinux sources are missing"; return 1; fi
   body=$(strip_policy "$te")
   for need in "policy_module(homelab_control_storage_probe" "type ${SEL_TYPE};" \
               "init_daemon_domain(${SEL_TYPE}, hc_storage_probe_exec_t)" \
@@ -264,7 +267,9 @@ check_packaging() { # root
   [ -z "$hits" ] || bad "the opt-in marker is referenced outside the two units: $hits"
   hits=$(find "$r/packaging" -iname '*preset*' 2>/dev/null)
   [ -z "$hits" ] || bad "preset files must not exist for the storage probe: $hits"
-  [ -z "$(grep -rln 'WantedBy=.*storage-probe\|storage-probe.*WantedBy=' "$r/packaging" 2>/dev/null)" ] || bad "WantedBy references the storage probe"
+  if grep -rqlE 'WantedBy=.*storage-probe|storage-probe.*WantedBy=' "$r/packaging" 2>/dev/null; then
+    bad "WantedBy references the storage probe"
+  fi
   # Package scripts install the helper from /usr/lib/homelab-control (matches the SELinux file context).
   grep -rqn 'libexec.*hc-storage-probe' "$r/packaging" 2>/dev/null && bad "hc-storage-probe must not be installed under libexec"
   # Cross-checks between the units and the policy sources.
@@ -328,7 +333,7 @@ self_test() {
   mutate service "CAP_SYS_RAWIO bounding"         's/^CapabilityBoundingSet=$/CapabilityBoundingSet=CAP_SYS_RAWIO/'
   mutate service "CAP_SYS_ADMIN ambient"          's/^AmbientCapabilities=$/AmbientCapabilities=CAP_SYS_ADMIN/'
   mutate service "no capability line"             '/^CapabilityBoundingSet=$/d'
-  mutate service "install section"                '$a [Install]\nWantedBy=multi-user.target'
+  mutate service "install section"                "\$a [Install]\nWantedBy=multi-user.target"
   mutate service "WantedBy only"                  '/^LimitCORE=0$/a WantedBy=multi-user.target'
   mutate service "User=root"                      '/^DynamicUser=yes$/a User=root'
   mutate service "extra group"                    's/^SupplementaryGroups=disk$/SupplementaryGroups=disk root/'
@@ -347,7 +352,7 @@ self_test() {
   mutate service "no new privileges off"          's/^NoNewPrivileges=yes$/NoNewPrivileges=no/'
   mutate service "unknown key (BindPaths)"        '/^LimitCORE=0$/a BindPaths=/dev'
   mutate service "line continuation"              's#^LimitCORE=0$#LimitCORE=0 \\#'
-  mutate socket  "install section"                '$a [Install]\nWantedBy=sockets.target'
+  mutate socket  "install section"                "\$a [Install]\nWantedBy=sockets.target"
   mutate socket  "no opt-in marker"               '/^ConditionPathExists=/d'
   mutate socket  "world accessible"               's/^SocketMode=0600$/SocketMode=0666/'
   mutate socket  "unlimited connections"          's/^MaxConnections=1$/MaxConnections=64/'
@@ -382,10 +387,10 @@ self_test() {
   mutate aa      "complain mode"                  's/flags=(enforce)/flags=(complain)/'
   mutate aa      "broad device rule"              's#^  /dev/block/ r,#  /dev/** rw,#'
   mutate aa      "profile renamed"                's/^profile hc-storage-probe /profile other /'
-  mutate deb     "package starts probe"           '$a systemctl start homelab-control-storage-probe.socket'
-  mutate deb     "package enables probe"          '$a systemctl enable --now homelab-control-storage-probe.socket'
-  mutate deb     "package ships marker"           '$a install -Dm0644 /dev/null "$stage/etc/homelab-control/storage-probe.enabled"'
-  mutate deb     "libexec install"                '$a install -Dm0755 x "$stage/usr/libexec/homelab-control/hc-storage-probe"'
+  mutate deb     "package starts probe"           "\$a systemctl start homelab-control-storage-probe.socket"
+  mutate deb     "package enables probe"          "\$a systemctl enable --now homelab-control-storage-probe.socket"
+  mutate deb     "package ships marker"           "\$a install -Dm0644 /dev/null \"\$stage/etc/homelab-control/storage-probe.enabled\""
+  mutate deb     "libexec install"                "\$a install -Dm0755 x \"\$stage/usr/libexec/homelab-control/hc-storage-probe\""
   echo "self-test: $n mutations, $fail not rejected"
   [ "$fail" = 0 ]
 }
