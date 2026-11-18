@@ -4,6 +4,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { Chassis, DriveLayout, LayoutCell } from './api';
+import { importLayout } from './api';
 import { assignable, bayState, redactedLayout, unassignedDrives } from './bayModel';
 import { DriveBays } from './pages/DriveBays';
 import type { StorageNode } from './storageModel';
@@ -480,6 +481,34 @@ describe('export redaction', () => {
     };
     const out = redactedLayout({ chassis: [chassis] });
     expect(out.chassis[0]?.cells[0]?.assigned).toBe(false);
+  });
+
+  it('round-trips an exported layout through import with the assigned flag', async () => {
+    const chassis: Chassis = {
+      id: 7,
+      name: 'Example NAS',
+      kind: 'server',
+      rows: 1,
+      cols: 1,
+      version: 1,
+      created_at: '2026-11-06T00:00:00Z',
+      updated_at: '2026-11-06T00:00:00Z',
+      cells: [assigned],
+    };
+    const exported = redactedLayout({ chassis: [chassis] });
+    expect(exported.chassis[0]?.cells[0]?.assigned).toBe(true);
+    let sentBody: string | undefined;
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      sentBody = init?.body as string | undefined;
+      return new Response(JSON.stringify({ chassis: [chassis] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await importLayout(exported.chassis, 'example-csrf');
+    expect(sentBody).toBeDefined();
+    expect(JSON.parse(String(sentBody))).toEqual({ chassis: exported.chassis });
   });
 
   it('offers a redacted layout export', async () => {
