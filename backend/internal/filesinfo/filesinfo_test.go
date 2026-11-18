@@ -316,7 +316,6 @@ func TestListNonSearchableDirectory(t *testing.T) {
 		t.Fatalf("non-searchable directory: got %v, want ErrPermission", err)
 	}
 }
-
 func TestListSkipsUnnavigableNames(t *testing.T) {
 	d := filepath.Join(t.TempDir(), "jail")
 	if err := os.MkdirAll(d, 0o755); err != nil {
