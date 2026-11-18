@@ -144,6 +144,25 @@ describe('files', () => {
     expect(calls.some((c) => (c.init?.method ?? 'GET') !== 'GET')).toBe(false);
   });
 
+  it('shows the omitted-name count when names were skipped', async () => {
+    mock(['system.read', 'files.read'], {
+      'GET /api/v1/files/roots': { status: 200, body: roots },
+      'GET /api/v1/files/entries': { status: 200, body: { ...rootEntries, omitted: 2 } },
+    });
+    render(<App />);
+    expect(await screen.findByText('2 names omitted — not safely displayable.')).toBeTruthy();
+  });
+
+  it('shows no omitted note when omitted is zero', async () => {
+    mock(['system.read', 'files.read'], {
+      'GET /api/v1/files/roots': { status: 200, body: roots },
+      'GET /api/v1/files/entries': { status: 200, body: { ...rootEntries, omitted: 0 } },
+    });
+    render(<App />);
+    await screen.findByText('readme.txt');
+    expect(screen.queryByText(/omitted/)).toBeNull();
+  });
+
   it('opens a directory by GET and still never posts writes or downloads', async () => {
     calls = [];
     vi.stubGlobal(
