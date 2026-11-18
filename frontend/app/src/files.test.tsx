@@ -144,13 +144,24 @@ describe('files', () => {
     expect(calls.some((c) => (c.init?.method ?? 'GET') !== 'GET')).toBe(false);
   });
 
-  it('shows the omitted-name count when names were skipped', async () => {
+  it('shows the omitted-name count as an accessible status', async () => {
     mock(['system.read', 'files.read'], {
       'GET /api/v1/files/roots': { status: 200, body: roots },
       'GET /api/v1/files/entries': { status: 200, body: { ...rootEntries, omitted: 2 } },
     });
     render(<App />);
-    expect(await screen.findByText('2 names omitted — not safely displayable.')).toBeTruthy();
+    const note = await screen.findByText(/2 names omitted/);
+    expect(note.getAttribute('role')).toBe('status');
+    expect(note.textContent).toContain('unrepresentable or unreadable');
+  });
+
+  it('clears a stale omitted count when navigation fails', async () => {
+    routedFetch({ '': { ...rootEntries, omitted: 2 } });
+    render(<App />);
+    expect(await screen.findByText(/2 names omitted/)).toBeTruthy();
+    fireEvent.click(screen.getAllByRole('button', { name: 'sub' })[0] as HTMLElement);
+    await screen.findByText(/Unknown file root or path/);
+    expect(screen.queryByText(/omitted/)).toBeNull();
   });
 
   it('shows no omitted note when omitted is zero', async () => {

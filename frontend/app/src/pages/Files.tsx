@@ -224,6 +224,7 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
         if (gen !== generation.current) return;
         if (err instanceof ApiError && err.status === 401) onUnauthorized();
         setEntries(null);
+        setOmitted(0);
         setSelected(null);
         setError(err instanceof ApiError ? err.message : explain(err as Error));
       } finally {
@@ -395,9 +396,10 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
                   {filter.trim() ? `${shown.length} of ${entries.length} items` : `${entries.length} items`}
                 </span>
               )}
-              {omitted > 0 && (
-                <span className="muted">
-                  {omitted} {omitted === 1 ? 'name' : 'names'} omitted — not safely displayable.
+              {entries && omitted > 0 && (
+                <span className="muted" role="status">
+                  {omitted} {omitted === 1 ? 'name' : 'names'} omitted — unrepresentable or unreadable
+                  metadata.
                 </span>
               )}
             </div>
