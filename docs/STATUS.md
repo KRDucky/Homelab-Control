@@ -1,4 +1,16 @@
-# Current status — M2 working skeletons and M3 plugin SDK first checkpoint on main (2026-11-07); not accepted
+# Current status — M2 closeout candidate PR #118 (2026-11-18); M2 remains open
+
+The working integration is branch `dreggbot/m2-acceptance-integration` and draft PR #118. It includes
+M2-5 Stage A safeguards, the read-only File Manager UI and API repairs, and M2-6 closeout test repairs.
+An exact-head CI run is required for the current PR tree; the preceding run used an older head and is
+not package provenance for the current candidate. The exact PR artifact and provenance must precede
+M2-3 guest testing in Claude's disposable VM pool. No M2-3 guest run has happened. M2 remains **open**
+pending KVM and distro evidence, owner acceptance, ADR dispositions and final M2 sign-off. M2-4 is
+read-only inventory; its helper remains disabled by default. See
+[`m2/evidence/browser-2026-11-18/README.md`](m2/evidence/browser-2026-11-18/README.md).
+
+The historical reconciliation below remains a record of the 2026-11-07 main snapshot; it is not the
+current M2 verdict.
 
 Reconciled against `origin/main` at `20ddc2b7` (PR #54 squash `20ddc2b7` on PR #53 `9fc9d8af` on
 `b290f9dc`, 2026-11-07). Git first-parent history is the
@@ -174,7 +186,13 @@ package install. MergerFS tooling JSON is unchanged (types aliased). Not P0 comp
 not production. Not ready for write tests. This does not make the storage write
 path ready for guest or host write tests.
 
-## M2-3: expanded service management (development authorized 2026-11-04; working skeleton on main, not accepted)
+## M2-3: expanded service management (development authorized 2026-11-04; implementation not accepted)
+
+**Current update (2026-11-18):** the owner authorized KVM Phase A and Phase B and opening an M2 PR. The
+historical CI artifact for `40801659` is still available, but current code changes to routing/CSRF,
+module registration and service-write support make it stale for this candidate. No VM has run yet.
+Use the exact CI package built from the M2 PR before testing. Merge and production activation remain
+separate decisions.
 
 The owner authorized M2-3 development and isolated testing on 2026-11-04; owner acceptance and production
 activation remain separate owner decisions (`docs/m2/OWNER-DECISIONS.md`, owner items O-1…O-5). The working
@@ -200,8 +218,8 @@ KVM acceptance, and not M2 close.
   `docs/evidence/m2/m2-3/review-eb2fc2d4/`). Review-branch final candidate `c0f620de`: `services.files` (P-2,
   implementation owner-authorized), unit search path and drop-in precedence fail closed (`review-c0f620de/`).
   This STATUS update does not re-run that evidence against `a548f52f`. Proposals P-1, P-3…P-6 and P-9 await
-  owner approval (not decisions); P-7 objective and P-8 approach approved, implementations for review; D-10
-  open; KVM acceptance not authorized.
+  owner approval (not decisions); P-7 objective and P-8 approach approved, implementations for review;
+  D-10 is resolved by P-1; KVM acceptance not authorized.
 - **Still not authorized:** mask/unmask, unit editing or creation, daemon-reload, and other privileged writes
   outside the working skeletons listed below. M3 product, acceptance, and production are not granted;
   isolated Theme/Plugin SDK development is authorized after skeleton closeout (ask_ui `m2-close-m3-d8`).
@@ -209,21 +227,37 @@ KVM acceptance, and not M2 close.
   (`docs/m2/OWNER-DECISIONS.md`, "Continuation through M2-6"); their working skeletons are on `main`
   (below). Owner acceptance, production activation, and M2 close remain pending.
 
-## M2-4: read-only storage inventory (development authorized 2026-11-05; working skeleton on main, not accepted)
+## M2-4: read-only storage inventory (local closeout candidate; scoped acceptance recorded)
 
-Working skeleton on `main` as PR #37 (`058f4725`, 2026-11-06). Read-only storage discovery and ownership
-graph (`GET /api/v1/storage`, scope `storage.read`, never default). No storage-configuration writes.
-Scope notes: [`docs/m2/M2-4-STORAGE-SCOPE.md`](m2/M2-4-STORAGE-SCOPE.md). That document still records a
-native LVM/signature collector as pending and fixture-tested parsers only; this STATUS update does not
-claim live RAID/cache completeness, distro coverage, or KVM acceptance. Not M2 close.
+`docs/m2/M2-4-ACCEPTANCE.md` records acceptance for the scoped read-only inventory and explicit
+on-demand probe on the local candidate. Includes native LVM metadata parsing, broker/API/graph/UI
+integration, fixture differentials, and Fedora 44 SELinux plus Debian 13 AppArmor guest evidence.
+Read-only means it never configures or writes storage; the explicit probe can wake disks. The helper
+remains disabled by default. This does not authorize host activation or close M2.
 
-## M2-5: manual drive-layout skeleton (development authorized 2026-11-05; working skeleton on main, not accepted)
+## M2-5: manual drive-layout Stage A (local closeout candidate; owner acceptance open)
 
-Stage A manual chassis/bay layout in app state (no host writes, no new broker op). D-12 (HBA Viewer
-reuse) remains open. Contract: [`docs/m2/M2-5-STAGE-A-CONTRACT.md`](m2/M2-5-STAGE-A-CONTRACT.md). The
+Manual/unverified assignments, import/export, and versioned changes are implemented. hc-ui reports
+18 focused checks and 204 total Vitest checks passing, plus typecheck/lint/format; these results were
+not rerun in the integration environment. Synthetic Playwright+axe evidence: 18 checks pass,
+desktop/mobile axe zero violations, no mobile overflow.
+The owner-supplied `KRDucky/hbaviewer-cockpit` source is MIT-licensed. Its bay-layout concept informs
+Stage A; no upstream code or privileged Cockpit/Python runtime was copied. Credits and license
+compatibility are recorded in `OWNER-DECISIONS.md` and `MODULE-ARCHITECTURE.md`. No owner acceptance
+Static review found and repaired the medium identity disclosure (write responses omit assignment
+identity without `storage.read`), plus three lows: export now omits identity and assignment metadata,
+uses a dedicated 8 MiB import cap, and accepts only the custom drive drag type while not busy. Backend
+follow-ups make non-searchable directories report permission errors and preserve deep paths in audit
+data. Implementers report focused regression coverage and full Go/UI checks passing on isolated
+branches; integrated-candidate checks remain outstanding. No owner acceptance or merge is implied.
+See `docs/m2/M2-5-STAGE-A-ACCEPTANCE.md` and
+`docs/m2/evidence/browser-2026-11-18/`.
+
+Stage A is manual chassis/bay layout in app state (no host writes, no new broker op). D-12 source
+identification and concept reconciliation are recorded. Contract: [`docs/m2/M2-5-STAGE-A-CONTRACT.md`](m2/M2-5-STAGE-A-CONTRACT.md). The
 slice entered `main` through PR #40 (`1f885993`, 2026-11-06), whose squash includes the M2-5 handoff
-commit labelled `#39`. There is no separate first-parent commit for PR #39. Not accepted, not production,
-not KVM acceptance, not M2 close.
+commit labelled `#39`. The local candidate adds the browser evidence noted above; it is not accepted,
+not production, not KVM acceptance, and not M2 close.
 
 ## OIDC login (working skeleton on main, not accepted)
 
@@ -231,20 +265,37 @@ PR #38 (`7a121dbd`, 2026-11-06) on `main`. One configured OpenID Connect provide
 existing local account; scopes stay on the local account. Notes: [`docs/security/OIDC-SSO.md`](security/OIDC-SSO.md)
 (not tested against a real provider; not accepted).
 
-## M2-6: hostname and timezone apply (development authorized 2026-11-05; working skeleton on main, not accepted)
+## M2-6: hostname and timezone apply (local closeout candidate; not owner-accepted)
+
+The synthetic Playwright fixture has 33 passing checks, zero desktop/mobile axe violations, and no
+mobile overflow. DeepSeek added a confirmation-cancel regression test (reported in 205 total Vitest
+checks) and repaired two storage-module test expectations; focused Go, full frontend, vet, typecheck
+and lint checks were reported passing in its isolated branch, not rerun here. Its apply-capable
+account opens the confirmation UI; one dry-run plan reaches only a fail-closed fake broker, with zero
+apply requests. No host settings changed. Distro/KVM coverage, documentation and owner acceptance
+remain open.
 
 Owner-authorized collaborative development of hostname (static and pretty) and timezone apply. On `main`:
 read-only skeleton PR #40 (`1f885993`, 2026-11-06); apply backend PR #41 (`4c3c30a7`, 2026-11-07);
 apply UI PR #42 (`90453f0a`, 2026-11-07). ADR 0011 `POST /host/settings/plan` and `/apply` (scope
 `host.settings.apply`, never default) with closed `hostnamectl`/`timedatectl` templates. Preview stays
 non-executing and never posts plan or apply. ADR 0008 Amendment 4 and the ADR 0011 M2-6 extension remain
-**Proposed**. Isolated fixtures only; no production or retained-host apply. Opt-in Playwright+axe
-(`TestHostSettingsBrowserFixture`, `tests/e2e/host_settings_browser.py`) is preview-only against a copy of
-`testdata/hostsettings`; it has no broker and never runs `hostnamectl` or `timedatectl`. Not in CI. This is
-a working skeleton, not M2-6 acceptance, not production, not KVM acceptance, and not M2 close. Working notes:
+**Proposed**. Isolated fixtures only; no production or retained-host apply. The opt-in Playwright+axe
+fixture (`TestHostSettingsBrowserFixture`, `tests/e2e/host_settings_browser.py`) is documented in
+`docs/m2/M2-6-HOST-SETTINGS-SKELETON.md` and exercises preview plus confirmation against a fail-closed
+fake broker. It never runs `hostnamectl` or `timedatectl`. Not in CI. This is not M2-6 owner acceptance,
+not production, not KVM acceptance, and not M2 close. Working notes:
 [`docs/m2/M2-6-HOST-SETTINGS-SKELETON.md`](m2/M2-6-HOST-SETTINGS-SKELETON.md).
 
-## File manager: read-only listing (development authorized 2026-11-07; working skeleton on main, not accepted)
+## File manager: read-only listing (local closeout candidate; not accepted)
+
+The navigation/details UI implementer reports 47 synthetic fixture checks, zero desktop/mobile axe
+violations and no mobile overflow; evidence is preserved in `docs/m2/evidence/browser-2026-11-18/files-ui/`.
+The integration host cannot rerun these checks because Node/npm/Go are unavailable. Static review's
+filename spoofing, table-detail collision, unreadable-directory and audit-path findings have focused
+repairs; invalid UTF-8/backslash navigation is still being resolved on the backend. Implementer test
+reports are not yet rerun on the integrated candidate. ADR 0012 and owner acceptance remain open; no
+write operations are in scope.
 
 Owner `ask_ui` selected the file manager after squash-merging PR #42. Isolated **read-only** listing and
 stat of entries under allow-listed confined roots (`files.read`, never default). `hc-api` reopens each

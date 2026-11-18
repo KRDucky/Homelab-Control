@@ -88,3 +88,24 @@ export function unassignedDrives(nodes: StorageNode[], chassis: Chassis[]) {
   const free = disks.filter((node) => !(node.persistent_id && assigned.has(node.persistent_id)));
   return { eligible: free.filter(assignable), ineligible: free.filter((node) => !assignable(node)) };
 }
+
+/** A layout safe to export: geometry (chassis name/kind/rows/cols, cell kind
+ * and label) plus an `assigned` boolean only. Identities, the administrator
+ * account name, timestamps and provenance/confidence are never exported. */
+export function redactedLayout(layout: { chassis: Chassis[] }) {
+  return {
+    chassis: layout.chassis.map((c) => ({
+      name: c.name,
+      kind: c.kind,
+      rows: c.rows,
+      cols: c.cols,
+      cells: c.cells.map((cell) => ({
+        row: cell.row,
+        col: cell.col,
+        kind: cell.kind,
+        label: cell.label,
+        assigned: cell.assignment !== undefined,
+      })),
+    })),
+  };
+}

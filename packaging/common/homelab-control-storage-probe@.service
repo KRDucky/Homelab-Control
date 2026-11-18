@@ -1,0 +1,101 @@
+[Unit]
+Description=Homelab Control read-only storage probe (M2-4 O-1, disabled by default)
+Documentation=file:///usr/share/doc/homelab-control/docs/m2/M2-4-O1-DEVICE-POLICY.md
+Requires=homelab-control-storage-probe.socket
+After=homelab-control-storage-probe.socket
+# Opt-in marker: the helper never runs unless an administrator creates this file
+# in a disposable validation environment. No package ships it.
+ConditionPathExists=/etc/homelab-control/storage-probe.enabled
+# Instances are started only by socket activation, never by hand.
+RefuseManualStart=yes
+
+[Service]
+Type=oneshot
+# No ExecStartPre/ExecStartPost: every Exec line runs inside the helper's SELinux
+# domain / AppArmor profile, which deliberately cannot execute grep or a shell.
+# Startup fail-closed is therefore the helper's duty (docs/m2/M2-4-O1-DEVICE-POLICY.md,
+# "Startup self-check"): DeviceAllow= group names are only added when they are
+# listed in /proc/devices at unit start (systemd.resource-control(5)), so the
+# helper must read /proc/devices, require EVERY reviewed group below to be
+# listed, and otherwise exit non-zero with a typed refusal before probing.
+ExecStart=/usr/lib/homelab-control/hc-storage-probe
+# Closed typed protocol: one Request on stdin, one Result on stdout, then exit.
+StandardInput=socket
+StandardOutput=socket
+StandardError=journal
+
+# O-1 read-only raw block access (owner approval 2026-11-17: implementation and
+# disposable validation only; no host or production activation).
+# PrivateDevices=no is necessary: PrivateDevices=yes builds a private /dev that
+# cannot contain physical disks, and a static unit cannot bind-mount per-device
+# nodes. Read-only access is therefore granted only through the cgroup device
+# policy below (eBPF), per reviewed block-device GROUP, with "r" only:
+#   sd       SCSI/SATA/SAS and USB-attached storage disks and partitions. The
+#            cgroup policy does NOT exclude USB/removable disks: skipping them
+#            is helper behaviour only and does not constrain a compromised helper.
+#   blkext   NVMe namespaces and extended-minor partitions
+#   virtblk  virtio-blk disks (virtual machines)
+#   md       Linux software RAID arrays
+# No "w" and no "m", no char-* groups, no loop/nbd/zram/ram/sr/fd/rbd, no
+# device-mapper, and no explicit /dev path. DevicePolicy=closed additionally
+# allows only the standard pseudo devices (null, zero, full, random, urandom).
+# systemd adds /dev/loop-control, block-loop and block-blkext with rwm when
+# RootImage=, MountImages= or ExtensionImages= is set (systemd.exec(5)); the
+# guard test bans those keys so blkext can never become writable.
+# The cgroup policy is the ONLY write barrier: the block nodes are root:disk
+# 0660, so group membership alone would allow writes. ReadOnlyPaths=/dev is not
+# a barrier (a read-only mount does not stop writes to device nodes).
+# Residual privilege: raw reads of EVERY disk in these classes, including the
+# system disk, bypass filesystem permissions. See
+# docs/m2/M2-4-O1-DEVICE-POLICY.md.
+PrivateDevices=no
+DevicePolicy=closed
+DeviceAllow=block-sd r
+DeviceAllow=block-blkext r
+DeviceAllow=block-virtblk r
+DeviceAllow=block-md r
+# Throwaway account; the only group is disk (DAC read of the block nodes).
+DynamicUser=yes
+SupplementaryGroups=disk
+# No capabilities at all (no CAP_SYS_ADMIN, CAP_SYS_RAWIO, CAP_MKNOD, CAP_DAC_*).
+CapabilityBoundingSet=
+AmbientCapabilities=
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateNetwork=yes
+PrivateIPC=yes
+IPAddressDeny=any
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictAddressFamilies=AF_UNIX
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@resources @mount @swap @reboot @raw-io @module @obsolete @debug @cpu-emulation @clock
+# A denied system call returns EPERM instead of killing blkid with SIGSYS.
+SystemCallErrorNumber=EPERM
+# Belt and braces: hc-api secrets and state, and the host-shared /dev IPC dirs.
+InaccessiblePaths=-/etc/homelab-control -/var/lib/homelab-control -/var/log/homelab-control -/var/log/homelab-control-broker -/dev/shm -/dev/mqueue
+UMask=0077
+# Mandatory access control. Each setting is ignored on hosts where that LSM is
+# not active. Where the LSM is active but the policy is not installed, the
+# instance fails to start (fail closed). No unconfined fallback.
+SELinuxContext=system_u:system_r:hc_storage_probe_t:s0
+AppArmorProfile=hc-storage-probe
+TimeoutStartSec=30
+MemoryMax=64M
+TasksMax=16
+LimitCORE=0
+
+# No [Install] section: the helper cannot be enabled at boot.

@@ -106,7 +106,7 @@ try:
         forged = context.request.put(
             url + f"/api/v1/storage/layout/chassis/{stored()[0]['id']}/bays/0/1/assignment",
             headers={"X-CSRF-Token": csrf, "Origin": url, "Content-Type": "application/json"},
-            data=json.dumps({"persistent_id": a["identity"]}),
+            data=json.dumps({"persistent_id": a["identity"], "version": stored()[0]["version"]}),
         )
         check("actual API refuses a second bay for one identity", forged.status == 409)
         check("refused change not persisted", stored()[0]["cells"][1].get("assignment") is None)
@@ -122,7 +122,11 @@ try:
         bay(1, "No drive assigned").click()
         drive = page.get_by_label("Drive to assign")
         drive.select_option(value=drive.locator("option", has_text="EXAMPLE-SERIAL-A").get_attribute("value"))
-        gone = context.request.delete(url + f"/api/v1/storage/layout/chassis/{stored()[0]['id']}", headers={"X-CSRF-Token": csrf, "Origin": url})
+        current = stored()[0]
+        gone = context.request.delete(
+            url + f"/api/v1/storage/layout/chassis/{current['id']}?version={current['version']}",
+            headers={"X-CSRF-Token": csrf, "Origin": url},
+        )
         check("chassis deleted via actual API", gone.status == 200 and stored() == [])
         page.get_by_role("button", name="Assign drive", exact=True).click()
         page.get_by_text("No such chassis, bay or assignment.", exact=True).wait_for()

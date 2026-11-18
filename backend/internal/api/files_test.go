@@ -5,15 +5,20 @@
 package api
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"homelab-control/backend/internal/audit"
 	"homelab-control/backend/internal/auth"
 	"homelab-control/backend/internal/filesinfo"
+	"homelab-control/backend/internal/state"
 )
 
 func filesJail(t *testing.T) string {
@@ -221,5 +226,67 @@ func TestFilesCapabilityDegradedWhenBrowsable(t *testing.T) {
 	c2 := caps(t, h2)["files"]
 	if c2.Status != CapForbidden {
 		t.Fatalf("%+v", c2)
+	}
+}
+
+func TestFilesAuditStateStorePreservesDeepPath(t *testing.T) {
+	// Production audit store (state DB) rejects Event.Data, so the deep-path
+	// evidence must live in the bounded Detail as a path hash; the listing must
+	// still succeed (200), not 503.
+	h, jail := filesHarness(t, []string{auth.ScopeFilesRead})
+	dbdir := t.TempDir()
+	if err := os.Chmod(dbdir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	db, err := state.Open(filepath.Join(dbdir, "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	al, err := audit.OpenStore(db.Audit())
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.srv.audit = al
+
+	var parts []string
+	for i := 0; i < 40; i++ {
+		parts = append(parts, fmt.Sprintf("seg%02d", i))
+	}
+	rel := strings.Join(parts, "/")
+	if err := os.MkdirAll(filepath.Join(jail, rel), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if len(rel) <= 128 {
+		t.Fatalf("test path too short: %d bytes", len(rel))
+	}
+	rr := h.do("GET", "/api/v1/files/entries?root=lab&path="+rel, "", filesHeaders(h))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("listing failed under state audit store: %d %s", rr.Code, rr.Body.String())
+	}
+	last, err := db.Audit().Last()
+	if err != nil || last == nil {
+		t.Fatalf("audit record missing: %v", err)
+	}
+	sum := sha256.Sum256([]byte(rel))
+	if !strings.Contains(last.Detail, "path_sha256="+hex.EncodeToString(sum[:16])) {
+		t.Fatalf("path hash not preserved in detail: %+v", last)
+	}
+	if len(last.Data) != 0 {
+		t.Fatalf("state audit record carries Data: %s", last.Data)
+	}
+}
+
+func TestFilesReadDetailUsesUnambiguousPathRepresentation(t *testing.T) {
+	if got := filesReadDetail("lab", "safe/dir-1.txt"); got != "root=lab path=safe/dir-1.txt" {
+		t.Fatalf("safe path detail = %q", got)
+	}
+	for _, path := range []string{"safe\nforged", "a path_sha256=0123456789abcdef0123456789abcdef", "café"} {
+		detail := filesReadDetail("lab", path)
+		sum := sha256.Sum256([]byte(path))
+		want := "root=lab path_sha256=" + hex.EncodeToString(sum[:16])
+		if detail != want {
+			t.Errorf("path %q detail = %q, want %q", path, detail, want)
+		}
 	}
 }

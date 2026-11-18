@@ -1,0 +1,7 @@
+=== RUN   TestFilesBrowserFixture
+    files_browser_test.go:164: labelled isolated files fixture ready; credentials withheld; not live host browse or acceptance
+    files_browser_test.go:180: fixture shutdown: synthetic jail only; no host browse or privileged operations
+--- PASS: TestFilesBrowserFixture (2.23s)
+PASS
+ok  	homelab-control/backend/internal/api	2.297s
+go fixture exit=0

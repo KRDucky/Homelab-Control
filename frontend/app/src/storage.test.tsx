@@ -280,3 +280,78 @@ describe('LVM report rendering', () => {
     expect(screen.queryByText(/healthy/i)).toBeNull();
   });
 });
+
+describe('storage probe action', () => {
+  function probeAwareFetch(over: { probe?: Response } = {}) {
+    return vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === '/api/v1/storage/probe' && init?.method === 'POST') {
+        return (
+          over.probe ??
+          new Response(JSON.stringify(observation), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+      if (url.includes('/storage/layout')) {
+        return new Response(JSON.stringify({ chassis: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify(observation), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+  }
+
+  it('hides the probe action without the storage.probe scope', async () => {
+    render(<Storage csrf="example-csrf" onUnauthorized={() => undefined} />);
+    await screen.findByRole('button', { name: 'Refresh inventory' });
+    expect(screen.queryByRole('button', { name: 'Probe storage' })).toBeNull();
+  });
+
+  it('does not invoke the probe from the polling read', async () => {
+    const fetchMock = probeAwareFetch();
+    vi.stubGlobal('fetch', fetchMock);
+    render(<Storage csrf="example-csrf" scopes={['storage.probe']} onUnauthorized={() => undefined} />);
+    await screen.findByRole('button', { name: 'Probe storage' });
+    expect(
+      fetchMock.mock.calls.some(([url, init]) => url === '/api/v1/storage/probe' && init?.method === 'POST'),
+    ).toBe(false);
+  });
+
+  it('sends exactly one CSRF POST with an empty body on explicit click', async () => {
+    const fetchMock = probeAwareFetch();
+    vi.stubGlobal('fetch', fetchMock);
+    render(<Storage csrf="example-csrf" scopes={['storage.probe']} onUnauthorized={() => undefined} />);
+    await screen.findByRole('button', { name: 'Probe storage' });
+    fireEvent.click(screen.getByRole('button', { name: 'Probe storage' }));
+    await screen.findByText(/Probe complete/);
+    const probes = fetchMock.mock.calls.filter(
+      ([url, init]) => url === '/api/v1/storage/probe' && init?.method === 'POST',
+    );
+    expect(probes).toHaveLength(1);
+    const init = probes.at(0)?.[1];
+    expect((init?.headers as Record<string, string>)['X-CSRF-Token']).toBe('example-csrf');
+    expect(init?.body).toBeUndefined();
+  });
+
+  it('surfaces a probe error without crashing', async () => {
+    const fetchMock = probeAwareFetch({
+      probe: new Response(
+        JSON.stringify({ error: 'storage_probe_unavailable', message: 'Probe helper failed.' }),
+        {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<Storage csrf="example-csrf" scopes={['storage.probe']} onUnauthorized={() => undefined} />);
+    await screen.findByRole('button', { name: 'Probe storage' });
+    fireEvent.click(screen.getByRole('button', { name: 'Probe storage' }));
+    await screen.findByText('Probe helper failed.');
+  });
+});

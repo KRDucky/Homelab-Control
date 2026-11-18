@@ -15,6 +15,7 @@ import (
 
 	"homelab-control/backend/internal/audit"
 	"homelab-control/backend/internal/auth"
+	"homelab-control/backend/internal/modules"
 	"homelab-control/backend/internal/storageinfo"
 )
 
@@ -191,6 +192,42 @@ func TestStorageReadRequiresSessionCSRFToken(t *testing.T) {
 	}
 	if rr := h.do("GET", "/api/v1/storage", "", storageHeaders(h)); rr.Code != http.StatusOK || calls != 1 || store.saves != 1 {
 		t.Fatalf("token-bearing read refused: %d", rr.Code)
+	}
+}
+
+func TestStorageModuleDisabledBeforeCollectionOrBroker(t *testing.T) {
+	fb := newFake()
+	h := harnessWith(t, fb, []string{auth.ScopeSystemRead, auth.ScopeStorageRead, auth.ScopeStorageProbe})
+	set, err := modules.Parse([]byte(`{"version":1,"disabled":["storage"]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.srv.WithModules(set)
+	if _, ok := caps(t, h)["storage"]; ok {
+		t.Fatal("disabled storage module remained in capability navigation")
+	}
+	brokerCalls := len(fb.actors)
+	calls := 0
+	h.srv.storageCollect = func(context.Context) (storageinfo.Graph, error) {
+		calls++
+		return storageinfo.Build(nil, nil), nil
+	}
+	unknown := h.do("GET", "/api/v1/unknown", "", nil)
+	for _, tc := range []struct{ method, path string }{
+		{"GET", "/api/v1/storage"},
+		{"POST", "/api/v1/storage/probe"},
+		{"GET", "/api/v1/storage/layout/chassis"},
+	} {
+		hdr := map[string]string{}
+		if tc.method == http.MethodPost {
+			hdr = map[string]string{"X-CSRF-Token": h.csrf, "Origin": testOrigin}
+		}
+		if rr := h.do(tc.method, tc.path, "", hdr); rr.Code != http.StatusNotFound || rr.Body.String() != unknown.Body.String() {
+			t.Fatalf("disabled route %s %s: %d %s", tc.method, tc.path, rr.Code, rr.Body)
+		}
+	}
+	if calls != 0 || len(fb.actors) != brokerCalls {
+		t.Fatalf("disabled storage reached collector/broker: collector=%d broker calls before=%d after=%d", calls, brokerCalls, len(fb.actors))
 	}
 }
 

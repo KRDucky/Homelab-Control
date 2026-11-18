@@ -27,7 +27,13 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
 - Evidence: `../evidence/m2/m2-3/review-c0f620de/` (final candidate), `review-eb2fc2d4/`, `review-f8d3af2e/`,
   `review-00fb7f2b/` (earlier rounds) and the
   CI run named in `M2-3-KVM-ACCEPTANCE-PROCEDURE.md`.
-  KVM validation is a separate, not yet authorized step.
+  The owner authorized M2-3 KVM Phase A and Phase B on 2026-11-18, and authorized opening an M2 PR
+  on 2026-11-18. Neither phase has run. GitHub still lists build artifact `13413879518` from run
+  `42026882569` on `40801659`; it is for the older validated tree. The current candidate changes
+  `server.go`, module registration and service write code since that revision, so those packages are
+  not valid evidence for the current candidate. Do not install them; obtain current-CI packages and
+  provenance from the M2 PR before guest testing. See `M2-3-KVM-ACCEPTANCE-PROCEDURE.md` for exact
+  provenance and the authorization boundary.
 
 "Pass" below means the stated evidence exists and passed; it is not the owner's acceptance.
 
@@ -40,8 +46,8 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
 | Unit details: dependencies, unit-file path, last exit, restart counters | Pass | `TestBuildDetailDoesNotInventState`; container; browser B10 |
 | Bounded, read-only unit-file contents (`services.files`) | Pass | `TestParseCat` (64 KiB / 2,000 lines, control characters); container; browser B10 |
 | Unloaded, missing, static, generated, template, alias units without invented state | Pass | Detail notes for each case (unit tests); container: template, alias, not-in-inventory 404 |
-| Module registry, capability-aware navigation, disabled routes 404, broker ops refused | Pass | `TestDisabledModuleRoutes404`, `TestDisabledModuleOpsRefused`; container: 404 identical to unknown routes, `broker.info` without services ops, invalid file fails closed; browser B17 |
-| D-10 design choice documented for review | Done (open decision) | `M2-3-DESIGN-REVIEW.md` §5; `OWNER-DECISIONS.md` O-1 |
+| Module registry, capability-aware navigation, disabled routes 404, broker ops refused | Storage API/module disable tests passed on `993c3758`; the broker-server refusal regression is present but was not in the reported targeted test commands | `TestDisabledModuleRoutes404`, `TestStorageModuleDisabledBeforeCollectionOrBroker`, `TestDisabledStorageModuleRefusesProbe`; `TestDisabledModuleOpsRefused` remains to run |
+| D-10 design choice | Decided 2026-11-18: built-in modules with root-owned `modules.json` (P-1) | `OWNER-DECISIONS.md` D-10 |
 | No executable plugin framework | Pass | Compiled-in registry only; no loading |
 
 ## ADR 0011 review items for the new write
@@ -88,7 +94,7 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
   remain.
 - **Owner approval of proposals P-1…P-6** (`OWNER-DECISIONS.md`; not decisions): root-owned module setting,
   a separate unit-file-content permission (not implemented), password for every boot-time change,
-  `--no-reload` semantics, refused constructs, and the fail-closed gate for unloaded changes. D-10 open.
+  `--no-reload` semantics, refused constructs, and the fail-closed gate for unloaded changes. D-10/P-1 is decided; M2-3 implementation review items remain open.
 - **No VM evidence** for M2-3 (containers only, SELinux disabled). The KVM procedure, including Fedora with
   SELinux Enforcing and real reboots, is prepared (`M2-3-KVM-ACCEPTANCE-PROCEDURE.md`) and needs owner authorization.
 - **CI wiring:** both existing systemd CI jobs now run the M2-3 scenario; a Fedora/Arch systemd CI job (roadmap §3) was **not** added.

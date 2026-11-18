@@ -44,7 +44,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, storage.read, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read, zfs.read, lvm.read] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, storage.read, storage.probe, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read, zfs.read, lvm.read] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
@@ -231,13 +231,14 @@ components:
         assignment: { $ref: '#/components/schemas/LayoutAssignment' }
     Chassis:
       type: object
-      required: [id, name, kind, rows, cols, created_at, updated_at, cells]
+      required: [id, name, kind, rows, cols, version, created_at, updated_at, cells]
       properties:
         id: { type: integer }
         name: { type: string, maxLength: 64 }
         kind: { type: string, enum: [server, shelf, external, desktop] }
         rows: { type: integer, minimum: 1, maximum: 24 }
         cols: { type: integer, minimum: 1, maximum: 24 }
+        version: { type: integer, minimum: 1, description: Monotonic per-chassis revision; the optimistic-concurrency compare-and-swap token for mutations. }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
         cells: { type: array, items: { $ref: '#/components/schemas/LayoutCell' } }
@@ -262,6 +263,60 @@ components:
               col: { type: integer, minimum: 0, maximum: 23 }
               kind: { type: string, enum: [hdd-3.5, ssd-2.5, nvme-m2, nvme-u2, tray, empty, disabled, reserved] }
               label: { type: string, maxLength: 64 }
+    ChassisUpdate:
+      type: object
+      additionalProperties: false
+      required: [name, kind, rows, cols, version]
+      description: A chassis geometry plus the optimistic-concurrency version the client last observed; a mismatch is a 409 layout_conflict.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 64 }
+        kind: { type: string, enum: [server, shelf, external, desktop] }
+        rows: { type: integer, minimum: 1, maximum: 24 }
+        cols: { type: integer, minimum: 1, maximum: 24 }
+        version: { type: integer, minimum: 1 }
+        cells:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [row, col, kind]
+            properties:
+              row: { type: integer, minimum: 0, maximum: 23 }
+              col: { type: integer, minimum: 0, maximum: 23 }
+              kind: { type: string, enum: [hdd-3.5, ssd-2.5, nvme-m2, nvme-u2, tray, empty, disabled, reserved] }
+              label: { type: string, maxLength: 64 }
+    LayoutImport:
+      type: object
+      additionalProperties: false
+      required: [chassis]
+      description: Chassis geometry to import additively. Export-only fields that carry identity or provenance (id, created_at, updated_at, and each cell's assignment object) are accepted and discarded; imported geometry is always unassigned and can never introduce a serial or WWN. At most 32 chassis in total.
+      properties:
+        chassis:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, kind, rows, cols]
+            properties:
+              name: { type: string, minLength: 1, maxLength: 64 }
+              kind: { type: string, enum: [server, shelf, external, desktop] }
+              rows: { type: integer, minimum: 1, maximum: 24 }
+              cols: { type: integer, minimum: 1, maximum: 24 }
+              id: { description: Discarded on import; never used as identity. }
+              created_at: { description: Discarded on import. }
+              updated_at: { description: Discarded on import. }
+              cells:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [row, col, kind]
+                  properties:
+                    row: { type: integer, minimum: 0, maximum: 23 }
+                    col: { type: integer, minimum: 0, maximum: 23 }
+                    kind: { type: string, enum: [hdd-3.5, ssd-2.5, nvme-m2, nvme-u2, tray, empty, disabled, reserved] }
+                    label: { type: string, maxLength: 64 }
+                    assignment: { description: Discarded on import; imported geometry is always unassigned. }
     DriveLayout:
       type: object
       required: [chassis]
@@ -1932,9 +1987,10 @@ paths:
       summary: List directory entries under one confined root (metadata only; no content).
       description: >
         Relative path inside an allow-listed jail. Empty path is the jail root.
-        Uses in-process os.Root and O_NOFOLLOW; hc-api does not spawn; there is no broker file op.
-        Jail escapes (.., extra slashes, symlink out) are refused. Audit records root id and relative path only,
-        never contents and never the host jail path. Origin and X-CSRF-Token are required.
+        Uses in-process openat and O_NOFOLLOW; hc-api does not spawn; there is no broker file op.
+        Jail escapes (.., extra slashes, symlink out) are refused. Audit records the root id and relative path
+        for short paths in a conservative ASCII alphabet; other or deep paths use a labelled 128-bit SHA-256 digest to fit the bounded audit detail. It never records
+        contents or the host jail path. Origin and X-CSRF-Token are required.
       security: [{ session: [] }]
       x-required-scope: files.read
       parameters:
@@ -1949,10 +2005,11 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [root, path, entries]
+                required: [root, path, omitted, entries]
                 properties:
                   root: { type: string }
                   path: { type: string }
+                  omitted: { type: integer, description: 'Number of names omitted because they are not faithfully representable, not navigable, or their metadata could not be read.' }
                   entries:
                     type: array
                     items:
@@ -2155,6 +2212,22 @@ paths:
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: Missing storage.read permission or missing/invalid CSRF token, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: Metadata or durable access audit unavailable, or collection busy, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /storage/probe:
+    post:
+      summary: On-demand native storage probe (O-1); wakes disks, never attached to polling GET
+      description: Reads blkid signatures (fd-pinned) on enumerated, revalidated devices via the broker. LVM is gated off until its fd identity binding is proven. Count-only audit; single-flight; broker-side rate limit. An empty body is required (400 otherwise); devices are enumerated server-side, never caller-supplied. The session X-CSRF-Token header is required. storage.probe is never granted by default. Partial results are folded into graph.status/notes; a device_policy_unresolved helper refusal is a 503 storage_probe_unavailable.
+      security: [{ session: [] }]
+      parameters:
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      x-required-scope: storage.probe
+      responses:
+        '200': { description: Enriched inventory with native signature data (same shape as GET /storage), content: { application/json: { schema: { $ref: '#/components/schemas/StorageInventory' } } } }
+        '400': { description: Non-empty or malformed body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing storage.probe permission or missing/invalid CSRF token, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Probe already in flight, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '429': { description: Broker-side rate limit exceeded (Retry-After header in seconds), content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Broker/probe helper unavailable, busy, or refused (device_policy_unresolved -> storage_probe_unavailable), content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /storage/layout:
     get:
       summary: Stored manual drive-bay layout (M2-5 Stage A). Application state only; no collection or host access.
@@ -2182,30 +2255,46 @@ paths:
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: 'Missing layout.manage, or Origin/CSRF rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: 'State database or audit unavailable, or the change could not be audited (nothing changed when the requested record fails)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /storage/layout/import:
+    post:
+      summary: Import chassis geometry additively (application state only; audited). Never replaces or deletes existing chassis; any id, timestamp or per-cell assignment/identity in the payload is discarded, so imported geometry is always unassigned.
+      security: [{ session: [] }]
+      x-required-scope: layout.manage
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/LayoutImport' } } }
+      responses:
+        '200': { description: Imported; the full layout is returned, content: { application/json: { schema: { $ref: '#/components/schemas/DriveLayout' } } } }
+        '400': { description: Invalid or malformed body, unknown/trailing fields, or limits exceeded, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing layout.manage, or Origin/CSRF rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '413': { description: Request body exceeds the import size cap, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'State database or audit unavailable, or the change could not be audited (nothing changed when the requested record fails)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /storage/layout/chassis/{id}:
     put:
-      summary: Replace a chassis' name, kind, size and cells. Refused (409) when an assigned bay would leave the grid or stop being a bay.
+      summary: Replace a chassis' name, kind, size and cells. Refused (409) when an assigned bay would leave the grid or stop being a bay, or when the supplied version does not match the stored one (optimistic concurrency).
       security: [{ session: [] }]
       x-required-scope: layout.manage
       parameters:
         - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
       requestBody:
         required: true
-        content: { application/json: { schema: { $ref: '#/components/schemas/ChassisSpec' } } }
+        content: { application/json: { schema: { $ref: '#/components/schemas/ChassisUpdate' } } }
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DriveLayout' } } } }
         '400': { description: Invalid body or limits exceeded, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '404': { description: No such chassis, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '409': { description: Would drop or invalidate an existing assignment, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Would drop or invalidate an existing assignment, or the layout changed since it was loaded, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: 'Missing layout.manage, or Origin/CSRF rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: 'State database or audit unavailable, or the change could not be audited (nothing changed when the requested record fails)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
     delete:
-      summary: Delete a chassis. Refused (409) while any of its bays has an assignment.
+      summary: Delete a chassis. Refused (409) while any of its bays has an assignment, or when the supplied version does not match the stored one.
       security: [{ session: [] }]
       x-required-scope: layout.manage
       parameters:
         - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: version, in: query, required: true, schema: { type: integer, minimum: 1 }, description: Optimistic-concurrency version from GET /storage/layout }
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DriveLayout' } } } }
         '404': { description: No such chassis, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
@@ -2224,7 +2313,7 @@ paths:
         - { name: col, in: path, required: true, schema: { type: integer, minimum: 0, maximum: 23 } }
       requestBody:
         required: true
-        content: { application/json: { schema: { type: object, additionalProperties: false, required: [persistent_id], properties: { persistent_id: { type: string, maxLength: 512 } } } } }
+        content: { application/json: { schema: { type: object, additionalProperties: false, required: [persistent_id, version], properties: { persistent_id: { type: string, maxLength: 512 }, version: { type: integer, minimum: 1 } } } } }
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DriveLayout' } } } }
         '400': { description: Invalid body or identity tier not assignable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
@@ -2241,9 +2330,11 @@ paths:
         - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
         - { name: row, in: path, required: true, schema: { type: integer, minimum: 0, maximum: 23 } }
         - { name: col, in: path, required: true, schema: { type: integer, minimum: 0, maximum: 23 } }
+        - { name: version, in: query, required: true, schema: { type: integer, minimum: 1 }, description: Optimistic-concurrency version from GET /storage/layout }
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DriveLayout' } } } }
         '404': { description: No assignment at that bay, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: The layout changed since it was loaded, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: 'Missing layout.manage, or Origin/CSRF rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: 'State database or audit unavailable, or the change could not be audited (nothing changed when the requested record fails)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }

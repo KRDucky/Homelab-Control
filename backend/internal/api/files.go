@@ -5,6 +5,8 @@
 package api
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"net/http"
 	"strconv"
@@ -21,6 +23,7 @@ type filesRootsResponse struct {
 type filesEntriesResponse struct {
 	Root    string            `json:"root"`
 	Path    string            `json:"path"`
+	Omitted int               `json:"omitted"` // names skipped: invalid UTF-8 or backslash
 	Entries []filesinfo.Entry `json:"entries"`
 }
 
@@ -72,21 +75,22 @@ func (s *Server) handleFilesEntries(w http.ResponseWriter, r *http.Request, sess
 		s.filesListError(w, err)
 		return
 	}
-	ents, err := s.files.List(id, rel)
+	ents, omitted, err := s.files.List(id, rel)
 	if err != nil {
 		s.filesListError(w, err)
 		return
 	}
 	// Audit root id + relative path only. Never contents, never the jail path.
-	detail := "root=" + id + " path=" + cleaned
-	if err := s.auditLog("files.entries.read", sess.Username, r, "returned", detail); err != nil {
+	// A deep path is truncated by the 128-byte Detail sanitizer, so the detail
+	// carries a hash of the full path to preserve verifiable evidence.
+	if err := s.auditLog("files.entries.read", sess.Username, r, "returned", filesReadDetail(id, cleaned)); err != nil {
 		writeError(w, http.StatusServiceUnavailable, "audit_unavailable", "Directory entries cannot be returned because their access could not be audited.")
 		return
 	}
 	if ents == nil {
 		ents = []filesinfo.Entry{}
 	}
-	writeJSON(w, http.StatusOK, filesEntriesResponse{Root: id, Path: cleaned, Entries: ents})
+	writeJSON(w, http.StatusOK, filesEntriesResponse{Root: id, Path: cleaned, Omitted: omitted, Entries: ents})
 }
 
 func (s *Server) filesListError(w http.ResponseWriter, err error) {
@@ -108,4 +112,30 @@ func (s *Server) filesListError(w http.ResponseWriter, err error) {
 	default:
 		writeError(w, http.StatusBadRequest, "bad_request", "The directory could not be listed.")
 	}
+}
+
+// filesReadDetail builds the bounded audit Detail for a listing. A short path
+// in the safe ASCII alphabet stays readable; other or deep paths use the first
+// 128 bits of their SHA-256 digest, so sanitization cannot alter evidence.
+func filesReadDetail(rootID, path string) string {
+	if len("root="+rootID+" path="+path) <= 128 && auditPathLiteralSafe(path) {
+		return "root=" + rootID + " path=" + path
+	}
+	sum := sha256.Sum256([]byte(path))
+	return "root=" + rootID + " path_sha256=" + hex.EncodeToString(sum[:16])
+}
+
+// auditPathLiteralSafe permits only an unambiguous ASCII path alphabet in the
+// audit detail. Other names are hashed so sanitization and marker-like folder
+// names cannot make the log evidence ambiguous.
+func auditPathLiteralSafe(path string) bool {
+	for i := 0; i < len(path); i++ {
+		c := path[i]
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+			(c >= '0' && c <= '9') || c == '/' || c == '.' || c == '_' || c == '-' {
+			continue
+		}
+		return false
+	}
+	return true
 }

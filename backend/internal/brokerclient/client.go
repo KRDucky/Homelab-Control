@@ -48,6 +48,10 @@ var opTimeouts = map[string]time.Duration{
 	"packages.updates":   40 * time.Second,
 	"packages.sources":   40 * time.Second,
 	"packages.search":    40 * time.Second,
+	// M2-4 O-1: probe has a 35 s broker timeout (helper's own 25 s budget plus
+	// socket overhead); the client waits longer so a Partial/refusal answer is
+	// received rather than cut off.
+	"storage.probe": 45 * time.Second,
 }
 
 // deadline is the client deadline for op.

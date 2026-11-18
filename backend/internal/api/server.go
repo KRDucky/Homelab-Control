@@ -248,11 +248,13 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/operations", auth.ScopeAuditRead, s.handleOperations)
 	s.handle("GET /api/v1/hardware", auth.ScopeHardwareRead, s.handleHardware)
 	s.handle("GET /api/v1/storage", auth.ScopeStorageRead, s.handleStorage)
+	s.handle("POST /api/v1/storage/probe", auth.ScopeStorageProbe, s.handleStorageProbe)
 	s.handle("GET /api/v1/files/roots", auth.ScopeFilesRead, s.handleFilesRoots)
 	s.handle("GET /api/v1/files/entries", auth.ScopeFilesRead, s.handleFilesEntries)
 	// M2-5 Stage A: application-owned manual drive-bay layout (no host writes).
 	s.handle("GET /api/v1/storage/layout", auth.ScopeStorageRead, s.handleLayout)
 	s.handle("POST /api/v1/storage/layout/chassis", auth.ScopeLayoutManage, s.handleLayoutCreate)
+	s.handle("POST /api/v1/storage/layout/import", auth.ScopeLayoutManage, s.handleLayoutImport)
 	s.handle("PUT /api/v1/storage/layout/chassis/{id}", auth.ScopeLayoutManage, s.handleLayoutUpdate)
 	s.handle("DELETE /api/v1/storage/layout/chassis/{id}", auth.ScopeLayoutManage, s.handleLayoutDelete)
 	s.handle("PUT /api/v1/storage/layout/chassis/{id}/bays/{row}/{col}/assignment", auth.ScopeLayoutManage, s.handleLayoutAssign)
@@ -418,8 +420,31 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(r.URL.Path, "/api/") {
 		h.Set("Cache-Control", "no-store")
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
+	// Body cap: 64 KiB for every /api request, except the layout mutation
+	// routes, which are bounded by their own caps so a valid chassis/export is
+	// not truncated by the general cap.
+	r.Body = http.MaxBytesReader(w, r.Body, requestBodyCap(r))
 	s.mux.ServeHTTP(w, r)
+}
+
+// requestBodyCap returns the request body limit for a path. The layout
+// import path takes layoutImportMaxBytes, and a single-chassis create/update
+// takes layoutChassisMaxBytes; everything else stays at the general 64 KiB cap.
+func requestBodyCap(r *http.Request) int64 {
+	if r.Method == http.MethodPost && r.URL.Path == "/api/v1/storage/layout/import" {
+		return layoutImportMaxBytes
+	}
+	if r.Method == http.MethodPost && r.URL.Path == "/api/v1/storage/layout/chassis" {
+		return layoutChassisMaxBytes
+	}
+	const chassisPrefix = "/api/v1/storage/layout/chassis/"
+	if r.Method == http.MethodPut && strings.HasPrefix(r.URL.Path, chassisPrefix) {
+		id := strings.TrimPrefix(r.URL.Path, chassisPrefix)
+		if id != "" && !strings.Contains(id, "/") {
+			return layoutChassisMaxBytes
+		}
+	}
+	return 64 << 10
 }
 
 type apiError struct {
@@ -469,6 +494,9 @@ func (s *Server) auditLog(event, user string, r *http.Request, outcome, detail s
 	}
 	return err
 }
+
+// auditLogData is removed: the state audit store rejects Event.Data, so deep-
+// path evidence must stay in the sanitized Detail (see filesReadDetail).
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request, _ *auth.Session, _ string) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "api": "v1"})

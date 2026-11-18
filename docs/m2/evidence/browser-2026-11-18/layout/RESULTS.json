@@ -1,0 +1,24 @@
+{
+  "result": "pass",
+  "checks": [
+    "synthetic data explicitly labelled",
+    "cookie-only layout read refused (CSRF token required)",
+    "chassis created through UI and stored",
+    "assignment survives reload",
+    "stored identity is persistent, not a kernel name",
+    "stored provenance manual/unverified by bays",
+    "UI shows manual, unverified provenance",
+    "assigned drive no longer offered",
+    "actual API refuses a second bay for one identity",
+    "refused change not persisted",
+    "unassignment survives reload",
+    "chassis deleted via actual API",
+    "UI shows server error, not success",
+    "nothing persisted by the failed UI action",
+    "desktop accessibility",
+    "mobile layout has no document overflow",
+    "mobile accessibility",
+    "no page script errors"
+  ],
+  "source": "Actual API/session/SQLite; labelled synthetic storage fixture only. No host, root, native-probe or KVM access."
+}

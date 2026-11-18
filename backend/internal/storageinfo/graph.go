@@ -285,6 +285,50 @@ func Build(blocks []Block, mounts []Mount) Graph {
 	return g
 }
 
+// BlkidSignature is one observed on-disk filesystem signature from the probe
+// helper. Both fields come from the helper's allow-listed blkid output.
+type BlkidSignature struct {
+	FSType string
+	UUID   string
+}
+
+// MergeBlkidSignatures folds observed blkid signatures onto a graph by
+// creating signature nodes, claims and has-signature edges, consistent with
+// Build. sigs maps a block node's Name to its observed signature. A node with
+// an empty FSType or UUID is left unchanged. Signature nodes are claims, not
+// proof of exclusive ownership.
+func MergeBlkidSignatures(g *Graph, sigs map[string]BlkidSignature) {
+	if len(sigs) == 0 {
+		return
+	}
+	for i := range g.Nodes {
+		n := &g.Nodes[i]
+		if n.DeviceNumber == "" || n.Kind == "mount" || n.Kind == "signature" {
+			continue
+		}
+		sig, ok := sigs[n.Name]
+		if !ok || sig.FSType == "" || sig.UUID == "" {
+			continue
+		}
+		n.FSType = sig.FSType
+		g.Claims = append(g.Claims, Claim{Node: n.ID, Technology: sig.FSType, Evidence: Evidence{Source: "blkid", Confidence: "observed"}})
+		signatureID := key("signature", n.DeviceNumber+"\x00"+sig.FSType+"\x00"+sig.UUID)
+		g.Nodes = append(g.Nodes, Node{
+			ID:             signatureID,
+			Kind:           "signature",
+			Name:           sig.FSType,
+			FSType:         sig.FSType,
+			SignatureUUID:  sig.UUID,
+			IdentityStatus: "snapshot-local",
+			Evidence:       []Evidence{{Source: "blkid", Confidence: "observed"}},
+			Notes:          []string{"Observed signature is not proof of exclusive ownership or current use."},
+		})
+		g.Edges = append(g.Edges, Edge{From: n.ID, To: signatureID, Kind: "has-signature", Evidence: Evidence{Source: "blkid", Confidence: "observed"}})
+	}
+	sort.Slice(g.Nodes, func(i, j int) bool { return g.Nodes[i].ID < g.Nodes[j].ID })
+	sort.Slice(g.Edges, func(i, j int) bool { a, b := g.Edges[i], g.Edges[j]; return a.From+a.To+a.Kind < b.From+b.To+b.Kind })
+}
+
 func validDeviceNumber(s string) bool {
 	var major, minor uint64
 	if _, err := fmt.Sscanf(s, "%d:%d", &major, &minor); err != nil {

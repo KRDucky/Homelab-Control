@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useCallback, useState } from 'react';
-import { getStorage } from '../api';
+import { ApiError, getStorage, probeStorage } from '../api';
 import { DataTable } from '../DataTable';
 import { formatBytes } from '../format';
 import { Section } from '../ui';
@@ -14,6 +14,7 @@ import {
   pvDeviceLinkText,
   savedDriveLabel,
   type DriveLabelPreference,
+  type StorageInventory,
 } from '../storageModel';
 
 export function Storage({
@@ -26,11 +27,42 @@ export function Storage({
   onUnauthorized: () => void;
 }) {
   const fetchStorage = useCallback(() => getStorage(csrf), [csrf]);
-  const { data, error, live, reload } = useData(fetchStorage, { onUnauthorized, intervalMs: 60_000 });
+  const {
+    data: apiData,
+    error,
+    live,
+    reload,
+  } = useData(fetchStorage, { onUnauthorized, intervalMs: 60_000 });
   const [preference, setPreference] = useState<DriveLabelPreference>(savedDriveLabel);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<{ id: string; at: string } | null>(null);
   const [preferenceNote, setPreferenceNote] = useState('');
+  const [probed, setProbed] = useState<StorageInventory | null>(null);
+  const [probing, setProbing] = useState(false);
+  const [probeMessage, setProbeMessage] = useState('');
+  const canProbe = scopes.includes('storage.probe');
+
+  async function probe() {
+    setProbing(true);
+    setProbeMessage('');
+    try {
+      const result = await probeStorage(csrf);
+      setProbed(result);
+      setSelected(null);
+      setProbeMessage(
+        result.graph.status === 'partial'
+          ? 'Probe complete; some devices were skipped or failed and are shown as partial.'
+          : 'Probe complete.',
+      );
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) onUnauthorized();
+      setProbeMessage(err instanceof ApiError ? err.message : 'Probe failed.');
+    } finally {
+      setProbing(false);
+    }
+  }
+
+  const data = probed ?? apiData;
 
   if (!data) {
     return (
@@ -102,6 +134,11 @@ export function Storage({
         <button type="button" className="ghost" onClick={reload}>
           Refresh inventory
         </button>
+        {canProbe && (
+          <button type="button" disabled={probing} onClick={() => void probe()}>
+            {probing ? 'Probing…' : 'Probe storage'}
+          </button>
+        )}
         <div className="inline-field">
           <label htmlFor="storage-drive-label">Identify drives by</label>
           <select
@@ -124,8 +161,14 @@ export function Storage({
         </label>
       </div>
       <p className="muted" role="status">
-        {preferenceNote}
+        {probeMessage || preferenceNote}
       </p>
+      {canProbe && (
+        <p className="muted">
+          Probe re-enumerates and revalidates block devices; it can wake standby disks and reads raw metadata.
+          It runs only when you click it, never automatically.
+        </p>
+      )}
       <Section title="Storage resources" id="storage-resources" live={live} meta={meta}>
         <p className="muted">
           Collected {new Date(data.collected_at).toLocaleString()}. Display preference never changes

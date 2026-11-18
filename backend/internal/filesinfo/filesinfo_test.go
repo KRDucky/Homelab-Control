@@ -124,7 +124,7 @@ func TestJailEscapeAndONoFollow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ents, err := s.List("lab", "")
+	ents, _, err := s.List("lab", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,32 +138,32 @@ func TestJailEscapeAndONoFollow(t *testing.T) {
 	if !names["sub"].Dir || names["readme.txt"].Dir || names["escape"].Dir || names["inside-link"].Dir {
 		t.Fatalf("%+v", names)
 	}
-	if _, err := s.List("lab", ".."); !errors.Is(err, ErrEscape) {
+	if _, _, err := s.List("lab", ".."); !errors.Is(err, ErrEscape) {
 		t.Fatalf(".. : %v", err)
 	}
-	if _, err := s.List("lab", "../"+filepath.Base(d)); !errors.Is(err, ErrEscape) && !errors.Is(err, ErrBadPath) {
+	if _, _, err := s.List("lab", "../"+filepath.Base(d)); !errors.Is(err, ErrEscape) && !errors.Is(err, ErrBadPath) {
 		t.Fatalf("prefixed .. : %v", err)
 	}
-	if _, err := s.List("lab", "sub//inner.txt"); !errors.Is(err, ErrBadPath) {
+	if _, _, err := s.List("lab", "sub//inner.txt"); !errors.Is(err, ErrBadPath) {
 		t.Fatalf("extra slashes: %v", err)
 	}
-	if _, err := s.List("lab", "/etc"); !errors.Is(err, ErrBadPath) {
+	if _, _, err := s.List("lab", "/etc"); !errors.Is(err, ErrBadPath) {
 		t.Fatalf("absolute: %v", err)
 	}
-	if _, err := s.List("lab", "escape"); !errors.Is(err, ErrNotDir) && !errors.Is(err, ErrEscape) {
+	if _, _, err := s.List("lab", "escape"); !errors.Is(err, ErrNotDir) && !errors.Is(err, ErrEscape) {
 		t.Fatalf("symlink out as dir: %v", err)
 	}
-	if _, err := s.List("lab", "escape/etc"); !errors.Is(err, ErrEscape) && !errors.Is(err, ErrBadPath) && !errors.Is(err, ErrNotDir) {
+	if _, _, err := s.List("lab", "escape/etc"); !errors.Is(err, ErrEscape) && !errors.Is(err, ErrBadPath) && !errors.Is(err, ErrNotDir) {
 		t.Fatalf("symlink out walk: %v", err)
 	}
-	if _, err := s.List("lab", "inside-link"); !errors.Is(err, ErrNotDir) {
+	if _, _, err := s.List("lab", "inside-link"); !errors.Is(err, ErrNotDir) {
 		t.Fatalf("O_NOFOLLOW inside symlink: %v", err)
 	}
-	got, err := s.List("lab", "sub")
+	got, _, err := s.List("lab", "sub")
 	if err != nil || len(got) != 1 || got[0].Name != "inner.txt" || got[0].Dir {
 		t.Fatalf("sub: %+v %v", got, err)
 	}
-	if _, err := s.List("nope", ""); !errors.Is(err, ErrUnknownRoot) {
+	if _, _, err := s.List("nope", ""); !errors.Is(err, ErrUnknownRoot) {
 		t.Fatalf("unknown root: %v", err)
 	}
 }
@@ -174,7 +174,7 @@ func TestListDoesNotReadContents(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ents, err := s.List("lab", ".")
+	ents, _, err := s.List("lab", ".")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,7 +198,7 @@ func TestOversizeDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.List("lab", ""); !errors.Is(err, ErrTooMany) {
+	if _, _, err := s.List("lab", ""); !errors.Is(err, ErrTooMany) {
 		t.Fatalf("oversize: %v", err)
 	}
 }
@@ -245,7 +245,7 @@ func TestListRefusesJailReplacedWithSymlink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.List("lab", ""); err != nil {
+	if _, _, err := s.List("lab", ""); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.RemoveAll(d); err != nil {
@@ -254,7 +254,7 @@ func TestListRefusesJailReplacedWithSymlink(t *testing.T) {
 	if err := os.Symlink("/", d); err != nil {
 		t.Fatal(err)
 	}
-	ents, err := s.List("lab", "")
+	ents, _, err := s.List("lab", "")
 	if err == nil {
 		t.Fatalf("listed through jail replaced by symlink to /: %+v", ents)
 	}
@@ -279,11 +279,70 @@ func TestListPermissionIsNotEscape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = s.List("lab", "locked")
+	_, _, err = s.List("lab", "locked")
 	if errors.Is(err, ErrEscape) {
 		t.Fatalf("permission mapped to path outside jail: %v", err)
 	}
 	if !errors.Is(err, ErrPermission) {
 		t.Fatalf("got %v", err)
+	}
+}
+
+func TestListNonSearchableDirectory(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("permission test requires non-root")
+	}
+	d := filepath.Join(t.TempDir(), "jail")
+	if err := os.Mkdir(d, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	sub := filepath.Join(d, "sub")
+	if err := os.Mkdir(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sub, "inner.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Readable but not searchable: names list, stats fail with EACCES.
+	if err := os.Chmod(sub, 0o400); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(sub, 0o700) })
+	s, err := Parse([]byte(`{"version":1,"roots":[{"id":"lab","label":"Lab","path":"` + d + `"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.List("lab", "sub"); !errors.Is(err, ErrPermission) {
+		t.Fatalf("non-searchable directory: got %v, want ErrPermission", err)
+	}
+}
+
+func TestListSkipsUnnavigableNames(t *testing.T) {
+	d := filepath.Join(t.TempDir(), "jail")
+	if err := os.MkdirAll(d, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(d, "good.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(d, "bad\xff.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(d, `back\slash.txt`), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Parse([]byte(`{"version":1,"roots":[{"id":"lab","label":"Lab","path":"` + d + `"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ents, omitted, err := s.List("lab", ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ents) != 1 || ents[0].Name != "good.txt" {
+		t.Fatalf("expected only good.txt, got %+v", ents)
+	}
+	if omitted != 2 {
+		t.Fatalf("omitted = %d, want 2 (invalid UTF-8 + backslash)", omitted)
 	}
 }
