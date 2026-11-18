@@ -181,7 +181,7 @@ func TestSlowClientTimesOut(t *testing.T) {
 
 func TestPanickingOpContained(t *testing.T) {
 	f := start(t)
-	f.srv.registry["test.panic"] = ops.Op{Name: "test.panic", Admission: ops.AdmissionControl, Timeout: time.Second, Handle: func(context.Context, *ops.Env, json.RawMessage) (any, error) {
+	f.srv.registry["test.panic"] = ops.Op{Name: "test.panic", Admission: ops.AdmissionControlPlan, Timeout: time.Second, Handle: func(context.Context, *ops.Env, json.RawMessage) (any, error) {
 		panic("boom")
 	}}
 	if _, err := call(t, f, "test.panic"); code(err) != proto.CodeInternal {
@@ -290,11 +290,11 @@ func TestRootExecHandleOnlyForRootExecOps(t *testing.T) {
 		}
 	}
 	f.srv.registry = map[string]ops.Op{
-		"t.none":      {Name: "t.none", Privilege: types.PrivNone, Timeout: time.Second, Admission: ops.AdmissionControl, Handle: probe("t.none")},
-		"t.rootread":  {Name: "t.rootread", Privilege: types.PrivRootRead, Timeout: time.Second, Admission: ops.AdmissionControl, Handle: probe("t.rootread")},
-		"t.unpriv":    {Name: "t.unpriv", Privilege: types.PrivUnprivilegedExec, Timeout: time.Second, Admission: ops.AdmissionControl, Handle: probe("t.unpriv")},
-		"t.rootexec":  {Name: "t.rootexec", Privilege: types.PrivRootExec, Timeout: time.Second, Admission: ops.AdmissionControl, Handle: probe("t.rootexec")},
-		"t.rootexec2": {Name: "t.rootexec2", Scope: "services.operate", Privilege: types.PrivRootExec, Timeout: time.Second, Admission: ops.AdmissionControl, Handle: probe("t.rootexec2")},
+		"t.none":      {Name: "t.none", Privilege: types.PrivNone, Timeout: time.Second, Admission: ops.AdmissionControlPlan, Handle: probe("t.none")},
+		"t.rootread":  {Name: "t.rootread", Privilege: types.PrivRootRead, Timeout: time.Second, Admission: ops.AdmissionControlPlan, Handle: probe("t.rootread")},
+		"t.unpriv":    {Name: "t.unpriv", Privilege: types.PrivUnprivilegedExec, Timeout: time.Second, Admission: ops.AdmissionControlPlan, Handle: probe("t.unpriv")},
+		"t.rootexec":  {Name: "t.rootexec", Privilege: types.PrivRootExec, Timeout: time.Second, Admission: ops.AdmissionControlPlan, Handle: probe("t.rootexec")},
+		"t.rootexec2": {Name: "t.rootexec2", Scope: "services.operate", Privilege: types.PrivRootExec, Timeout: time.Second, Admission: ops.AdmissionControlPlan, Handle: probe("t.rootexec2")},
 	}
 	for _, op := range []string{"t.none", "t.rootread", "t.unpriv", "t.rootexec"} {
 		if _, err := call(t, f, op); err != nil {
@@ -458,7 +458,8 @@ func startBlockingOps(t *testing.T, f *fixture, name string, admission ops.Admis
 func TestClassCapacities(t *testing.T) {
 	f := start(t)
 	want := map[ops.AdmissionClass]int{
-		ops.AdmissionControl:      2,
+		ops.AdmissionControlPlan:  1,
+		ops.AdmissionControlApply: 1,
 		ops.AdmissionServicesRead: 3,
 		ops.AdmissionSystemRead:   1,
 		ops.AdmissionPackages:     1,
@@ -482,6 +483,19 @@ func TestClassCapacities(t *testing.T) {
 	}
 	if sum != f.srv.MaxInFlight {
 		t.Fatalf("expensive caps sum to %d, want %d", sum, f.srv.MaxInFlight)
+	}
+	// Every class referenced by a registered op has a configured semaphore.
+	seen := map[ops.AdmissionClass]bool{}
+	for _, op := range ops.Registry() {
+		seen[op.Admission] = true
+	}
+	for cls := range seen {
+		if _, ok := f.srv.classSem[cls]; !ok {
+			t.Errorf("class %q has no configured semaphore", cls)
+		}
+		if cap(f.srv.classSem[cls]) == 0 {
+			t.Errorf("class %q has zero capacity", cls)
+		}
 	}
 }
 
@@ -512,7 +526,7 @@ func TestCrossClassIsolation(t *testing.T) {
 func TestBrokerInfoUnderSaturation(t *testing.T) {
 	f := start(t)
 	f.srv.sem = make(chan struct{}, 1) // global backstop full
-	release := startBlockingOps(t, f, "test.block", ops.AdmissionControl, 1)
+	release := startBlockingOps(t, f, "test.block", ops.AdmissionControlPlan, 1)
 	defer release()
 	// broker.info has a dedicated slot and does not take the global slot.
 	if _, err := call(t, f, "broker.info"); err != nil {
@@ -523,9 +537,9 @@ func TestBrokerInfoUnderSaturation(t *testing.T) {
 func TestGlobalCapStillRefuses(t *testing.T) {
 	f := start(t)
 	f.srv.sem = make(chan struct{}, 1) // shrink the global backstop
-	release := startBlockingOps(t, f, "test.block", ops.AdmissionControl, 1)
+	release := startBlockingOps(t, f, "test.block", ops.AdmissionControlPlan, 1)
 	defer release()
-	f.srv.registry["test.block2"] = ops.Op{Name: "test.block2", Admission: ops.AdmissionControl, Timeout: time.Second,
+	f.srv.registry["test.block2"] = ops.Op{Name: "test.block2", Admission: ops.AdmissionControlApply, Timeout: time.Second,
 		Handle: func(context.Context, *ops.Env, json.RawMessage) (any, error) { return "ok", nil }}
 	if _, err := call(t, f, "test.block2"); code(err) != proto.CodeBusy {
 		t.Fatalf("global cap: want busy, got %v", err)
@@ -540,7 +554,7 @@ func TestGlobalCapStillRefuses(t *testing.T) {
 func TestClassSlotReleasedWhenGlobalFull(t *testing.T) {
 	f := start(t)
 	f.srv.sem = make(chan struct{}, 1) // single global slot
-	release := startBlockingOps(t, f, "test.block", ops.AdmissionControl, 1)
+	release := startBlockingOps(t, f, "test.block", ops.AdmissionControlPlan, 1)
 	defer release()
 	f.srv.registry["test.pkg"] = ops.Op{Name: "test.pkg", Admission: ops.AdmissionPackages, Timeout: time.Second,
 		Handle: func(context.Context, *ops.Env, json.RawMessage) (any, error) { return "ok", nil }}
@@ -551,5 +565,36 @@ func TestClassSlotReleasedWhenGlobalFull(t *testing.T) {
 	// deterministic observation: the package class must be empty again.
 	if n := len(f.srv.classSem[ops.AdmissionPackages]); n != 0 {
 		t.Fatalf("package slot leaked after global-busy: %d held", n)
+	}
+}
+
+// A control plan is admitted while every read class and the info slot are
+// saturated: control has its own capacity and is never starved by reads.
+func TestControlAdmittedUnderReadSaturation(t *testing.T) {
+	f := start(t)
+	rel1 := startBlockingOps(t, f, "test.svc", ops.AdmissionServicesRead, 3)
+	defer rel1()
+	rel2 := startBlockingOps(t, f, "test.sys", ops.AdmissionSystemRead, 1)
+	defer rel2()
+	rel3 := startBlockingOps(t, f, "test.pkg", ops.AdmissionPackages, 1)
+	defer rel3()
+	rel4 := startBlockingOps(t, f, "test.prb", ops.AdmissionProbe, 1)
+	defer rel4()
+	rel5 := startBlockingOps(t, f, "test.info", ops.AdmissionInfo, 1)
+	defer rel5()
+	f.srv.registry["test.plan"] = ops.Op{Name: "test.plan", Admission: ops.AdmissionControlPlan, Timeout: time.Second,
+		Handle: func(context.Context, *ops.Env, json.RawMessage) (any, error) { return "ok", nil }}
+	if _, err := call(t, f, "test.plan"); err != nil {
+		t.Fatalf("control plan under read saturation: %v", err)
+	}
+}
+
+// The info slot is one, so a second concurrent broker.info is refused.
+func TestInfoSlotRefusesSecond(t *testing.T) {
+	f := start(t)
+	release := startBlockingOps(t, f, "test.info", ops.AdmissionInfo, 1)
+	defer release()
+	if _, err := call(t, f, "broker.info"); code(err) != proto.CodeBusy {
+		t.Fatalf("2nd info request: want busy, got %v", err)
 	}
 }

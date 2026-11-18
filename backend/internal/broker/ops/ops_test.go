@@ -376,17 +376,17 @@ func TestAdmissionClasses(t *testing.T) {
 		"hardware.dmi.identity":     AdmissionSystemRead,
 		"services.systemd.list":     AdmissionServicesRead,
 		"services.unit.logs":        AdmissionServicesRead,
-		"services.unit.plan":        AdmissionControl,
-		"services.unit.apply":       AdmissionControl,
+		"services.unit.plan":        AdmissionControlPlan,
+		"services.unit.apply":       AdmissionControlApply,
 		"services.timers.list":      AdmissionServicesRead,
 		"services.sockets.list":     AdmissionServicesRead,
 		"services.unit.detail":      AdmissionServicesRead,
 		"services.unit.contents":    AdmissionServicesRead,
-		"services.enablement.plan":  AdmissionControl,
-		"services.enablement.apply": AdmissionControl,
+		"services.enablement.plan":  AdmissionControlPlan,
+		"services.enablement.apply": AdmissionControlApply,
 		"operations.journal.list":   AdmissionSystemRead,
-		"host.settings.plan":        AdmissionControl,
-		"host.settings.apply":       AdmissionControl,
+		"host.settings.plan":        AdmissionControlPlan,
+		"host.settings.apply":       AdmissionControlApply,
 		"packages.installed":        AdmissionPackages,
 		"packages.updates":          AdmissionPackages,
 		"packages.sources":          AdmissionPackages,
@@ -405,6 +405,16 @@ func TestAdmissionClasses(t *testing.T) {
 		}
 		if op.Admission != cls {
 			t.Errorf("%s: admission = %q, want %q", name, op.Admission, cls)
+		}
+	}
+	// Every write op is in a control (plan or apply) class: reads never carry
+	// a WriteSpec and writes never land in a read class.
+	for name, op := range reg {
+		if op.Write == nil {
+			continue
+		}
+		if op.Admission != AdmissionControlPlan && op.Admission != AdmissionControlApply {
+			t.Errorf("%s: write op in non-control class %q", name, op.Admission)
 		}
 	}
 }

@@ -108,9 +108,11 @@ type Op struct {
 type AdmissionClass string
 
 const (
-	// AdmissionControl covers service and host-settings plan/apply/enablement
-	// (the writes that must never be starved by reads).
-	AdmissionControl AdmissionClass = "control"
+	// AdmissionControlPlan covers service/host-settings plans (read-only, mint
+	// a token). Separate from applies so plans cannot occupy every apply slot.
+	AdmissionControlPlan AdmissionClass = "control-plan"
+	// AdmissionControlApply covers service/host-settings applies (root-exec).
+	AdmissionControlApply AdmissionClass = "control-apply"
 	// AdmissionServicesRead covers the long read-only service views.
 	AdmissionServicesRead AdmissionClass = "services-read"
 	// AdmissionSystemRead covers short root-read system metadata views.
@@ -141,11 +143,11 @@ func Registry() map[string]Op {
 			AuditArgs: logsAuditArgs},
 		// M2-2 (ADR 0011; D-2…D-5). Plan is read-only (unprivileged systemctl
 		// show) and mints the token; apply is the only root-exec op.
-		{Name: "services.unit.plan", Scope: "services.operate", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second, Admission: AdmissionControl,
+		{Name: "services.unit.plan", Scope: "services.operate", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second, Admission: AdmissionControlPlan,
 			Description: "Review start/stop/restart of one .service unit: policy check, observed state, risk class and a single-use plan token (args: unit, action)",
 			Handle:      unitPlan, AuditArgs: writeAuditArgs,
 			Write: &WriteSpec{Phase: "plan", Risks: []string{RiskReversible, RiskDisruptive}, LockDomain: "service:<unit id>"}},
-		{Name: "services.unit.apply", Scope: "services.operate", Privilege: PrivRootExec, Timeout: 55 * time.Second, Admission: AdmissionControl,
+		{Name: "services.unit.apply", Scope: "services.operate", Privilege: PrivRootExec, Timeout: 55 * time.Second, Admission: AdmissionControlApply,
 			Description: "Execute a reviewed start/stop/restart with its plan token; journaled, verified by reading the state back (args: unit, action, token)",
 			Handle:      unitApply, AuditArgs: writeAuditArgs,
 			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskReversible, RiskDisruptive}, LockDomain: "service:<unit id>",
@@ -163,11 +165,11 @@ func Registry() map[string]Op {
 			Handle:      unitContents, AuditArgs: viewAuditArgs},
 		// M2-3 boot-time enable/disable (ADR 0011; docs/m2/M2-3-DESIGN-REVIEW.md).
 		// Plan reads [Install] as root in-process; apply is root-exec.
-		{Name: "services.enablement.plan", Scope: "services.configure", Privilege: PrivRootRead, Timeout: 15 * time.Second, Admission: AdmissionControl,
+		{Name: "services.enablement.plan", Scope: "services.configure", Privilege: PrivRootRead, Timeout: 15 * time.Second, Admission: AdmissionControlPlan,
 			Description: "Review enabling or disabling one .service unit at boot: policy, [Install] links, risk and a single-use plan token (args: unit, action)",
 			Handle:      unitEnablementPlan, AuditArgs: enablementAuditArgs,
 			Write: &WriteSpec{Phase: "plan", Risks: []string{RiskDisruptive}, LockDomain: "service:<unit id>+unit-files"}},
-		{Name: "services.enablement.apply", Scope: "services.configure", Privilege: PrivRootExec, Timeout: 55 * time.Second, Admission: AdmissionControl,
+		{Name: "services.enablement.apply", Scope: "services.configure", Privilege: PrivRootExec, Timeout: 55 * time.Second, Admission: AdmissionControlApply,
 			Description: "Execute a reviewed boot-time enable/disable with its plan token (no --now, no reload); journaled, verified by is-enabled and the links (args: unit, action, token)",
 			Handle:      unitEnablementApply, AuditArgs: enablementAuditArgs,
 			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskDisruptive}, LockDomain: "service:<unit id>+unit-files",
@@ -177,11 +179,11 @@ func Registry() map[string]Op {
 			Description: "The 100 most recent privileged operations from the broker journal, including interrupted ones", Handle: journalList},
 		// M2-6 (ADR 0011 extension, proposed): hostname and timezone.
 		// Plan is unprivileged hostnamectl/timedatectl status; apply is root-exec.
-		{Name: "host.settings.plan", Scope: "host.settings.apply", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second, Admission: AdmissionControl,
+		{Name: "host.settings.plan", Scope: "host.settings.apply", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second, Admission: AdmissionControlPlan,
 			Description: "Review setting the static host name, pretty host name and/or time zone: observed hostnamectl/timedatectl values, reversible risk, TLS/mDNS//etc/hosts warning and a single-use plan token",
 			Handle:      hostSettingsPlan, AuditArgs: hostSettingsAuditArgs,
 			Write: &WriteSpec{Phase: "plan", Risks: []string{RiskReversible}, LockDomain: "host-settings"}},
-		{Name: "host.settings.apply", Scope: "host.settings.apply", Privilege: PrivRootExec, Timeout: 55 * time.Second, Admission: AdmissionControl,
+		{Name: "host.settings.apply", Scope: "host.settings.apply", Privilege: PrivRootExec, Timeout: 55 * time.Second, Admission: AdmissionControlApply,
 			Description: "Execute a reviewed hostname/timezone change with its plan token; journaled, verified by reading hostnamectl/timedatectl back (args: requested fields and token)",
 			Handle:      hostSettingsApply, AuditArgs: hostSettingsAuditArgs,
 			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskReversible}, LockDomain: "host-settings",
