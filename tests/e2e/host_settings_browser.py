@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 # SPDX-FileCopyrightText: 2026 The Homelab Control Authors
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Preview-only /host-settings Playwright + axe against the opt-in fixture.
+"""Host-settings plan-confirm UI Playwright + axe against the opt-in fixture.
 
 Run TestHostSettingsBrowserFixture with a private runtime directory first. No
 browser request is mocked. The only observations are the labelled synthetic
 testdata/hostsettings tree (fixture-static, Fixture Lab (example),
-fixture-kernel-name, Europe/Berlin). Preview never posts plan or apply and
-never runs hostnamectl or timedatectl. Runtime credentials/state MUST NOT be
-copied into evidence or Git. Not live host apply, not M2 close, not acceptance.
+fixture-kernel-name, Europe/Berlin). The apply-capable fixture opens the
+confirmation dialog and may post one dry-run plan to a fail-closed fake
+broker; it never submits apply or runs hostnamectl/timedatectl. Runtime
+credentials/state MUST NOT be copied into evidence or Git. Not live host
+apply, not M2 close, not acceptance.
 
 Usage: host_settings_browser.py RUNTIME_DIR EVIDENCE_DIR AXE_MIN_JS
 """
@@ -197,8 +199,16 @@ try:
                 "apply is offered with host.settings.apply",
                 ap.get_by_role("button", name="Apply these settings…").count() == 1,
             )
-            ap.get_by_role("button", name="Apply these settings…").click()
+            with ap.expect_request(
+                lambda req: is_host_api(req.url)
+                and path_of(req.url).endswith("/host/settings/plan")
+            ):
+                ap.get_by_role("button", name="Apply these settings…").click()
             ap.get_by_role("dialog").wait_for()
+            check(
+                "confirmation opens after one dry-run plan",
+                sum(path_of(r["url"]).endswith("/host/settings/plan") for r in apply_host) == 1,
+            )
             check(
                 "apply confirmation dialog opens",
                 ap.get_by_role("heading", name="Apply host settings", exact=True).is_visible(),
@@ -221,7 +231,7 @@ try:
             {
                 "result": "pass",
                 "checks": checks,
-                "source": "Labelled synthetic hostsettings testdata only; preview-only; not live hostnamectl/timedatectl; not M2 close.",
+                "source": "Labelled synthetic hostsettings testdata only; one dry-run plan to fail-closed fake broker; no apply or live hostnamectl/timedatectl; not M2 close.",
             },
             indent=2,
         )

@@ -12,33 +12,37 @@ import (
 
 func TestRegistryIsClosed(t *testing.T) {
 	all := All()
-	if len(all) != 6 || all[0].ID != "services" || all[0].APIPrefix != "/api/v1/services" || all[0].OpPrefix != "services." {
+	if len(all) != 7 || all[0].ID != "services" || all[0].APIPrefix != "/api/v1/services" || all[0].OpPrefix != "services." {
 		t.Fatalf("registry: %+v (new modules need review)", all)
 	}
-	if all[1].ID != "packages" || all[1].APIPrefix != "/api/v1/packages" || all[1].OpPrefix != "packages." || all[1].Path != "/software" || len(all[1].Scopes) != 1 || all[1].Scopes[0] != "packages.read" {
-		t.Fatalf("packages module: %+v (new modules need review)", all[1])
+	if all[1].ID != "storage" || all[1].APIPrefix != "/api/v1/storage" || all[1].OpPrefix != "storage." || all[1].Path != "/storage" || len(all[1].Scopes) != 3 || all[1].Scopes[0] != "storage.read" || all[1].Scopes[1] != "storage.probe" || all[1].Scopes[2] != "layout.manage" {
+		t.Fatalf("storage module: %+v (new modules need review)", all[1])
 	}
-	if all[2].ID != "networking" || all[2].OpPrefix != "" {
-		t.Fatalf("networking registry: %+v", all[2])
+	if all[2].ID != "packages" || all[2].APIPrefix != "/api/v1/packages" || all[2].OpPrefix != "packages." || all[2].Path != "/software" || len(all[2].Scopes) != 1 || all[2].Scopes[0] != "packages.read" {
+		t.Fatalf("packages module: %+v (new modules need review)", all[2])
 	}
-	if all[3].ID != "mergerfs" || all[3].APIPrefix != "/api/v1/mergerfs" || all[3].OpPrefix != "" || all[3].Path != "/storage/mergerfs" || len(all[3].Scopes) != 1 || all[3].Scopes[0] != "mergerfs.read" {
-		t.Fatalf("mergerfs module: %+v (new modules need review)", all[3])
+	if all[3].ID != "networking" || all[3].OpPrefix != "" {
+		t.Fatalf("networking registry: %+v", all[3])
 	}
-	if all[4].ID != "zfs" || all[4].APIPrefix != "/api/v1/zfs" || all[4].OpPrefix != "" || all[4].Path != "/storage/zfs" || len(all[4].Scopes) != 1 || all[4].Scopes[0] != "zfs.read" {
-		t.Fatalf("zfs module: %+v (new modules need review)", all[4])
+	if all[4].ID != "mergerfs" || all[4].APIPrefix != "/api/v1/mergerfs" || all[4].OpPrefix != "" || all[4].Path != "/storage/mergerfs" || len(all[4].Scopes) != 1 || all[4].Scopes[0] != "mergerfs.read" {
+		t.Fatalf("mergerfs module: %+v (new modules need review)", all[4])
 	}
-	if all[5].ID != "lvm" || all[5].APIPrefix != "/api/v1/lvm" || all[5].OpPrefix != "" || all[5].Path != "/storage/lvm" || len(all[5].Scopes) != 1 || all[5].Scopes[0] != "lvm.read" {
-		t.Fatalf("lvm module: %+v (new modules need review)", all[5])
+	if all[5].ID != "zfs" || all[5].APIPrefix != "/api/v1/zfs" || all[5].OpPrefix != "" || all[5].Path != "/storage/zfs" || len(all[5].Scopes) != 1 || all[5].Scopes[0] != "zfs.read" {
+		t.Fatalf("zfs module: %+v (new modules need review)", all[5])
+	}
+	if all[6].ID != "lvm" || all[6].APIPrefix != "/api/v1/lvm" || all[6].OpPrefix != "" || all[6].Path != "/storage/lvm" || len(all[6].Scopes) != 1 || all[6].Scopes[0] != "lvm.read" {
+		t.Fatalf("lvm module: %+v (new modules need review)", all[6])
 	}
 	for path, want := range map[string]string{"/api/v1/services": "services", "/api/v1/services/units/{unit}/plan": "services",
 		"/api/v1/servicesx": "", "/api/v1/audit": "", "/api/v1/operations": "", "/api/v1/capabilities": "",
 		"/api/v1/files": "", "/api/v1/files/roots": "", "/api/v1/files/entries": "", "/": "",
+		"/api/v1/storage": "storage", "/api/v1/storage/probe": "storage", "/api/v1/storage/layout/chassis": "storage", "/api/v1/storagex": "",
 		"/api/v1/networking/reverse-proxy/traefik/inventory": "networking", "/api/v1/networkingx": "", "/api/v1/packages": "packages", "/api/v1/packages/search": "packages", "/api/v1/packagesx": "", "/api/v1/mergerfs": "mergerfs", "/api/v1/mergerfsx": "", "/api/v1/zfs": "zfs", "/api/v1/zfsx": "", "/api/v1/lvm": "lvm", "/api/v1/lvmx": ""} {
 		if got := ForRoute(path); got != want {
 			t.Errorf("ForRoute(%q) = %q, want %q", path, got, want)
 		}
 	}
-	for op, want := range map[string]string{"services.unit.apply": "services", "operations.journal.list": "", "broker.info": "", "servicesx": "",
+	for op, want := range map[string]string{"services.unit.apply": "services", "operations.journal.list": "", "broker.info": "", "servicesx": "", "storage.probe": "storage",
 		"host.settings.plan": "", "host.settings.apply": "", "packages.installed": "packages", "packages.search": "packages", "packagesx": ""} {
 		if got := ForOp(op); got != want {
 			t.Errorf("ForOp(%q) = %q", op, got)
@@ -53,7 +57,7 @@ func TestParseIsStrict(t *testing.T) {
 	if s, err := Parse([]byte(`{"version":1,"disabled":[]}`)); err != nil || !s.Enabled("services") {
 		t.Fatalf("%v %v", s, err)
 	}
-	for _, bad := range []string{``, `{}`, `{"version":2,"disabled":[]}`, `{"version":1,"disabled":["storage"]}`,
+	for _, bad := range []string{``, `{}`, `{"version":2,"disabled":[]}`, `{"version":1,"disabled":["does-not-exist"]}`,
 		`{"version":1,"disabled":[],"enabled":["x"]}`, `{"version":1,"disabled":"services"}`, `{"version":1}{"version":1}`, `[1]`} {
 		if _, err := Parse([]byte(bad)); err == nil {
 			t.Errorf("%q accepted", bad)
@@ -90,7 +94,7 @@ func TestLoadFailsClosed(t *testing.T) {
 		t.Fatal("symlinked setting must fail closed")
 	}
 	_ = os.WriteFile(p, []byte(`{"version":1,"disabled":["nope"]}`), 0o644)
-	if s := LoadOrFailClosed(p, false); s.Enabled("services") || len(s.Disabled()) != 6 {
+	if s := LoadOrFailClosed(p, false); s.Enabled("services") || len(s.Disabled()) != 7 {
 		t.Fatal("invalid setting must disable every module")
 	}
 }

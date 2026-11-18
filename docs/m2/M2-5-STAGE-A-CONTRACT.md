@@ -7,7 +7,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 Status: development contract for the Stage A core (`MODULE-ARCHITECTURE.md` §5, roadmap PR M2-5).
 This is routine design within the authorized development slice. It is **not** an owner acceptance and
-**not** a merge decision. D-12 (HBA Viewer reuse) remains open; nothing here is taken from that project.
+**not** a merge decision. D-12 source and concept reconciliation are recorded in
+`OWNER-DECISIONS.md`; this implementation reuses the bay-layout concept without copying upstream code.
 
 ## What it is
 An application-owned, manually labelled chassis grid stored in hc-api's `state.db`. An administrator records

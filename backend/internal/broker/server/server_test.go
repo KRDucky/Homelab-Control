@@ -385,6 +385,25 @@ func TestDisabledModuleOpsRefused(t *testing.T) {
 	}
 }
 
+func TestDisabledStorageModuleRefusesProbe(t *testing.T) {
+	f := start(t)
+	set, err := modules.Parse([]byte(`{"version":1,"disabled":["storage"]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.srv.Env.Modules = set
+	if _, err := call(t, f, "storage.probe", "storage.probe"); code(err) != proto.CodeModuleDisabled {
+		t.Fatalf("storage.probe with disabled module: %v", err)
+	}
+	if !strings.Contains(f.audit.String(), `"outcome":"module_disabled"`) {
+		t.Fatalf("disabled storage probe was not audited: %s", f.audit.String())
+	}
+	out, err := call(t, f, "broker.info")
+	if err != nil || strings.Contains(string(out), `"storage.probe"`) || !strings.Contains(string(out), `"disabled_modules":["storage"]`) {
+		t.Fatalf("broker.info did not hide disabled storage op: %v %s", err, out)
+	}
+}
+
 // M2-3: the broker re-checks services.configure; services.operate (or any
 // other scope) never reaches the enablement ops, and unit contents need
 // services.files (no other scope implies it).

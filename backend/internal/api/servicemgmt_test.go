@@ -307,7 +307,7 @@ func TestDisabledModuleRoutes404(t *testing.T) {
 			t.Errorf("capability %s of a disabled module listed", c.ID)
 		}
 	}
-	if len(cr.Modules) != 6 {
+	if len(cr.Modules) != 7 {
 		t.Fatalf("modules: %+v", cr.Modules)
 	}
 	for _, m := range cr.Modules {
@@ -316,6 +316,9 @@ func TestDisabledModuleRoutes404(t *testing.T) {
 		}
 		if m.ID == "packages" && !m.Enabled {
 			t.Errorf("packages module should stay enabled: %+v", m)
+		}
+		if m.ID == "storage" && !m.Enabled {
+			t.Errorf("storage module should stay enabled: %+v", m)
 		}
 		if m.ID == "zfs" && !m.Enabled {
 			t.Errorf("zfs module should stay enabled: %+v", m)

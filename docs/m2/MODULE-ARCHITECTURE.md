@@ -96,17 +96,26 @@ A workflow is an ordered list of **module plan steps**. The workflow engine only
 ## 5. Physical Drive Layout Designer (owner requirement, 2026-10-21)
 One shared physical-location model, consumed by every storage module. There is no per-technology designer.
 
-### 5.0 Reuse of the existing HBA Viewer concept (owner direction, 2026-10-21; D-12 pending)
+### 5.0 Reuse of the existing HBA Viewer concept (owner direction, 2026-10-21; D-12 source reviewed 2026-11-18)
 The owner directed that the existing **HBA Viewer** concept be made reusable inside Homelab Control,
-instead of building a separate drive-location system.
-- **Not yet available to this review.** The HBA Viewer is a separate owner project; its source and design were not available to this review.
-- **The Linux Storage Manager is a distinct project.** The owner has stated it is **not** the intended source.
-- **No HBA Viewer design is assumed here.** §5.1–§5.2 describe the requirements the reused concept must meet in Homelab Control. They will be reconciled with the HBA Viewer once the owner provides it (D-12).
+instead of building a separate drive-location system. The supplied source is
+[`KRDucky/hbaviewer-cockpit`](https://github.com/KRDucky/hbaviewer-cockpit), reviewed at
+`8061595c51cf21990a0ec9d0f33ea5afd514234e`. Its license is MIT, with credits for the Cockpit port
+and its Unraid-HBAviewer/Unraid-LSIUtil origins. No code was copied.
+- The relevant reusable concept is a user-defined enclosure/bay map joined to drives by stable identity,
+  with explicit missing and changed states. M2-5 Stage A implements that concept in the existing
+  Go/React/state-store architecture.
+- The source is a separate Cockpit/Python application. Its privileged helper, controller discovery,
+  and LED locate path are not imported into this slice. The Linux Storage Manager remains a distinct
+  project and is not the selected source.
+- MIT is compatible with the project’s GPL-3.0-or-later license. Any future code reuse must retain the
+  upstream MIT notice and be reviewed at file level; the owner’s GPL contribution decision does not
+  relicense third-party material.
 
 Constraints that apply whatever the HBA Viewer contains:
 - **One component:** a single **Hardware → Drives & Bays** view (controller/HBA → enclosure/chassis → bay → drive where known; manual layouts where not). Every storage module embeds the same location badge and links to it. No module draws its own layout.
 - **Identity:** keyed by stable drive identity (WWN > serial > NVMe EUI/NGUID > by-id) with provenance and confidence, never by `/dev/sdX`. Location is never re-associated because a kernel name moved.
-- **Reuse terms:** concept, data model and UI behaviour, re-implemented in Go/React under the project's licence and boundaries; code reuse only with the owner's explicit contribution under GPL-3.0-or-later (D-12).
+- **Reuse terms:** concept and relevant data/UI behavior are re-implemented within project boundaries. D-12’s source and license disposition is recorded in `OWNER-DECISIONS.md`.
 
 ### 5.1 Data model (layout data is separate from live discovery)
 | Entity | Fields | Notes |

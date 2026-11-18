@@ -1,6 +1,6 @@
 # M0–M3 production-readiness status
 
-**Reconciled:** 2026-11-17 against `origin/main` at `59170f772e907d21a41842401c292c610e7ff4b3` plus the isolated `dreggbot/m0-m3-readiness` implementation branch.
+**Reconciled:** 2026-11-18 against `origin/main` at `59170f772e907d21a41842401c292c610e7ff4b3` plus the local `dreggbot/m2-final-closeout` candidate.
 **Verdict:** not production-ready; M2 is not closed, so M3 acceptance remains gated. This is a readiness
 reconciliation, not owner acceptance, a deployment authorization, or a substitute for the milestone
 acceptance records.
@@ -11,7 +11,7 @@ acceptance records.
 |---|---|---|
 | M0 | Webmin provenance/license audit, reproducible baseline, CI and threat model are recorded in the project docs. | Complete per project status; verify release artifacts separately before a production release. |
 | M1 | Authenticated UI/API, compatibility boundary, and read-only host information are documented and merged. | Complete per project status; distro/host evidence has the limits listed in `docs/STATUS.md`. |
-| M2 | PR-1 and M2-2 are merged. M2-3, M2-4, M2-5, M2-6 and the read-only file manager have working skeletons on main. | **Open; not accepted.** The required slices, security reviews, decisions, and acceptance evidence are incomplete. |
+| M2 | PR-1 and M2-2 are merged. The local closeout candidate records M2-4 acceptance and 107 synthetic browser checks. | **Open; not merged.** M2-3 owner decisions/KVM acceptance, M2-5/M2-6 and file-manager owner acceptance, plus the final M2 close decision remain. D-12 source review is complete. |
 | M3 | Theme Development Kit is browser-local; the read-only sample plugin checkpoint is on main. | **Not accepted.** M2 must close first; M3 theme/plugin acceptance and production readiness are outstanding. |
 
 ## M2 close gates
@@ -23,10 +23,10 @@ The mandatory sequence and exclusions are in `docs/m2/M2-ROADMAP.md` and `docs/m
 | PR-1 durable state/audit/logs | Merged read-only foundation. | Reconcile current CI and acceptance evidence with the roadmap; resolve any remaining audit durability/retention policy for production. |
 | M2-2 service operations | Merged; acceptance record exists. | Preserve its security conditions; production activation remains a separate owner decision. |
 | M2-3 service configuration | Skeleton on main; implementation and container evidence are documented, but not accepted. | Close owner review decisions and design review findings; run the prepared KVM acceptance procedure only with its required authorization; complete distro/security/browser evidence. |
-| M2-4 storage inventory | **Accepted 2026-11-18 for the scoped read-only inventory** on the isolated branch. Native LVM metadata is wired through helper, broker, API graph and UI; Fedora 44 SELinux and Debian 13 AppArmor enforcing guest probes passed. Full evidence and explicit limits are in `M2-4-ACCEPTANCE.md`. Helper remains disabled by default. | No host/production activation. Ubuntu LTS, systemd-nspawn, broader distro/CI coverage, real vendor hardware and additional AppArmor negative/device variants remain deployment coverage follow-ups. A narrower by-id design and separate authorization are required before host activation. |
-| M2-5 drive layout Stage A | Manual, explicitly unverified layout implementation; keyboard and drag/drop assignment, redacted export, additive import, and per-chassis optimistic concurrency are implemented in this isolated review branch. Existing-layout mutations carry versions and reject stale writes with 409; create/import remain additive. | D-12 is open pending HBA Viewer source/reuse terms. Browser/axe and backend acceptance are outstanding; no owner acceptance or merge is implied. |
-| M2-6 hostname/timezone | Plan/apply backend and UI skeletons exist. Apply revalidation reports conflict when host settings converge between plan and apply. Full Go tests, vet and build pass on this branch with the expected `022` umask. | Complete design/security review, user documentation, frontend CI/browser and distro/KVM acceptance, and obtain owner acceptance. No production apply is authorized. |
-| File manager | Confined read-only roots and listing skeleton. | ADR 0012 and acceptance are open; complete security review and required isolated/browser/distribution evidence. No write operations are in scope. |
+| M2-4 storage inventory | **Accepted 2026-11-18 for the scoped read-only inventory** on the isolated branch. Native LVM metadata is wired through helper, broker, API graph and UI; Fedora 44 SELinux and Debian 13 AppArmor enforcing guest probes passed. The final closeout candidate also registers storage with the module switch; its new disable-path tests remain unexecuted. Full evidence and explicit limits are in `M2-4-ACCEPTANCE.md`. Helper remains disabled by default. | Verify the new module-gate tests on the exact candidate. No host/production activation. Ubuntu LTS, systemd-nspawn, broader distro/CI coverage, real vendor hardware and additional AppArmor negative/device variants remain deployment coverage follow-ups. A narrower by-id design and separate authorization are required before host activation. |
+| M2-5 drive layout Stage A | Manual, explicitly unverified layout implementation; keyboard and drag/drop assignment, redacted export, additive import, and per-chassis optimistic concurrency are implemented on the local candidate. Browser/axe: 18 checks pass, zero desktop/mobile axe violations, no mobile overflow. D-12 source review is complete: MIT HBA Viewer concept reused, no source code copied. | Owner acceptance remains open; hardware/controller discovery is out of scope. |
+| M2-6 hostname/timezone | Plan/apply backend and UI skeletons exist. Local synthetic browser: 34 checks pass, zero desktop/mobile axe violations, no mobile overflow; opens confirmation, executes one dry-run plan against fail-closed fake broker, and sends no apply request. | Distro/KVM evidence, CI integration, user documentation and owner acceptance remain. No production apply is authorized. |
+| File manager | Confined read-only roots and listing skeleton; local synthetic browser evidence has 33 passing checks, zero desktop/mobile axe violations and no mobile overflow. | ADR 0012 and owner acceptance remain open; complete security review and required distribution evidence. No write operations are in scope. |
 
 **M3 entry gate:** all six M2 roadmap slices above plus the file manager, their security checklists, and required
 evidence must be accepted. Current main does not satisfy that gate.
@@ -54,8 +54,8 @@ evidence must be accepted. Current main does not satisfy that gate.
 
 ## Immediate next sequence
 
-1. Resolve D-12 (source/reuse terms for M2-5); keep M2-4's helper disabled on the host.
-2. Complete M2-5 within its approved boundaries; do not infer hardware discovery or storage writes.
+1. Obtain owner acceptance for M2-3, M2-5, M2-6, and file-manager scope; resolve the remaining M2-3 proposals and KVM evidence.
+2. Keep M2-5 within its approved boundaries; do not infer hardware discovery or storage writes.
 3. Close M2-3, M2-6 and file-manager reviews and acceptance evidence, then obtain the M2 close decision.
 4. Only then finish and accept M3 Theme/Plugin SDK.
 5. Run the production-readiness and deployment gates as a separate owner-approved release step.

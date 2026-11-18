@@ -282,6 +282,51 @@ describe('host settings', () => {
     expect(dialog.querySelector('input[type="password"]')).toBeNull();
   });
 
+  it('closes the confirmation dialog without applying (cancel flow)', async () => {
+    const plan = {
+      action: 'set',
+      risk: 'reversible',
+      step_up_required: false,
+      confirmation_required: true,
+      token: 'hcp1.plan-token-cancel',
+      expires_at: new Date(Date.now() + 120_000).toISOString(),
+      observed: {
+        static_hostname: 'fixture-static',
+        static_status: 'observed',
+        pretty_status: 'not-set',
+        timezone_status: 'observed',
+        timezone: 'Europe/Berlin',
+        notes: ['read-back note'],
+      },
+      effect: 'This would set the static host name.',
+      consequences: ['Confirmation is required.'],
+      warnings: ['Changing the static host name can invalidate TLS certificates.'],
+      changes: [
+        { field: 'static_hostname', current: 'fixture-static', requested: 'nas-01', outcome: 'would-change' },
+      ],
+      fields: ['static_hostname'],
+    };
+    mock(['system.read', 'host.settings.preview', 'host.settings.apply'], {
+      'POST /api/v1/host/settings/preview': {
+        status: 200,
+        body: { ...preview, apply_available: true, valid: true, warnings: [] },
+      },
+      'POST /api/v1/host/settings/plan': { status: 200, body: plan },
+    });
+    render(<App />);
+    fireEvent.change(await screen.findByLabelText('Static host name'), { target: { value: 'nas-01' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Preview (does not apply)' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply these settings…' }));
+    await screen.findByRole('dialog', { name: 'Apply host settings' });
+    await screen.findByRole('button', { name: 'Apply host settings' });
+    // The confirm dialog issues exactly one dry-run plan and nothing else.
+    expect(calls.filter((c) => c.key === 'POST /api/v1/host/settings/plan').length).toBe(1);
+    expect(calls.some((c) => c.key === 'POST /api/v1/host/settings/apply')).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog', { name: 'Apply host settings' })).toBeNull();
+    expect(calls.some((c) => c.key === 'POST /api/v1/host/settings/apply')).toBe(false);
+  });
+
   it('shows the server refusal of a preview', async () => {
     mock(['system.read', 'host.settings.preview'], {
       'POST /api/v1/host/settings/preview': {

@@ -6,8 +6,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
 # M2-5 Stage A — manual drive-bay layout: UI acceptance status
 
 Status: development/checkpoint documentation, not an owner acceptance and not a merge decision. This
-records what Stage A delivers and what it explicitly defers. It takes nothing from the HBA Viewer
-project (D-12 remains open).
+records what Stage A delivers and what it explicitly defers. D-12 source review is recorded in
+`OWNER-DECISIONS.md`: Stage A reuses the HBA Viewer bay-layout concept, with no upstream code copied.
 
 ## Delivered (Stage A core)
 
@@ -57,8 +57,15 @@ fixture-tested end to end:
 ## Remaining gaps (not delivered)
 
 - the **location badge** on other storage views (Stage B);
-- a **Playwright + axe** real-browser fixture (the acceptance fixture above is a Vitest/jsdom synthetic
-  fixture only).
+- hardware/controller discovery, LED locate, and automatic physical bay assignment; the source
+  project’s privileged runtime is not imported.
+
+The Playwright + axe fixture is now present and was run against the current local closeout candidate:
+18 checks passed, with zero axe violations at desktop and 390×844, and no mobile overflow. The browser
+run used labelled synthetic storage identities and the actual fixture API/SQLite. It is recorded in
+`docs/m2/evidence/browser-2026-11-18/layout/`. The browser test was corrected to send the required
+optimistic-concurrency `version` for assignment and delete. D-12 source identification and concept
+reconciliation are recorded; this does not constitute owner acceptance.
 
 ## Not claimed
 
