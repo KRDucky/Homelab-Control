@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -441,5 +442,89 @@ func TestHostSettingsOpsNeedApplyScopeEndToEnd(t *testing.T) {
 		if code(err) != proto.CodeForbidden {
 			t.Errorf("%s without host.settings.apply: %v", op, err)
 		}
+	}
+}
+
+// startBlockingOps registers op and runs n instances, waiting until each
+// handler has started (its admission slots are held). release unblocks them.
+func startBlockingOps(t *testing.T, f *fixture, name string, admission ops.AdmissionClass, n int) (release func()) {
+	t.Helper()
+	started := make(chan struct{}, n)
+	releaseCh := make(chan struct{})
+	var once sync.Once
+	f.srv.registry[name] = ops.Op{Name: name, Admission: admission, Timeout: 5 * time.Second,
+		Handle: func(ctx context.Context, _ *ops.Env, _ json.RawMessage) (any, error) {
+			started <- struct{}{}
+			select {
+			case <-releaseCh:
+				return "done", nil
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}}
+	for i := 0; i < n; i++ {
+		go call(t, f, name)
+	}
+	for i := 0; i < n; i++ {
+		<-started
+	}
+	return func() { once.Do(func() { close(releaseCh) }) }
+}
+
+func TestSlowClassRefusesFourthRead(t *testing.T) {
+	f := start(t)
+	release := startBlockingOps(t, f, "test.slow", ops.AdmissionSlow, 3)
+	defer release()
+	if _, err := call(t, f, "test.slow"); code(err) != proto.CodeBusy {
+		t.Fatalf("4th slow read: want busy, got %v", err)
+	}
+}
+
+func TestNonSlowOpAdmittedWhileSlowReadsRun(t *testing.T) {
+	f := start(t)
+	release := startBlockingOps(t, f, "test.slow", ops.AdmissionSlow, 3)
+	defer release()
+	// A non-slow op takes only the global slot, which still has room.
+	if _, err := call(t, f, "broker.info"); err != nil {
+		t.Fatalf("non-slow op refused while 3 slow reads run: %v", err)
+	}
+}
+
+func TestGlobalCapStillRefuses(t *testing.T) {
+	f := start(t)
+	f.srv.sem = make(chan struct{}, 1) // shrink the global cap to one slot
+	release := startBlockingOps(t, f, "test.block", "", 1)
+	defer release()
+	if _, err := call(t, f, "broker.info"); code(err) != proto.CodeBusy {
+		t.Fatalf("global cap: want busy, got %v", err)
+	}
+}
+
+// A slow op that fails global admission after taking a slow slot must release
+// that slot immediately, so the slow class is not leaked.
+func TestSlowSlotReleasedWhenGlobalFull(t *testing.T) {
+	f := start(t)
+	f.srv.sem = make(chan struct{}, 1)     // single global slot
+	f.srv.slowSem = make(chan struct{}, 1) // single slow slot
+	release := startBlockingOps(t, f, "test.block", "", 1)
+	defer release()
+	f.srv.registry["test.slow"] = ops.Op{Name: "test.slow", Admission: ops.AdmissionSlow, Timeout: time.Second,
+		Handle: func(context.Context, *ops.Env, json.RawMessage) (any, error) { return "ok", nil }}
+	// The global slot is occupied, so the slow op takes its slow slot, fails
+	// global admission, and must release the slow slot before returning busy.
+	if _, err := call(t, f, "test.slow"); code(err) != proto.CodeBusy {
+		t.Fatalf("slow op with global full: want busy, got %v", err)
+	}
+	// The busy response is written only after the slot release, so this is a
+	// deterministic observation: the slow class must be empty again.
+	if n := len(f.srv.slowSem); n != 0 {
+		t.Fatalf("slow slot leaked after global-busy: %d held", n)
+	}
+}
+
+func TestSlowClassDefault(t *testing.T) {
+	f := start(t)
+	if f.srv.SlowInFlight != 3 || cap(f.srv.slowSem) != 3 {
+		t.Fatalf("slow class default: SlowInFlight=%d cap=%d", f.srv.SlowInFlight, cap(f.srv.slowSem))
 	}
 }

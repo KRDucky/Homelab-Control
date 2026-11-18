@@ -97,7 +97,19 @@ type Op struct {
 	AuditArgs func(args json.RawMessage) string
 	// Write is set for write ops only.
 	Write *WriteSpec
+	// Admission selects the broker's admission-control bucket. The empty value
+	// is the default: only the global in-flight cap applies. AdmissionSlow is a
+	// smaller, additional cap for long-running low-priority reads, so they
+	// cannot starve service and host-settings operations.
+	Admission AdmissionClass
 }
+
+// AdmissionClass is the broker admission bucket for an operation.
+type AdmissionClass string
+
+// AdmissionSlow bounds the package queries and the storage probe: they can run
+// for tens of seconds and must not crowd out service plan/apply/enablement.
+const AdmissionSlow AdmissionClass = "slow"
 
 // Registry returns the compiled-in operation table.
 func Registry() map[string]Op {
@@ -163,20 +175,20 @@ func Registry() map[string]Op {
 					runner.RootHostnamectlStatus, runner.RootTimedatectlStatus, runner.RootTimedatectlListTimezones}}},
 		// M4-1b (ADR 0008 Amendment 5, Proposed): read-only Software Center
 		// queries, cache-only, unprivileged closed argv templates. No write.
-		{Name: "packages.installed", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second,
+		{Name: "packages.installed", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second, Admission: AdmissionSlow,
 			Description: "Installed packages of one distribution family, from the local package database (args: family)", Handle: packagesInstalled},
-		{Name: "packages.updates", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second,
+		{Name: "packages.updates", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second, Admission: AdmissionSlow,
 			Description: "Pending upgrades with old and new versions from the local cache, labelled with the metadata refresh time (args: family)", Handle: packagesUpdates},
-		{Name: "packages.sources", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second,
+		{Name: "packages.sources", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second, Admission: AdmissionSlow,
 			Description: "Configured repositories and package sources with third-party and unsigned flags (args: family)", Handle: packagesSources},
-		{Name: "packages.search", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second,
+		{Name: "packages.search", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second, Admission: AdmissionSlow,
 			Description: "Search the local package cache of one family (args: family, q)", Handle: packagesSearch, AuditArgs: packagesAuditArgs},
 		// M2-4 O-1 (owner-approved implementation/isolated validation): the
 		// broker is only a bounded client of the root-only socket-activated
 		// probe helper. It enumerates block names and relays a closed request;
 		// it never opens a device or runs blkid itself. The helper's native LVM
 		// reader is the default LVM path (no lvs/pvs execution).
-		{Name: "storage.probe", Scope: "storage.probe", Privilege: PrivRootRead, Timeout: 35 * time.Second,
+		{Name: "storage.probe", Scope: "storage.probe", Privilege: PrivRootRead, Timeout: 35 * time.Second, Admission: AdmissionSlow,
 			Description: "On-demand native storage probe (blkid signatures on enumerated devices); wakes disks", Handle: storageProbe},
 	}
 	m := make(map[string]Op, len(ops))
