@@ -32,10 +32,27 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
   not used. Exact-artifact Phase A1/A2 ran on Ubuntu 26.04.1 and 22.04.5 from PR #119 run
   `44317837412`; both passed. A clean Fedora 44 guest with SELinux Enforcing then passed A1 (307 PASS,
   0 FAIL, one expected Phase B skip) and A2 (16 PASS, 0 FAIL; plan-only). RPM payload hashes are
-  package-specific and matched the installed binaries. An earlier retry on the existing guest stopped
-  before checks because its previous test account remained; the RPM was removed and its data and
-  snapshot were preserved. A3–A5 and Phase B remain unrun. See the partial sanitized evidence at
-  `../evidence/m2/m2-3/kvm-pr119-2026-11-18-a1-a2/README.md` and the exact-input procedure.
+  package-specific and matched the installed binaries. A corrected Fedora A1/A2 rerun is recorded below;
+  the earlier `m23-pr119-f44-a1a2-20261118b` run remains as a record but is invalid because the runner
+  omitted the test-only burst setting and retained duplicate admin state. A3–A5 and Phase B remain pending.
+  See `../evidence/m2/m2-3/kvm-pr119-2026-11-18-a1-a2/README.md` and the exact-input procedure.
+
+## Corrected Fedora A1/A2 rerun (2026-11-18)
+
+The reported corrected disposable Fedora guest `m23-pr119-f44-a1a2-20261118b-corrected` passed A1
+(exit 0: 144 M2-3 enablement checks and 74 systemd-smoke checks; zero failures) and A2 (exit 0: 16
+systemd-smoke checks; zero failures). The corrected runner set `HC_SMOKE_RATE_LIMIT_BURST=100000`
+for both invocations and removed only guest `/etc/homelab-control/users.json` between A1 removal and
+A2 installation. No `FAIL` lines were reported. A2 is the plan-only survey in the procedure; it does
+not apply a plan.
+
+Reported artifacts are under
+`/mnt/tank/claude-vms/artifacts/m23-pr119-f44-a1a2-20261118b-corrected/`, including
+`A1A2-combined.stdout.raw`, the runner diff/hash, and `SHA256SUMS` (reported verified). The guest
+was gracefully shut off, autostart disabled, and its baseline/evidence retained. These results cover
+Fedora A1/A2 only. A3–A5 and Phase B remain pending; M2-3 and M2 remain open. This record does not
+infer owner acceptance. The artifact directory is on the authorized VM host and is not copied into
+this repository.
 
 "Pass" below means the stated evidence exists and passed; it is not the owner's acceptance.
 
