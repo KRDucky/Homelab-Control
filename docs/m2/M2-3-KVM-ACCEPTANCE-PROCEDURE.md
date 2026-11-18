@@ -146,6 +146,7 @@ package. All steps **(root)**, in the root shell of "Guest setup".
 cd /opt/hc
 export HC_PKG_KIND=deb   # rpm on Fedora
 HC_M2_LONG=1 \
+HC_SMOKE_RATE_LIMIT_BURST=100000 \
 HC_SMOKE_EXTRA_UNITS=homelab-control-broker.socket \
 HC_SMOKE_EXTRA_CHECKS="/opt/hc/tests/m1-checks.sh /opt/hc/tests/m2-service-ops.sh /opt/hc/tests/m2-3-checks.sh" \
 HC_WEBMIN_SRC=/opt/hc/webmin HC_SMOKE_SCOPES=system.read,services.read,services.logs,hardware.read \
@@ -158,11 +159,16 @@ Expected: exit 0, no `FAIL`, no `SKIP` for the expiry waits; counts recorded (co
 passing.
 
 **A2 — disable survey (plan only, measurement).** Same environment as A1 without `HC_M2_LONG`, with
-`HC_SMOKE_EXTRA_CHECKS=/opt/hc/tests/m2-3-disable-survey.sh`, `tee /root/m2-3-disable-survey.log`, and the same
+`HC_SMOKE_RATE_LIMIT_BURST=100000`, `HC_SMOKE_EXTRA_CHECKS=/opt/hc/tests/m2-3-disable-survey.sh`,
+`tee /root/m2-3-disable-survey.log`, and the same
 `PIPESTATUS` line. It **plans** a disable of every enabled service of the cloud image (never applies one) and
 records allowed / refused with the reason and the plan duration, plus a fixture with
 `Wants=network-online.target` (enabled and disabled again by the harness). Record the tally as P-7
 over-refusal data; a plan duration near 15 s is a finding. It also purges the package at the end.
+
+`HC_SMOKE_RATE_LIMIT_BURST=100000` is only for this disposable acceptance host. The production default remains
+30; this prevents the multi-request acceptance scripts from testing the API rate limiter instead of the
+service-operation checks. CI uses the same disposable-host override.
 
 **A3 — reinstall for reboots and browser (exact package).**
 1. `sha256sum /opt/hc/pkg.$HC_PKG_KIND` → the hash under "Inputs". Install: Ubuntu `apt-get install -y
