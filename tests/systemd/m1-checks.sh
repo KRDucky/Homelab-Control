@@ -29,7 +29,23 @@ check "broker NoNewPrivs" 1 "$(awk '/^NoNewPrivs/{print $2}' /proc/"$bpid"/statu
 deny=$(runuser -u nobody -- hlctl broker info 2>&1 || true)
 check "other local users cannot reach the broker" 1 "$(grep -ci 'unavailable\|denied' <<<"$deny")"
 
+# Webmin fixture lifecycle (disposable hosts only): install upstream Webmin
+# only when /etc/webmin is absent, so a pre-existing Webmin is never modified.
+# When this run installs the fixture, cleanup at the end removes exactly what it
+# created (webmin.service, its enable symlink, /etc/webmin and /var/webmin) so a
+# later A2 survey never sees a leftover enabled webmin.service. See
+# compat/webmin/init/updateboot.pl: setup.sh's atboot=0 only suppresses the
+# SysV boot links; updateboot.pl still writes and enables webmin.service.
+hc_webmin_installed=0
+hc_webmin_unit_pre_existed=0
 if [ -n "${HC_WEBMIN_SRC:-}" ] && [ ! -e /etc/webmin ]; then
+  # Record whether a unit file pre-existed so cleanup restores rather than
+  # deletes it (an orphan unit without /etc/webmin is broken but still not ours).
+  if [ -e /usr/lib/systemd/system/webmin.service ] || \
+     [ -e /lib/systemd/system/webmin.service ] || \
+     [ -e /etc/systemd/system/webmin.service ]; then
+    hc_webmin_unit_pre_existed=1
+  fi
   echo "== installing upstream Webmin from $HC_WEBMIN_SRC into /etc/webmin (disposable host)"
   [ -x /usr/local/bin/perl ] || ln -s /usr/bin/perl /usr/local/bin/perl
   # Test-environment fix, not a product change: under sudo TERM=unknown, and Webmin probes
@@ -40,9 +56,10 @@ if [ -n "${HC_WEBMIN_SRC:-}" ] && [ ! -e /etc/webmin ]; then
       config_dir=/etc/webmin var_dir=/var/webmin perl=/usr/bin/perl port=10000 \
       login=admin password="webmin-smoke-$RANDOM-pw" ssl=0 atboot=0 nostart=1 nouninstall=1 \
       nopostinstall=1 noperlpath=1 autoos=1 autothird=1 ./setup.sh >/tmp/webmin-setup.log 2>&1 )
+  hc_webmin_installed=1
 fi
-# The disposable fixture can persist between smoke runs while its boot symlink
-# is deliberately disabled. Start it on every run, not only after first install.
+# The fixture is installed fresh each run and removed at the end; start it now
+# so the legacy-detection checks below see a real, running miniserv.
 if [ -x /etc/webmin/start ]; then
   SYSTEMD_PAGER=cat TERM=dumb /etc/webmin/start >/dev/null 2>&1 || true
   sleep 2
@@ -153,4 +170,17 @@ check "logs endpoint 503 without broker" 503 "$(getc '/api/v1/services/units/hom
 check "legacy falls back to unprivileged detection" unprivileged "$(jget "d['source']" <<<"$(get /api/v1/legacy/webmin)")"
 check "overview still works" 200 "$(getc /api/v1/host/overview)"
 systemctl start homelab-control-broker.socket
-if [ -x /etc/webmin/stop ]; then /etc/webmin/stop >/dev/null 2>&1 || true; fi
+if [ "$hc_webmin_installed" = 1 ]; then
+  # Remove only the fixture this run created. /etc/webmin did not exist before
+  # this run (the install guard), so deleting it and /var/webmin and the unit
+  # file restores the prior state; a pre-existing unit file is left in place.
+  if [ -x /etc/webmin/stop ]; then /etc/webmin/stop >/dev/null 2>&1 || true; fi
+  systemctl disable webmin.service >/dev/null 2>&1 || true
+  if [ "$hc_webmin_unit_pre_existed" = 0 ]; then
+    rm -f /usr/lib/systemd/system/webmin.service /lib/systemd/system/webmin.service /etc/systemd/system/webmin.service
+  fi
+  systemctl daemon-reload >/dev/null 2>&1 || true
+  rm -rf /etc/webmin /var/webmin
+else
+  if [ -x /etc/webmin/stop ]; then /etc/webmin/stop >/dev/null 2>&1 || true; fi
+fi
