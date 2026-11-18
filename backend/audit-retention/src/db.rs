@@ -16,7 +16,7 @@ use crate::record::Record;
 use crate::Result;
 
 /// The Go schema version this worker understands (`state.SchemaVersion()`).
-pub const SUPPORTED_SCHEMA_VERSION: i64 = 3;
+pub const SUPPORTED_SCHEMA_VERSION: i64 = 4;
 
 pub struct Db {
     pub conn: SqliteConnection,
