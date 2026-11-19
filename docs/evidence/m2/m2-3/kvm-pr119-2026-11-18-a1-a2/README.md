@@ -72,8 +72,9 @@ clock-sync, idle, and documented UnitPath checks passed; the first-boot gate
 probe found no listed services. The guest ended shut off with autostart disabled.
 
 The expected single A1 skip is the broker interruption scenario, reserved for
-Phase B. Neither A3/browser, real reboot checks, nor Phase B has run on these
-guests.
+Phase B. A3–A5 on these package artifacts had not run when this note was written.
+The 2026-11-19 continuation is
+`../kvm-pr119-91d79d30-a3a5-2026-11-19/README.md`.
 
 ## Corrected Fedora A1/A2 rerun (2026-11-18)
 
@@ -88,7 +89,8 @@ The reported artifact directory is
 `/mnt/tank/claude-vms/artifacts/m23-pr119-f44-a1a2-20261118b-corrected/`. It contains
 `A1A2-combined.stdout.raw`, runner diff/hash, and `SHA256SUMS`, reported verified. The guest was
 gracefully shut off, autostart disabled, and its baseline/evidence retained. This result is Fedora
-A1/A2 only; A3–A5 and Phase B remain pending. M2-3 and M2 remain open, and these results do not imply
+A1/A2 only. A 2026-11-19 run continued from this guest and is recorded in
+`../kvm-pr119-91d79d30-a3a5-2026-11-19/README.md`. M2-3 and M2 remain open, and these results do not imply
 owner acceptance. The artifact directory is external to this repository and was not independently
 read during this documentation update.
 

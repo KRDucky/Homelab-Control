@@ -1,15 +1,15 @@
 # M2-3 KVM acceptance procedure (Phase A and B authorized; partial evidence)
 
-**Status update (2026-11-18):** PR #118 is merged; PR #119 is draft. Three retained disposable guests
+**Status update (2026-11-19):** PR #118 is merged. PR #119 is on `main` as `91d79d30`. That merge is
+not owner acceptance. Three retained disposable guests
 (`m23-pr118-u2604`, `m23-pr118-u2204`, `m23-pr118-f44`) remain in the authorized pool with autostart disabled
-and retained pre-Phase-A snapshots. On exact PR #119 CI artifacts, Phase A1/A2 passed on Ubuntu 26.04.1,
-Ubuntu 22.04.5, and a clean Fedora 44 guest with SELinux enforcing. The fresh Fedora guest was shut down
-with autostart disabled, and its baseline snapshot and raw evidence were retained. Fedora A3/browser, real
-reboots, and Phase B remain incomplete. The earlier retry on the existing Fedora guest stopped before
-checks because residual test data blocked account setup; that guest's data and snapshot were preserved.
-Partial sanitized results:
-`docs/evidence/m2/m2-3/kvm-pr119-2026-11-18-a1-a2/README.md`. PR review is authorized; merge and deployment
-are not.
+and retained pre-Phase-A snapshots. On 2026-11-19, A3 (7/0) and A4 (6/0) passed on Fedora 44 with SELinux
+Enforcing, Ubuntu 26.04.1, and Ubuntu 22.04.5, using the release-candidate package from commit `91d79d30`.
+A5 failed step B20 on all three (19 pass / 1 fail). Phase B was not run. Those guests were shut off with
+autostart disabled. Sanitized results:
+`docs/evidence/m2/m2-3/kvm-pr119-91d79d30-a3a5-2026-11-19/README.md`.
+The 2026-11-18 A1/A2 record remains at
+`docs/evidence/m2/m2-3/kvm-pr119-2026-11-18-a1-a2/README.md`. Deployment is not authorized.
 
 The owner directed this M2 validation to Claude's VMs on 2026-11-18. Execute through the authorized
 `claude-baremetal` MCP service, using `qemu:///system` pool `claude-vms-zfs` and the storage policy below.
