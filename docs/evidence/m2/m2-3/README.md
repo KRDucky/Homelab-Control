@@ -6,6 +6,13 @@ copied here unchanged (ANSI colour codes stripped from `make` logs; raw JSON aud
 log). They contain no passwords, cookies, plan tokens or fixture secret values (checked with `grep`; the
 scenario also checks this itself).
 
+## Phase B on retained PR #119 guests (2026-11-19)
+
+Partial only. Not owner acceptance. Ubuntu 26.04.1 and Ubuntu 22.04.5 each
+recorded Phase B 37/0, exit 0, with `systemctl` identity restored. Fedora 44
+did not run Phase B: the retained guest stayed up with no network and was left
+running, autostart disabled. See `kvm-pr119-phaseb-fe636a10/README.md`.
+
 ## Where things ran
 - **Workstation:** CachyOS, kernel 7.3.1, Docker. Go tests and fuzzing as uid 1000 (non-root) with the pinned
   release toolchain Go 1.26.10 (`GOTOOLCHAIN=go1.26.10`, from the local module cache).
