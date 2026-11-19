@@ -1,8 +1,8 @@
 # M2-3 acceptance results (boot-time enable/disable, unit views, module registry)
 
-**Status:** implementation and partial exact-artifact evidence are on draft PR #119,
-`dreggbot/m2-3-admission-pr`. **Not accepted, not merged, not activated in production.** The
-owner's authorization of 2026-11-04 covers development and isolated testing only (`OWNER-DECISIONS.md`).
+**Status:** implementation from PR #119 is on `main` as `91d79d30`. **Not owner acceptance, and not
+activated in production.** The owner's authorization of 2026-11-04 covers development and isolated
+testing only (`OWNER-DECISIONS.md`).
 
 **Revisions.**
 - `5a14c727`: first evidence round (superseded).
@@ -34,8 +34,10 @@ owner's authorization of 2026-11-04 covers development and isolated testing only
   0 FAIL, one expected Phase B skip) and A2 (16 PASS, 0 FAIL; plan-only). RPM payload hashes are
   package-specific and matched the installed binaries. A corrected Fedora A1/A2 rerun is recorded below;
   the earlier `m23-pr119-f44-a1a2-20261118b` run remains as a record but is invalid because the runner
-  omitted the test-only burst setting and retained duplicate admin state. A3–A5 and Phase B remain pending.
-  See `../evidence/m2/m2-3/kvm-pr119-2026-11-18-a1-a2/README.md` and the exact-input procedure.
+  omitted the test-only burst setting and retained duplicate admin state. A 2026-11-19 run then
+  re-ran A1/A2 on the release-candidate package and recorded A3 7/0, A4 6/0, and A5 19 pass / 1 fail
+  (B20) on Fedora 44, Ubuntu 26.04.1, and Ubuntu 22.04.5. Phase B was not run. See
+  `../evidence/m2/m2-3/kvm-pr119-91d79d30-a3a5-2026-11-19/README.md` and the exact-input procedure.
 
 ## Corrected Fedora A1/A2 rerun (2026-11-18)
 
@@ -50,7 +52,8 @@ Reported artifacts are under
 `/mnt/tank/claude-vms/artifacts/m23-pr119-f44-a1a2-20261118b-corrected/`, including
 `A1A2-combined.stdout.raw`, the runner diff/hash, and `SHA256SUMS` (reported verified). The guest
 was gracefully shut off, autostart disabled, and its baseline/evidence retained. These results cover
-Fedora A1/A2 only. A3–A5 and Phase B remain pending; M2-3 and M2 remain open. This record does not
+Fedora A1/A2 only. The 2026-11-19 continuation is in
+`../evidence/m2/m2-3/kvm-pr119-91d79d30-a3a5-2026-11-19/README.md`. M2-3 and M2 remain open. This record does not
 infer owner acceptance. The artifact directory is on the authorized VM host and is not copied into
 this repository.
 
@@ -114,11 +117,11 @@ this repository.
 - **Owner approval of proposals P-1…P-6** (`OWNER-DECISIONS.md`; not decisions): root-owned module setting,
   a separate unit-file-content permission (not implemented), password for every boot-time change,
   `--no-reload` semantics, refused constructs, and the fail-closed gate for unloaded changes. D-10/P-1 is decided; M2-3 implementation review items remain open.
-- **Current PR #119 KVM evidence is partial.** Ubuntu 26.04.1, Ubuntu 22.04.5, and Fedora 44 with
-  SELinux Enforcing passed exact-artifact A1/A2. Fedora A1's binary hash record was transcribed after
-  its temporary guest copy was removed, and the A2 in-run package hash sample was empty after RPM
-  removal; the package and its installed payload hashes were verified during A1. A3/browser, real
-  reboots and Phase B remain incomplete.
+- **PR #119 KVM evidence is still partial.** Ubuntu 26.04.1, Ubuntu 22.04.5, and Fedora 44 with
+  SELinux Enforcing passed A3 (7/0) and A4 (6/0) on the `91d79d30` release-candidate package on
+  2026-11-19. A5 failed B20 on all three (19 pass / 1 fail): the harness expected `[403, 200]` and
+  observed `[403, 403]` because its fetch sends no CSRF token. Phase B was not run. This is not
+  owner acceptance. See `../evidence/m2/m2-3/kvm-pr119-91d79d30-a3a5-2026-11-19/README.md`.
 - **CI wiring:** both existing systemd CI jobs now run the M2-3 scenario; a Fedora/Arch systemd CI job (roadmap §3) was **not** added.
 - **Not run:** Debian, openSUSE, Arch; the M2-3 browser workflow on Firefox/WebKit or on Ubuntu 24.04/22.04; screen reader;
   CI does not run the expiry waits or the broker kill (opt-in, disposable hosts).
