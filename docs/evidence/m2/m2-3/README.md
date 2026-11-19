@@ -8,10 +8,12 @@ scenario also checks this itself).
 
 ## Phase B on retained PR #119 guests (2026-11-19)
 
-Partial only. Not owner acceptance. Ubuntu 26.04.1 and Ubuntu 22.04.5 each
-recorded Phase B 37/0, exit 0, with `systemctl` identity restored. Fedora 44
-did not run Phase B: the retained guest stayed up with no network and was left
-running, autostart disabled. See `kvm-pr119-phaseb-fe636a10/README.md`.
+Not owner acceptance. Ubuntu 26.04.1, Ubuntu 22.04.5, and Fedora 44 each
+recorded Phase B exit 0, with `systemctl` identity restored. Each log has 37
+`PASS` lines and no `FAIL` line (smoke 16, interrupt 20, and the package
+removal check). All three guests are shut off with autostart disabled. Ubuntu
+is in `kvm-pr119-phaseb-fe636a10/README.md`. Fedora is in
+`kvm-pr119-phaseb-fedora-fe636a10/README.md`.
 
 ## Where things ran
 - **Workstation:** CachyOS, kernel 7.3.1, Docker. Go tests and fuzzing as uid 1000 (non-root) with the pinned
