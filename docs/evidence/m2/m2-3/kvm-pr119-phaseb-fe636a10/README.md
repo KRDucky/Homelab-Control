@@ -27,7 +27,7 @@ This note does not copy guest logs, cookies, or session token ids.
 |---|---|---|---|
 | Ubuntu 26.04.1 `m23-pr119-91d79d30-u2604` | 37 / 0, exit 0 | match: inode 1892, 302112 bytes, mode 755, root:root, SHA-256 `639bce3ce5c06b605079ea56f74e3f08216ddffcfa76e11f62073aa775180082` | shut off / disable |
 | Ubuntu 22.04.5 `m23-pr119-91d79d30-u2204` | 37 / 0, exit 0 | match: inode 1693, 1119856 bytes, mode 755, root:root, SHA-256 `de4c5cdd03758593036da105a57f959b76bd1ad6e0d1e567d29d16458aeaddf6` | shut off / disable |
-| Fedora 44 `m23-pr119-f44-a1a2-20261118b-corrected` | not run | n/a | running / disable |
+| Fedora 44 `m23-pr119-f44-a1a2-20261118b-corrected` | later run: 37 `PASS` lines / 0 `FAIL`, exit 0 | match: inode 3976, 326504 bytes, mode 755, `0:0`, SHA-256 `ff08482b390de8adec4bb716290f8069bfa9e353481fd896218b369850de9719` | shut off / disable |
 
 Ubuntu wrapper windows: u2604 08:24:22Z–08:25:22Z, u2204 08:46:12Z–08:47:00Z.
 Neither Ubuntu guest uses SELinux, so there are no AVC denials to classify.
@@ -37,12 +37,16 @@ no retry, hash chain, and restored `systemctl`.
 
 ## Fedora 44
 
-The guest booted and then stayed stuck for about an hour: no transmitted
-packets, no disk writes, no DHCP lease, and no response to two ACPI shutdowns.
-No console or screenshot was captured. It was not force-stopped, because it is
-a retained guest. Autostart stays disabled. Disk and SELinux mode were not
-changed. Phase B on this guest needs an owner decision (hard reset or destroy)
-before another run.
+The first Phase B job left this guest up: no transmitted packets, no disk
+writes, no DHCP lease, and no response to two ACPI shutdowns. It was not
+force-stopped then.
+
+A later job, `job_30873bf60abe01f7d94eadc89ac38011`, found the guest already
+shut off, started its existing NAT network, and ran Phase B. Exit 0. The log
+has 37 `PASS` lines and no `FAIL` line. `systemctl` identity matched.
+`dominfo.txt` shows shut off and autostart disable. Details are in
+`../kvm-pr119-phaseb-fedora-fe636a10/README.md`. That note is still not owner
+acceptance.
 
 ## Observations
 
