@@ -1,22 +1,19 @@
-# Current status — M2 closeout candidate PR #119 (2026-11-18); M2 remains open
+# Current status — M2-3 A3–A5 evidence (2026-11-19); M2 remains open
 
-PR #118 was merged as `c54fe5cc`; it is the baseline, not the current closeout candidate. Draft PR #119
-(`dreggbot/m2-3-admission-pr`, product head `04185f28`) carries the M2-3 broker admission and test/runbook
-repairs. Documentation commit `6574c020` is the latest PR update. Exact product-head CI run
-[44317837412](https://github.com/KRDucky/Homelab-Control/actions/runs/44317837412) passed all 21 checks;
-the docs-only update's CI is still running. The exact release-candidate artifact and source provenance
-are pinned in the M2-3 KVM procedure.
+PR #118 was merged as `c54fe5cc`. PR #119 is on `main` as `91d79d30`. PR #120, the corrected Fedora
+A1/A2 note, is `ccf9ea5b`. None of those merges is owner acceptance of M2 or M2-3.
 
-M2-3 Phase A1/A2 on that artifact passed on Ubuntu 26.04.1, Ubuntu 22.04.5, and a clean Fedora 44
-guest with SELinux enforcing. A corrected Fedora rerun on `m23-pr119-f44-a1a2-20261118b-corrected`
-passed A1 (144 enablement + 74 systemd-smoke checks, zero failures) and A2 (16 systemd-smoke checks,
-zero failures); the runner used the test-only burst setting and removed only the guest users file
-between A1 removal and A2 installation. Its artifact path and limitations are recorded in the
-acceptance evidence. This covers Fedora A1/A2 only. A3–A5 and Phase B remain pending; M2-3 and M2
-remain open. Sanitized evidence is at
+On 2026-11-19, host job `job_081e973ecda011c468a4d9482ca0f644` ran A3, A4, and A5 on the merged PR #119
+release-candidate package. Fedora 44 (SELinux Enforcing), Ubuntu 26.04.1, and Ubuntu 22.04.5 each
+recorded A3 7/0 and A4 6/0. A5 was 19 pass / 1 fail on each guest: browser step B20 expected
+`[403, 200]` and observed `[403, 403]` because the harness fetch sends no CSRF token. Phase B was
+not run. The same job re-ran A1 74/0 and A2 16/0 on that package first; the Fedora guest's earlier
+A1/A2 had used the `build.zip` RPM. All three guests were left shut off with autostart disabled.
+M2-3 and M2 remain **open**. Sanitized evidence is at
+[`m2-3/kvm-pr119-91d79d30-a3a5-2026-11-19/README.md`](evidence/m2/m2-3/kvm-pr119-91d79d30-a3a5-2026-11-19/README.md).
+The 2026-11-18 A1/A2 record remains at
 [`m2-3/kvm-pr119-2026-11-18-a1-a2/README.md`](evidence/m2/m2-3/kvm-pr119-2026-11-18-a1-a2/README.md).
-M2 remains **open** pending remaining technical and distro evidence, owner acceptance, ADR
-dispositions and final M2 sign-off. M2-4 is read-only inventory; its helper remains disabled by
+M2-4 is read-only inventory; its helper remains disabled by
 default. See [the browser evidence](m2/evidence/browser-2026-11-18/README.md).
 
 The historical reconciliation below remains a record of the 2026-11-07 main snapshot; it is not the
