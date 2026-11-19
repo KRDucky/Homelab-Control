@@ -34,9 +34,12 @@ check "service not enabled on install" "disabled" "$(systemctl is-enabled homela
 check "audit retention timer enabled on install" "enabled" "$(systemctl is-enabled homelab-control-audit-retention.timer 2>/dev/null || true)"
 
 pw="smoke-$(head -c 9 /dev/urandom | od -An -tx1 | tr -d ' \n')"
-printf '%s\n' "$pw" | hlctl user add --file /etc/homelab-control/users.json --username admin \
-  --scopes "${HC_SMOKE_SCOPES:-system.read}" >/dev/null
-chown homelab-control:homelab-control /etc/homelab-control/users.json
+# Create the smoke account idempotently: a repeated run on a disposable host
+# finds /etc/homelab-control/users.json preserved by the package uninstall, so
+# an existing account is reset instead of failing on a duplicate. The helper
+# never deletes the database or any other account.
+HC_SMOKE_PW="$pw" HC_SMOKE_CHOWN_TO=homelab-control:homelab-control \
+  "$(dirname "${BASH_SOURCE[0]}")/smoke-user.sh"
 # Disposable CI hosts raise the per-user API burst so the M2 scenario scripts
 # do not trip incidental throttling; the production default stays 30.
 if [ -n "${HC_SMOKE_RATE_LIMIT_BURST:-}" ]; then

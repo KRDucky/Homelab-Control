@@ -15,6 +15,18 @@ get() { curl -s -H "Cookie: __Host-hc_session=$HC_SID" -H "X-CSRF-Token: $HC_CSR
 getc() { curl -s -o /dev/null -w '%{http_code}' -H "Cookie: __Host-hc_session=$HC_SID" -H "X-CSRF-Token: $HC_CSRF" "$api$1"; }
 jget() { python3 -c "import json,sys; d=json.load(sys.stdin); print(eval(sys.argv[1]))" "$1"; }
 
+# Sourceable Webmin fixture helpers (fail-closed guard + idempotent cleanup).
+# shellcheck source=tests/systemd/webmin-fixture.sh
+source "$(dirname "${BASH_SOURCE[0]}")/webmin-fixture.sh"
+
+# Webmin fixture state flags, owned by this script and consumed by
+# hc_webmin_cleanup(). The cleanup is registered on EXIT so it also runs when a
+# later check or a failed setup.sh aborts this sourced script.
+hc_webmin_installed=0
+hc_webmin_started=0
+hc_perl_symlink_created=0
+trap hc_webmin_cleanup EXIT
+
 echo "== M1: broker"
 check "broker socket active" active "$(systemctl is-active homelab-control-broker.socket)"
 check "socket mode/owner" "660 root:homelab-control" "$(stat -c '%a %U:%G' /run/homelab-control/broker.sock)"
@@ -29,22 +41,39 @@ check "broker NoNewPrivs" 1 "$(awk '/^NoNewPrivs/{print $2}' /proc/"$bpid"/statu
 deny=$(runuser -u nobody -- hlctl broker info 2>&1 || true)
 check "other local users cannot reach the broker" 1 "$(grep -ci 'unavailable\|denied' <<<"$deny")"
 
-if [ -n "${HC_WEBMIN_SRC:-}" ] && [ ! -e /etc/webmin ]; then
-  echo "== installing upstream Webmin from $HC_WEBMIN_SRC into /etc/webmin (disposable host)"
-  [ -x /usr/local/bin/perl ] || ln -s /usr/bin/perl /usr/local/bin/perl
-  # Test-environment fix, not a product change: under sudo TERM=unknown, and Webmin probes
-  # `systemctl list-units` with stdout and stderr on /dev/null. systemd 259 then starts a pager;
-  # a strict less (Fedora) exits on TERM=unknown, systemctl dies of SIGPIPE (141), Webmin falls
-  # back to SysV and never installs webmin.service. Disable the pager for the fixture only.
-  ( cd "$HC_WEBMIN_SRC" && SYSTEMD_PAGER=cat TERM=dumb \
-      config_dir=/etc/webmin var_dir=/var/webmin perl=/usr/bin/perl port=10000 \
-      login=admin password="webmin-smoke-$RANDOM-pw" ssl=0 atboot=0 nostart=1 nouninstall=1 \
-      nopostinstall=1 noperlpath=1 autoos=1 autothird=1 ./setup.sh >/tmp/webmin-setup.log 2>&1 )
+# Webmin fixture lifecycle (disposable hosts only): install upstream Webmin
+# only when no pre-existing Webmin state exists (/etc/webmin, /var/webmin, or a
+# webmin.service unit file); otherwise fail closed and leave it untouched.
+# setup.sh's atboot=0 only suppresses the SysV boot links;
+# compat/webmin/init/updateboot.pl still writes and enables webmin.service,
+# which cleanup must remove so a later A2 survey never sees a leftover unit.
+if [ -n "${HC_WEBMIN_SRC:-}" ]; then
+  if hc_webmin_pre_existing; then
+    echo "SKIP  upstream Webmin fixture: /etc/webmin, /var/webmin or webmin.service already exists"
+  else
+    # Mark installed before setup.sh so a partial/failed install is still
+    # cleaned up by the EXIT trap (we own whatever state setup.sh creates).
+    hc_webmin_installed=1
+    echo "== installing upstream Webmin from $HC_WEBMIN_SRC into $hc_webmin_config (disposable host)"
+    if [ ! -e "$hc_webmin_perl_link" ] && [ ! -L "$hc_webmin_perl_link" ]; then
+      ln -s "$hc_webmin_perl_target" "$hc_webmin_perl_link"
+      hc_perl_symlink_created=1
+    fi
+    # Test-environment fix, not a product change: under sudo TERM=unknown, and Webmin probes
+    # `systemctl list-units` with stdout and stderr on /dev/null. systemd 259 then starts a pager;
+    # a strict less (Fedora) exits on TERM=unknown, systemctl dies of SIGPIPE (141), Webmin falls
+    # back to SysV and never installs webmin.service. Disable the pager for the fixture only.
+    ( cd "$HC_WEBMIN_SRC" && SYSTEMD_PAGER=cat TERM=dumb \
+        config_dir="$hc_webmin_config" var_dir="$hc_webmin_var" perl=/usr/bin/perl port=10000 \
+        login=admin password="webmin-smoke-$RANDOM-pw" ssl=0 atboot=0 nostart=1 nouninstall=1 \
+        nopostinstall=1 noperlpath=1 autoos=1 autothird=1 ./setup.sh >/tmp/webmin-setup.log 2>&1 )
+  fi
 fi
-# The disposable fixture can persist between smoke runs while its boot symlink
-# is deliberately disabled. Start it on every run, not only after first install.
-if [ -x /etc/webmin/start ]; then
-  SYSTEMD_PAGER=cat TERM=dumb /etc/webmin/start >/dev/null 2>&1 || true
+# Start the fixture (only when this run installed it) so the legacy-detection
+# checks below see a real, running miniserv.
+if [ "${hc_webmin_installed:-0}" = 1 ] && [ -x "$hc_webmin_config/start" ]; then
+  SYSTEMD_PAGER=cat TERM=dumb "$hc_webmin_config/start" >/dev/null 2>&1 || true
+  hc_webmin_started=1
   sleep 2
 fi
 
@@ -66,9 +95,9 @@ check "hardware: inventory returned" 1 "$(jget "1 if 'disks' in d['inventory'] e
 echo "   disks=$(jget "[(x['kernel_name'],x['identity_confidence']) for x in d['inventory']['disks']['devices']]" <<<"$hw") identity=$(jget "d['identity']['status']" <<<"$hw") dmi_available=$(jget "(d['identity'].get('data') or {}).get('available')" <<<"$hw")"
 lg=$(get /api/v1/legacy/webmin)
 check "legacy: answered by broker" broker "$(jget "d['source']" <<<"$lg")"
-if [ -e /etc/webmin/miniserv.conf ]; then
+if [ "${hc_webmin_installed:-0}" = 1 ]; then
   check "legacy: real Webmin detected" True "$(jget "d['status']['installed']" <<<"$lg")"
-  check "legacy: version read" "$(cat /etc/webmin/version)" "$(jget "d['status']['version']" <<<"$lg")"
+  check "legacy: version read" "$(cat "$hc_webmin_config/version")" "$(jget "d['status']['version']" <<<"$lg")"
   check "legacy: running miniserv detected" True "$(jget "d['status'].get('running')" <<<"$lg")"
   check "legacy: no secrets in response" 0 "$(grep -ciE 'pass|hash|[$]6[$]|[$]y[$]|PRIVATE' <<<"$lg" || true)"
   echo "   checks: $(jget "[(c['id'],c['level']) for c in d['status']['checks']]" <<<"$lg")"
@@ -153,4 +182,4 @@ check "logs endpoint 503 without broker" 503 "$(getc '/api/v1/services/units/hom
 check "legacy falls back to unprivileged detection" unprivileged "$(jget "d['source']" <<<"$(get /api/v1/legacy/webmin)")"
 check "overview still works" 200 "$(getc /api/v1/host/overview)"
 systemctl start homelab-control-broker.socket
-if [ -x /etc/webmin/stop ]; then /etc/webmin/stop >/dev/null 2>&1 || true; fi
+hc_webmin_cleanup
