@@ -75,6 +75,23 @@ The expected single A1 skip is the broker interruption scenario, reserved for
 Phase B. Neither A3/browser, real reboot checks, nor Phase B has run on these
 guests.
 
+## Corrected Fedora A1/A2 rerun (2026-11-18)
+
+The earlier `m23-pr119-f44-a1a2-20261118b` run is retained as a record but is invalid: its runner omitted
+the test-only burst setting and duplicate admin state remained. The corrected disposable guest
+`m23-pr119-f44-a1a2-20261118b-corrected` passed A1 (exit 0; 144 M2-3 enablement checks and 74
+systemd-smoke checks, zero failures) and A2 (exit 0; 16 systemd-smoke checks, zero failures), with no
+`FAIL` lines. `HC_SMOKE_RATE_LIMIT_BURST=100000` was passed for both A1/A2; only guest
+`/etc/homelab-control/users.json` was removed between A1 removal and A2 installation.
+
+The reported artifact directory is
+`/mnt/tank/claude-vms/artifacts/m23-pr119-f44-a1a2-20261118b-corrected/`. It contains
+`A1A2-combined.stdout.raw`, runner diff/hash, and `SHA256SUMS`, reported verified. The guest was
+gracefully shut off, autostart disabled, and its baseline/evidence retained. This result is Fedora
+A1/A2 only; A3–A5 and Phase B remain pending. M2-3 and M2 remain open, and these results do not imply
+owner acceptance. The artifact directory is external to this repository and was not independently
+read during this documentation update.
+
 ## Fedora first attempt and resumption
 
 The first Fedora package probe installed the exact RPM and then purged it. The

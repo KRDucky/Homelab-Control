@@ -8,10 +8,12 @@ the docs-only update's CI is still running. The exact release-candidate artifact
 are pinned in the M2-3 KVM procedure.
 
 M2-3 Phase A1/A2 on that artifact passed on Ubuntu 26.04.1, Ubuntu 22.04.5, and a clean Fedora 44
-guest with SELinux enforcing. Fedora's 307 PASS lines had zero failures and one expected Phase B skip;
-A2 passed 16 checks as a plan-only survey. The earlier retry on the existing Fedora guest stopped
-before checks because prior test state prevented fresh-account setup; that data and snapshot were
-preserved. Fedora A3/browser, reboots, and Phase B remain unrun. Sanitized evidence is at
+guest with SELinux enforcing. A corrected Fedora rerun on `m23-pr119-f44-a1a2-20261118b-corrected`
+passed A1 (144 enablement + 74 systemd-smoke checks, zero failures) and A2 (16 systemd-smoke checks,
+zero failures); the runner used the test-only burst setting and removed only the guest users file
+between A1 removal and A2 installation. Its artifact path and limitations are recorded in the
+acceptance evidence. This covers Fedora A1/A2 only. A3–A5 and Phase B remain pending; M2-3 and M2
+remain open. Sanitized evidence is at
 [`m2-3/kvm-pr119-2026-11-18-a1-a2/README.md`](evidence/m2/m2-3/kvm-pr119-2026-11-18-a1-a2/README.md).
 M2 remains **open** pending remaining technical and distro evidence, owner acceptance, ADR
 dispositions and final M2 sign-off. M2-4 is read-only inventory; its helper remains disabled by
