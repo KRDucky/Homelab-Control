@@ -216,10 +216,10 @@ func TestFilesMissingConfig(t *testing.T) {
 	}
 }
 
-func TestFilesCapabilityDegradedWhenBrowsable(t *testing.T) {
+func TestFilesCapabilityAvailableWhenBrowsable(t *testing.T) {
 	h, _ := filesHarness(t, []string{auth.ScopeSystemRead, auth.ScopeFilesRead})
 	c := caps(t, h)["files"]
-	if c.Status != CapDegraded || c.Path != "/files" || c.Scope != auth.ScopeFilesRead {
+	if c.Status != CapAvailable || c.Path != "/files" || c.Scope != auth.ScopeFilesRead {
 		t.Fatalf("%+v", c)
 	}
 	h2 := harnessWith(t, nil, []string{auth.ScopeSystemRead})
