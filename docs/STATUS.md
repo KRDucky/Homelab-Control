@@ -36,14 +36,14 @@ accepted). M3 Theme/Plugin SDK is authorized for isolated development after that
 `docs/project/04-ROADMAP.md`); its first checkpoint is on `main` as PR #54 (`20ddc2b7`). This is not M2
 close, not production, not KVM acceptance, and not ADR acceptance.
 
-## Audit retention (development branch, not accepted; ADR 0006 amendment 4 Proposed)
+## Audit retention (owner-accepted amendment; implementation and deployment evidence remain scoped separately)
 
 `hc-audit-retention` (Rust, SQLx) archives API audit records past the live window (≤ 365 days) or above the
 size threshold into verified `tar.gz` archives, prunes exactly the archived rows, and expires archives past
 the total window (≤ 60 months); daily timer, `homelab-control` user. Design: `docs/security/AUDIT-LOG.md`
 ("Retention"). Open: RUSTSEC-2026-0459 in the SQLite bundled by sqlx (owner-approved exception until
-2027-01-31, WAL page-size mitigation); systemd, distribution and KVM runs not yet done; no UI for archived records;
-the broker log and operation journal still have no retention.
+2027-01-31, WAL page-size mitigation); systemd, distribution and KVM runs not yet done; no UI for archived records.
+This amendment does not add retention for the broker log or operation journal; both remain out of scope.
 
 ## M3 plugin SDK — first checkpoint on main (development note; not M3 acceptance, not M2 close)
 
@@ -242,7 +242,7 @@ integration, fixture differentials, and Fedora 44 SELinux plus Debian 13 AppArmo
 Read-only means it never configures or writes storage; the explicit probe can wake disks. The helper
 remains disabled by default. This does not authorize host activation or close M2.
 
-## M2-5: manual drive-layout Stage A (local closeout candidate; owner acceptance open)
+## M2-5: manual drive-layout Stage A (owner-accepted 2026-11-20; M2 remains open)
 
 Manual/unverified assignments, import/export, and versioned changes are implemented. hc-ui reports
 18 focused checks and 204 total Vitest checks passing, plus typecheck/lint/format; these results were
@@ -250,21 +250,21 @@ not rerun in the integration environment. Synthetic Playwright+axe evidence: 18 
 desktop/mobile axe zero violations, no mobile overflow.
 The owner-supplied `KRDucky/hbaviewer-cockpit` source is MIT-licensed. Its bay-layout concept informs
 Stage A; no upstream code or privileged Cockpit/Python runtime was copied. Credits and license
-compatibility are recorded in `OWNER-DECISIONS.md` and `MODULE-ARCHITECTURE.md`. No owner acceptance
+compatibility are recorded in `OWNER-DECISIONS.md` and `MODULE-ARCHITECTURE.md`.
 Static review found and repaired the medium identity disclosure (write responses omit assignment
 identity without `storage.read`), plus three lows: export now omits identity and assignment metadata,
 uses a dedicated 8 MiB import cap, and accepts only the custom drive drag type while not busy. Backend
 follow-ups make non-searchable directories report permission errors and preserve deep paths in audit
 data. Implementers report focused regression coverage and full Go/UI checks passing on isolated
-branches; integrated-candidate checks remain outstanding. No owner acceptance or merge is implied.
+branches; integrated-candidate checks remain outstanding.
 See `docs/m2/M2-5-STAGE-A-ACCEPTANCE.md` and
 `docs/m2/evidence/browser-2026-11-18/`.
 
 Stage A is manual chassis/bay layout in app state (no host writes, no new broker op). D-12 source
 identification and concept reconciliation are recorded. Contract: [`docs/m2/M2-5-STAGE-A-CONTRACT.md`](m2/M2-5-STAGE-A-CONTRACT.md). The
 slice entered `main` through PR #40 (`1f885993`, 2026-11-06), whose squash includes the M2-5 handoff
-commit labelled `#39`. The local candidate adds the browser evidence noted above; it is not accepted,
-not production, not KVM acceptance, and not M2 close.
+commit labelled `#39`. Stage A was owner-accepted for M5 on 2026-11-20. Stage B is on main
+through PR #127 and is not accepted by this record. M2 remains open; this is not production or KVM acceptance.
 
 ## OIDC login (working skeleton on main, not accepted)
 
