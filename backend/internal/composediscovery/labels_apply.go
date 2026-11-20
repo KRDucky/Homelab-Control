@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -78,7 +79,7 @@ func FindComposeFile(root, project, service string) (string, error) {
 			return nil
 		}
 		name, services, err := composeIdentity(resolved)
-		if err != nil || name != project || !containsString(services, service) {
+		if err != nil || name != project || !slices.Contains(services, service) {
 			return nil
 		}
 		matches = append(matches, resolved)
@@ -400,13 +401,4 @@ func writeAtomic(path, body string) error {
 	}
 	ok = true
 	return nil
-}
-
-func containsString(list []string, want string) bool {
-	for _, s := range list {
-		if s == want {
-			return true
-		}
-	}
-	return false
 }
