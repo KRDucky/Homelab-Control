@@ -252,9 +252,11 @@ function FilesBrowser({
   const [omitted, setOmitted] = useState(0);
   const [openEntry, setOpenEntry] = useState<{ name: string; path: string } | null>(null);
   const [deleteEntry, setDeleteEntry] = useState<{ name: string; path: string } | null>(null);
-  const [prompt, setPrompt] = useState<
-    { kind: 'create-file' | 'create-dir' | 'rename'; name: string; path: string } | null
-  >(null);
+  const [prompt, setPrompt] = useState<{
+    kind: 'create-file' | 'create-dir' | 'rename';
+    name: string;
+    path: string;
+  } | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const uploadRef = useRef<HTMLInputElement>(null);
   // Only the latest request may update the view: a slow earlier listing must not
@@ -312,20 +314,23 @@ function FilesBrowser({
     if (rootId) void loadEntries(rootId, path, 'none', false);
   }, [loadEntries, rootId, path]);
 
-  const runAction = useCallback(async (fn: () => Promise<unknown>) => {
-    setActionError(null);
-    try {
-      await fn();
-      refresh();
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        onUnauthorized();
-        return;
+  const runAction = useCallback(
+    async (fn: () => Promise<unknown>) => {
+      setActionError(null);
+      try {
+        await fn();
+        refresh();
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          onUnauthorized();
+          return;
+        }
+        setActionError(err instanceof ApiError ? err.message : explain(err as Error));
+        throw err;
       }
-      setActionError(err instanceof ApiError ? err.message : explain(err as Error));
-      throw err;
-    }
-  }, [refresh, onUnauthorized]);
+    },
+    [refresh, onUnauthorized],
+  );
 
   const submitCreate = useCallback(
     async (name: string) => {
@@ -419,8 +424,8 @@ function FilesBrowser({
   return (
     <>
       <p className="banner" role="note">
-        Listing, read, download, write, upload, create, rename and delete inside allow-listed roots.
-        Writes require files.write and deletes require files.destroy; host paths are never shown.
+        Listing, read, download, write, upload, create, rename and delete inside allow-listed roots. Writes
+        require files.write and deletes require files.destroy; host paths are never shown.
       </p>
       {actionError && (
         <p className="banner" role="alert">
@@ -659,7 +664,9 @@ function FilesBrowser({
                     setActionError(err instanceof ApiError ? err.message : explain(err as Error)),
                   )
                 }
-                onRename={() => setPrompt({ kind: 'rename', name: detail.name, path: childPath(path, detail.name) })}
+                onRename={() =>
+                  setPrompt({ kind: 'rename', name: detail.name, path: childPath(path, detail.name) })
+                }
                 onDelete={() => setDeleteEntry({ name: detail.name, path: childPath(path, detail.name) })}
               />
             )}
@@ -689,7 +696,9 @@ function FilesBrowser({
       )}
       {prompt && (
         <NamePromptDialog
-          title={prompt.kind === 'rename' ? 'Rename' : prompt.kind === 'create-dir' ? 'New folder' : 'New file'}
+          title={
+            prompt.kind === 'rename' ? 'Rename' : prompt.kind === 'create-dir' ? 'New folder' : 'New file'
+          }
           label={prompt.kind === 'rename' ? 'New name' : 'Name'}
           initial={prompt.name}
           submitLabel={prompt.kind === 'rename' ? 'Rename' : 'Create'}
@@ -719,9 +728,9 @@ export function FilesPage({
       <header className="page-head">
         <h1 className="page-title">Files</h1>
         <p className="page-sub">
-          Names, owners and modes inside allow-listed roots. Host paths are never shown. Read and
-          download need files.read; write, upload, create and rename need files.write; delete needs
-          files.destroy. Alt+Up opens the parent folder.
+          Names, owners and modes inside allow-listed roots. Host paths are never shown. Read and download
+          need files.read; write, upload, create and rename need files.write; delete needs files.destroy.
+          Alt+Up opens the parent folder.
         </p>
       </header>
       {!canRead ? (
@@ -729,7 +738,12 @@ export function FilesPage({
           Your account does not have the files.read permission.
         </p>
       ) : (
-        <FilesBrowser csrf={csrf} canWrite={canWrite} canDestroy={canDestroy} onUnauthorized={onUnauthorized} />
+        <FilesBrowser
+          csrf={csrf}
+          canWrite={canWrite}
+          canDestroy={canDestroy}
+          onUnauthorized={onUnauthorized}
+        />
       )}
     </div>
   );

@@ -963,7 +963,12 @@ export async function downloadFile(root: string, path: string, name: string, csr
   URL.revokeObjectURL(url);
 }
 
-export function putFileContent(root: string, path: string, csrf: string, data: string | Uint8Array): Promise<FileEntryResult> {
+export function putFileContent(
+  root: string,
+  path: string,
+  csrf: string,
+  data: string | Uint8Array,
+): Promise<FileEntryResult> {
   const q = new URLSearchParams({ root, path });
   return request<FileEntryResult>(`/api/v1/files/content?${q}`, {
     method: 'PUT',
@@ -1015,7 +1020,9 @@ export function applyFileDelete(
   token: string,
   csrf: string,
 ): Promise<{ root: string; path: string; status: string }> {
-  return postJSON<{ root: string; path: string; status: string }>('/api/v1/files/delete/apply', csrf, { token });
+  return postJSON<{ root: string; path: string; status: string }>('/api/v1/files/delete/apply', csrf, {
+    token,
+  });
 }
 
 // M2-5 Stage A: application-owned manual drive-bay layout. Every assignment is
