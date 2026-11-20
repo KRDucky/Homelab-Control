@@ -274,6 +274,12 @@ existing local account; scopes stay on the local account. Notes: [`docs/security
 
 ## M2-6: hostname and timezone apply (local closeout candidate; not owner-accepted)
 
+On 2026-11-20, the owner confirmed that the Ubuntu 26.04.1 hostname/timezone proof is sufficient for
+this check. It does not require Ubuntu 22.04 or Debian; Fedora and Arch remain out of this release.
+The evidence and exact read-back values are in the
+[`M2-6 host settings working note`](m2/M2-6-HOST-SETTINGS-SKELETON.md). This does not accept M2-6
+or M2 and does not record production activation.
+
 The synthetic Playwright fixture has 33 passing checks, zero desktop/mobile axe violations, and no
 mobile overflow. DeepSeek added a confirmation-cancel regression test (reported in 205 total Vitest
 checks) and repaired two storage-module test expectations; focused Go, full frontend, vet, typecheck
