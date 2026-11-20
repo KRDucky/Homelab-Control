@@ -2,6 +2,8 @@
 
 Status 2026-11-18: local closeout candidate includes the owner-authorized apply path after the read-only skeleton. The backend implements GET, preview, plan and apply. Browser evidence now exercises the apply-capable user's confirmation UI against a fail-closed fake broker. **This is not owner acceptance.** ADR 0008 Amendment 4 and ADR 0011 M2-6 extension remain **Proposed**. Isolated fixtures only; no production or retained-host apply.
 
+Owner 2026-11-20: keep this slice on the distro tools already used (`hostnamectl`, `timedatectl`). No custom hostname stack, NTP, or network settings. The last M2 acceptance step is a cleanup of existing code, not a new design.
+
 ## What exists
 
 | Route | Scope | What it does |
