@@ -3,7 +3,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import { ApiError, getFileEntries, getFileRoots, type FileEntry, type FileRoot } from '../api';
+import {
+  ApiError,
+  createFileEntry,
+  downloadFile,
+  getFileEntries,
+  getFileRoots,
+  renameFile,
+  uploadFile,
+  type FileEntry,
+  type FileRoot,
+} from '../api';
 import { DataTable } from '../DataTable';
 import {
   KIND_LABEL,
@@ -21,6 +31,7 @@ import {
 import { formatBytes } from '../format';
 import { Icon } from '../icons';
 import { explain } from '../useData';
+import { DeleteConfirmDialog, FileContentDialog, NamePromptDialog } from './FileDialogs';
 
 // Read-only HCIS FileBrowser port: tree + table + breadcrumbs + details. New
 // folder, Permissions and Download from the reference mock are not shown and
@@ -104,9 +115,28 @@ function FilesTree({
   );
 }
 
-function EntryDetails({ entry, onClose }: { entry: FileEntry; onClose: () => void }) {
+function EntryDetails({
+  entry,
+  canWrite,
+  canDestroy,
+  onClose,
+  onOpenContent,
+  onDownload,
+  onRename,
+  onDelete,
+}: {
+  entry: FileEntry;
+  canWrite: boolean;
+  canDestroy: boolean;
+  onClose: () => void;
+  onOpenContent: () => void;
+  onDownload: () => void;
+  onRename: () => void;
+  onDelete: () => void;
+}) {
   const m = parseMode(entry.mode);
   const special = m ? [m.setuid && 'setuid', m.setgid && 'setgid', m.sticky && 'sticky'].filter(Boolean) : [];
+  const isFile = !entry.dir && kindOf(entry) !== 'symlink';
   return (
     <section className="files-details" aria-labelledby="files-details-title">
       <header className="files-details-head">
@@ -115,6 +145,28 @@ function EntryDetails({ entry, onClose }: { entry: FileEntry; onClose: () => voi
           Close details
         </button>
       </header>
+      <div className="files-actions row" aria-label="File actions">
+        {isFile && (
+          <>
+            <button type="button" className="primary small" onClick={onOpenContent}>
+              Open
+            </button>
+            <button type="button" className="ghost small" onClick={onDownload}>
+              Download
+            </button>
+          </>
+        )}
+        {canWrite && (
+          <button type="button" className="ghost small" onClick={onRename}>
+            Rename
+          </button>
+        )}
+        {canDestroy && (
+          <button type="button" className="warn-action small" onClick={onDelete}>
+            Delete
+          </button>
+        )}
+      </div>
       <dl className="facts">
         <div>
           <dt>Name</dt>
@@ -175,7 +227,17 @@ function EntryDetails({ entry, onClose }: { entry: FileEntry; onClose: () => voi
   );
 }
 
-function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: () => void }) {
+function FilesBrowser({
+  csrf,
+  canWrite,
+  canDestroy,
+  onUnauthorized,
+}: {
+  csrf: string;
+  canWrite: boolean;
+  canDestroy: boolean;
+  onUnauthorized: () => void;
+}) {
   const [roots, setRoots] = useState<FileRoot[] | null>(null);
   const [browseAvailable, setBrowseAvailable] = useState(true);
   const [rootId, setRootId] = useState('');
@@ -188,6 +250,13 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
   const [selected, setSelected] = useState<number | null>(null);
   const [announce, setAnnounce] = useState('');
   const [omitted, setOmitted] = useState(0);
+  const [openEntry, setOpenEntry] = useState<{ name: string; path: string } | null>(null);
+  const [deleteEntry, setDeleteEntry] = useState<{ name: string; path: string } | null>(null);
+  const [prompt, setPrompt] = useState<
+    { kind: 'create-file' | 'create-dir' | 'rename'; name: string; path: string } | null
+  >(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const uploadRef = useRef<HTMLInputElement>(null);
   // Only the latest request may update the view: a slow earlier listing must not
   // replace a newer one the user already navigated to.
   const generation = useRef(0);
@@ -237,6 +306,48 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
   const open = useCallback(
     (id: string, rel: string) => void loadEntries(id, rel, 'push', true),
     [loadEntries],
+  );
+
+  const refresh = useCallback(() => {
+    if (rootId) void loadEntries(rootId, path, 'none', false);
+  }, [loadEntries, rootId, path]);
+
+  const runAction = useCallback(async (fn: () => Promise<unknown>) => {
+    setActionError(null);
+    try {
+      await fn();
+      refresh();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        onUnauthorized();
+        return;
+      }
+      setActionError(err instanceof ApiError ? err.message : explain(err as Error));
+      throw err;
+    }
+  }, [refresh, onUnauthorized]);
+
+  const submitCreate = useCallback(
+    async (name: string) => {
+      const type = prompt?.kind === 'create-dir' ? 'dir' : 'file';
+      await runAction(() => createFileEntry(rootId, path, csrf, name, type));
+    },
+    [prompt, rootId, path, csrf, runAction],
+  );
+
+  const submitRename = useCallback(
+    async (name: string) => {
+      if (!prompt) return;
+      await runAction(() => renameFile(rootId, prompt.path, csrf, name));
+    },
+    [prompt, rootId, csrf, runAction],
+  );
+
+  const submitUpload = useCallback(
+    async (file: File) => {
+      await runAction(() => uploadFile(rootId, path, csrf, file));
+    },
+    [rootId, path, csrf, runAction],
   );
 
   const startAt = useCallback(
@@ -308,9 +419,14 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
   return (
     <>
       <p className="banner" role="note">
-        Read-only listing inside allow-listed roots. Homelab Control does not create, rename, change
-        permissions, upload, download or delete files here.
+        Listing, read, download, write, upload, create, rename and delete inside allow-listed roots.
+        Writes require files.write and deletes require files.destroy; host paths are never shown.
       </p>
+      {actionError && (
+        <p className="banner" role="alert">
+          {actionError}
+        </p>
+      )}
       {error && (
         <p className="banner" role="alert">
           {error}
@@ -381,6 +497,45 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
               >
                 Refresh
               </button>
+              {canWrite && (
+                <>
+                  <button
+                    type="button"
+                    className="ghost small"
+                    disabled={busy || !rootId}
+                    onClick={() => setPrompt({ kind: 'create-file', name: '', path: '' })}
+                  >
+                    New file
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost small"
+                    disabled={busy || !rootId}
+                    onClick={() => setPrompt({ kind: 'create-dir', name: '', path: '' })}
+                  >
+                    New folder
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost small"
+                    disabled={busy || !rootId}
+                    onClick={() => uploadRef.current?.click()}
+                  >
+                    Upload
+                  </button>
+                  <input
+                    ref={uploadRef}
+                    type="file"
+                    className="visually-hidden"
+                    aria-label="Upload file"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) void submitUpload(f).catch(() => {});
+                      e.target.value = '';
+                    }}
+                  />
+                </>
+              )}
               <label className="inline-field grow">
                 Filter by name
                 <input
@@ -492,9 +647,55 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
               />
             )}
             {busy && !entries && <p className="muted">Reading directory…</p>}
-            {detail && <EntryDetails entry={detail} onClose={() => setSelected(null)} />}
+            {detail && (
+              <EntryDetails
+                entry={detail}
+                canWrite={canWrite}
+                canDestroy={canDestroy}
+                onClose={() => setSelected(null)}
+                onOpenContent={() => setOpenEntry({ name: detail.name, path: childPath(path, detail.name) })}
+                onDownload={() =>
+                  void downloadFile(rootId, childPath(path, detail.name), detail.name, csrf).catch((err) =>
+                    setActionError(err instanceof ApiError ? err.message : explain(err as Error)),
+                  )
+                }
+                onRename={() => setPrompt({ kind: 'rename', name: detail.name, path: childPath(path, detail.name) })}
+                onDelete={() => setDeleteEntry({ name: detail.name, path: childPath(path, detail.name) })}
+              />
+            )}
           </div>
         </div>
+      )}
+      {openEntry && (
+        <FileContentDialog
+          root={rootId}
+          path={openEntry.path}
+          name={openEntry.name}
+          csrf={csrf}
+          canWrite={canWrite}
+          onClose={() => setOpenEntry(null)}
+          onSaved={() => setOpenEntry(null)}
+        />
+      )}
+      {deleteEntry && (
+        <DeleteConfirmDialog
+          root={rootId}
+          path={deleteEntry.path}
+          name={deleteEntry.name}
+          csrf={csrf}
+          onClose={() => setDeleteEntry(null)}
+          onDeleted={() => setDeleteEntry(null)}
+        />
+      )}
+      {prompt && (
+        <NamePromptDialog
+          title={prompt.kind === 'rename' ? 'Rename' : prompt.kind === 'create-dir' ? 'New folder' : 'New file'}
+          label={prompt.kind === 'rename' ? 'New name' : 'Name'}
+          initial={prompt.name}
+          submitLabel={prompt.kind === 'rename' ? 'Rename' : 'Create'}
+          onClose={() => setPrompt(null)}
+          onSubmit={prompt.kind === 'rename' ? submitRename : submitCreate}
+        />
       )}
     </>
   );
@@ -503,10 +704,14 @@ function FilesBrowser({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: 
 export function FilesPage({
   csrf,
   canRead,
+  canWrite,
+  canDestroy,
   onUnauthorized,
 }: {
   csrf: string;
   canRead: boolean;
+  canWrite: boolean;
+  canDestroy: boolean;
   onUnauthorized: () => void;
 }) {
   return (
@@ -514,8 +719,9 @@ export function FilesPage({
       <header className="page-head">
         <h1 className="page-title">Files</h1>
         <p className="page-sub">
-          Names, owners and modes inside allow-listed roots. Homelab Control never returns host paths, and
-          this page does not download file contents. Alt+Up opens the parent folder.
+          Names, owners and modes inside allow-listed roots. Host paths are never shown. Read and
+          download need files.read; write, upload, create and rename need files.write; delete needs
+          files.destroy. Alt+Up opens the parent folder.
         </p>
       </header>
       {!canRead ? (
@@ -523,7 +729,7 @@ export function FilesPage({
           Your account does not have the files.read permission.
         </p>
       ) : (
-        <FilesBrowser csrf={csrf} onUnauthorized={onUnauthorized} />
+        <FilesBrowser csrf={csrf} canWrite={canWrite} canDestroy={canDestroy} onUnauthorized={onUnauthorized} />
       )}
     </div>
   );
