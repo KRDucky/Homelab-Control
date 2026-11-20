@@ -471,3 +471,5 @@ The owner set the administration bar and the way to finish M2:
 The owner: focus development on Debian and Ubuntu. Those are the primary platform targets. Fedora and Arch stay on the back burner. They are nice to have, and they do not block the release. After a production release for Debian and Ubuntu, return to the Fedora and Arch versions.
 
 Do not start new Fedora or Arch guest work, package work, or acceptance work for the current release. Existing Fedora and Arch evidence stays history. This does not mark M2 accepted or production-active.
+
+Ignore SELinux work for this release. Do not extend `packaging/fedora/selinux/`. The AppArmor profile that this release needs is already in `packaging/debian/apparmor/` (`hc-storage-probe`), exercised in enforce mode on Debian 13. Build another profile only if a Debian or Ubuntu run shows that one is not enough. Ubuntu remains unvalidated for that profile.
