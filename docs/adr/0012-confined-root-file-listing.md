@@ -59,7 +59,9 @@ owner decisions. This amendment does **not** mark ADR 0012 as a whole Accepted.
    enforced on the request body and again in the verbs.
 4. **Same jail invariants as listing:** `RelPath` rejects `..`, extra slashes, absolute paths, NUL and
    backslashes; every open uses `openat`+`O_NOFOLLOW`; `renameat`/`unlinkat` operate on the last
-   component itself so a symlink is renamed or removed, never followed out of the jail. `O_CREAT|O_EXCL`
+   component itself so a symlink is renamed or removed, never followed out of the jail. Rename never
+   replaces an existing destination (the destination is `lstat`'ed with `AT_SYMLINK_NOFOLLOW` and any
+   entry there is `already_exists`, and the rename itself uses `RENAME_NOREPLACE`). `O_CREAT|O_EXCL`
    never overwrites; upload filenames and create/rename names are validated as single safe segments.
 5. **Delete uses plan → confirm (ADR 0011 pattern), not a single POST:** `POST /files/delete/plan`
    returns a single-use, expiring (120 s) token bound to actor, session, root, path and the observed
