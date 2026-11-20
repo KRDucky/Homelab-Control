@@ -87,8 +87,8 @@ See `M2-PR1-PROPOSAL.md`. **No privileged writes.** Decisions: D-1, D-6, D-7.
 | **Scope** | Read current values; set hostname (static and pretty) and timezone through `hostnamectl`/`timedatectl` argv templates; validation (RFC 1123 hostname, timezone in `timedatectl list-timezones`) |
 | **Prerequisites** | M2-2 framework |
 | **Security** | `reversible` class; confirmation; warns that hostname affects TLS names and mDNS |
-| **Exclusions** | Network configuration, NTP servers, users and groups |
-| **Status** | Apply backend implemented, **not accepted** (2026-11-06): `GET /host/settings`, non-executing `POST /host/settings/preview`, ADR 0011 `POST /host/settings/plan` and `/apply` (`host.settings.apply`). See [`M2-6-HOST-SETTINGS-SKELETON.md`](M2-6-HOST-SETTINGS-SKELETON.md) |
+| **Exclusions** | Network configuration, NTP servers, users and groups. No custom hostname stack |
+| **Status** | Apply backend implemented, **not accepted** (2026-11-06): `GET /host/settings`, non-executing `POST /host/settings/preview`, ADR 0011 `POST /host/settings/plan` and `/apply` (`host.settings.apply`). Owner 2026-11-20: stay on `hostnamectl` and `timedatectl`. See [`M2-6-HOST-SETTINGS-SKELETON.md`](M2-6-HOST-SETTINGS-SKELETON.md) |
 
 ## 3. Testing requirements
 | Test | Mandatory before the first privileged write (M2-2) | Introduced later |
