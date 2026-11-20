@@ -13,6 +13,19 @@ rerun on 2026-11-20 without running it. The Ubuntu 26.04.1 hostname/timezone pro
 sufficient for that check. Fedora, Arch, and SELinux do not block this release. M2 (GitHub milestone 3)
 and issue #90 remain open. This note does not record production activation.
 
+Debian 13 package proof (2026-11-20): reused disposable guest `hc-m24-apparmor-debian13-20261117`
+ran Debian GNU/Linux 13 (trixie), version 13.7. It installed `homelab-control 0.0.0+git.b71325d7`,
+built in the guest from `b71325d7ce6ed5773199842a25e09fd50e61cdf2`; DEB SHA-256:
+`581774cf4d6c0783744ce863739a084c2cac91da08cf6a6620e2de7ee77f8048`. No PR #119 package was used.
+The first install stopped at a conffile prompt for the existing
+`/etc/apparmor.d/usr.lib.homelab-control.hc-storage-probe` profile from an earlier test on this guest.
+The repeated install used `--force-confnew` and succeeded; no AppArmor profile was added. After install,
+`homelab-control` was active and `GET /healthz` on `127.0.0.1:9180` returned 200. The guest shut off
+with ACPI, autostart stayed disabled, and the disk was kept. GitHub checks on `b71325d7` finished
+21/21 success; CI is not owner acceptance. Evidence:
+`/mnt/tank/claude-vms/artifacts/m2-debian13-b71325d7-20261120/RESULT.txt`. This proof is not M2
+acceptance or production activation; issue #90 and milestone 3 remain open.
+
 # Current status — M2-3 A3–A5 evidence (2026-11-19); M2 remains open
 
 PR #118 was merged as `c54fe5cc`. PR #119 is on `main` as `91d79d30`. PR #120, the corrected Fedora
