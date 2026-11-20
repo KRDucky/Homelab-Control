@@ -1,3 +1,9 @@
+# Review candidate — not acceptance (2026-11-20)
+
+`main` is `a00318b5475bceb504f31d10ba327f2abe1ecbdd` (PR #133 squash, merged 2026-11-20T17:49:57Z by KRDucky). Its parent `b71325d7` is the PR #132 squash. The following verdict still names `79a10715` as the tip; that sentence is now historical. Product behavior is `b71325d7` plus the documentation in PRs #130 through #133. GitHub checks on `b71325d7` finished 21/21 success. Checks on `a00318b5` were not recorded here as 21/21. CI is not owner acceptance.
+
+This note is the review pull request requested on 2026-11-18. Merging it does not accept M2, does not close GitHub milestone 3, does not close issue #90, and does not activate `services.operate` or `services.configure`. Stage B is on main through PR #127 and is not accepted here. ADR 0006 amendment 4 is Accepted. Other proposed ADRs stay Proposed. The Ubuntu 26.04.1 hostname and timezone proof and the Debian 13.7 package proof are already recorded below. The AppArmor profile `hc-storage-probe` was not rechecked on Ubuntu. No new profile was added. Fedora, Arch, and SELinux do not block this release.
+
 # Current verdict — M2 remains open (2026-11-20)
 
 `main` is `79a10715` (PR #131 squash), whose parent `c85154e0` is the PR #130 squash. GitHub checks
