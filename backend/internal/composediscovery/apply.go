@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -99,7 +100,7 @@ func fileRouter(inventory traefikclient.Inventory, name string) bool {
 func fileHostOwned(inventory traefikclient.Inventory, name, host string) bool {
 	owned := false
 	for _, r := range inventory.Routers {
-		if !containsHost(traefikclient.ComparableHosts(r.Rule), host) {
+		if !slices.Contains(traefikclient.ComparableHosts(r.Rule), host) {
 			continue
 		}
 		if r.Provider != "file" || strings.TrimSuffix(r.Name, "@"+r.Provider) != name {
@@ -108,15 +109,6 @@ func fileHostOwned(inventory traefikclient.Inventory, name, host string) bool {
 		owned = true
 	}
 	return owned
-}
-
-func containsHost(hosts []string, host string) bool {
-	for _, h := range hosts {
-		if h == host {
-			return true
-		}
-	}
-	return false
 }
 
 // LabelApplyReady is true when Traefik's Docker provider is on and remaining
@@ -158,7 +150,7 @@ func dockerRouter(inventory traefikclient.Inventory, name string) bool {
 func dockerHostOwned(inventory traefikclient.Inventory, name, host string) bool {
 	owned := false
 	for _, r := range inventory.Routers {
-		if !containsHost(traefikclient.ComparableHosts(r.Rule), host) {
+		if !slices.Contains(traefikclient.ComparableHosts(r.Rule), host) {
 			continue
 		}
 		if r.Provider != "docker" || strings.TrimSuffix(r.Name, "@"+r.Provider) != name {
