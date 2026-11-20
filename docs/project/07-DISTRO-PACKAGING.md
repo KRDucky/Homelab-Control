@@ -11,6 +11,8 @@
 
 **zypper is a package manager, not a separate package file format**; openSUSE uses RPM.
 
+Owner 2026-11-20: ignore SELinux for this release. The Debian package already ships the AppArmor profile `hc-storage-probe`. Do not add another profile unless a Debian or Ubuntu run shows that one is not enough.
+
 ## Release artifacts
 Tagged source archive, Git repository, checksums, SBOM, license notices, signed release artifacts/repo metadata where supported, changelog, migration notes, rollback and uninstall guide. Maintain distro-specific dependency lists and systemd units; avoid a universal installer that bypasses package management.
 
