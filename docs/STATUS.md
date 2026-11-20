@@ -250,7 +250,7 @@ not rerun in the integration environment. Synthetic Playwright+axe evidence: 18 
 desktop/mobile axe zero violations, no mobile overflow.
 The owner-supplied `KRDucky/hbaviewer-cockpit` source is MIT-licensed. Its bay-layout concept informs
 Stage A; no upstream code or privileged Cockpit/Python runtime was copied. Credits and license
-compatibility are recorded in `OWNER-DECISIONS.md` and `MODULE-ARCHITECTURE.md`. No owner acceptance
+compatibility are recorded in `OWNER-DECISIONS.md` and `MODULE-ARCHITECTURE.md`.
 Static review found and repaired the medium identity disclosure (write responses omit assignment
 identity without `storage.read`), plus three lows: export now omits identity and assignment metadata,
 uses a dedicated 8 MiB import cap, and accepts only the custom drive drag type while not busy. Backend
@@ -263,8 +263,8 @@ See `docs/m2/M2-5-STAGE-A-ACCEPTANCE.md` and
 Stage A is manual chassis/bay layout in app state (no host writes, no new broker op). D-12 source
 identification and concept reconciliation are recorded. Contract: [`docs/m2/M2-5-STAGE-A-CONTRACT.md`](m2/M2-5-STAGE-A-CONTRACT.md). The
 slice entered `main` through PR #40 (`1f885993`, 2026-11-06), whose squash includes the M2-5 handoff
-commit labelled `#39`. Stage A was owner-accepted for M5 on 2026-11-20. Stage B (location badge and
-hardware discovery) is separately authorized and not done. M2 remains open; this is not production or KVM acceptance.
+commit labelled `#39`. Stage A was owner-accepted for M5 on 2026-11-20. Stage B is on main
+through PR #127 and is not accepted by this record. M2 remains open; this is not production or KVM acceptance.
 
 ## OIDC login (working skeleton on main, not accepted)
 

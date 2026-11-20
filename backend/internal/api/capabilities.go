@@ -218,7 +218,7 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 	fileMgr := Capability{ID: "files", Label: "Files", Path: "/files", Scope: auth.ScopeFilesRead, Status: CapUnavailable,
 		Reason: "No browseable file roots are configured on this server."}
 	if s.files.BrowseAvailable() {
-		fileMgr.Status, fileMgr.Reason = CapDegraded, "Read-only listing inside allow-listed roots; create, rename, permissions, upload and delete are not available."
+		fileMgr.Status, fileMgr.Reason = CapAvailable, "Confined-root listing, read, download, write, upload, create, rename and delete, subject to files.read/files.write/files.destroy."
 	}
 	// M4-1b read-only Software Center: hidden when the family has no adapter
 	// or its package manager is absent, and gated by packages.read.
