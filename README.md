@@ -22,9 +22,10 @@ began from a Webmin source tree and keeps that tree in this repository for refer
 
 ## Current status
 
-Homelab Control is early-stage software. **Its privileged broker has one write operation: starting,
-stopping and restarting systemd `.service` units, available only to accounts granted the
-`services.operate` scope (never granted by default). Every other broker operation is read-only.**
+Homelab Control is early-stage software. **Its privileged broker has two write operations:
+starting, stopping and restarting systemd `.service` units (`services.operate`), and boot-time
+enable/disable (`services.configure`). New accounts are granted both scopes by default. Every other
+broker operation is read-only.**
 Homelab Control also keeps its own state database, audit logs and operation journal, and starting or
 stopping a service has whatever effects that service has on the host. Validation of the
 service-operations path on the owner's workstation VM through a browser (acceptance item E2) is
@@ -43,10 +44,10 @@ It was built before the "merged to `main`" items below.
 | Area | What exists | Notes |
 |---|---|---|
 | Authentication | Local accounts (`hlctl user ...`), PBKDF2-SHA256 password hashing, `__Host-` session cookie, CSRF token and Origin checks on every request | No PAM, no MFA/TOTP ([`docs/security/PAM-AUTH-DEFERRED.md`](docs/security/PAM-AUTH-DEFERRED.md)) |
-| Authorization | Server-side scopes on every route: `system.read`, `services.read`, `hardware.read` by default; `services.logs`, `audit.read` and `services.operate` only when granted explicitly | |
+| Authorization | Server-side scopes on every route: `system.read`, `services.read`, `hardware.read`, `services.operate` and `services.configure` by default; `services.logs` and `audit.read` only when granted explicitly | |
 | Host overview | CPU, memory, uptime, host filesystems and network from unprivileged reads | |
 | Services | systemd unit list through the broker | Read-only list |
-| Service operations | Start, stop and restart of `.service` units: preview, single-use plan token, protected-unit policy, password re-entry for disruptive actions, operation journal, state read back afterwards ([user guide](docs/user/SERVICE-MANAGEMENT.md)) | Merged to `main` 2026-10-26 (PR #28), after the prerelease; needs `services.operate`. Validation on the owner's workstation VM through a browser (E2) is outstanding ([`docs/m2/M2-2-ACCEPTANCE.md`](docs/m2/M2-2-ACCEPTANCE.md)). No enable/disable, masking or unit-file editing |
+| Service operations | Start, stop and restart of `.service` units: preview, single-use plan token, protected-unit policy, password re-entry for disruptive actions, operation journal, state read back afterwards ([user guide](docs/user/SERVICE-MANAGEMENT.md)) | Merged to `main` 2026-10-26 (PR #28), after the prerelease; needs `services.operate`. Validation on the owner's workstation VM through a browser (E2) is outstanding ([`docs/m2/M2-2-ACCEPTANCE.md`](docs/m2/M2-2-ACCEPTANCE.md)). No masking or unit-file editing |
 | Service logs | Recent journal entries for one unit | Merged to `main` after the prerelease; needs `services.logs` |
 | Hardware | DMI identity and drive inventory with stable identifiers and confidence labels | Read-only inventory; no bay map, SMART or storage management |
 | Persistent state | SQLite state database for sessions and the audit trail | Merged to `main` after the prerelease |
@@ -57,9 +58,9 @@ It was built before the "merged to `main`" items below.
 
 ### Not implemented
 None of the following exists yet. Documents in `docs/` describe plans and designs, not shipped features.
-- Any privileged write other than starting, stopping and restarting systemd `.service` units: no
-  enable/disable, masking or unit-file editing, and no management of packages, users, networking, files or
-  storage. Every other broker operation is read-only.
+- Any privileged write other than starting, stopping and restarting systemd `.service` units or
+  boot-time enable/disable: no masking or unit-file editing, and no management of packages, users,
+  networking, files or storage. Every other broker operation is read-only.
 - Disk, partition, filesystem, ZFS, mdraid, Btrfs, mergerfs, SnapRAID or LVM management; SMART data;
   drive-bay mapping; drive replacement.
 - Software Center and package management; reverse proxy, ACME/TLS and DDNS management; Tailscale;
@@ -108,8 +109,9 @@ Tests: `make check`. Building from a release source archive: [`BUILDING.md`](BUI
 session, scope, Origin and CSRF token on every request. Privileged data comes only from `hc-broker`,
 which accepts a closed list of typed operations, authenticates its caller by peer UID, and runs
 the programs it needs through a single reviewed runner, normally under a dedicated service account.
-The only privileged writes are systemd service start, stop and restart (scope `services.operate`,
-never granted by default): each is previewed, confirmed with a single-use broker-issued plan token,
+The only privileged writes are systemd service start, stop and restart (scope `services.operate`)
+and boot-time enable/disable (scope `services.configure`), both granted by default to new accounts:
+each is previewed, confirmed with a single-use broker-issued plan token,
 re-checked against a built-in protected-unit policy, requires a password re-entry when disruptive,
 journaled before and after it runs, and reported with the state systemd shows afterwards
 ([ADR 0011](docs/adr/0011-write-operation-authorization.md),
