@@ -130,6 +130,8 @@ type Server struct {
 	// files is the administrator's confined-root allow-list (file manager).
 	// The zero value has no roots (fail closed, no browse).
 	files filesinfo.Set
+	// filePlans holds single-use delete-plan tokens (no broker file op).
+	filePlans *filePlanStore
 	// oidc is the optional single sign-on provider (nil = disabled).
 	oidc *oidclogin.Flow
 }
@@ -159,6 +161,7 @@ func New(cfg Config, users *auth.Store, audit *audit.Logger, collector *hostinfo
 		preauthLimit: ratelimit.NewPreauth(10*time.Second, 10*time.Second, time.Minute),
 		limitSummary: ratelimit.NewOncePer(time.Minute),
 		globalSem:    make(chan struct{}, 64),
+		filePlans:    newFilePlanStore(),
 	}
 	s.storageCollect = func(ctx context.Context) (storageinfo.Graph, error) { return storageinfo.Collect(ctx, "/") }
 	s.storageSem = make(chan struct{}, 1)
@@ -251,6 +254,17 @@ func (s *Server) routes() {
 	s.handle("POST /api/v1/storage/probe", auth.ScopeStorageProbe, s.handleStorageProbe)
 	s.handle("GET /api/v1/files/roots", auth.ScopeFilesRead, s.handleFilesRoots)
 	s.handle("GET /api/v1/files/entries", auth.ScopeFilesRead, s.handleFilesEntries)
+	// File-manager read/write slice (2026-11-20): content read/download keep
+	// files.read; content write, upload, create and rename need files.write;
+	// delete uses files.destroy through plan → confirm (ADR 0011 pattern).
+	s.handle("GET /api/v1/files/content", auth.ScopeFilesRead, s.handleFilesContent)
+	s.handle("GET /api/v1/files/download", auth.ScopeFilesRead, s.handleFilesDownload)
+	s.handle("PUT /api/v1/files/content", auth.ScopeFilesWrite, s.handleFilesContentWrite)
+	s.handle("POST /api/v1/files/upload", auth.ScopeFilesWrite, s.handleFilesUpload)
+	s.handle("POST /api/v1/files/entries", auth.ScopeFilesWrite, s.handleFilesCreate)
+	s.handle("PUT /api/v1/files/entries", auth.ScopeFilesWrite, s.handleFilesRename)
+	s.handle("POST /api/v1/files/delete/plan", auth.ScopeFilesDestroy, s.handleFilesDeletePlan)
+	s.handle("POST /api/v1/files/delete/apply", auth.ScopeFilesDestroy, s.handleFilesDeleteApply)
 	// M2-5 Stage A: application-owned manual drive-bay layout (no host writes).
 	s.handle("GET /api/v1/storage/layout", auth.ScopeStorageRead, s.handleLayout)
 	s.handle("POST /api/v1/storage/layout/chassis", auth.ScopeLayoutManage, s.handleLayoutCreate)
@@ -443,6 +457,15 @@ func requestBodyCap(r *http.Request) int64 {
 		if id != "" && !strings.Contains(id, "/") {
 			return layoutChassisMaxBytes
 		}
+	}
+	// File-manager write slice: content write is bounded by MaxContentBytes (+1
+	// so the handler can detect the oversize read itself); a multipart upload is
+	// bounded by MaxUploadBytes plus a small allowance for the envelope.
+	if r.Method == http.MethodPut && r.URL.Path == "/api/v1/files/content" {
+		return filesinfo.MaxContentBytes + 1
+	}
+	if r.Method == http.MethodPost && r.URL.Path == "/api/v1/files/upload" {
+		return filesinfo.MaxUploadBytes + (64 << 10)
 	}
 	return 64 << 10
 }
