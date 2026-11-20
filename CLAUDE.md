@@ -45,6 +45,8 @@ A disposable test VM that ignores ACPI shutdown gets a force power-off (`virsh d
 
 Until M2 is production ready, do not ask the owner questions. Decide and proceed.
 
+Debian and Ubuntu are the primary platform targets. Develop and prove the release on those two. Fedora and Arch are a later nice-to-have: do not develop them now, and do not block M2 or the Debian/Ubuntu production release on them. Return to the Fedora and Arch versions after that release.
+
 ## Repository-specific rules (from M0)
 - `compat/webmin/` is a pristine `git subtree --squash` of upstream; any change there must be listed in `compat/PATCHES.md`. Sync with `scripts/sync-upstream.sh`, verify with `scripts/verify-upstream.sh`.
 - Only `backend/internal/broker/runner` may execute programs; `hc-api`/`hlctl` must not link broker internals; every API route goes through `Server.handle` and is documented in OpenAPI with its scope — `backend/internal/guard` tests enforce all of this. Privileged work happens only in broker ops (ADR 0001, ADR 0008); new ops need review and must stay read-only unless the owner has authorized that specific write and it follows the accepted write-operation framework (ADR 0011: broker-issued plan → confirm → execute, step-up, protected-unit policy, operation journal). So far systemd service start/stop/restart (M2-2) is authorized, and boot-time enable/disable (M2-3) for development and isolated testing; every further write keeps its own authorization gate and needs an ADR 0011 review.

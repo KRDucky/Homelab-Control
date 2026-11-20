@@ -466,4 +466,8 @@ The owner set the administration bar and the way to finish M2:
 - A disposable test VM that ignores ACPI shutdown gets a force power-off and the test continues. Do not undefine it or delete its disk unless the task says to.
 - Until M2 is production ready, do not ask the owner questions. Decide and proceed.
 
-This records the instruction. It does not mark M2 accepted or production-active.
+## Debian and Ubuntu first (owner, 2026-11-20)
+
+The owner: focus development on Debian and Ubuntu. Those are the primary platform targets. Fedora and Arch stay on the back burner. They are nice to have, and they do not block the release. After a production release for Debian and Ubuntu, return to the Fedora and Arch versions.
+
+Do not start new Fedora or Arch guest work, package work, or acceptance work for the current release. Existing Fedora and Arch evidence stays history. This does not mark M2 accepted or production-active.
