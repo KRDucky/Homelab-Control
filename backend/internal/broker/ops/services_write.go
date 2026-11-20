@@ -188,15 +188,6 @@ func unsafeActions(p UnitProps, keys []string) (string, bool) {
 	return "", false
 }
 
-func dangerousTrigger(p UnitProps) (string, bool) {
-	for _, n := range union(p, triggerKeys...) {
-		if servicepolicy.DangerousTarget(n) {
-			return n, true
-		}
-	}
-	return "", false
-}
-
 func running(s string) bool {
 	return s == "active" || s == "activating" || s == "reloading" || s == "refreshing" || s == "deactivating"
 }
