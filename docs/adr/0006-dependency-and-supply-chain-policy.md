@@ -93,12 +93,12 @@ skeleton, "use a maintained OIDC/OAuth implementation". Design: `docs/security/O
 | Privilege | `hc-broker` still links no third-party module (`scripts/check-go-deps.py`). |
 | Network | The libraries make outbound HTTPS calls to the configured issuer only. hc-api uses one client for these: 10 s timeout, no redirects, TLS 1.2 or later, and response bodies capped at 1 MiB. |
 
-## Amendment 4 (2026-11-16): Rust audit-retention worker with SQLx (proposed, for owner and security review)
+## Amendment 4 (2026-11-16): Rust audit-retention worker with SQLx
 
-**Status: Proposed.** Not accepted until the owner (and hc-security) review it and the advisory gate below
-passes; see "Blocking".
+**Status: Accepted 2026-11-20 by the project owner.** The time-limited advisory exception and gate below
+remain in force; acceptance does not add retention for the broker log or operation journal.
 
-**Decision (proposed):** the audit-retention worker `hc-audit-retention` (`backend/audit-retention/`) is a
+**Decision:** the audit-retention worker `hc-audit-retention` (`backend/audit-retention/`) is a
 Rust binary that reads and prunes `audit_events` in `state.db` through SQLx (owner direction: database
 access for retention in Rust with SQLx). The Go `state` package keeps owning the schema and its migrations;
 the worker never migrates and refuses any schema version but 3. Design and failure handling:
@@ -121,4 +121,4 @@ the worker never migrates and refuses any schema version but 3. Design and failu
 `^0.30`, sqlx 0.9.0 needs `< 0.38`. The worker refuses the advisory's precondition (a `-wal` whose page size
 differs from the database's). The owner approved the time-limited exception in `rust-advisory-exceptions.json` on
 2026-11-16 (expires 2027-01-31); the gate fails again after that date unless sqlx ships a compatible
-release or the exception is renewed. The amendment itself remains Proposed.
+release or the exception is renewed.
