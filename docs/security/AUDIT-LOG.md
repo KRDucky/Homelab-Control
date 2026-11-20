@@ -102,7 +102,7 @@ it does not itself prove that the discarded prefix was intact.
 
 ## Retention
 
-Status: implemented on the development branch, not accepted (ADR 0006 amendment 4 is Proposed). The worker
+Status: ADR 0006 Amendment 4 accepted by the project owner on 2026-11-20. The worker
 `hc-audit-retention` (Rust, SQLx) runs daily from `homelab-control-audit-retention.timer` as the
 `homelab-control` user. It never runs as root.
 
