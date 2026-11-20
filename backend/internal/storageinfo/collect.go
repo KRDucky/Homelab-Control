@@ -167,6 +167,7 @@ func Collect(ctx context.Context, osRoot string) (Graph, error) {
 		}
 	}
 	g := Build(blocks, mounts)
+	g.Hardware = collectHardware(ctx, root, g, read)
 	g.BootID = read("proc/sys/kernel/random/boot_id")
 	g.Status = "partial"
 	g.Notes = append(g.Notes, notes...)

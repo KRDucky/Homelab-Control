@@ -60,13 +60,15 @@ type Claim struct {
 }
 
 type Graph struct {
-	LVM    *LVMInventory `json:"lvm,omitempty"`
-	BootID string        `json:"boot_id,omitempty"`
-	Nodes  []Node        `json:"nodes"`
-	Edges  []Edge        `json:"edges"`
-	Claims []Claim       `json:"claims"`
-	Status string        `json:"status"`
-	Notes  []string      `json:"notes"`
+	LVM *LVMInventory `json:"lvm,omitempty"`
+	// Hardware is read-only controller/enclosure evidence (M2-5 Stage B).
+	Hardware *Hardware `json:"hardware,omitempty"`
+	BootID   string    `json:"boot_id,omitempty"`
+	Nodes    []Node    `json:"nodes"`
+	Edges    []Edge    `json:"edges"`
+	Claims   []Claim   `json:"claims"`
+	Status   string    `json:"status"`
+	Notes    []string  `json:"notes"`
 }
 
 // Block is supplied only by trusted bounded collectors, never request paths.

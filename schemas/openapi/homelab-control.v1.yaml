@@ -210,6 +210,68 @@ components:
         claims: { type: array, items: { $ref: '#/components/schemas/StorageClaim' } }
         status: { type: string, enum: [ok, partial, unavailable] }
         notes: { type: array, items: { type: string } }
+        hardware: { $ref: '#/components/schemas/StorageHardware' }
+    StorageHardware:
+      type: object
+      description: "Read-only controller and SES enclosure evidence from world-readable sysfs (M2-5 Stage B). Enclosure slots are numbered by enclosure firmware and are never verified front-panel bays or bay assignments. Nothing is executed and no sysfs attribute is written."
+      required: [status, source, controllers, enclosures, links, notes]
+      properties:
+        status: { type: string, enum: [observed, unavailable] }
+        source: { type: string }
+        controllers:
+          type: array
+          items:
+            type: object
+            required: [id, kind]
+            properties:
+              id: { type: string, description: "pci:<address> when the PCI function is known; otherwise snapshot-local (scsi-host:hostN, nvme:nvmeN)" }
+              kind: { type: string, enum: [sas, sata, usb, virtio-scsi, scsi, nvme] }
+              driver: { type: string }
+              pci_address: { type: string }
+              sas_address: { type: string }
+              model: { type: string }
+              firmware: { type: string }
+              hosts: { type: array, items: { type: string }, description: Snapshot-local SCSI host names }
+        enclosures:
+          type: array
+          items:
+            type: object
+            required: [identity_status, name, components, slots]
+            properties:
+              id: { type: string, description: "ses:<16 hex digit logical identifier>; present only when reported, non-zero" }
+              identity_status: { type: string, enum: [observed, ambiguous, unavailable] }
+              name: { type: string, description: Snapshot-local SCSI address of the enclosure device }
+              vendor: { type: string }
+              model: { type: string }
+              controller_id: { type: string }
+              components: { type: integer }
+              slots:
+                type: array
+                items:
+                  type: object
+                  required: [element, occupied, match]
+                  properties:
+                    element: { type: string }
+                    slot: { type: integer }
+                    type: { type: string }
+                    status: { type: string }
+                    occupied: { type: boolean }
+                    match: { type: string, enum: [matched, empty, not-a-disk, changed, unidentified, ambiguous, no-enclosure-id] }
+                    node_id: { type: string, description: Set only when match is matched }
+                    persistent_id: { type: string, description: "wwn:, nvme-uuid: or serial:; set only when match is matched" }
+        links:
+          type: array
+          items:
+            type: object
+            required: [node]
+            properties:
+              node: { type: string }
+              controller_id: { type: string }
+              port: { type: string, description: "Evidence such as ata3, phy 5 or nvme0; never a bay" }
+              enclosure_id: { type: string }
+              element: { type: string }
+              slot: { type: integer }
+        notes: { type: array, items: { type: string } }
     LayoutAssignment:
       type: object
       description: "An administrator's manual statement, never verified by hardware: provenance is always manual and confidence always unverified. Keyed by a persistent identity (wwn:, nvme-uuid: or serial:), never a kernel name or device number."
