@@ -39,6 +39,18 @@ components:
       properties:
         error: { type: string, examples: [unauthenticated, forbidden, csrf_rejected, origin_rejected, throttled] }
         message: { type: string }
+    FileEntry:
+      type: object
+      additionalProperties: false
+      description: Metadata of one directory member; never contents or a host path.
+      required: [name, dir, size, owner, mode, mtime]
+      properties:
+        name: { type: string }
+        dir: { type: boolean }
+        size: { type: integer }
+        owner: { type: string, description: 'uid:gid; never a host path' }
+        mode: { type: string, description: 'Go FileMode.String, for example -rw-r--r--' }
+        mtime: { type: string, format: date-time }
     Session:
       type: object
       required: [username, scopes, csrf_token, version]
@@ -2090,6 +2102,177 @@ paths:
         '403': { description: Missing files.read, Origin/CSRF rejected, or jail escape, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '404': { description: Unknown root or path, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: No browseable roots, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    post:
+      summary: Create a file or empty directory under one confined root (scope files.write).
+      description: >
+        parentRel is the destination directory (empty is the jail root); name is a single safe path
+        segment. O_CREAT|O_EXCL never overwrites and never follows a symlink. The request needs
+        Origin and X-CSRF-Token (unsafe method). Audit records the root id and the relative path only.
+      security: [{ session: [] }]
+      x-required-scope: files.write
+      parameters:
+        - { name: root, in: query, required: true, schema: { type: string, pattern: '^[a-z][a-z0-9_-]{0,31}$' } }
+        - { name: path, in: query, required: false, schema: { type: string }, description: Parent directory inside the jail; empty is the jail root }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, additionalProperties: false, required: [name, type], properties: { name: { type: string, maxLength: 255 }, type: { type: string, enum: [file, dir] } } } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { type: object, required: [root, path, entry], properties: { root: { type: string }, path: { type: string }, entry: { $ref: '#/components/schemas/FileEntry' } } } } } }
+        '400': { description: Invalid name, type or path, or not a directory, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing files.write, Origin/CSRF rejected, or jail escape, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: An entry with that name already exists, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: No browseable roots or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    put:
+      summary: Rename (move) path to to inside the same root (scope files.write).
+      description: >
+        Both parents are opened with openat+O_NOFOLLOW. Rename is destructive and never replaces an
+        existing destination: the destination is lstat'ed with AT_SYMLINK_NOFOLLOW and any entry
+        there (file, directory, symlink, FIFO or device) is refused as 409 already_exists; the
+        rename uses RENAME_NOREPLACE so a racing creator cannot slip past. The request needs Origin
+        and X-CSRF-Token. Audit records the root id and both relative paths only.
+      security: [{ session: [] }]
+      x-required-scope: files.write
+      parameters:
+        - { name: root, in: query, required: true, schema: { type: string, pattern: '^[a-z][a-z0-9_-]{0,31}$' } }
+        - { name: path, in: query, required: true, schema: { type: string }, description: Source relative path inside the jail }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, additionalProperties: false, required: [to], properties: { to: { type: string } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, required: [root, path, entry], properties: { root: { type: string }, path: { type: string }, entry: { $ref: '#/components/schemas/FileEntry' } } } } } }
+        '400': { description: Invalid path or not a directory, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing files.write, Origin/CSRF rejected, or jail escape, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Unknown root or path, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Destination directory is not empty, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: No browseable roots or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /files/content:
+    get:
+      summary: Read one regular file's content (capped at 4 MiB; scope files.read).
+      description: >
+        Raw bytes with X-Content-Size (full stat size), X-Content-Truncated and X-File-Encoding
+        (utf8 or binary). O_NOFOLLOW: symlinks are never followed. Origin and X-CSRF-Token are
+        required (identifier-bearing GET). Audit records the root id and relative path only.
+      security: [{ session: [] }]
+      x-required-scope: files.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string } }
+        - { name: root, in: query, required: true, schema: { type: string, pattern: '^[a-z][a-z0-9_-]{0,31}$' } }
+        - { name: path, in: query, required: true, schema: { type: string }, description: Relative path of the file inside the jail }
+      responses:
+        '200': { description: 'The capped file bytes', content: { application/octet-stream: { schema: { type: string, format: binary } } } }
+        '400': { description: 'Malformed path or not a regular file', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing files.read, Origin/CSRF rejected, or jail escape, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Unknown root or path, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: No browseable roots, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    put:
+      summary: Replace an existing regular file's content (capped at 4 MiB; scope files.write).
+      description: >
+        The request body is the raw bytes; there is no create. A symlink, directory or special file
+        is refused (O_NOFOLLOW and a pre-stat). Origin and X-CSRF-Token are required (unsafe method).
+        Audit records the root id and relative path only, never content.
+      security: [{ session: [] }]
+      x-required-scope: files.write
+      parameters:
+        - { name: root, in: query, required: true, schema: { type: string, pattern: '^[a-z][a-z0-9_-]{0,31}$' } }
+        - { name: path, in: query, required: true, schema: { type: string }, description: Relative path of the file inside the jail }
+      requestBody:
+        required: true
+        content: { application/octet-stream: { schema: { type: string, format: binary } } }
+      responses:
+        '200': { description: 'Written; returns the refreshed entry', content: { application/json: { schema: { type: object, required: [root, path, entry], properties: { root: { type: string }, path: { type: string }, entry: { $ref: '#/components/schemas/FileEntry' } } } } } }
+        '400': { description: 'Malformed path or not a regular file', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing files.write, Origin/CSRF rejected, or jail escape, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Unknown root or path, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '413': { description: Content exceeds the size limit, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: No browseable roots or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /files/download:
+    get:
+      summary: Download one regular file's content (same capped bytes as read; scope files.read).
+      description: >
+        Content-Disposition attachment whose filename is only the base name (no path leak).
+        Origin and X-CSRF-Token are required. Audit records the root id and relative path only.
+      security: [{ session: [] }]
+      x-required-scope: files.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string } }
+        - { name: root, in: query, required: true, schema: { type: string, pattern: '^[a-z][a-z0-9_-]{0,31}$' } }
+        - { name: path, in: query, required: true, schema: { type: string }, description: Relative path of the file inside the jail }
+      responses:
+        '200': { description: 'The capped file bytes as an attachment', content: { application/octet-stream: { schema: { type: string, format: binary } } } }
+        '400': { description: 'Malformed path or not a regular file', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing files.read, Origin/CSRF rejected, or jail escape, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Unknown root or path, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: No browseable roots, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /files/upload:
+    post:
+      summary: Upload a new file under one confined root (capped at 8 MiB; scope files.write).
+      description: >
+        Multipart form with one `file` part; path is the destination directory (empty is the jail
+        root). The part's filename must be a single safe segment (no path escape) and the file is
+        created with O_CREAT|O_EXCL (never overwrites). Origin and X-CSRF-Token are required.
+        Audit records the root id and the destination relative path only, never content.
+      security: [{ session: [] }]
+      x-required-scope: files.write
+      parameters:
+        - { name: root, in: query, required: true, schema: { type: string, pattern: '^[a-z][a-z0-9_-]{0,31}$' } }
+        - { name: path, in: query, required: false, schema: { type: string }, description: Destination directory inside the jail; empty is the jail root }
+      requestBody:
+        required: true
+        content: { multipart/form-data: { schema: { type: object, required: [file], properties: { file: { type: string, format: binary } } } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { type: object, required: [root, path, entry], properties: { root: { type: string }, path: { type: string }, entry: { $ref: '#/components/schemas/FileEntry' } } } } } }
+        '400': { description: Invalid name, path or malformed multipart, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing files.write, Origin/CSRF rejected, or jail escape, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: An entry with that name already exists, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '413': { description: Upload exceeds the size limit, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: No browseable roots or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /files/delete/plan:
+    post:
+      summary: Review deleting a file, symlink or empty directory (scope files.destroy). Nothing is changed.
+      description: >
+        Describes the target (kind, size, mtime) and returns a single-use, expiring plan token bound
+        to the actor, session, root, path and observed identity. Origin and X-CSRF-Token are required.
+        Audit records the root id and relative path only.
+      security: [{ session: [] }]
+      x-required-scope: files.destroy
+      parameters:
+        - { name: root, in: query, required: true, schema: { type: string, pattern: '^[a-z][a-z0-9_-]{0,31}$' } }
+        - { name: path, in: query, required: true, schema: { type: string }, description: Relative path of the entry inside the jail }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, required: [token, root, path, kind, size], properties: { token: { type: string }, root: { type: string }, path: { type: string }, kind: { type: string, enum: [file, dir, symlink] }, size: { type: integer } } } } } }
+        '400': { description: 'Malformed path, not a directory, or not deletable', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing files.destroy, Origin/CSRF rejected, or jail escape, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Unknown root or path, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: No browseable roots or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /files/delete/apply:
+    post:
+      summary: Execute a reviewed delete with its plan token (scope files.destroy). Needs a password re-entry (step_up_required).
+      description: >
+        Consumes the single-use token, revalidates the target identity and deletes it; a changed or
+        missing target is a 409 delete_conflict and nothing runs. A missing step-up does not consume
+        the token. Origin and X-CSRF-Token are required. Audit records the root id and relative path only.
+      security: [{ session: [] }]
+      x-required-scope: files.destroy
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, additionalProperties: false, required: [token], properties: { token: { type: string, maxLength: 2048 } } } } }
+      responses:
+        '200': { description: Deleted, content: { application/json: { schema: { type: object, required: [root, path, status], properties: { root: { type: string }, path: { type: string }, status: { type: string } } } } }
+        '400': { description: Invalid body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing files.destroy, Origin/CSRF rejected, step_up_required, or invalid_token', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Unknown root or path, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: 'delete_conflict (the target changed; nothing deleted) or not_empty', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: No browseable roots or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /packages/search:
     get:
       summary: Search the local package cache (read-only; scope packages.read).

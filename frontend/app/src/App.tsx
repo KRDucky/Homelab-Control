@@ -174,6 +174,8 @@ export function App() {
       <FilesPage
         csrf={session.csrf_token}
         canRead={(session.scopes ?? []).includes('files.read')}
+        canWrite={(session.scopes ?? []).includes('files.write')}
+        canDestroy={(session.scopes ?? []).includes('files.destroy')}
         onUnauthorized={signedOut}
       />
     );

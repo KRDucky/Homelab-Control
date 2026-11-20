@@ -105,6 +105,41 @@ func TestFilesReadNotGrantedByDefaultOrImplied(t *testing.T) {
 	}
 }
 
+// File-manager write slice: files.write and files.destroy are never default
+// and are implied by no other scope, including files.read.
+func TestFilesWriteAndDestroyNotGrantedByDefaultOrImplied(t *testing.T) {
+	for _, sc := range []string{ScopeFilesWrite, ScopeFilesDestroy} {
+		if !KnownScopes[sc] {
+			t.Fatalf("%s must be a known scope", sc)
+		}
+		for _, d := range strings.Split(DefaultScopes, ",") {
+			if d == sc {
+				t.Fatalf("default scopes grant %s", d)
+			}
+		}
+	}
+	if ScopeFilesWrite != "files.write" || ScopeFilesDestroy != "files.destroy" {
+		t.Fatalf("scope names changed: %q %q", ScopeFilesWrite, ScopeFilesDestroy)
+	}
+	var others []string
+	for s := range KnownScopes {
+		if s != ScopeFilesWrite && s != ScopeFilesDestroy {
+			others = append(others, s)
+		}
+	}
+	sess := &Session{Scopes: others}
+	if sess.HasScope(ScopeFilesWrite) || sess.HasScope(ScopeFilesDestroy) {
+		t.Fatal("every other scope together must not imply files.write/files.destroy")
+	}
+	// files.read alone must not imply a write or destroy.
+	if (&Session{Scopes: []string{ScopeFilesRead}}).HasScope(ScopeFilesWrite) {
+		t.Fatal("files.read must not imply files.write")
+	}
+	if (&Session{Scopes: []string{ScopeFilesRead}}).HasScope(ScopeFilesDestroy) {
+		t.Fatal("files.read must not imply files.destroy")
+	}
+}
+
 // Traefik file-provider write is never default and is not implied by read.
 func TestNetworkingProxyApplyNotGrantedByDefaultOrImplied(t *testing.T) {
 	if !KnownScopes[ScopeNetworkingProxyApply] || ScopeNetworkingProxyApply != "networking.proxy.apply" {

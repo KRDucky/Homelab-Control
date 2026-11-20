@@ -887,6 +887,144 @@ export function getFileEntries(root: string, path: string, csrf: string): Promis
   return request<FileEntriesResponse>(`/api/v1/files/entries?${q}`, { headers: { 'X-CSRF-Token': csrf } });
 }
 
+// File-manager read/write slice (2026-11-20). Read and download keep
+// files.read; content write, upload, create and rename need files.write;
+// delete needs files.destroy. All write verbs carry the session CSRF token.
+
+export type FileEncoding = 'utf8' | 'binary';
+
+export interface FileContent {
+  bytes: Uint8Array;
+  /** Full stat size, not the (possibly capped) read length. */
+  size: number;
+  truncated: boolean;
+  encoding: FileEncoding;
+}
+
+export interface FileEntryResult {
+  root: string;
+  path: string;
+  entry: FileEntry;
+}
+
+export interface FileDeletePlan {
+  token: string;
+  root: string;
+  path: string;
+  kind: string;
+  size: number;
+}
+
+async function fileError(res: Response): Promise<ApiError> {
+  let body: unknown = null;
+  try {
+    body = await res.json();
+  } catch {
+    // non-JSON error body
+  }
+  const b = (body ?? {}) as { error?: string; message?: string };
+  return new ApiError(
+    res.status,
+    b.error ?? 'http_error',
+    b.message ?? `Request failed (${res.status})`,
+    parseRetryAfterSeconds(res.headers.get('Retry-After')),
+  );
+}
+
+export async function getFileContent(root: string, path: string, csrf: string): Promise<FileContent> {
+  const q = new URLSearchParams({ root, path });
+  const res = await fetch(`/api/v1/files/content?${q}`, {
+    credentials: 'same-origin',
+    headers: { 'X-CSRF-Token': csrf },
+  });
+  if (!res.ok) throw await fileError(res);
+  return {
+    bytes: new Uint8Array(await res.arrayBuffer()),
+    size: Number(res.headers.get('X-Content-Size') ?? 0),
+    truncated: res.headers.get('X-Content-Truncated') === 'true',
+    encoding: res.headers.get('X-File-Encoding') === 'binary' ? 'binary' : 'utf8',
+  };
+}
+
+export async function downloadFile(root: string, path: string, name: string, csrf: string): Promise<void> {
+  const q = new URLSearchParams({ root, path });
+  const res = await fetch(`/api/v1/files/download?${q}`, {
+    credentials: 'same-origin',
+    headers: { 'X-CSRF-Token': csrf },
+  });
+  if (!res.ok) throw await fileError(res);
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+export function putFileContent(
+  root: string,
+  path: string,
+  csrf: string,
+  data: string | Uint8Array,
+): Promise<FileEntryResult> {
+  const q = new URLSearchParams({ root, path });
+  return request<FileEntryResult>(`/api/v1/files/content?${q}`, {
+    method: 'PUT',
+    headers: { 'X-CSRF-Token': csrf, 'Content-Type': 'application/octet-stream' },
+    body: data as BodyInit,
+  });
+}
+
+export function uploadFile(root: string, dir: string, csrf: string, file: File): Promise<FileEntryResult> {
+  const q = new URLSearchParams({ root, path: dir });
+  const form = new FormData();
+  form.append('file', file, file.name);
+  return request<FileEntryResult>(`/api/v1/files/upload?${q}`, {
+    method: 'POST',
+    headers: { 'X-CSRF-Token': csrf },
+    body: form,
+  });
+}
+
+export function createFileEntry(
+  root: string,
+  dir: string,
+  csrf: string,
+  name: string,
+  type: 'file' | 'dir',
+): Promise<FileEntryResult> {
+  const q = new URLSearchParams({ root, path: dir });
+  return postJSON<FileEntryResult>(`/api/v1/files/entries?${q}`, csrf, { name, type });
+}
+
+export function renameFile(root: string, path: string, csrf: string, to: string): Promise<FileEntryResult> {
+  const q = new URLSearchParams({ root, path });
+  return request<FileEntryResult>(`/api/v1/files/entries?${q}`, {
+    method: 'PUT',
+    headers: { 'X-CSRF-Token': csrf, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ to }),
+  });
+}
+
+export function planFileDelete(root: string, path: string, csrf: string): Promise<FileDeletePlan> {
+  const q = new URLSearchParams({ root, path });
+  return request<FileDeletePlan>(`/api/v1/files/delete/plan?${q}`, {
+    method: 'POST',
+    headers: { 'X-CSRF-Token': csrf },
+  });
+}
+
+export function applyFileDelete(
+  token: string,
+  csrf: string,
+): Promise<{ root: string; path: string; status: string }> {
+  return postJSON<{ root: string; path: string; status: string }>('/api/v1/files/delete/apply', csrf, {
+    token,
+  });
+}
+
 // M2-5 Stage A: application-owned manual drive-bay layout. Every assignment is
 // the administrator's statement (manual, unverified); nothing touches the host.
 export type ChassisKind = 'server' | 'shelf' | 'external' | 'desktop';
