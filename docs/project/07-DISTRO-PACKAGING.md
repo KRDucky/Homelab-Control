@@ -4,9 +4,9 @@
 |---|---|---|---|
 | Debian stable | `.deb` | APT | Tier 1 |
 | Ubuntu LTS | `.deb` | APT | Tier 1 |
-| Fedora current supported | `.rpm` | DNF | Tier 1 |
+| Fedora current supported | `.rpm` | DNF | Later. Not a release gate. After the Debian/Ubuntu production release |
 | openSUSE Leap/Tumbleweed | `.rpm` | zypper | Tier 1 |
-| Arch Linux | `.pkg.tar.zst` / PKGBUILD | pacman | Tier 1 |
+| Arch Linux | `.pkg.tar.zst` / PKGBUILD | pacman | Later. Not a release gate. After the Debian/Ubuntu production release |
 | Derivatives (CachyOS, etc.) | Compatible package | distro native | Tier 2, validated separately |
 
 **zypper is a package manager, not a separate package file format**; openSUSE uses RPM.
