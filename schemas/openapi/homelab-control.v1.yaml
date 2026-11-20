@@ -2064,8 +2064,10 @@ paths:
     put:
       summary: Rename (move) path to to inside the same root (scope files.write).
       description: >
-        Both parents are opened with openat+O_NOFOLLOW; renameat operates on the last component
-        itself so a symlink is renamed or replaced rather than followed. The request needs Origin
+        Both parents are opened with openat+O_NOFOLLOW. Rename is destructive and never replaces an
+        existing destination: the destination is lstat'ed with AT_SYMLINK_NOFOLLOW and any entry
+        there (file, directory, symlink, FIFO or device) is refused as 409 already_exists; the
+        rename uses RENAME_NOREPLACE so a racing creator cannot slip past. The request needs Origin
         and X-CSRF-Token. Audit records the root id and both relative paths only.
       security: [{ session: [] }]
       x-required-scope: files.write

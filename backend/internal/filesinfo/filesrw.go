@@ -309,8 +309,11 @@ func (s Set) Create(id, parentRel, name string, asDir bool) (Entry, error) {
 }
 
 // Rename moves srcRel to dstRel inside the same root. Both parents are opened
-// with O_NOFOLLOW; renameat operates on the last component itself, so a
-// symlink is renamed (or replaced) rather than followed.
+// with O_NOFOLLOW. Rename is destructive: it never replaces an existing
+// destination. The destination is lstat'ed with AT_SYMLINK_NOFOLLOW first (a
+// symlink, file, directory, FIFO or device there is refused as already_exists
+// and the symlink is not followed), and the rename itself uses
+// RENAME_NOREPLACE so a racing creator cannot slip past the check.
 func (s Set) Rename(id, srcRel, dstRel string) (Entry, error) {
 	srcDir, srcBase, srcClose, err := s.openParent(id, srcRel)
 	if err != nil {
@@ -322,7 +325,14 @@ func (s Set) Rename(id, srcRel, dstRel string) (Entry, error) {
 		return Entry{}, err
 	}
 	defer dstClose()
-	if err := unix.Renameat(int(srcDir.Fd()), srcBase, int(dstDir.Fd()), dstBase); err != nil {
+	// The destination must be absent: rename never overwrites. AT_SYMLINK_NOFOLLOW
+	// reports the link itself, so a symlink destination is refused too.
+	if _, err := lstatAt(int(dstDir.Fd()), dstBase); err == nil {
+		return Entry{}, ErrExists
+	} else if !errors.Is(err, syscall.ENOENT) {
+		return Entry{}, mapOpenErr(err)
+	}
+	if err := unix.Renameat2(int(srcDir.Fd()), srcBase, int(dstDir.Fd()), dstBase, unix.RENAME_NOREPLACE); err != nil {
 		return Entry{}, mapRenameErr(err)
 	}
 	st, err := lstatAt(int(dstDir.Fd()), dstBase)
@@ -408,7 +418,9 @@ func mapRenameErr(err error) error {
 	switch {
 	case errors.Is(err, syscall.ENOENT):
 		return ErrUnknownRoot
-	case errors.Is(err, syscall.ENOTEMPTY), errors.Is(err, syscall.EEXIST):
+	case errors.Is(err, syscall.EEXIST):
+		return ErrExists
+	case errors.Is(err, syscall.ENOTEMPTY):
 		return ErrNotEmpty
 	case errors.Is(err, syscall.ENOTDIR), errors.Is(err, syscall.ELOOP):
 		return ErrNotDir

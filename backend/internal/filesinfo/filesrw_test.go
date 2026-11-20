@@ -161,6 +161,35 @@ func TestStatTargetAndDeleteRefusesSpecial(t *testing.T) {
 	}
 }
 
+func TestRenameNeverReplacesDestination(t *testing.T) {
+	s := rwSet(t)
+	if _, err := s.Create("lab", "", "dest.txt", false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.WriteContent("lab", "dest.txt", []byte("keep-me")); err != nil {
+		t.Fatal(err)
+	}
+	// Renaming onto an existing file must be refused and leave both files intact.
+	if _, err := s.Rename("lab", "readme.txt", "dest.txt"); err != ErrExists {
+		t.Fatalf("rename onto existing = %v, want ErrExists", err)
+	}
+	c, err := s.ReadContent("lab", "dest.txt")
+	if err != nil || string(c.Bytes) != "keep-me" {
+		t.Fatalf("destination changed: %v %q", err, c.Bytes)
+	}
+	if _, err := s.ReadContent("lab", "readme.txt"); err != nil {
+		t.Fatalf("source was moved: %v", err)
+	}
+	// A symlink destination must be refused (never followed).
+	if _, err := s.Rename("lab", "readme.txt", "escape"); err != ErrExists {
+		t.Fatalf("rename onto symlink = %v, want ErrExists", err)
+	}
+	// A directory destination is refused too.
+	if _, err := s.Rename("lab", "readme.txt", "sub"); err != ErrExists {
+		t.Fatalf("rename onto dir = %v, want ErrExists", err)
+	}
+}
+
 func TestValidName(t *testing.T) {
 	for _, bad := range []string{"", ".", "..", "a/b", `a\b`, "a\x00b", strings.Repeat("x", 256), "\xff"} {
 		if err := validName(bad); err == nil {

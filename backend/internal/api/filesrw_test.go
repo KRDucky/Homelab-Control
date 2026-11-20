@@ -191,6 +191,28 @@ func TestFilesCreateAndRename(t *testing.T) {
 	}
 }
 
+func TestFilesRenameRefusesExistingDestination(t *testing.T) {
+	h, jail := filesRWHarness(t, auth.ScopeFilesWrite)
+	hdr := map[string]string{"Origin": testOrigin, "X-CSRF-Token": h.csrf, "Content-Type": "application/json"}
+	// Dest file with known content; rename onto it must 409 and preserve both.
+	if err := os.WriteFile(filepath.Join(jail, "dest.txt"), []byte("keep-me"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if rr := h.do("PUT", "/api/v1/files/entries?root=lab&path=readme.txt", `{"to":"dest.txt"}`, hdr); rr.Code != http.StatusConflict {
+		t.Fatalf("rename onto existing: %d %s", rr.Code, rr.Body)
+	}
+	if got, _ := os.ReadFile(filepath.Join(jail, "dest.txt")); string(got) != "keep-me" {
+		t.Fatalf("dest overwritten: %q", got)
+	}
+	if got, _ := os.ReadFile(filepath.Join(jail, "readme.txt")); string(got) != "secret-bytes" {
+		t.Fatalf("source moved: %q", got)
+	}
+	// Symlink destination is refused.
+	if rr := h.do("PUT", "/api/v1/files/entries?root=lab&path=readme.txt", `{"to":"escape"}`, hdr); rr.Code != http.StatusConflict {
+		t.Fatalf("rename onto symlink: %d %s", rr.Code, rr.Body)
+	}
+}
+
 func TestFilesUpload(t *testing.T) {
 	h, jail := filesRWHarness(t, auth.ScopeFilesWrite)
 	boundary := "BOUNDARY123"
