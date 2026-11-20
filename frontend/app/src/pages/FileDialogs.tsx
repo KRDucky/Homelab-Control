@@ -122,11 +122,20 @@ export function FileContentDialog({
             </p>
             <div className="row">
               {!isBinary && canWrite && (
-                <button type="button" className="primary" disabled={busy || truncated} onClick={() => void save()}>
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={busy || truncated}
+                  onClick={() => void save()}
+                >
                   Save
                 </button>
               )}
-              <button type="button" className="ghost" onClick={() => void downloadFile(root, path, name, csrf)}>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => void downloadFile(root, path, name, csrf)}
+              >
                 Download
               </button>
               <button type="button" className="ghost" onClick={onClose}>
@@ -289,7 +298,13 @@ export function DeleteConfirmDialog({
             >
               <label className="field" htmlFor={pwId}>
                 Password (re-enter to confirm)
-                <input id={pwId} type="password" value={password} autoFocus onChange={(e) => setPassword(e.target.value)} />
+                <input
+                  id={pwId}
+                  type="password"
+                  value={password}
+                  autoFocus
+                  onChange={(e) => setPassword(e.target.value)}
+                />
               </label>
               <div className="row">
                 <button type="submit" className="warn-action" disabled={busy || password === ''}>
