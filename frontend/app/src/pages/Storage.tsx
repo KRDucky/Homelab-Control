@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useCallback, useState } from 'react';
-import { ApiError, getStorage, probeStorage } from '../api';
+import { ApiError, getStorage, probeStorage, type DriveLayout } from '../api';
+import { SLOT_MATCH_TEXT, hardwareLink, locationBadges, slotText } from '../bayModel';
 import { DataTable } from '../DataTable';
 import { formatBytes } from '../format';
 import { Section } from '../ui';
@@ -41,6 +42,9 @@ export function Storage({
   const [probing, setProbing] = useState(false);
   const [probeMessage, setProbeMessage] = useState('');
   const canProbe = scopes.includes('storage.probe');
+  // Stage B: the manual layout the Drives & bays panel already read, used for
+  // location badges. No extra request.
+  const [layout, setLayout] = useState<DriveLayout | undefined>(undefined);
 
   async function probe() {
     setProbing(true);
@@ -92,6 +96,16 @@ export function Storage({
     status: graph.status,
     sources: [...new Set(graph.nodes.flatMap((node) => node.evidence.map((evidence) => evidence.source)))],
     notes: graph.notes,
+  };
+  const hardware = graph.hardware;
+  const badges = locationBadges(layout?.chassis ?? [], graph.nodes);
+  const controllers = new Map((hardware?.controllers ?? []).map((c) => [c.id, c]));
+  const controllerText = (id?: string) => {
+    const c = id ? controllers.get(id) : undefined;
+    if (!c) return undefined;
+    return [c.model || c.driver || c.kind, c.pci_address && `PCI ${c.pci_address}`]
+      .filter(Boolean)
+      .join(', ');
   };
   const nodeLabel = (id: string) => {
     const node = nodes.get(id);
@@ -212,6 +226,27 @@ export function Storage({
               label: 'Resource type',
               sortValue: (node) => node.kind,
               render: (node) => node.kind,
+            },
+            {
+              id: 'location',
+              label: 'Bay (manual)',
+              sortValue: (node) => {
+                const badge = badges.get(node.id);
+                return badge ? `${badge.chassis} ${badge.bay}` : '';
+              },
+              render: (node) => {
+                if (node.kind !== 'block') return '—';
+                const badge = badges.get(node.id);
+                if (!badge) return <span className="muted">None</span>;
+                return (
+                  <>
+                    <span className="tag location-badge">
+                      {badge.chassis} · {badge.bay}
+                    </span>
+                    <div className="muted">Manual, unverified</div>
+                  </>
+                );
+              },
             },
             {
               id: 'size',
@@ -365,12 +400,101 @@ export function Storage({
           />
         )}
       </Section>
+      <Section
+        title="Controllers and enclosures"
+        id="storage-hardware"
+        meta={{
+          status: hardware?.status === 'observed' ? 'partial' : 'unavailable',
+          sources: hardware ? [hardware.source] : [],
+          notes: hardware?.notes ?? ['This observation carries no controller or enclosure data.'],
+        }}
+      >
+        <p className="banner">
+          Read-only hardware evidence from the kernel. An enclosure slot is numbered by the enclosure
+          firmware; it is not a verified front-panel bay and never changes a bay assignment. Nothing here
+          blinks LEDs or writes to the enclosure.
+        </p>
+        {hardware && (
+          <DataTable
+            caption="Observed storage controllers"
+            rows={hardware.controllers}
+            rowKey={(c) => c.id}
+            columns={[
+              {
+                id: 'controller',
+                label: 'Controller',
+                rowHeader: true,
+                render: (c) => <span className="mono">{c.id}</span>,
+              },
+              { id: 'kind', label: 'Type', render: (c) => c.kind },
+              { id: 'driver', label: 'Driver', render: (c) => c.driver || 'Not reported' },
+              { id: 'model', label: 'Model', render: (c) => c.model || 'Not reported' },
+              { id: 'firmware', label: 'Firmware', render: (c) => c.firmware || 'Not reported' },
+              {
+                id: 'sas',
+                label: 'SAS address',
+                render: (c) => (c.sas_address ? <span className="mono">{c.sas_address}</span> : '—'),
+              },
+              {
+                id: 'drives',
+                label: 'Drives linked',
+                render: (c) => String(hardware.links.filter((l) => l.controller_id === c.id).length),
+              },
+            ]}
+            emptyState="No storage controller reported."
+          />
+        )}
+        {hardware?.enclosures.map((enc) => (
+          <DataTable
+            key={`${enc.name}:${enc.id ?? ''}`}
+            caption={`Enclosure ${enc.id ?? enc.name}${[enc.vendor, enc.model].some(Boolean) ? ` (${[enc.vendor, enc.model].filter(Boolean).join(' ')})` : ''}${enc.identity_status === 'observed' ? '' : enc.identity_status === 'ambiguous' ? ' — reported more than once, not matched' : ' — no identifier, not matched'}`}
+            rows={enc.slots}
+            rowKey={(slot) => slot.element}
+            columns={[
+              {
+                id: 'slot',
+                label: 'Slot',
+                rowHeader: true,
+                render: (slot) => (slot.slot === undefined ? `Element ${slot.element}` : `Slot ${slot.slot}`),
+              },
+              {
+                id: 'element',
+                label: 'Element',
+                render: (slot) => <span className="mono">{slot.element}</span>,
+              },
+              { id: 'status', label: 'Reported status', render: (slot) => slot.status || 'Not reported' },
+              {
+                id: 'drive',
+                label: 'Drive',
+                render: (slot) => {
+                  const node = slot.node_id ? nodes.get(slot.node_id) : undefined;
+                  if (slot.match === 'matched' && node)
+                    return <span className="mono">{driveLabel(node, preference).value}</span>;
+                  return SLOT_MATCH_TEXT[slot.match];
+                },
+              },
+              {
+                id: 'bay',
+                label: 'Bay (manual)',
+                render: (slot) => {
+                  const badge =
+                    slot.match === 'matched' && slot.node_id ? badges.get(slot.node_id) : undefined;
+                  return badge ? `${badge.chassis} · ${badge.bay}` : <span className="muted">None</span>;
+                },
+              },
+            ]}
+            emptyState="The enclosure reported no elements."
+          />
+        ))}
+      </Section>
       <DriveBays
         csrf={csrf}
         nodes={graph.nodes}
         canManage={scopes.includes('layout.manage')}
         preference={preference}
         onUnauthorized={onUnauthorized}
+        hardware={hardware}
+        onLayout={setLayout}
       />
       {current && (
         <Section
@@ -431,8 +555,27 @@ export function Storage({
               </div>
             )}
             <div>
-              <dt>Physical bay</dt>
-              <dd>Unknown — not verified by this inventory</dd>
+              <dt>Bay (manual, unverified)</dt>
+              <dd>
+                {badges.get(current.id)
+                  ? `${badges.get(current.id)?.chassis} · ${badges.get(current.id)?.bay}`
+                  : 'None — no manual bay assignment is present for this drive'}
+              </dd>
+            </div>
+            <div>
+              <dt>Controller (hardware evidence)</dt>
+              <dd>
+                {[
+                  controllerText(hardwareLink(hardware, current.id)?.controller_id),
+                  hardwareLink(hardware, current.id)?.port,
+                ]
+                  .filter(Boolean)
+                  .join(', ') || 'Not reported'}
+              </dd>
+            </div>
+            <div>
+              <dt>Enclosure slot (hardware evidence, not a verified bay)</dt>
+              <dd>{slotText(hardwareLink(hardware, current.id) ?? {}) ?? 'Not reported'}</dd>
             </div>
           </dl>
           {(current.notes ?? []).map((note) => (

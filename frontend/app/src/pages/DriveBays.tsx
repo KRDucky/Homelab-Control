@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The Homelab Control Authors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useCallback, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import {
   ApiError,
   assignBay,
@@ -22,11 +22,18 @@ import {
   BAY_STATE_TEXT,
   CELL_KINDS,
   bayState,
+  hardwareLink,
   redactedLayout,
+  slotText,
   unassignedDrives,
 } from '../bayModel';
 import { formatBytes } from '../format';
-import { driveLabel, type DriveLabelPreference, type StorageNode } from '../storageModel';
+import {
+  driveLabel,
+  type DriveLabelPreference,
+  type StorageHardware,
+  type StorageNode,
+} from '../storageModel';
 import { Section } from '../ui';
 import { explain, useData } from '../useData';
 
@@ -65,12 +72,18 @@ export function DriveBays({
   canManage,
   preference,
   onUnauthorized,
+  hardware,
+  onLayout,
 }: {
   csrf: string;
   nodes: StorageNode[] | undefined;
   canManage: boolean;
   preference: DriveLabelPreference;
   onUnauthorized: () => void;
+  /** Stage B: read-only enclosure evidence shown next to a present bay. */
+  hardware?: StorageHardware | undefined;
+  /** Stage B: the current layout, so other storage views can show location badges. */
+  onLayout?: (layout: DriveLayout | undefined) => void;
 }) {
   const { data, error, live } = useData(
     useCallback(() => getLayout(csrf), [csrf]),
@@ -87,6 +100,9 @@ export function DriveBays({
   const [resize, setResize] = useState<{ id: number; name: string; rows: number; cols: number } | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
   const layout = saved ?? data;
+  useEffect(() => {
+    onLayout?.(layout ?? undefined);
+  }, [layout, onLayout]);
 
   async function run(action: () => Promise<DriveLayout>, done: string) {
     setBusy(true);
@@ -422,6 +438,15 @@ export function DriveBays({
                   <dt>Identity status</dt>
                   <dd>{current.node.identity_status}</dd>
                 </div>
+                {current.state === 'present' && (
+                  <div>
+                    <dt>Enclosure slot (hardware evidence, not a verified bay)</dt>
+                    <dd>
+                      {slotText(hardwareLink(hardware, current.node.id) ?? {}) ??
+                        'No enclosure slot reported for this drive'}
+                    </dd>
+                  </div>
+                )}
                 <div>
                   <dt>Identifiers</dt>
                   <dd>

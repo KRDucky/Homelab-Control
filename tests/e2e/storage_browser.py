@@ -9,6 +9,7 @@ Runtime credentials/state MUST NOT be copied into evidence or Git.
 """
 import json
 import os
+import re
 from pathlib import Path
 import sys
 import time
@@ -59,7 +60,15 @@ try:
         page.get_by_role("button", name="Inspect naa.5000000000000a01", exact=True).click()
         relations = page.get_by_role("table", name="Relationships of selected resource", exact=True)
         check("independent relationship table", relations.get_by_text("contains", exact=True).first.is_visible())
-        check("physical location remains unknown", page.get_by_text("Unknown — not verified by this inventory", exact=True).is_visible())
+        check("no bay without a manual assignment", page.get_by_text("None — no manual bay assignment is present for this drive", exact=True).is_visible())
+        # M2-5 Stage B: read-only controller/enclosure evidence (synthetic fixture).
+        check("enclosure slot shown as evidence, not a bay", page.get_by_text("Enclosure ses:500a0b8000000001, slot 0", exact=True).is_visible())
+        check("controller evidence linked to the drive", page.get_by_text("Example-HBA (synthetic), PCI 0000:01:00.0, phy 4", exact=True).is_visible())
+        controllers = page.get_by_role("table", name="Observed storage controllers", exact=True)
+        check("controller table lists the synthetic HBA", controllers.get_by_text("pci:0000:01:00.0", exact=True).is_visible())
+        enclosure = page.get_by_role("table", name="Enclosure ses:500a0b8000000001 (EXAMPLE Synthetic JBOD)", exact=True)
+        check("enclosure empty slot reported", enclosure.get_by_text("No device reported", exact=True).is_visible())
+        check("no LED or locate action offered", page.get_by_role("button", name=re.compile("locate|identify|blink|led", re.I)).count() == 0)
         lvm = page.get_by_role("table", name="Observed LVM logical volumes and segments", exact=True)
         check("RAID segment observed from parsed report fixture", lvm.get_by_text("raid1", exact=True).is_visible())
         check("SSD cache mode and policy displayed", lvm.get_by_text("writeback / smq", exact=True).is_visible())

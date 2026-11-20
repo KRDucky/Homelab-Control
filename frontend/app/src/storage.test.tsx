@@ -76,7 +76,7 @@ describe('Storage read-only interface', () => {
     expect(screen.getAllByText('Not established').length).toBeGreaterThan(0);
     fireEvent.click(inspect);
     expect(screen.getByRole('heading', { name: 'Selected resource' })).toBeTruthy();
-    expect(screen.getByText('Unknown — not verified by this inventory')).toBeTruthy();
+    expect(screen.getByText('None — no manual bay assignment is present for this drive')).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Identify drives by'), { target: { value: 'wwn' } });
     expect(screen.getByRole('button', { name: 'Inspect WWN-A' })).toBeTruthy();
     expect(localStorage.getItem(DRIVE_LABEL_KEY)).toBe('wwn');
