@@ -1,3 +1,18 @@
+# Current verdict — M2 remains open (2026-11-20)
+
+`main` is `79a10715` (PR #131 squash), whose parent `c85154e0` is the PR #130 squash. GitHub checks
+for `79a10715` finished 21/21 success on 2026-11-20, including check, browser-e2e, upstream-perl-tests,
+systemd-ubuntu, systemd-ubuntu-2604, upgrade-ubuntu, arch-package, release-dry-run build/arch/verify,
+and install-matrix jobs for Debian stable/oldstable, Ubuntu 22.04/24.04/26.04, Fedora latest, Arch,
+openSUSE Leap, and openSUSE Tumbleweed. CI is not owner acceptance.
+
+The older Phase B and file-manager statements below are historical. File-manager read, write, download,
+upload, and content are on `main` through PR #128. Stage B is on `main` through PR #127 and is not
+accepted here. The B20 harness fix is on `main` through PR #125; the owner closed the disposable-guest
+rerun on 2026-11-20 without running it. The Ubuntu 26.04.1 hostname/timezone proof in PR #130 is
+sufficient for that check. Fedora, Arch, and SELinux do not block this release. M2 (GitHub milestone 3)
+and issue #90 remain open. This note does not record production activation.
+
 # Current status — M2-3 A3–A5 evidence (2026-11-19); M2 remains open
 
 PR #118 was merged as `c54fe5cc`. PR #119 is on `main` as `91d79d30`. PR #120, the corrected Fedora
