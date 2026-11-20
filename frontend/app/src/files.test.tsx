@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { App } from './App';
 
 // Test fixtures only — not a real host tree.
@@ -18,7 +18,7 @@ const filesCap = {
   scope: 'files.read',
   status: 'degraded',
   reason:
-    'Read-only listing inside allow-listed roots; create, rename, permissions, upload and delete are not available.',
+    'Confined-root listing, read, download, write, upload, create, rename and delete, subject to files.read/files.write/files.destroy.',
 };
 
 const caps = {
@@ -94,7 +94,15 @@ function mock(scopes: string[], routes: Record<string, { status: number; body: u
   );
 }
 
-beforeEach(() => window.history.pushState(null, '', '/files'));
+beforeEach(() => {
+  window.history.pushState(null, '', '/files');
+  HTMLDialogElement.prototype.showModal = function () {
+    this.setAttribute('open', '');
+  };
+  HTMLDialogElement.prototype.close = function () {
+    this.removeAttribute('open');
+  };
+});
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
@@ -408,5 +416,153 @@ describe('files', () => {
     routedFetch({});
     render(<App />);
     expect((await screen.findByRole('alert')).textContent).toContain('Unknown file root or path.');
+  });
+});
+
+describe('files write slice', () => {
+  const entry = {
+    name: 'readme.txt',
+    dir: false,
+    size: 12,
+    owner: '1000:1000',
+    mode: '-rw-r--r--',
+    mtime: '2026-11-07T12:00:00Z',
+  };
+
+  function mockRW(scopes: string[], opts: { deleteStepUp?: boolean } = {}) {
+    calls = [];
+    let applied = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const path = (url.split('?')[0] ?? url) as string;
+        const key = `${init?.method ?? 'GET'} ${path}`;
+        calls.push({ key, url, init });
+        const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
+        if (path.endsWith('/auth/session')) return json(session(scopes));
+        if (path.endsWith('/capabilities')) return json(caps);
+        if (path.endsWith('/files/roots')) return json(roots);
+        if (path.endsWith('/files/entries') && (init?.method ?? 'GET') === 'GET') return json(rootEntries);
+        if (path.endsWith('/files/content') && (init?.method ?? 'GET') === 'GET') {
+          return new Response('hello', {
+            status: 200,
+            headers: { 'X-Content-Size': '5', 'X-Content-Truncated': 'false', 'X-File-Encoding': 'utf8' },
+          });
+        }
+        if (path.endsWith('/files/entries') && init?.method === 'POST') {
+          return json({ root: 'lab', path: 'new.txt', entry: { ...entry, name: 'new.txt' } }, 201);
+        }
+        if (path.endsWith('/files/entries') && init?.method === 'PUT') {
+          return json({ root: 'lab', path: 'renamed.txt', entry: { ...entry, name: 'renamed.txt' } });
+        }
+        if (path.endsWith('/files/delete/plan')) {
+          return json({ token: 'tok-1', root: 'lab', path: 'readme.txt', kind: 'file', size: 12 });
+        }
+        if (path.endsWith('/files/delete/apply')) {
+          applied += 1;
+          if (opts.deleteStepUp && applied === 1) {
+            return json({ error: 'step_up_required', message: 'Re-enter your password' }, 403);
+          }
+          return json({ root: 'lab', path: 'readme.txt', status: 'deleted' });
+        }
+        if (path.endsWith('/auth/step-up')) return json({ step_up_until: '2026-11-07T13:00:00Z' });
+        return json({ error: 'not_found' }, 404);
+      }),
+    );
+  }
+
+  function openDetails() {
+    const btn = screen.getByRole('button', { name: 'Details for readme.txt' });
+    fireEvent.click(btn);
+    return screen.getByRole('region', { name: 'Details' });
+  }
+
+  it('gates write controls on files.write and delete on files.destroy', async () => {
+    mockRW(['system.read', 'files.read']);
+    render(<App />);
+    await screen.findByText('readme.txt');
+    expect(screen.queryByRole('button', { name: 'New file' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'New folder' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Upload' })).toBeNull();
+    const details = openDetails();
+    expect(within(details).getByRole('button', { name: 'Open' })).toBeTruthy();
+    expect(within(details).getByRole('button', { name: 'Download' })).toBeTruthy();
+    expect(within(details).queryByRole('button', { name: 'Rename' })).toBeNull();
+    expect(within(details).queryByRole('button', { name: 'Delete' })).toBeNull();
+  });
+
+  it('shows write and delete controls with the scopes', async () => {
+    mockRW(['system.read', 'files.read', 'files.write', 'files.destroy']);
+    render(<App />);
+    await screen.findByText('readme.txt');
+    expect(screen.getByRole('button', { name: 'New file' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'New folder' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Upload' })).toBeTruthy();
+    const details = openDetails();
+    expect(within(details).getByRole('button', { name: 'Rename' })).toBeTruthy();
+    expect(within(details).getByRole('button', { name: 'Delete' })).toBeTruthy();
+  });
+
+  it('reads content with CSRF when a file is opened', async () => {
+    mockRW(['system.read', 'files.read']);
+    render(<App />);
+    await screen.findByText('readme.txt');
+    fireEvent.click(within(openDetails()).getByRole('button', { name: 'Open' }));
+    const textarea = await screen.findByLabelText('File content');
+    expect((textarea as HTMLTextAreaElement).value).toBe('hello');
+    const content = calls.find((c) => c.key === 'GET /api/v1/files/content');
+    expect(content).toBeTruthy();
+    expect((content?.init?.headers as Record<string, string>)['X-CSRF-Token']).toBe('csrf-fixture');
+  });
+
+  it('creates a file via POST with CSRF', async () => {
+    mockRW(['system.read', 'files.read', 'files.write']);
+    render(<App />);
+    await screen.findByText('readme.txt');
+    fireEvent.click(screen.getByRole('button', { name: 'New file' }));
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'new.txt' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
+    await screen.findByText('readme.txt');
+    const create = calls.find((c) => c.key === 'POST /api/v1/files/entries');
+    expect(create).toBeTruthy();
+    expect((create?.init?.headers as Record<string, string>)['X-CSRF-Token']).toBe('csrf-fixture');
+    expect(JSON.parse(String(create?.init?.body))).toEqual({ name: 'new.txt', type: 'file' });
+  });
+
+  it('renames via PUT with CSRF', async () => {
+    mockRW(['system.read', 'files.read', 'files.write']);
+    render(<App />);
+    await screen.findByText('readme.txt');
+    fireEvent.click(within(openDetails()).getByRole('button', { name: 'Rename' }));
+    const renameDialog = screen.getByRole('dialog', { name: 'Rename' });
+    fireEvent.change(within(renameDialog).getByLabelText('New name'), { target: { value: 'renamed.txt' } });
+    fireEvent.click(within(renameDialog).getByRole('button', { name: 'Rename' }));
+    await screen.findByText('readme.txt');
+    const rename = calls.find((c) => c.key === 'PUT /api/v1/files/entries');
+    expect(rename).toBeTruthy();
+    expect(JSON.parse(String(rename?.init?.body))).toEqual({ to: 'renamed.txt' });
+  });
+
+  it('deletes via plan then confirm', async () => {
+    mockRW(['system.read', 'files.read', 'files.destroy']);
+    render(<App />);
+    await screen.findByText('readme.txt');
+    fireEvent.click(within(openDetails()).getByRole('button', { name: 'Delete' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete file' });
+    expect(within(dialog).getByText(/readme.txt/)).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Delete file' })).toBeNull());
+    expect(calls.some((c) => c.key === 'POST /api/v1/files/delete/plan')).toBe(true);
+    expect(calls.some((c) => c.key === 'POST /api/v1/files/delete/apply')).toBe(true);
+  });
+
+  it('asks for a password when delete needs step-up', async () => {
+    mockRW(['system.read', 'files.read', 'files.destroy'], { deleteStepUp: true });
+    render(<App />);
+    await screen.findByText('readme.txt');
+    fireEvent.click(within(openDetails()).getByRole('button', { name: 'Delete' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete file' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+    expect(await within(dialog).findByLabelText(/re-enter to confirm/)).toBeTruthy();
   });
 });

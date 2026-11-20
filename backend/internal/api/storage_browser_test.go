@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -57,26 +58,59 @@ func TestStorageBrowserFixture(t *testing.T) {
 		}
 	}
 	// Real-shaped sysfs layout: class/block entries link to device directories,
-	// partitions are children of the disk directory.
-	put("sys/devices/sda/dev", "8:0")
-	put("sys/devices/sda/size", "2097152")
+	// partitions are children of the disk directory. The disk sits behind a
+	// synthetic SAS HBA (M2-5 Stage B) whose SES enclosure reports it in slot 0.
+	link := func(name, target string) {
+		t.Helper()
+		p := filepath.Join(fixture, name)
+		if e := os.MkdirAll(filepath.Dir(p), 0700); e != nil {
+			t.Fatal(e)
+		}
+		if e := os.Symlink(target, p); e != nil {
+			t.Fatal(e)
+		}
+	}
+	const host = "sys/devices/pci0000:00/0000:00:01.0/0000:01:00.0/host0"
+	const scsi = host + "/port-0:0/end_device-0:0:0/target0:0:0/0:0:0:0"
+	const disk = scsi + "/block/sda"
+	put(disk+"/dev", "8:0")
+	put(disk+"/size", "2097152")
 	// Synthetic SATA-style disk: serial in VPD page 0x80, NAA designator wwid.
-	put("sys/devices/sda/device/vpd_pg80", "\x00\x80\x00\x10EXAMPLE-SERIAL-A")
-	put("sys/devices/sda/device/wwid", "naa.5000000000000a01")
+	put(scsi+"/vpd_pg80", "\x00\x80\x00\x10EXAMPLE-SERIAL-A")
+	put(scsi+"/wwid", "naa.5000000000000a01")
+	link(disk+"/device", "../..")
 	for _, part := range []struct{ name, dev string }{{"sda1", "8:1"}, {"sda2", "8:2"}} {
-		put("sys/devices/sda/"+part.name+"/dev", part.dev)
-		put("sys/devices/sda/"+part.name+"/size", "1048576")
-		put("sys/devices/sda/"+part.name+"/partition", part.name[3:])
+		put(disk+"/"+part.name+"/dev", part.dev)
+		put(disk+"/"+part.name+"/size", "1048576")
+		put(disk+"/"+part.name+"/partition", part.name[3:])
 	}
-	for name, target := range map[string]string{"sda": "../../devices/sda", "sda1": "../../devices/sda/sda1", "sda2": "../../devices/sda/sda2"} {
-		link := filepath.Join(fixture, "sys/class/block", name)
-		if e := os.MkdirAll(filepath.Dir(link), 0700); e != nil {
-			t.Fatal(e)
+	for _, name := range []string{"sda", "sda1", "sda2"} {
+		target := "../../../" + disk
+		if name != "sda" {
+			target += "/" + name
 		}
-		if e := os.Symlink(target, link); e != nil {
-			t.Fatal(e)
-		}
+		link("sys/class/block/"+name, target)
 	}
+	put(host+"/scsi_host/host0/proc_name", "mpt3sas")
+	put(host+"/scsi_host/host0/board_name", "Example-HBA (synthetic)")
+	put(host+"/scsi_host/host0/host_sas_address", "0x500605b0000000aa")
+	link("sys/class/scsi_host/host0", "../../../"+host+"/scsi_host/host0")
+	put("sys/class/sas_device/end_device-0:0:0/phy_identifier", "4")
+	const ses = host + "/port-0:0/end_device-0:0:1/target0:0:1/0:0:1:0"
+	const enc = ses + "/enclosure/0:0:1:0"
+	put(ses+"/vendor", "EXAMPLE")
+	put(ses+"/model", "Synthetic JBOD")
+	put(enc+"/id", "0x500a0b8000000001")
+	link(enc+"/device", "../..")
+	put(enc+"/components", "2")
+	for i, element := range []string{"Slot 00", "Slot 01"} {
+		put(enc+"/"+element+"/type", "array device")
+		put(enc+"/"+element+"/slot", strconv.Itoa(i))
+	}
+	put(enc+"/Slot 00/status", "OK")
+	put(enc+"/Slot 01/status", "not installed")
+	link(enc+"/Slot 00/device", strings.Repeat("../", strings.Count(enc+"/Slot 00", "/")+1)+scsi)
+	link("sys/class/enclosure/0:0:1:0", "../../../"+enc)
 	put("proc/self/mountinfo", "1 0 8:2 / /example-data rw - ext4 /dev/sda2 rw\n")
 	put("proc/sys/kernel/random/boot_id", "example-boot")
 	dbdir := filepath.Join(runtimeDir, "state")

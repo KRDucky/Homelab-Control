@@ -321,8 +321,17 @@ def main():
         t2 = panel2.inner_text()
         record("B19", "without services.files (but with services.logs): no unit-file button, reason shown",
                panel2.get_by_role("button", name="Show unit file").count() == 0 and "separate from service logs" in t2, ui=t2[-240:])
-        codes = p2.evaluate("Promise.all(['/api/v1/services/units/hc-test-en-ui.service/contents', "
-                            "'/api/v1/services/units/homelab-control.service/logs?lines=5'].map(u => fetch(u).then(r => r.status)))")
+        # Identifier-bearing GETs require the session CSRF token. A bare fetch is
+        # 403 for both routes (HC-1). Contents stays 403 without services.files.
+        codes = p2.evaluate("""
+          fetch('/api/v1/auth/session').then(r => r.json()).then(s => {
+            const headers = {'X-CSRF-Token': s.csrf_token};
+            return Promise.all([
+              '/api/v1/services/units/hc-test-en-ui.service/contents',
+              '/api/v1/services/units/homelab-control.service/logs?lines=5'
+            ].map(u => fetch(u, {headers}).then(r => r.status)));
+          })
+        """)
         audit_n = dx("journalctl -u homelab-control.service --no-pager -o cat | grep -c 'services.unit.contents.read' || true")
         record("B20", "API: contents 403 without services.files, logs 200 with services.logs", codes == [403, 200], ui=str(codes),
                observer=f"contents-read audit lines in the API journal: {audit_n}")

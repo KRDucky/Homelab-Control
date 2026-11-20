@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import type { CellKind, Chassis, LayoutCell } from './api';
-import type { StorageNode } from './storageModel';
+import type { HardwareLink, SlotMatch, StorageHardware, StorageNode } from './storageModel';
 
 // Bay reconciliation (M2-5 Stage A). Stored assignments are joined with the
 // current audited observation by persistent identity only: never by kernel
@@ -109,3 +109,60 @@ export function redactedLayout(layout: { chassis: Chassis[] }) {
     })),
   };
 }
+
+// M2-5 Stage B: location badge. A chassis/bay is shown for a drive only when
+// reconciliation is `present` (exactly one observed whole disk carries the
+// stored identity). Missing, mismatch, unknown and unassigned drives get no
+// bay. The badge is the administrator's manual, unverified statement.
+
+export interface LocationBadge {
+  chassis: string;
+  bay: string;
+}
+
+/** The bay label, or its grid position when the administrator left it blank. */
+export function bayLabel(cell: LayoutCell) {
+  return cell.label.trim() || `Row ${cell.row + 1}, Column ${cell.col + 1}`;
+}
+
+/** Badges by snapshot-local node ID, for the current observation only. */
+export function locationBadges(chassis: Chassis[], nodes: StorageNode[] | undefined) {
+  const badges = new Map<string, LocationBadge>();
+  const conflicted = new Set<string>();
+  if (!nodes) return badges;
+  for (const c of chassis) {
+    for (const cell of c.cells) {
+      const { state, node } = bayState(cell, nodes);
+      if (state !== 'present' || !node) continue;
+      // UNIQUE(identity) makes two bays per drive impossible; never guess if it happens.
+      if (badges.has(node.id)) conflicted.add(node.id);
+      badges.set(node.id, { chassis: c.name, bay: bayLabel(cell) });
+    }
+  }
+  for (const id of conflicted) badges.delete(id);
+  return badges;
+}
+
+export function hardwareLink(
+  hardware: StorageHardware | undefined,
+  nodeID: string,
+): HardwareLink | undefined {
+  return hardware?.links.find((link) => link.node === nodeID);
+}
+
+/** Enclosure slot evidence in words; never called a bay. */
+export function slotText(link: { enclosure_id?: string; element?: string; slot?: number }) {
+  if (!link.enclosure_id) return undefined;
+  const where = link.slot === undefined ? `element ${link.element ?? '?'}` : `slot ${link.slot}`;
+  return `Enclosure ${link.enclosure_id}, ${where}`;
+}
+
+export const SLOT_MATCH_TEXT: Record<SlotMatch, string> = {
+  matched: 'Drive identified',
+  empty: 'No device reported',
+  'not-a-disk': 'Device is not a disk',
+  changed: 'Device changed during discovery — refresh',
+  unidentified: 'Drive has no unambiguous identity',
+  ambiguous: 'Ambiguous (seen more than once) — not matched',
+  'no-enclosure-id': 'Enclosure reports no identifier — not matched',
+};

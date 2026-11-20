@@ -80,3 +80,66 @@ reconciliation are recorded.
 
 No host writes, no storage access, no broker operation, no SES/controller/LED discovery, and no HBA
 Viewer reconciliation. Stage A acceptance does not accept Stage B or decide a merge.
+
+## Stage B — location badge and read-only hardware discovery (development, not accepted)
+
+Status: on main through PR #127. **Not owner-accepted** and not M2 close. The Stage B development
+authorization (2026-11-20) was relayed by the coordinating agent. Out of scope and not delivered: LED locate,
+SES blink or any enclosure control, partitioning, automatic assignment on drive replacement, `files.write`.
+
+Scope note: the Stage A contract's deferral list puts "SES and controller discovery" under Stage C. As
+requested for this Stage B slice, only its **read-only** discovery part is delivered here; enclosure
+control and identify LEDs (Stage C/D actions) stay undelivered.
+
+### Delivered
+
+- **Location badge.** The Storage inventory ("Observed storage resources"), the enclosure slot tables and
+  the selected-resource details show `<chassis name> · <bay label>` (grid position when the label is blank)
+  for a whole disk **only** when its bay reconciles as `present`. Missing, mismatch, unknown and unassigned
+  drives get no bay. The badge is labelled "Manual, unverified": the administrator's Stage A assignment is
+  still the only source of a chassis/bay location. It joins on `persistent_id`, so a renumbered kernel name
+  does not move it. No extra request: the Storage page reuses the layout the Drives & bays panel reads.
+- **Read-only controller and enclosure discovery** (`backend/internal/storageinfo/hardware.go`), part of the
+  existing unprivileged hc-api collector (`os.Root` over `/`, fixed sysfs paths, no request parameters):
+  - controllers from `/sys/class/scsi_host` and `/sys/class/nvme`: kind, driver, PCI function, SAS
+    address, board model and firmware. The ID is `pci:<address>` when known, otherwise snapshot-local;
+  - per-disk links: controller plus port evidence (`ataN`, `phy N` from `/sys/class/sas_device`, `nvmeN`);
+  - SES enclosures from `/sys/class/enclosure` (kernel `ses` driver): logical ID, vendor/model, elements
+    with slot number and reported status.
+- **Enclosure slot → drive identity** only when unambiguous: the element's attached device resolves to
+  exactly one observed whole disk with a `wwn:`/`nvme-uuid:`/`serial:` identity (device number, and
+  diskseq when both sides report it, must match this observation), the enclosure reports a non-zero,
+  unique logical ID, and the identity is in no other slot. Otherwise the slot says why: `empty`,
+  `not-a-disk`, `changed`, `unidentified`, `ambiguous` (for example a dual-path enclosure), or
+  `no-enclosure-id`. An enclosure slot is firmware-numbered **evidence**; it is never called a bay, never
+  creates or changes an assignment, and a present bay only displays it next to the manual statement.
+- No new route, scope, broker op or root code. Nothing is executed (hc-api still cannot spawn), no `/dev`
+  node is opened, and no sysfs attribute is written (`locate`/`fault` are never opened). `GET /storage`
+  gains an optional `graph.hardware` object (OpenAPI `StorageHardware`).
+- Source: the controller-link-as-evidence concept follows the owner-supplied HBA Viewer
+  (`KRDucky/hbaviewer-cockpit`, MIT, reviewed at `8061595c`; see D-12). No code was copied (that project
+  uses lsblk, storcli/lsiutil and a privileged Python helper, and does not read `/sys/class/enclosure`), so
+  no third-party notice is added.
+
+### Tests run (2026-11-20, local, branch `feat/m25-stage-b`)
+
+- `go test -count=1 ./internal/storageinfo/` and `go test -count=1 ./...` (backend): pass. New
+  `hardware_test.go` (synthetic sysfs trees with real-shaped symlinks): controllers/links/enclosure,
+  two disks in two slots (each keeps its own enclosure fields), kernel-name renumbering, dual-path
+  ambiguity, six refusal cases, logical-ID zero padding, no controller
+  classes, escaping symlink, `locate` untouched.
+- Frontend: `npm run typecheck`, `lint`, `format:check`, `npx vitest run` (24 files, 248 tests, including 10
+  in `locationBadge.test.tsx`), `npm run build`: pass.
+- Browser (opt-in `TestStorageBrowserFixture`, synthetic HBA + SES enclosure, headless Chromium + axe):
+  `tests/e2e/storage_browser.py` 27/27 and `tests/e2e/layout_browser.py` 23/23 passed; axe (WCAG 2.2 AA
+  tags) reported no violations on desktop, 390×844 mobile, and with a badge shown.
+- `make check`: exit 0 (shellcheck skipped locally: not installed).
+
+### Not verified
+
+- **No live hardware.** No SAS HBA, SES enclosure or real controller was read; discovery is verified on
+  synthetic sysfs fixtures only. sysfs attribute formats were taken from the kernel's documented
+  `scsi_host`/`nvme`/`enclosure`/`sas_device` classes, not observed on a device. No VM or container run.
+- Vendor-specific element naming/numbering, multipath beyond the dual-path enclosure case, RAID-mode
+  controllers that hide disks behind virtual drives, and USB/Thunderbolt enclosures are untested.
+- Exact-head CI has not run on this branch. No owner acceptance or security review.

@@ -115,6 +115,57 @@ export function pvDeviceLinkText(pv: PhysicalVolume): string {
   }
 }
 export type LVMReportMode = 'metadata-only' | 'live';
+/** M2-5 Stage B: read-only controller and SES enclosure evidence from sysfs.
+ * An enclosure slot is numbered by enclosure firmware; it is never a verified
+ * front-panel bay and never a bay assignment. */
+export type SlotMatch =
+  'matched' | 'empty' | 'not-a-disk' | 'changed' | 'unidentified' | 'ambiguous' | 'no-enclosure-id';
+export interface StorageController {
+  id: string;
+  kind: 'sas' | 'sata' | 'usb' | 'virtio-scsi' | 'scsi' | 'nvme';
+  driver?: string;
+  pci_address?: string;
+  sas_address?: string;
+  model?: string;
+  firmware?: string;
+  hosts?: string[];
+}
+export interface EnclosureSlot {
+  element: string;
+  slot?: number;
+  type?: string;
+  status?: string;
+  occupied: boolean;
+  match: SlotMatch;
+  node_id?: string;
+  persistent_id?: string;
+}
+export interface StorageEnclosure {
+  id?: string;
+  identity_status: 'observed' | 'ambiguous' | 'unavailable';
+  name: string;
+  vendor?: string;
+  model?: string;
+  controller_id?: string;
+  components: number;
+  slots: EnclosureSlot[];
+}
+export interface HardwareLink {
+  node: string;
+  controller_id?: string;
+  port?: string;
+  enclosure_id?: string;
+  element?: string;
+  slot?: number;
+}
+export interface StorageHardware {
+  status: 'observed' | 'unavailable';
+  source: string;
+  controllers: StorageController[];
+  enclosures: StorageEnclosure[];
+  links: HardwareLink[];
+  notes: string[];
+}
 export interface StorageInventory {
   collected_at: string;
   read_only: true;
@@ -123,6 +174,7 @@ export interface StorageInventory {
   graph: {
     boot_id?: string;
     lvm?: { mode: LVMReportMode; source: string; volumes: LVMVolume[]; physical_volumes: PhysicalVolume[] };
+    hardware?: StorageHardware;
     nodes: StorageNode[];
     edges: StorageEdge[];
     claims: { node: string; technology: string; evidence: StorageEvidence }[];

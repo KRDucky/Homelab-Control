@@ -80,11 +80,22 @@ const (
 	// storage.read (assigning a drive additionally requires storage.read).
 	ScopeLayoutManage = "layout.manage"
 	// ScopeFilesRead allows listing and statting entries under administrator
-	// allow-listed confined roots (file-manager first checkpoint). It never
-	// grants content download or writes. Not in DefaultScopes and not implied
-	// by system.read, layout.manage, host.settings.preview, host.settings.apply,
-	// storage.read or services.files (services.files stays unit-file contents).
+	// allow-listed confined roots (file-manager first checkpoint). It also
+	// grants content read and download in the write slice (2026-11-20). It
+	// never grants writes. Not in DefaultScopes and not implied by system.read,
+	// layout.manage, host.settings.preview, host.settings.apply, storage.read
+	// or services.files (services.files stays unit-file contents).
 	ScopeFilesRead = "files.read"
+	// ScopeFilesWrite allows content write/replace, upload, create and rename
+	// inside administrator allow-listed confined roots (2026-11-20, ADR 0012
+	// amendment). Not in DefaultScopes and implied by no other scope,
+	// including files.read (reading never implies writing) and services.files.
+	ScopeFilesWrite = "files.write"
+	// ScopeFilesDestroy allows deleting a file or empty directory inside an
+	// allow-listed confined root through plan → confirm (2026-11-20, ADR 0012
+	// amendment, ADR 0011 pattern). Not in DefaultScopes and implied by no
+	// other scope, including files.write.
+	ScopeFilesDestroy = "files.destroy"
 	// ScopePackagesRead allows read-only Software Center queries (M4-1b):
 	// search, installed list, pending-update preview and configured sources,
 	// all from the local cache with no network and no writes. Not in
@@ -132,6 +143,8 @@ var KnownScopes = map[string]bool{
 	ScopeHostSettingsApply:    true,
 	ScopeLayoutManage:         true,
 	ScopeFilesRead:            true,
+	ScopeFilesWrite:           true,
+	ScopeFilesDestroy:         true,
 	ScopePackagesRead:         true,
 	ScopeMergerFSRead:         true,
 	ScopeZFSRead:              true,
