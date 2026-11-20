@@ -87,8 +87,8 @@ See `M2-PR1-PROPOSAL.md`. **No privileged writes.** Decisions: D-1, D-6, D-7.
 | **Scope** | Read current values; set hostname (static and pretty) and timezone through `hostnamectl`/`timedatectl` argv templates; validation (RFC 1123 hostname, timezone in `timedatectl list-timezones`) |
 | **Prerequisites** | M2-2 framework |
 | **Security** | `reversible` class; confirmation; warns that hostname affects TLS names and mDNS |
-| **Exclusions** | Network configuration, NTP servers, users and groups |
-| **Status** | Apply backend implemented, **not accepted** (2026-11-06): `GET /host/settings`, non-executing `POST /host/settings/preview`, ADR 0011 `POST /host/settings/plan` and `/apply` (`host.settings.apply`). See [`M2-6-HOST-SETTINGS-SKELETON.md`](M2-6-HOST-SETTINGS-SKELETON.md) |
+| **Exclusions** | Network configuration, NTP servers, users and groups. No custom hostname stack |
+| **Status** | Apply backend implemented, **not accepted** (2026-11-06): `GET /host/settings`, non-executing `POST /host/settings/preview`, ADR 0011 `POST /host/settings/plan` and `/apply` (`host.settings.apply`). Owner 2026-11-20: stay on `hostnamectl` and `timedatectl`. See [`M2-6-HOST-SETTINGS-SKELETON.md`](M2-6-HOST-SETTINGS-SKELETON.md) |
 
 ## 3. Testing requirements
 | Test | Mandatory before the first privileged write (M2-2) | Introduced later |
@@ -98,8 +98,8 @@ See `M2-PR1-PROPOSAL.md`. **No privileged writes.** Decisions: D-1, D-6, D-7.
 | OpenAPI contract tests for new routes | Yes | — |
 | Vitest for dialogs, permission gates, plan preview | Yes | — |
 | Playwright flow + axe 0 violations | Yes | Mobile layout checks for every new page (M2-3+) |
-| Real systemd in CI (Ubuntu 24.04 runner, 26.04 container) with a disposable unit | Yes | Fedora/Arch systemd containers (M2-3) |
-| Owner VM (`dev/vm/`) on Ubuntu 26.04 + one non-Debian family | Yes | All five families before M2 closes |
+| Real systemd in CI (Ubuntu 24.04 runner, 26.04 container) with a disposable unit | Yes | Fedora and Arch systemd containers are not a release gate. Return to them after the Debian/Ubuntu production release |
+| Owner VM on Debian and Ubuntu | Yes | Fedora and Arch are not required before that release |
 | Package install/upgrade test incl. `state.db` migration | Yes (from PR-1) | Downgrade refusal test |
 | Storage fixtures and loop devices | — | M2-4 onward (no real host disks; CLAUDE.md) |
 | Existing CI | Unchanged; nothing is weakened | — |
@@ -122,5 +122,6 @@ This §4 sequence is the 2026-10-21 proposal. **D-8 (2026-11-07) kept `docs/proj
 Users and groups administration gets its own milestone once identity work (PAM, still deferred) is scheduled.
 
 ## 5. Mandatory vs optional summary
-- **Mandatory for M2 close:** PR-1, M2-2, M2-3, M2-4, M2-5 and M2-6, the separately authorized file manager, and their security checklists and required evidence.
+- **Mandatory for M2 close:** PR-1, M2-2, M2-3, M2-4, M2-5 and M2-6, the separately authorized file manager, and their security checklists and required evidence. Prove it on Debian and Ubuntu.
+- **Not a release gate (owner, 2026-11-20):** Fedora and Arch. Nice to have after the Debian/Ubuntu production release. Do not block M2 on them.
 - **Optional enhancements:** TOTP step-up (D-3 option B). M2-5/M2-6 are required by the owner.

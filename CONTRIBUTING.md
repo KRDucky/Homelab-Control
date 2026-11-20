@@ -6,7 +6,9 @@
 
 Thank you for helping. Please read `CLAUDE.md` (project rules), `docs/STATUS.md` (what is in scope now)
 and `docs/dev/DEVELOPMENT.md` (build and test) first. Milestones are gated: work beyond the current
-milestone needs the owner's approval before a pull request.
+milestone needs the owner's approval before a pull request. Owner 2026-11-20, until M2 is production
+ready: do not stop to ask. Follow the owner stance in `CLAUDE.md`. A system-account login over HTTPS
+is enough, and a change should stay simple.
 
 ## Licence of contributions
 - Contributions to the core are licensed **GPL-3.0-or-later**; contributions to `sdk/`, `schemas/`,

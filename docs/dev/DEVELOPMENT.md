@@ -1,5 +1,11 @@
 # Development guide
 
+## Working rule (owner, 2026-11-20)
+
+Keep changes small. Do not over-engineer. A system-account login over HTTPS is enough for this LAN app. Hostname and timezone go through `hostnamectl` and `timedatectl` only. The last M2 acceptance step is a cleanup of code that is already there: no new features and no new architecture. On a disposable test VM, force power-off if ACPI shutdown is ignored, then continue. Until M2 is production ready, decide and proceed; do not stop to ask.
+
+Develop on Debian and Ubuntu. Fedora and Arch are not part of this release. Return to those versions after the Debian/Ubuntu production release. Ignore SELinux. The storage-probe AppArmor profile already exists; add another only if a Debian or Ubuntu run shows it is not enough.
+
 ## Requirements
 | Tool | Version used in M0 | Notes |
 |---|---|---|
