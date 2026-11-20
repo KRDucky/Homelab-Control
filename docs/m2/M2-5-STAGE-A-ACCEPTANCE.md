@@ -126,7 +126,8 @@ control and identify LEDs (Stage C/D actions) stay undelivered.
 
 - `go test -count=1 ./internal/storageinfo/` and `go test -count=1 ./...` (backend): pass. New
   `hardware_test.go` (synthetic sysfs trees with real-shaped symlinks): controllers/links/enclosure,
-  kernel-name renumbering, dual-path ambiguity, six refusal cases, logical-ID zero padding, no controller
+  two disks in two slots (each keeps its own enclosure fields), kernel-name renumbering, dual-path
+  ambiguity, six refusal cases, logical-ID zero padding, no controller
   classes, escaping symlink, `locate` untouched.
 - Frontend: `npm run typecheck`, `lint`, `format:check`, `npx vitest run` (24 files, 248 tests, including 10
   in `locationBadge.test.tsx`), `npm run build`: pass.

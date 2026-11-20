@@ -298,7 +298,9 @@ func collectHardware(ctx context.Context, root *os.Root, g Graph, read func(stri
 			disks[n.DeviceNumber] = i
 		}
 	}
-	linkFor := map[string]*HardwareLink{}
+	// linkIndex maps a node ID to its position in hw.Links. Positions stay
+	// valid while hw.Links grows; pointers into the slice would not.
+	linkIndex := map[string]int{}
 	for _, i := range sortedDisks(disks) {
 		n := g.Nodes[i]
 		target := link("sys/class/block/" + n.Name)
@@ -330,7 +332,7 @@ func collectHardware(ctx context.Context, root *os.Root, g Graph, read func(stri
 			continue
 		}
 		hw.Links = append(hw.Links, *l)
-		linkFor[n.ID] = &hw.Links[len(hw.Links)-1]
+		linkIndex[n.ID] = len(hw.Links) - 1
 	}
 
 	encs, _ := list("sys/class/enclosure", maxEnclosures)
@@ -434,10 +436,11 @@ func collectHardware(ctx context.Context, root *os.Root, g Graph, read func(stri
 				s.Match, s.NodeID, s.PersistentID = "ambiguous", "", ""
 				continue
 			}
-			if l := linkFor[s.NodeID]; l != nil {
-				l.EnclosureID, l.Element, l.Slot = enc.ID, s.Element, s.Slot
+			if i, ok := linkIndex[s.NodeID]; ok {
+				hw.Links[i].EnclosureID, hw.Links[i].Element, hw.Links[i].Slot = enc.ID, s.Element, s.Slot
 			} else {
 				hw.Links = append(hw.Links, HardwareLink{Node: s.NodeID, EnclosureID: enc.ID, Element: s.Element, Slot: s.Slot})
+				linkIndex[s.NodeID] = len(hw.Links) - 1
 			}
 		}
 	}
