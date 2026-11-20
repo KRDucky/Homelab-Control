@@ -5,8 +5,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 # M2-5 Stage A — manual drive-bay layout: UI acceptance status
 
-Status: development/checkpoint documentation, not an owner acceptance and not a merge decision. This
-records what Stage A delivers and what it explicitly defers. D-12 source review is recorded in
+Status: Stage A owner-accepted for M5 on 2026-11-20. This records what Stage A delivers and what it
+explicitly defers; this is not a merge decision. Stage B is separately authorized and remains incomplete. D-12 source review is recorded in
 `OWNER-DECISIONS.md`: Stage A reuses the HBA Viewer bay-layout concept, with no upstream code copied.
 
 ## Delivered (Stage A core)
@@ -74,18 +74,17 @@ The Playwright + axe fixture is now present and was run against the current loca
 run used labelled synthetic storage identities and the actual fixture API/SQLite. It is recorded in
 `docs/m2/evidence/browser-2026-11-18/layout/`. The browser test was corrected to send the required
 optimistic-concurrency `version` for assignment and delete. D-12 source identification and concept
-reconciliation are recorded; this does not constitute owner acceptance.
+reconciliation are recorded.
 
 ## Not claimed
 
 No host writes, no storage access, no broker operation, no SES/controller/LED discovery, and no HBA
-Viewer reconciliation. No owner acceptance or merge is implied.
+Viewer reconciliation. Stage A acceptance does not accept Stage B or decide a merge.
 
 ## Stage B — location badge and read-only hardware discovery (development, not accepted)
 
-Status: development checkpoint on branch `feat/m25-stage-b`. **Not owner-accepted**, not a merge decision
-and not M2 close. The Stage B development authorization (2026-11-20) was relayed by the coordinating agent;
-this branch does not add an `OWNER-DECISIONS.md` entry for it. Out of scope and not delivered: LED locate,
+Status: on main through PR #127. **Not owner-accepted** and not M2 close. The Stage B development
+authorization (2026-11-20) was relayed by the coordinating agent. Out of scope and not delivered: LED locate,
 SES blink or any enclosure control, partitioning, automatic assignment on drive replacement, `files.write`.
 
 Scope note: the Stage A contract's deferral list puts "SES and controller discovery" under Stage C. As
