@@ -366,3 +366,37 @@ func TestHardwareNeverWritesLocate(t *testing.T) {
 		t.Fatal("locate attribute changed")
 	}
 }
+
+// Two whole disks in two slots: every disk keeps its own enclosure fields.
+// Links grow while disks are discovered, so slot data must be attached by
+// node, never through pointers into a slice that may still reallocate.
+func TestHardwareTwoDisksTwoSlotsKeepEnclosureFields(t *testing.T) {
+	s := newTree(t)
+	s.hba()
+	sda := s.sasDisk("0", "sda", "8:0", "1", "naa.5000000000000a01", "4")
+	sdc := s.sasDisk("2", "sdc", "8:32", "2", "naa.5000000000000a03", "6")
+	s.enclosure("1", "0x500a0b8000000001", []string{"Slot 00", "Slot 01"}, []string{"0", "1"},
+		map[string]string{"Slot 00": sda, "Slot 01": sdc})
+	g, h := collectHW(t, s)
+	want := map[string]struct {
+		element, port string
+		slot          int
+	}{"sda": {"Slot 00", "phy 4", 0}, "sdc": {"Slot 01", "phy 6", 1}}
+	for name, w := range want {
+		n := nodeByName(t, g, name)
+		l := linkOf(h, n.ID)
+		if l == nil || l.ControllerID != "pci:0000:01:00.0" || l.Port != w.port ||
+			l.EnclosureID != "ses:500a0b8000000001" || l.Element != w.element || l.Slot == nil || *l.Slot != w.slot {
+			t.Fatalf("%s link %+v", name, l)
+		}
+	}
+	matched := 0
+	for _, sl := range h.Enclosures[0].Slots {
+		if sl.Match == "matched" {
+			matched++
+		}
+	}
+	if matched != 2 {
+		t.Fatalf("want 2 matched slots, got %+v", h.Enclosures[0].Slots)
+	}
+}
