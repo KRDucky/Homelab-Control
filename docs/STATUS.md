@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 14066)
+Total output lines: 678
+
 # Current status — M2-3 A3–A5 evidence (2026-11-19); M2 remains open
 
 PR #118 was merged as `c54fe5cc`. PR #119 is on `main` as `91d79d30`. PR #120, the corrected Fedora
@@ -274,6 +277,12 @@ existing local account; scopes stay on the local account. Notes: [`docs/security
 
 ## M2-6: hostname and timezone apply (local closeout candidate; not owner-accepted)
 
+On 2026-11-20, the owner confirmed that the Ubuntu 26.04.1 hostname/timezone proof is sufficient for
+this check. It does not require Ubuntu 22.04 or Debian; Fedora and Arch remain out of this release.
+The evidence and exact read-back values are in the
+[`M2-6 host settings working note`](m2/M2-6-HOST-SETTINGS-SKELETON.md). This does not accept M2-6
+or M2 and does not record production activation.
+
 The synthetic Playwright fixture has 33 passing checks, zero desktop/mobile axe violations, and no
 mobile overflow. DeepSeek added a confirmation-cancel regression test (reported in 205 total Vitest
 checks) and repaired two storage-module test expectations; focused Go, full frontend, vet, typecheck
@@ -288,97 +297,7 @@ apply UI PR #42 (`90453f0a`, 2026-11-07). ADR 0011 `POST /host/settings/plan` an
 `host.settings.apply`, never default) with closed `hostnamectl`/`timedatectl` templates. Preview stays
 non-executing and never posts plan or apply. ADR 0008 Amendment 4 and the ADR 0011 M2-6 extension remain
 **Proposed**. Isolated fixtures only; no production or retained-host apply. The opt-in Playwright+axe
-fixture (`TestHostSettingsBrowserFixture`, `tests/e2e/host_settings_browser.py`) is documented in
-`docs/m2/M2-6-HOST-SETTINGS-SKELETON.md` and exercises preview plus confirmation against a fail-closed
-fake broker. It never runs `hostnamectl` or `timedatectl`. Not in CI. This is not M2-6 owner acceptance,
-not production, not KVM acceptance, and not M2 close. Working notes:
-[`docs/m2/M2-6-HOST-SETTINGS-SKELETON.md`](m2/M2-6-HOST-SETTINGS-SKELETON.md).
-
-## File manager: read-only listing (local closeout candidate; not accepted)
-
-The navigation/details UI implementer reports 47 synthetic fixture checks, zero desktop/mobile axe
-violations and no mobile overflow; evidence is preserved in `docs/m2/evidence/browser-2026-11-18/files-ui/`.
-The integration host cannot rerun these checks because Node/npm/Go are unavailable. Static review's
-filename spoofing, table-detail collision, unreadable-directory and audit-path findings have focused
-repairs; invalid UTF-8/backslash navigation is still being resolved on the backend. Implementer test
-reports are not yet rerun on the integrated candidate. ADR 0012 and owner acceptance remain open; no
-write operations are in scope.
-
-Owner `ask_ui` selected the file manager after squash-merging PR #42. Isolated **read-only** listing and
-stat of entries under allow-listed confined roots (`files.read`, never default). `hc-api` reopens each
-jail with `openat`+`O_NOFOLLOW`; there is no broker file operation. No content download, editor, or
-writes. On `main`: backend PR #43 (`5da0ac90`, 2026-11-07); read-only UI PR #45 (`519e1c52`, 2026-11-07,
-`frontend/app/src/pages/Files.tsx`, route `/files`); docs nit PR #46 (`8f8d918e`, 2026-11-07); opt-in
-Playwright script PR #50 (`8bdc574a`) and Go fixture PR #49 (`0e7abb59`). Identifier-bearing GETs require
-the session CSRF token; a present Origin still has to match `originAllowed` (same-origin GET fetch omits
-Origin). ADR 0012 is **Proposed**. New folder, Permissions, and Download stay hidden. Opt-in Playwright+axe
-(`TestFilesBrowserFixture`, `tests/e2e/files_browser.py`) is a labelled synthetic jail only; not live host
-browse; not in CI. This is a working skeleton, not M2 close, not M2-6 acceptance, not production, and not
-KVM acceptance. Working notes:
-[`docs/m2/FILE-MANAGER-SKELETON.md`](m2/FILE-MANAGER-SKELETON.md).
-
-## M2-2: controlled systemd service management (authorized 2026-10-23; merged 2026-10-26, PR #28, merge commit `a3447efa`)
-
-The owner authorized M2-2 and approved D-2 (broker-issued plan → confirm → execute), D-3 (password
-step-up), D-4 (`root-exec` runner class) and D-5 (built-in protected-unit policy), option A each
-(`docs/m2/OWNER-DECISIONS.md`). It was delivered as two stacked PRs: M2-2a, the framework (PR #27, one
-commit, `457eddf1`), and M2-2b, operations, API and UI (PR #28). GitHub reports #27 as merged (page fetched
-2026-10-27: "KRDucky merged commit 457eddf into main", Oct 26); its commit entered `main` through PR #28, and
-there is no separate merge commit for it.
-
-Commits named in this section: `970341e6` is the local and container evidence commit; `987ba011` is the PR #28
-head; `a3447efa` is the merge commit, whose tree is identical to `987ba011`'s. `987ba011` differs from
-`970341e6` by four frontend/test files (from merging PR #26's changes into the branch) and documentation.
-
-- **What exists on `main`:** start, stop and restart of loaded `.service` units from the Services
-  page, scope `services.operate` (never granted by default); broker plan tokens (HMAC-SHA256, 120 s,
-  single use, bound to op, action, canonical unit, actor, session and observed state); per-unit locks;
-  revalidation; a hash-chained, fsync'ed operation journal with interrupted-operation recovery; step-up
-  re-authentication for disruptive operations (5 min, per session); a fixed protected-unit policy
-  applied to aliases, unit files, template bases and, transitively, dependencies; outcomes verified by
-  reading the unit state back. Design: ADR 0011 and ADR 0008 Amendment 2. Results:
-  `docs/m2/M2-2-ACCEPTANCE.md`. User guide: `docs/user/SERVICE-MANAGEMENT.md`.
-- **Still not authorized by M2-2 itself (2026-10-26):** later milestones, enable/disable, mask/unmask,
-  unit-file editing, daemon-reload, other unit types, host shutdown or reboot, arbitrary commands, storage,
-  Docker, packages, users and groups, third-party modules. Later development authorizations and working
-  skeletons on `main` are in the M2-3 through file-manager sections above; they are not M2-2 scope.
-- **Acceptance evidence, by source** (details and exact gaps: `docs/m2/M2-2-ACCEPTANCE.md`,
-  `docs/evidence/m2/`):
-  - **Local and disposable containers (no VM), on `970341e6`:** `make check`; Go tests as non-root;
-    Vitest 63; Playwright on Chromium and WebKit; M2-2 real-systemd scenario 86/86 on Ubuntu 26.04.1
-    (systemd 259.9) and on Fedora 43 (systemd 258.11), including the token and step-up expiry waits. Not
-    re-run on `987ba011` or `a3447efa`.
-  - **GitHub CI:** the workflow concluded success overall on ci #83 (PR #27 head `457eddf1`), ci #84
-    (`987ba011`) and ci #85 (`main`, `a3447efa`, run 40292176133); each reports 12 notices and no warnings or
-    errors. The workflow is configured to run the M2-2 service-operations scenario in short mode on Ubuntu
-    24.04 (runner) and 26.04 (container) and the service-operations dialog test on Chromium, Firefox and
-    WebKit. **Individual job conclusions and logs were not seen**, so execution of those particular checks in
-    CI is not verified. The expiry waits (`HC_M2_LONG`) are not configured in CI, and CI has no non-Debian
-    real-systemd job; that evidence was then container-only; later KVM runs include both expiry waits.
-  - **Later KVM closeout:** [combined-main evidence](evidence/m2/vm-final-main-d812995e/README.md): Ubuntu/Fedora/Arch extended scenario 89/0, 89/0, 88/0; smoke/M1 67/0 and browser B1–B15 15/15 each; E4 1.6/1.5. E2/E4 closed by owner 2026-10-29.
-  - **Binding checklist (`docs/m2/M2-SECURITY-ACCEPTANCE.md`: every item in §1–§3 must pass before merge):**
-    PR #28 was merged while E2 had no evidence and E4's required VM evidence was missing (only a container
-    check existed). No evidence was linked in the PR description; other locations (comments, linked discussions)
-    were not inspected, and no review was submitted on the PR page (review elsewhere is not verified). No contemporaneous owner
-    exception to that pre-merge condition was recorded. By the owner's decision of 2026-10-27 (message
-    "HomeControl — Documentation Reconciliation Decisions", 00:38 America/Chicago, after the merge; quoted in
-    `docs/m2/M2-2-ACCEPTANCE.md`), **E2 was deferred, not waived and not passed at that time**, and is required before
-    `services.operate` is enabled in a real deployment. That decision names E2 only; it does not make any
-    criterion pass.
-- **Latest validated CI on `main`:** run 40666815912 at `d812995e`: 21/21 successful job conclusions. Corrections #31 (Setsid/diagnostics), #32 (process-group test) and #30 (H3 cleanup/Webmin fixture) are merged. The original CI discussion above concerns older runs.
-
-## UI foundation continuation (2026-10-25, merged in PR #24)
-
-The owner authorized completing the remaining frontend and adding a user Theme Development Kit. PR #24 implements shared responsive tables/states, navigation-only palette, browser-local theme import/export and Theme Studio, and the MIT TDK. [Implementation handoff](ui/11-IMPLEMENTED-UI-AND-TDK.md) records the supported contract. This is frontend authorization; no host-operation permission or server settings store is added.
-
-**Final design review (2026-10-26):** design accepted; seven defects (DT-1 to DT-7) fixed in PR #25, with follow-up fixes in PR #26 (both merged 2026-10-26). See [docs/ui/12](ui/12-FINAL-DESIGN-REVIEW-AND-HANDOFF.md) for what was and was not verified (Chromium locally; no real broker data, screen reader or Windows High Contrast device).
-
-## Merged work
-- PR #5 (licence compliance, Webmin independence, UI plan): merged 2026-10-19 as `bc7205e3`; 20/20 checks
-  on `main`.
-- PR #6 (release signing deferred, phased releases): merged 2026-10-19 as `8b0f017e`; 20/20 checks on
-  `main` (run 39210847731).
-- PR #7 (CI modernization: node24 actions pinned by SHA, manual runs, `govulncheck` v1.9.0): merged
+fixture (`TestHostSe…2066 tokens truncated…actions pinned by SHA, manual runs, `govulncheck` v1.9.0): merged
   2026-10-20 as `259cf5bb`; 20/20 checks on `main` (run 39375492889).
 - PR #8 (Phase 1 release workflow): merged 2026-10-21 as `296ebd0b`.
 - PR #9 (Go 1.26.10 for GO-2026-6809): merged 2026-10-21 as `ec34b21e`; main CI run 39560364523 20/20.

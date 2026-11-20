@@ -4,6 +4,14 @@ Status 2026-11-18: local closeout candidate includes the owner-authorized apply 
 
 Owner 2026-11-20: keep this slice on the distro tools already used (`hostnamectl`, `timedatectl`). No custom hostname stack, NTP, or network settings. The last M2 acceptance step is a cleanup of existing code, not a new design.
 
+Ubuntu 26.04.1 proof, 2026-11-20: guest `m23-pr119-91d79d30-u2604` is sufficient for this
+hostname/timezone check. The product set the hostname to `hc-m26-proof` and the timezone to
+`America/New_York`, then restored the hostname to `m23-pr119-91d79d30-u2604` and the timezone to
+`Etc/UTC`. `hostnamectl` and `timedatectl` read back the values. The guest shut off cleanly with
+autostart disabled. Evidence: `/mnt/tank/claude-vms/artifacts/m26-host-settings-7021f322-20261120/RESULT.txt`.
+Ubuntu 22.04 was intentionally not used. Fedora and Arch remain out of this release. This proof is
+not M2 acceptance or production activation.
+
 ## What exists
 
 | Route | Scope | What it does |
