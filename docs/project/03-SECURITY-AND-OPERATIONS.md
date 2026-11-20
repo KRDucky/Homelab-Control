@@ -1,5 +1,9 @@
 # Security, Privileges and Operational Safety
 
+## Administration bar (owner, 2026-11-20)
+
+Homelab Control is a LAN web app. A system-account login over HTTPS, as in Cockpit and Webmin, is the bar. Keep sessions, CSRF, and the scoped broker. Do not add controls that make ordinary administration harder, and do not hold M2 for extra gates. Prefer the simple existing path over a new security design.
+
 ## Threat model
 Web UI receives untrusted input and runs near sensitive host resources. Threats: CSRF, XSS, plugin compromise, arbitrary command injection, path traversal, symlink attacks, privilege escalation, package supply-chain compromise, secret leakage, mistaken disk identity, interrupted destructive operations, network lockout.
 

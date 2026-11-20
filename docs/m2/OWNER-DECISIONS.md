@@ -454,3 +454,16 @@ This approval covers implementation and isolated testing only, including disposa
 **Owner instruction:** “do what needs to be done to complete M2. Dont ask me what to do. Use your best judgement. Use claude's VMs for testing. Fix the issues that pop up. when it is ready, open a PR for M2.”
 
 **Recorded scope:** continue the already authorized M2-3 through M2-6 and file-manager work, repair issues found by review, run the required checks and isolated VM validation using the Claude VM pool, and open one M2 pull request when the candidate is reviewable. This does not authorize merging the PR, production activation/deployment, or any host/production mutation. It does not waive mandatory tests or security findings. Any M2 design proposal still needs an evidence-based disposition in the PR; this record does not mark a specific proposal accepted before its supporting checks complete.
+
+## KISS and LAN bar (owner, 2026-11-20)
+
+The owner set the administration bar and the way to finish M2:
+
+- This is a LAN web app. A system-account login over HTTPS, as in Cockpit and Webmin, is enough. Do not add security that makes normal administration harder, and do not block M2 closeout on extra gates.
+- Do the simple thing. Do not over-engineer.
+- M2-6 stays hostname and timezone only, applied with `hostnamectl` and `timedatectl`. No custom stack, NTP, or network settings.
+- The last M2 acceptance step is a cleanup of the existing code: clean and efficient. No new features and no new architecture.
+- A disposable test VM that ignores ACPI shutdown gets a force power-off and the test continues. Do not undefine it or delete its disk unless the task says to.
+- Until M2 is production ready, do not ask the owner questions. Decide and proceed.
+
+This records the instruction. It does not mark M2 accepted or production-active.
