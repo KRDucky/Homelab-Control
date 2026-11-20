@@ -22,20 +22,39 @@ func TestServicesLogsNotGrantedByDefault(t *testing.T) {
 	}
 }
 
-// M2-3: persistent service configuration (boot-time enable/disable) is never
-// granted by default and is not implied by services.operate.
-func TestServicesConfigureNotGrantedByDefault(t *testing.T) {
+// Owner 2026-11-20: services.operate and services.configure are granted to new
+// accounts by default so `hlctl user add` (no --scopes) can operate and
+// configure services. Neither implies the other, and services.logs,
+// services.files and audit.read stay out of DefaultScopes.
+func TestServicesOperateAndConfigureGrantedByDefault(t *testing.T) {
+	if !KnownScopes[ScopeServicesOperate] || ScopeServicesOperate != "services.operate" {
+		t.Fatal("services.operate must be a known scope")
+	}
 	if !KnownScopes[ScopeServicesConfigure] || ScopeServicesConfigure != "services.configure" {
 		t.Fatal("services.configure must be a known scope")
 	}
+
+	seen := map[string]int{}
 	for _, s := range strings.Split(DefaultScopes, ",") {
-		if s == ScopeServicesConfigure || s == ScopeServicesOperate || strings.HasSuffix(s, ".configure") || strings.HasSuffix(s, ".operate") {
+		seen[s]++
+		if s == ScopeServicesLogs || strings.HasSuffix(s, ".logs") ||
+			strings.HasPrefix(s, "audit.") || s == ScopeServicesFiles ||
+			strings.HasSuffix(s, ".files") {
 			t.Fatalf("default scopes grant %s", s)
 		}
 	}
-	sess := Session{Scopes: []string{ScopeServicesOperate}}
-	if sess.HasScope(ScopeServicesConfigure) {
+	if seen[ScopeServicesOperate] != 1 {
+		t.Fatalf("services.operate must appear exactly once in DefaultScopes, got %d", seen[ScopeServicesOperate])
+	}
+	if seen[ScopeServicesConfigure] != 1 {
+		t.Fatalf("services.configure must appear exactly once in DefaultScopes, got %d", seen[ScopeServicesConfigure])
+	}
+
+	if (&Session{Scopes: []string{ScopeServicesOperate}}).HasScope(ScopeServicesConfigure) {
 		t.Fatal("services.operate must not imply services.configure")
+	}
+	if (&Session{Scopes: []string{ScopeServicesConfigure}}).HasScope(ScopeServicesOperate) {
+		t.Fatal("services.configure must not imply services.operate")
 	}
 }
 

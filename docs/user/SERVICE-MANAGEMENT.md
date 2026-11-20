@@ -35,8 +35,9 @@ If unit-file listing fails, the runtime list is still shown, but installed-only 
 
 ## Who can use it
 
-The permission is the scope **`services.operate`**. It is never granted by default, including on
-upgrade. An administrator grants it on the server:
+The permission is the scope **`services.operate`**. New accounts get it by default (owner
+2026-11-20); an existing account does not until `hlctl user scopes` replaces its list. An
+administrator grants it explicitly on the server:
 
 ```sh
 sudo hlctl user scopes --file /etc/homelab-control/users.json --username alice \
@@ -144,7 +145,9 @@ report that the unit file changed on disk. Homelab Control reads the setting fro
 page shows the new value at once.
 
 ### Who can use it
-The scope **`services.configure`**, never granted by default and not implied by `services.operate`:
+The scope **`services.configure`**, granted by default to new accounts (owner 2026-11-20), never
+implied by `services.operate`, and added to an existing account only by `hlctl user scopes` replacing
+its list:
 
 ```sh
 sudo hlctl user scopes --file /etc/homelab-control/users.json --username alice \
