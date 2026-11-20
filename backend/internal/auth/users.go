@@ -53,12 +53,14 @@ const (
 	// was denied, which logs were read). Not in DefaultScopes (D-7).
 	ScopeAuditRead = "audit.read"
 	// ScopeServicesOperate allows start/stop/restart of systemd services
-	// through plan → confirm → execute (M2-2, ADR 0011). Not in DefaultScopes:
-	// grant it explicitly.
+	// through plan → confirm → execute (M2-2, ADR 0011). In DefaultScopes
+	// (owner 2026-11-20): new accounts from `hlctl user add` get it, while an
+	// existing account does not until `hlctl user scopes` replaces its list.
 	ScopeServicesOperate = "services.operate"
 	// ScopeServicesConfigure allows persistent changes to systemd services:
 	// boot-time enable/disable through plan → confirm → execute (M2-3, ADR
-	// 0011). Not in DefaultScopes, never implied by services.operate.
+	// 0011). In DefaultScopes (owner 2026-11-20) and never implied by
+	// services.operate (no scope implies another).
 	ScopeServicesConfigure = "services.configure"
 	// ScopeServicesFiles allows reading unit file and drop-in contents
 	// (M2-3, owner authorization 2026-11-05). Unit files can contain
@@ -152,7 +154,11 @@ var KnownScopes = map[string]bool{
 }
 
 // DefaultScopes are granted by `hlctl user add` when --scopes is not given.
-const DefaultScopes = ScopeSystemRead + "," + ScopeServicesRead + "," + ScopeHardwareRead
+// Owner 2026-11-20: services.operate and services.configure are included so a
+// new install can start/stop/restart and enable/disable services. Loading or
+// upgrading an existing users file never adds scopes.
+const DefaultScopes = ScopeSystemRead + "," + ScopeServicesRead + "," + ScopeHardwareRead +
+	"," + ScopeServicesOperate + "," + ScopeServicesConfigure
 
 var usernameRE = regexp.MustCompile(`^[a-z_][a-z0-9_-]{0,31}$`)
 
