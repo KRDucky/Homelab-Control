@@ -97,6 +97,19 @@ try:
         bay(1, "Present").click()
         check("UI shows manual, unverified provenance", page.get_by_text(f"Manual, unverified — stated by {config['layout_username']}", exact=False).is_visible())
         page.screenshot(path=str(evidence / "assigned-after-reload.png"), full_page=True)
+        # M2-5 Stage B: the present drive carries a location badge in the
+        # inventory and in the enclosure slot table; nothing else gains a bay.
+        badge = f"{CHASSIS} · Row 1, Column 1"
+        resources = page.get_by_role("table", name="Observed storage resources", exact=True)
+        resources.get_by_text(badge, exact=True).wait_for()
+        check("location badge on the inventory for the present drive", resources.get_by_text(badge, exact=True).count() == 1)
+        check("badge labelled manual, unverified", resources.get_by_text("Manual, unverified", exact=True).count() == 1)
+        enclosure = page.get_by_role("table", name="Enclosure ses:500a0b8000000001 (EXAMPLE Synthetic JBOD)", exact=True)
+        check("enclosure slot table shows the same manual bay", enclosure.get_by_text(badge, exact=True).count() == 1)
+        page.evaluate(axe.read_text() + "\n;0")
+        badged = page.evaluate("async () => (await axe.run(document, {runOnly: {type:'tag', values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations.map(v => ({id:v.id,impact:v.impact,targets:v.nodes.map(n=>n.target)}))")
+        (evidence / "axe-badge.json").write_text(json.dumps(badged, indent=2))
+        check("accessibility with location badges shown", not badged)
 
         # A real server refusal (identity already assigned elsewhere) must
         # surface as an error, never as a saved change.
@@ -117,6 +130,7 @@ try:
         page.reload()
         bay(1, "No drive assigned").wait_for()
         check("unassignment survives reload", all(c.get("assignment") is None for c in stored()[0]["cells"]))
+        check("unassigned drive loses its badge", page.get_by_role("table", name="Observed storage resources", exact=True).get_by_text(f"{CHASSIS} ·", exact=False).count() == 0)
 
         # UI error path: delete the chassis server-side, then act on the stale view.
         bay(1, "No drive assigned").click()
