@@ -1,5 +1,9 @@
 # M0–M3 production-readiness status
 
+**Update 2026-11-21.** The owner authorized M2 service management as production, including the closed systemctl verbs, and closed GitHub milestone 3. The table below is the 2026-11-18 reconciliation. It is not rewritten. M3 and M4 were not started.
+
+
+
 **Reconciled:** 2026-11-18 against `main` at `59170f772e907d21a41842401c292c610e7ff4b3` plus draft PR #118 on `dreggbot/m2-acceptance-integration`.
 **Verdict:** not production-ready; M2 is not closed, so M3 acceptance remains gated. This is a readiness
 reconciliation, not owner acceptance, a deployment authorization, or a substitute for the milestone

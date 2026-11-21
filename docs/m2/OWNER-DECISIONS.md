@@ -473,3 +473,18 @@ The owner: focus development on Debian and Ubuntu. Those are the primary platfor
 Do not start new Fedora or Arch guest work, package work, or acceptance work for the current release. Existing Fedora and Arch evidence stays history. This does not mark M2 accepted or production-active.
 
 Ignore SELinux work for this release. Do not extend `packaging/fedora/selinux/`. The AppArmor profile that this release needs is already in `packaging/debian/apparmor/` (`hc-storage-probe`), exercised in enforce mode on Debian 13. Build another profile only if a Debian or Ubuntu run shows that one is not enough. Ubuntu remains unvalidated for that profile.
+
+## Service management is production (owner, 2026-11-21)
+
+The owner: if it is a function of systemctl or systemd, it is in scope, and M2 management is production.
+
+Recorded here:
+
+- `services.operate` and `services.configure` are production. New `hlctl user add` with no `--scopes` grants them, plus `services.logs`, `services.files` and `services.systemctl`. An existing users file is not rewritten. One scope does not imply another. `audit.read` stays off.
+- `services.systemctl` is the closed template set: start/stop/restart/reload of any unit type the query grammar allows, mask, unmask, drop-in edit, daemon-reload, daemon-reexec, host power (poweroff, reboot, halt, suspend, hibernate, hybrid-sleep, kexec, soft-reboot), and the other verbs named in the registry. It is not a shell.
+- The older start/stop/enable paths stay `.service`-only. Protected units (SSH, Homelab Control, journald, and the rest of the existing list) are still refused. Activating a power target through a unit verb is still refused. Host power is its own verb.
+- `systemctl link`, `set-property`, a chosen kill signal, and `switch-root` are not templates.
+- A drop-in write does not reload systemd by itself.
+- E2 was not run. It is not a deployment gate.
+- Issue #90 and GitHub milestone 3 are closed. That does not accept Proposed ADRs that this note does not name, and it does not start M3 or M4.
+- A free-form shell stays out. Packages, storage writes, containers, and user or group management stay out.

@@ -1,3 +1,7 @@
+# Production service management (2026-11-21)
+
+Owner: M2 service management is production. `main` before this branch is `08f0e4aa` (PR #136). New accounts get `services.read`, `services.operate`, `services.configure`, `services.logs`, `services.files` and `services.systemctl`. Existing `users.json` is not rewritten. `audit.read` stays off. `services.systemctl` is the closed systemctl set (mask, unmask, drop-in edit, daemon-reload, host power, socket and timer verbs, and the other templates in that operation). It is not a shell. Issue #90 and GitHub milestone 3 were closed on 2026-11-21. E2 was not run and is not a gate. M3 and M4 are not started. The notes below are history.
+
 # Review candidate — not acceptance (2026-11-20)
 
 `main` is `a00318b5475bceb504f31d10ba327f2abe1ecbdd` (PR #133 squash, merged 2026-11-20T17:49:57Z by KRDucky). Its parent `b71325d7` is the PR #132 squash. The following verdict still names `79a10715` as the tip; that sentence is now historical. Product behavior is `b71325d7` plus the documentation in PRs #130 through #133. GitHub checks on `b71325d7` finished 21/21 success. Checks on `a00318b5` were not recorded here as 21/21. CI is not owner acceptance.

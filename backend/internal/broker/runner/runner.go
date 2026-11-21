@@ -4,7 +4,7 @@
 
 // Package runner is the ONLY place in the code base allowed to execute
 // programs (enforced by internal/guard). It runs allow-listed binaries with
-// argv fixed by the calling operation, a replaced environment, no stdin,
+// argv fixed by the calling operation, a replaced environment, stdin closed,
 // size-capped output, a timeout that kills the whole process group, and
 // as the unprivileged service user. An op may add supplementary groups (e.g.
 // the journal reader group); the uid stays the service user.
@@ -15,6 +15,8 @@
 // template ID and a target that the template's own validator accepts. There
 // is no way to pass a binary, flags or free-form arguments to a root child.
 // The broker hands a Root handle only to ops registered as root-exec.
+// Stdin stays closed except for systemctl.edit, which reads one size-capped
+// drop-in and still cannot take a free-form argument.
 package runner
 
 import (
@@ -110,6 +112,46 @@ const (
 	RootMkfsExt4 RootTemplate = "mkfs.ext4"
 )
 
+// Closed systemctl templates for services.systemctl (owner 2026-11-21).
+// Unit templates accept every unit type validQueryUnit allows. They do not
+// replace systemctl.start/stop/restart/enable/disable, which stay .service
+// only. Host templates take no target. systemctl.edit reads stdin.
+const (
+	RootSystemctlStartUnit       RootTemplate = "systemctl.start-unit"
+	RootSystemctlStopUnit        RootTemplate = "systemctl.stop-unit"
+	RootSystemctlRestartUnit     RootTemplate = "systemctl.restart-unit"
+	RootSystemctlReload          RootTemplate = "systemctl.reload"
+	RootSystemctlTryRestart      RootTemplate = "systemctl.try-restart"
+	RootSystemctlReloadOrRestart RootTemplate = "systemctl.reload-or-restart"
+	RootSystemctlKill            RootTemplate = "systemctl.kill"
+	RootSystemctlResetFailed     RootTemplate = "systemctl.reset-failed"
+	RootSystemctlMask            RootTemplate = "systemctl.mask"
+	RootSystemctlUnmask          RootTemplate = "systemctl.unmask"
+	RootSystemctlReenable        RootTemplate = "systemctl.reenable"
+	RootSystemctlPreset          RootTemplate = "systemctl.preset"
+	RootSystemctlIsolate         RootTemplate = "systemctl.isolate"
+	RootSystemctlRevert          RootTemplate = "systemctl.revert"
+	RootSystemctlSetDefault      RootTemplate = "systemctl.set-default"
+	RootSystemctlFreeze          RootTemplate = "systemctl.freeze"
+	RootSystemctlThaw            RootTemplate = "systemctl.thaw"
+	RootSystemctlEnableUnit      RootTemplate = "systemctl.enable-unit"
+	RootSystemctlDisableUnit     RootTemplate = "systemctl.disable-unit"
+	RootSystemctlDaemonReload    RootTemplate = "systemctl.daemon-reload"
+	RootSystemctlDaemonReexec    RootTemplate = "systemctl.daemon-reexec"
+	RootSystemctlPoweroff        RootTemplate = "systemctl.poweroff"
+	RootSystemctlReboot          RootTemplate = "systemctl.reboot"
+	RootSystemctlHalt            RootTemplate = "systemctl.halt"
+	RootSystemctlSuspend         RootTemplate = "systemctl.suspend"
+	RootSystemctlHibernate       RootTemplate = "systemctl.hibernate"
+	RootSystemctlHybridSleep     RootTemplate = "systemctl.hybrid-sleep"
+	RootSystemctlKexec           RootTemplate = "systemctl.kexec"
+	RootSystemctlSoftReboot      RootTemplate = "systemctl.soft-reboot"
+	RootSystemctlResetFailedAll  RootTemplate = "systemctl.reset-failed-all"
+	RootSystemctlAddWants        RootTemplate = "systemctl.add-wants"
+	RootSystemctlAddRequires     RootTemplate = "systemctl.add-requires"
+	RootSystemctlEdit            RootTemplate = "systemctl.edit"
+)
+
 // managerShowProperties are the manager's unit-load timestamps: realtime
 // (printed in UTC with microseconds) and monotonic. UnitsLoadTimestamp
 // (systemd >= 255) is set at every reload; UnitsLoadStartTimestamp at boot.
@@ -153,6 +195,19 @@ type rootTemplate struct {
 	argv       []string // fixed arguments; the validated targets follow "--"
 	valid      func(target string) bool
 	maxTargets int
+}
+
+// templateFlags holds the few templates that are not "targets after --".
+// Kept off rootTemplate so the closed argv rows stay a 4-field literal.
+type templateFlags struct {
+	// leadPrefix turns targets[0] into one flag inserted before "--".
+	leadPrefix string
+	leadValid  func(string) bool
+	// readsStdin is set only for systemctl.edit.
+	readsStdin bool
+	// exact requires len(targets) == maxTargets. The default allows 1..max
+	// so systemctl.show can take up to 32 units.
+	exact bool
 }
 
 // systemctlShowProperties is the fixed property list of every `systemctl
@@ -218,6 +273,50 @@ var rootTemplates = map[RootTemplate]rootTemplate{
 	RootTimedatectlListTimezones: {"timedatectl", []string{"--no-ask-password", "list-timezones"}, nil, 0},
 	// P0 storage: quiet ext4 format of one by-id path. Unused until review.
 	RootMkfsExt4: {"mkfs.ext4", []string{"-q", "--"}, validStorageByID, 1},
+	// services.systemctl. Job-mode verbs queue one job and fail if another is
+	// already queued. File-level verbs pass --no-reload so they do not reload
+	// PID 1; daemon-reload is its own template. No --now, --force, --runtime,
+	// or --user.
+	RootSystemctlStartUnit:       {"systemctl", []string{"--no-ask-password", "--job-mode=fail", "start", "--"}, validQueryUnit, 1},
+	RootSystemctlStopUnit:        {"systemctl", []string{"--no-ask-password", "--job-mode=fail", "stop", "--"}, validQueryUnit, 1},
+	RootSystemctlRestartUnit:     {"systemctl", []string{"--no-ask-password", "--job-mode=fail", "restart", "--"}, validQueryUnit, 1},
+	RootSystemctlReload:          {"systemctl", []string{"--no-ask-password", "--job-mode=fail", "reload", "--"}, validQueryUnit, 1},
+	RootSystemctlTryRestart:      {"systemctl", []string{"--no-ask-password", "--job-mode=fail", "try-restart", "--"}, validQueryUnit, 1},
+	RootSystemctlReloadOrRestart: {"systemctl", []string{"--no-ask-password", "--job-mode=fail", "reload-or-restart", "--"}, validQueryUnit, 1},
+	RootSystemctlKill:            {"systemctl", []string{"--no-ask-password", "kill", "--signal=SIGTERM", "--"}, validQueryUnit, 1},
+	RootSystemctlResetFailed:     {"systemctl", []string{"--no-ask-password", "reset-failed", "--"}, validQueryUnit, 1},
+	RootSystemctlFreeze:          {"systemctl", []string{"--no-ask-password", "freeze", "--"}, validQueryUnit, 1},
+	RootSystemctlThaw:            {"systemctl", []string{"--no-ask-password", "thaw", "--"}, validQueryUnit, 1},
+	RootSystemctlIsolate:         {"systemctl", []string{"--no-ask-password", "isolate", "--"}, validQueryUnit, 1},
+	RootSystemctlMask:            {"systemctl", []string{"--no-ask-password", "--no-reload", "mask", "--"}, validQueryPlain, 1},
+	RootSystemctlUnmask:          {"systemctl", []string{"--no-ask-password", "--no-reload", "unmask", "--"}, validQueryPlain, 1},
+	RootSystemctlReenable:        {"systemctl", []string{"--no-ask-password", "--no-reload", "reenable", "--"}, validQueryPlain, 1},
+	RootSystemctlPreset:          {"systemctl", []string{"--no-ask-password", "--no-reload", "preset", "--"}, validQueryPlain, 1},
+	RootSystemctlRevert:          {"systemctl", []string{"--no-ask-password", "--no-reload", "revert", "--"}, validQueryPlain, 1},
+	RootSystemctlSetDefault:      {"systemctl", []string{"--no-ask-password", "set-default", "--"}, validQueryPlain, 1},
+	RootSystemctlEnableUnit:      {"systemctl", []string{"--no-ask-password", "--no-reload", "enable", "--"}, validQueryPlain, 1},
+	RootSystemctlDisableUnit:     {"systemctl", []string{"--no-ask-password", "--no-reload", "disable", "--"}, validQueryPlain, 1},
+	RootSystemctlDaemonReload:    {"systemctl", []string{"--no-ask-password", "daemon-reload"}, nil, 0},
+	RootSystemctlDaemonReexec:    {"systemctl", []string{"--no-ask-password", "daemon-reexec"}, nil, 0},
+	RootSystemctlPoweroff:        {"systemctl", []string{"--no-ask-password", "poweroff"}, nil, 0},
+	RootSystemctlReboot:          {"systemctl", []string{"--no-ask-password", "reboot"}, nil, 0},
+	RootSystemctlHalt:            {"systemctl", []string{"--no-ask-password", "halt"}, nil, 0},
+	RootSystemctlSuspend:         {"systemctl", []string{"--no-ask-password", "suspend"}, nil, 0},
+	RootSystemctlHibernate:       {"systemctl", []string{"--no-ask-password", "hibernate"}, nil, 0},
+	RootSystemctlHybridSleep:     {"systemctl", []string{"--no-ask-password", "hybrid-sleep"}, nil, 0},
+	RootSystemctlKexec:           {"systemctl", []string{"--no-ask-password", "kexec"}, nil, 0},
+	RootSystemctlSoftReboot:      {"systemctl", []string{"--no-ask-password", "soft-reboot"}, nil, 0},
+	RootSystemctlResetFailedAll:  {"systemctl", []string{"--no-ask-password", "reset-failed"}, nil, 0},
+	RootSystemctlAddWants:        {"systemctl", []string{"--no-ask-password", "--no-reload", "add-wants", "--"}, validQueryPlain, 2},
+	RootSystemctlAddRequires:     {"systemctl", []string{"--no-ask-password", "--no-reload", "add-requires", "--"}, validQueryPlain, 2},
+	RootSystemctlEdit:            {"systemctl", []string{"--no-ask-password", "--no-reload", "edit", "--stdin", "--"}, validQueryPlain, 2},
+}
+
+// templateFlagsByID is empty for every template that is only argv plus targets.
+var templateFlagsByID = map[RootTemplate]templateFlags{
+	RootSystemctlAddWants:    {exact: true},
+	RootSystemctlAddRequires: {exact: true},
+	RootSystemctlEdit:        {leadPrefix: "--drop-in=", leadValid: validDropInName, readsStdin: true, exact: true},
 }
 
 func validStaticHostname(t string) bool { return hostinfo.ValidStaticHostname(t) == "" }
@@ -237,6 +336,18 @@ var queryUnitRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9:_.@-]{0,99}\.(servi
 func validQueryUnit(t string) bool {
 	return queryUnitRE.MatchString(t) && !strings.Contains(t, "..") && !strings.Contains(t, "@.")
 }
+
+// validQueryPlain is validQueryUnit without a template or instance marker.
+// Enablement, mask and drop-in targets use it. Instances stay on the job verbs.
+func validQueryPlain(t string) bool {
+	return validQueryUnit(t) && !strings.Contains(t, "@")
+}
+
+// dropInNameRE is the only file name systemctl.edit may write. It is a single
+// path segment, not a path.
+var dropInNameRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,40}\.conf$`)
+
+func validDropInName(t string) bool { return dropInNameRE.MatchString(t) }
 
 // storageByIDRE is the exec-time discovery path for a storage root template.
 // Persist/write identity stays wwn / nvme-uuid / serial; kernel names, mapper
@@ -369,12 +480,13 @@ func (r *Runner) RunWithGroups(ctx context.Context, groups []uint32, name string
 	if err := checkBinary(path, r.skipOwnerCheck); err != nil { // re-check at use time
 		return Result{}, err
 	}
-	return r.exec(ctx, path, args, &syscall.Credential{Uid: r.identity.UID, Gid: r.identity.GID, Groups: append([]uint32{}, groups...)})
+	return r.exec(ctx, path, args, &syscall.Credential{Uid: r.identity.UID, Gid: r.identity.GID, Groups: append([]uint32{}, groups...)}, nil)
 }
 
 // exec runs path with args. cred is the child identity when the broker runs
-// as root; nil means "run as root" and is only passed by Root.Run.
-func (r *Runner) exec(ctx context.Context, path string, args []string, cred *syscall.Credential) (Result, error) {
+// as root; nil means "run as root" and is only passed by Root. stdin nil
+// is /dev/null. A non-nil body is only used by systemctl.edit.
+func (r *Runner) exec(ctx context.Context, path string, args []string, cred *syscall.Credential, stdin []byte) (Result, error) {
 	cmd := exec.CommandContext(ctx, path, args...)
 	cmd.Env = []string{
 		"PATH=/usr/sbin:/usr/bin:/sbin:/bin",
@@ -386,7 +498,11 @@ func (r *Runner) exec(ctx context.Context, path string, args []string, cred *sys
 		"TERM=dumb",
 	}
 	cmd.Dir = "/"
-	cmd.Stdin = nil // /dev/null
+	if stdin == nil {
+		cmd.Stdin = nil // /dev/null
+	} else {
+		cmd.Stdin = bytes.NewReader(stdin)
+	}
 	out := &capped{limit: r.maxStdout}
 	errb := &capped{limit: r.maxStderr}
 	cmd.Stdout, cmd.Stderr = out, errb
@@ -600,7 +716,7 @@ func (r *Runner) RunPackageQuery(ctx context.Context, q PackageQuery, query stri
 	if err := checkBinary(path, r.skipOwnerCheck); err != nil {
 		return Result{}, err
 	}
-	return r.exec(ctx, path, argv, &syscall.Credential{Uid: r.identity.UID, Gid: r.identity.GID})
+	return r.exec(ctx, path, argv, &syscall.Credential{Uid: r.identity.UID, Gid: r.identity.GID}, nil)
 }
 
 // Root runs the fixed root argv templates (root-exec class). The broker
@@ -622,36 +738,88 @@ func RootArgv(t RootTemplate, targets ...string) ([]string, error) {
 	if !ok {
 		return nil, fmt.Errorf("%q: %w", t, ErrUnknownTemplate)
 	}
+	flags := templateFlagsByID[t]
+	if flags.leadPrefix != "" {
+		if len(targets) != tpl.maxTargets {
+			return nil, fmt.Errorf("%d targets: %w", len(targets), ErrBadArg)
+		}
+		if flags.leadValid == nil || !flags.leadValid(targets[0]) {
+			return nil, fmt.Errorf("target %q: %w", targets[0], ErrBadArg)
+		}
+		for _, target := range targets[1:] {
+			if tpl.valid == nil || !tpl.valid(target) {
+				return nil, fmt.Errorf("target %q: %w", target, ErrBadArg)
+			}
+		}
+		if len(tpl.argv) == 0 || tpl.argv[len(tpl.argv)-1] != "--" {
+			return nil, fmt.Errorf("template %s: %w", t, ErrBadArg)
+		}
+		argv := append([]string{}, tpl.argv[:len(tpl.argv)-1]...)
+		argv = append(argv, flags.leadPrefix+targets[0], "--")
+		return append(argv, targets[1:]...), nil
+	}
 	if tpl.maxTargets == 0 {
 		if len(targets) != 0 {
 			return nil, fmt.Errorf("%d targets: %w", len(targets), ErrBadArg)
 		}
 		return append([]string{}, tpl.argv...), nil
 	}
-	if len(targets) == 0 || len(targets) > tpl.maxTargets {
+	if len(targets) == 0 || len(targets) > tpl.maxTargets || (flags.exact && len(targets) != tpl.maxTargets) {
 		return nil, fmt.Errorf("%d targets: %w", len(targets), ErrBadArg)
 	}
 	for _, target := range targets {
-		if !tpl.valid(target) {
+		if tpl.valid == nil || !tpl.valid(target) {
 			return nil, fmt.Errorf("target %q: %w", target, ErrBadArg)
 		}
 	}
 	return append(append([]string{}, tpl.argv...), targets...), nil
 }
 
+// maxDropInBytes is the largest body systemctl.edit will read.
+const maxDropInBytes = 32768
+
 // Run executes template t on target as root. The binary is the template's
 // allow-listed path, re-checked (root-owned, not group/world-writable) at use
 // time; the environment is replaced; stdin is /dev/null; output is capped and
 // the process group is killed when ctx expires.
 func (x *Root) Run(ctx context.Context, t RootTemplate, targets ...string) (Result, error) {
+	return x.run(ctx, t, nil, targets...)
+}
+
+// RunStdin is Run for the one template that reads a drop-in (systemctl.edit).
+// stdin is capped and must not contain a NUL. It is not an argument vector.
+func (x *Root) RunStdin(ctx context.Context, t RootTemplate, stdin []byte, targets ...string) (Result, error) {
+	if _, ok := rootTemplates[t]; !ok {
+		return Result{}, fmt.Errorf("%q: %w", t, ErrUnknownTemplate)
+	}
+	if !templateFlagsByID[t].readsStdin {
+		return Result{}, ErrBadArg
+	}
+	if stdin == nil {
+		stdin = []byte{}
+	}
+	if len(stdin) > maxDropInBytes || bytes.Contains(stdin, []byte{0}) {
+		return Result{}, ErrBadArg
+	}
+	return x.run(ctx, t, stdin, targets...)
+}
+
+func (x *Root) run(ctx context.Context, t RootTemplate, stdin []byte, targets ...string) (Result, error) {
 	if x == nil || x.r == nil {
 		return Result{}, ErrNotAllowed
+	}
+	tpl, ok := rootTemplates[t]
+	if !ok {
+		return Result{}, fmt.Errorf("%q: %w", t, ErrUnknownTemplate)
+	}
+	if templateFlagsByID[t].readsStdin != (stdin != nil) {
+		return Result{}, ErrBadArg
 	}
 	argv, err := RootArgv(t, targets...)
 	if err != nil {
 		return Result{}, err
 	}
-	name := rootTemplates[t].binary
+	name := tpl.binary
 	path, ok := x.r.paths[name]
 	if !ok {
 		return Result{}, fmt.Errorf("%s: %w", name, os.ErrNotExist)
@@ -659,5 +827,5 @@ func (x *Root) Run(ctx context.Context, t RootTemplate, targets ...string) (Resu
 	if err := checkBinary(path, x.r.skipOwnerCheck); err != nil {
 		return Result{}, err
 	}
-	return x.r.exec(ctx, path, argv, nil)
+	return x.r.exec(ctx, path, argv, nil, stdin)
 }

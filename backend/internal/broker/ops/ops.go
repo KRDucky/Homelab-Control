@@ -66,6 +66,9 @@ type Env struct {
 	// RootExec is the root-exec handle. The server sets it in the per-call copy of
 	// Env ONLY for ops whose Privilege is PrivRootExec; it is nil otherwise.
 	RootExec *runner.Root
+	// Systemctl overrides root systemctl execution in tests. Production leaves
+	// it nil and services.systemctl uses RootExec.
+	Systemctl systemctlExec
 	// Actor is the caller as asserted by hc-api (per-call copy).
 	Actor proto.Actor
 	// Modules is the administrator's module setting (zero value: all enabled).
@@ -175,6 +178,18 @@ func Registry() map[string]Op {
 			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskDisruptive}, LockDomain: "service:<unit id>+unit-files",
 				Templates: []runner.RootTemplate{runner.RootSystemctlEnable, runner.RootSystemctlDisable, runner.RootSystemctlIsEnabled,
 					runner.RootSystemctlShowInstall, runner.RootSystemctlShow, runner.RootSystemctlShowManager}}},
+		// Owner 2026-11-21: systemctl/systemd functions are in the production
+		// admin. One scope, closed templates, not a shell. services.operate
+		// and services.configure do not imply it.
+		{Name: "services.systemctl.plan", Scope: "services.systemctl", Privilege: PrivNone, Timeout: 10 * time.Second, Admission: AdmissionControlPlan,
+			Description: "Review one closed systemctl verb (unit, drop-in or host). Nothing is changed (args: action and, when the verb needs them, unit, wants, name, content)",
+			Handle:      systemctlPlan, AuditArgs: systemctlAuditArgs,
+			Write: &WriteSpec{Phase: "plan", Risks: []string{RiskDisruptive}, LockDomain: "systemd-manager"}},
+		{Name: "services.systemctl.apply", Scope: "services.systemctl", Privilege: PrivRootExec, Timeout: 55 * time.Second, Admission: AdmissionControlApply,
+			Description: "Execute a reviewed systemctl verb with its plan token. File-level verbs do not reload PID 1. Host power and daemon-reload are their own verbs (args: action, token, and the same fields as the plan)",
+			Handle:      systemctlApply, AuditArgs: systemctlAuditArgs,
+			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskDisruptive}, LockDomain: "systemd-manager",
+				Templates: systemctlTemplates}},
 		{Name: "operations.journal.list", Scope: "audit.read", Privilege: PrivRootRead, Timeout: 5 * time.Second, Admission: AdmissionSystemRead,
 			Description: "The 100 most recent privileged operations from the broker journal, including interrupted ones", Handle: journalList},
 		// M2-6 (ADR 0011 extension, proposed): hostname and timezone.

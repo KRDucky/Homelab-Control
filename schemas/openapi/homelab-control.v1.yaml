@@ -56,7 +56,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, storage.read, storage.probe, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read, zfs.read, lvm.read] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, services.systemctl, storage.read, storage.probe, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read, zfs.read, lvm.read] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
@@ -2002,6 +2002,58 @@ paths:
         '409': { description: 'plan_invalid, conflict (the unit or its unit files changed; nothing done) or busy', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '502': { description: 'outcome_unknown: no result from the broker; the change may or may not have been made', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: 'Broker unavailable, the journal could not be written or the request could not be audited (nothing executed)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /services/systemctl/plan:
+    post:
+      summary: 'Review one closed systemctl verb (broker op services.systemctl.plan). Nothing is changed. Needs services.systemctl, which services.operate and services.configure do not imply. Drop-in content is not returned.'
+      security: [{ session: [] }]
+      x-required-scope: services.systemctl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [action]
+              properties:
+                action: { type: string, enum: [start, stop, restart, reload, try-restart, reload-or-restart, kill, reset-failed, freeze, thaw, isolate, mask, unmask, reenable, preset, revert, set-default, enable, disable, daemon-reload, daemon-reexec, poweroff, reboot, halt, suspend, hibernate, hybrid-sleep, kexec, soft-reboot, reset-failed-all, add-wants, add-requires, dropin] }
+                unit: { type: string }
+                wants: { type: string }
+                name: { type: string }
+                content: { type: string, maxLength: 32768 }
+      responses:
+        '200': { description: 'Review and a single-use plan token. The host is unchanged.', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '400': { description: Invalid verb, unit, drop-in or body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing scope, CSRF/Origin rejected, or policy_denied', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: busy, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'Broker unavailable, or the review could not be audited', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /services/systemctl/apply:
+    post:
+      summary: 'Execute a reviewed systemctl verb (broker op services.systemctl.apply). One fixed template, never a shell. File-level verbs do not reload systemd. Host power may drop the connection. Always needs a password re-entry within 5 minutes.'
+      security: [{ session: [] }]
+      x-required-scope: services.systemctl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [action, token]
+              properties:
+                action: { type: string, enum: [start, stop, restart, reload, try-restart, reload-or-restart, kill, reset-failed, freeze, thaw, isolate, mask, unmask, reenable, preset, revert, set-default, enable, disable, daemon-reload, daemon-reexec, poweroff, reboot, halt, suspend, hibernate, hybrid-sleep, kexec, soft-reboot, reset-failed-all, add-wants, add-requires, dropin] }
+                unit: { type: string }
+                wants: { type: string }
+                name: { type: string }
+                content: { type: string, maxLength: 32768 }
+                token: { type: string, maxLength: 2048 }
+      responses:
+        '200': { description: 'Executed. The outcome is systemctl exit status, not a second read of unit state.', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '400': { description: Invalid verb, unit, token or body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing scope, CSRF/Origin rejected, step_up_required, or policy_denied', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: 'plan_invalid, conflict, or busy', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '502': { description: 'outcome_unknown: no result from the broker; the change may or may not have been made', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'Broker unavailable, or the request could not be audited (nothing executed)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /auth/step-up:
     post:
       summary: 'Re-enter the password of the signed-in user (D-3). Valid 5 minutes for this session only; failures count toward login throttling. The password never reaches the broker or the audit log.'

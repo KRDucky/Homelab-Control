@@ -347,7 +347,8 @@ func TestDisabledModuleOpsRefused(t *testing.T) {
 	}
 	f.srv.Env.Modules = set
 	for _, op := range []string{"services.systemd.list", "services.unit.logs", "services.unit.plan", "services.unit.apply",
-		"services.enablement.plan", "services.enablement.apply", "services.timers.list", "services.unit.detail", "services.unit.contents"} {
+		"services.enablement.plan", "services.enablement.apply", "services.timers.list", "services.unit.detail", "services.unit.contents",
+		"services.systemctl.plan", "services.systemctl.apply"} {
 		if _, err := call(t, f, op, "services.read", "services.logs", "services.operate", "services.configure"); code(err) != proto.CodeModuleDisabled {
 			t.Errorf("%s: %v", op, err)
 		}
@@ -408,6 +409,11 @@ func TestEnablementOpsNeedConfigureScopeEndToEnd(t *testing.T) {
 			"services.operate", "services.configure"}}, &out)
 	if code(err) != proto.CodeForbidden || !strings.Contains(err.Error(), "services.files") {
 		t.Errorf("contents with every scope but services.files: %v", err)
+	}
+	err = brokerclient.New(f.sock).CallWithArgs(context.Background(), "services.systemctl.plan", map[string]string{"action": "daemon-reload"},
+		proto.Actor{User: "tester", Session: "s", Scopes: []string{"services.operate", "services.configure", "services.files"}}, &out)
+	if code(err) != proto.CodeForbidden || !strings.Contains(err.Error(), "services.systemctl") {
+		t.Errorf("systemctl with operate and configure: %v", err)
 	}
 }
 
