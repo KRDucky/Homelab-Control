@@ -5,8 +5,10 @@ Readiness review, security plan and roadmap for M2, with the owner's product-sco
 (authorized 2026-10-23, merged 2026-10-26), are authorized and merged. **M2-3 development and isolated testing were
 authorized on 2026-11-04** (scope and owner items: [`OWNER-DECISIONS.md`](OWNER-DECISIONS.md#m2-3-development-authorization-2026-11-04));
 its working skeleton is on `main` as PR #36. M2-4 through M2-6 development was authorized on 2026-11-05;
-those working skeletons, plus OIDC and the read-only file manager, are on `main`. Owner acceptance,
-production activation, and M2 close remain pending. ADR 0012, ADR 0008 Amendment 4, and the ADR 0011 M2-6
+those working skeletons, plus OIDC and the read-only file manager, are on `main`. Owner 2026-11-21:
+service management (`services.operate`, `services.configure`, `services.logs`, `services.files`,
+`services.systemctl`) is production, and GitHub milestone 3 is closed. That does not accept every
+historical Proposed ADR. ADR 0012, ADR 0008 Amendment 4, and the ADR 0011 M2-6
 extension stay **Proposed**. The documents below are dated planning snapshots; current status is in
 [`../STATUS.md`](../STATUS.md).
 

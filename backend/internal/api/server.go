@@ -248,6 +248,9 @@ func (s *Server) routes() {
 	s.handleCSRFRead("GET /api/v1/services/units/{unit}/contents", auth.ScopeServicesFiles, s.handleUnitContents)
 	s.handle("POST /api/v1/services/units/{unit}/enablement/plan", auth.ScopeServicesConfigure, s.handleEnablementPlan)
 	s.handle("POST /api/v1/services/units/{unit}/enablement/apply", auth.ScopeServicesConfigure, s.handleEnablementApply)
+	// Owner 2026-11-21: closed systemctl verbs. services.operate does not imply this scope.
+	s.handle("POST /api/v1/services/systemctl/plan", auth.ScopeServicesSystemctl, s.handleSystemctlPlan)
+	s.handle("POST /api/v1/services/systemctl/apply", auth.ScopeServicesSystemctl, s.handleSystemctlApply)
 	s.handle("GET /api/v1/operations", auth.ScopeAuditRead, s.handleOperations)
 	s.handle("GET /api/v1/hardware", auth.ScopeHardwareRead, s.handleHardware)
 	s.handle("GET /api/v1/storage", auth.ScopeStorageRead, s.handleStorage)

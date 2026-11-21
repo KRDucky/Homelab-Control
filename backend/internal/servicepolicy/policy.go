@@ -229,3 +229,24 @@ func ValidEnablementAction(a string) bool { return a == Enable || a == Disable }
 // without template or instance ('@'); enabling an instance acts on its
 // template's [Install] section, which M2-3 does not support.
 func ValidEnablementUnit(name string) bool { return ValidUnit(name) && !strings.Contains(name, "@") }
+
+// QueryUnitRE is the grammar for a systemctl target of any unit type.
+// ValidUnit stays .service-only so start/stop/enable on the older ops keep
+// rejecting sockets and timers. services.systemctl uses this instead.
+var QueryUnitRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9:_.@-]{0,99}\.(service|socket|timer|mount|automount|path|target|swap|slice|scope|device)$`)
+
+// ValidQueryUnit reports whether name may be a systemctl unit target.
+func ValidQueryUnit(name string) bool {
+	return QueryUnitRE.MatchString(name) && !strings.Contains(name, "..") && !strings.Contains(name, "@.")
+}
+
+// ValidQueryPlain is ValidQueryUnit with no template or instance marker.
+func ValidQueryPlain(name string) bool {
+	return ValidQueryUnit(name) && !strings.Contains(name, "@")
+}
+
+// DropInNameRE is one drop-in file name. It is not a path.
+var DropInNameRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,40}\.conf$`)
+
+// ValidDropInName reports whether name is a single drop-in file name.
+func ValidDropInName(name string) bool { return DropInNameRE.MatchString(name) }

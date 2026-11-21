@@ -23,7 +23,7 @@ func TestOpenAPIMatchesRoutes(t *testing.T) {
 	scopes := map[string]string{"scopePublic": "", "sessionOnly": "session", "auth.ScopeSystemRead": "system.read",
 		"auth.ScopeServicesRead": "services.read", "auth.ScopeHardwareRead": "hardware.read",
 		"auth.ScopeServicesLogs": "services.logs", "auth.ScopeServicesFiles": "services.files", "auth.ScopeAuditRead": "audit.read",
-		"auth.ScopeServicesOperate": "services.operate", "auth.ScopeServicesConfigure": "services.configure",
+		"auth.ScopeServicesOperate": "services.operate", "auth.ScopeServicesConfigure": "services.configure", "auth.ScopeServicesSystemctl": "services.systemctl",
 		"auth.ScopeStorageRead": "storage.read", "auth.ScopeHostSettingsPreview": "host.settings.preview",
 		"auth.ScopeHostSettingsApply": "host.settings.apply", "auth.ScopeLayoutManage": "layout.manage",
 		"auth.ScopeFilesRead": "files.read", "auth.ScopeFilesWrite": "files.write", "auth.ScopeFilesDestroy": "files.destroy", "auth.ScopePackagesRead": "packages.read", "auth.ScopeComposeRead": "docker.compose.read", "auth.ScopeNetworkingProxyRead": "networking.proxy.read", "auth.ScopeNetworkingProxyApply": "networking.proxy.apply", "auth.ScopePlatformsRead": "platforms.read", "auth.ScopeMergerFSRead": "mergerfs.read", "auth.ScopeZFSRead": "zfs.read", "auth.ScopeLVMRead": "lvm.read", "auth.ScopeStorageProbe": "storage.probe"}

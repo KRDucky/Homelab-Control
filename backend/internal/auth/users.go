@@ -71,6 +71,12 @@ const (
 	// services.logs, services.read, services.operate or services.configure
 	// (no scope implies another).
 	ScopeServicesFiles = "services.files"
+	// ScopeServicesSystemctl allows the closed systemctl verbs (mask, drop-in,
+	// daemon-reload, host power, and the other templates on
+	// services.systemctl). Owner 2026-11-21: these are in the production
+	// admin. Not implied by services.operate or services.configure. Loading
+	// an existing users file never adds it.
+	ScopeServicesSystemctl = "services.systemctl"
 	// ScopeHostSettingsPreview allows previewing hostname and timezone
 	// changes (M2-6). A preview never changes the host, and this scope never
 	// authorizes plan or apply. Not in DefaultScopes.
@@ -144,6 +150,7 @@ var KnownScopes = map[string]bool{
 	ScopeServicesOperate:      true,
 	ScopeServicesConfigure:    true,
 	ScopeServicesFiles:        true,
+	ScopeServicesSystemctl:    true,
 	ScopeHostSettingsPreview:  true,
 	ScopeHostSettingsApply:    true,
 	ScopeLayoutManage:         true,
@@ -158,12 +165,13 @@ var KnownScopes = map[string]bool{
 
 // DefaultScopes are granted by `hlctl user add` when --scopes is not given.
 // Owner 2026-11-20: the services module scopes from issue #90 are included
-// (read, operate, configure, logs, files) so a new install can run and inspect
-// services. audit.read stays out. Loading or upgrading an existing users file
-// never adds scopes.
+// (read, operate, configure, logs, files). Owner 2026-11-21: services.systemctl
+// is included too. audit.read stays out. Loading or upgrading an existing
+// users file never adds scopes.
 const DefaultScopes = ScopeSystemRead + "," + ScopeServicesRead + "," + ScopeHardwareRead +
 	"," + ScopeServicesOperate + "," + ScopeServicesConfigure +
-	"," + ScopeServicesLogs + "," + ScopeServicesFiles
+	"," + ScopeServicesLogs + "," + ScopeServicesFiles +
+	"," + ScopeServicesSystemctl
 
 var usernameRE = regexp.MustCompile(`^[a-z_][a-z0-9_-]{0,31}$`)
 
