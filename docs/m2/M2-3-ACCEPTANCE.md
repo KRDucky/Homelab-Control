@@ -128,4 +128,4 @@ this repository.
 - **Vitest timing:** load-sensitive `findBy…` timeouts observed under CPU saturation (including untouched M2-2/M1
   tests) and once without load; not resolved.
 - **Residual risks:** see `M2-3-DESIGN-REVIEW.md` §3.9 and the M2-3 section of `docs/security/THREAT-MODEL.md`.
-- Production `services.configure` (like `services.operate`) needs a separate owner deployment decision.
+- Owner 2026-11-21: production use of `services.configure` and `services.operate` is authorized. The header above records the 2026-11-04 development limit for this evidence file. It is not the current deployment decision.

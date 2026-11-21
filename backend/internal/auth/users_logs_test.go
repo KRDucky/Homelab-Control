@@ -88,6 +88,38 @@ func TestServicesFilesGrantedByDefaultNotImplied(t *testing.T) {
 	}
 }
 
+// Owner 2026-11-21: new accounts get the closed systemctl verbs. operate and
+// configure do not imply them, and the file-manager scopes stay out.
+func TestServicesSystemctlGrantedByDefaultNotImplied(t *testing.T) {
+	if !KnownScopes[ScopeServicesSystemctl] || ScopeServicesSystemctl != "services.systemctl" {
+		t.Fatal("services.systemctl must be a known scope")
+	}
+	seen := 0
+	for _, s := range strings.Split(DefaultScopes, ",") {
+		if s == ScopeServicesSystemctl {
+			seen++
+		}
+		if strings.HasPrefix(s, "audit.") || strings.HasPrefix(s, "files.") {
+			t.Fatalf("default scopes grant %s", s)
+		}
+	}
+	if seen != 1 {
+		t.Fatalf("services.systemctl must appear exactly once in DefaultScopes, got %d", seen)
+	}
+	var others []string
+	for s := range KnownScopes {
+		if s != ScopeServicesSystemctl {
+			others = append(others, s)
+		}
+	}
+	if (&Session{Scopes: others}).HasScope(ScopeServicesSystemctl) {
+		t.Fatal("every other scope together must not imply services.systemctl")
+	}
+	if (&Session{Scopes: []string{ScopeServicesOperate, ScopeServicesConfigure}}).HasScope(ScopeServicesSystemctl) {
+		t.Fatal("operate and configure must not imply services.systemctl")
+	}
+}
+
 // M2-6: hostname/timezone apply is never granted by default and is not
 // implied by host.settings.preview or any other scope.
 func TestHostSettingsApplyNotGrantedByDefaultOrImplied(t *testing.T) {

@@ -14,8 +14,13 @@ On the M2-3 development branch (not yet accepted by the owner) it can also **ena
 service at boot**, and shows **timers**, **sockets** and **unit details** read-only; see
 [Boot-time enable/disable and unit details](#boot-time-enabledisable-and-unit-details-m2-3) below.
 
-Not available: masking, editing or creating unit files, `daemon-reload`, starting or stopping other
-unit types (sockets, timers, mounts…), and host shutdown or reboot.
+`services.systemctl` (owner 2026-11-21, granted to new accounts, not implied by the two scopes above)
+adds the closed systemctl verbs: mask, unmask, reload, drop-in edit, daemon-reload, host shutdown
+and reboot, and the other verbs listed in the broker registry, including sockets, timers and the
+other unit types the query grammar allows. Each one is still plan, token, protected-unit check and
+password re-entry. A drop-in does not reload systemd; daemon-reload is a separate verb. There is no
+shell, no `systemctl link`, no `set-property`, and no chosen kill signal. The result of these verbs
+is systemctl's exit status. Host power can drop the session before a reply returns.
 
 ## Installed units and runtime state
 
