@@ -112,10 +112,9 @@ export function App() {
   const logsCap = capList.find((c) => c.id === 'service_logs');
   const filesCap = capList.find((c) => c.id === 'unit_files');
   const auditCap = capList.find((c) => c.id === 'audit');
-  // Accounts with services.operate can change the host (service start/stop/
-  // restart); everyone else has a read-only interface.
+  // Accounts that can change a unit or the host are not a read-only session.
   const canOperate = (session.scopes ?? []).some(
-    (sc) => sc === 'services.operate' || sc === 'services.configure',
+    (sc) => sc === 'services.operate' || sc === 'services.configure' || sc === 'services.systemctl',
   );
   // M2-3 module registry: a module the host administrator disabled has no
   // navigation; its page says so instead of falling back to another page.

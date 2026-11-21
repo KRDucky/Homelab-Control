@@ -188,6 +188,40 @@ func TestRootTemplatesAreClosed(t *testing.T) {
 		RootTimedatectlStatus:        {"timedatectl --no-ask-password status", nil},
 		RootTimedatectlListTimezones: {"timedatectl --no-ask-password list-timezones", nil},
 		RootMkfsExt4:                 {"mkfs.ext4 -q -- /dev/disk/by-id/virtio-mmvtestdisk01", []string{"/dev/disk/by-id/virtio-mmvtestdisk01"}},
+		// services.systemctl (owner 2026-11-21). File-level verbs do not reload PID 1.
+		RootSystemctlStartUnit:       {"systemctl --no-ask-password --job-mode=fail start -- demo.service", []string{"demo.service"}},
+		RootSystemctlStopUnit:        {"systemctl --no-ask-password --job-mode=fail stop -- demo.service", []string{"demo.service"}},
+		RootSystemctlRestartUnit:     {"systemctl --no-ask-password --job-mode=fail restart -- demo.service", []string{"demo.service"}},
+		RootSystemctlReload:          {"systemctl --no-ask-password --job-mode=fail reload -- demo.service", []string{"demo.service"}},
+		RootSystemctlTryRestart:      {"systemctl --no-ask-password --job-mode=fail try-restart -- demo.service", []string{"demo.service"}},
+		RootSystemctlReloadOrRestart: {"systemctl --no-ask-password --job-mode=fail reload-or-restart -- demo.service", []string{"demo.service"}},
+		RootSystemctlKill:            {"systemctl --no-ask-password kill --signal=SIGTERM -- demo.service", []string{"demo.service"}},
+		RootSystemctlResetFailed:     {"systemctl --no-ask-password reset-failed -- demo.service", []string{"demo.service"}},
+		RootSystemctlFreeze:          {"systemctl --no-ask-password freeze -- demo.service", []string{"demo.service"}},
+		RootSystemctlThaw:            {"systemctl --no-ask-password thaw -- demo.service", []string{"demo.service"}},
+		RootSystemctlIsolate:         {"systemctl --no-ask-password isolate -- demo.service", []string{"demo.service"}},
+		RootSystemctlMask:            {"systemctl --no-ask-password --no-reload mask -- demo.service", []string{"demo.service"}},
+		RootSystemctlUnmask:          {"systemctl --no-ask-password --no-reload unmask -- demo.service", []string{"demo.service"}},
+		RootSystemctlReenable:        {"systemctl --no-ask-password --no-reload reenable -- demo.service", []string{"demo.service"}},
+		RootSystemctlPreset:          {"systemctl --no-ask-password --no-reload preset -- demo.service", []string{"demo.service"}},
+		RootSystemctlRevert:          {"systemctl --no-ask-password --no-reload revert -- demo.service", []string{"demo.service"}},
+		RootSystemctlSetDefault:      {"systemctl --no-ask-password set-default -- demo.service", []string{"demo.service"}},
+		RootSystemctlEnableUnit:      {"systemctl --no-ask-password --no-reload enable -- demo.service", []string{"demo.service"}},
+		RootSystemctlDisableUnit:     {"systemctl --no-ask-password --no-reload disable -- demo.service", []string{"demo.service"}},
+		RootSystemctlDaemonReload:    {"systemctl --no-ask-password daemon-reload", nil},
+		RootSystemctlDaemonReexec:    {"systemctl --no-ask-password daemon-reexec", nil},
+		RootSystemctlPoweroff:        {"systemctl --no-ask-password poweroff", nil},
+		RootSystemctlReboot:          {"systemctl --no-ask-password reboot", nil},
+		RootSystemctlHalt:            {"systemctl --no-ask-password halt", nil},
+		RootSystemctlSuspend:         {"systemctl --no-ask-password suspend", nil},
+		RootSystemctlHibernate:       {"systemctl --no-ask-password hibernate", nil},
+		RootSystemctlHybridSleep:     {"systemctl --no-ask-password hybrid-sleep", nil},
+		RootSystemctlKexec:           {"systemctl --no-ask-password kexec", nil},
+		RootSystemctlSoftReboot:      {"systemctl --no-ask-password soft-reboot", nil},
+		RootSystemctlResetFailedAll:  {"systemctl --no-ask-password reset-failed", nil},
+		RootSystemctlAddWants:        {"systemctl --no-ask-password --no-reload add-wants -- multi-user.target demo.service", []string{"multi-user.target", "demo.service"}},
+		RootSystemctlAddRequires:     {"systemctl --no-ask-password --no-reload add-requires -- multi-user.target demo.service", []string{"multi-user.target", "demo.service"}},
+		RootSystemctlEdit:            {"systemctl --no-ask-password --no-reload edit --stdin --drop-in=override.conf -- demo.service", []string{"override.conf", "demo.service"}},
 	}
 	if len(rootTemplates) != len(want) {
 		t.Fatalf("%d root templates, want %d — new root templates need review", len(rootTemplates), len(want))
@@ -203,14 +237,28 @@ func TestRootTemplatesAreClosed(t *testing.T) {
 			t.Errorf("%s: %v %v", id, argv, err)
 		}
 	}
-	for _, unknown := range []RootTemplate{"systemctl.mask", "systemctl.unmask", "systemctl.daemon-reload", "systemctl.edit", "systemctl.reenable", "systemctl.preset", "systemctl.link",
+	for _, unknown := range []RootTemplate{"systemctl.link", "systemctl.set-property", "systemctl.edit-full",
 		"hostnamectl.set-chassis", "timedatectl.set-ntp", "timedatectl.set-time",
 		"mkfs.xfs", "zpool.create", "wipefs"} {
 		if _, err := RootArgv(unknown, "demo.service"); !errors.Is(err, ErrUnknownTemplate) {
 			t.Errorf("unknown template %s: %v", unknown, err)
 		}
 	}
+	// Verbs that used to be absent entirely are now their own templates. This
+	// loop still forbids them on the older templates, so start/enable cannot
+	// grow a mask or a daemon-reload.
+	legacy := map[RootTemplate]bool{
+		RootSystemctlStart: true, RootSystemctlStop: true, RootSystemctlRestart: true, RootSystemctlShow: true,
+		RootSystemctlEnable: true, RootSystemctlDisable: true, RootSystemctlIsEnabled: true, RootSystemctlShowInstall: true,
+		RootSystemctlShowManager: true,
+		RootHostnamectlSetStatic: true, RootHostnamectlSetPretty: true, RootHostnamectlStatus: true,
+		RootTimedatectlSetTimezone: true, RootTimedatectlStatus: true, RootTimedatectlListTimezones: true,
+		RootMkfsExt4: true,
+	}
 	for id, tpl := range rootTemplates {
+		if !legacy[id] {
+			continue
+		}
 		for _, a := range tpl.argv {
 			switch a {
 			case "--now", "--runtime", "--force", "--global", "--user", "daemon-reload", "mask", "unmask", "reenable", "preset", "link", "edit",
@@ -286,6 +334,27 @@ func TestRootTargetValidation(t *testing.T) {
 	}
 	if _, err := RootArgv(RootSystemctlShow, "x.socket", "y.target", "z@1.service"); err != nil {
 		t.Errorf("show: %v", err)
+	}
+	if _, err := RootArgv(RootSystemctlStartUnit, "nginx.socket"); err != nil {
+		t.Errorf("start-unit socket: %v", err)
+	}
+	if _, err := RootArgv(RootSystemctlStart, "nginx.socket"); !errors.Is(err, ErrBadArg) {
+		t.Errorf("service start accepted a socket: %v", err)
+	}
+	if _, err := RootArgv(RootSystemctlMask, "getty@tty1.service"); !errors.Is(err, ErrBadArg) {
+		t.Errorf("mask accepted an instance: %v", err)
+	}
+	if _, err := RootArgv(RootSystemctlAddWants, "multi-user.target"); !errors.Is(err, ErrBadArg) {
+		t.Errorf("add-wants accepted one target: %v", err)
+	}
+	if argv, err := RootArgv(RootSystemctlEdit, "override.conf", "nginx.socket"); err != nil || strings.Join(argv, " ") != "--no-ask-password --no-reload edit --stdin --drop-in=override.conf -- nginx.socket" {
+		t.Errorf("edit: %v %v", argv, err)
+	}
+	if _, err := RootArgv(RootSystemctlEdit, "../x.conf", "nginx.service"); !errors.Is(err, ErrBadArg) {
+		t.Errorf("edit accepted a path: %v", err)
+	}
+	if _, err := new(Runner).RootExec().RunStdin(t.Context(), RootSystemctlStart, []byte("x"), "demo.service"); !errors.Is(err, ErrBadArg) {
+		t.Errorf("stdin on start: %v", err)
 	}
 	many := make([]string, 33)
 	for i := range many {
