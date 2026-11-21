@@ -281,10 +281,14 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/packages/installed", auth.ScopePackagesRead, s.handlePackagesInstalled)
 	s.handle("GET /api/v1/packages/updates", auth.ScopePackagesRead, s.handlePackagesUpdates)
 	s.handle("GET /api/v1/packages/sources", auth.ScopePackagesRead, s.handlePackagesSources)
-	// M8 first checkpoint: read-only MergerFS + optional SnapRAID.
-	// The only broker op is mergerfs.snapraid.status (argv exactly "status").
+	// MergerFS: read inventory and status, plus plan/apply mount, definition,
+	// sync, scrub, and filtered recovery. Read does not grant the writes.
 	s.handle("GET /api/v1/mergerfs", auth.ScopeMergerFSRead, s.handleMergerFS)
 	s.handle("GET /api/v1/mergerfs/snapraid/status", auth.ScopeMergerFSRead, s.handleSnapraidStatus)
+	s.handle("POST /api/v1/mergerfs/pool/plan", auth.ScopeMergerFSConfigure, s.handleMergerFSPlan("mergerfs.pool.plan", "mergerfs.pool.plan"))
+	s.handle("POST /api/v1/mergerfs/pool/apply", auth.ScopeMergerFSConfigure, s.handleMergerFSApply("mergerfs.pool.apply", "mergerfs.pool.apply"))
+	s.handle("POST /api/v1/mergerfs/maintain/plan", auth.ScopeMergerFSMaintain, s.handleMergerFSPlan("mergerfs.maintain.plan", "mergerfs.maintain.plan"))
+	s.handle("POST /api/v1/mergerfs/maintain/apply", auth.ScopeMergerFSMaintain, s.handleMergerFSApply("mergerfs.maintain.apply", "mergerfs.maintain.apply"))
 	// M7 first checkpoint: read-only OpenZFS (no broker ops, never exec).
 	s.handle("GET /api/v1/zfs", auth.ScopeZFSRead, s.handleZFS)
 	// M7 first checkpoint: read-only LVM (no broker ops, never exec).

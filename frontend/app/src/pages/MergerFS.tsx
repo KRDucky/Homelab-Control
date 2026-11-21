@@ -12,6 +12,7 @@ import {
 } from '../api';
 import { formatBytes } from '../format';
 import { InstallPlanDialog } from '../InstallPlanDialog';
+import { MergerFSActions } from './MergerFSActions';
 import { Meter } from '../Meter';
 import { explain, useData } from '../useData';
 
@@ -20,9 +21,10 @@ import { explain, useData } from '../useData';
  * probe required/optional tooling first, show an install offer (a Software
  * Center search link, never a package transaction) when a required package is
  * missing, hide pools/policy until mergerfs is present, and show a SnapRAID
- * config block only when a config is present. No pool create, mount, policy
- * write, or snapraid sync/scrub/fix control exists in the DOM, not even
- * disabled. "Read SnapRAID status" only runs `snapraid status` after a click.
+ * config block only when a config is present. "Read SnapRAID status" only runs
+ * `snapraid status` after a click. Mount, definition, sync, scrub, and recovery
+ * are separate review buttons, shown only for mergerfs.configure or
+ * mergerfs.maintain. They plan first and do not apply until confirm.
  */
 export function MergerFS({
   csrf,
@@ -278,7 +280,8 @@ export function MergerFSView({
           </header>
           <p>
             SnapRAID is optional. Read-only view of <code>{snapraid.configPath}</code>. Writes between syncs
-            are not protected. This page does not run sync, diff, or fix, and it does not read content files.
+            are not protected. This view does not read content files. Sync, scrub, and recovery are separate
+            reviews and stay hidden without mergerfs.maintain.
           </p>
           <SnapraidStatusPanel csrf={csrf} />
           <PathList title="Data" paths={snapraid.data} />
@@ -286,6 +289,8 @@ export function MergerFSView({
           <PathList title="Content" paths={snapraid.content} />
         </section>
       )}
+
+      <MergerFSActions csrf={csrf} scopes={scopes} />
     </div>
   );
 }
