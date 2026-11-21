@@ -46,7 +46,9 @@ export function MergerFS({
       </div>
     );
   }
-  return <MergerFSView data={data} error={error} csrf={csrf} scopes={scopes} packagesEnabled={packagesEnabled} />;
+  return (
+    <MergerFSView data={data} error={error} csrf={csrf} scopes={scopes} packagesEnabled={packagesEnabled} />
+  );
 }
 
 export function MergerFSView({
@@ -300,7 +302,7 @@ function SnapraidStatusPanel({ csrf }: { csrf: string }) {
       setStatus(await getSnapraidStatus(csrf));
     } catch (e) {
       setStatus(null);
-      setError(explain(e));
+      setError(explain(e instanceof Error ? e : new Error(String(e))));
     } finally {
       setBusy(false);
     }

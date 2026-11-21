@@ -3,7 +3,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MergerFS } from './pages/MergerFS';
-import { ApiError, getMergerFS, getSnapraidStatus, type MergerFSInventory, type MergerFSToolItem } from './api';
+import {
+  ApiError,
+  getMergerFS,
+  getSnapraidStatus,
+  type MergerFSInventory,
+  type MergerFSToolItem,
+} from './api';
 
 vi.mock('./api', async (importOriginal) => {
   const mod = await importOriginal<typeof import('./api')>();
