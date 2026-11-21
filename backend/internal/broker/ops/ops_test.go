@@ -62,10 +62,11 @@ func TestRegistryIsClosed(t *testing.T) {
 		"host.settings.plan":        {PrivUnprivilegedExec, "host.settings.apply", "plan"},
 		"host.settings.apply":       {PrivRootExec, "host.settings.apply", "apply"},
 		// M4-1b (ADR 0008 Amendment 5, Proposed): read-only package queries.
-		"packages.installed": {PrivUnprivilegedExec, "packages.read", ""},
-		"packages.updates":   {PrivUnprivilegedExec, "packages.read", ""},
-		"packages.sources":   {PrivUnprivilegedExec, "packages.read", ""},
-		"packages.search":    {PrivUnprivilegedExec, "packages.read", ""},
+		"packages.installed":       {PrivUnprivilegedExec, "packages.read", ""},
+		"packages.updates":         {PrivUnprivilegedExec, "packages.read", ""},
+		"packages.sources":         {PrivUnprivilegedExec, "packages.read", ""},
+		"packages.search":          {PrivUnprivilegedExec, "packages.read", ""},
+		"mergerfs.snapraid.status": {PrivUnprivilegedExec, "mergerfs.read", ""},
 		// M2-4 O-1 (owner-approved implementation/isolated validation).
 		"storage.probe": {PrivRootRead, "storage.probe", ""},
 	}
@@ -409,6 +410,7 @@ func TestAdmissionClasses(t *testing.T) {
 		"packages.updates":          AdmissionPackages,
 		"packages.sources":          AdmissionPackages,
 		"packages.search":           AdmissionPackages,
+		"mergerfs.snapraid.status":  AdmissionServicesRead,
 		"storage.probe":             AdmissionProbe,
 	}
 	reg := Registry()

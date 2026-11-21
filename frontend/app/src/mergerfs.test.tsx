@@ -3,11 +3,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MergerFS } from './pages/MergerFS';
-import { ApiError, getMergerFS, type MergerFSInventory, type MergerFSToolItem } from './api';
+import {
+  ApiError,
+  getMergerFS,
+  getSnapraidStatus,
+  type MergerFSInventory,
+  type MergerFSToolItem,
+} from './api';
 
 vi.mock('./api', async (importOriginal) => {
   const mod = await importOriginal<typeof import('./api')>();
-  return { ...mod, getMergerFS: vi.fn() };
+  return { ...mod, getMergerFS: vi.fn(), getSnapraidStatus: vi.fn() };
 });
 
 const csrf = 'token';
@@ -550,10 +556,55 @@ describe('MergerFS read-only page', () => {
     ]) {
       expect(screen.queryByRole('button', { name })).toBeNull();
     }
+    expect(screen.getByRole('button', { name: 'Read SnapRAID status' })).toBeTruthy();
+    expect(vi.mocked(getSnapraidStatus)).not.toHaveBeenCalled();
     expect(screen.getByRole('heading', { name: 'Configured mounts' })).toBeTruthy();
     expect(screen.getByText(/No regular mergerfs fstab lines/)).toBeTruthy();
     expect(screen.getByText(/drop-ins/)).toBeTruthy();
     expect(screen.getByText(/Symlinked, masked, or generated units are not read/)).toBeTruthy();
+  });
+
+  it('reads SnapRAID status only after the button is pressed', async () => {
+    vi.mocked(getMergerFS).mockResolvedValue(
+      inventory({
+        mergerfsInstalled: true,
+        snapraidInstalled: true,
+        mergerfsPresent: true,
+        snapraidPresent: true,
+      }),
+    );
+    vi.mocked(getSnapraidStatus).mockResolvedValue({
+      exitCode: 0,
+      syncInProgress: false,
+      summary: ['No sync is in progress.', 'No error detected.'],
+      scrubAge: 'The oldest block was scrubbed 3 days ago, the median 1, the newest 0.',
+      note: 'This summary refers to the latest sync. Later modifications are not counted.',
+      source: 'snapraid status',
+    });
+    render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
+    await screen.findByText('/mnt/media');
+    expect(vi.mocked(getSnapraidStatus)).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Read SnapRAID status' }));
+    expect(await screen.findByText('No sync is in progress.')).toBeTruthy();
+    expect(screen.getByText(/Later modifications are not counted/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Sync' })).toBeNull();
+    expect(vi.mocked(getSnapraidStatus)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(getSnapraidStatus)).toHaveBeenCalledWith(csrf);
+  });
+
+  it('hides SnapRAID status when no config is present', async () => {
+    vi.mocked(getMergerFS).mockResolvedValue(
+      inventory({
+        mergerfsInstalled: true,
+        snapraidInstalled: false,
+        mergerfsPresent: true,
+        snapraidPresent: false,
+      }),
+    );
+    render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
+    await screen.findByText('/mnt/media');
+    expect(screen.queryByRole('button', { name: 'Read SnapRAID status' })).toBeNull();
+    expect(vi.mocked(getSnapraidStatus)).not.toHaveBeenCalled();
   });
 
   it('lists fstab and systemd configured mounts without mount controls', async () => {

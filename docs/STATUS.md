@@ -192,7 +192,7 @@ as is fewer than two content files. A root-owned pool (`user_id=0`) whose parsed
 findings. Nil options and non-root mounts stay silent. `user_allow_other` in `/etc/fuse.conf` only
 matters when a non-root user mounts with `allow_other`. This page does not remount. Content files are not
 read, and a missing mount is not inferred.
-Writes between SnapRAID syncs are not protected; this page does not know the last sync time.
+Writes between SnapRAID syncs are not protected. A separate read, `GET /api/v1/mergerfs/snapraid/status`, runs only `snapraid status` (no client path and no `--conf`) and shows recognised summary lines, including whether a sync is in progress and how old the oldest scrubbed block is. It does not return the scrub graph, does not open content files, and does not run sync, diff, fix, scrub, or smart. The summary refers to the latest sync; later writes are not counted.
 The warning list is capped (64 total, 8 per pool) with `warningsTruncated` when the cap or
 collect deadline hits. Each root-owned live pool branch (`user_id=0` in mount super-options)
 is measured with `fstatfs` of the directory under the collect root (`os.OpenRoot`, directory,
@@ -203,7 +203,8 @@ A last-component symlink is unread. Capacity timeout degrades usage and does not
 inventory. `availBytes` is unprivileged free (`bavail`). A missing measurement is not zero
 capacity. Zero-byte measured filesystems still include the numbers.
 No pool create, mount, policy write, fstab/unit write, or
-snapraid sync/diff/fix path exists; there are no broker ops. This is a checkpoint, not M8 acceptance,
+snapraid sync/diff/fix path exists. The only MergerFS broker op is the read-only
+`mergerfs.snapraid.status`. This is a checkpoint, not M8 acceptance,
 not a merge, not production.
 
 ## P0 storage shared (development; not production, not ADR 0014)

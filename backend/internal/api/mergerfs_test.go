@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"homelab-control/backend/internal/auth"
+	"homelab-control/backend/internal/broker/proto"
 	"homelab-control/backend/internal/mergerfsinfo"
 	"homelab-control/backend/internal/modules"
 )
@@ -106,6 +107,66 @@ func TestMergerFSReadsAndAuditsCountsOnly(t *testing.T) {
 	}
 }
 
+func TestSnapraidStatusReadsSummaryAndAuditsCounts(t *testing.T) {
+	h := harnessWith(t, nil, []string{auth.ScopeMergerFSRead})
+	if rr := h.do("GET", "/api/v1/mergerfs/snapraid/status", "", packagesHeaders(h)); rr.Code != http.StatusServiceUnavailable {
+		t.Fatalf("no broker: %d %s", rr.Code, rr.Body)
+	}
+	fb := &fakeBroker{errs: map[string]error{}, results: map[string]any{
+		"mergerfs.snapraid.status": map[string]any{
+			"exitCode": 0, "syncInProgress": false,
+			"summary":  []string{"No sync is in progress.", "No error detected."},
+			"scrubAge": "The oldest block was scrubbed 10 days ago, the median 5, the newest 0.",
+			"note":     "This summary refers to the latest sync.",
+			"source":   "snapraid status",
+		},
+	}}
+	h.srv.WithBroker(fb)
+	if rr := h.do("GET", "/api/v1/mergerfs/snapraid/status", "", map[string]string{"Origin": testOrigin}); rr.Code != http.StatusForbidden {
+		t.Fatalf("missing csrf: %d %s", rr.Code, rr.Body)
+	}
+	rr := h.do("GET", "/api/v1/mergerfs/snapraid/status?conf=/etc/passwd", "", packagesHeaders(h))
+	if rr.Code != http.StatusOK || !strings.Contains(rr.Body.String(), "No sync is in progress.") || strings.Contains(rr.Body.String(), "/etc/passwd") {
+		t.Fatalf("status: %d %s", rr.Code, rr.Body)
+	}
+	if len(fb.args) != 0 {
+		t.Fatalf("status must be argument-free, got %#v", fb.args)
+	}
+	auditLine := h.audit.String()
+	if !strings.Contains(auditLine, "mergerfs.snapraid.status") || !strings.Contains(auditLine, "exit=0") || !strings.Contains(auditLine, "lines=2") || !strings.Contains(auditLine, "sync=false") {
+		t.Fatalf("audit: %s", auditLine)
+	}
+	if strings.Contains(auditLine, "No sync is in progress") || strings.Contains(auditLine, "scrubbed") {
+		t.Fatalf("audit leaked summary text: %s", auditLine)
+	}
+}
+
+func TestSnapraidStatusRequiresScope(t *testing.T) {
+	h := newHarness(t)
+	if rr := h.do("GET", "/api/v1/mergerfs/snapraid/status", "", nil); rr.Code != http.StatusUnauthorized {
+		t.Fatalf("anon: %d", rr.Code)
+	}
+	h.login("reader", "reader-password-123")
+	if rr := h.do("GET", "/api/v1/mergerfs/snapraid/status", "", packagesHeaders(h)); rr.Code != http.StatusForbidden || !strings.Contains(rr.Body.String(), "mergerfs.read") {
+		t.Fatalf("scope: %d %s", rr.Code, rr.Body)
+	}
+}
+
+func TestSnapraidStatusBrokerRefusal(t *testing.T) {
+	h := harnessWith(t, nil, []string{auth.ScopeMergerFSRead})
+	fb := &fakeBroker{errs: map[string]error{
+		"mergerfs.snapraid.status": &proto.Error{Code: proto.CodeUnavailable, Message: "snapraid is not installed"},
+	}, results: map[string]any{}}
+	h.srv.WithBroker(fb)
+	rr := h.do("GET", "/api/v1/mergerfs/snapraid/status", "", packagesHeaders(h))
+	if rr.Code != http.StatusServiceUnavailable || !strings.Contains(rr.Body.String(), "not installed") {
+		t.Fatalf("missing binary: %d %s", rr.Code, rr.Body)
+	}
+	if strings.Contains(h.audit.String(), "No sync") {
+		t.Fatalf("audit: %s", h.audit)
+	}
+}
+
 func TestMergerFSDisabledModule404(t *testing.T) {
 	h := harnessWith(t, nil, []string{auth.ScopeMergerFSRead})
 	set, err := modules.Parse([]byte(`{"version":1,"disabled":["mergerfs"]}`))
@@ -117,5 +178,9 @@ func TestMergerFSDisabledModule404(t *testing.T) {
 	rr := h.do("GET", "/api/v1/mergerfs", "", nil)
 	if rr.Code != http.StatusNotFound || rr.Body.String() != unknown.Body.String() {
 		t.Fatalf("disabled module: %d %s", rr.Code, rr.Body)
+	}
+	status := h.do("GET", "/api/v1/mergerfs/snapraid/status", "", packagesHeaders(h))
+	if status.Code != http.StatusNotFound || status.Body.String() != unknown.Body.String() {
+		t.Fatalf("disabled status: %d %s", status.Code, status.Body)
 	}
 }
