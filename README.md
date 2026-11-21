@@ -22,15 +22,16 @@ began from a Webmin source tree and keeps that tree in this repository for refer
 
 ## Current status
 
-Homelab Control is early-stage software. **Its privileged broker has two write operations:
-starting, stopping and restarting systemd `.service` units (`services.operate`), and boot-time
-enable/disable (`services.configure`). New accounts are granted both scopes by default. Every other
-broker operation is read-only.**
-Homelab Control also keeps its own state database, audit logs and operation journal, and starting or
-stopping a service has whatever effects that service has on the host. Validation of the
-service-operations path on the owner's workstation VM through a browser (acceptance item E2) is
-outstanding and, by owner decision, required before `services.operate` is enabled in a real deployment
-([results](docs/m2/M2-2-ACCEPTANCE.md)).
+Homelab Control is early-stage software. **Its privileged broker writes are typed systemctl
+operations, not a shell.** New accounts are granted `services.operate` (start, stop and restart of
+`.service` units), `services.configure` (boot-time enable and disable), `services.logs`,
+`services.files`, and `services.systemctl` (the closed systemctl verbs: mask, unmask, drop-in edit,
+daemon-reload, host power, and the other templates registered on that operation). An existing
+`users.json` is not rewritten. Every other broker operation stays read-only. `audit.read` stays off
+the default grant.
+Homelab Control also keeps its own state database, audit logs and operation journal. Owner 2026-11-21:
+these service operations are production. Browser validation item E2 was not re-run and is not a
+deployment gate ([results](docs/m2/M2-2-ACCEPTANCE.md)).
 
 ### Published release
 The only published release is the **unsigned development prerelease
@@ -47,7 +48,7 @@ It was built before the "merged to `main`" items below.
 | Authorization | Server-side scopes on every route: `system.read`, `services.read`, `hardware.read`, `services.operate`, `services.configure`, `services.logs` and `services.files` by default for a new account; `audit.read` only when granted explicitly. An existing account is not changed | |
 | Host overview | CPU, memory, uptime, host filesystems and network from unprivileged reads | |
 | Services | systemd unit list through the broker | Read-only list |
-| Service operations | Start, stop and restart of `.service` units: preview, single-use plan token, protected-unit policy, password re-entry for disruptive actions, operation journal, state read back afterwards ([user guide](docs/user/SERVICE-MANAGEMENT.md)) | Merged to `main` 2026-10-26 (PR #28), after the prerelease; needs `services.operate`. Validation on the owner's workstation VM through a browser (E2) is outstanding ([`docs/m2/M2-2-ACCEPTANCE.md`](docs/m2/M2-2-ACCEPTANCE.md)). No masking or unit-file editing |
+| Service operations | Start, stop and restart of `.service` units, boot enable/disable, and closed systemctl verbs (mask, drop-in, daemon-reload, host power, other unit types) through plan, token, protected-unit policy and password re-entry ([user guide](docs/user/SERVICE-MANAGEMENT.md)) | `services.operate`, `services.configure` and `services.systemctl`. E2 is not a deployment gate. No free-form shell |
 | Service logs | Recent journal entries for one unit | Merged to `main` after the prerelease; needs `services.logs` |
 | Hardware | DMI identity and drive inventory with stable identifiers and confidence labels | Read-only inventory; no bay map, SMART or storage management |
 | Persistent state | SQLite state database for sessions and the audit trail | Merged to `main` after the prerelease |
@@ -109,16 +110,17 @@ Tests: `make check`. Building from a release source archive: [`BUILDING.md`](BUI
 session, scope, Origin and CSRF token on every request. Privileged data comes only from `hc-broker`,
 which accepts a closed list of typed operations, authenticates its caller by peer UID, and runs
 the programs it needs through a single reviewed runner, normally under a dedicated service account.
-The only privileged writes are systemd service start, stop and restart (scope `services.operate`)
-and boot-time enable/disable (scope `services.configure`), both granted by default to new accounts:
-each is previewed, confirmed with a single-use broker-issued plan token,
-re-checked against a built-in protected-unit policy, requires a password re-entry when disruptive,
-journaled before and after it runs, and reported with the state systemd shows afterwards
+Privileged writes are the typed service operations: start, stop and restart (`services.operate`),
+boot-time enable/disable (`services.configure`), and the closed systemctl templates
+(`services.systemctl`: mask, unmask, drop-in edit, daemon-reload, host power, and the other verbs
+in that operation). New accounts get those scopes. Each change is previewed, confirmed with a
+single-use broker-issued plan token, re-checked against a built-in protected-unit policy, requires
+a password re-entry, and is journaled
 ([ADR 0011](docs/adr/0011-write-operation-authorization.md),
-[user guide](docs/user/SERVICE-MANAGEMENT.md)). Validation on the owner's workstation VM through a browser
-(acceptance item E2) is outstanding and required before `services.operate` is enabled in a real
-deployment ([results](docs/m2/M2-2-ACCEPTANCE.md)). There is no endpoint that runs arbitrary commands or
-arbitrary root code.
+[user guide](docs/user/SERVICE-MANAGEMENT.md)). Owner 2026-11-21: this is production. E2 is not a
+deployment gate ([results](docs/m2/M2-2-ACCEPTANCE.md)). There is no endpoint that runs arbitrary
+commands or arbitrary root code. `systemctl link`, `set-property`, a chosen kill signal, and
+`switch-root` are not templates.
 Threat model: [`docs/security/THREAT-MODEL.md`](docs/security/THREAT-MODEL.md).
 
 ## Webmin: reference only

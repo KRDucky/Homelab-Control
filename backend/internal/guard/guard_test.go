@@ -258,6 +258,7 @@ var rootExecFiles = map[string]bool{
 	"internal/broker/ops/enablement.go":         true, // M2-3 enablement controller and apply (Amendment 3)
 	"internal/broker/ops/hostsettings_write.go": true, // M2-6 hostnamectl/timedatectl apply (Amendment 4)
 	"internal/broker/ops/ops.go":                true, // registry lists apply's templates (W1)
+	"internal/broker/ops/systemctl.go":          true, // services.systemctl apply (owner 2026-11-21)
 	"internal/broker/server/server.go":          true, // passes the handle to root-exec ops only
 	"cmd/hc-broker/main.go":                     true, // creates the single handle
 }

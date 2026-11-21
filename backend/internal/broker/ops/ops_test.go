@@ -57,6 +57,8 @@ func TestRegistryIsClosed(t *testing.T) {
 		"services.unit.contents":    {PrivUnprivilegedExec, "services.files", ""},
 		"services.enablement.plan":  {PrivRootRead, "services.configure", "plan"},
 		"services.enablement.apply": {PrivRootExec, "services.configure", "apply"},
+		"services.systemctl.plan":   {PrivNone, "services.systemctl", "plan"},
+		"services.systemctl.apply":  {PrivRootExec, "services.systemctl", "apply"},
 		"host.settings.plan":        {PrivUnprivilegedExec, "host.settings.apply", "plan"},
 		"host.settings.apply":       {PrivRootExec, "host.settings.apply", "apply"},
 		// M4-1b (ADR 0008 Amendment 5, Proposed): read-only package queries.
@@ -82,7 +84,7 @@ func TestRegistryIsClosed(t *testing.T) {
 		phase := ""
 		if op.Write != nil {
 			phase = op.Write.Phase
-			wantLock := map[string]string{"services.unit": "service:<unit id>", "services.enablement": "service:<unit id>+unit-files", "host.settings": "host-settings"}[strings.TrimSuffix(strings.TrimSuffix(name, ".plan"), ".apply")]
+			wantLock := map[string]string{"services.unit": "service:<unit id>", "services.enablement": "service:<unit id>+unit-files", "host.settings": "host-settings", "services.systemctl": "systemd-manager"}[strings.TrimSuffix(strings.TrimSuffix(name, ".plan"), ".apply")]
 			if op.Write.LockDomain != wantLock || len(op.Write.Risks) == 0 || op.AuditArgs == nil {
 				t.Errorf("%s: incomplete write spec %+v", name, op.Write)
 			}
@@ -118,6 +120,20 @@ func TestRegistryIsClosed(t *testing.T) {
 	}
 	if fmt.Sprint(reg["services.enablement.plan"].Write.Risks) != "[disruptive]" || fmt.Sprint(reg["services.enablement.apply"].Write.Risks) != "[disruptive]" {
 		t.Error("enablement must be classified disruptive (step-up)")
+	}
+	got = reg["services.systemctl.apply"].Write.Templates
+	if fmt.Sprint(got) != "[systemctl.start-unit systemctl.stop-unit systemctl.restart-unit systemctl.reload systemctl.try-restart systemctl.reload-or-restart systemctl.kill systemctl.reset-failed systemctl.freeze systemctl.thaw systemctl.isolate systemctl.mask systemctl.unmask systemctl.reenable systemctl.preset systemctl.revert systemctl.set-default systemctl.enable-unit systemctl.disable-unit systemctl.daemon-reload systemctl.daemon-reexec systemctl.poweroff systemctl.reboot systemctl.halt systemctl.suspend systemctl.hibernate systemctl.hybrid-sleep systemctl.kexec systemctl.soft-reboot systemctl.reset-failed-all systemctl.add-wants systemctl.add-requires systemctl.edit]" {
+		t.Errorf("systemctl apply templates: %v", got)
+	}
+	if fmt.Sprint(reg["services.systemctl.plan"].Write.Risks) != "[disruptive]" || fmt.Sprint(reg["services.systemctl.apply"].Write.Risks) != "[disruptive]" {
+		t.Error("systemctl must be classified disruptive (step-up)")
+	}
+	for _, old := range []runner.RootTemplate{runner.RootSystemctlStart, runner.RootSystemctlStop, runner.RootSystemctlRestart, runner.RootSystemctlEnable, runner.RootSystemctlDisable} {
+		for _, tpl := range got {
+			if tpl == old {
+				t.Errorf("systemctl apply must not reuse the .service-only template %s", old)
+			}
+		}
 	}
 	got = reg["host.settings.apply"].Write.Templates
 	if fmt.Sprint(got) != "[hostnamectl.set-static hostnamectl.set-pretty timedatectl.set-timezone hostnamectl.status timedatectl.status timedatectl.list-timezones]" {
@@ -384,6 +400,8 @@ func TestAdmissionClasses(t *testing.T) {
 		"services.unit.contents":    AdmissionServicesRead,
 		"services.enablement.plan":  AdmissionControlPlan,
 		"services.enablement.apply": AdmissionControlApply,
+		"services.systemctl.plan":   AdmissionControlPlan,
+		"services.systemctl.apply":  AdmissionControlApply,
 		"operations.journal.list":   AdmissionSystemRead,
 		"host.settings.plan":        AdmissionControlPlan,
 		"host.settings.apply":       AdmissionControlApply,

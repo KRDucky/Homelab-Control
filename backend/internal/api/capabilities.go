@@ -351,6 +351,8 @@ type servicesResponse struct {
 	Operate   operateStatus                       `json:"operate"`
 	// Configure: boot-time enable/disable (M2-3, services.configure).
 	Configure operateStatus `json:"configure"`
+	// Systemctl: closed systemctl verbs (owner 2026-11-21, services.systemctl).
+	Systemctl operateStatus `json:"systemctl"`
 }
 
 type operateStatus struct {
@@ -399,6 +401,18 @@ func (s *Server) handleServices(w http.ResponseWriter, r *http.Request, sess *au
 		out.Configure.Reason = "The privileged helper's operation journal is unavailable, so boot-time changes are disabled."
 	default:
 		out.Configure.Available = true
+	}
+	switch bi, err := s.brokerInfo(r.Context(), sess); {
+	case !sess.HasScope(auth.ScopeServicesSystemctl):
+		out.Systemctl.Reason = "Your account does not have the services.systemctl permission."
+	case err != nil || bi == nil:
+		out.Systemctl.Reason = brokerDownReason
+	case !bi.hasOp("services.systemctl.apply"):
+		out.Systemctl.Reason = "The privileged helper does not support systemctl operations."
+	case !bi.WritesAvailable:
+		out.Systemctl.Reason = "The privileged helper's operation journal is unavailable, so systemctl operations are disabled."
+	default:
+		out.Systemctl.Available = true
 	}
 	writeJSON(w, http.StatusOK, out)
 }
