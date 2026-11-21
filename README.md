@@ -44,7 +44,7 @@ It was built before the "merged to `main`" items below.
 | Area | What exists | Notes |
 |---|---|---|
 | Authentication | Local accounts (`hlctl user ...`), PBKDF2-SHA256 password hashing, `__Host-` session cookie, CSRF token and Origin checks on every request | No PAM, no MFA/TOTP ([`docs/security/PAM-AUTH-DEFERRED.md`](docs/security/PAM-AUTH-DEFERRED.md)) |
-| Authorization | Server-side scopes on every route: `system.read`, `services.read`, `hardware.read`, `services.operate` and `services.configure` by default; `services.logs` and `audit.read` only when granted explicitly | |
+| Authorization | Server-side scopes on every route: `system.read`, `services.read`, `hardware.read`, `services.operate`, `services.configure`, `services.logs` and `services.files` by default for a new account; `audit.read` only when granted explicitly. An existing account is not changed | |
 | Host overview | CPU, memory, uptime, host filesystems and network from unprivileged reads | |
 | Services | systemd unit list through the broker | Read-only list |
 | Service operations | Start, stop and restart of `.service` units: preview, single-use plan token, protected-unit policy, password re-entry for disruptive actions, operation journal, state read back afterwards ([user guide](docs/user/SERVICE-MANAGEMENT.md)) | Merged to `main` 2026-10-26 (PR #28), after the prerelease; needs `services.operate`. Validation on the owner's workstation VM through a browser (E2) is outstanding ([`docs/m2/M2-2-ACCEPTANCE.md`](docs/m2/M2-2-ACCEPTANCE.md)). No masking or unit-file editing |
