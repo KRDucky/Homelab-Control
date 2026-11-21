@@ -9,23 +9,27 @@ import (
 	"testing"
 )
 
-// Owner decision D-7: log access is never granted automatically, neither to
-// new accounts by default nor to existing accounts on upgrade.
-func TestServicesLogsNotGrantedByDefault(t *testing.T) {
-	if !KnownScopes[ScopeServicesLogs] {
+// Owner 2026-11-20, issue #90: service journal access is granted to new
+// accounts. audit.read stays out. An upgrade does not add scopes.
+func TestServicesLogsGrantedByDefault(t *testing.T) {
+	if !KnownScopes[ScopeServicesLogs] || ScopeServicesLogs != "services.logs" {
 		t.Fatal("services.logs must be a known scope")
 	}
+	seen := map[string]int{}
 	for _, s := range strings.Split(DefaultScopes, ",") {
-		if s == ScopeServicesLogs || strings.HasSuffix(s, ".logs") || strings.HasPrefix(s, "audit.") {
+		seen[s]++
+		if strings.HasPrefix(s, "audit.") {
 			t.Fatalf("default scopes grant %s", s)
 		}
 	}
+	if seen[ScopeServicesLogs] != 1 {
+		t.Fatalf("services.logs must appear exactly once in DefaultScopes, got %d", seen[ScopeServicesLogs])
+	}
 }
 
-// Owner 2026-11-20: services.operate and services.configure are granted to new
-// accounts by default so `hlctl user add` (no --scopes) can operate and
-// configure services. Neither implies the other, and services.logs,
-// services.files and audit.read stay out of DefaultScopes.
+// Owner 2026-11-20: the issue #90 service scopes are granted to new accounts
+// by `hlctl user add` with no --scopes. No scope implies another. audit.read
+// stays out of DefaultScopes.
 func TestServicesOperateAndConfigureGrantedByDefault(t *testing.T) {
 	if !KnownScopes[ScopeServicesOperate] || ScopeServicesOperate != "services.operate" {
 		t.Fatal("services.operate must be a known scope")
@@ -37,17 +41,14 @@ func TestServicesOperateAndConfigureGrantedByDefault(t *testing.T) {
 	seen := map[string]int{}
 	for _, s := range strings.Split(DefaultScopes, ",") {
 		seen[s]++
-		if s == ScopeServicesLogs || strings.HasSuffix(s, ".logs") ||
-			strings.HasPrefix(s, "audit.") || s == ScopeServicesFiles ||
-			strings.HasSuffix(s, ".files") {
+		if strings.HasPrefix(s, "audit.") {
 			t.Fatalf("default scopes grant %s", s)
 		}
 	}
-	if seen[ScopeServicesOperate] != 1 {
-		t.Fatalf("services.operate must appear exactly once in DefaultScopes, got %d", seen[ScopeServicesOperate])
-	}
-	if seen[ScopeServicesConfigure] != 1 {
-		t.Fatalf("services.configure must appear exactly once in DefaultScopes, got %d", seen[ScopeServicesConfigure])
+	for _, sc := range []string{ScopeServicesOperate, ScopeServicesConfigure, ScopeServicesLogs, ScopeServicesFiles} {
+		if seen[sc] != 1 {
+			t.Fatalf("%s must appear exactly once in DefaultScopes, got %d", sc, seen[sc])
+		}
 	}
 
 	if (&Session{Scopes: []string{ScopeServicesOperate}}).HasScope(ScopeServicesConfigure) {
@@ -58,16 +59,23 @@ func TestServicesOperateAndConfigureGrantedByDefault(t *testing.T) {
 	}
 }
 
-// M2-3 (owner authorization 2026-11-05): unit-file contents need
-// services.files, never granted by default and implied by no other scope.
-func TestServicesFilesNotGrantedByDefaultOrImplied(t *testing.T) {
+// M2-3: unit-file contents need services.files. Owner 2026-11-20 grants it
+// to new accounts. No other scope implies it. files.read stays out.
+func TestServicesFilesGrantedByDefaultNotImplied(t *testing.T) {
 	if !KnownScopes[ScopeServicesFiles] || ScopeServicesFiles != "services.files" {
 		t.Fatal("services.files must be a known scope")
 	}
+	seen := 0
 	for _, s := range strings.Split(DefaultScopes, ",") {
-		if s == ScopeServicesFiles || strings.HasSuffix(s, ".files") {
+		if s == ScopeServicesFiles {
+			seen++
+		}
+		if s == ScopeFilesRead || strings.HasPrefix(s, "files.") {
 			t.Fatalf("default scopes grant %s", s)
 		}
+	}
+	if seen != 1 {
+		t.Fatalf("services.files must appear exactly once in DefaultScopes, got %d", seen)
 	}
 	var others []string
 	for s := range KnownScopes {
@@ -109,7 +117,7 @@ func TestFilesReadNotGrantedByDefaultOrImplied(t *testing.T) {
 		t.Fatal("files.read must be a known scope")
 	}
 	for _, s := range strings.Split(DefaultScopes, ",") {
-		if s == ScopeFilesRead || strings.HasSuffix(s, ".files") {
+		if s == ScopeFilesRead || strings.HasPrefix(s, "files.") {
 			t.Fatalf("default scopes grant %s", s)
 		}
 	}
