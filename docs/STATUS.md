@@ -217,8 +217,14 @@ array definition was written, sync completed, a later sync was refused, `fix -m 
 scrub completed, and a sync after a data directory was removed was refused. In that guest the refusal
 after deleting the only file on a data disk was `missing-disk` (SnapRAID's all-files warning says the
 disk may not be mounted). The refusal after the directory was removed was `diff-unreadable`. Both
-refusals stopped the sync. The hc-api and broker plan/apply HTTP path was not part of that guest.
-Not production-approved. Not M8 acceptance.
+refusals stopped the sync. Evidence run `src-20261121T224150Z-dfa0f3`.
+A later disposable Ubuntu 24.04 guest exercised the same actions through hc-api and the broker:
+login, step-up, and POST plan/apply for the pool mount, the array definition, sync, a refused sync
+after a file was removed, `fix -m -f` of that file, scrub, and a refused sync after a data directory
+was removed. Outcomes were succeeded, succeeded, succeeded, failed, succeeded, succeeded, failed.
+The mount plan argv was the mergerfs command. The enable marker existed only inside that guest.
+The UI was not part of this guest. Evidence run `src-20261121T225047Z-8c8798`.
+Not production-approved. Not M8 acceptance. This checkpoint is not on main.
 
 ## P0 storage shared (development; not production, not ADR 0014)
 
