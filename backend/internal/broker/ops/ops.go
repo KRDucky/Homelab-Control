@@ -69,6 +69,9 @@ type Env struct {
 	// Systemctl overrides root systemctl execution in tests. Production leaves
 	// it nil and services.systemctl uses RootExec.
 	Systemctl systemctlExec
+	// SnapraidStatus overrides `snapraid status` in tests. Production leaves
+	// it nil. The production path runs Runner with argv exactly "status".
+	SnapraidStatus func(ctx context.Context) (stdout []byte, stderr string, exitCode int, err error)
 	// Actor is the caller as asserted by hc-api (per-call copy).
 	Actor proto.Actor
 	// Modules is the administrator's module setting (zero value: all enabled).
@@ -214,6 +217,10 @@ func Registry() map[string]Op {
 			Description: "Configured repositories and package sources with third-party and unsigned flags (args: family)", Handle: packagesSources},
 		{Name: "packages.search", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second, Admission: AdmissionPackages,
 			Description: "Search the local package cache of one family (args: family, q)", Handle: packagesSearch, AuditArgs: packagesAuditArgs},
+		// MergerFS: read-only snapraid status. No client path, no --conf, no
+		// sync/diff/fix/scrub/smart. Shares the services-read admission bucket.
+		{Name: "mergerfs.snapraid.status", Scope: "mergerfs.read", Privilege: PrivUnprivilegedExec, Timeout: 15 * time.Second, Admission: AdmissionServicesRead,
+			Description: "Read snapraid status (argv exactly status; default configuration). Parsed summary only; the scrub graph is omitted", Handle: snapraidStatus},
 		// M2-4 O-1 (owner-approved implementation/isolated validation): the
 		// broker is only a bounded client of the root-only socket-activated
 		// probe helper. It enumerates block names and relays a closed request;
@@ -273,7 +280,7 @@ func brokerInfo(_ context.Context, env *Env, raw json.RawMessage) (any, error) {
 	}
 	sort.Slice(res.Ops, func(i, j int) bool { return res.Ops[i].Name < res.Ops[j].Name })
 	res.WritesAvailable = env.Writes != nil
-	for _, b := range []string{"systemctl", "journalctl", "hostnamectl", "timedatectl", "dpkg-query", "apt-cache", "apt", "rpm", "dnf", "zypper", "pacman"} {
+	for _, b := range []string{"systemctl", "journalctl", "hostnamectl", "timedatectl", "dpkg-query", "apt-cache", "apt", "rpm", "dnf", "zypper", "pacman", "snapraid"} {
 		if env.Runner != nil && env.Runner.Available(b) {
 			res.Exec = append(res.Exec, b)
 		}

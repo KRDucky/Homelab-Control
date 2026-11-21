@@ -1319,6 +1319,22 @@ export function getMergerFS(csrf: string): Promise<MergerFSInventory> {
   return request<MergerFSInventory>('/api/v1/mergerfs', { headers: { 'X-CSRF-Token': csrf } });
 }
 
+// Parsed `snapraid status`. The scrub graph and file paths are omitted.
+// This call does not run sync, diff, fix, scrub, or smart.
+export interface SnapraidStatus {
+  exitCode: number;
+  syncInProgress: boolean;
+  summary: string[];
+  scrubAge?: string;
+  truncated?: boolean;
+  note: string;
+  source: string;
+}
+
+export function getSnapraidStatus(csrf: string): Promise<SnapraidStatus> {
+  return request<SnapraidStatus>('/api/v1/mergerfs/snapraid/status', { headers: { 'X-CSRF-Token': csrf } });
+}
+
 // ---- M7 first checkpoint: OpenZFS (read-only) --------------------------------
 
 export interface ZFSToolItem {

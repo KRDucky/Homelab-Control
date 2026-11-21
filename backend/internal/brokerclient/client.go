@@ -39,9 +39,10 @@ var opTimeouts = map[string]time.Duration{
 	"host.settings.apply": 75 * time.Second,
 	// Read-only ops with a 15 s broker timeout (equal deadlines could cut off
 	// the broker's own timeout answer).
-	"services.timers.list":  20 * time.Second,
-	"services.sockets.list": 20 * time.Second,
-	"services.unit.logs":    20 * time.Second,
+	"services.timers.list":     20 * time.Second,
+	"services.sockets.list":    20 * time.Second,
+	"services.unit.logs":       20 * time.Second,
+	"mergerfs.snapraid.status": 20 * time.Second,
 	// M4-1b: package queries have a 30 s broker timeout (cache-only reads can
 	// scan a large local package DB), so clients wait longer than that.
 	"packages.installed": 40 * time.Second,

@@ -281,8 +281,10 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/packages/installed", auth.ScopePackagesRead, s.handlePackagesInstalled)
 	s.handle("GET /api/v1/packages/updates", auth.ScopePackagesRead, s.handlePackagesUpdates)
 	s.handle("GET /api/v1/packages/sources", auth.ScopePackagesRead, s.handlePackagesSources)
-	// M8 first checkpoint: read-only MergerFS + optional SnapRAID (no broker ops).
+	// M8 first checkpoint: read-only MergerFS + optional SnapRAID.
+	// The only broker op is mergerfs.snapraid.status (argv exactly "status").
 	s.handle("GET /api/v1/mergerfs", auth.ScopeMergerFSRead, s.handleMergerFS)
+	s.handle("GET /api/v1/mergerfs/snapraid/status", auth.ScopeMergerFSRead, s.handleSnapraidStatus)
 	// M7 first checkpoint: read-only OpenZFS (no broker ops, never exec).
 	s.handle("GET /api/v1/zfs", auth.ScopeZFSRead, s.handleZFS)
 	// M7 first checkpoint: read-only LVM (no broker ops, never exec).

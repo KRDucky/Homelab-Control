@@ -54,6 +54,9 @@ var allowlist = map[string][]string{
 	// P0 storage (ADR 0008 Amendment 2): mkfs.ext4 is registered unused.
 	// No broker op calls it until independent security review. No -F.
 	"mkfs.ext4": {"/usr/sbin/mkfs.ext4", "/sbin/mkfs.ext4"},
+	// MergerFS SnapRAID status (ADR 0008): only mergerfs.snapraid.status calls
+	// this binary, and only with argv "status". No sync, scrub, fix, diff, or smart.
+	"snapraid": {"/usr/bin/snapraid", "/usr/sbin/snapraid"},
 }
 
 // argRE limits fixed arguments to a conservative character set; arguments

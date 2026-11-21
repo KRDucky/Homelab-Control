@@ -370,6 +370,25 @@ func TestDisabledModuleOpsRefused(t *testing.T) {
 	}
 }
 
+func TestDisabledMergerFSModuleRefusesStatus(t *testing.T) {
+	f := start(t)
+	set, err := modules.Parse([]byte(`{"version":1,"disabled":["mergerfs"]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.srv.Env.Modules = set
+	if _, err := call(t, f, "mergerfs.snapraid.status", "mergerfs.read"); code(err) != proto.CodeModuleDisabled {
+		t.Fatalf("mergerfs.snapraid.status with disabled module: %v", err)
+	}
+	if !strings.Contains(f.audit.String(), `"outcome":"module_disabled"`) {
+		t.Fatalf("disabled mergerfs status was not audited: %s", f.audit.String())
+	}
+	out, err := call(t, f, "broker.info")
+	if err != nil || strings.Contains(string(out), `"mergerfs.snapraid.status"`) || !strings.Contains(string(out), `"disabled_modules":["mergerfs"]`) {
+		t.Fatalf("broker.info did not hide disabled mergerfs op: %v %s", err, out)
+	}
+}
+
 func TestDisabledStorageModuleRefusesProbe(t *testing.T) {
 	f := start(t)
 	set, err := modules.Parse([]byte(`{"version":1,"disabled":["storage"]}`))
