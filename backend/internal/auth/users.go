@@ -47,7 +47,9 @@ const (
 	ScopeServicesRead = "services.read" // systemd unit list (M1)
 	ScopeHardwareRead = "hardware.read" // hardware inventory incl. DMI serials (M1)
 	// ScopeServicesLogs allows reading service journal entries, which can
-	// contain sensitive data. Not in DefaultScopes: grant it explicitly (D-7).
+	// contain sensitive data. In DefaultScopes (owner 2026-11-20, issue #90):
+	// new accounts from `hlctl user add` get it. An existing account does not
+	// until `hlctl user scopes` replaces its list. audit.read stays out.
 	ScopeServicesLogs = "services.logs"
 	// ScopeAuditRead allows reading the API audit trail (who signed in, what
 	// was denied, which logs were read). Not in DefaultScopes (D-7).
@@ -65,8 +67,9 @@ const (
 	// ScopeServicesFiles allows reading unit file and drop-in contents
 	// (M2-3, owner authorization 2026-11-05). Unit files can contain
 	// credentials and other sensitive configuration; redaction is heuristic.
-	// Not in DefaultScopes and not implied by services.logs, services.read,
-	// services.operate or services.configure (no scope implies another).
+	// In DefaultScopes (owner 2026-11-20, issue #90) and not implied by
+	// services.logs, services.read, services.operate or services.configure
+	// (no scope implies another).
 	ScopeServicesFiles = "services.files"
 	// ScopeHostSettingsPreview allows previewing hostname and timezone
 	// changes (M2-6). A preview never changes the host, and this scope never
@@ -154,11 +157,13 @@ var KnownScopes = map[string]bool{
 }
 
 // DefaultScopes are granted by `hlctl user add` when --scopes is not given.
-// Owner 2026-11-20: services.operate and services.configure are included so a
-// new install can start/stop/restart and enable/disable services. Loading or
-// upgrading an existing users file never adds scopes.
+// Owner 2026-11-20: the services module scopes from issue #90 are included
+// (read, operate, configure, logs, files) so a new install can run and inspect
+// services. audit.read stays out. Loading or upgrading an existing users file
+// never adds scopes.
 const DefaultScopes = ScopeSystemRead + "," + ScopeServicesRead + "," + ScopeHardwareRead +
-	"," + ScopeServicesOperate + "," + ScopeServicesConfigure
+	"," + ScopeServicesOperate + "," + ScopeServicesConfigure +
+	"," + ScopeServicesLogs + "," + ScopeServicesFiles
 
 var usernameRE = regexp.MustCompile(`^[a-z_][a-z0-9_-]{0,31}$`)
 

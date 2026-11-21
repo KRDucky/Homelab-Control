@@ -229,11 +229,10 @@ service.
   look like secrets are replaced by `[redacted]`. This is heuristic and **not a secrecy guarantee**:
   secrets passed as positional arguments (`-u user:pass`, `-pSECRET`), inside quoted header values or
   URL query strings, or under setting names without words such as "password", "secret" or "token" are
-  not detected. **This permission can disclose sensitive configuration**: grant `services.files` only to
-  people who may read the host's unit files. It is never granted by default and is not included in
-  `services.logs` (journal entries), `services.read`, `services.operate` or `services.configure`; grant it
-  explicitly, for example `sudo hlctl user scopes --file /etc/homelab-control/users.json --username alice
-  --scopes system.read,services.read,services.files`.
+  not detected. **This permission can disclose sensitive configuration.** New accounts get
+  `services.files` and `services.logs` by default (owner 2026-11-20). Neither is implied by
+  `services.read`, `services.operate` or `services.configure`. An existing account does not receive
+  them until `hlctl user scopes` replaces its list. `audit.read` stays off that default list.
 - **Downgrading** to a build without `services.files` (any build before this one): remove the scope from every
   account first (`hlctl user scopes …` without it). A users file naming a scope the running build does not
   know is rejected at start-up, and `hc-api` then does not start (`users file: … unknown scope`). The same
