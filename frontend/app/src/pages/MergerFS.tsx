@@ -3,7 +3,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useCallback, useState } from 'react';
-import { getMergerFS, type MergerFSInventory, type MergerFSToolItem } from '../api';
+import {
+  getMergerFS,
+  getSnapraidStatus,
+  type MergerFSInventory,
+  type MergerFSToolItem,
+  type SnapraidStatus,
+} from '../api';
 import { formatBytes } from '../format';
 import { InstallPlanDialog } from '../InstallPlanDialog';
 import { Meter } from '../Meter';
@@ -16,7 +22,7 @@ import { explain, useData } from '../useData';
  * missing, hide pools/policy until mergerfs is present, and show a SnapRAID
  * config block only when a config is present. No pool create, mount, policy
  * write, or snapraid sync/scrub/fix control exists in the DOM, not even
- * disabled.
+ * disabled. "Read SnapRAID status" only runs `snapraid status` after a click.
  */
 export function MergerFS({
   csrf,
@@ -40,17 +46,21 @@ export function MergerFS({
       </div>
     );
   }
-  return <MergerFSView data={data} error={error} scopes={scopes} packagesEnabled={packagesEnabled} />;
+  return (
+    <MergerFSView data={data} error={error} csrf={csrf} scopes={scopes} packagesEnabled={packagesEnabled} />
+  );
 }
 
 export function MergerFSView({
   data,
   error,
+  csrf,
   scopes = [],
   packagesEnabled,
 }: {
   data: MergerFSInventory;
   error: Error | null;
+  csrf: string;
   scopes?: string[];
   packagesEnabled: boolean;
 }) {
@@ -270,12 +280,66 @@ export function MergerFSView({
             SnapRAID is optional. Read-only view of <code>{snapraid.configPath}</code>. Writes between syncs
             are not protected. This page does not run sync, diff, or fix, and it does not read content files.
           </p>
+          <SnapraidStatusPanel csrf={csrf} />
           <PathList title="Data" paths={snapraid.data} />
           <PathList title="Parity" paths={snapraid.parity} />
           <PathList title="Content" paths={snapraid.content} />
         </section>
       )}
     </div>
+  );
+}
+
+function SnapraidStatusPanel({ csrf }: { csrf: string }) {
+  const [status, setStatus] = useState<SnapraidStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function load() {
+    setBusy(true);
+    setError(null);
+    try {
+      setStatus(await getSnapraidStatus(csrf));
+    } catch (e) {
+      setStatus(null);
+      setError(explain(e instanceof Error ? e : new Error(String(e))));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <p>
+        <button type="button" onClick={() => void load()} disabled={busy}>
+          {busy ? 'Reading SnapRAID status…' : 'Read SnapRAID status'}
+        </button>
+      </p>
+      <p>
+        This reads <code>snapraid status</code> only, after you press the button. The summary refers to the
+        latest sync. Later writes are not counted. The scrub graph is not shown.
+      </p>
+      {error && (
+        <p className="banner" role="alert">
+          {error}
+        </p>
+      )}
+      {status && (
+        <div>
+          <p>{status.note}</p>
+          {status.syncInProgress && <p role="status">A sync is in progress.</p>}
+          {status.summary.length > 0 && (
+            <ul>
+              {status.summary.map((line, i) => (
+                <li key={`${i}:${line}`}>{line}</li>
+              ))}
+            </ul>
+          )}
+          {status.truncated && <p>Further status lines were omitted.</p>}
+          {status.exitCode !== 0 && <p>snapraid status exited {status.exitCode}.</p>}
+        </div>
+      )}
+    </>
   );
 }
 
