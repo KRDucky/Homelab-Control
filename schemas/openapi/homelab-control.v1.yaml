@@ -2439,6 +2439,45 @@ paths:
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: Missing mergerfs.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: Collection busy, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /mergerfs/snapraid/status:
+    get:
+      summary: Read snapraid status (scope mergerfs.read).
+      description: >
+        Calls the closed broker operation mergerfs.snapraid.status. The argv is
+        exactly "status", so snapraid uses its default configuration. The client
+        cannot pass a path, --conf, or any other argument. The response keeps
+        recognised summary lines (sync in progress, no error, warning, danger,
+        scrub age) and drops the per-disk table, the scrub graph, and file paths.
+        A non-zero exit is returned with the parsed summary. This does not run
+        sync, diff, fix, scrub, or smart, and it does not open content files.
+        The summary refers to the latest sync; later modifications are not counted.
+        Origin and X-CSRF-Token are required. Audit records the exit code and
+        line count, never the summary text.
+      security: [{ session: [] }]
+      x-required-scope: mergerfs.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      responses:
+        '200':
+          description: Parsed snapraid status summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [exitCode, syncInProgress, summary, note, source]
+                properties:
+                  exitCode: { type: integer }
+                  syncInProgress: { type: boolean }
+                  summary: { type: array, maxItems: 12, items: { type: string } }
+                  scrubAge: { type: string }
+                  truncated: { type: boolean }
+                  note: { type: string }
+                  source: { type: string }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing mergerfs.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Broker down, snapraid missing, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '504': { description: snapraid status timed out, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /zfs:
     get:
       summary: Read-only OpenZFS inventory (scope zfs.read).

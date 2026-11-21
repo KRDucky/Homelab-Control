@@ -146,6 +146,19 @@ type SourceList struct {
 	Source    string             `json:"source"`
 }
 
+// SnapraidStatus is the parsed summary of `snapraid status`.
+// The per-disk table and the scrub/sync graph are omitted. Content files
+// are not returned. The summary refers to the latest sync.
+type SnapraidStatus struct {
+	ExitCode       int      `json:"exitCode"`
+	SyncInProgress bool     `json:"syncInProgress"`
+	Summary        []string `json:"summary"`
+	ScrubAge       string   `json:"scrubAge,omitempty"`
+	Truncated      bool     `json:"truncated,omitempty"`
+	Note           string   `json:"note"`
+	Source         string   `json:"source"`
+}
+
 // LogsUnitRE is the unit-name grammar accepted by services.unit.logs: no
 // leading '-', no escapes or path separators, a listed unit type, at most 100
 // characters before the type. Shared by hc-api (early 400) and the broker.
