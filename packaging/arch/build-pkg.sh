@@ -10,7 +10,7 @@
 set -euo pipefail
 ver_in=${1:-0.0.0}
 root=$(cd "$(dirname "$0")/../.." && pwd)
-for f in hc-api hc-broker hlctl hc-audit-retention hc-storage-probe; do [ -x "$root/build/$f" ] || { echo "missing build/$f"; exit 1; }; done
+for f in hc-api hc-broker hlctl hc-audit-retention hc-storage-probe hc-mergerfs-apply; do [ -x "$root/build/$f" ] || { echo "missing build/$f"; exit 1; }; done
 # Version mapping (SemVer prerelease 0.1.0-dev.1 -> 0.1.0dev.1): see the helper.
 # shellcheck source=packaging/common/version-map.sh
 . "$root/packaging/common/version-map.sh"
@@ -19,10 +19,10 @@ pkgver=$(hc_arch_pkgver "$ver_in")
 # every package different. The path is private to this script and removed before and after use.
 work=${HC_MAKEPKG_DIR:-/tmp/homelab-control-makepkg}
 rm -rf "$work"; mkdir -p "$work"; trap 'rm -rf "$work"' EXIT
-cp "$root/build/hc-api" "$root/build/hc-broker" "$root/build/hlctl" "$root/build/hc-audit-retention" "$root/build/hc-storage-probe" "$work/"
-cp "$root"/packaging/common/{homelab-control.service,homelab-control-broker.service,homelab-control-broker.socket,homelab-control-storage-helper.service,homelab-control-storage-probe@.service,homelab-control-storage-probe.socket,homelab-control-audit-retention.service,homelab-control-audit-retention.timer,sysusers.conf,hc-api.env,audit-retention.conf} "$work/"
+cp "$root/build/hc-api" "$root/build/hc-broker" "$root/build/hlctl" "$root/build/hc-audit-retention" "$root/build/hc-storage-probe" "$root/build/hc-mergerfs-apply" "$work/"
+cp "$root"/packaging/common/{homelab-control.service,homelab-control-broker.service,homelab-control-broker.socket,homelab-control-storage-helper.service,homelab-control-storage-probe@.service,homelab-control-storage-probe.socket,homelab-control-mergerfs-apply@.service,homelab-control-mergerfs-apply.socket,homelab-control-audit-retention.service,homelab-control-audit-retention.timer,sysusers.conf,hc-api.env,audit-retention.conf} "$work/"
 cp "$root/LICENSE.md" "$root/NOTICE.md" "$root/README.md" "$root/docs/compliance/THIRD-PARTY-NOTICES.md" "$work/"
-sources=(hc-api hc-broker hlctl hc-audit-retention hc-storage-probe homelab-control.service homelab-control-broker.service homelab-control-broker.socket homelab-control-storage-helper.service homelab-control-storage-probe@.service homelab-control-storage-probe.socket homelab-control-audit-retention.service homelab-control-audit-retention.timer sysusers.conf hc-api.env audit-retention.conf LICENSE.md NOTICE.md THIRD-PARTY-NOTICES.md README.md)
+sources=(hc-api hc-broker hlctl hc-audit-retention hc-storage-probe hc-mergerfs-apply homelab-control.service homelab-control-broker.service homelab-control-broker.socket homelab-control-storage-helper.service homelab-control-storage-probe@.service homelab-control-storage-probe.socket homelab-control-mergerfs-apply@.service homelab-control-mergerfs-apply.socket homelab-control-audit-retention.service homelab-control-audit-retention.timer sysusers.conf hc-api.env audit-retention.conf LICENSE.md NOTICE.md THIRD-PARTY-NOTICES.md README.md)
 checksums=()
 for source in "${sources[@]}"; do
   checksums+=("$(sha256sum -- "$work/$source" | awk '{print $1}')")
@@ -69,8 +69,9 @@ package() {
   install -Dm0755 hlctl "\$pkgdir/usr/bin/hlctl"
   install -Dm0755 hc-broker "\$pkgdir/usr/lib/homelab-control/hc-broker"
   install -Dm0755 hc-storage-probe "\$pkgdir/usr/lib/homelab-control/hc-storage-probe"
+  install -Dm0755 hc-mergerfs-apply "\$pkgdir/usr/lib/homelab-control/hc-mergerfs-apply"
   install -Dm0755 hc-audit-retention "\$pkgdir/usr/bin/hc-audit-retention"
-  for u in homelab-control.service homelab-control-broker.service homelab-control-broker.socket homelab-control-storage-helper.service homelab-control-storage-probe@.service homelab-control-storage-probe.socket homelab-control-audit-retention.service homelab-control-audit-retention.timer; do
+  for u in homelab-control.service homelab-control-broker.service homelab-control-broker.socket homelab-control-storage-helper.service homelab-control-storage-probe@.service homelab-control-storage-probe.socket homelab-control-mergerfs-apply@.service homelab-control-mergerfs-apply.socket homelab-control-audit-retention.service homelab-control-audit-retention.timer; do
     install -Dm0644 "\$u" "\$pkgdir/usr/lib/systemd/system/\$u"
   done
   install -Dm0644 sysusers.conf "\$pkgdir/usr/lib/sysusers.d/homelab-control.conf"

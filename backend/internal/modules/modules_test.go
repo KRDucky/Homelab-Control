@@ -24,7 +24,7 @@ func TestRegistryIsClosed(t *testing.T) {
 	if all[3].ID != "networking" || all[3].OpPrefix != "" {
 		t.Fatalf("networking registry: %+v", all[3])
 	}
-	if all[4].ID != "mergerfs" || all[4].APIPrefix != "/api/v1/mergerfs" || all[4].OpPrefix != "mergerfs." || all[4].Path != "/storage/mergerfs" || len(all[4].Scopes) != 1 || all[4].Scopes[0] != "mergerfs.read" {
+	if all[4].ID != "mergerfs" || all[4].APIPrefix != "/api/v1/mergerfs" || all[4].OpPrefix != "mergerfs." || all[4].Path != "/storage/mergerfs" || len(all[4].Scopes) != 3 || all[4].Scopes[0] != "mergerfs.read" || all[4].Scopes[1] != "mergerfs.configure" || all[4].Scopes[2] != "mergerfs.maintain" {
 		t.Fatalf("mergerfs module: %+v (new modules need review)", all[4])
 	}
 	if all[5].ID != "zfs" || all[5].APIPrefix != "/api/v1/zfs" || all[5].OpPrefix != "" || all[5].Path != "/storage/zfs" || len(all[5].Scopes) != 1 || all[5].Scopes[0] != "zfs.read" {
@@ -37,14 +37,14 @@ func TestRegistryIsClosed(t *testing.T) {
 		"/api/v1/servicesx": "", "/api/v1/audit": "", "/api/v1/operations": "", "/api/v1/capabilities": "",
 		"/api/v1/files": "", "/api/v1/files/roots": "", "/api/v1/files/entries": "", "/": "",
 		"/api/v1/storage": "storage", "/api/v1/storage/probe": "storage", "/api/v1/storage/layout/chassis": "storage", "/api/v1/storagex": "",
-		"/api/v1/networking/reverse-proxy/traefik/inventory": "networking", "/api/v1/networkingx": "", "/api/v1/packages": "packages", "/api/v1/packages/search": "packages", "/api/v1/packagesx": "", "/api/v1/mergerfs": "mergerfs", "/api/v1/mergerfs/snapraid/status": "mergerfs", "/api/v1/mergerfsx": "", "/api/v1/zfs": "zfs", "/api/v1/zfsx": "", "/api/v1/lvm": "lvm", "/api/v1/lvmx": ""} {
+		"/api/v1/networking/reverse-proxy/traefik/inventory": "networking", "/api/v1/networkingx": "", "/api/v1/packages": "packages", "/api/v1/packages/search": "packages", "/api/v1/packagesx": "", "/api/v1/mergerfs": "mergerfs", "/api/v1/mergerfs/snapraid/status": "mergerfs", "/api/v1/mergerfs/pool/plan": "mergerfs", "/api/v1/mergerfs/maintain/apply": "mergerfs", "/api/v1/mergerfsx": "", "/api/v1/zfs": "zfs", "/api/v1/zfsx": "", "/api/v1/lvm": "lvm", "/api/v1/lvmx": ""} {
 		if got := ForRoute(path); got != want {
 			t.Errorf("ForRoute(%q) = %q, want %q", path, got, want)
 		}
 	}
 	for op, want := range map[string]string{"services.unit.apply": "services", "operations.journal.list": "", "broker.info": "", "servicesx": "", "storage.probe": "storage",
 		"host.settings.plan": "", "host.settings.apply": "", "packages.installed": "packages", "packages.search": "packages", "packagesx": "",
-		"mergerfs.snapraid.status": "mergerfs", "mergerfsx.status": ""} {
+		"mergerfs.snapraid.status": "mergerfs", "mergerfs.pool.apply": "mergerfs", "mergerfs.maintain.apply": "mergerfs", "mergerfsx.status": ""} {
 		if got := ForOp(op); got != want {
 			t.Errorf("ForOp(%q) = %q", op, got)
 		}
