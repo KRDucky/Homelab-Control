@@ -5,8 +5,8 @@
 // Command hc-mergerfs-apply is the opt-in MergerFS and SnapRAID helper.
 // It reads one JSON request, validates it again, and runs only the closed
 // argv from mergerfsapply. It is not started unless
-// /etc/homelab-control/mergerfs-apply.enabled exists. No package ships that
-// file. The broker is a client of the socket; it does not mount or sync.
+// /etc/homelab-control/mergerfs-apply.enabled exists. The package ships that
+// marker. The broker is a client of the socket; it does not mount or sync.
 package main
 
 import (

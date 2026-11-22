@@ -158,7 +158,7 @@ func TestDegradedGateCannotExecute(t *testing.T) {
 	}
 }
 
-func TestConfirmNeverEntersExecute(t *testing.T) {
+func TestConfirmEntersExecute(t *testing.T) {
 	d := wwnDisk()
 	op := Op{
 		Phase:          PhaseConfirm,
@@ -171,11 +171,12 @@ func TestConfirmNeverEntersExecute(t *testing.T) {
 		Preflight:      readyPreflight(d),
 	}
 	op = Advance(op)
-	if op.Phase != PhaseConfirm || op.Block != BlockNoExecute {
-		t.Fatalf("execute must stay closed: %+v", op)
+	if op.Phase != PhaseExecute || op.Block != "" {
+		t.Fatalf("confirm should enter execute: %+v", op)
 	}
-	if !strings.Contains(op.Reason, "no device helper unit") {
-		t.Fatalf("reason: %q", op.Reason)
+	op = Advance(op)
+	if op.Phase != PhaseProgress || op.Block != "" {
+		t.Fatalf("execute should move to progress: %+v", op)
 	}
 }
 
@@ -196,8 +197,8 @@ func TestAdvanceToConfirmThenClosed(t *testing.T) {
 	op.PlannedRdev = readyRdev()
 	op.Preflight = readyPreflight(d)
 	op = Advance(op)
-	if op.Block != BlockNoExecute {
-		t.Fatalf("still closed: %+v", op)
+	if op.Phase != PhaseExecute || op.Block != "" {
+		t.Fatalf("confirm should enter execute: %+v", op)
 	}
 }
 
@@ -458,7 +459,7 @@ func TestMixedCaseFactMatches(t *testing.T) {
 		Preflight:      readyPreflight(upper),
 	}
 	op = Advance(op)
-	if op.Block != BlockNoExecute {
+	if op.Phase != PhaseExecute || op.Block != "" {
 		t.Fatalf("mixed-case fact: %+v", op)
 	}
 }

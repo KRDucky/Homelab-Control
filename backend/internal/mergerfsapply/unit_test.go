@@ -28,12 +28,13 @@ func TestApplyUnitIsOptIn(t *testing.T) {
 		"KillMode=process",
 		"PrivateMounts=no",
 		"PrivateNetwork=no",
+		"AppArmorProfile=hc-mergerfs-apply",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("unit missing %s", want)
 		}
 	}
-	for _, banned := range []string{"[Install]", "AppArmorProfile=", "SELinuxContext=", "homelab-control-storage-helper", "~@mount", "ProtectSystem=", "ProtectHome=", "PrivateTmp=", "PrivateNetwork=yes", "ExecStart=/bin/false"} {
+	for _, banned := range []string{"[Install]", "SELinuxContext=", "AppArmorProfile=hc-storage-probe", "homelab-control-storage-helper", "~@mount", "ProtectSystem=", "ProtectHome=", "PrivateTmp=", "PrivateNetwork=yes", "ExecStart=/bin/false"} {
 		if strings.Contains(text, banned) {
 			t.Errorf("unit contains %s", banned)
 		}
@@ -45,5 +46,31 @@ func TestApplyUnitIsOptIn(t *testing.T) {
 	s := string(sock)
 	if strings.Contains(s, "[Install]") || !strings.Contains(s, "SocketMode=0600") || !strings.Contains(s, "mergerfs-apply.enabled") {
 		t.Fatalf("socket:\n%s", s)
+	}
+	profile, err := os.ReadFile("../../../packaging/debian/apparmor/usr.lib.homelab-control.hc-mergerfs-apply")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := string(profile)
+	for _, want := range []string{
+		"profile hc-mergerfs-apply /usr/lib/homelab-control/hc-mergerfs-apply flags=(enforce)",
+		"/usr/bin/mergerfs ix,",
+		"/usr/bin/snapraid ix,",
+		"/usr/bin/systemd-run ix,",
+		"deny network inet,",
+		"deny /etc/homelab-control/** rwklmx,",
+	} {
+		if !strings.Contains(p, want) {
+			t.Errorf("profile missing %s", want)
+		}
+	}
+	for _, banned := range []string{"deny mount,", "deny capability,", "/bin/sh", "/bin/bash", "unconfined", "complain"} {
+		if strings.Contains(p, banned) {
+			t.Errorf("profile contains %s", banned)
+		}
+	}
+	marker, err := os.ReadFile("../../../packaging/common/mergerfs-apply.enabled")
+	if err != nil || len(marker) == 0 {
+		t.Fatalf("enable marker: %v", err)
 	}
 }

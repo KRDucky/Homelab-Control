@@ -47,6 +47,7 @@ done
 install -Dm0644 $root/packaging/common/sysusers.conf %{buildroot}/usr/lib/sysusers.d/homelab-control.conf
 install -Dm0640 $root/packaging/common/hc-api.env %{buildroot}/etc/homelab-control/hc-api.env
 install -Dm0640 $root/packaging/common/audit-retention.conf %{buildroot}/etc/homelab-control/audit-retention.conf
+install -Dm0644 $root/packaging/common/mergerfs-apply.enabled %{buildroot}/etc/homelab-control/mergerfs-apply.enabled
 install -Dm0644 $root/LICENSE.md %{buildroot}/usr/share/licenses/homelab-control/LICENSE.md
 install -Dm0644 $root/NOTICE.md %{buildroot}/usr/share/licenses/homelab-control/NOTICE.md
 install -Dm0644 $root/docs/compliance/THIRD-PARTY-NOTICES.md %{buildroot}/usr/share/licenses/homelab-control/THIRD-PARTY-NOTICES.md
@@ -100,6 +101,7 @@ if [ -d /run/systemd/system ]; then systemctl daemon-reload >/dev/null 2>&1 || :
 %dir %attr(0750,root,homelab-control) /etc/homelab-control
 %config(noreplace) %attr(0640,root,homelab-control) /etc/homelab-control/hc-api.env
 %config(noreplace) %attr(0640,root,homelab-control) /etc/homelab-control/audit-retention.conf
+%config(noreplace) %attr(0644,root,root) /etc/homelab-control/mergerfs-apply.enabled
 SPEC
 # Reproducible output: build time and file mtimes come from SOURCE_DATE_EPOCH (as for the .deb),
 # and the build host name is fixed, so two builds of the same inputs are byte-identical.

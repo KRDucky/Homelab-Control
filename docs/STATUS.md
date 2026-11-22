@@ -205,11 +205,15 @@ capacity. Zero-byte measured filesystems still include the numbers.
 Pool mount, array definition (fstab plus snapraid.conf), sync, scrub, and filtered recovery
 (`snapraid fix -m -f` only) are plan/apply broker ops. `mergerfs.configure` and `mergerfs.maintain`
 are not default grants and do not imply `mergerfs.read` or each other. The broker dials an opt-in
-helper socket. The package does not ship `/etc/homelab-control/mergerfs-apply.enabled` and does not
-enable the socket. Sync and scrub refuse a missing disk or removed files. There is no `--force`,
-no `-e`, and no unfiltered fix. Disks are not formatted. `storagecap.Advance` still does not execute.
+helper socket. The package ships `/etc/homelab-control/mergerfs-apply.enabled`. The socket has no
+`[Install]` section and the package does not enable it at boot. Sync and scrub refuse a missing disk
+or removed files. There is no `--force`, no `-e`, and no unfiltered fix. Disks are not formatted.
+`storagecap.Advance` enters `execute` after a passing confirm, then `progress` and `postcheck`.
+It still does not format a device or call a helper. No broker op calls `mkfs.ext4`.
 The unused `homelab-control-storage-helper.service` stays `ExecStart=/bin/false`.
-The helper unit is opt-in and is not MAC-confined. It does not use a private mount or network namespace
+The helper unit sets `AppArmorProfile=hc-mergerfs-apply`. That profile is enforce mode, allows
+`mount` and the helper's three binaries, and denies other network families. It is not the probe
+profile. There is no SELinux policy for this helper. It does not use a private mount or network namespace
 (`PrivateMounts=no`, `PrivateNetwork=no`, `IPAddressDeny=any`). `@system-service` excludes `@mount`,
 so the unit adds `@mount`. mergerfs is started in its own systemd scope so the oneshot does not stop it.
 One disposable Ubuntu 24.04 guest exercised that helper socket: the pool mount stayed visible, the
@@ -222,9 +226,11 @@ A later disposable Ubuntu 24.04 guest exercised the same actions through hc-api 
 login, step-up, and POST plan/apply for the pool mount, the array definition, sync, a refused sync
 after a file was removed, `fix -m -f` of that file, scrub, and a refused sync after a data directory
 was removed. Outcomes were succeeded, succeeded, succeeded, failed, succeeded, succeeded, failed.
-The mount plan argv was the mergerfs command. The enable marker existed only inside that guest.
+The mount plan argv was the mergerfs command. That guest created the marker itself.
 The UI was not part of this guest. Evidence run `src-20261121T225047Z-8c8798`.
-Not production-approved. Not M8 acceptance. This checkpoint is not on main.
+That plan/apply checkpoint is on main. The packaged marker, the AppArmor profile, and
+`Advance` entering execute are not yet exercised together in a guest.
+Not production-approved. Not M8 acceptance.
 
 ## P0 storage shared (development; not production, not ADR 0014)
 
