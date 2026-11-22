@@ -43,7 +43,11 @@ post_install() {
 }
 hc_owner() {
   systemd-sysusers /usr/lib/sysusers.d/homelab-control.conf
-  chgrp homelab-control /etc/homelab-control /etc/homelab-control/hc-api.env /etc/homelab-control/audit-retention.conf /etc/homelab-control/mergerfs-apply.enabled
+  chgrp homelab-control /etc/homelab-control /etc/homelab-control/hc-api.env /etc/homelab-control/audit-retention.conf
+  # The marker is the off switch. An administrator who removed it must still be able to upgrade.
+  if [ -e /etc/homelab-control/mergerfs-apply.enabled ]; then
+    chgrp homelab-control /etc/homelab-control/mergerfs-apply.enabled
+  fi
 }
 post_upgrade() { hc_owner; }
 pre_remove() {

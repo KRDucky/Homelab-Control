@@ -97,6 +97,23 @@ func TestApplyUnitIsOptIn(t *testing.T) {
 	if !strings.Contains(string(marker), "Remove this file to make ConditionPathExists fail.") {
 		t.Fatal("enable marker: packaged file must say to remove it to fail the condition")
 	}
+	for _, path := range []string{
+		"../../../packaging/debian/build-deb.sh",
+		"../../../packaging/arch/build-pkg.sh",
+	} {
+		script, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, line := range strings.Split(string(script), "\n") {
+			if strings.Contains(line, "chgrp") && strings.Contains(line, "hc-api.env") && strings.Contains(line, "mergerfs-apply.enabled") {
+				t.Errorf("%s chgrps the marker on the same command as the other config files", path)
+			}
+		}
+		if !strings.Contains(string(script), "if [ -e /etc/homelab-control/mergerfs-apply.enabled ]; then") {
+			t.Errorf("%s does not skip chgrp when the marker was removed", path)
+		}
+	}
 }
 
 func settingValues(text, key string) []string {
@@ -120,10 +137,18 @@ func settingValues(text, key string) []string {
 func deniesSubject(text, subject string) bool {
 	for _, line := range strings.Split(text, "\n") {
 		fields := strings.Fields(strings.ReplaceAll(line, ",", " "))
-		if len(fields) < 2 || fields[0] != "deny" {
+		if len(fields) < 2 {
 			continue
 		}
-		for _, f := range fields[1:] {
+		// AppArmor writes the qualifier first: "audit deny mount,".
+		i := 0
+		if fields[0] == "audit" {
+			i = 1
+		}
+		if i >= len(fields) || fields[i] != "deny" {
+			continue
+		}
+		for _, f := range fields[i+1:] {
 			if f == subject {
 				return true
 			}
@@ -141,6 +166,10 @@ func TestDenySubjectCatchesVariants(t *testing.T) {
 		"deny capability,",
 		"deny capability sys_admin,",
 		"deny capability ,",
+		"audit deny mount,",
+		"audit  deny  mount ,",
+		"audit deny capability,",
+		"audit deny capability sys_admin,",
 	} {
 		subject := "mount"
 		if strings.Contains(line, "capability") {
@@ -156,6 +185,8 @@ func TestDenySubjectCatchesVariants(t *testing.T) {
 		"deny network inet,",
 		"deny /bin/mount mr,",
 		"# deny mount,",
+		"audit mount,",
+		"audit capability sys_admin,",
 	} {
 		if deniesSubject(line, "mount") || deniesSubject(line, "capability") {
 			t.Errorf("false positive %q", line)
