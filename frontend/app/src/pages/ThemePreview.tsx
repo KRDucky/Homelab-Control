@@ -75,23 +75,43 @@ export function ThemePreview({ draft, width }: { draft: ThemeDocument; width: st
               <div className="studio-snapshot-card">
                 <span>Memory</span>
                 <strong>42%</strong>
-                <div className="studio-snapshot-meter" role="img" aria-label="Example memory usage: 42 percent">
+                <div
+                  className="studio-snapshot-meter"
+                  role="img"
+                  aria-label="Example memory usage: 42 percent"
+                >
                   <span style={{ width: '42%' }} />
                 </div>
               </div>
               <div className="studio-snapshot-card">
                 <span>Storage</span>
                 <strong>67%</strong>
-                <div className="studio-snapshot-meter" role="img" aria-label="Example storage usage: 67 percent">
+                <div
+                  className="studio-snapshot-meter"
+                  role="img"
+                  aria-label="Example storage usage: 67 percent"
+                >
                   <span style={{ width: '67%' }} />
                 </div>
               </div>
             </div>
             <section className="studio-snapshot-card">
               <h3>Resource trends</h3>
-              <svg className="studio-snapshot-chart" viewBox="0 0 280 80" preserveAspectRatio="none" role="img" aria-label="Illustrative CPU and memory trends">
-                <polyline points="0,58 28,50 56,56 84,31 112,43 140,23 168,34 196,20 224,38 252,26 280,36" className="studio-cpu-line" />
-                <polyline points="0,42 28,40 56,40 84,38 112,37 140,35 168,38 196,35 224,34 252,35 280,33" className="studio-memory-line" />
+              <svg
+                className="studio-snapshot-chart"
+                viewBox="0 0 280 80"
+                preserveAspectRatio="none"
+                role="img"
+                aria-label="Illustrative CPU and memory trends"
+              >
+                <polyline
+                  points="0,58 28,50 56,56 84,31 112,43 140,23 168,34 196,20 224,38 252,26 280,36"
+                  className="studio-cpu-line"
+                />
+                <polyline
+                  points="0,42 28,40 56,40 84,38 112,37 140,35 168,38 196,35 224,34 252,35 280,33"
+                  className="studio-memory-line"
+                />
               </svg>
               <p>CPU and RAM · illustrative samples only</p>
             </section>
@@ -106,17 +126,29 @@ export function ThemePreview({ draft, width }: { draft: ThemeDocument; width: st
                 <strong>HomeControl</strong>
                 <small>WORKSPACE</small>
                 {items.slice(0, 1).map((item) => (
-                  <button key={item} type="button" aria-current={selected === item ? 'page' : undefined} onClick={() => setSelected(item)}>
+                  <button
+                    key={item}
+                    type="button"
+                    aria-current={selected === item ? 'page' : undefined}
+                    onClick={() => setSelected(item)}
+                  >
                     {item}
                   </button>
                 ))}
                 <small>MODULES</small>
                 {items.slice(1).map((item) => (
-                  <button key={item} type="button" aria-current={selected === item ? 'page' : undefined} onClick={() => setSelected(item)}>
+                  <button
+                    key={item}
+                    type="button"
+                    aria-current={selected === item ? 'page' : undefined}
+                    onClick={() => setSelected(item)}
+                  >
                     {item}
                   </button>
                 ))}
-                <button type="button" disabled>Unavailable module</button>
+                <button type="button" disabled>
+                  Unavailable module
+                </button>
               </nav>
               <section>
                 <h3>{selected}</h3>
@@ -144,7 +176,11 @@ export function ThemePreview({ draft, width }: { draft: ThemeDocument; width: st
             </div>
             <label className="studio-field">
               Filter example services
-              <input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Search services" />
+              <input
+                value={filter}
+                onChange={(event) => setFilter(event.target.value)}
+                placeholder="Search services"
+              />
             </label>
             <DataTable
               caption="Example services"
@@ -156,8 +192,12 @@ export function ThemePreview({ draft, width }: { draft: ThemeDocument; width: st
               ]}
             />
             <div className="toolbar">
-              <button type="button" onClick={() => setFilter('')}>Clear filter</button>
-              <button type="button" className="ghost" disabled>Unavailable action</button>
+              <button type="button" onClick={() => setFilter('')}>
+                Clear filter
+              </button>
+              <button type="button" className="ghost" disabled>
+                Unavailable action
+              </button>
             </div>
             <p className="banner">No changes are sent to your host from this preview.</p>
           </div>
