@@ -575,15 +575,20 @@ tbody th .mono {
 }
 
 /* Grouped capability navigation: only groups with surfaced pages are shown. */
-.nav-groups { display: grid; gap: var(--hc-space-4); }
-.nav-group { min-width: 0; }
+.nav-groups {
+  display: grid;
+  gap: var(--hc-space-4);
+}
+.nav-group {
+  min-width: 0;
+}
 .nav-group-title {
   margin: 0 0 var(--hc-space-1);
   padding: var(--hc-space-1) var(--hc-space-3);
   color: var(--hc-color-text-secondary);
   font-size: var(--hc-font-size-xs);
   font-weight: 650;
-  letter-spacing: .04em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 .shell[data-sidebar='rail'] .nav-group-title {
@@ -596,7 +601,9 @@ tbody th .mono {
   clip-path: inset(50%);
   white-space: nowrap;
 }
-.shell[data-sidebar='rail'] .nav-groups { gap: var(--hc-space-3); }
+.shell[data-sidebar='rail'] .nav-groups {
+  gap: var(--hc-space-3);
+}
 .shell[data-sidebar='rail'] .nav-group + .nav-group {
   border-top: 1px solid var(--hc-color-border-subtle);
   padding-top: var(--hc-space-3);
@@ -612,7 +619,11 @@ tbody th .mono {
   border-bottom: 1px solid var(--hc-color-border-subtle);
   background: var(--hc-color-surface-raised);
 }
-.module-tabs-label { margin-right: var(--hc-space-2); color: var(--hc-color-text-secondary); font-size: var(--hc-font-size-xs); }
+.module-tabs-label {
+  margin-right: var(--hc-space-2);
+  color: var(--hc-color-text-secondary);
+  font-size: var(--hc-font-size-xs);
+}
 .module-tabs a {
   color: var(--hc-color-text-secondary);
   text-decoration: none;
@@ -620,13 +631,19 @@ tbody th .mono {
   border-radius: var(--hc-radius-md);
   font-size: var(--hc-font-size-sm);
 }
-.module-tabs a:hover { background: var(--hc-color-surface-hover); }
+.module-tabs a:hover {
+  background: var(--hc-color-surface-hover);
+}
 .module-tabs a[aria-current='page'] {
   color: var(--hc-color-text-primary);
   background: var(--hc-color-surface-selected);
   font-weight: 650;
 }
 @media (max-width: 719.98px) {
-  .module-tabs { padding-inline: var(--hc-space-3); }
-  .module-tabs-label { flex-basis: 100%; }
+  .module-tabs {
+    padding-inline: var(--hc-space-3);
+  }
+  .module-tabs-label {
+    flex-basis: 100%;
+  }
 }
