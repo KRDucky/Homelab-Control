@@ -22,11 +22,41 @@ export function OverviewPage({ onUnauthorized, pages }: { onUnauthorized: () => 
         </p>
       )}
       <div className="tabs dashboard-tabs" role="tablist" aria-label="Overview views">
-        <button id="overview-tab-dashboard" type="button" role="tab" aria-selected={tab === 'dashboard'} aria-controls="overview-panel-dashboard" onClick={() => setTab('dashboard')}>Dashboard</button>
-        <button id="overview-tab-details" type="button" role="tab" aria-selected={tab === 'details'} aria-controls="overview-panel-details" onClick={() => setTab('details')}>Detailed host report</button>
+        <button
+          id="overview-tab-dashboard"
+          type="button"
+          role="tab"
+          aria-selected={tab === 'dashboard'}
+          aria-controls="overview-panel-dashboard"
+          onClick={() => setTab('dashboard')}
+        >
+          Dashboard
+        </button>
+        <button
+          id="overview-tab-details"
+          type="button"
+          role="tab"
+          aria-selected={tab === 'details'}
+          aria-controls="overview-panel-details"
+          onClick={() => setTab('details')}
+        >
+          Detailed host report
+        </button>
       </div>
-      <div id={tab === 'dashboard' ? 'overview-panel-dashboard' : 'overview-panel-details'} role="tabpanel" aria-labelledby={tab === 'dashboard' ? 'overview-tab-dashboard' : 'overview-tab-details'}>
-        {data ? tab === 'dashboard' ? <Dashboard data={data} pages={pages} /> : <Overview data={data} /> : !error && <p className="muted">Reading host data…</p>}
+      <div
+        id={tab === 'dashboard' ? 'overview-panel-dashboard' : 'overview-panel-details'}
+        role="tabpanel"
+        aria-labelledby={tab === 'dashboard' ? 'overview-tab-dashboard' : 'overview-tab-details'}
+      >
+        {data ? (
+          tab === 'dashboard' ? (
+            <Dashboard data={data} pages={pages} />
+          ) : (
+            <Overview data={data} />
+          )
+        ) : (
+          !error && <p className="muted">Reading host data…</p>
+        )}
       </div>
       <PluginContributions slot="overview" />
     </>
