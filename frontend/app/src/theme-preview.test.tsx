@@ -51,7 +51,9 @@ describe('contextual Theme Studio preview', () => {
     fireEvent.click(within(nav).getByRole('button', { name: 'Storage' }));
     expect(within(nav).getByRole('button', { name: 'Storage' }).getAttribute('aria-current')).toBe('page');
     expect(screen.getByRole('heading', { name: 'Storage' })).toBeTruthy();
-    expect(within(nav).getByRole('button', { name: 'Unavailable module' }).hasAttribute('disabled')).toBe(true);
+    expect(within(nav).getByRole('button', { name: 'Unavailable module' }).hasAttribute('disabled')).toBe(
+      true,
+    );
     expect(window.location.pathname).not.toBe('/storage');
 
     fireEvent.click(screen.getByRole('tab', { name: 'Module page' }));
@@ -71,7 +73,9 @@ describe('contextual Theme Studio preview', () => {
     expect(screen.getByRole('tab', { name: 'Dashboard' })).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: 'Navigation' }));
     fireEvent.click(screen.getByRole('tab', { name: 'Module page' }));
-    expect(screen.getByRole('button', { name: 'Preview on application' }).hasAttribute('disabled')).toBe(false);
+    expect(screen.getByRole('button', { name: 'Preview on application' }).hasAttribute('disabled')).toBe(
+      false,
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Preview on application' }));
     expect(screen.getByRole('region', { name: 'Confirm theme preview' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Revert' }));
