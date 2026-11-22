@@ -16,7 +16,7 @@ function dfTotal(f: { used_bytes?: number; avail_bytes?: number }): number | und
 }
 
 export function Overview({ data }: { data: OverviewData }) {
-  const { system, cpu, memory, filesystems, network, legacy_webmin: legacy } = data;
+  const { system, cpu, memory, filesystems, network } = data;
   const swapUsed = memory.swap_total_bytes > 0 ? memory.swap_total_bytes - memory.swap_free_bytes : undefined;
   return (
     <div className="overview">
@@ -156,23 +156,6 @@ export function Overview({ data }: { data: OverviewData }) {
         />
       </Section>
 
-      <Section title="Legacy Webmin" meta={legacy}>
-        {legacy.installed ? (
-          <p>
-            Upstream Webmin {legacy.version ?? '(version not readable)'} is installed on this host.
-            {legacy.privilege_needed && <span className="muted"> {legacy.privilege_needed}.</span>}
-          </p>
-        ) : (
-          <p>Upstream Webmin isn’t installed at /etc/webmin on this host.</p>
-        )}
-        {legacy.configured_url && (
-          <p>
-            <a href={legacy.configured_url} rel="noopener noreferrer">
-              Open the legacy Webmin interface
-            </a>
-          </p>
-        )}
-      </Section>
       <p className="collected">Collected {new Date(data.collected_at).toLocaleString()}</p>
     </div>
   );
