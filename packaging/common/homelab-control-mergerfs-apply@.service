@@ -14,11 +14,10 @@ StandardError=journal
 # Root is required to mount FUSE and to write parity. DynamicUser cannot.
 # The broker keeps PrivateDevices=yes and does not gain DeviceAllow.
 # This unit is a different program from hc-storage-probe. The probe profile
-# denies mount, so it is not reused. No new AppArmor profile is shipped:
-# the owner rule is to add one only after a Debian or Ubuntu run shows the
-# probe profile is not enough. The marker file keeps this helper off the
-# dev host. Path checks in the helper are the containment.
+# denies mount, so it is not reused. AppArmorProfile names hc-mergerfs-apply.
+# No SELinuxContext: SELinux is out of scope for this release.
 User=root
+AppArmorProfile=hc-mergerfs-apply
 Group=root
 PrivateDevices=no
 DevicePolicy=closed

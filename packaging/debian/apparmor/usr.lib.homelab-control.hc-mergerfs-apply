@@ -1,0 +1,81 @@
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# AppArmor profile for the MergerFS apply helper.
+# The read-only hc-storage-probe profile denies mount and capability, so it
+# cannot be reused. This profile is enforce mode. The Debian package installs
+# it and does not load it; apparmor.service loads it at boot. The unit sets
+# AppArmorProfile=hc-mergerfs-apply, so a host with AppArmor active and this
+# profile unloaded cannot start the helper.
+#
+# Direct children stay in this profile (ix). There is no shell. Network
+# families other than the inherited AF_UNIX socket and the systemd private
+# socket are denied. A blanket "network," rule is not used, because it also
+# matches AF_UNIX.
+
+#include <tunables/global>
+
+profile hc-mergerfs-apply /usr/lib/homelab-control/hc-mergerfs-apply flags=(enforce) {
+  #include <abstractions/base>
+
+  capability sys_admin,
+  capability dac_override,
+  capability dac_read_search,
+  capability fowner,
+  capability chown,
+
+  deny network inet,
+  deny network inet6,
+  deny network netlink,
+  deny network packet,
+  deny network bluetooth,
+  deny network vsock,
+  deny ptrace,
+  deny pivot_root,
+
+  mount,
+  umount,
+  remount,
+
+  /usr/lib/homelab-control/hc-mergerfs-apply mr,
+  /usr/bin/mergerfs ix,
+  /usr/bin/snapraid ix,
+  /usr/bin/systemd-run ix,
+  /usr/lib/systemd/systemd-run ix,
+  /lib/systemd/systemd-run ix,
+
+  /dev/fuse rw,
+  /etc/fuse.conf r,
+
+  /etc/fstab rwl,
+  /etc/fstab.hc-tmp rwl,
+  /etc/fstab.hc-mergerfs-bak rwl,
+  /etc/snapraid.conf rwl,
+  /etc/snapraid.conf.hc-tmp rwl,
+  /etc/snapraid.conf.hc-mergerfs-bak rwl,
+
+  /mnt/ r,
+  /mnt/** rwl,
+  /var/snapraid/ rwl,
+  /var/snapraid/** rwl,
+
+  @{PROC}/filesystems r,
+  @{PROC}/@{pid}/mountinfo r,
+  @{PROC}/@{pid}/mounts r,
+  @{PROC}/@{pid}/cgroup r,
+  /sys/fs/cgroup/ r,
+  /sys/fs/cgroup/** rw,
+
+  /run/systemd/private rw,
+  /run/systemd/journal/socket w,
+  /usr/lib/systemd/system/ r,
+  /usr/lib/systemd/system/** r,
+  /lib/systemd/system/ r,
+  /lib/systemd/system/** r,
+
+  unix (create, connect, receive, send, getattr, shutdown) type=stream,
+
+  deny /etc/homelab-control/** rwklmx,
+  deny /var/lib/homelab-control/** rwklmx,
+  deny /var/log/homelab-control{,-broker}/** rwklmx,
+}

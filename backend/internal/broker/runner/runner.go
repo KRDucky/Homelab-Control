@@ -109,7 +109,7 @@ const (
 )
 
 // P0 storage: one unused closed mkfs.ext4 template so TestRootTemplatesAreClosed
-// can snapshot it. Advance stays BlockNoExecute; no broker op calls this
+// can snapshot it. Advance can enter execute; no broker op calls this
 // until independent security review (ADR 0008 Amendment 2). Quiet only; no -F.
 const (
 	RootMkfsExt4 RootTemplate = "mkfs.ext4"

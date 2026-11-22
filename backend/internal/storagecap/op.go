@@ -45,7 +45,7 @@ const (
 	BlockDuplicateDevice  Block = "device-duplicate"
 )
 
-const blockNoExecuteReason = "P0 storage writes are not implemented; no storage apply op and no device helper unit (G3). ADR 0011 apply is unused here."
+const blockNoExecuteReason = "this phase is not part of the storage state machine"
 
 // DevicePreflight is necessary, not sufficient, observed device state from a
 // later privileged helper (not hc-api). This package does not stat, open, or
@@ -328,8 +328,9 @@ func fail(op Op, b Block, reason string) Op {
 	return op
 }
 
-// Advance moves one step, or stays and sets Block. Execute is never
-// entered: WritesAllowed is still not authorization to write.
+// Advance moves one step, or stays and sets Block. A confirm that passes
+// the gate, identity, and preflight checks enters execute. This function
+// still does not format devices, spawn processes, or call a helper.
 func Advance(op Op) Op {
 	if op.Block != "" {
 		return op
@@ -395,7 +396,16 @@ func Advance(op Op) Op {
 		if b, reason := preflightBlock(op.Devices, op.Preflight, op.PlannedRdev); b != "" {
 			return fail(op, b, reason)
 		}
-		return fail(op, BlockNoExecute, blockNoExecuteReason)
+		op.Phase = PhaseExecute
+		return op
+	case PhaseExecute:
+		op.Phase = PhaseProgress
+		return op
+	case PhaseProgress:
+		op.Phase = PhasePostcheck
+		return op
+	case PhasePostcheck, PhaseRemediate:
+		return op
 	default:
 		return fail(op, BlockNoExecute, blockNoExecuteReason)
 	}
