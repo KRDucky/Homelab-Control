@@ -5,12 +5,13 @@ import { useState } from 'react';
 import type { Capability, Overview as HostOverview } from './api';
 import { formatBytes, formatUptime } from './format';
 import { Meter } from './Meter';
-import { Section, StatusPill } from './ui';
-import { linkHandler } from './router';
+import { Section } from './ui';
+import { ModuleOverview } from './ModuleOverview';
+import { TelemetryTrends } from './TelemetryTrends';
 
 // Dashboard settings are presentation only, stored on this browser. Host data and
 // authorization are never persisted here; server capabilities remain authoritative.
-export const DASHBOARD_IDS = ['host', 'cpu', 'memory', 'storage', 'network', 'modules'] as const;
+export const DASHBOARD_IDS = ['host', 'cpu', 'memory', 'storage', 'network', 'modules', 'trends'] as const;
 export type DashboardId = (typeof DASHBOARD_IDS)[number];
 export type DashboardLayout = { version: 1; widgets: DashboardId[] };
 const KEY = 'hc.dashboard.v1';
@@ -22,6 +23,7 @@ const TITLES: Record<DashboardId, string> = {
   storage: 'Storage',
   network: 'Network',
   modules: 'Modules',
+  trends: 'Resource trends',
 };
 const validId = (id: unknown): id is DashboardId =>
   typeof id === 'string' && (DASHBOARD_IDS as readonly string[]).includes(id);
@@ -145,35 +147,10 @@ function Widget({ id, data, pages }: { id: DashboardId; data: HostOverview; page
           </p>
         </Section>
       );
-    case 'modules': {
-      const usable = pages.filter(
-        (p) => (p.status === 'available' || p.status === 'degraded') && p.id !== 'overview',
-      );
-      return (
-        <section className="panel" aria-label="Modules">
-          <header className="panel-head">
-            <h2>Modules</h2>
-          </header>
-          <p className="dashboard-value">
-            {usable.length} <span className="dashboard-unit">accessible pages</span>
-          </p>
-          {usable.length === 0 ? (
-            <p className="muted">No additional modules are available for this session.</p>
-          ) : (
-            <ul className="dashboard-links">
-              {usable.map((p) => (
-                <li key={p.path}>
-                  <a href={p.path} onClick={linkHandler(p.path)}>
-                    {p.label}
-                  </a>
-                  {p.status === 'degraded' && <StatusPill tone="warn" label="Limited" />}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      );
-    }
+    case 'modules':
+      return <ModuleOverview pages={pages} />;
+    case 'trends':
+      return <TelemetryTrends data={data} />;
   }
 }
 
