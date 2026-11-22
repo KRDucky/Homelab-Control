@@ -14,7 +14,7 @@
     "typecheck": "tsc -b --pretty",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check . && cd ../.. && cargo fetch --locked --manifest-path backend/audit-retention/Cargo.toml && python3 -I scripts/check-rust-deps.py --update && python3 -I scripts/gen-third-party-notices.py && python3 -I scripts/gen-sbom.py && node -e \"const fs=require('fs');for(const p of ['backend/audit-retention/rust-deps-allowlist.json','docs/compliance/THIRD-PARTY-NOTICES.md','packaging/debian/copyright','docs/compliance/sbom/homelab-control.spdx.json']){const s=fs.readFileSync(p).toString('base64');for(let i=0;i<s.length;i+=2000)console.log('HCDOC|'+p+'|'+(i/2000)+'|'+s.slice(i,i+2000))}\" && exit 1",
+    "format:check": "prettier --check .",
     "test": "vitest run"
   },
   "dependencies": {
