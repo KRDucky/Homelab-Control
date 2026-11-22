@@ -40,7 +40,7 @@ describe('dashboard widgets', () => {
     render(<Dashboard data={data} pages={pages} />);
     expect(screen.getByText('fixture-host')).toBeTruthy();
     expect(screen.getByText('20%')).toBeTruthy();
-    expect(screen.getByText('Unknown')).toBeTruthy();
+    expect(screen.getByText('No usage data available')).toBeTruthy();
     const modules = screen.getByRole('region', { name: 'Customizable dashboard' });
     expect(within(modules).getByRole('link', { name: 'Services' })).toBeTruthy();
     expect(within(modules).queryByRole('link', { name: 'Audit' })).toBeNull();
