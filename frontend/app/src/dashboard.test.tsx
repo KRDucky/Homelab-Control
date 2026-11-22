@@ -55,7 +55,7 @@ describe('dashboard widgets', () => {
   it('uses reported readings and excludes forbidden module links', () => {
     render(<Dashboard data={data} pages={pages} />);
     expect(screen.getByText('fixture-host')).toBeTruthy();
-    expect(screen.getByText('20%')).toBeTruthy();
+    expect(screen.getAllByText('20%')).toHaveLength(2);
     expect(screen.getByText('No usage data available')).toBeTruthy();
     const modules = screen.getByRole('region', { name: 'Customizable dashboard' });
     expect(within(modules).getByRole('link', { name: 'Services' })).toBeTruthy();
@@ -65,7 +65,7 @@ describe('dashboard widgets', () => {
   it('persists widget choice and ordering without saving host telemetry', () => {
     const { unmount } = render(<Dashboard data={data} pages={pages} />);
     fireEvent.click(screen.getByRole('button', { name: 'Customize dashboard' }));
-    fireEvent.click(screen.getByLabelText('Network'));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Network' }));
     fireEvent.click(screen.getByRole('button', { name: 'Move Memory up' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save layout' }));
     const stored = window.localStorage.getItem('hc.dashboard.v1') ?? '';
