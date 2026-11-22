@@ -56,7 +56,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, services.systemctl, storage.read, storage.probe, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read, zfs.read, lvm.read] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, services.systemctl, storage.read, storage.probe, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read, mergerfs.configure, mergerfs.maintain, zfs.read, lvm.read] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
@@ -2425,8 +2425,10 @@ paths:
         without allow_other, after that pool's other findings). Content on a data branch is not a
         warning. Content files are not read. Matching is path-based; a
         missing warning is not proof. warningsTruncated is true when the list was capped. Pooling is
-        not RAID. Writes between SnapRAID syncs are not protected. No pool create, mount, remount, policy write, fstab/unit write, module load, or snapraid
-        sync/diff/fix path exists. A missing snapraid.conf is normal (SnapRAID is optional), not an
+        not RAID. Writes between SnapRAID syncs are not protected. This GET does not mount, format, or run snapraid.
+        Pool mount and array definition are POST /mergerfs/pool/plan and /mergerfs/pool/apply (scope mergerfs.configure).
+        Sync, scrub, and filtered recovery are POST /mergerfs/maintain/plan and /mergerfs/maintain/apply (scope mergerfs.maintain).
+        A missing snapraid.conf is normal (SnapRAID is optional), not an
         error. Origin and X-CSRF-Token are required; audit records counts only, never branch, data,
         or unit paths.
       security: [{ session: [] }]
@@ -2478,6 +2480,53 @@ paths:
         '403': { description: Missing mergerfs.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: Broker down, snapraid missing, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '504': { description: snapraid status timed out, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /mergerfs/pool/plan:
+    post:
+      summary: Review a MergerFS pool mount or array definition (scope mergerfs.configure).
+      description: >
+        Mints a single-use plan token for action mount or persist. Mount uses existing directories
+        and does not format disks. Persist writes one fstab line and snapraid.conf after a backup.
+        The response includes the exact argv. Audit records counts only, never paths.
+      security: [{ session: [] }]
+      x-required-scope: mergerfs.configure
+      responses:
+        '200': { description: Plan, content: { application/json: { schema: { type: object } } } }
+        '400': { description: Rejected request, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing mergerfs.configure, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /mergerfs/pool/apply:
+    post:
+      summary: Apply a reviewed MergerFS pool mount or array definition (scope mergerfs.configure).
+      description: >
+        Requires a fresh password confirmation and the plan token. The helper socket runs the closed
+        command. The socket is opt-in and is not enabled by the package.
+      security: [{ session: [] }]
+      x-required-scope: mergerfs.configure
+      responses:
+        '200': { description: Outcome, content: { application/json: { schema: { type: object } } } }
+        '403': { description: Step-up required or missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /mergerfs/maintain/plan:
+    post:
+      summary: Review SnapRAID sync, scrub, or filtered recovery (scope mergerfs.maintain).
+      description: >
+        Sync and scrub are refused later if a disk is missing or files were removed. Recovery is
+        snapraid fix -m -f for the reviewed relative paths. -e and a full fix are not available.
+      security: [{ session: [] }]
+      x-required-scope: mergerfs.maintain
+      responses:
+        '200': { description: Plan, content: { application/json: { schema: { type: object } } } }
+        '403': { description: Missing mergerfs.maintain, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /mergerfs/maintain/apply:
+    post:
+      summary: Apply a reviewed SnapRAID sync, scrub, or filtered recovery (scope mergerfs.maintain).
+      description: >
+        Requires a fresh password confirmation and the plan token. Sync and scrub run snapraid diff
+        first and stop with no sync when the diff shows a missing disk or removed files.
+      security: [{ session: [] }]
+      x-required-scope: mergerfs.maintain
+      responses:
+        '200': { description: Outcome, content: { application/json: { schema: { type: object } } } }
+        '403': { description: Step-up required or missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /zfs:
     get:
       summary: Read-only OpenZFS inventory (scope zfs.read).

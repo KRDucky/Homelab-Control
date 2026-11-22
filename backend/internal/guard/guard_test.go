@@ -38,7 +38,7 @@ var forbiddenCalls = map[string]bool{
 
 // allowedExecRoots lists the only directories allowed to execute programs.
 // Adding an entry requires security review (ADR 0008).
-var allowedExecRoots = []string{"internal/broker/runner/", "internal/storageprobe/"}
+var allowedExecRoots = []string{"internal/broker/runner/", "internal/storageprobe/", "cmd/hc-mergerfs-apply/"}
 
 func TestNoProcessExecution(t *testing.T) {
 	root, err := filepath.Abs("../..")
@@ -224,6 +224,8 @@ func TestStorageProbeNoLinkPrivilegedCode(t *testing.T) {
 	for _, start := range []string{
 		"homelab-control/backend/cmd/hc-storage-probe",
 		"homelab-control/backend/internal/storageprobe",
+		"homelab-control/backend/cmd/hc-mergerfs-apply",
+		"homelab-control/backend/internal/mergerfsapply",
 	} {
 		visited := map[string]bool{}
 		queue := []string{start}

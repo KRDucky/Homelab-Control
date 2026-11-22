@@ -113,11 +113,19 @@ const (
 	// DefaultScopes and implied by no other scope. packages.manage stays
 	// reserved for the separately reviewed write ADR and is not granted here.
 	ScopePackagesRead = "packages.read"
-	// ScopeMergerFSRead allows the read-only MergerFS + optional SnapRAID
-	// inventory (M8 first checkpoint): observed fuse.mergerfs pools and a
-	// parsed snapraid.conf, with no writes and no broker ops. Not in
-	// DefaultScopes and implied by nothing, including storage.read.
+	// ScopeMergerFSRead allows the read-only MergerFS inventory and
+	// mergerfs.snapraid.status. It does not grant pool, sync, scrub, or
+	// recovery operations. Not in DefaultScopes and implied by nothing,
+	// including storage.read, mergerfs.configure, and mergerfs.maintain.
 	ScopeMergerFSRead = "mergerfs.read"
+	// ScopeMergerFSConfigure allows pool mount and saving fstab plus
+	// snapraid.conf. It does not grant sync, scrub, or fix, and it is not
+	// implied by mergerfs.read. Not in DefaultScopes.
+	ScopeMergerFSConfigure = "mergerfs.configure"
+	// ScopeMergerFSMaintain allows snapraid sync, scrub, and filtered
+	// recovery (fix -m -f). It does not grant mount or configuration writes,
+	// and it is not implied by mergerfs.read. Not in DefaultScopes.
+	ScopeMergerFSMaintain = "mergerfs.maintain"
 	// ScopeZFSRead allows the read-only OpenZFS inventory (M7 first
 	// checkpoint): observed zfs mounts and zfs/zpool binary presence, with
 	// no writes, no broker ops, and no zpool/zfs execution. Not in
@@ -159,6 +167,8 @@ var KnownScopes = map[string]bool{
 	ScopeFilesDestroy:         true,
 	ScopePackagesRead:         true,
 	ScopeMergerFSRead:         true,
+	ScopeMergerFSConfigure:    true,
+	ScopeMergerFSMaintain:     true,
 	ScopeZFSRead:              true,
 	ScopeLVMRead:              true,
 }

@@ -31,7 +31,7 @@ Homelab Control {{VERSION}} — built from commit [`{{SHORT}}`]({{REPO}}/commit/
 | File | Content |
 |---|---|
 | `homelab-control-{{VERSION}}-source.tar.gz` | Complete corresponding source: the repository at the commit (without the `compat/webmin/` Webmin reference tree, which no binary uses), the npm sources of everything compiled in, `RELEASE-BUILDINFO`, `BUILDING.md` |
-| `homelab-control-{{VERSION}}-linux-amd64.tar.gz` | `hc-api`, `hlctl`, `hc-broker`, `hc-audit-retention`, `hc-storage-probe` and the licence/notice files |
+| `homelab-control-{{VERSION}}-linux-amd64.tar.gz` | `hc-api`, `hlctl`, `hc-broker`, `hc-audit-retention`, `hc-storage-probe`, `hc-mergerfs-apply` and the licence/notice files |
 | `{{DEB}}` | Debian/Ubuntu package (package version `{{DEBVER}}`) |
 | `homelab-control-*.x86_64.rpm` | Fedora/openSUSE package |
 | `homelab-control-*-x86_64.pkg.tar.zst` | Arch Linux package |
@@ -48,7 +48,7 @@ sha256sum -c SHA256SUMS                      # detects corrupted downloads
 tar -xzf homelab-control-{{VERSION}}-source.tar.gz && cd homelab-control-{{VERSION}}
 # install Go {{GO}} and Node.js {{NODE}} (npm {{NPM}}), then follow BUILDING.md:
 make build VERSION={{VERSION}} SOURCE_DATE_EPOCH={{SDE}}
-sha256sum build/hc-api build/hlctl build/hc-broker build/hc-audit-retention build/hc-storage-probe   # must match the binaries in the linux-amd64 tarball
+sha256sum build/hc-api build/hlctl build/hc-broker build/hc-audit-retention build/hc-storage-probe build/hc-mergerfs-apply   # must match the binaries in the linux-amd64 tarball
 ```
 Byte-for-byte reproduction has been demonstrated on GitHub's `ubuntu-24.04` runners (and fresh Arch
 containers for the Arch package) with exactly this toolchain. It has not been demonstrated with other
