@@ -57,9 +57,14 @@ profile hc-mergerfs-apply /usr/lib/homelab-control/hc-mergerfs-apply flags=(enfo
   /etc/snapraid.conf.hc-mergerfs-bak.hc-tmp rwl,
 
   /mnt/ r,
-  /mnt/** rwl,
+  /mnt/** rwlk,
   /var/snapraid/ rwl,
-  /var/snapraid/** rwl,
+  /var/snapraid/** rwlk,
+
+  # SnapRAID matches a data disk to its filesystem UUID by reading this
+  # directory. The links stay read-only.
+  /dev/disk/by-uuid/ r,
+  /dev/disk/by-uuid/* r,
 
   @{PROC}/filesystems r,
   @{PROC}/@{pid}/mountinfo r,

@@ -10,8 +10,8 @@ import (
 )
 
 // Phase is one step of the SHARED-02 mutating storage state machine.
-// Execute is typed here so later broker templates can plug in; P0 never
-// reaches it (storage root template registered unused; DefaultReadOnly).
+// Advance can enter execute after a passing confirm. It still does not
+// format a device or call a helper, and no broker op calls mkfs.
 type Phase string
 
 const (
