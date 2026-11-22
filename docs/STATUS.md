@@ -228,8 +228,13 @@ after a file was removed, `fix -m -f` of that file, scrub, and a refused sync af
 was removed. Outcomes were succeeded, succeeded, succeeded, failed, succeeded, succeeded, failed.
 The mount plan argv was the mergerfs command. That guest created the marker itself.
 The UI was not part of this guest. Evidence run `src-20261121T225047Z-8c8798`.
-That plan/apply checkpoint is on main. The packaged marker, the AppArmor profile, and
-`Advance` entering execute are not yet exercised together in a guest.
+That plan/apply checkpoint is on main.
+A later disposable Ubuntu 24.04 guest loaded `hc-mergerfs-apply` in enforce mode and
+ran the same helper under that profile. Mount, persist, sync, the removed-file sync
+refusal, `fix -m -f`, scrub, and the hidden-directory sync refusal all completed, and
+the journal had no AppArmor denial for the helper. The guest created the enable marker
+itself; it did not install the package. The UI was not in this guest. `storagecap.Advance`
+was not part of this guest. Evidence run `src-20261122T022248Z-d6dead`.
 Not production-approved. Not M8 acceptance.
 
 ## P0 storage shared (development; not production, not ADR 0014)
