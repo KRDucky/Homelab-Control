@@ -99,7 +99,7 @@ const NAV_SECTIONS: { title: string; ids: readonly string[] }[] = [
   { title: 'System', ids: ['services', 'hardware', 'host_settings', 'packages'] },
   { title: 'Storage & files', ids: ['storage', 'mergerfs', 'zfs', 'lvm', 'files'] },
   { title: 'Network & applications', ids: ['traefik'] },
-  { title: 'Administration', ids: ['audit', 'legacy'] },
+  { title: 'Administration', ids: ['audit'] },
 ];
 
 export function groupNavigation(pages: Capability[]): { title: string; pages: Capability[] }[] {
