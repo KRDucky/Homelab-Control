@@ -73,7 +73,7 @@ profile hc-mergerfs-apply /usr/lib/homelab-control/hc-mergerfs-apply flags=(enfo
   /lib/systemd/system/ r,
   /lib/systemd/system/** r,
 
-  unix (create, connect, receive, send, getattr, shutdown) type=stream,
+  unix (create, bind, listen, accept, connect, receive, send, getattr, shutdown, getopt, setopt) type=stream,
 
   deny /etc/homelab-control/** rwklmx,
   deny /var/lib/homelab-control/** rwklmx,
