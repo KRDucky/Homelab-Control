@@ -136,6 +136,7 @@ func TestIdentityChangedBlocksTOCTOU(t *testing.T) {
 		Tooling:        debianReady(),
 		Devices:        []DeviceRef{d},
 		IdentityDigest: "wwn:other",
+		ObservedDigest: DigestDevices([]DeviceRef{d}),
 		Acked:          nil,
 	}
 	op = Advance(op)
@@ -158,6 +159,22 @@ func TestDegradedGateCannotExecute(t *testing.T) {
 	}
 }
 
+func TestConfirmMissingObservedDigest(t *testing.T) {
+	d := wwnDisk()
+	op := Op{
+		Phase:          PhaseConfirm,
+		Tooling:        debianReady(),
+		Devices:        []DeviceRef{d},
+		IdentityDigest: DigestDevices([]DeviceRef{d}),
+		PlannedRdev:    readyRdev(),
+		Preflight:      readyPreflight(d),
+	}
+	op = Advance(op)
+	if op.Phase != PhaseConfirm || op.Block != BlockIdentityChanged || op.ObservedDigest != "" {
+		t.Fatalf("missing observation: %+v", op)
+	}
+}
+
 func TestConfirmEntersExecute(t *testing.T) {
 	d := wwnDisk()
 	op := Op{
@@ -167,6 +184,7 @@ func TestConfirmEntersExecute(t *testing.T) {
 		Extra:          []ExtraConfirm{ConfirmFormat},
 		Acked:          []ExtraConfirm{ConfirmFormat},
 		IdentityDigest: DigestDevices([]DeviceRef{d}),
+		ObservedDigest: DigestDevices([]DeviceRef{d}),
 		PlannedRdev:    readyRdev(),
 		Preflight:      readyPreflight(d),
 	}
@@ -196,6 +214,7 @@ func TestAdvanceToConfirmThenExecute(t *testing.T) {
 	}
 	op.PlannedRdev = readyRdev()
 	op.Preflight = readyPreflight(d)
+	op.ObservedDigest = op.IdentityDigest
 	op = Advance(op)
 	if op.Phase != PhaseExecute || op.Block != "" {
 		t.Fatalf("confirm should enter execute: %+v", op)
@@ -209,6 +228,7 @@ func TestConfirmRequiresPreflight(t *testing.T) {
 		Tooling:        debianReady(),
 		Devices:        []DeviceRef{d},
 		IdentityDigest: DigestDevices([]DeviceRef{d}),
+		ObservedDigest: DigestDevices([]DeviceRef{d}),
 	}
 	base.PlannedRdev = readyRdev()
 	op := Advance(base)
@@ -253,6 +273,7 @@ func TestConfirmPreflightWrongDevice(t *testing.T) {
 		Tooling:        debianReady(),
 		Devices:        []DeviceRef{d},
 		IdentityDigest: DigestDevices([]DeviceRef{d}),
+		ObservedDigest: DigestDevices([]DeviceRef{d}),
 		PlannedRdev:    readyRdev(),
 		Preflight:      readyPreflight(other),
 	}
@@ -269,6 +290,7 @@ func TestConfirmRdevMalformed(t *testing.T) {
 		Tooling:        debianReady(),
 		Devices:        []DeviceRef{d},
 		IdentityDigest: DigestDevices([]DeviceRef{d}),
+		ObservedDigest: DigestDevices([]DeviceRef{d}),
 		PlannedRdev:    readyRdev(),
 	}
 	base.Preflight = []DevicePreflight{{Device: d, BlockDevice: true, Rdev: "x"}}
@@ -300,6 +322,7 @@ func TestConfirmRdevChanged(t *testing.T) {
 		Tooling:        debianReady(),
 		Devices:        []DeviceRef{d},
 		IdentityDigest: DigestDevices([]DeviceRef{d}),
+		ObservedDigest: DigestDevices([]DeviceRef{d}),
 		PlannedRdev:    readyRdev(),
 		Preflight:      []DevicePreflight{{Device: d, BlockDevice: true, Rdev: "8:2"}},
 	}
@@ -391,6 +414,7 @@ func TestSharedRdevBlocked(t *testing.T) {
 		Tooling:        debianReady(),
 		Devices:        []DeviceRef{d, other},
 		IdentityDigest: DigestDevices([]DeviceRef{d, other}),
+		ObservedDigest: DigestDevices([]DeviceRef{d, other}),
 		PlannedRdev:    []string{"8:1", "8:1"},
 		Preflight: []DevicePreflight{
 			{Device: d, BlockDevice: true, Rdev: "8:1"},
@@ -455,6 +479,7 @@ func TestMixedCaseFactMatches(t *testing.T) {
 		Tooling:        debianReady(),
 		Devices:        []DeviceRef{d},
 		IdentityDigest: DigestDevices([]DeviceRef{d}),
+		ObservedDigest: DigestDevices([]DeviceRef{d}),
 		PlannedRdev:    readyRdev(),
 		Preflight:      readyPreflight(upper),
 	}

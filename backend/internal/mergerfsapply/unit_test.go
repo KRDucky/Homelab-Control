@@ -78,9 +78,9 @@ func TestApplyUnitIsOptIn(t *testing.T) {
 			t.Errorf("profile missing rule %s", want)
 		}
 	}
-	for _, banned := range []string{"deny mount,", "deny capability,"} {
-		if hasLine(p, banned) {
-			t.Errorf("profile contains rule %s", banned)
+	for _, subject := range []string{"mount", "capability"} {
+		if deniesSubject(p, subject) {
+			t.Errorf("profile denies %s", subject)
 		}
 	}
 	for _, banned := range []string{"/bin/sh", "/bin/bash", "unconfined", "complain"} {
@@ -113,6 +113,54 @@ func settingValues(text, key string) []string {
 		out = append(out, strings.TrimSpace(val))
 	}
 	return out
+}
+
+// deniesSubject reports an AppArmor deny of subject, including extra spaces
+// and a path or flag after it. An allow of the same subject is not a deny.
+func deniesSubject(text, subject string) bool {
+	for _, line := range strings.Split(text, "\n") {
+		fields := strings.Fields(strings.ReplaceAll(line, ",", " "))
+		if len(fields) < 2 || fields[0] != "deny" {
+			continue
+		}
+		for _, f := range fields[1:] {
+			if f == subject {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func TestDenySubjectCatchesVariants(t *testing.T) {
+	for _, line := range []string{
+		"deny mount,",
+		"deny mount ,",
+		"deny  mount,",
+		"deny mount /tmp/** ,",
+		"deny capability,",
+		"deny capability sys_admin,",
+		"deny capability ,",
+	} {
+		subject := "mount"
+		if strings.Contains(line, "capability") {
+			subject = "capability"
+		}
+		if !deniesSubject(line, subject) {
+			t.Errorf("missed %q", line)
+		}
+	}
+	for _, line := range []string{
+		"mount,",
+		"capability sys_admin,",
+		"deny network inet,",
+		"deny /bin/mount mr,",
+		"# deny mount,",
+	} {
+		if deniesSubject(line, "mount") || deniesSubject(line, "capability") {
+			t.Errorf("false positive %q", line)
+		}
+	}
 }
 
 func hasLine(text, want string) bool {

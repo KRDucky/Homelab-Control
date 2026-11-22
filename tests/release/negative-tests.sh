@@ -86,7 +86,15 @@ tar -C "$work/x" -czf "$work/c/homelab-control-$ver-linux-amd64.tar.gz" "homelab
 expect_fail "extra file in the binaries tarball"
 
 fresh; deb=$(ls "$work/c"/*.deb); echo not-a-deb > "$deb"; resum
-expect_fail "deb replaced by another file (package inventory)"
+n=$((n + 1))
+if verify "$work/c"; then
+  echo "FAIL  not detected: deb replaced by another file (package inventory)"; fail=1
+elif ! grep -q 'package-inventory' "$work/out.txt"; then
+  echo "FAIL  deb replaced by another file failed for another reason: $(grep -m1 '^FAIL' "$work/out.txt" | cut -c1-140)"
+  fail=1
+else
+  echo "PASS  detected: deb replaced by another file (package inventory) ($(grep -m1 '^FAIL' "$work/out.txt" | cut -c1-140))"
+fi
 
 echo "negative tests: $n mutations, $([ "$fail" = 0 ] && echo 'all detected' || echo 'SOME NOT DETECTED')"
 exit "$fail"

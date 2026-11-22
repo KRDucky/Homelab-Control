@@ -50,6 +50,10 @@ class Fail(Exception):
     pass
 
 
+class Skipped(Exception):
+    """A check did not run. It is not a pass."""
+
+
 # ---------------------------------------------------------------- versions and names
 def check_version(v, mode="release"):
     rx = RELEASE_RE if mode == "release" else DRYRUN_RE
@@ -191,7 +195,7 @@ def assemble(run, out, version):
 # ---------------------------------------------------------------- verify
 class Checks:
     def __init__(self):
-        self.failures, self.passed = [], []
+        self.failures, self.passed, self.skipped = [], [], []
 
     def ok(self, cond, msg):
         (self.passed if cond else self.failures).append(msg)
@@ -201,6 +205,8 @@ class Checks:
         try:
             fn()
             self.passed.append(msg)
+        except Skipped as e:
+            self.skipped.append(f"{msg}: {e}")
         except Fail as e:
             self.failures.append(f"{msg}: {e}")
         except Exception as e:  # any unexpected error is a failure, never a pass
@@ -365,16 +371,14 @@ def check_packages(d, version, require_tools):
     if not shutil.which("dpkg-deb"):
         if require_tools:
             raise Fail(f"dpkg-deb not installed (required to inspect {pkg})")
-        print(f"SKIPPED: {pkg} inventory (dpkg-deb not installed)")
-    else:
-        r = subprocess.run([inv, os.path.join(d, pkg)], capture_output=True, text=True)
-        if r.returncode != 0:
-            raise Fail(f"package-inventory.sh {pkg}: {(r.stdout + r.stderr).strip()[-600:]}")
-    if shutil.which("dpkg-deb"):
-        got = subprocess.run(["dpkg-deb", "-f", os.path.join(d, names["deb"]), "Version"],
-                             capture_output=True, text=True, check=True).stdout.strip()
-        if got != deb_version(version):
-            raise Fail(f".deb Version {got!r} != {deb_version(version)!r}")
+        raise Skipped(f"{pkg} inventory and version (dpkg-deb not installed)")
+    r = subprocess.run([inv, os.path.join(d, pkg)], capture_output=True, text=True)
+    if r.returncode != 0:
+        raise Fail(f"package-inventory.sh {pkg}: {(r.stdout + r.stderr).strip()[-600:]}")
+    got = subprocess.run(["dpkg-deb", "-f", os.path.join(d, names["deb"]), "Version"],
+                         capture_output=True, text=True, check=True).stdout.strip()
+    if got != deb_version(version):
+        raise Fail(f".deb Version {got!r} != {deb_version(version)!r}")
 
 
 def verify(d, version, commit, toolchain, mode, require_tools):
@@ -413,12 +417,20 @@ def verify(d, version, commit, toolchain, mode, require_tools):
               lambda: check_packages(d, version, require_tools))
     for m in c.passed:
         print(f"PASS  {m}")
+    for m in c.skipped:
+        print(f"SKIP  {m}")
     for m in c.failures:
         print(f"FAIL  {m}")
         if os.environ.get("GITHUB_ACTIONS"):
             print(f"::error title=release verify::{m}")
-    print(f"release verify: {'OK' if not c.failures else str(len(c.failures)) + ' failed'} ({d})")
-    return not c.failures
+    if c.failures:
+        status = f"{len(c.failures)} failed"
+    elif c.skipped:
+        status = f"{len(c.skipped)} skipped"
+    else:
+        status = "OK"
+    print(f"release verify: {status} ({d})")
+    return not c.failures and not c.skipped
 
 
 # ---------------------------------------------------------------- notes

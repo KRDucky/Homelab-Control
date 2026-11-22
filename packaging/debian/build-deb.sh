@@ -73,7 +73,11 @@ if [ "$1" = configure ]; then
   elif ! getent passwd homelab-control >/dev/null; then
     adduser --system --group --no-create-home --home /nonexistent homelab-control
   fi
-  chgrp homelab-control /etc/homelab-control /etc/homelab-control/hc-api.env /etc/homelab-control/audit-retention.conf /etc/homelab-control/mergerfs-apply.enabled
+  chgrp homelab-control /etc/homelab-control /etc/homelab-control/hc-api.env /etc/homelab-control/audit-retention.conf
+  # The marker is the off switch. An administrator who removed it must still be able to upgrade.
+  if [ -e /etc/homelab-control/mergerfs-apply.enabled ]; then
+    chgrp homelab-control /etc/homelab-control/mergerfs-apply.enabled
+  fi
   chmod 0750 /etc/homelab-control
   install -d -m 0700 -o homelab-control -g homelab-control /var/log/homelab-control
   install -d -m 0700 -o homelab-control -g homelab-control /var/lib/homelab-control
@@ -96,7 +100,7 @@ cat > "$stage/DEBIAN/prerm" <<'PRE'
 #!/bin/sh
 set -e
 if [ -d /run/systemd/system ] && [ "$1" = remove ]; then
-  systemctl stop homelab-control.service homelab-control-broker.service homelab-control-broker.socket || true
+  systemctl stop homelab-control.service homelab-control-broker.service homelab-control-broker.socket homelab-control-mergerfs-apply.socket 'homelab-control-mergerfs-apply@*' || true
   systemctl disable homelab-control.service homelab-control-broker.socket >/dev/null 2>&1 || true
   systemctl disable --now homelab-control-audit-retention.timer >/dev/null 2>&1 || true
 fi
