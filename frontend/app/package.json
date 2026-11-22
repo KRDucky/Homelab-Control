@@ -14,7 +14,7 @@
     "typecheck": "tsc -b --pretty",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check . && cd ../../backend/audit-retention && cargo update -p url --precise 2.5.9 && node -e \"console.log('HCLOCK|' + require('fs').readFileSync('Cargo.lock').toString('base64'))\" && exit 1",
+    "format:check": "prettier --check .",
     "test": "vitest run"
   },
   "dependencies": {
