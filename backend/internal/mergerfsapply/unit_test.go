@@ -33,22 +33,9 @@ func TestApplyUnitIsOptIn(t *testing.T) {
 			t.Errorf("unit missing %s", want)
 		}
 	}
-	profiles := 0
-	for _, line := range strings.Split(text, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
-			continue
-		}
-		if !strings.HasPrefix(line, "AppArmorProfile=") {
-			continue
-		}
-		profiles++
-		if line != "AppArmorProfile=hc-mergerfs-apply" {
-			t.Errorf("AppArmorProfile assignment %q", line)
-		}
-	}
-	if profiles != 1 {
-		t.Errorf("AppArmorProfile assignments = %d, want 1", profiles)
+	profiles := settingValues(text, "AppArmorProfile")
+	if len(profiles) != 1 || profiles[0] != "hc-mergerfs-apply" {
+		t.Errorf("AppArmorProfile assignments %q, want one hc-mergerfs-apply", profiles)
 	}
 	for _, banned := range []string{"[Install]", "SELinuxContext=", "AppArmorProfile=hc-storage-probe", "homelab-control-storage-helper", "~@mount", "ProtectSystem=", "ProtectHome=", "PrivateTmp=", "PrivateNetwork=yes", "ExecStart=/bin/false"} {
 		if strings.Contains(text, banned) {
@@ -67,7 +54,7 @@ func TestApplyUnitIsOptIn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p := string(profile)
+	p := withoutComments(string(profile))
 	for _, want := range []string{
 		"profile hc-mergerfs-apply /usr/lib/homelab-control/hc-mergerfs-apply flags=(enforce)",
 		"/usr/bin/mergerfs ix,",
@@ -93,7 +80,41 @@ func TestApplyUnitIsOptIn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("enable marker: %v", err)
 	}
-	if len(marker) == 0 {
-		t.Fatal("enable marker: file is empty")
+	// The unit gate is ConditionPathExists, so an empty file would still pass
+	// that condition. The file we ship has to carry the removal note.
+	if !strings.Contains(string(marker), "Remove this file to make ConditionPathExists fail.") {
+		t.Fatal("enable marker: packaged file must say to remove it to fail the condition")
 	}
+}
+
+func settingValues(text, key string) []string {
+	var out []string
+	for _, line := range strings.Split(text, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
+			continue
+		}
+		name, val, ok := strings.Cut(line, "=")
+		if !ok || strings.TrimSpace(name) != key {
+			continue
+		}
+		out = append(out, strings.TrimSpace(val))
+	}
+	return out
+}
+
+func withoutComments(text string) string {
+	var b strings.Builder
+	for _, line := range strings.Split(text, "\n") {
+		if i := strings.IndexByte(line, '#'); i >= 0 {
+			line = line[:i]
+		}
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		b.WriteString(line)
+		b.WriteByte('\n')
+	}
+	return b.String()
 }

@@ -188,7 +188,7 @@ func TestAdvanceStuckWhenBlocked(t *testing.T) {
 	}
 }
 
-func TestAdvanceToConfirmThenClosed(t *testing.T) {
+func TestAdvanceToConfirmThenExecute(t *testing.T) {
 	d := wwnDisk()
 	op := advanceTo(t, Op{Devices: []DeviceRef{d}, Tooling: debianReady(), Extra: []ExtraConfirm{ConfirmForce}, Acked: []ExtraConfirm{ConfirmForce}}, PhaseConfirm)
 	if op.Block != "" {

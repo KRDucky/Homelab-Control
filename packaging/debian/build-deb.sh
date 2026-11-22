@@ -31,7 +31,7 @@ install -Dm0644 "$root/packaging/common/homelab-control-mergerfs-apply@.service"
 install -Dm0644 "$root/packaging/common/homelab-control-mergerfs-apply.socket" "$stage/usr/lib/systemd/system/homelab-control-mergerfs-apply.socket"
 install -Dm0644 "$root/packaging/debian/apparmor/usr.lib.homelab-control.hc-storage-probe" "$stage/etc/apparmor.d/usr.lib.homelab-control.hc-storage-probe"
 install -Dm0644 "$root/packaging/debian/apparmor/usr.lib.homelab-control.hc-mergerfs-apply" "$stage/etc/apparmor.d/usr.lib.homelab-control.hc-mergerfs-apply"
-install -Dm0644 "$root/packaging/common/mergerfs-apply.enabled" "$stage/etc/homelab-control/mergerfs-apply.enabled"
+install -Dm0640 "$root/packaging/common/mergerfs-apply.enabled" "$stage/etc/homelab-control/mergerfs-apply.enabled"
 install -Dm0644 "$root/packaging/common/homelab-control-audit-retention.service" "$stage/usr/lib/systemd/system/homelab-control-audit-retention.service"
 install -Dm0644 "$root/packaging/common/homelab-control-audit-retention.timer" "$stage/usr/lib/systemd/system/homelab-control-audit-retention.timer"
 install -Dm0644 "$root/packaging/common/sysusers.conf" "$stage/usr/lib/sysusers.d/homelab-control.conf"
@@ -72,7 +72,7 @@ if [ "$1" = configure ]; then
   elif ! getent passwd homelab-control >/dev/null; then
     adduser --system --group --no-create-home --home /nonexistent homelab-control
   fi
-  chgrp homelab-control /etc/homelab-control /etc/homelab-control/hc-api.env /etc/homelab-control/audit-retention.conf
+  chgrp homelab-control /etc/homelab-control /etc/homelab-control/hc-api.env /etc/homelab-control/audit-retention.conf /etc/homelab-control/mergerfs-apply.enabled
   chmod 0750 /etc/homelab-control
   install -d -m 0700 -o homelab-control -g homelab-control /var/log/homelab-control
   install -d -m 0700 -o homelab-control -g homelab-control /var/lib/homelab-control
@@ -88,6 +88,7 @@ if [ "$1" = configure ]; then
   echo "  sudo chown homelab-control:homelab-control /etc/homelab-control/users.json"
   echo "then configure /etc/homelab-control/hc-api.env and run:"
   echo "  systemctl enable --now homelab-control-broker.socket homelab-control.service"
+  echo "The mergerfs apply marker is installed. Its socket is not enabled and does not start at boot."
 fi
 POST
 cat > "$stage/DEBIAN/prerm" <<'PRE'

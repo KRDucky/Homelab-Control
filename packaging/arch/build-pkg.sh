@@ -39,10 +39,11 @@ post_install() {
   systemctl enable homelab-control-audit-retention.timer >/dev/null 2>&1 || true
   if [ -d /run/systemd/system ]; then systemctl start homelab-control-audit-retention.timer >/dev/null 2>&1 || true; fi
   echo "homelab-control installed but NOT enabled. See /usr/share/doc/homelab-control/README.md"
+  echo "The mergerfs apply marker is installed. Its socket is not enabled and does not start at boot."
 }
 hc_owner() {
   systemd-sysusers /usr/lib/sysusers.d/homelab-control.conf
-  chgrp homelab-control /etc/homelab-control /etc/homelab-control/hc-api.env /etc/homelab-control/audit-retention.conf
+  chgrp homelab-control /etc/homelab-control /etc/homelab-control/hc-api.env /etc/homelab-control/audit-retention.conf /etc/homelab-control/mergerfs-apply.enabled
 }
 post_upgrade() { hc_owner; }
 pre_remove() {
@@ -78,7 +79,7 @@ package() {
   install -dm0750 "\$pkgdir/etc/homelab-control"
   install -Dm0640 hc-api.env "\$pkgdir/etc/homelab-control/hc-api.env"
   install -Dm0640 audit-retention.conf "\$pkgdir/etc/homelab-control/audit-retention.conf"
-  install -Dm0644 mergerfs-apply.enabled "\$pkgdir/etc/homelab-control/mergerfs-apply.enabled"
+  install -Dm0640 mergerfs-apply.enabled "\$pkgdir/etc/homelab-control/mergerfs-apply.enabled"
   install -Dm0644 LICENSE.md NOTICE.md THIRD-PARTY-NOTICES.md -t "\$pkgdir/usr/share/licenses/\$pkgname/"
   install -Dm0644 README.md "\$pkgdir/usr/share/doc/\$pkgname/README.md"
 }

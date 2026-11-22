@@ -287,10 +287,10 @@ func preflightBlock(devs []DeviceRef, facts []DevicePreflight, planned []string)
 			return BlockPreflightMissing, "execute needs a fresh block-device preflight per target"
 		}
 		if !p.BlockDevice {
-			return BlockNotBlockDevice, "target must be a block device immediately before exec"
+			return BlockNotBlockDevice, "preflight snapshot must show a block device"
 		}
 		if !validRdev(p.Rdev) || !validRdev(planned[i]) {
-			return BlockRdevInvalid, "target rdev must be major:minor immediately before exec"
+			return BlockRdevInvalid, "preflight snapshot rdev must be major:minor"
 		}
 		if p.Rdev != planned[i] {
 			return BlockIdentityChanged, "identity changed since plan; revalidate before action"
@@ -329,8 +329,10 @@ func fail(op Op, b Block, reason string) Op {
 }
 
 // Advance moves one step, or stays and sets Block. A confirm that passes
-// the gate, identity, and preflight checks enters execute. This function
-// still does not format devices, spawn processes, or call a helper.
+// the gate, identity, and preflight checks enters execute. The preflight
+// check reads the snapshot already stored on the op. This function still
+// does not stat devices, format devices, spawn processes, or call a helper.
+// Later phases do not perform a write.
 func Advance(op Op) Op {
 	if op.Block != "" {
 		return op
