@@ -33,7 +33,14 @@ func TestApplyUnitIsOptIn(t *testing.T) {
 			t.Errorf("unit missing %s", want)
 		}
 	}
-	profiles := settingValues(text, "AppArmorProfile")
+	if profiles := settingValues(text, "AppArmorProfile"); len(profiles) != 0 {
+		t.Errorf("shared unit sets AppArmorProfile %q; that belongs in the Debian drop-in", profiles)
+	}
+	drop, err := os.ReadFile("../../../packaging/debian/homelab-control-mergerfs-apply@.service.d/apparmor.conf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	profiles := settingValues(string(drop), "AppArmorProfile")
 	if len(profiles) != 1 || profiles[0] != "hc-mergerfs-apply" {
 		t.Errorf("AppArmorProfile assignments %q, want one hc-mergerfs-apply", profiles)
 	}
@@ -56,7 +63,7 @@ func TestApplyUnitIsOptIn(t *testing.T) {
 	}
 	p := withoutComments(string(profile))
 	for _, want := range []string{
-		"profile hc-mergerfs-apply /usr/lib/homelab-control/hc-mergerfs-apply flags=(enforce)",
+		"profile hc-mergerfs-apply /usr/lib/homelab-control/hc-mergerfs-apply flags=(enforce) {",
 		"/usr/bin/mergerfs ix,",
 		"/usr/bin/snapraid ix,",
 		"/usr/bin/systemd-run ix,",
@@ -67,12 +74,17 @@ func TestApplyUnitIsOptIn(t *testing.T) {
 		"/var/snapraid/** rwlk,",
 		"/mnt/** rwlk,",
 	} {
-		if !strings.Contains(p, want) {
-			t.Errorf("profile missing %s", want)
+		if !hasLine(p, want) {
+			t.Errorf("profile missing rule %s", want)
 		}
 	}
-	for _, banned := range []string{"deny mount,", "deny capability,", "/bin/sh", "/bin/bash", "unconfined", "complain"} {
-		if strings.Contains(p, banned) {
+	for _, banned := range []string{"deny mount,", "deny capability,"} {
+		if hasLine(p, banned) {
+			t.Errorf("profile contains rule %s", banned)
+		}
+	}
+	for _, banned := range []string{"/bin/sh", "/bin/bash", "unconfined", "complain"} {
+		if hasToken(p, banned) {
 			t.Errorf("profile contains %s", banned)
 		}
 	}
@@ -101,6 +113,28 @@ func settingValues(text, key string) []string {
 		out = append(out, strings.TrimSpace(val))
 	}
 	return out
+}
+
+func hasLine(text, want string) bool {
+	for _, line := range strings.Split(text, "\n") {
+		if strings.TrimSpace(line) == want {
+			return true
+		}
+	}
+	return false
+}
+
+func hasToken(text, token string) bool {
+	for _, line := range strings.Split(text, "\n") {
+		for _, field := range strings.FieldsFunc(line, func(r rune) bool {
+			return r == ' ' || r == '\t' || r == ',' || r == '(' || r == ')'
+		}) {
+			if field == token {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func withoutComments(text string) string {
