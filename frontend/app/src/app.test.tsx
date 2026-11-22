@@ -145,6 +145,8 @@ describe('App', () => {
     fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'admin' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'a-long-password' } });
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByText('fixture-host')).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: 'Detailed host report' }));
     expect(await screen.findByRole('heading', { name: 'fixture-host' })).toBeTruthy();
     expect(screen.getByText('Unavailable')).toBeTruthy();
     expect(screen.getByText('network filesystem not probed')).toBeTruthy();
