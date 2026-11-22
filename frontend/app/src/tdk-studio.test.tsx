@@ -31,7 +31,9 @@ describe('Theme Development Kit in the WebUI', () => {
       target: { value: 'local.ocean' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
-    expect(loadThemes().find((theme) => theme.id === 'local.ocean')?.name).toBe('HomeControl Ocean');
+    expect(loadThemes().find((theme) => theme.id === 'local.ocean')?.name).toBe(
+      'HomeControl Ocean',
+    );
     expect(activeTheme()).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Preview on application' }));
@@ -66,7 +68,9 @@ describe('Theme Development Kit in the WebUI', () => {
     expect(issue).not.toBeNull();
     if (!issue) throw new Error('Expected a contrast issue link.');
     fireEvent.click(issue);
-    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'text-primary hex colour' }));
+    expect(document.activeElement).toBe(
+      screen.getByRole('textbox', { name: 'text-primary hex colour' }),
+    );
     expect(activeTheme()).toBeNull();
   });
 });
