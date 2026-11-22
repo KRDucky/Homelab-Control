@@ -8,11 +8,24 @@ import type { Overview, Capability } from './api';
 
 const data: Overview = {
   collected_at: '2026-10-15T08:00:00Z',
-  system: { status: 'ok', sources: [], hostname: 'fixture-host', os: { pretty_name: 'Fixture OS' },
-    distro_family: 'debian', load_average: [0.1, 0.2, 0.3] },
+  system: {
+    status: 'ok',
+    sources: [],
+    hostname: 'fixture-host',
+    os: { pretty_name: 'Fixture OS' },
+    distro_family: 'debian',
+    load_average: [0.1, 0.2, 0.3],
+  },
   cpu: { status: 'ok', sources: [], logical_cpus: 4, usage_percent: 20, sample_millis: 250 },
-  memory: { status: 'ok', sources: [], total_bytes: 1000, used_bytes: 600, available_bytes: 400,
-    swap_total_bytes: 0, swap_free_bytes: 0 },
+  memory: {
+    status: 'ok',
+    sources: [],
+    total_bytes: 1000,
+    used_bytes: 600,
+    available_bytes: 400,
+    swap_total_bytes: 0,
+    swap_free_bytes: 0,
+  },
   filesystems: { status: 'ok', sources: [], view: 'host', items: [] },
   network: { status: 'unavailable', sources: [], interfaces: [] },
   legacy_webmin: { status: 'ok', sources: [], installed: false, config_readable: false },
@@ -28,7 +41,10 @@ afterEach(() => cleanup());
 
 describe('dashboard layout schema', () => {
   it('validates ids, duplicates, and schema versions', () => {
-    expect(validateDashboardLayout({ version: 1, widgets: ['memory', 'cpu'] }).widgets).toEqual(['memory', 'cpu']);
+    expect(validateDashboardLayout({ version: 1, widgets: ['memory', 'cpu'] }).widgets).toEqual([
+      'memory',
+      'cpu',
+    ]);
     expect(validateDashboardLayout({ version: 1, widgets: ['cpu', 'cpu'] }).widgets).toHaveLength(6);
     expect(validateDashboardLayout({ version: 1, widgets: ['unknown'] }).widgets).toHaveLength(6);
     expect(validateDashboardLayout({ version: 2, widgets: ['memory'] }).widgets).toHaveLength(6);
