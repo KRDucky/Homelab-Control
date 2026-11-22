@@ -4,7 +4,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""M1 browser e2e: capability-aware navigation, Services, Hardware, Legacy,
+"""M1 browser e2e: capability-aware navigation, Services, Hardware,
 and graceful degradation when the broker stops. Driven by
 tests/e2e/run-m1-e2e.sh against a real stack in a disposable systemd host.
 
@@ -68,8 +68,9 @@ with sync_playwright() as p:
     page.get_by_role("button", name="Sign in").click()
     nav = page.get_by_role("navigation", name="Main")
     expect(nav.get_by_role("link", name="Services")).to_be_visible(timeout=15000)
-    check("nav: Services, Hardware, Legacy Webmin, Audit are links", all(
-        nav.get_by_role("link", name=n).count() == 1 for n in ["Overview", "Services", "Hardware", "Legacy Webmin", "Audit"]))
+    check("nav: Services, Hardware and Audit are links", all(
+        nav.get_by_role("link", name=n).count() == 1 for n in ["Overview", "Services", "Hardware", "Audit"]))
+    check("nav: retired Webmin page is absent", nav.get_by_text("Legacy Webmin").count() == 0)
 
     nav.get_by_role("link", name="Services").click()
     expect(page.get_by_role("heading", name="Services", level=1)).to_be_visible()
@@ -149,17 +150,14 @@ with sync_playwright() as p:
     page.screenshot(path=f"{ART}/m1-02-hardware.png", full_page=True)
     axe(page, "hardware")
 
-    nav.get_by_role("link", name="Legacy Webmin").click()
-    expect(page.get_by_role("heading", name="Security review")).to_be_visible(timeout=15000)
-    check("legacy: version 2.670 from real Webmin", page.get_by_text("2.670", exact=True).count() >= 1)
-    check("legacy: plain-HTTP finding shown", page.get_by_text("serves plain HTTP").count() == 1)
-    check("legacy: RPC finding shown", page.get_by_text("RPC-capable accounts").count() == 1)
-    page.screenshot(path=f"{ART}/m1-03-legacy.png", full_page=True)
-    axe(page, "legacy")
+    # The retired Webmin UI is no longer exposed, even when the API advertises it.
+    page.goto(URL + "/legacy")
+    expect(page.get_by_role("tab", name="Dashboard")).to_be_visible(timeout=15000)
+    check("retired route displays the HomeControl dashboard", True)
 
-    page.go_back()
-    expect(page.get_by_role("heading", name="Storage devices")).to_be_visible()
-    check("history: back button returns to Hardware", page.url.endswith("/hardware"))
+    page.goto(URL + "/hardware")
+    expect(page.get_by_role("heading", name="Storage devices")).to_be_visible(timeout=15000)
+    check("deep link: /hardware works", page.url.endswith("/hardware"))
     page.reload()
     expect(page.get_by_role("heading", name="Storage devices")).to_be_visible(timeout=15000)
     check("deep link: reload on /hardware works", True)
