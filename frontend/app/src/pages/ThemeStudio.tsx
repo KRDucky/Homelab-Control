@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { DataTable } from '../DataTable';
-import { StatusPill } from '../ui';
 import { applyPreferences, loadPreferences } from '../preferences';
+import { ThemePreview } from './ThemePreview';
 import {
   ACTIVE_THEME,
   BASES,
@@ -61,49 +60,6 @@ function ColorValue({
         if (!valid) setText(value);
       }}
     />
-  );
-}
-
-function Preview({ draft, width }: { draft: ThemeDocument; width: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (ref.current) applyTheme(draft, ref.current);
-  }, [draft]);
-  return (
-    <div className={`studio-preview preview-${width}`} ref={ref} aria-label="Theme preview with example data">
-      <p className="tag">Example data · preview only</p>
-      <h2>Host overview</h2>
-      <p>Independent modules. Clear system state.</p>
-      <div className="toolbar">
-        <StatusPill tone="ok" label="Healthy" />
-        <StatusPill tone="warn" label="Warning" />
-        <StatusPill tone="crit" label="Critical" />
-        <StatusPill tone="unknown" label="Not checked" />
-      </div>
-      <DataTable
-        caption="Example services"
-        rows={[
-          { name: 'backup.service', status: 'Active' },
-          { name: 'media.service', status: 'Not checked' },
-        ]}
-        rowKey={(r) => r.name}
-        columns={[
-          { id: 'name', label: 'Unit', render: (r) => <code>{r.name}</code> },
-          { id: 'status', label: 'State', render: (r) => r.status },
-        ]}
-      />
-      <label className="studio-field">
-        Example input
-        <input placeholder="Search services" />
-      </label>
-      <div className="toolbar">
-        <button type="button">Primary action</button>
-        <button type="button" className="ghost">
-          Secondary action
-        </button>
-      </div>
-      <p className="banner">Warnings always keep their text and icon.</p>
-    </div>
   );
 }
 
@@ -576,7 +532,7 @@ export function ThemeStudio() {
                 <option value="phone">Phone</option>
               </select>
             </label>
-            <Preview draft={draft} width={width} />
+            <ThemePreview draft={draft} width={width} />
           </div>
         </div>
         <section className="studio-issues" aria-label="Theme validation">
