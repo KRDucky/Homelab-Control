@@ -181,7 +181,7 @@ export function App() {
   else if (route?.id === 'hardware') page = <Hardware onUnauthorized={signedOut} />;
   else if (route?.id === 'legacy')
     page = <Legacy legacyUrl={session.legacy_url} onUnauthorized={signedOut} />;
-  else if (route?.id === 'overview') page = <OverviewPage onUnauthorized={signedOut} />;
+  else if (route?.id === 'overview') page = <OverviewPage onUnauthorized={signedOut} pages={pages} />;
   else if (route?.id === 'traefik') page = <Traefik csrf={session.csrf_token} onUnauthorized={signedOut} />;
   else if (route?.id === 'packages') page = <Software csrf={session.csrf_token} onUnauthorized={signedOut} />;
   else if (route?.id === 'mergerfs')
