@@ -284,18 +284,28 @@ export function Shell({
         </div>
       </nav>
       <div className="workspace" inert={drawerOpen}>
-        {groupNavigation(pages).filter((group) => group.pages.some((page) => page.id === currentId) && group.title !== 'Dashboard').map((group) => {
-          const related = group.pages.filter((page) => page.status === 'available' || page.status === 'degraded');
-          return related.length > 1 ? (
-            <nav key={group.title} className="module-tabs" aria-label={group.title + ' modules'}>
-              <span className="module-tabs-label">{group.title}</span>
-              {related.map((page) => (
-                <a key={page.id} href={page.path} onClick={linkHandler(page.path)}
-                  aria-current={page.id === currentId ? 'page' : undefined}>{page.label}</a>
-              ))}
-            </nav>
-          ) : null;
-        })}
+        {groupNavigation(pages)
+          .filter((group) => group.pages.some((page) => page.id === currentId) && group.title !== 'Dashboard')
+          .map((group) => {
+            const related = group.pages.filter(
+              (page) => page.status === 'available' || page.status === 'degraded',
+            );
+            return related.length > 1 ? (
+              <nav key={group.title} className="module-tabs" aria-label={group.title + ' modules'}>
+                <span className="module-tabs-label">{group.title}</span>
+                {related.map((page) => (
+                  <a
+                    key={page.id}
+                    href={page.path}
+                    onClick={linkHandler(page.path)}
+                    aria-current={page.id === currentId ? 'page' : undefined}
+                  >
+                    {page.label}
+                  </a>
+                ))}
+              </nav>
+            ) : null;
+          })}
         <main id="main" tabIndex={-1}>
           {children}
         </main>
