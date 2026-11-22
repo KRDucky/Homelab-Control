@@ -31,6 +31,14 @@ def check(name, cond):
     print(("PASS  " if cond else "FAIL  ") + name)
 
 
+def show_detailed_report(page):
+    """The dashboard is the landing view; legacy inventory assertions live in its report tab."""
+    page.get_by_role("tab", name="Detailed host report").click()
+    heading = page.locator("h1.faceplate-host")
+    expect(heading).to_be_visible(timeout=10000)
+    return heading
+
+
 with sync_playwright() as p:
     browser = p.chromium.launch()
     ctx = browser.new_context(viewport={"width": 1440, "height": 900}, color_scheme="dark")
@@ -54,8 +62,8 @@ with sync_playwright() as p:
 
     page.get_by_label("Password").fill(PASSWORD)
     page.get_by_role("button", name="Sign in").click()
-    heading = page.locator("h1.faceplate-host")
-    expect(heading).to_be_visible(timeout=10000)
+    expect(page.get_by_role("tab", name="Dashboard")).to_have_attribute("aria-selected", "true")
+    heading = show_detailed_report(page)
     expect(page.get_by_role("heading", name="Filesystems")).to_be_visible()
     host = heading.inner_text()
     real_host = open("/proc/sys/kernel/hostname").read().strip()
@@ -71,7 +79,7 @@ with sync_playwright() as p:
                                  storage_state=ctx.storage_state())
     mp = mobile.new_page()
     mp.goto(URL)
-    expect(mp.locator("h1.faceplate-host")).to_be_visible(timeout=10000)
+    show_detailed_report(mp)
     overflow = mp.evaluate("document.documentElement.scrollWidth > window.innerWidth + 1")
     check("mobile layout has no horizontal page scroll", not overflow)
     mp.screenshot(path=f"{ART}/04-overview-mobile.png", full_page=True)
@@ -80,7 +88,7 @@ with sync_playwright() as p:
                                 storage_state=ctx.storage_state())
     lp = light.new_page()
     lp.goto(URL)
-    expect(lp.locator("h1.faceplate-host")).to_be_visible(timeout=10000)
+    show_detailed_report(lp)
     lp.screenshot(path=f"{ART}/05-overview-light.png")
 
     # HCIS shell (step 3): appearance preferences are independent of the theme and persist.
@@ -108,7 +116,7 @@ with sync_playwright() as p:
     check("appearance: Escape closes the menu and returns focus to its button",
           page.evaluate("document.activeElement.getAttribute('aria-haspopup')") == "dialog")
     page.reload()
-    expect(heading).to_be_visible(timeout=10000)
+    show_detailed_report(page)
     a = page.evaluate(attrs_js)
     check("appearance: preferences persist after reload",
           a.get("data-hc-theme") == "graphite" and a.get("data-hc-density") == "compact"
@@ -118,7 +126,7 @@ with sync_playwright() as p:
     page.get_by_role("button", name="Collapse sidebar").click()
     check("sidebar: collapses to the icon rail", page.evaluate(layout_js)["sidebar"] == "rail")
     page.reload()
-    expect(heading).to_be_visible(timeout=10000)
+    show_detailed_report(page)
     check("sidebar: collapsed state persists", page.evaluate(layout_js)["sidebar"] == "rail")
     page.get_by_role("button", name="Expand sidebar").click()
     page.get_by_role("button", name="Appearance").click()
@@ -133,7 +141,7 @@ with sync_playwright() as p:
         rc = browser.new_context(viewport={"width": w, "height": h}, storage_state=ctx.storage_state())
         rp = rc.new_page()
         rp.goto(URL)
-        expect(rp.locator("h1.faceplate-host")).to_be_visible(timeout=10000)
+        show_detailed_report(rp)
         check(f"responsive {w}px: {mode} navigation, no horizontal page scroll",
               rp.evaluate("document.querySelector('.shell').dataset.sidebar") == mode
               and not rp.evaluate("document.documentElement.scrollWidth > window.innerWidth + 1"))
