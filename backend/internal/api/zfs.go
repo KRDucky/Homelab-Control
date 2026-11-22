@@ -13,22 +13,10 @@ import (
 	"homelab-control/backend/internal/auth"
 )
 
-// zfsProtectedGET is the read-only OpenZFS bar on an identifier-bearing GET:
-// the session CSRF token before anything is read or audited.
+// zfsProtectedGET is the read-only OpenZFS bar on an identifier-bearing GET.
+// The checks live in auditedGET; this wrapper keeps the ZFS audit message.
 func (s *Server) zfsProtectedGET(w http.ResponseWriter, r *http.Request, sess *auth.Session) bool {
-	if !auth.CheckCSRF(sess, r.Header.Get("X-CSRF-Token")) {
-		writeError(w, http.StatusForbidden, "csrf_rejected", "missing or invalid CSRF token")
-		return false
-	}
-	if o := r.Header.Get("Origin"); o != "" && o != "null" && !s.originAllowed(r) {
-		writeError(w, http.StatusForbidden, "origin_rejected", "request origin not allowed")
-		return false
-	}
-	if s.audit == nil {
-		writeError(w, http.StatusServiceUnavailable, "audit_unavailable", "ZFS inventory requires an access audit logger.")
-		return false
-	}
-	return true
+	return s.auditedGET(w, r, sess, "ZFS inventory requires an access audit logger.")
 }
 
 // handleZFS serves the read-only OpenZFS inventory. No pool create, import,
