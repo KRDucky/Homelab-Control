@@ -43,9 +43,11 @@ describe('Theme Development Kit in the WebUI', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Preview on application' }));
     fireEvent.click(screen.getByRole('button', { name: 'Keep theme' }));
-    expect(activeTheme()?.id).toBe('local.ocean');
+    const activated = activeTheme();
+    expect(activated?.id).toBe('local.ocean');
+    if (!activated) throw new Error('Confirmed theme did not activate.');
     expect(document.documentElement.style.getPropertyValue('--hc-color-surface-base')).toBe(
-      resolvedColors(activeTheme()!)['surface-base'],
+      resolvedColors(activated)['surface-base'],
     );
     expect(loadPreferences()).toEqual(DEFAULT_PREFERENCES);
   });
@@ -62,7 +64,8 @@ describe('Theme Development Kit in the WebUI', () => {
     const validation = screen.getByRole('region', { name: 'Theme validation' });
     const issue = validation.querySelector('button.issue-link');
     expect(issue).not.toBeNull();
-    fireEvent.click(issue!);
+    if (!issue) throw new Error('Expected a contrast issue link.');
+    fireEvent.click(issue);
     expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'text-primary hex colour' }));
     expect(activeTheme()).toBeNull();
   });
