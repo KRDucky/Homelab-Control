@@ -114,6 +114,26 @@ func TestApplyUnitIsOptIn(t *testing.T) {
 			t.Errorf("%s does not skip chgrp when the marker was removed", path)
 		}
 	}
+	for _, path := range []string{
+		"../../../packaging/debian/build-deb.sh",
+		"../../../packaging/fedora/build-rpm.sh",
+		"../../../packaging/fedora/homelab-control.spec",
+		"../../../packaging/arch/build-pkg.sh",
+	} {
+		script, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		stopped := false
+		for _, line := range strings.Split(string(script), "\n") {
+			if strings.Contains(line, "stop") && strings.Contains(line, "homelab-control-mergerfs-apply.socket") && strings.Contains(line, "homelab-control-mergerfs-apply@*") {
+				stopped = true
+			}
+		}
+		if !stopped {
+			t.Errorf("%s does not stop the mergerfs socket and helper on removal", path)
+		}
+	}
 }
 
 func settingValues(text, key string) []string {

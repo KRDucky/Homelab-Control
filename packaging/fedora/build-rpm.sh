@@ -71,6 +71,8 @@ fi
 %preun
 if [ \$1 -eq 0 ] && [ -d /run/systemd/system ]; then
   systemctl --no-reload disable --now homelab-control.service homelab-control-broker.socket homelab-control-broker.service homelab-control-audit-retention.timer >/dev/null 2>&1 || :
+  # The socket has no [Install] section, so disable does not stop a running helper.
+  systemctl --no-reload stop homelab-control-mergerfs-apply.socket 'homelab-control-mergerfs-apply@*' >/dev/null 2>&1 || :
 fi
 
 %postun

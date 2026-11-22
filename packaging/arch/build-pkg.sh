@@ -52,6 +52,8 @@ hc_owner() {
 post_upgrade() { hc_owner; }
 pre_remove() {
   systemctl disable --now homelab-control.service homelab-control-broker.socket homelab-control-broker.service homelab-control-audit-retention.timer >/dev/null 2>&1 || true
+  # The socket has no [Install] section, so disable does not stop a running helper.
+  systemctl stop homelab-control-mergerfs-apply.socket 'homelab-control-mergerfs-apply@*' >/dev/null 2>&1 || true
 }
 INST
 cat > "$work/PKGBUILD" <<PKG
