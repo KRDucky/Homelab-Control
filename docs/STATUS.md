@@ -211,7 +211,7 @@ or removed files. There is no `--force`, no `-e`, and no unfiltered fix. Disks a
 `storagecap.Advance` enters `execute` after a passing confirm, then `progress` and `postcheck`.
 It still does not format a device or call a helper. No broker op calls `mkfs.ext4`.
 The unused `homelab-control-storage-helper.service` stays `ExecStart=/bin/false`.
-The helper unit sets `AppArmorProfile=hc-mergerfs-apply`. That profile is enforce mode, allows
+Debian and Ubuntu install a drop-in that sets `AppArmorProfile=hc-mergerfs-apply`. The shared unit does not set it, so Arch and Fedora can start the helper when AppArmor is enabled and that profile is not installed. The profile is enforce mode, allows
 `mount` and the helper's three binaries, and denies other network families. It is not the probe
 profile. There is no SELinux policy for this helper. It does not use a private mount or network namespace
 (`PrivateMounts=no`, `PrivateNetwork=no`, `IPAddressDeny=any`). `@system-service` excludes `@mount`,
