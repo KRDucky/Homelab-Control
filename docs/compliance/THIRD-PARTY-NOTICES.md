@@ -50,7 +50,7 @@ Webmin (`compat/webmin/` in the source repository) is **not** part of any releas
 | flate2 (Rust crate) | 1.1.11 | MIT OR Apache-2.0 | compiled into `hc-audit-retention` | https://crates.io/crates/flate2 |
 | flume (Rust crate) | 0.11.1 | Apache-2.0/MIT | compiled into `hc-audit-retention` | https://crates.io/crates/flume |
 | foldhash (Rust crate) | 0.1.5 | Zlib | compiled into `hc-audit-retention` | https://crates.io/crates/foldhash |
-| form_urlencoded (Rust crate) | 1.2.2 | MIT OR Apache-2.0 | compiled into `hc-audit-retention` | https://crates.io/crates/form_urlencoded |
+| form_urlencoded (Rust crate) | 1.2.3 | MIT OR Apache-2.0 | compiled into `hc-audit-retention` | https://crates.io/crates/form_urlencoded |
 | futures-channel (Rust crate) | 0.3.34 | MIT OR Apache-2.0 | compiled into `hc-audit-retention` | https://crates.io/crates/futures-channel |
 | futures-core (Rust crate) | 0.3.34 | MIT OR Apache-2.0 | compiled into `hc-audit-retention` | https://crates.io/crates/futures-core |
 | futures-executor (Rust crate) | 0.3.34 | MIT OR Apache-2.0 | compiled into `hc-audit-retention` | https://crates.io/crates/futures-executor |
@@ -120,7 +120,7 @@ Webmin (`compat/webmin/` in the source repository) is **not** part of any releas
 | tracing-core (Rust crate) | 0.1.36 | MIT | compiled into `hc-audit-retention` | https://crates.io/crates/tracing-core |
 | typenum (Rust crate) | 1.20.1 | MIT OR Apache-2.0 | compiled into `hc-audit-retention` | https://crates.io/crates/typenum |
 | unicode-ident (Rust crate) | 1.0.27 | (MIT OR Apache-2.0) AND Unicode-3.0 | compiled into `hc-audit-retention` | https://crates.io/crates/unicode-ident |
-| url (Rust crate) | 2.5.8 | MIT OR Apache-2.0 | compiled into `hc-audit-retention` | https://crates.io/crates/url |
+| url (Rust crate) | 2.5.9 | MIT OR Apache-2.0 | compiled into `hc-audit-retention` | https://crates.io/crates/url |
 | utf8_iter (Rust crate) | 1.1.0 | Apache-2.0 OR MIT | compiled into `hc-audit-retention` | https://crates.io/crates/utf8_iter |
 | utf_types (Rust crate) | 1.0.0 | Apache-2.0 OR MIT | compiled into `hc-audit-retention` | https://crates.io/crates/utf_types |
 | writeable (Rust crate) | 0.6.4 | Unicode-3.0 | compiled into `hc-audit-retention` | https://crates.io/crates/writeable |
@@ -3402,7 +3402,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ````
 
-## Rust: base64 0.22.1 (LICENSE-APACHE), cfg-if 1.0.5 (LICENSE-APACHE), crossbeam-queue 0.3.14 (LICENSE-APACHE), crossbeam-utils 0.8.23 (LICENSE-APACHE), either 1.19.0 (LICENSE-APACHE), equivalent 1.0.3 (LICENSE-APACHE), event-listener 5.4.2 (LICENSE-APACHE), filetime 0.2.29 (LICENSE-APACHE), flate2 1.1.11 (LICENSE-APACHE), form_urlencoded 1.2.2 (LICENSE-APACHE), hashbrown 0.15.5 (LICENSE-APACHE), hashbrown 0.17.1 (LICENSE-APACHE), idna 1.1.0 (LICENSE-APACHE), idna_adapter 1.2.2 (LICENSE-APACHE), indexmap 2.14.2 (LICENSE-APACHE), lock_api 0.4.14 (LICENSE-APACHE), log 0.4.35 (LICENSE-APACHE), num-traits 0.2.19 (LICENSE-APACHE), once_cell 1.21.4 (LICENSE-APACHE), parking 2.2.1 (LICENSE-APACHE), parking_lot 0.12.5 (LICENSE-APACHE), parking_lot_core 0.9.12 (LICENSE-APACHE), percent-encoding 2.3.2 (LICENSE-APACHE), scopeguard 1.2.0 (LICENSE-APACHE), smallvec 1.16.5 (LICENSE-APACHE), socket2 0.6.5 (LICENSE-APACHE), stable_deref_trait 1.2.1 (LICENSE-APACHE), tar 0.4.46 (LICENSE-APACHE), url 2.5.8 (LICENSE-APACHE)
+## Rust: base64 0.22.1 (LICENSE-APACHE), cfg-if 1.0.5 (LICENSE-APACHE), crossbeam-queue 0.3.14 (LICENSE-APACHE), crossbeam-utils 0.8.23 (LICENSE-APACHE), either 1.19.0 (LICENSE-APACHE), equivalent 1.0.3 (LICENSE-APACHE), event-listener 5.4.2 (LICENSE-APACHE), filetime 0.2.29 (LICENSE-APACHE), flate2 1.1.11 (LICENSE-APACHE), form_urlencoded 1.2.3 (LICENSE-APACHE), hashbrown 0.15.5 (LICENSE-APACHE), hashbrown 0.17.1 (LICENSE-APACHE), idna 1.1.0 (LICENSE-APACHE), idna_adapter 1.2.2 (LICENSE-APACHE), indexmap 2.14.2 (LICENSE-APACHE), lock_api 0.4.14 (LICENSE-APACHE), log 0.4.35 (LICENSE-APACHE), num-traits 0.2.19 (LICENSE-APACHE), once_cell 1.21.4 (LICENSE-APACHE), parking 2.2.1 (LICENSE-APACHE), parking_lot 0.12.5 (LICENSE-APACHE), parking_lot_core 0.9.12 (LICENSE-APACHE), percent-encoding 2.3.2 (LICENSE-APACHE), scopeguard 1.2.0 (LICENSE-APACHE), smallvec 1.16.5 (LICENSE-APACHE), socket2 0.6.5 (LICENSE-APACHE), stable_deref_trait 1.2.1 (LICENSE-APACHE), tar 0.4.46 (LICENSE-APACHE), url 2.5.9 (LICENSE-APACHE)
 
 ````text
 Apache License
@@ -4855,7 +4855,7 @@ the following restrictions:
 3. This notice may not be removed or altered from any source distribution.
 ````
 
-## Rust: form_urlencoded 1.2.2 (LICENSE-MIT)
+## Rust: form_urlencoded 1.2.3 (LICENSE-MIT)
 
 ````text
 Copyright (c) 2013-2016 The rust-url developers
@@ -5703,7 +5703,7 @@ Portions of ICU4X may have been adapted from ICU4C and/or ICU4J.
 ICU 1.8.1 to ICU 57.1 © 1995-2016 International Business Machines Corporation and others.
 ````
 
-## Rust: idna 1.1.0 (LICENSE-MIT), percent-encoding 2.3.2 (LICENSE-MIT), url 2.5.8 (LICENSE-MIT)
+## Rust: idna 1.1.0 (LICENSE-MIT), percent-encoding 2.3.2 (LICENSE-MIT), url 2.5.9 (LICENSE-MIT)
 
 ````text
 Copyright (c) 2013-2025 The rust-url developers
