@@ -119,7 +119,11 @@ export function Dashboard({ data, pages }: { data: HostOverview; pages: Capabili
       const from = next.indexOf(id);
       const to = from + step;
       if (from < 0 || to < 0 || to >= next.length) return before;
-      [next[from], next[to]] = [next[to], next[from]];
+      const item = next[from];
+      const neighbor = next[to];
+      if (item === undefined || neighbor === undefined) return before;
+      next[from] = neighbor;
+      next[to] = item;
       return next;
     });
   }
