@@ -1,15 +1,15 @@
 {
   "SPDXID": "SPDXRef-DOCUMENT",
   "creationInfo": {
-    "comment": "Inputs sha256 a5581b20724485099069bee2bc8a6a4cd705d910f7f01a8c6f4f2a6604998cad over frontend/app/package-lock.json, backend/go.mod, backend/go.sum, backend/go-deps-allowlist.json, backend/audit-retention/Cargo.lock, backend/audit-retention/rust-deps-allowlist.json, compat/webmin.lock, scripts/gen-sbom.py. Build toolchain (CI): Go 1.26.11, Node.js 22, npm lockfileVersion 3, Vite 8.3.4, TypeScript 6.0.3. Package-payload inventories are produced per build by scripts/package-inventory.sh.",
-    "created": "2026-11-16T00:25:03Z",
+    "comment": "Inputs sha256 e4c391062f3f20644b4c11d294183d2fdf3060819b4279e29e41e6943d1c5d5d over frontend/app/package-lock.json, backend/go.mod, backend/go.sum, backend/go-deps-allowlist.json, backend/audit-retention/Cargo.lock, backend/audit-retention/rust-deps-allowlist.json, compat/webmin.lock, scripts/gen-sbom.py. Build toolchain (CI): Go 1.26.11, Node.js 22, npm lockfileVersion 3, Vite 8.3.4, TypeScript 6.0.3. Package-payload inventories are produced per build by scripts/package-inventory.sh.",
+    "created": "2026-11-22T19:06:39Z",
     "creators": [
       "Person: Ian comings",
       "Tool: homelab-control-gen-sbom-1.0"
     ]
   },
   "dataLicense": "CC0-1.0",
-  "documentNamespace": "https://github.com/KRDucky/Homelab-Control---Webmin-Fork/spdx/a5581b20724485099069bee2bc8a6a4cd705d910f7f01a8c6f4f2a6604998cad",
+  "documentNamespace": "https://github.com/KRDucky/Homelab-Control---Webmin-Fork/spdx/e4c391062f3f20644b4c11d294183d2fdf3060819b4279e29e41e6943d1c5d5d",
   "name": "homelab-control-source-sbom",
   "packages": [
     {
@@ -949,20 +949,20 @@
       "versionInfo": "0.1.5"
     },
     {
-      "SPDXID": "SPDXRef-Package-cargo-form-urlencoded-1.2.2",
+      "SPDXID": "SPDXRef-Package-cargo-form-urlencoded-1.2.3",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "cb4cb245038516f5f85277875cdaa4f7d2c9a0fa0468de06ed190163b1581fcf"
+          "checksumValue": "afa489199eaffb1211795df1c6236ce1ad0d41a6fa45250add73e3b02420f06e"
         }
       ],
       "comment": "Compiled into hc-audit-retention; source in the release source archive under vendor-sources/cargo.",
       "copyrightText": "NOASSERTION",
-      "downloadLocation": "https://static.crates.io/crates/form_urlencoded/form_urlencoded-1.2.2.crate",
+      "downloadLocation": "https://static.crates.io/crates/form_urlencoded/form_urlencoded-1.2.3.crate",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
-          "referenceLocator": "pkg:cargo/form_urlencoded@1.2.2",
+          "referenceLocator": "pkg:cargo/form_urlencoded@1.2.3",
           "referenceType": "purl"
         }
       ],
@@ -970,7 +970,7 @@
       "licenseConcluded": "MIT OR Apache-2.0",
       "licenseDeclared": "MIT OR Apache-2.0",
       "name": "form_urlencoded",
-      "versionInfo": "1.2.2"
+      "versionInfo": "1.2.3"
     },
     {
       "SPDXID": "SPDXRef-Package-cargo-futures-channel-0.3.34",
@@ -2869,20 +2869,20 @@
       "versionInfo": "1.0.27"
     },
     {
-      "SPDXID": "SPDXRef-Package-cargo-url-2.5.8",
+      "SPDXID": "SPDXRef-Package-cargo-url-2.5.9",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "ff67a8a4397373c3ef660812acab3268222035010ab8680ec4215f38ba3d0eed"
+          "checksumValue": "f00cd2407bb42c0ef17be88d4cf020f5cceffd121665bac9b8b9493a369b3b1a"
         }
       ],
       "comment": "Compiled into hc-audit-retention; source in the release source archive under vendor-sources/cargo.",
       "copyrightText": "NOASSERTION",
-      "downloadLocation": "https://static.crates.io/crates/url/url-2.5.8.crate",
+      "downloadLocation": "https://static.crates.io/crates/url/url-2.5.9.crate",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
-          "referenceLocator": "pkg:cargo/url@2.5.8",
+          "referenceLocator": "pkg:cargo/url@2.5.9",
           "referenceType": "purl"
         }
       ],
@@ -2890,7 +2890,7 @@
       "licenseConcluded": "MIT OR Apache-2.0",
       "licenseDeclared": "MIT OR Apache-2.0",
       "name": "url",
-      "versionInfo": "2.5.8"
+      "versionInfo": "2.5.9"
     },
     {
       "SPDXID": "SPDXRef-Package-cargo-utf8-iter-1.1.0",
@@ -9457,7 +9457,7 @@
       "spdxElementId": "SPDXRef-Package-homelab-control"
     },
     {
-      "relatedSpdxElement": "SPDXRef-Package-cargo-form-urlencoded-1.2.2",
+      "relatedSpdxElement": "SPDXRef-Package-cargo-form-urlencoded-1.2.3",
       "relationshipType": "CONTAINS",
       "spdxElementId": "SPDXRef-Package-homelab-control"
     },
@@ -9857,7 +9857,7 @@
       "spdxElementId": "SPDXRef-Package-homelab-control"
     },
     {
-      "relatedSpdxElement": "SPDXRef-Package-cargo-url-2.5.8",
+      "relatedSpdxElement": "SPDXRef-Package-cargo-url-2.5.9",
       "relationshipType": "CONTAINS",
       "spdxElementId": "SPDXRef-Package-homelab-control"
     },

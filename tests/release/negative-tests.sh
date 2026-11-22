@@ -34,15 +34,12 @@ if verify "$work/c"; then echo "PASS  unmodified candidate verifies"; else echo 
 fresh; rm "$work/c"/homelab-control_*_amd64.deb; resum
 expect_fail "missing .deb"
 
-fresh; rm "$work/c"/*.pkg.tar.zst; resum
-expect_fail "missing Arch package"
-
 fresh; rm "$work/c/THIRD-PARTY-NOTICES.md"; resum
 expect_fail "missing THIRD-PARTY-NOTICES.md"
 
-fresh; rpm=$(ls "$work/c"/*.rpm)
-python3 -I -c 'import os,sys; p=sys.argv[1]; f=open(p,"r+b"); f.seek(os.path.getsize(p)//2); b=f.read(1); f.seek(-1,1); f.write(bytes([b[0]^0xFF]))' "$rpm"
-expect_fail "corrupted .rpm (checksum mismatch)"
+fresh; deb=$(ls "$work/c"/*.deb)
+python3 -I -c 'import os,sys; p=sys.argv[1]; f=open(p,"r+b"); f.seek(os.path.getsize(p)//2); b=f.read(1); f.seek(-1,1); f.write(bytes([b[0]^0xFF]))' "$deb"
+expect_fail "corrupted .deb (checksum mismatch)"
 
 fresh; echo extra > "$work/c/extra.txt"; resum
 expect_fail "unexpected extra file"
@@ -88,8 +85,8 @@ echo '#!/bin/sh' > "$work/x/homelab-control-$ver-linux-amd64/webmin-helper.pl"
 tar -C "$work/x" -czf "$work/c/homelab-control-$ver-linux-amd64.tar.gz" "homelab-control-$ver-linux-amd64"; rm -rf "$work/x"; resum
 expect_fail "extra file in the binaries tarball"
 
-fresh; rpm=$(ls "$work/c"/*.rpm); cp "$work/c"/homelab-control_*_amd64.deb "$rpm"; resum
-expect_fail "RPM replaced by another file (package inventory)"
+fresh; deb=$(ls "$work/c"/*.deb); echo not-a-deb > "$deb"; resum
+expect_fail "deb replaced by another file (package inventory)"
 
 echo "negative tests: $n mutations, $([ "$fail" = 0 ] && echo 'all detected' || echo 'SOME NOT DETECTED')"
 exit "$fail"

@@ -4,7 +4,7 @@
 **Nothing in this document has been removed or changed in packaging.** Removal steps need owner approval.
 
 ## 1. Conclusion
-- **Release packages already contain zero Webmin code or assets.** The DEB, RPM and Arch packages install
+- **Release packages already contain zero Webmin code or assets.** The Debian/Ubuntu package installs
   three Go binaries, systemd units, a sysusers file, a default env file and four documents — nothing from
   `compat/webmin/` (verified per build by `scripts/package-inventory.sh`; `RELEASE-COMPLIANCE.md` §2).
 - **Homelab Control does not need Webmin installed, and never runs Webmin code.** No package depends on

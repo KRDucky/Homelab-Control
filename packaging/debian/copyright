@@ -288,10 +288,10 @@ Comment: Rust crate foldhash 0.1.5, compiled into /usr/bin/hc-audit-retention.
  Source (.crate) in the release source archive under vendor-sources/cargo; licence and
  notice files are reproduced in THIRD-PARTY-NOTICES.md.
 
-Files: vendor-sources/cargo/form_urlencoded-1.2.2/*
+Files: vendor-sources/cargo/form_urlencoded-1.2.3/*
 Copyright: 2013-2016 The rust-url developers
 License: Expat or Apache-2.0
-Comment: Rust crate form_urlencoded 1.2.2, compiled into /usr/bin/hc-audit-retention.
+Comment: Rust crate form_urlencoded 1.2.3, compiled into /usr/bin/hc-audit-retention.
  Source (.crate) in the release source archive under vendor-sources/cargo; licence and
  notice files are reproduced in THIRD-PARTY-NOTICES.md.
 
@@ -778,10 +778,10 @@ Comment: Rust crate unicode-ident 1.0.27, compiled into /usr/bin/hc-audit-retent
  Source (.crate) in the release source archive under vendor-sources/cargo; licence and
  notice files are reproduced in THIRD-PARTY-NOTICES.md.
 
-Files: vendor-sources/cargo/url-2.5.8/*
+Files: vendor-sources/cargo/url-2.5.9/*
 Copyright: 2013-2025 The rust-url developers
 License: Expat or Apache-2.0
-Comment: Rust crate url 2.5.8, compiled into /usr/bin/hc-audit-retention.
+Comment: Rust crate url 2.5.9, compiled into /usr/bin/hc-audit-retention.
  Source (.crate) in the release source archive under vendor-sources/cargo; licence and
  notice files are reproduced in THIRD-PARTY-NOTICES.md.
 

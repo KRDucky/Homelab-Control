@@ -69,7 +69,7 @@ def deb_version(v):
 
 
 def expected_names(v):
-    """Exact asset names, except the RPM and Arch package (one each, matched by pattern)."""
+    """Exact asset names for a Debian/Ubuntu release. Fedora and Arch are not release files."""
     n = f"homelab-control-{v}"
     return {
         "source": f"{n}-source.tar.gz",
@@ -80,10 +80,6 @@ def expected_names(v):
         "sums": "SHA256SUMS",
         **{k: k for k in NOTICES},
     }
-
-
-RPM_RE = re.compile(r"homelab-control-[0-9][A-Za-z0-9._]*-[A-Za-z0-9._]+\.x86_64\.rpm")
-ARCH_RE = re.compile(r"homelab-control-[0-9][A-Za-z0-9._]*-[0-9]+-x86_64\.pkg\.tar\.zst")
 
 
 def sha256(path):
@@ -170,8 +166,8 @@ def stamp_sbom(src, dst, version, commit, go):
 
 
 # ---------------------------------------------------------------- assemble
-def assemble(run, arch, out, version):
-    """Release directory = run a of release-bundle.sh + the Arch package; asset-safe names; new SHA256SUMS."""
+def assemble(run, out, version):
+    """Release directory = one release-bundle.sh run; asset-safe names; new SHA256SUMS. .deb only."""
     names = expected_names(version)
     os.makedirs(out, exist_ok=True)
     if os.listdir(out):
@@ -182,12 +178,10 @@ def assemble(run, arch, out, version):
     for n in sorted(os.listdir(run)):
         if n == "SHA256SUMS":
             continue
+        if n.endswith(".rpm") or n.endswith(".pkg.tar.zst"):
+            continue  # packaging scripts remain in the tree; the first release does not publish them
         dst = names["deb"] if n.endswith(".deb") else n  # .deb file name carries '~'; the asset uses the SemVer
         shutil.copy2(os.path.join(run, n), os.path.join(out, dst))
-    pkgs = [n for n in os.listdir(arch) if n.endswith(".pkg.tar.zst")]
-    if len(pkgs) != 1:
-        raise Fail(f"expected exactly one Arch package in {arch}, found {pkgs}")
-    shutil.copy2(os.path.join(arch, pkgs[0]), os.path.join(out, pkgs[0]))
     for n in os.listdir(out):
         if not SAFE_NAME.fullmatch(n):
             raise Fail(f"asset name {n!r} contains characters GitHub would rename")
@@ -217,13 +211,7 @@ def check_file_set(d, version):
     names = expected_names(version)
     have = set(os.listdir(d))
     missing = [n for n in names.values() if n not in have]
-    rpms = [n for n in have if RPM_RE.fullmatch(n)]
-    archs = [n for n in have if ARCH_RE.fullmatch(n)]
-    if len(rpms) != 1:
-        missing.append(f"exactly one RPM (found {rpms})")
-    if len(archs) != 1:
-        missing.append(f"exactly one Arch package (found {archs})")
-    extra = sorted(have - set(names.values()) - set(rpms) - set(archs))
+    extra = sorted(have - set(names.values()))
     if missing:
         raise Fail("missing: " + ", ".join(missing))
     if extra:
@@ -235,7 +223,6 @@ def check_file_set(d, version):
         p = os.path.join(d, n)
         if os.path.islink(p) or not os.path.isfile(p) or os.path.getsize(p) == 0:
             raise Fail(f"{n} is not a non-empty regular file")
-    return rpms[0], archs[0]
 
 
 def check_sums(d):
@@ -371,16 +358,15 @@ def check_binaries_tarball(d, version):
         raise Fail(f"unexpected entries {other}")
 
 
-def check_packages(d, version, rpm, arch, require_tools):
+def check_packages(d, version, require_tools):
     inv = os.path.join(ROOT, "scripts", "package-inventory.sh")
     names = expected_names(version)
-    needs = {"deb": "dpkg-deb", "rpm": "rpm", "arch": "zstd"}
-    for kind, pkg in (("deb", names["deb"]), ("rpm", rpm), ("arch", arch)):
-        if not shutil.which(needs[kind]):
-            if require_tools:
-                raise Fail(f"{needs[kind]} not installed (required to inspect {pkg})")
-            print(f"SKIPPED: {pkg} inventory ({needs[kind]} not installed)")
-            continue
+    pkg = names["deb"]
+    if not shutil.which("dpkg-deb"):
+        if require_tools:
+            raise Fail(f"dpkg-deb not installed (required to inspect {pkg})")
+        print(f"SKIPPED: {pkg} inventory (dpkg-deb not installed)")
+    else:
         r = subprocess.run([inv, os.path.join(d, pkg)], capture_output=True, text=True)
         if r.returncode != 0:
             raise Fail(f"package-inventory.sh {pkg}: {(r.stdout + r.stderr).strip()[-600:]}")
@@ -401,9 +387,10 @@ def verify(d, version, commit, toolchain, mode, require_tools):
         c.passed.append("toolchain pins readable")
     except Fail as e:
         c.failures.append(f"toolchain pins: {e}")
-    rpm = arch = None
+    files_ok = False
     try:
-        rpm, arch = check_file_set(d, version)
+        check_file_set(d, version)
+        files_ok = True
         c.passed.append("exact release file set, safe names, non-empty regular files")
     except Fail as e:
         c.failures.append(f"release file set: {e}")
@@ -421,9 +408,9 @@ def verify(d, version, commit, toolchain, mode, require_tools):
         c.run("source archive: complete, no compat/webmin, notices identical", lambda: check_source_archive(d, version))
     if n["binaries"] in present:
         c.run("binaries tarball: exact contents", lambda: check_binaries_tarball(d, version))
-    if rpm and arch:
+    if files_ok:
         c.run("packages: payload inventory (no Webmin, allow-list, notices), .deb version",
-              lambda: check_packages(d, version, rpm, arch, require_tools))
+              lambda: check_packages(d, version, require_tools))
     for m in c.passed:
         print(f"PASS  {m}")
     for m in c.failures:
@@ -470,7 +457,7 @@ def main(argv=None):
     a = sp.add_parser("stamp-sbom"); a.add_argument("src"); a.add_argument("dst")
     a.add_argument("--version", required=True); a.add_argument("--commit", required=True); a.add_argument("--go", required=True)
     a = sp.add_parser("assemble")
-    for o in ("--run", "--arch", "--out", "--version"):
+    for o in ("--run", "--out", "--version"):
         a.add_argument(o, required=True)
     a = sp.add_parser("verify")
     for o in ("--dir", "--version", "--commit", "--toolchain"):
@@ -507,7 +494,7 @@ def main(argv=None):
         elif args.cmd == "stamp-sbom":
             stamp_sbom(args.src, args.dst, args.version, args.commit, args.go)
         elif args.cmd == "assemble":
-            for n in assemble(args.run, args.arch, args.out, args.version):
+            for n in assemble(args.run, args.out, args.version):
                 print(n)
         elif args.cmd == "verify":
             return 0 if verify(args.dir, args.version, args.commit, args.toolchain, args.mode, args.require_tools) else 1

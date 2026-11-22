@@ -26,7 +26,8 @@ It omits only `compat/webmin/`, the upstream Webmin reference tree, which no bin
   different bytes). Go comes from <https://go.dev/dl/>; verify the download checksum. Rust: `rustup
   toolchain install <rust> --profile minimal -t x86_64-unknown-linux-musl` (`backend/audit-retention/rust-toolchain.toml`
   selects it), plus a musl C compiler for the bundled SQLite (`musl-tools`; `CC_x86_64_unknown_linux_musl=musl-gcc`).
-- GNU make, bash, coreutils, tar, gzip; `dpkg-deb` for the `.deb`, `rpmbuild` for the `.rpm`.
+- GNU make, bash, coreutils, tar, gzip; `dpkg-deb` for the `.deb`. `rpmbuild` is only for the
+  Fedora script, which this release does not run.
 - Network access to the npm registry for `npm ci`, which installs the build tools pinned in
   `frontend/app/package-lock.json` (Vite, TypeScript, …) and checks each against its recorded integrity.
   These are general-purpose build tools that are not part of the program.
@@ -42,9 +43,10 @@ export GOPROXY="file://$PWD/vendor-sources/go/download" GOFLAGS=-mod=readonly GO
 printf '[source.crates-io]\nreplace-with = "vendored"\n[source.vendored]\ndirectory = "%s/vendor-sources/cargo"\n' "$PWD" > /tmp/cargo-offline.toml
 make build VERSION=<version> SOURCE_DATE_EPOCH=<source_date_epoch from RELEASE-BUILDINFO> \
   CARGO="cargo --offline --config /tmp/cargo-offline.toml"
-packaging/debian/build-deb.sh <version>      # optional: .deb
-packaging/fedora/build-rpm.sh <version>      # optional: .rpm
-packaging/arch/build-pkg.sh <version>        # optional, on Arch Linux as a normal user: .pkg.tar.zst
+packaging/debian/build-deb.sh <version>      # the release package: .deb
+# Not part of the first release (scripts remain for later):
+# packaging/fedora/build-rpm.sh <version>
+# packaging/arch/build-pkg.sh <version>      # Arch Linux, as a normal user
 ```
 Run the packaging commands with the same `SOURCE_DATE_EPOCH` exported; package timestamps come from it.
 `make build` runs `npm ci --ignore-scripts`, builds the UI, embeds it and builds `build/hc-api`,
@@ -53,7 +55,7 @@ from the command line, not from Git.
 
 ## Verify
 ```bash
-cd build && sha256sum hc-api hlctl hc-broker hc-audit-retention hc-storage-probe hc-mergerfs-apply *.deb *.rpm
+cd build && sha256sum hc-api hlctl hc-broker hc-audit-retention hc-storage-probe hc-mergerfs-apply *.deb
 # compare with the binaries in homelab-control-<version>-linux-<arch>.tar.gz and the release SHA256SUMS
 ```
 For a prerelease such as `0.1.0-dev.1`, the `.deb` you build is named `homelab-control_0.1.0~dev.1_amd64.deb`
@@ -67,13 +69,14 @@ group ID of the `homelab-control` group in the package when that group exists on
 bytes then differ (the installed files and ownership by name are the same). Verified 2026-10-21 for
 v0.1.0-dev.1: an independent rebuild outside GitHub gave byte-identical binaries and `.deb`, and an
 identical `.rpm` once the build host had no `homelab-control` group.
-**What has been demonstrated** (CI on every change, and locally): binaries, `.deb` and `.rpm` built from
+**What has been demonstrated** (CI on every change, and locally): binaries and the `.deb` built from
 the source archive alone are byte-identical to those built from Git at the same commit, and all release
-files are identical across two complete runs on independent GitHub `ubuntu-24.04` runners (the Arch
-package across two fresh Arch containers). **What has not**: identical output with a different Go or
-Node.js patch version, on other distributions, or by an independent third party. Use exactly the
-toolchain listed in `RELEASE-BUILDINFO`; the Arch package also depends on the container's package set
-recorded in its `.BUILDINFO`.
+files are identical across two complete runs on independent GitHub `ubuntu-24.04` runners.
+**What has not**: identical output with a different Go or Node.js patch version, on other distributions,
+or by an independent third party. Use exactly the toolchain listed in `RELEASE-BUILDINFO`.
+An earlier prerelease also compared an `.rpm` and an Arch package. Those packages are not in this release.
+The `.rpm` note above (build host must not already have the `homelab-control` group) still applies if you
+run `packaging/fedora/build-rpm.sh` yourself.
 
 ## Licences
 `LICENSE.md` (GPL-3.0-or-later), `NOTICE.md` (including the MIT-licensed parts), `REUSE.toml` (per-file

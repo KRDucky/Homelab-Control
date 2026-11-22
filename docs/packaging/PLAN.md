@@ -7,6 +7,8 @@
 | openSUSE Leap/Tumbleweed | same binary `.rpm` (zypper) | M1: depends on `/usr/sbin/useradd` (works with openSUSE `shadow`); CI-only, not yet run | OBS build (M14). |
 | Arch / CachyOS | `.pkg.tar.zst` (`packaging/arch/build-pkg.sh`, makepkg) | M1: CI-only (no Arch environment reachable here), not yet run | Run on owner's CachyOS host; AUR/source PKGBUILD (M14). |
 
+2026-11-22: the first release ships the Debian/Ubuntu `.deb` only. The Fedora, openSUSE and Arch rows stay as later work. CI does not build or install them.
+
 ## Package contents (all formats)
 `/usr/bin/hc-api`, `/usr/bin/hlctl`, `/usr/lib/homelab-control/hc-broker`, four systemd units
 (`homelab-control.service`, `homelab-control-broker.socket`, `homelab-control-broker.service`,

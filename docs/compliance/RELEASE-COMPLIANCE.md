@@ -27,6 +27,9 @@ Companion to `LICENSE-AUDIT.md` (findings LA-xx), `LICENSE-EXCEPTIONS.md` (EX-xx
 | G15 | Manual review of new/changed dependencies since last release | Owner/maintainer | Not started — no release yet |
 | G16 | Upstream Webmin tree accurately labelled and never shipped | `gen-webmin-license-inventory.py --check`, `reuse lint`, `verify-upstream.sh`, payload checks; excluded from source archive | **PASS** (with documented coverage limits) |
 
+2026-11-22: CI now checks the Debian/Ubuntu `.deb` only. The `.rpm` and Arch PASS rows below are the
+earlier prerelease. Fedora, openSUSE and Arch are not part of the first release.
+
 ## 2. Payload verification (what actually ships)
 `scripts/package-inventory.sh <package> [inventory-file]` lists the payload with the native tool
 (`dpkg-deb -c`, `rpm -qlvp`, `tar --zstd -tvf`) and fails on any Webmin/Perl/CGI/`compat` path, any path
