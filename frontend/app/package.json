@@ -14,7 +14,7 @@
     "typecheck": "tsc -b --pretty",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --write src/tdk-studio.test.tsx && node -e \"console.log('HCFMT|src/tdk-studio.test.tsx|' + require('fs').readFileSync('src/tdk-studio.test.tsx').toString('base64'))\" && prettier --check . && exit 1",
+    "format:check": "prettier --check .",
     "test": "vitest run"
   },
   "dependencies": {
