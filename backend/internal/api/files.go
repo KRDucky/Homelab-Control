@@ -27,25 +27,10 @@ type filesEntriesResponse struct {
 	Entries []filesinfo.Entry `json:"entries"`
 }
 
-// filesProtectedGET is the layout/storage bar on identifier-bearing GETs:
-// the session CSRF token before anything is read or audited. Server.handle
-// skips Origin/CSRF for GET; every files GET must use this helper.
-// Same-origin browser GET fetch omits Origin; requiring it 403s the UI.
-// A present Origin (cross-origin GET) still has to match originAllowed.
+// filesProtectedGET is the files bar on identifier-bearing GETs. The checks
+// live in auditedGET; this wrapper keeps the file-listing audit message.
 func (s *Server) filesProtectedGET(w http.ResponseWriter, r *http.Request, sess *auth.Session) bool {
-	if !auth.CheckCSRF(sess, r.Header.Get("X-CSRF-Token")) {
-		writeError(w, http.StatusForbidden, "csrf_rejected", "missing or invalid CSRF token")
-		return false
-	}
-	if o := r.Header.Get("Origin"); o != "" && o != "null" && !s.originAllowed(r) {
-		writeError(w, http.StatusForbidden, "origin_rejected", "request origin not allowed")
-		return false
-	}
-	if s.audit == nil {
-		writeError(w, http.StatusServiceUnavailable, "audit_unavailable", "File listing requires an access audit logger.")
-		return false
-	}
-	return true
+	return s.auditedGET(w, r, sess, "File listing requires an access audit logger.")
 }
 
 func (s *Server) handleFilesRoots(w http.ResponseWriter, r *http.Request, sess *auth.Session, _ string) {

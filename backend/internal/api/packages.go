@@ -13,25 +13,10 @@ import (
 	"homelab-control/backend/internal/hostinfo"
 )
 
-// packagesProtectedGET is the read-only Software Center bar on identifier-bearing
-// GETs: the session CSRF token before anything is read or audited, the same as
-// filesProtectedGET. Server.handle skips Origin/CSRF for GET; every packages
-// GET must use this helper. Same-origin browser fetch omits Origin; a present
-// (cross-origin) Origin must still match originAllowed.
+// packagesProtectedGET is the Software Center bar on identifier-bearing GETs.
+// The checks live in auditedGET; this wrapper keeps the package-query message.
 func (s *Server) packagesProtectedGET(w http.ResponseWriter, r *http.Request, sess *auth.Session) bool {
-	if !auth.CheckCSRF(sess, r.Header.Get("X-CSRF-Token")) {
-		writeError(w, http.StatusForbidden, "csrf_rejected", "missing or invalid CSRF token")
-		return false
-	}
-	if o := r.Header.Get("Origin"); o != "" && o != "null" && !s.originAllowed(r) {
-		writeError(w, http.StatusForbidden, "origin_rejected", "request origin not allowed")
-		return false
-	}
-	if s.audit == nil {
-		writeError(w, http.StatusServiceUnavailable, "audit_unavailable", "Package queries require an access audit logger.")
-		return false
-	}
-	return true
+	return s.auditedGET(w, r, sess, "Package queries require an access audit logger.")
 }
 
 // packageFamily maps os-release to the package family the broker adapter
