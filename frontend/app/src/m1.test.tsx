@@ -127,26 +127,6 @@ const hardware = {
   },
 };
 
-const legacy = {
-  source: 'broker',
-  status: {
-    installed: true,
-    config_dir: '/etc/webmin',
-    version: '2.105',
-    port: 10000,
-    tls: false,
-    bind: '',
-    listens_on_all_interfaces: true,
-    running: true,
-    user_count: 1,
-    rpc_capable_users: ['admin'],
-    checks: [
-      { id: 'version', level: 'warn', message: 'Webmin 2.105 is older than the audited baseline 2.670.' },
-      { id: 'referer', level: 'ok', message: 'Requests with unknown referers are refused.' },
-    ],
-  },
-};
-
 function mock(routes: Record<string, { status: number; body?: unknown }>) {
   vi.stubGlobal(
     'fetch',
@@ -194,7 +174,7 @@ describe('capability-aware navigation', () => {
     expect(within(nav).queryByRole('link', { name: /Hardware/ })).toBeNull();
     expect(within(nav).queryByText(/No permission/)).toBeNull();
     expect(within(nav).queryByText('Hardware')).toBeNull();
-    expect(within(nav).getByRole('link', { name: /Legacy Webmin/ }).textContent).toContain('Limited');
+    expect(within(nav).queryByText('Legacy Webmin')).toBeNull();
     expect(screen.getByText('Privileged helper not running')).toBeTruthy();
   });
 
@@ -269,33 +249,29 @@ describe('Hardware page', () => {
   });
 });
 
-describe('Legacy page', () => {
-  it('shows the security review from the broker', async () => {
-    window.history.pushState(null, '', '/legacy');
-    mock({
-      'GET /api/v1/auth/session': { status: 200, body: { ...session, legacy_url: 'https://host:10000/' } },
-      'GET /api/v1/capabilities': { status: 200, body: caps() },
-      'GET /api/v1/legacy/webmin': { status: 200, body: legacy },
-    });
-    render(<App />);
-    expect(await screen.findByText(/older than the audited baseline/)).toBeTruthy();
-    expect(screen.getByText('None (plain HTTP)')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Open the legacy Webmin interface' }).getAttribute('href')).toBe(
-      'https://host:10000/',
-    );
-  });
-
-  it('navigates without a full page load', async () => {
+describe('retired legacy surface', () => {
+  it('omits legacy capabilities from navigation even when advertised by the API', async () => {
     mock({
       'GET /api/v1/auth/session': { status: 200, body: session },
       'GET /api/v1/capabilities': { status: 200, body: caps() },
       'GET /api/v1/host/overview': { status: 503, body: {} },
-      'GET /api/v1/legacy/webmin': { status: 200, body: legacy },
     });
     render(<App />);
-    fireEvent.click(await screen.findByRole('link', { name: 'Legacy Webmin' }));
-    expect(window.location.pathname).toBe('/legacy');
-    expect(await screen.findByRole('heading', { name: 'Security review' })).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Legacy Webmin' }).getAttribute('aria-current')).toBe('page');
+    const nav = await screen.findByRole('navigation', { name: 'Main' });
+    await within(nav).findByRole('link', { name: 'Overview' });
+    expect(within(nav).queryByText('Legacy Webmin')).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Open the legacy Webmin interface' })).toBeNull();
+  });
+
+  it('does not render the retired page on direct legacy URLs', async () => {
+    window.history.pushState(null, '', '/legacy');
+    mock({
+      'GET /api/v1/auth/session': { status: 200, body: session },
+      'GET /api/v1/capabilities': { status: 200, body: caps() },
+      'GET /api/v1/host/overview': { status: 503, body: {} },
+    });
+    render(<App />);
+    expect(await screen.findByRole('tab', { name: 'Dashboard' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Security review' })).toBeNull();
   });
 });
