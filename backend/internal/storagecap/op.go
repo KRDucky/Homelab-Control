@@ -389,10 +389,12 @@ func Advance(op Op) Op {
 		if b := identityBlock(op.Devices); b != "" {
 			return identityFail(op, b)
 		}
-		if op.ObservedDigest == "" {
-			op.ObservedDigest = DigestDevices(op.Devices)
+		// A missing observation is not a match. Do not hash the planned
+		// devices and compare that digest with itself.
+		if op.ObservedDigest == "" || op.IdentityDigest == "" {
+			return fail(op, BlockIdentityChanged, "confirm needs an observed device digest")
 		}
-		if op.IdentityDigest == "" || op.ObservedDigest != op.IdentityDigest {
+		if op.ObservedDigest != op.IdentityDigest {
 			return fail(op, BlockIdentityChanged, "identity changed since plan; revalidate before action")
 		}
 		if b, reason := preflightBlock(op.Devices, op.Preflight, op.PlannedRdev); b != "" {

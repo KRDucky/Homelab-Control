@@ -104,12 +104,15 @@ if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::notice title=release dry run::bina
 echo "== 3b. packages from both trees must be byte-identical"
 (cd "$work/wt" && packaging/debian/build-deb.sh "$ver" >/dev/null)
 pkgsum=""
+n=0
 for p in "$src"/build/*.deb; do
   [ -e "$p" ] || continue
   q="$work/wt/build/$(basename "$p")"
   cmp -s "$p" "$q" || { echo "FAIL: $(basename "$p") differs between archive and git builds"; sha256sum "$p" "$q"; exit 1; }
   pkgsum="$pkgsum $(sha256sum "$p" | cut -c1-16)…  $(basename "$p");"
+  n=$((n + 1))
 done
+[ "$n" -eq 1 ] || { echo "FAIL: expected exactly one .deb, compared $n"; exit 1; }
 echo "OK: packages identical:$pkgsum"
 if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::notice title=release dry run::packages built from the archive and from git are byte-identical:$pkgsum"; fi
 
@@ -124,7 +127,7 @@ cp "$src/LICENSE.md" "$src/NOTICE.md" "$src/docs/compliance/THIRD-PARTY-NOTICES.
 python3 -I "$root/scripts/release-tool.py" stamp-sbom "$src/docs/compliance/sbom/homelab-control.spdx.json" \
   "$out/$name.spdx.json" --version "$ver" --commit "$commit" --go "$(go env GOVERSION)"
 printf '%s\n' "$buildinfo" > "$out/RELEASE-BUILDINFO"
-for p in "$out"/*.deb "$out"/*.rpm; do [ -e "$p" ] && "$root/scripts/package-inventory.sh" "$p" >/dev/null; done
+for p in "$out"/*.deb; do [ -e "$p" ] && "$root/scripts/package-inventory.sh" "$p" >/dev/null; done
 (cd "$out" && sha256sum -- * > "$work/SHA256SUMS") && mv "$work/SHA256SUMS" "$out/SHA256SUMS"
 echo "DRY RUN complete, nothing published. Files in $out:"
 (cd "$out" && ls -l)

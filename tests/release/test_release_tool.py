@@ -252,6 +252,29 @@ class Verify(unittest.TestCase):
             self.assertEqual(rt.main(["verify", "--dir", self.f.d, "--version", "0.1.0", "--commit", C,
                                       "--toolchain", self.f.toolchain]), 1)
 
+    def test_missing_dpkg_deb_is_not_a_pass(self):
+        real = rt.shutil.which
+        rt.shutil.which = lambda name: None if name == "dpkg-deb" else real(name)
+        try:
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                ok = rt.verify(self.f.d, V, C, self.f.toolchain, "release", False)
+            text = buf.getvalue()
+            self.assertFalse(ok)
+            self.assertNotIn("PASS  packages:", text)
+            self.assertIn("SKIP  packages:", text)
+            self.assertIn("release verify: 1 skipped", text)
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                ok = rt.verify(self.f.d, V, C, self.f.toolchain, "release", True)
+            text = buf.getvalue()
+            self.assertFalse(ok)
+            self.assertIn("FAIL  packages:", text)
+            self.assertIn("dpkg-deb not installed", text)
+            self.assertNotIn("PASS  packages:", text)
+        finally:
+            rt.shutil.which = real
+
 
 class Assemble(unittest.TestCase):
     def test_assemble_renames_deb_and_writes_sums(self):
