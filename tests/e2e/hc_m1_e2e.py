@@ -180,7 +180,7 @@ with sync_playwright() as p:
         check("degraded: Services is no longer a link", nav.get_by_role("link", name="Services").count() == 0)
         check("degraded: reason explains how to start the helper", nav.get_by_text("systemctl enable --now homelab-control-broker.socket").count() >= 1)
         check("degraded: Hardware still usable but marked Limited", "Limited" in nav.get_by_role("link", name="Hardware").inner_text())
-        expect(page.locator("h1.faceplate-host")).to_be_visible(timeout=15000)
+        expect(page.get_by_role("tab", name="Dashboard")).to_be_visible(timeout=15000)
         page.screenshot(path=f"{ART}/m1-05-broker-stopped.png")
         axe(page, "overview+degraded-nav")
 
