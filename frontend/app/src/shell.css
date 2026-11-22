@@ -573,3 +573,31 @@ tbody th .mono {
     max-height: calc(100dvh - 2 * var(--hc-space-2));
   }
 }
+
+/* Grouped capability navigation: only groups with surfaced pages are shown. */
+.nav-groups { display: grid; gap: var(--hc-space-4); }
+.nav-group { min-width: 0; }
+.nav-group-title {
+  margin: 0 0 var(--hc-space-1);
+  padding: var(--hc-space-1) var(--hc-space-3);
+  color: var(--hc-color-text-secondary);
+  font-size: var(--hc-font-size-xs);
+  font-weight: 650;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.shell[data-sidebar='rail'] .nav-group-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.shell[data-sidebar='rail'] .nav-groups { gap: var(--hc-space-3); }
+.shell[data-sidebar='rail'] .nav-group + .nav-group {
+  border-top: 1px solid var(--hc-color-border-subtle);
+  padding-top: var(--hc-space-3);
+}
