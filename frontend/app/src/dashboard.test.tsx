@@ -113,10 +113,22 @@ describe('bounded local trends', () => {
 
 describe('capability-aware module launchpad', () => {
   it('shows unavailable reasons without opening a forbidden module', () => {
-    render(<Dashboard data={data} pages={[...pages, {
-      id: 'hardware', label: 'Hardware', path: '/hardware', scope: 'hardware.read',
-      status: 'unavailable', reason: 'Required tooling is not installed',
-    }]} />);
+    render(
+      <Dashboard
+        data={data}
+        pages={[
+          ...pages,
+          {
+            id: 'hardware',
+            label: 'Hardware',
+            path: '/hardware',
+            scope: 'hardware.read',
+            status: 'unavailable',
+            reason: 'Required tooling is not installed',
+          },
+        ]}
+      />,
+    );
     const modules = screen.getByRole('region', { name: 'Modules' });
     expect(within(modules).getByText('Hardware')).toBeTruthy();
     expect(within(modules).getByText('Required tooling is not installed')).toBeTruthy();
