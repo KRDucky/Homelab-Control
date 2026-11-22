@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The Homelab Control Authors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { Overview } from './api';
 
 export type TrendSample = { at: string; cpu?: number; memory?: number };
@@ -57,9 +57,19 @@ function Trend({ label, history, metric }: { label: string; history: TrendSample
 
 /** The API supplies snapshots, not historical telemetry. Charts reflect this browser session only. */
 export function TelemetryTrends({ data }: { data: Overview }) {
-  const [history, setHistory] = useState<TrendSample[]>([]);
+  // React's guarded same-component state adjustment avoids cascading effect renders.
+  const [observed, setObserved] = useState(() => ({
+    collectedAt: data.collected_at,
+    history: appendTrendSample([], data),
+  }));
+  if (observed.collectedAt !== data.collected_at) {
+    setObserved({
+      collectedAt: data.collected_at,
+      history: appendTrendSample(observed.history, data),
+    });
+  }
+  const history = observed.history;
   const [table, setTable] = useState(false);
-  useEffect(() => { setHistory((old) => appendTrendSample(old, data)); }, [data]);
   return <section className="panel dashboard-trends" aria-label="Recent resource trends">
     <header className="panel-head"><h2>Recent resource trends</h2></header>
     <p className="muted">CPU and RAM percentages sampled from the live host overview. No historical server data is available.</p>
