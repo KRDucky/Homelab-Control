@@ -230,8 +230,8 @@
     },
     {
       "name": "form_urlencoded",
-      "version": "1.2.2",
-      "checksum": "cb4cb245038516f5f85277875cdaa4f7d2c9a0fa0468de06ed190163b1581fcf",
+      "version": "1.2.3",
+      "checksum": "afa489199eaffb1211795df1c6236ce1ad0d41a6fa45250add73e3b02420f06e",
       "license": "MIT OR Apache-2.0",
       "linked": true,
       "kind": "normal"
@@ -870,8 +870,8 @@
     },
     {
       "name": "url",
-      "version": "2.5.8",
-      "checksum": "ff67a8a4397373c3ef660812acab3268222035010ab8680ec4215f38ba3d0eed",
+      "version": "2.5.9",
+      "checksum": "f00cd2407bb42c0ef17be88d4cf020f5cceffd121665bac9b8b9493a369b3b1a",
       "license": "MIT OR Apache-2.0",
       "linked": true,
       "kind": "normal"
