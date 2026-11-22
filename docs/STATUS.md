@@ -159,7 +159,7 @@ A missing `lvm2` package offers Software Center search (`/software?q=lvm2`) when
 is enabled and the session has `packages.read`. This is a checkpoint, not M7 acceptance, not a merge,
 not production. Never touch production pool `tank`.
 
-## M8 first checkpoint: MergerFS + optional SnapRAID (read-only; not M8 acceptance)
+## M8 first checkpoint: MergerFS + optional SnapRAID (not M8 acceptance)
 
 One read-only page at `/storage/mergerfs` (module id `mergerfs`, scope `mergerfs.read`, never default
 and implied by nothing) probes the required `mergerfs` and `fusermount3` (package `fuse3`) binaries
@@ -202,10 +202,29 @@ paths are not opened as such; a data disk that is also a branch is measured as a
 A last-component symlink is unread. Capacity timeout degrades usage and does not 503 the
 inventory. `availBytes` is unprivileged free (`bavail`). A missing measurement is not zero
 capacity. Zero-byte measured filesystems still include the numbers.
-No pool create, mount, policy write, fstab/unit write, or
-snapraid sync/diff/fix path exists. The only MergerFS broker op is the read-only
-`mergerfs.snapraid.status`. This is a checkpoint, not M8 acceptance,
-not a merge, not production.
+Pool mount, array definition (fstab plus snapraid.conf), sync, scrub, and filtered recovery
+(`snapraid fix -m -f` only) are plan/apply broker ops. `mergerfs.configure` and `mergerfs.maintain`
+are not default grants and do not imply `mergerfs.read` or each other. The broker dials an opt-in
+helper socket. The package does not ship `/etc/homelab-control/mergerfs-apply.enabled` and does not
+enable the socket. Sync and scrub refuse a missing disk or removed files. There is no `--force`,
+no `-e`, and no unfiltered fix. Disks are not formatted. `storagecap.Advance` still does not execute.
+The unused `homelab-control-storage-helper.service` stays `ExecStart=/bin/false`.
+The helper unit is opt-in and is not MAC-confined. It does not use a private mount or network namespace
+(`PrivateMounts=no`, `PrivateNetwork=no`, `IPAddressDeny=any`). `@system-service` excludes `@mount`,
+so the unit adds `@mount`. mergerfs is started in its own systemd scope so the oneshot does not stop it.
+One disposable Ubuntu 24.04 guest exercised that helper socket: the pool mount stayed visible, the
+array definition was written, sync completed, a later sync was refused, `fix -m -f` restored one file,
+scrub completed, and a sync after a data directory was removed was refused. In that guest the refusal
+after deleting the only file on a data disk was `missing-disk` (SnapRAID's all-files warning says the
+disk may not be mounted). The refusal after the directory was removed was `diff-unreadable`. Both
+refusals stopped the sync. Evidence run `src-20261121T224150Z-dfa0f3`.
+A later disposable Ubuntu 24.04 guest exercised the same actions through hc-api and the broker:
+login, step-up, and POST plan/apply for the pool mount, the array definition, sync, a refused sync
+after a file was removed, `fix -m -f` of that file, scrub, and a refused sync after a data directory
+was removed. Outcomes were succeeded, succeeded, succeeded, failed, succeeded, succeeded, failed.
+The mount plan argv was the mergerfs command. The enable marker existed only inside that guest.
+The UI was not part of this guest. Evidence run `src-20261121T225047Z-8c8798`.
+Not production-approved. Not M8 acceptance. This checkpoint is not on main.
 
 ## P0 storage shared (development; not production, not ADR 0014)
 

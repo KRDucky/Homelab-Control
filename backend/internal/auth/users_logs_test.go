@@ -268,6 +268,26 @@ func TestMergerFSReadNotGrantedByDefaultOrImplied(t *testing.T) {
 	}
 }
 
+func TestMergerFSWriteScopesAreSeparate(t *testing.T) {
+	for _, sc := range []string{ScopeMergerFSConfigure, ScopeMergerFSMaintain} {
+		if !KnownScopes[sc] {
+			t.Fatalf("%s must be known", sc)
+		}
+		for _, s := range strings.Split(DefaultScopes, ",") {
+			if s == sc {
+				t.Fatalf("default scopes grant %s", sc)
+			}
+		}
+	}
+	if (&Session{Scopes: []string{ScopeMergerFSRead}}).HasScope(ScopeMergerFSConfigure) ||
+		(&Session{Scopes: []string{ScopeMergerFSRead}}).HasScope(ScopeMergerFSMaintain) ||
+		(&Session{Scopes: []string{ScopeMergerFSConfigure}}).HasScope(ScopeMergerFSMaintain) ||
+		(&Session{Scopes: []string{ScopeMergerFSMaintain}}).HasScope(ScopeMergerFSConfigure) ||
+		(&Session{Scopes: []string{ScopeMergerFSConfigure, ScopeMergerFSMaintain}}).HasScope(ScopeMergerFSRead) {
+		t.Fatal("mergerfs scopes must not imply each other")
+	}
+}
+
 // M7 first checkpoint: read-only OpenZFS needs zfs.read, never granted by
 // default and implied by no other scope (including storage.read).
 func TestZFSReadNotGrantedByDefaultOrImplied(t *testing.T) {

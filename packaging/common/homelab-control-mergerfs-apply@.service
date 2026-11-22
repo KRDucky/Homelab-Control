@@ -1,0 +1,54 @@
+[Unit]
+Description=Homelab Control MergerFS apply helper (opt-in, one request)
+Requires=homelab-control-mergerfs-apply.socket
+After=homelab-control-mergerfs-apply.socket
+ConditionPathExists=/etc/homelab-control/mergerfs-apply.enabled
+RefuseManualStart=yes
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/homelab-control/hc-mergerfs-apply
+StandardInput=socket
+StandardOutput=socket
+StandardError=journal
+# Root is required to mount FUSE and to write parity. DynamicUser cannot.
+# The broker keeps PrivateDevices=yes and does not gain DeviceAllow.
+# This unit is a different program from hc-storage-probe. The probe profile
+# denies mount, so it is not reused. No new AppArmor profile is shipped:
+# the owner rule is to add one only after a Debian or Ubuntu run shows the
+# probe profile is not enough. The marker file keeps this helper off the
+# dev host. Path checks in the helper are the containment.
+User=root
+Group=root
+PrivateDevices=no
+DevicePolicy=closed
+DeviceAllow=/dev/fuse rwm
+CapabilityBoundingSet=CAP_SYS_ADMIN CAP_DAC_OVERRIDE CAP_DAC_READ_SEARCH CAP_FOWNER CAP_CHOWN
+AmbientCapabilities=CAP_SYS_ADMIN CAP_DAC_OVERRIDE CAP_DAC_READ_SEARCH CAP_FOWNER CAP_CHOWN
+NoNewPrivileges=yes
+# No ProtectSystem, ProtectHome, PrivateTmp, or ProtectProc. Those put the
+# process in a private mount namespace, so a FUSE mount would vanish when
+# this oneshot exits. KillMode=process leaves the daemonized mergerfs.
+# @system-service excludes @mount, so the mount group is added on purpose.
+KillMode=process
+# A private network namespace also creates a private mount namespace and
+# hides the FUSE mount from the host. Network stays blocked with IPAddressDeny.
+PrivateMounts=no
+PrivateNetwork=no
+IPAddressDeny=any
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX
+SystemCallArchitectures=native
+SystemCallFilter=@system-service @mount
+SystemCallErrorNumber=EPERM
+UMask=0077
+TimeoutStartSec=85
+MemoryMax=512M
+TasksMax=128
+LimitCORE=0
+
+# No Install section: the helper cannot be enabled at boot.

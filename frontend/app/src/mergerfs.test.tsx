@@ -5,15 +5,25 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { MergerFS } from './pages/MergerFS';
 import {
   ApiError,
+  applyMergerFS,
   getMergerFS,
   getSnapraidStatus,
+  planMergerFS,
+  stepUp,
   type MergerFSInventory,
   type MergerFSToolItem,
 } from './api';
 
 vi.mock('./api', async (importOriginal) => {
   const mod = await importOriginal<typeof import('./api')>();
-  return { ...mod, getMergerFS: vi.fn(), getSnapraidStatus: vi.fn() };
+  return {
+    ...mod,
+    getMergerFS: vi.fn(),
+    getSnapraidStatus: vi.fn(),
+    planMergerFS: vi.fn(),
+    applyMergerFS: vi.fn(),
+    stepUp: vi.fn(),
+  };
 });
 
 const csrf = 'token';
@@ -662,5 +672,56 @@ describe('MergerFS read-only page', () => {
     vi.mocked(getMergerFS).mockRejectedValue(new ApiError(401, 'unauthenticated', 'login required'));
     render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
     await waitFor(() => expect(onUnauthorized).toHaveBeenCalled());
+  });
+
+  it('reviews SnapRAID sync and does not apply until confirm', async () => {
+    vi.mocked(getMergerFS).mockResolvedValue(
+      inventory({
+        mergerfsInstalled: true,
+        snapraidInstalled: true,
+        mergerfsPresent: true,
+        snapraidPresent: true,
+      }),
+    );
+    vi.mocked(planMergerFS).mockResolvedValue({
+      action: 'sync',
+      risk: 'disruptive',
+      step_up_required: true,
+      token: 'hcp1.token',
+      expires_at: '2099-01-01T00:00:00Z',
+      effect: 'Run snapraid sync only if diff shows no missing disk and no removed files.',
+      consequences: [
+        'A missing disk or a removed file blocks this operation. Nothing is synced or scrubbed.',
+      ],
+      argv: ['/usr/bin/snapraid', 'sync'],
+    });
+    vi.mocked(applyMergerFS).mockResolvedValue({
+      operation_id: 'op-1',
+      action: 'sync',
+      outcome: 'succeeded',
+      message: 'SnapRAID sync finished.',
+    });
+    vi.mocked(stepUp).mockResolvedValue({ step_up_until: '2099-01-01T00:00:00Z' });
+    render(
+      <MergerFS
+        csrf={csrf}
+        scopes={['mergerfs.maintain']}
+        packagesEnabled={false}
+        onUnauthorized={onUnauthorized}
+      />,
+    );
+    await screen.findByText('/mnt/media');
+    expect(screen.queryByRole('button', { name: 'Sync' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Review pool mount' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Review SnapRAID sync' }));
+    expect(await screen.findByText('/usr/bin/snapraid sync')).toBeTruthy();
+    expect(planMergerFS).toHaveBeenCalledWith('maintain', { action: 'sync' }, csrf);
+    expect(applyMergerFS).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'secret' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm reviewed action' }));
+    await waitFor(() => expect(applyMergerFS).toHaveBeenCalledTimes(1));
+    expect(stepUp).toHaveBeenCalledWith('secret', csrf);
+    expect(applyMergerFS).toHaveBeenCalledWith('maintain', { action: 'sync', token: 'hcp1.token' }, csrf);
+    expect(await screen.findByText('SnapRAID sync finished.')).toBeTruthy();
   });
 });

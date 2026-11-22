@@ -1335,6 +1335,54 @@ export function getSnapraidStatus(csrf: string): Promise<SnapraidStatus> {
   return request<SnapraidStatus>('/api/v1/mergerfs/snapraid/status', { headers: { 'X-CSRF-Token': csrf } });
 }
 
+export interface MergerFSPlan {
+  action: string;
+  risk: string;
+  step_up_required: boolean;
+  token: string;
+  expires_at: string;
+  effect: string;
+  consequences: string[];
+  argv: string[];
+}
+
+export interface MergerFSOutcome {
+  operation_id: string;
+  action: string;
+  outcome: string;
+  message: string;
+  exit_code?: number;
+}
+
+export interface MergerFSWriteBody {
+  action: string;
+  mountpoint?: string;
+  branches?: string[];
+  policy?: string;
+  minFree?: string;
+  parity?: string[];
+  content?: string[];
+  scrubPercent?: number;
+  files?: string[];
+  token?: string;
+}
+
+export function planMergerFS(
+  kind: 'pool' | 'maintain',
+  body: MergerFSWriteBody,
+  csrf: string,
+): Promise<MergerFSPlan> {
+  return postJSON<MergerFSPlan>(`/api/v1/mergerfs/${kind}/plan`, csrf, body);
+}
+
+export function applyMergerFS(
+  kind: 'pool' | 'maintain',
+  body: MergerFSWriteBody,
+  csrf: string,
+): Promise<MergerFSOutcome> {
+  return postJSON<MergerFSOutcome>(`/api/v1/mergerfs/${kind}/apply`, csrf, body);
+}
+
 // ---- M7 first checkpoint: OpenZFS (read-only) --------------------------------
 
 export interface ZFSToolItem {

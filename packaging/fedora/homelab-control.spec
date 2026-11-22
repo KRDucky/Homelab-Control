@@ -28,9 +28,12 @@ make build VERSION=%{version}
 install -Dm0755 build/hc-api %{buildroot}%{_bindir}/hc-api
 install -Dm0755 build/hlctl %{buildroot}%{_bindir}/hlctl
 install -Dm0755 build/hc-storage-probe %{buildroot}/usr/lib/homelab-control/hc-storage-probe
+install -Dm0755 build/hc-mergerfs-apply %{buildroot}/usr/lib/homelab-control/hc-mergerfs-apply
 install -Dm0644 packaging/common/homelab-control.service %{buildroot}%{_unitdir}/homelab-control.service
 install -Dm0644 packaging/common/homelab-control-storage-probe@.service %{buildroot}%{_unitdir}/homelab-control-storage-probe@.service
 install -Dm0644 packaging/common/homelab-control-storage-probe.socket %{buildroot}%{_unitdir}/homelab-control-storage-probe.socket
+install -Dm0644 packaging/common/homelab-control-mergerfs-apply@.service %{buildroot}%{_unitdir}/homelab-control-mergerfs-apply@.service
+install -Dm0644 packaging/common/homelab-control-mergerfs-apply.socket %{buildroot}%{_unitdir}/homelab-control-mergerfs-apply.socket
 install -Dm0644 packaging/common/sysusers.conf %{buildroot}%{_sysusersdir}/homelab-control.conf
 install -Dm0640 packaging/common/hc-api.env %{buildroot}%{_sysconfdir}/homelab-control/hc-api.env
 
@@ -53,9 +56,12 @@ install -Dm0640 packaging/common/hc-api.env %{buildroot}%{_sysconfdir}/homelab-c
 %{_bindir}/hlctl
 %dir /usr/lib/homelab-control
 /usr/lib/homelab-control/hc-storage-probe
+/usr/lib/homelab-control/hc-mergerfs-apply
 %{_unitdir}/homelab-control.service
 %{_unitdir}/homelab-control-storage-probe@.service
 %{_unitdir}/homelab-control-storage-probe.socket
+%{_unitdir}/homelab-control-mergerfs-apply@.service
+%{_unitdir}/homelab-control-mergerfs-apply.socket
 %{_sysusersdir}/homelab-control.conf
 %dir %attr(0750,root,homelab-control) %{_sysconfdir}/homelab-control
 %config(noreplace) %attr(0640,root,homelab-control) %{_sysconfdir}/homelab-control/hc-api.env

@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	. "homelab-control/backend/internal/broker/types"
+	"homelab-control/backend/internal/mergerfsapply"
 	"io"
 	"os"
 	"path/filepath"
@@ -72,6 +73,9 @@ type Env struct {
 	// SnapraidStatus overrides `snapraid status` in tests. Production leaves
 	// it nil. The production path runs Runner with argv exactly "status".
 	SnapraidStatus func(ctx context.Context) (stdout []byte, stderr string, exitCode int, err error)
+	// MergerFSApply overrides the socket helper in tests. Production dials
+	// mergerfs-apply.sock. The broker never executes mergerfs or snapraid sync.
+	MergerFSApply func(ctx context.Context, req mergerfsapply.Request) (mergerfsapply.Result, error)
 	// Actor is the caller as asserted by hc-api (per-call copy).
 	Actor proto.Actor
 	// Modules is the administrator's module setting (zero value: all enabled).
@@ -221,6 +225,25 @@ func Registry() map[string]Op {
 		// sync/diff/fix/scrub/smart. Shares the services-read admission bucket.
 		{Name: "mergerfs.snapraid.status", Scope: "mergerfs.read", Privilege: PrivUnprivilegedExec, Timeout: 15 * time.Second, Admission: AdmissionServicesRead,
 			Description: "Read snapraid status (argv exactly status; default configuration). Parsed summary only; the scrub graph is omitted", Handle: snapraidStatus},
+		// MergerFS writes go to the opt-in helper socket. The broker does not
+		// mount and does not run snapraid sync/scrub/fix. mergerfs.read does
+		// not grant these. configure and maintain do not grant each other.
+		{Name: "mergerfs.pool.plan", Scope: "mergerfs.configure", Privilege: PrivNone, Timeout: 10 * time.Second, Admission: AdmissionControlPlan,
+			Description: "Review mounting existing directories or saving an fstab line and snapraid.conf. Nothing is changed",
+			Handle:      mergerfsPlan(mergerfsPoolPlan), AuditArgs: mergerfsAuditArgs,
+			Write: &WriteSpec{Phase: "plan", Risks: []string{RiskDisruptive}, LockDomain: mergerfsArrayLock}},
+		{Name: "mergerfs.pool.apply", Scope: "mergerfs.configure", Privilege: PrivRootRead, Timeout: 90 * time.Second, Admission: AdmissionControlApply,
+			Description: "Mount a reviewed pool or save its definition through the helper socket. Disks are not formatted",
+			Handle:      mergerfsApply(mergerfsPoolOp), AuditArgs: mergerfsAuditArgs,
+			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskDisruptive}, LockDomain: mergerfsArrayLock}},
+		{Name: "mergerfs.maintain.plan", Scope: "mergerfs.maintain", Privilege: PrivNone, Timeout: 10 * time.Second, Admission: AdmissionControlPlan,
+			Description: "Review snapraid sync, scrub, or fix -m -f. Nothing is changed",
+			Handle:      mergerfsPlan(mergerfsKeepPlan), AuditArgs: mergerfsAuditArgs,
+			Write: &WriteSpec{Phase: "plan", Risks: []string{RiskDisruptive}, LockDomain: mergerfsArrayLock}},
+		{Name: "mergerfs.maintain.apply", Scope: "mergerfs.maintain", Privilege: PrivRootRead, Timeout: 90 * time.Second, Admission: AdmissionControlApply,
+			Description: "Run a reviewed snapraid sync, scrub, or filtered recovery through the helper socket. Sync and scrub stop when a disk is missing or files were removed",
+			Handle:      mergerfsApply(mergerfsMaintainOp), AuditArgs: mergerfsAuditArgs,
+			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskDisruptive}, LockDomain: mergerfsArrayLock}},
 		// M2-4 O-1 (owner-approved implementation/isolated validation): the
 		// broker is only a bounded client of the root-only socket-activated
 		// probe helper. It enumerates block names and relays a closed request;

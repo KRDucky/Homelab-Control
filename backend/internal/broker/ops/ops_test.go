@@ -67,6 +67,10 @@ func TestRegistryIsClosed(t *testing.T) {
 		"packages.sources":         {PrivUnprivilegedExec, "packages.read", ""},
 		"packages.search":          {PrivUnprivilegedExec, "packages.read", ""},
 		"mergerfs.snapraid.status": {PrivUnprivilegedExec, "mergerfs.read", ""},
+		"mergerfs.pool.plan":       {PrivNone, "mergerfs.configure", "plan"},
+		"mergerfs.pool.apply":      {PrivRootRead, "mergerfs.configure", "apply"},
+		"mergerfs.maintain.plan":   {PrivNone, "mergerfs.maintain", "plan"},
+		"mergerfs.maintain.apply":  {PrivRootRead, "mergerfs.maintain", "apply"},
 		// M2-4 O-1 (owner-approved implementation/isolated validation).
 		"storage.probe": {PrivRootRead, "storage.probe", ""},
 	}
@@ -85,7 +89,7 @@ func TestRegistryIsClosed(t *testing.T) {
 		phase := ""
 		if op.Write != nil {
 			phase = op.Write.Phase
-			wantLock := map[string]string{"services.unit": "service:<unit id>", "services.enablement": "service:<unit id>+unit-files", "host.settings": "host-settings", "services.systemctl": "systemd-manager"}[strings.TrimSuffix(strings.TrimSuffix(name, ".plan"), ".apply")]
+			wantLock := map[string]string{"services.unit": "service:<unit id>", "services.enablement": "service:<unit id>+unit-files", "host.settings": "host-settings", "services.systemctl": "systemd-manager", "mergerfs.pool": "mergerfs-array", "mergerfs.maintain": "mergerfs-array"}[strings.TrimSuffix(strings.TrimSuffix(name, ".plan"), ".apply")]
 			if op.Write.LockDomain != wantLock || len(op.Write.Risks) == 0 || op.AuditArgs == nil {
 				t.Errorf("%s: incomplete write spec %+v", name, op.Write)
 			}
@@ -411,6 +415,10 @@ func TestAdmissionClasses(t *testing.T) {
 		"packages.sources":          AdmissionPackages,
 		"packages.search":           AdmissionPackages,
 		"mergerfs.snapraid.status":  AdmissionServicesRead,
+		"mergerfs.pool.plan":        AdmissionControlPlan,
+		"mergerfs.pool.apply":       AdmissionControlApply,
+		"mergerfs.maintain.plan":    AdmissionControlPlan,
+		"mergerfs.maintain.apply":   AdmissionControlApply,
 		"storage.probe":             AdmissionProbe,
 	}
 	reg := Registry()

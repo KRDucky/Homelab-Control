@@ -1,0 +1,17 @@
+[Unit]
+Description=Homelab Control MergerFS apply socket (opt-in)
+# Opt-in marker: starting this socket does nothing unless an administrator has
+# created this file in a disposable validation environment. No package ships it.
+ConditionPathExists=/etc/homelab-control/mergerfs-apply.enabled
+
+[Socket]
+ListenStream=/run/homelab-control/mergerfs-apply.sock
+Accept=yes
+MaxConnections=1
+SocketMode=0600
+SocketUser=root
+SocketGroup=root
+DirectoryMode=0755
+RemoveOnStop=yes
+
+# No Install section: the socket is not enabled at boot.
