@@ -94,8 +94,8 @@ try:
         page.get_by_label("Username", exact=True).fill(username)
         page.get_by_label("Password", exact=True).fill(password)
         page.get_by_role("button", name="Sign in", exact=True).click()
-        page.locator(".faceplate-host").wait_for()
-        check("overview page rendered", page.locator(".faceplate-host").is_visible())
+        page.get_by_role("tab", name="Dashboard").wait_for()
+        check("overview page rendered", page.get_by_role("tab", name="Dashboard").is_visible())
         check("sample card hidden before load", page.get_by_role("heading", name="Read-only sample plugin", exact=True).count() == 0)
 
         # Load: enable the sample plugin in the Appearance popover, then close it.

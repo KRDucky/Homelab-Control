@@ -91,6 +91,29 @@ function NavItem({
   );
 }
 
+/** Keep navigation organized without coupling page visibility to menu structure.
+ * Unknown future capabilities remain discoverable in Other modules.
+ */
+const NAV_SECTIONS: { title: string; ids: readonly string[] }[] = [
+  { title: 'Dashboard', ids: ['overview'] },
+  { title: 'System', ids: ['services', 'hardware', 'host_settings', 'packages'] },
+  { title: 'Storage & files', ids: ['storage', 'mergerfs', 'zfs', 'lvm', 'files'] },
+  { title: 'Network & applications', ids: ['traefik'] },
+  { title: 'Administration', ids: ['audit', 'legacy'] },
+];
+
+export function groupNavigation(pages: Capability[]): { title: string; pages: Capability[] }[] {
+  const used = new Set<string>();
+  const groups = NAV_SECTIONS.map(({ title, ids }) => {
+    const found = ids.flatMap((id) => pages.filter((page) => page.id === id && !used.has(page.id)));
+    found.forEach((page) => used.add(page.id));
+    return { title, pages: found };
+  }).filter((group) => group.pages.length > 0);
+  const other = pages.filter((page) => !used.has(page.id));
+  if (other.length) groups.push({ title: 'Other modules', pages: other });
+  return groups;
+}
+
 /**
  * The application frame (HCIS AppShell): glass header, capability-driven sidebar that collapses to an
  * icon rail, a navigation drawer on phones, and the Appearance menu. Layout only: it never changes
@@ -224,19 +247,26 @@ export function Shell({
             </button>
           </div>
         )}
-        <ul className="nav-list">
-          {pages.map((c) => (
-            <NavItem
-              key={c.id}
-              cap={c}
-              current={!onAccount && currentId === c.id}
-              rail={rail}
-              onNavigate={() => {
-                if (drawerOpen) closeDrawer(false);
-              }}
-            />
+        <div className="nav-groups">
+          {groupNavigation(pages).map((group) => (
+            <section className="nav-group" key={group.title} aria-label={group.title}>
+              <h2 className="nav-group-title">{group.title}</h2>
+              <ul className="nav-list">
+                {group.pages.map((c) => (
+                  <NavItem
+                    key={c.id}
+                    cap={c}
+                    current={!onAccount && currentId === c.id}
+                    rail={rail}
+                    onNavigate={() => {
+                      if (drawerOpen) closeDrawer(false);
+                    }}
+                  />
+                ))}
+              </ul>
+            </section>
           ))}
-        </ul>
+        </div>
         <div className="sidebar-foot">
           <p className="rail-note">
             {canOperate
@@ -254,6 +284,28 @@ export function Shell({
         </div>
       </nav>
       <div className="workspace" inert={drawerOpen}>
+        {groupNavigation(pages)
+          .filter((group) => group.pages.some((page) => page.id === currentId) && group.title !== 'Dashboard')
+          .map((group) => {
+            const related = group.pages.filter(
+              (page) => page.status === 'available' || page.status === 'degraded',
+            );
+            return related.length > 1 ? (
+              <nav key={group.title} className="module-tabs" aria-label={group.title + ' modules'}>
+                <span className="module-tabs-label">{group.title}</span>
+                {related.map((page) => (
+                  <a
+                    key={page.id}
+                    href={page.path}
+                    onClick={linkHandler(page.path)}
+                    aria-current={page.id === currentId ? 'page' : undefined}
+                  >
+                    {page.label}
+                  </a>
+                ))}
+              </nav>
+            ) : null;
+          })}
         <main id="main" tabIndex={-1}>
           {children}
         </main>
