@@ -126,7 +126,7 @@ export function App() {
   const route =
     path === ACCOUNT_PATH || path === '/appearance/themes'
       ? undefined
-      : (visible.find((c) => c.path === path) ?? visible.find((c) => c.path === '/'));
+      : (capList.find((c) => c.path === path && c.id !== 'legacy') ?? capList.find((c) => c.path === '/'));
   const routeUsable = route && (route.status === 'available' || route.status === 'degraded');
 
   let page = <p className="muted">Loading…</p>;
