@@ -68,12 +68,12 @@
   height: 0.45rem;
   border-radius: var(--hc-radius-md);
   overflow: hidden;
-  background: var(--hc-color-surface-sunken);
+  background: var(--hc-color-meter-track);
 }
 .studio-snapshot-meter span {
   display: block;
   height: 100%;
-  background: var(--hc-color-meter-fill);
+  background: var(--hc-color-accent-base);
   border-radius: inherit;
 }
 .studio-snapshot-chart {
