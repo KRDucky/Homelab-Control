@@ -4,6 +4,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { Dashboard, validateDashboardLayout } from './Dashboard';
+import { appendTrendSample, trendPoints } from './TelemetryTrends';
 import type { Overview, Capability } from './api';
 
 const data: Overview = {
@@ -45,9 +46,9 @@ describe('dashboard layout schema', () => {
       'memory',
       'cpu',
     ]);
-    expect(validateDashboardLayout({ version: 1, widgets: ['cpu', 'cpu'] }).widgets).toHaveLength(6);
-    expect(validateDashboardLayout({ version: 1, widgets: ['unknown'] }).widgets).toHaveLength(6);
-    expect(validateDashboardLayout({ version: 2, widgets: ['memory'] }).widgets).toHaveLength(6);
+    expect(validateDashboardLayout({ version: 1, widgets: ['cpu', 'cpu'] }).widgets).toHaveLength(7);
+    expect(validateDashboardLayout({ version: 1, widgets: ['unknown'] }).widgets).toHaveLength(7);
+    expect(validateDashboardLayout({ version: 2, widgets: ['memory'] }).widgets).toHaveLength(7);
   });
 });
 
@@ -69,7 +70,7 @@ describe('dashboard widgets', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Move Memory up' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save layout' }));
     const stored = window.localStorage.getItem('hc.dashboard.v1') ?? '';
-    expect(JSON.parse(stored).widgets).toEqual(['host', 'memory', 'cpu', 'storage', 'modules']);
+    expect(JSON.parse(stored).widgets).toEqual(['host', 'memory', 'cpu', 'storage', 'modules', 'trends']);
     expect(stored).not.toContain('fixture-host');
     unmount();
     render(<Dashboard data={data} pages={pages} />);
@@ -77,5 +78,61 @@ describe('dashboard widgets', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Customize dashboard' }));
     fireEvent.click(screen.getByRole('button', { name: 'Reset to default' }));
     expect(screen.getByRole('heading', { name: 'Network' })).toBeTruthy();
+  });
+});
+
+describe('bounded local trends', () => {
+  it('only samples new valid timestamps and refuses unavailable measurements', () => {
+    const first = appendTrendSample([], data);
+    expect(first).toHaveLength(1);
+    expect(first[0]).toMatchObject({ cpu: 20, memory: 60 });
+    expect(appendTrendSample(first, data)).toBe(first);
+    const next = appendTrendSample(first, {
+      ...data,
+      collected_at: '2026-10-15T08:00:10Z',
+      cpu: { ...data.cpu, status: 'unavailable' },
+      memory: { ...data.memory, total_bytes: 0 },
+    });
+    expect(next).toHaveLength(2);
+    expect(next[1]?.cpu).toBeUndefined();
+    expect(next[1]?.memory).toBeUndefined();
+    expect(trendPoints(next, 'cpu')).not.toContain('NaN');
+  });
+
+  it('bounds history to 60 snapshots without storing host readings', () => {
+    let history = [] as ReturnType<typeof appendTrendSample>;
+    for (let i = 0; i < 70; i++)
+      history = appendTrendSample(history, {
+        ...data,
+        collected_at: new Date(Date.UTC(2026, 9, 15, 8, 0, i)).toISOString(),
+      });
+    expect(history).toHaveLength(60);
+    expect(window.localStorage.getItem('hc.dashboard.v1')).toBeNull();
+  });
+});
+
+describe('capability-aware module launchpad', () => {
+  it('shows unavailable reasons without opening a forbidden module', () => {
+    render(
+      <Dashboard
+        data={data}
+        pages={[
+          ...pages,
+          {
+            id: 'hardware',
+            label: 'Hardware',
+            path: '/hardware',
+            scope: 'hardware.read',
+            status: 'unavailable',
+            reason: 'Required tooling is not installed',
+          },
+        ]}
+      />,
+    );
+    const modules = screen.getByRole('region', { name: 'Modules' });
+    expect(within(modules).getByText('Hardware')).toBeTruthy();
+    expect(within(modules).getByText('Required tooling is not installed')).toBeTruthy();
+    expect(within(modules).queryByRole('link', { name: 'Hardware' })).toBeNull();
+    expect(within(modules).queryByText('Audit')).toBeNull();
   });
 });
