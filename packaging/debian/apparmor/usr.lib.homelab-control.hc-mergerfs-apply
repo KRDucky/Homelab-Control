@@ -50,9 +50,11 @@ profile hc-mergerfs-apply /usr/lib/homelab-control/hc-mergerfs-apply flags=(enfo
   /etc/fstab rwl,
   /etc/fstab.hc-tmp rwl,
   /etc/fstab.hc-mergerfs-bak rwl,
+  /etc/fstab.hc-mergerfs-bak.hc-tmp rwl,
   /etc/snapraid.conf rwl,
   /etc/snapraid.conf.hc-tmp rwl,
   /etc/snapraid.conf.hc-mergerfs-bak rwl,
+  /etc/snapraid.conf.hc-mergerfs-bak.hc-tmp rwl,
 
   /mnt/ r,
   /mnt/** rwl,
