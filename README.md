@@ -36,8 +36,9 @@ deployment gate ([results](docs/m2/M2-2-ACCEPTANCE.md)).
 ### Published release
 The only published release is the **unsigned development prerelease
 [`v0.1.0-dev.1`](https://github.com/KRDucky/Homelab-Control---Webmin-Fork/releases/tag/v0.1.0-dev.1)**
-(Debian/Ubuntu `.deb`, Fedora/openSUSE `.rpm`, Arch `.pkg.tar.zst`, binaries, source archive, SBOM and
-`SHA256SUMS`). It is not signed, there are no stable releases and no package repositories
+(Debian/Ubuntu `.deb`, and, in that prerelease only, a Fedora/openSUSE `.rpm` and an Arch `.pkg.tar.zst`,
+plus binaries, source archive, SBOM and `SHA256SUMS`). The first Home Control release is Debian and Ubuntu
+only. It is not signed, there are no stable releases and no package repositories
 ([`docs/release/RELEASING.md`](docs/release/RELEASING.md), [ADR 0009](docs/adr/0009-release-pipeline-and-signing.md)).
 It was built before the "merged to `main`" items below.
 
@@ -55,7 +56,7 @@ It was built before the "merged to `main`" items below.
 | Sessions and audit | Session list and revoke for your own sessions; hash-chained, tamper-evident audit logs and `hlctl audit verify` | Merged to `main` after the prerelease; no retention or rotation yet ([`docs/security/AUDIT-LOG.md`](docs/security/AUDIT-LOG.md)) |
 | Legacy Webmin page | Detects and reports on a Webmin installation that the operator installed separately, with a security review of its configuration | Detection only; it reads files and never executes or calls Webmin ([ADR 0003](docs/adr/0003-legacy-module-bridge.md)) |
 | Web UI | Overview, Services, Hardware and Legacy Webmin pages with capability-aware navigation; Sessions and Audit pages and the HCIS colour tokens and bundled Inter and JetBrains Mono fonts were merged to `main` after the prerelease | The rest of the HCIS design system is a design direction, not shipped UI ([`docs/ui/hcis/README.md`](docs/ui/hcis/README.md)) |
-| Packaging and releases | `.deb`, `.rpm` and Arch packages, hardened systemd units, reproducible builds, SBOM, and a manual draft-only release workflow | Unsigned development builds |
+| Packaging and releases | Debian/Ubuntu `.deb`, hardened systemd units, reproducible builds, SBOM, and a manual draft-only release workflow. Fedora and Arch scripts stay in the tree for later | Unsigned development builds |
 
 ### Not implemented
 None of the following exists yet. Documents in `docs/` describe plans and designs, not shipped features.
@@ -73,7 +74,7 @@ None of the following exists yet. Documents in `docs/` describe plans and design
 
 ### Verification
 Continuous integration runs on every change. It covers lint, Go and frontend tests, a security gate,
-reproducible builds, package install tests in containers (Debian, Ubuntu, Fedora, openSUSE, Arch),
+reproducible builds, package install tests in Debian and Ubuntu containers,
 real-systemd tests on Ubuntu 24.04 and 26.04, and browser tests. Evidence for the published M1
 functionality is in [`docs/evidence/m1/README.md`](docs/evidence/m1/README.md). Current status and
 known limits: [`docs/STATUS.md`](docs/STATUS.md). A distribution counts as supported only when it
@@ -100,7 +101,7 @@ Tests: `make check`. Building from a release source archive: [`BUILDING.md`](BUI
 | `frontend/` | React/TypeScript UI (`app/`) and design tokens (`design-system/`) |
 | `schemas/` | OpenAPI contract and JSON schemas |
 | `sdk/`, `plugins/`, `themes/` | `sdk/theme/` is the Theme Development Kit (MIT); `plugins/` and `themes/` are placeholders for planned plugins and theme packs |
-| `packaging/` | systemd units, Debian, Fedora/openSUSE and Arch packaging, release pins |
+| `packaging/` | systemd units, the Debian/Ubuntu package, later Fedora and Arch scripts, release pins |
 | `tests/`, `dev/` | Integration, end-to-end, security and packaging tests; disposable container and VM setup |
 | `docs/` | Specifications, ADRs, threat model, compliance records, plans and test evidence |
 | `compat/webmin/` | **Reference only, never shipped.** Unmodified upstream Webmin 2.670. See below |

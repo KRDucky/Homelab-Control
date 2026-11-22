@@ -72,8 +72,6 @@ class Fixture:
             wr(os.path.join(self.d, k), data)
         wr(os.path.join(self.d, "RELEASE-BUILDINFO"), bi)
         wr(os.path.join(self.d, n["deb"]), b"deb")
-        wr(os.path.join(self.d, "homelab-control-0.1.0-0.m1.0_1_0_dev_1.x86_64.rpm"), b"rpm")
-        wr(os.path.join(self.d, "homelab-control-0.1.0dev.1-1-x86_64.pkg.tar.zst"), b"zst")
         sbom = os.path.join(tmp, "in.spdx.json")
         shutil.copy(os.path.join(ROOT, "docs", "compliance", "sbom", "homelab-control.spdx.json"), sbom)
         rt.stamp_sbom(sbom, os.path.join(self.d, n["sbom"]), version, C, "go1.26.9")
@@ -258,26 +256,24 @@ class Verify(unittest.TestCase):
 class Assemble(unittest.TestCase):
     def test_assemble_renames_deb_and_writes_sums(self):
         with tempfile.TemporaryDirectory() as t:
-            run, arch, out = (os.path.join(t, x) for x in ("run", "arch", "out"))
-            os.makedirs(run); os.makedirs(arch)
-            for n in ["homelab-control_0.1.0~dev.1_amd64.deb", "LICENSE.md", "SHA256SUMS"]:
+            run, out = (os.path.join(t, x) for x in ("run", "out"))
+            os.makedirs(run)
+            for n in ["homelab-control_0.1.0~dev.1_amd64.deb", "LICENSE.md", "SHA256SUMS",
+                      "homelab-control-0.1.0-1.x86_64.rpm"]:
                 wr(os.path.join(run, n), n)
-            wr(os.path.join(arch, "homelab-control-0.1.0dev.1-1-x86_64.pkg.tar.zst"), "z")
-            wr(os.path.join(arch, "SHA256SUMS"), "ignored")
-            names = rt.assemble(run, arch, out, V)
-            self.assertEqual(names, sorted(["homelab-control_0.1.0-dev.1_amd64.deb", "LICENSE.md",
-                                            "homelab-control-0.1.0dev.1-1-x86_64.pkg.tar.zst"]))
+            names = rt.assemble(run, out, V)
+            self.assertEqual(names, sorted(["homelab-control_0.1.0-dev.1_amd64.deb", "LICENSE.md"]))
             rt.check_sums(out)
             with self.assertRaises(rt.Fail):  # never into a non-empty directory
-                rt.assemble(run, arch, out, V)
+                rt.assemble(run, out, V)
 
-    def test_assemble_requires_one_arch_package(self):
+    def test_assemble_requires_one_deb(self):
         with tempfile.TemporaryDirectory() as t:
-            run, arch, out = (os.path.join(t, x) for x in ("run", "arch", "out"))
-            os.makedirs(run); os.makedirs(arch)
-            wr(os.path.join(run, "a.deb"), "d")
+            run, out = (os.path.join(t, x) for x in ("run", "out"))
+            os.makedirs(run)
+            wr(os.path.join(run, "LICENSE.md"), "d")
             with self.assertRaises(rt.Fail):
-                rt.assemble(run, arch, out, V)
+                rt.assemble(run, out, V)
 
 
 class SbomAndNotes(unittest.TestCase):

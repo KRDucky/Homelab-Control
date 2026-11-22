@@ -9,12 +9,17 @@ which also runs as the CI dry run (§2). **First prerelease:** v0.1.0-dev.1, pub
 Phase 1 (ADR 0009 §5.1).
 Owner runbook: `docs/release/RELEASING.md`.
 
+2026-11-22: the first Home Control release publishes the Debian/Ubuntu `.deb` only. Fedora, openSUSE
+and Arch are not built or installed. Their packaging scripts stay in the repository. The file list and
+the dry-run steps below describe that release. The reproducibility table keeps earlier `.rpm` and Arch
+results as history.
+
 ## 1. What a Phase 1 prerelease publishes (GitHub Releases, marked prerelease, unsigned)
 | File | Content |
 |---|---|
 | `homelab-control-<v>-source.tar.gz` | Complete corresponding source: repository at the tag (minus `compat/webmin/`, which no binary uses), `vendor-sources/npm/` (published sources of everything compiled into the UI bundle, integrity-checked), `RELEASE-BUILDINFO`, `BUILDING.md` |
 | `homelab-control-<v>-linux-<arch>.tar.gz` | `hc-api`, `hlctl`, `hc-broker` + `LICENSE.md`, `NOTICE.md`, `THIRD-PARTY-NOTICES.md` |
-| `homelab-control_<v>_<arch>.deb`, `homelab-control-<v>-….rpm`, `homelab-control-<v>-….pkg.tar.zst` | Packages (each carries the licence and notice files; the `.deb` also carries the DEP-5 `copyright`) |
+| `homelab-control_<v>_<arch>.deb` | Debian/Ubuntu package (licence and notice files, plus the DEP-5 `copyright`). No `.rpm` and no Arch package |
 | `LICENSE.md`, `NOTICE.md`, `THIRD-PARTY-NOTICES.md` | Licence texts and notices, also as separate assets |
 | `homelab-control-<v>.spdx.json` | SPDX 2.3 SBOM |
 | `RELEASE-BUILDINFO` | Commit, `SOURCE_DATE_EPOCH`, exact Go/Node/npm versions, build commands |
@@ -31,16 +36,14 @@ For as long as binaries are offered, the matching source stays in the same relea
 `scripts/release-bundle.sh <version> <out>` inside the reusable `release-build.yml`, called by CI as
 `release-dry-run` with version `0.0.0-dryrun.<commit>` and the exact release toolchain
 (`packaging/release/toolchain.env`). Jobs `build` (runs **a** and **b** on two independent runners),
-`arch` (a, b) and `verify`:
+and `verify`:
 1. Writes the source archive from the committed tree and fetches the npm sources, verifying each
    against the lockfile's sha512 integrity.
-2. Extracts the archive into an empty directory and builds binaries, `.deb` and `.rpm` **only from it**.
-3. Builds the same commit from a Git worktree; binaries **and** `.deb`/`.rpm` must be byte-identical.
-4. Checks package payloads (`scripts/package-inventory.sh`) and writes `SHA256SUMS`.
-5. `release-dry-run-arch`: in a fresh Arch container, extracts the same source archive, takes the binaries
-   built from it and runs `packaging/arch/build-pkg.sh` from the archive.
-6. `verify`: compares every file of run a with run b (source archive, binaries tarball, `.deb`,
-   `.rpm`, Arch package, SBOM, notices, `RELEASE-BUILDINFO`); assembles the candidate; runs
+2. Extracts the archive into an empty directory and builds binaries and the `.deb` **only from it**.
+3. Builds the same commit from a Git worktree; binaries **and** the `.deb` must be byte-identical.
+4. Checks the `.deb` payload (`scripts/package-inventory.sh`) and writes `SHA256SUMS`.
+5. `verify`: compares every file of run a with run b (source archive, binaries tarball, `.deb`,
+   SBOM, notices, `RELEASE-BUILDINFO`); assembles the candidate; runs
    `scripts/release-tool.py verify` (every mandatory deliverable, fail closed), the negative tests and
    the version-ordering tests; renders the release notes.
 The result is uploaded as 7-day CI artifacts, not as a release.
