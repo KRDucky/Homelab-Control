@@ -100,7 +100,7 @@ describe('Btrfs read-only page', () => {
     render(
       <Btrfs csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
     );
-    expect(await screen.findByText('too many mounts to list')).toBeTruthy();
+    expect(await screen.findByText(/The mount list is incomplete/)).toBeTruthy();
     expect(screen.getByText('/mnt/data')).toBeTruthy();
   });
 

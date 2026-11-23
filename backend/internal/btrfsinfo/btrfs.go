@@ -273,6 +273,9 @@ func Collect(ctx context.Context, osRoot, family string) (Snapshot, error) {
 	snap.Tooling = ProbeTooling(family)
 	snap.KernelBtrfs = ProbeKernelBtrfs(osRoot)
 	mounts, truncated, err := collectMounts(osRoot)
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return Snapshot{}, ctxErr
+	}
 	if mounts == nil {
 		mounts = []Mount{}
 	}
