@@ -177,6 +177,7 @@ export interface Capability {
     | 'zfs'
     | 'lvm'
     | 'btrfs'
+    | 'ext4'
     | 'xfs'
     | 'traefik';
   label: string;
@@ -1513,6 +1514,47 @@ export function getBtrfs(csrf: string): Promise<BtrfsInventory> {
   return request<BtrfsInventory>('/api/v1/btrfs', { headers: { 'X-CSRF-Token': csrf } });
 }
 
+// ---- M7 first checkpoint: ext4 (read-only) ---------------------------------
+
+export interface Ext4ToolItem {
+  id: string;
+  package: string;
+  installed: boolean;
+  binary: string;
+}
+
+export interface Ext4Tooling {
+  family: string;
+  required: Ext4ToolItem[];
+  optional: Ext4ToolItem[];
+}
+
+export interface Ext4Mount {
+  mountpoint: string;
+  device: string;
+}
+
+export interface Ext4Info {
+  present: boolean;
+  reason: string;
+  mounts: Ext4Mount[];
+  mountsTruncated: boolean;
+}
+
+export interface Ext4Kernel {
+  present: boolean;
+  reason: string;
+}
+
+export interface Ext4Inventory {
+  tooling: Ext4Tooling;
+  ext4: Ext4Info;
+  kernelExt4?: Ext4Kernel;
+}
+
+export function getExt4(csrf: string): Promise<Ext4Inventory> {
+  return request<Ext4Inventory>('/api/v1/ext4', { headers: { 'X-CSRF-Token': csrf } });
+}
 // ---- M7 first checkpoint: XFS (read-only) ---------------------------------
 
 export interface XFSToolItem {

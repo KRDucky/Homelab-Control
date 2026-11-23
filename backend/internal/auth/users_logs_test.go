@@ -354,6 +354,28 @@ func TestBtrfsReadNotGrantedByDefaultOrImplied(t *testing.T) {
 	}
 }
 
+// M7 first checkpoint: read-only ext4 needs ext4.read, never granted by
+// default and implied by no other scope (including storage.read).
+func TestExt4ReadNotGrantedByDefaultOrImplied(t *testing.T) {
+	if !KnownScopes[ScopeExt4Read] || ScopeExt4Read != "ext4.read" {
+		t.Fatal("ext4.read must be a known scope")
+	}
+	for _, s := range strings.Split(DefaultScopes, ",") {
+		if s == ScopeExt4Read || strings.HasPrefix(s, "ext4.") {
+			t.Fatalf("default scopes grant %s", s)
+		}
+	}
+	var others []string
+	for s := range KnownScopes {
+		if s != ScopeExt4Read {
+			others = append(others, s)
+		}
+	}
+	if (&Session{Scopes: others}).HasScope(ScopeExt4Read) {
+		t.Fatal("every other scope together must not imply ext4.read")
+	}
+}
+
 // M7 first checkpoint: read-only XFS needs xfs.read, never granted by
 // default and implied by no other scope (including storage.read).
 func TestXFSReadNotGrantedByDefaultOrImplied(t *testing.T) {
