@@ -1503,7 +1503,7 @@ export interface Ext4Kernel {
 export interface Ext4Inventory {
   tooling: Ext4Tooling;
   ext4: Ext4Info;
-  kernelExt4: Ext4Kernel;
+  kernelExt4?: Ext4Kernel;
 }
 
 export function getExt4(csrf: string): Promise<Ext4Inventory> {

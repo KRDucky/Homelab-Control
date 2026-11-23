@@ -51,6 +51,7 @@ export function Ext4View({
   const { tooling, ext4 } = data;
   const kernelExt4 = data.kernelExt4;
   const missingRequired = tooling.required.filter((t) => !t.installed);
+  const missingToolNames = missingRequired.map((tool) => tool.id).join(', ');
   const canInstall = packagesEnabled && (scopes ?? []).includes('packages.read');
 
   return (
@@ -92,7 +93,7 @@ export function Ext4View({
           <header className="panel-head">
             <h2 id="ext4-offer-heading">ext4 tools</h2>
           </header>
-          <p>dumpe2fs is required. This page does not run it.</p>
+          <p>Missing required tools: {missingToolNames}. This page does not run them.</p>
           <RequiredOffers items={missingRequired} canInstall={canInstall} />
         </section>
       )}
@@ -109,8 +110,8 @@ export function Ext4View({
         ) : null}
         {ext4.mounts.length > 0 ? (
           <ul className="pool-list">
-            {ext4.mounts.map((m) => (
-              <li key={`${m.mountpoint}\0${m.device}`}>
+            {ext4.mounts.map((m, index) => (
+              <li key={`${m.mountpoint}\0${m.device}\0${index}`}>
                 <code>{m.mountpoint}</code>
                 <dl>
                   <dt>Device</dt>
@@ -137,7 +138,7 @@ function RequiredOffers({ items, canInstall }: { items: Ext4ToolItem[]; canInsta
   return (
     <>
       {items.map((item) => {
-        const key = item.package || '__no-package__';
+        const key = item.package || `missing:${item.id}`;
         if (seen.has(key)) return null;
         seen.add(key);
         return (
@@ -165,7 +166,7 @@ function InstallOffer({
   const [open, setOpen] = useState(false);
   const pkg = item?.package ?? '';
   if (!pkg) {
-    return <p>Software Center cannot determine the package name for this distribution.</p>;
+    return <p>Software Center cannot determine a package name for {item?.id} on this distribution.</p>;
   }
   if (!canInstall) {
     return (
