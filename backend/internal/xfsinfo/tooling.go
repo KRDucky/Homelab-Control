@@ -32,13 +32,7 @@ func ProbeTooling(family string) Tooling {
 func probeTooling(family string, stat storagecap.StatFunc) Tooling {
 	requiredPkg := ""
 	switch family {
-	case "debian":
-		requiredPkg = "xfsprogs"
-	case "fedora":
-		requiredPkg = "xfsprogs"
-	case "suse":
-		requiredPkg = "xfsprogs"
-	case "arch":
+	case "debian", "fedora", "suse", "arch":
 		requiredPkg = "xfsprogs"
 	}
 	tool := storagecap.Probe(family, []storagecap.Spec{
@@ -51,9 +45,10 @@ func probeTooling(family string, stat storagecap.StatFunc) Tooling {
 }
 
 // ProbeCapability is the cheap capabilities GET probe: binary Stat plus one
-// /proc/filesystems read. It never reads mountinfo. Missing the xfs_info
-// binary or an unlisted kernel XFS is degraded, not unavailable.
-// xfs_info is never executed.
+// /proc/filesystems read. It never reads mountinfo. A missing xfs_info binary
+// or an unlisted kernel XFS returns available=false with a reason, which the
+// capabilities handler reports as degraded (not unavailable) so the page
+// still mounts. xfs_info is never executed.
 func ProbeCapability(family string) (available bool, reason string) {
 	return probeCapability(family, storagecap.RealStat, "/")
 }

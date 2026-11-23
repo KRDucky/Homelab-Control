@@ -8,28 +8,15 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
 
 func xfsLine(id int) string {
 	return strings.Join([]string{
-		itoa(id), "1", "0:36", "/", "/mnt/data", "rw,relatime", "-", "xfs", "/dev/sda1", "rw,relatime",
+		strconv.Itoa(id), "1", "0:36", "/", "/mnt/data", "rw,relatime", "-", "xfs", "/dev/sda1", "rw,relatime",
 	}, " ") + "\n"
-}
-
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	var b [20]byte
-	i := len(b)
-	for n > 0 {
-		i--
-		b[i] = byte('0' + n%10)
-		n /= 10
-	}
-	return string(b[i:])
 }
 
 func TestParseMountInfoKeepsOnlyXfs(t *testing.T) {

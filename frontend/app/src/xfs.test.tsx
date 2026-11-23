@@ -108,5 +108,18 @@ describe('XFS read-only page', () => {
     );
     expect(await screen.findByText(/cannot determine a package name for xfs_info/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Install/ })).toBeNull();
+    expect(screen.queryByText(/xfsprogs/)).toBeNull();
+  });
+
+  it('does not claim no mounts exist when the list is incomplete and empty', async () => {
+    const data = inventory({ xfsInstalled: true, mounts: false });
+    data.xfs.mountsTruncated = true;
+    vi.mocked(getXFS).mockResolvedValue(data);
+    render(
+      <XFS csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
+    );
+    expect(await screen.findByText('not every mount could be listed')).toBeTruthy();
+    expect(screen.queryByText('No xfs mounts found.')).toBeNull();
+    expect(screen.getByText('No xfs mounts could be listed.')).toBeTruthy();
   });
 });
