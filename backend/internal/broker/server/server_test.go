@@ -300,6 +300,16 @@ func TestRootExecHandleOnlyForRootExecOps(t *testing.T) {
 		if _, err := call(t, f, op); err != nil {
 			t.Fatalf("%s: %v", op, err)
 		}
+		// A reply can reach the client before the server's deferred admission
+		// slot release runs. Wait for cleanup before the next sequential call;
+		// admission itself must remain nonblocking in production.
+		deadline := time.Now().Add(2 * time.Second)
+		for len(f.srv.classSem[ops.AdmissionControlPlan]) != 0 {
+			if time.Now().After(deadline) {
+				t.Fatal("control-plan admission slot was not released")
+			}
+			time.Sleep(time.Millisecond)
+		}
 	}
 	if seen["t.none"] || seen["t.rootread"] || seen["t.unpriv"] || !seen["t.rootexec"] {
 		t.Fatalf("root handle exposure: %v", seen)
