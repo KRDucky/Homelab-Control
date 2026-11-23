@@ -21,6 +21,12 @@ Use reviewed APT/dpkg interfaces by task: `apt-cache search/show/policy` and `dp
 
 A simulation is **not** a transaction lock or guarantee: fresh metadata, installed state, pin priorities, repositories and APT resolver decisions may change before apply. Existing broker plan tokens, digest/revalidation, approved source trust and durable transaction journal still apply. If the actual transaction cannot be constrained to the reviewed plan, refuse rather than claim the simulation enforces exact outcomes. No shell, generic CLI, homegrown package database or new dependency graph engine.
 
+## Native package manager policy (owner direction 2026-11-23)
+
+HomeControl integrates each distro's native package tooling rather than introducing **PackageKit** as a shared backend. For the first stable release, use APT and dpkg directly on Debian and Ubuntu. A single Software Center user experience may normalize read-only presentation and transaction summaries, but the package manager remains the sole authority for resolution and execution. Do not build or depend on a PackageKit compatibility layer.
+
+After the Debian/Ubuntu `.deb` release is stable and fully functioning, future separately reviewed integrations may use **DNF** for Fedora/RPM-family distributions and **Pacman** for Arch. **Paru** is an optional future Arch/AUR integration, not interchangeable with Pacman and not assumed installed; AUR packages execute third-party build scripts and therefore need a distinct trust and execution policy and explicit approval. openSUSE's native tooling needs separate evaluation rather than assuming DNF covers all RPM distributions. None of these deferred integrations expands M4's initial write target.
+
 ## Proposed decision — separately authorize before implementation
 
 * Add explicit `packages.manage` (known, never default, never implied by `packages.read` or admin-facing UI). Gate API and broker independently. Leave existing GET semantics unchanged.
