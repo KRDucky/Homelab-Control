@@ -178,6 +178,7 @@ export interface Capability {
     | 'lvm'
     | 'btrfs'
     | 'ext4'
+    | 'mdadm'
     | 'f2fs'
     | 'traefik';
   label: string;
@@ -1555,6 +1556,46 @@ export interface Ext4Inventory {
 export function getExt4(csrf: string): Promise<Ext4Inventory> {
   return request<Ext4Inventory>('/api/v1/ext4', { headers: { 'X-CSRF-Token': csrf } });
 }
+// ---- Read-only Linux software RAID (mdadm, /proc/mdstat) ----------------------
+
+export interface MdadmToolItem {
+  id: string;
+  package: string;
+  installed: boolean;
+  binary: string;
+}
+
+export interface MdadmTooling {
+  family: string;
+  required: MdadmToolItem[];
+  optional: MdadmToolItem[];
+}
+
+/** One /proc/mdstat array line, as printed. */
+export interface MdadmArray {
+  name: string;
+  level: string;
+  state: string;
+  memberCount: number | null;
+}
+
+export interface MdadmMD {
+  present: boolean;
+  reason: string;
+  personalities: string[];
+  arrays: MdadmArray[];
+  arraysTruncated: boolean;
+}
+
+export interface MdadmInventory {
+  tooling: MdadmTooling;
+  md: MdadmMD;
+}
+
+export function getMdadm(csrf: string): Promise<MdadmInventory> {
+  return request<MdadmInventory>('/api/v1/mdadm', { headers: { 'X-CSRF-Token': csrf } });
+}
+
 // ---- M7 first checkpoint: f2fs (read-only) ---------------------------------
 
 export interface F2fsToolItem {
