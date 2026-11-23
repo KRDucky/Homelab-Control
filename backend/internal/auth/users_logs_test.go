@@ -331,3 +331,25 @@ func TestLVMReadNotGrantedByDefaultOrImplied(t *testing.T) {
 		t.Fatal("every other scope together must not imply lvm.read")
 	}
 }
+
+// M7 first checkpoint: read-only Btrfs needs btrfs.read, never granted by
+// default and implied by no other scope (including storage.read).
+func TestBtrfsReadNotGrantedByDefaultOrImplied(t *testing.T) {
+	if !KnownScopes[ScopeBtrfsRead] || ScopeBtrfsRead != "btrfs.read" {
+		t.Fatal("btrfs.read must be a known scope")
+	}
+	for _, s := range strings.Split(DefaultScopes, ",") {
+		if s == ScopeBtrfsRead || strings.HasPrefix(s, "btrfs.") {
+			t.Fatalf("default scopes grant %s", s)
+		}
+	}
+	var others []string
+	for s := range KnownScopes {
+		if s != ScopeBtrfsRead {
+			others = append(others, s)
+		}
+	}
+	if (&Session{Scopes: others}).HasScope(ScopeBtrfsRead) {
+		t.Fatal("every other scope together must not imply btrfs.read")
+	}
+}
