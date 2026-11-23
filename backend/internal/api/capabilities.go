@@ -21,6 +21,7 @@ import (
 	"homelab-control/backend/internal/brokerclient"
 	"homelab-control/backend/internal/btrfsinfo"
 	"homelab-control/backend/internal/ext4info"
+	"homelab-control/backend/internal/f2fsinfo"
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
 	"homelab-control/backend/internal/lvminfo"
@@ -328,6 +329,20 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 			mdadm.Status, mdadm.Reason = CapDegraded, reason
 		}
 	}
+	// M7 first checkpoint: one f2fs page, read-only. Available when the
+	// dump.f2fs binary and kernel f2fs are listed (mounts may still be empty);
+	// degraded when either is missing so the page still mounts. Probe is
+	// os.Stat of well-known paths plus one /proc/filesystems read (no
+	// mountinfo, no dump.f2fs exec), and only when the module is enabled and
+	// the session has f2fs.read.
+	f2fs := Capability{ID: "f2fs", Label: "f2fs", Path: "/storage/f2fs", Scope: auth.ScopeF2fsRead, Status: CapAvailable}
+	if s.mods.Enabled("f2fs") && sess.HasScope(auth.ScopeF2fsRead) {
+		if ok, reason := f2fsinfo.ProbeCapability(s.packageFamily()); ok {
+			f2fs.Status, f2fs.Reason = CapAvailable, ""
+		} else {
+			f2fs.Status, f2fs.Reason = CapDegraded, reason
+		}
+	}
 
 	// M7 first checkpoint: one XFS page, read-only. Available when the
 	// xfs_info binary and kernel XFS are listed (mounts may still be empty);
@@ -343,16 +358,16 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 			xfs.Status, xfs.Reason = CapDegraded, reason
 		}
 	}
-	caps := []Capability{gate(traefik), gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages), gate(mergerfs), gate(zfs), gate(lvm), gate(btrfs), gate(ext4), gate(mdadm), gate(xfs)}
+	caps := []Capability{gate(traefik), gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages), gate(mergerfs), gate(zfs), gate(lvm), gate(btrfs), gate(ext4), gate(mdadm), gate(f2fs), gate(xfs)}
 	// Navigation follows the module registry: a disabled module contributes
 	// no capability (and therefore no navigation entry).
 	resp.Capabilities = caps[:0]
 	for _, c := range caps {
-		// M8/M7: mergerfs, zfs, lvm, btrfs, ext4, mdadm, and xfs UI paths sit under /storage but
+		// M8/M7: mergerfs, zfs, lvm, btrfs, ext4, mdadm, f2fs, and xfs UI paths sit under /storage but
 		// are separate modules, so ForRoute would map them to storage. Gate
 		// them by their own module ID only.
 		switch c.ID {
-		case "mergerfs", "zfs", "lvm", "btrfs", "ext4", "mdadm", "xfs":
+		case "mergerfs", "zfs", "lvm", "btrfs", "ext4", "mdadm", "f2fs", "xfs":
 			if s.mods.Enabled(c.ID) {
 				resp.Capabilities = append(resp.Capabilities, c)
 			}
