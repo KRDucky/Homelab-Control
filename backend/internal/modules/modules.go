@@ -75,6 +75,7 @@ var registry = []Module{
 	{ID: "mergerfs", Title: "MergerFS", Description: "MergerFS pools and optional SnapRAID: read-only inventory, plus plan/apply mount, definition, sync, scrub, and filtered recovery", Scopes: []string{"mergerfs.read", "mergerfs.configure", "mergerfs.maintain"}, APIPrefix: "/api/v1/mergerfs", OpPrefix: "mergerfs.", Path: "/storage/mergerfs"},
 	{ID: "zfs", Title: "ZFS", Description: "read-only OpenZFS inventory from the local host", Scopes: []string{"zfs.read"}, APIPrefix: "/api/v1/zfs", Path: "/storage/zfs"},
 	{ID: "lvm", Title: "LVM", Description: "read-only LVM inventory from the local host", Scopes: []string{"lvm.read"}, APIPrefix: "/api/v1/lvm", Path: "/storage/lvm"},
+	{ID: "xfs", Title: "XFS", Description: "read-only XFS inventory from the local host", Scopes: []string{"xfs.read"}, APIPrefix: "/api/v1/xfs", Path: "/storage/xfs"},
 }
 
 // All returns the registered modules.

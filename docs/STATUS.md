@@ -159,6 +159,23 @@ A missing `lvm2` package offers Software Center search (`/software?q=lvm2`) when
 is enabled and the session has `packages.read`. This is a checkpoint, not M7 acceptance, not a merge,
 not production. Never touch production pool `tank`.
 
+
+## M7 first checkpoint: XFS (read-only; not M7 acceptance)
+
+One read-only page at `/storage/xfs` (module id `xfs`, scope `xfs.read`, never default and
+implied by nothing, including `storage.read`) probes the required `xfs_info` binary (unprivileged
+`os.Stat` of `/usr/sbin/xfs_info` then `/usr/bin/xfs_info`, no `os/exec`). Package `xfsprogs` is named for Debian, Fedora, SUSE, and Arch.
+Kernel XFS is a bounded read of `/proc/filesystems` (last field exactly `xfs`; never
+modprobe; listed is not ready to format). Observed `fstype=xfs` mounts come from bounded
+`/proc/self/mountinfo` (mountpoint and a `/dev` source only). A source that is not an absolute
+`/dev` path, or a mountpoint with a `..` component, is skipped or refused. A record missing its
+options field still fails the inventory instead of panicking. Parse limits match the other
+inventory pages at 4 MiB and 8192 records; xfs rows cap at 256 with `mountsTruncated` and the
+fixed text “too many mounts to list”. No `xfs_info` execution, no format, grow, or repair, and no
+device open. A missing package offers Software Center search when the packages module is enabled
+and the session has `packages.read`. This is a checkpoint, not M7 acceptance, not a merge, not
+production. Never touch production pool `tank`.
+
 ## M8 first checkpoint: MergerFS + optional SnapRAID (not M8 acceptance)
 
 One read-only page at `/storage/mergerfs` (module id `mergerfs`, scope `mergerfs.read`, never default
