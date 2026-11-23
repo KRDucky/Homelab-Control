@@ -22,6 +22,7 @@ import { Software } from './pages/Software';
 import { MergerFS } from './pages/MergerFS';
 import { ZFS } from './pages/ZFS';
 import { LVM } from './pages/LVM';
+import { Btrfs } from './pages/Btrfs';
 import { XFS } from './pages/XFS';
 import { HostSettingsPage } from './pages/HostSettings';
 import { OverviewPage } from './pages/OverviewPage';
@@ -204,6 +205,15 @@ export function App() {
   else if (route?.id === 'lvm')
     page = (
       <LVM
+        csrf={session.csrf_token}
+        scopes={session.scopes ?? []}
+        packagesEnabled={packagesEnabled}
+        onUnauthorized={signedOut}
+      />
+    );
+  else if (route?.id === 'btrfs')
+    page = (
+      <Btrfs
         csrf={session.csrf_token}
         scopes={session.scopes ?? []}
         packagesEnabled={packagesEnabled}

@@ -159,6 +159,25 @@ A missing `lvm2` package offers Software Center search (`/software?q=lvm2`) when
 is enabled and the session has `packages.read`. This is a checkpoint, not M7 acceptance, not a merge,
 not production. Never touch production pool `tank`.
 
+## M7 first checkpoint: Btrfs (read-only; not M7 acceptance)
+
+One read-only page at `/storage/btrfs` (module id `btrfs`, scope `btrfs.read`, never default and
+implied by nothing, including `storage.read`) probes the required `btrfs` binary (unprivileged
+`os.Stat` of `/usr/bin/btrfs` then `/usr/sbin/btrfs`, no `os/exec`) and optional `smartctl`
+(`smartmontools` on known families). Debian, Fedora, and Arch name `btrfs-progs`. SUSE names
+`btrfsprogs`. An unknown family names no package. Kernel Btrfs is a bounded read of
+`/proc/filesystems` (last field exactly `btrfs`; never modprobe; listed is not ready to format).
+Observed `fstype=btrfs` mounts come from bounded `/proc/self/mountinfo` (mountpoint, a `/dev` source,
+and `subvol` / `subvolid` options only). A source that is not an absolute `/dev` path, or an unsafe
+`subvol`, is skipped. A bad mountpoint still fails the inventory. Multi-device membership is not
+joined from one mount source. Parse limits match the other inventory pages at 4 MiB and 8192
+records; btrfs rows cap at 256 with `mountsTruncated` and the fixed text “too many mounts to list”.
+No `btrfs` execution, no format, balance, scrub, replace, or device open. RAID5/6 is not offered.
+A missing `btrfs-progs` (or SUSE `btrfsprogs`) package offers Software Center search when the
+packages module is enabled and the session has `packages.read`. `smartctl` is offered only after a
+btrfs mount is observed, and missing it does not degrade capability. This is a checkpoint, not M7
+acceptance, not a merge, not production. Issue #88 stays open. Never touch production pool `tank`.
+
 
 ## M7 first checkpoint: XFS (read-only; not M7 acceptance)
 
@@ -173,8 +192,8 @@ mountpoint with a `..` component, or a source that is not a safe `/dev` path) is
 panicking, and the other mounts are still listed. Parse limits match the other inventory pages at
 4 MiB and 8192 records; xfs rows cap at 256. A cap, a limit or a skipped record sets
 `mountsTruncated`, and the page shows the fixed text “not every mount could be listed”. The XFS
-capability follows the `xfs` module only, so disabling Storage does not hide it (mergerfs, zfs and
-lvm are gated the same way). No `xfs_info` execution, no format, grow, or repair, and no
+capability follows the `xfs` module only, so disabling Storage does not hide it (mergerfs, zfs, lvm and
+btrfs are gated the same way). No `xfs_info` execution, no format, grow, or repair, and no
 device open. A missing package offers Software Center search when the packages module is enabled
 and the session has `packages.read`. This is a checkpoint, not M7 acceptance, not a merge, not
 production. Never touch production pool `tank`.
