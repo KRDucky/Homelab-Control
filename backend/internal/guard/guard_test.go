@@ -261,6 +261,7 @@ var rootExecFiles = map[string]bool{
 	"internal/broker/ops/hostsettings_write.go": true, // M2-6 hostnamectl/timedatectl apply (Amendment 4)
 	"internal/broker/ops/ops.go":                true, // registry lists apply's templates (W1)
 	"internal/broker/ops/systemctl.go":          true, // services.systemctl apply (owner 2026-11-21)
+	"internal/broker/ops/ext4format.go":         true, // ext4.format.apply calls RootMkfsExt4
 	"internal/broker/server/server.go":          true, // passes the handle to root-exec ops only
 	"cmd/hc-broker/main.go":                     true, // creates the single handle
 }
@@ -325,10 +326,18 @@ func TestRootExecConfined(t *testing.T) {
 	}
 }
 
-// TestUnusedStorageRootTemplateConfined is T1 (PR #74 security review): the
-// unused storage template may be named only in runner.go until a wiring PR
-// updates this test. TestRootExecConfined allows every root-template ident in
-// any reviewed root-exec file; this one fails a one-line Root.Run of it.
+// ext4FormatTemplateFiles are the only non-test files that may name the
+// ext4 format root template. Adding one is a review of a format caller.
+var ext4FormatTemplateFiles = map[string]bool{
+	"internal/broker/runner/runner.go":  true, // defines mkfs.ext4 -q -- <by-id>
+	"internal/broker/ops/ops.go":        true, // registry lists it on ext4.format.apply only
+	"internal/broker/ops/ext4format.go": true, // the only caller of RootMkfsExt4
+}
+
+// TestUnusedStorageRootTemplateConfined is T1 (PR #74 security review),
+// updated when ext4.format became the caller. The template stays out of
+// every other non-test file. TestRootExecConfined allows every root-template
+// ident in any reviewed root-exec file; this one still fails a second caller.
 func TestUnusedStorageRootTemplateConfined(t *testing.T) {
 	root, err := filepath.Abs("../..")
 	if err != nil {
@@ -345,7 +354,7 @@ func TestUnusedStorageRootTemplateConfined(t *testing.T) {
 			return nil
 		}
 		rel, _ := filepath.Rel(root, path)
-		if rel == "internal/broker/runner/runner.go" {
+		if ext4FormatTemplateFiles[rel] {
 			return nil
 		}
 		b, err := os.ReadFile(path)
@@ -354,12 +363,18 @@ func TestUnusedStorageRootTemplateConfined(t *testing.T) {
 		}
 		s := string(b)
 		if strings.Contains(s, "RootMkfsExt4") || strings.Contains(s, "mkfs.ext4") {
-			t.Errorf("%s mentions unused storage root template; keep it in runner.go until the wiring PR", rel)
+			t.Errorf("%s mentions the ext4 format root template; only ext4.format may call it", rel)
 		}
 		return nil
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+	for f := range ext4FormatTemplateFiles {
+		b, err := os.ReadFile(filepath.Join(root, f))
+		if err != nil || (!strings.Contains(string(b), "RootMkfsExt4") && !strings.Contains(string(b), "mkfs.ext4")) {
+			t.Errorf("%s is an ext4 format template file but does not name the template", f)
+		}
 	}
 }
 

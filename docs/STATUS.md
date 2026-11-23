@@ -299,8 +299,9 @@ helper socket. The package ships `/etc/homelab-control/mergerfs-apply.enabled`. 
 `[Install]` section and the package does not enable it at boot. Sync and scrub refuse a missing disk
 or removed files. There is no `--force`, no `-e`, and no unfiltered fix. Disks are not formatted.
 `storagecap.Advance` enters `execute` after a passing confirm, then `progress` and `postcheck`.
-It still does not format a device or call a helper. No broker op calls `mkfs.ext4`.
-The unused `homelab-control-storage-helper.service` stays `ExecStart=/bin/false`.
+It still does not format a device itself. `ext4.format.plan` / `ext4.format.apply` (scope
+`ext4.format`, not implied by `ext4.read`) call `mkfs.ext4 -q --` on one by-id path after that
+gate. The unused `homelab-control-storage-helper.service` stays `ExecStart=/bin/false`.
 Debian and Ubuntu install a drop-in that sets `AppArmorProfile=hc-mergerfs-apply`. The shared unit does not set it. The first release is Debian and Ubuntu only. The profile is enforce mode, allows
 `mount` and the helper's three binaries, and denies other network families. It is not the probe
 profile. There is no SELinux policy for this helper. It does not use a private mount or network namespace
@@ -333,24 +334,26 @@ Not production-approved. Not M8 acceptance.
 identity/extra-confirm types, and SHARED-02 operation phases (`Advance`). Probe is still
 `os.Stat` of well-known paths only. Install plans set `executes: false` (Software Center
 `/software?q=` only). The MergerFS install offer opens a review dialog (`executes: false`); it
-never POSTs a package. `mkfs.ext4` is on main unused (PR #74); no broker op calls it.
-`Advance` confirm now requires observed block-device preflight bound to the planned
+never POSTs a package. `ext4.format.apply` calls the closed `mkfs.ext4 -q -- <by-id>` template
+after `Advance` reaches execute. No other filesystem format template exists.
+`Advance` confirm still requires observed block-device preflight bound to the planned
 device identity (each target once, including the same rdev under two keys or in
 `PlannedRdev`,
 block device, canonical major:minor rdev with major ≥ 1 matching the plan, not
-mounted including partitions of the disk, no holders) and still never enters
-execute: no storage apply op. An unused closed storage helper unit is packaged
+mounted including partitions of the disk, no holders). The ext4 format op supplies
+that preflight and is the storage apply that runs only after execute is reached.
+An unused closed storage helper unit is packaged
 (G3 placeholder: no `[Install]`, `PrivateDevices=yes`, no `DeviceAllow`, empty
 caps, `ExecStart=/bin/false`, `RefuseManualStart=yes`). The main broker unit is
-unchanged (`PrivateDevices=yes`). This is not owner O-1 (no live device access)
-and not execute wiring. Preflight facts are
-caller-supplied and untrusted; this package does not stat devices. ADR 0011 apply
-unused here. Independent security review is required before execute wiring. `storageinfo.OverlapClaims` flags two unrelated stacks on one block node
+unchanged (`PrivateDevices=yes`). This is not owner O-1. A broker that cannot see
+block devices refuses before exec. Preflight inside `storagecap` is still
+caller-supplied; that package does not stat devices. A live format is a disposable
+VM disk, not the MediaMouse host. `storageinfo.OverlapClaims` flags two unrelated stacks on one block node
 (layered LVM/md/crypt plus a matching filesystem is one stack). Collect still does not read
 `/dev/disk/by-id` (`PrivateDevices=yes`). Default is read-only. No storage mutation, no host
 package install. MergerFS tooling JSON is unchanged (types aliased). Not P0 complete, not M8,
-not production. Not ready for write tests. This does not make the storage write
-path ready for guest or host write tests.
+not production. Ext4 format has broker unit tests with a fake child. A live
+`mkfs.ext4` in a guest has not been run for this caller. Do not format the MediaMouse host.
 
 ## M2-3: expanded service management (development authorized 2026-11-04; implementation not accepted)
 

@@ -19,7 +19,8 @@ func (s *Server) ext4ProtectedGET(w http.ResponseWriter, r *http.Request, sess *
 	return s.auditedGET(w, r, sess, "ext4 inventory requires an access audit logger.")
 }
 
-// handleExt4 serves the read-only ext4 inventory. No mkfs, tune2fs, resize2fs, or e2fsck exists. dumpe2fs is
+// handleExt4 serves the read-only ext4 inventory. This GET does not format,
+// grow, or repair a filesystem. dumpe2fs is
 // never executed: this endpoint Stats a well-known binary, reads
 // /proc/filesystems, and parses bounded mountinfo.
 func (s *Server) handleExt4(w http.ResponseWriter, r *http.Request, sess *auth.Session, _ string) {
