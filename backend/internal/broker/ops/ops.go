@@ -267,11 +267,11 @@ func Registry() map[string]Op {
 		{Name: "ext4.format.plan", Scope: "ext4.format", Privilege: PrivRootRead, Timeout: 15 * time.Second, Admission: AdmissionControlPlan,
 			Description: "Review a quiet ext4 format of one by-id disk: persist identity, block device, unmounted, no holders, destructive risk and a single-use plan token. Nothing is formatted",
 			Handle:      ext4FormatPlan, AuditArgs: ext4FormatAuditArgs,
-			Write: &WriteSpec{Phase: "plan", Risks: []string{RiskDestructive}, LockDomain: "ext4-format:<identity>"}},
+			Write: &WriteSpec{Phase: "plan", Risks: []string{RiskDestructive}, LockDomain: "ext4-format:<identity>+ext4-format-dev:<rdev>"}},
 		{Name: "ext4.format.apply", Scope: "ext4.format", Privilege: PrivRootExec, Timeout: 9 * time.Minute, Admission: AdmissionControlApply,
 			Description: "Format one reviewed by-id disk with mkfs.ext4 -q. Requires the plan token, password re-entry, and a fresh block-device check immediately before exec. No -F",
 			Handle:      ext4FormatApply, AuditArgs: ext4FormatAuditArgs,
-			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskDestructive}, LockDomain: "ext4-format:<identity>",
+			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskDestructive}, LockDomain: "ext4-format:<identity>+ext4-format-dev:<rdev>",
 				Templates: []runner.RootTemplate{runner.RootMkfsExt4}}},
 	}
 	m := make(map[string]Op, len(ops))

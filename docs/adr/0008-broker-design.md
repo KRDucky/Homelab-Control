@@ -260,7 +260,8 @@ main broker unit.
   Risk is destructive (password re-entry). `TestUnusedStorageRootTemplateConfined` allows the
   template name only in `runner.go`, the registry, and `ext4format.go`.
 - **Gates the caller enforces.** G1: the runner's stdin is `/dev/null` (no existing-FS prompt)
-  and apply holds the per-identity lock. G2: the path must be a block device immediately
+  and apply holds the per-identity lock plus a lock on the device number, so a WWN
+  alias and a serial alias cannot format that disk at the same time. G2: the path must be a block device immediately
   before exec; a regular file is refused. G4: the plan token target is the persist identity
   (`wwn`, `nvme-uuid`, or `serial`) and the by-id basename must name that same identity.
   The by-id path and rdev are also in the state digest, so a path swap is a conflict and
