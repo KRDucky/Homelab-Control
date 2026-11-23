@@ -95,10 +95,16 @@ func TestParseKernelXfs(t *testing.T) {
 func TestProbeToolingPackageNames(t *testing.T) {
 	stat := func(string) bool { return false }
 	debian := probeTooling("debian", stat)
+	if len(debian.Required) == 0 {
+		t.Fatal("debian required tools missing")
+	}
 	if debian.Required[0].Package != "xfsprogs" || debian.Required[0].Installed {
 		t.Fatalf("debian: %+v", debian.Required[0])
 	}
 	unknown := probeTooling("unknown", stat)
+	if len(unknown.Required) == 0 {
+		t.Fatal("unknown distro required tools missing")
+	}
 	if unknown.Required[0].Package != "" {
 		t.Fatalf("unknown: %+v", unknown.Required[0])
 	}
