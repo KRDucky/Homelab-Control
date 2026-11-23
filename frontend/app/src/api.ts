@@ -176,6 +176,7 @@ export interface Capability {
     | 'mergerfs'
     | 'zfs'
     | 'lvm'
+    | 'ext4'
     | 'traefik';
   label: string;
   path: string;
@@ -1467,6 +1468,47 @@ export function getLVM(csrf: string): Promise<LVMInventory> {
   return request<LVMInventory>('/api/v1/lvm', { headers: { 'X-CSRF-Token': csrf } });
 }
 
+// ---- M7 first checkpoint: ext4 (read-only) ---------------------------------
+
+export interface Ext4ToolItem {
+  id: string;
+  package: string;
+  installed: boolean;
+  binary: string;
+}
+
+export interface Ext4Tooling {
+  family: string;
+  required: Ext4ToolItem[];
+  optional: Ext4ToolItem[];
+}
+
+export interface Ext4Mount {
+  mountpoint: string;
+  device: string;
+}
+
+export interface Ext4Info {
+  present: boolean;
+  reason: string;
+  mounts: Ext4Mount[];
+  mountsTruncated: boolean;
+}
+
+export interface Ext4Kernel {
+  present: boolean;
+  reason: string;
+}
+
+export interface Ext4Inventory {
+  tooling: Ext4Tooling;
+  ext4: Ext4Info;
+  kernelExt4: Ext4Kernel;
+}
+
+export function getExt4(csrf: string): Promise<Ext4Inventory> {
+  return request<Ext4Inventory>('/api/v1/ext4', { headers: { 'X-CSRF-Token': csrf } });
+}
 // Read-only Traefik helper integration. The browser never receives helper credentials.
 export interface TraefikResource {
   rule?: string;

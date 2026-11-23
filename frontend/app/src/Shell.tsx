@@ -97,7 +97,7 @@ function NavItem({
 const NAV_SECTIONS: { title: string; ids: readonly string[] }[] = [
   { title: 'Dashboard', ids: ['overview'] },
   { title: 'System', ids: ['services', 'hardware', 'host_settings', 'packages'] },
-  { title: 'Storage & files', ids: ['storage', 'mergerfs', 'zfs', 'lvm', 'files'] },
+  { title: 'Storage & files', ids: ['storage', 'mergerfs', 'zfs', 'lvm', 'ext4', 'files'] },
   { title: 'Network & applications', ids: ['traefik'] },
   { title: 'Administration', ids: ['audit'] },
 ];
