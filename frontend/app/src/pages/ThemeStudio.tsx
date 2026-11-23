@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { DataTable } from '../DataTable';
-import { StatusPill } from '../ui';
+import { ThemePreview, type PreviewScene, type PreviewWidth } from '../ThemePreview';
 import { applyPreferences, loadPreferences } from '../preferences';
 import {
   ACTIVE_THEME,
@@ -64,49 +63,6 @@ function ColorValue({
   );
 }
 
-function Preview({ draft, width }: { draft: ThemeDocument; width: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (ref.current) applyTheme(draft, ref.current);
-  }, [draft]);
-  return (
-    <div className={`studio-preview preview-${width}`} ref={ref} aria-label="Theme preview with example data">
-      <p className="tag">Example data · preview only</p>
-      <h2>Host overview</h2>
-      <p>Independent modules. Clear system state.</p>
-      <div className="toolbar">
-        <StatusPill tone="ok" label="Healthy" />
-        <StatusPill tone="warn" label="Warning" />
-        <StatusPill tone="crit" label="Critical" />
-        <StatusPill tone="unknown" label="Not checked" />
-      </div>
-      <DataTable
-        caption="Example services"
-        rows={[
-          { name: 'backup.service', status: 'Active' },
-          { name: 'media.service', status: 'Not checked' },
-        ]}
-        rowKey={(r) => r.name}
-        columns={[
-          { id: 'name', label: 'Unit', render: (r) => <code>{r.name}</code> },
-          { id: 'status', label: 'State', render: (r) => r.status },
-        ]}
-      />
-      <label className="studio-field">
-        Example input
-        <input placeholder="Search services" />
-      </label>
-      <div className="toolbar">
-        <button type="button">Primary action</button>
-        <button type="button" className="ghost">
-          Secondary action
-        </button>
-      </div>
-      <p className="banner">Warnings always keep their text and icon.</p>
-    </div>
-  );
-}
-
 /** Browser-local authoring. Drafts affect only the preview; activation uses a timed confirmation. */
 export function ThemeStudio() {
   const [installed, setInstalled] = useState(loadThemes);
@@ -116,7 +72,8 @@ export function ThemeStudio() {
   const [json, setJson] = useState('');
   const [advanced, setAdvanced] = useState(false);
   const [message, setMessage] = useState('');
-  const [width, setWidth] = useState('desktop');
+  const [width, setWidth] = useState<PreviewWidth>('desktop');
+  const [scene, setScene] = useState<PreviewScene>('dashboard');
   const [trial, setTrial] = useState<ThemeDocument | null>(null);
   const [seconds, setSeconds] = useState(15);
   const [current, setCurrent] = useState(() => activeTheme()?.id ?? 'Built-in');
@@ -568,15 +525,31 @@ export function ThemeStudio() {
             )}
           </div>
           <div className="studio-preview-wrap">
-            <label className="inline-field">
-              Preview width
-              <select value={width} onChange={(e) => setWidth(e.target.value)}>
-                <option value="desktop">Desktop</option>
-                <option value="tablet">Tablet</option>
-                <option value="phone">Phone</option>
-              </select>
-            </label>
-            <Preview draft={draft} width={width} />
+            <div className="studio-preview-settings">
+              <fieldset className="studio-preview-scenes" aria-label="Preview scene">
+                <legend>Preview scene</legend>
+                {(['dashboard', 'navigation', 'module'] as const).map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={scene === id ? 'studio-preview-scene-selected' : 'ghost'}
+                    aria-pressed={scene === id}
+                    onClick={() => setScene(id)}
+                  >
+                    {id === 'dashboard' ? 'Dashboard' : id === 'navigation' ? 'Navigation' : 'Module detail'}
+                  </button>
+                ))}
+              </fieldset>
+              <label className="inline-field">
+                Preview width
+                <select value={width} onChange={(e) => setWidth(e.target.value as PreviewWidth)}>
+                  <option value="desktop">Desktop</option>
+                  <option value="tablet">Tablet</option>
+                  <option value="phone">Phone</option>
+                </select>
+              </label>
+            </div>
+            <ThemePreview draft={draft} scene={scene} width={width} />
           </div>
         </div>
         <section className="studio-issues" aria-label="Theme validation">
