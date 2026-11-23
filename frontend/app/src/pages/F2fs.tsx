@@ -9,8 +9,9 @@ import { explain, useData } from '../useData';
 
 /**
  * f2fs (M7 first checkpoint, read-only). Probe the dump.f2fs binary, show a
- * Software Center search link when the package name is known and missing, and
- * list observed f2fs mounts. No format, grow, or repair exists in the DOM.
+ * Software Center package-search planning dialog when a required tool is
+ * missing, and list observed f2fs mounts. No format, grow, or repair action
+ * exists in this page.
  */
 export function F2fs({
   csrf,
@@ -94,6 +95,10 @@ export function F2fsView({
             <h2 id="f2fs-offer-heading">f2fs tools</h2>
           </header>
           <p>Missing required tools: {missingToolNames}. This page does not run them.</p>
+          <p>
+            Install options open a separate Software Center search and planning dialog; this read-only page
+            does not install packages or change storage devices.
+          </p>
           <RequiredOffers items={missingRequired} canInstall={canInstall} />
         </section>
       )}
@@ -105,7 +110,7 @@ export function F2fsView({
         </header>
         {f2fs.mountsTruncated ? (
           <p className="banner" role="status">
-            too many mounts to list
+            Showing {f2fs.mounts.length} observed mounts; this inventory is incomplete. Additional mounts may be omitted.
           </p>
         ) : null}
         {f2fs.mounts.length > 0 ? (
