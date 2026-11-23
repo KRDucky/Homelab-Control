@@ -102,5 +102,4 @@ describe('Theme Development Kit in the WebUI', () => {
     expect(localStorage.getItem('hc.dashboard.v1')).toBeNull();
     expect(localStorage.getItem('hc.theme.active.v1')).toBeNull();
   });
-
 });
