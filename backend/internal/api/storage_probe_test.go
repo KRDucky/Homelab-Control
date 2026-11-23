@@ -6,10 +6,12 @@ package api
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
 
+	"homelab-control/backend/internal/audit"
 	"homelab-control/backend/internal/auth"
 	"homelab-control/backend/internal/broker/proto"
 	"homelab-control/backend/internal/lvmmeta"
@@ -87,6 +89,32 @@ func TestStorageProbeBusyClosesAudit(t *testing.T) {
 	conflict := strings.Index(log[requested:], `"outcome":"conflict"`)
 	if conflict < 0 {
 		t.Fatalf("busy probe left the audit open: %s", log)
+	}
+}
+
+// auditWriteFailSecond simulates losing the audit sink between the requested
+// entry and the closing conflict entry.
+type auditWriteFailSecond struct{ writes int }
+
+func (w *auditWriteFailSecond) Write(p []byte) (int, error) {
+	w.writes++
+	if w.writes == 2 {
+		return 0, errors.New("audit sink unavailable")
+	}
+	return len(p), nil
+}
+
+func TestStorageProbeBusyAuditFailureFailsClosed(t *testing.T) {
+	h, fb := probeHarness(t, auth.ScopeStorageProbe)
+	h.srv.audit = audit.New(&auditWriteFailSecond{})
+	h.srv.storageSem <- struct{}{}
+	t.Cleanup(func() { <-h.srv.storageSem })
+	rr := h.do("POST", "/api/v1/storage/probe", "", map[string]string{"X-CSRF-Token": h.csrf, "Origin": testOrigin})
+	if rr.Code != http.StatusServiceUnavailable || !strings.Contains(rr.Body.String(), "audit_unavailable") {
+		t.Fatalf("got %d %s; want audited failure", rr.Code, rr.Body)
+	}
+	if len(fb.actors) != 0 {
+		t.Fatal("broker called while the storage slot was busy")
 	}
 }
 
