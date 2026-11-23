@@ -24,6 +24,7 @@ import { ZFS } from './pages/ZFS';
 import { LVM } from './pages/LVM';
 import { Btrfs } from './pages/Btrfs';
 import { Ext4 } from './pages/Ext4';
+import { Mdadm } from './pages/Mdadm';
 import { HostSettingsPage } from './pages/HostSettings';
 import { OverviewPage } from './pages/OverviewPage';
 import { Services } from './pages/Services';
@@ -223,6 +224,15 @@ export function App() {
   else if (route?.id === 'ext4')
     page = (
       <Ext4
+        csrf={session.csrf_token}
+        scopes={session.scopes ?? []}
+        packagesEnabled={packagesEnabled}
+        onUnauthorized={signedOut}
+      />
+    );
+  else if (route?.id === 'mdadm')
+    page = (
+      <Mdadm
         csrf={session.csrf_token}
         scopes={session.scopes ?? []}
         packagesEnabled={packagesEnabled}

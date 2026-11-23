@@ -77,6 +77,7 @@ var registry = []Module{
 	{ID: "lvm", Title: "LVM", Description: "read-only LVM inventory from the local host", Scopes: []string{"lvm.read"}, APIPrefix: "/api/v1/lvm", Path: "/storage/lvm"},
 	{ID: "btrfs", Title: "Btrfs", Description: "read-only Btrfs inventory from the local host", Scopes: []string{"btrfs.read"}, APIPrefix: "/api/v1/btrfs", Path: "/storage/btrfs"},
 	{ID: "ext4", Title: "ext4", Description: "read-only ext4 inventory from the local host", Scopes: []string{"ext4.read"}, APIPrefix: "/api/v1/ext4", Path: "/storage/ext4"},
+	{ID: "mdadm", Title: "Software RAID (mdadm)", Description: "read-only Linux software RAID inventory from /proc/mdstat on the local host", Scopes: []string{"mdadm.read"}, APIPrefix: "/api/v1/mdadm", Path: "/storage/mdadm"},
 }
 
 // All returns the registered modules.
