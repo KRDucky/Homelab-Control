@@ -54,14 +54,17 @@ function inventory(opts: {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  HTMLDialogElement.prototype.showModal = function () {
+  vi.spyOn(HTMLDialogElement.prototype, 'showModal').mockImplementation(function (this: HTMLDialogElement) {
     this.setAttribute('open', '');
-  };
-  HTMLDialogElement.prototype.close = function () {
+  });
+  vi.spyOn(HTMLDialogElement.prototype, 'close').mockImplementation(function (this: HTMLDialogElement) {
     this.removeAttribute('open');
-  };
+  });
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 describe('f2fs read-only page', () => {
   it('renders an observed mount and says the binary is probed, not run', async () => {
@@ -98,6 +101,17 @@ describe('f2fs read-only page', () => {
     );
     expect(await screen.findByText(/Showing 1 mounts; inventory incomplete/)).toBeTruthy();
     expect(screen.getByText('/mnt/data')).toBeTruthy();
+  });
+
+  it('warns about an incomplete inventory even when no mounts are displayed', async () => {
+    const data = inventory({ f2fsInstalled: true, mounts: false });
+    data.f2fs.mountsTruncated = true;
+    vi.mocked(getF2fs).mockResolvedValue(data);
+    render(
+      <F2fs csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
+    );
+    expect(await screen.findByText(/Showing 0 mounts; inventory incomplete/)).toBeTruthy();
+    expect(screen.getByText('No f2fs mounts found.')).toBeTruthy();
   });
 
   it('does not invent a package name for an unknown family', async () => {
