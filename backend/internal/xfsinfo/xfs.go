@@ -51,14 +51,16 @@ const (
 	mountinfoMaxLine   = 64 << 10
 	xfsMaxMounts       = 256
 	deviceMaxBytes     = 256
+	// mountpointMaxBytes matches the OpenAPI maxLength for mountpoint.
+	mountpointMaxBytes = 256
 )
 
 // ParseMountInfo parses bounded kernel mountinfo and retains fstype xfs
 // mounts only. Every other filesystem is dropped. The boolean reports an
 // incomplete list: it is set when the xfs row cap or a mountinfo byte, record
 // or line limit is hit, and when a record is skipped because it cannot be
-// listed safely (no filesystem type, a malformed xfs record, a bad xfs
-// mountpoint or source, or a source that is not a safe /dev path). One bad
+// listed safely (no filesystem type, a malformed xfs record, a bad or
+// over-256-byte xfs mountpoint, or a source that is not a safe /dev path). One bad
 // record never hides the others. Only a read error fails the parse.
 func ParseMountInfo(r io.Reader) ([]Mount, bool, error) {
 	br := bufio.NewReader(io.LimitReader(r, mountinfoMaxBytes+1))
@@ -134,7 +136,7 @@ func parseXfsRecord(fields []string, sep int) (Mount, bool) {
 		return Mount{}, false
 	}
 	point, err := unescape(fields[4])
-	if err != nil || !strings.HasPrefix(point, "/") || hasDotDot(point) {
+	if err != nil || len(point) > mountpointMaxBytes || !strings.HasPrefix(point, "/") || hasDotDot(point) {
 		return Mount{}, false
 	}
 	source, err := unescape(fields[sep+2])

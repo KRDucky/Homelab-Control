@@ -1550,7 +1550,7 @@ components:
             reason: { type: string }
             mountsTruncated:
               type: boolean
-              description: True when the list is incomplete, either because the xfs row cap or a mountinfo byte, record or line limit was hit or because a record could not be listed safely (no filesystem type, a malformed xfs record, or a mountpoint or source that is not a safe absolute path). Other mounts are still listed. The page shows the fixed text "not every mount could be listed".
+              description: True when the list is incomplete, either because the xfs row cap or a mountinfo byte, record or line limit was hit or because a record could not be listed safely (no filesystem type, a malformed xfs record, a mountpoint over 256 bytes, or a mountpoint or source that is not a safe absolute path). Other mounts are still listed. The page shows the fixed text "not every mount could be listed".
             mounts:
               type: array
               maxItems: 256

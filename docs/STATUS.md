@@ -222,7 +222,7 @@ Kernel XFS is a bounded read of `/proc/filesystems` (last field exactly `xfs`; n
 modprobe; listed is not ready to format). Observed `fstype=xfs` mounts come from bounded
 `/proc/self/mountinfo` (mountpoint and a `/dev` source only). A record that cannot be listed
 safely (no filesystem type, a malformed xfs record such as one missing its options field, a
-mountpoint with a `..` component, or a source that is not a safe `/dev` path) is skipped without
+mountpoint with a `..` component or over 256 bytes, or a source that is not a safe `/dev` path) is skipped without
 panicking, and the other mounts are still listed. Parse limits match the other inventory pages at
 4 MiB and 8192 records; xfs rows cap at 256. A cap, a limit or a skipped record sets
 `mountsTruncated`, and the page shows the fixed text “not every mount could be listed”. The XFS
