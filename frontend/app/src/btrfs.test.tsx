@@ -136,7 +136,7 @@ describe('Btrfs read-only page', () => {
     render(
       <Btrfs csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
     );
-    expect(await screen.findByText(/cannot determine the package name/)).toBeTruthy();
+    expect(await screen.findByText(/cannot determine a package name for btrfs/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Install/ })).toBeNull();
   });
 });
