@@ -376,6 +376,23 @@ func TestExt4ReadNotGrantedByDefaultOrImplied(t *testing.T) {
 	}
 }
 
+func TestExt4FormatNotGrantedByDefaultOrRead(t *testing.T) {
+	if !KnownScopes[ScopeExt4Format] || ScopeExt4Format != "ext4.format" {
+		t.Fatal("ext4.format must be a known scope")
+	}
+	for _, s := range strings.Split(DefaultScopes, ",") {
+		if s == ScopeExt4Format || strings.HasPrefix(s, "ext4.") {
+			t.Fatalf("default scopes grant %s", s)
+		}
+	}
+	if (&Session{Scopes: []string{ScopeExt4Read, ScopeStorageRead, ScopeStorageProbe}}).HasScope(ScopeExt4Format) {
+		t.Fatal("ext4.read and storage scopes must not imply ext4.format")
+	}
+	if (&Session{Scopes: []string{ScopeExt4Format}}).HasScope(ScopeExt4Read) {
+		t.Fatal("ext4.format must not imply ext4.read")
+	}
+}
+
 // Read-only software RAID needs mdadm.read, never granted by default and
 // implied by no other scope (including storage.read).
 func TestMdadmReadNotGrantedByDefaultOrImplied(t *testing.T) {

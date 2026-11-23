@@ -36,7 +36,7 @@ func TestRegistryIsClosed(t *testing.T) {
 	if all[7].ID != "btrfs" || all[7].APIPrefix != "/api/v1/btrfs" || all[7].OpPrefix != "" || all[7].Path != "/storage/btrfs" || len(all[7].Scopes) != 1 || all[7].Scopes[0] != "btrfs.read" {
 		t.Fatalf("btrfs module: %+v (new modules need review)", all[7])
 	}
-	if all[8].ID != "ext4" || all[8].APIPrefix != "/api/v1/ext4" || all[8].OpPrefix != "" || all[8].Path != "/storage/ext4" || len(all[8].Scopes) != 1 || all[8].Scopes[0] != "ext4.read" {
+	if all[8].ID != "ext4" || all[8].APIPrefix != "/api/v1/ext4" || all[8].OpPrefix != "ext4." || all[8].Path != "/storage/ext4" || len(all[8].Scopes) != 2 || all[8].Scopes[0] != "ext4.read" || all[8].Scopes[1] != "ext4.format" {
 		t.Fatalf("ext4 module: %+v (new modules need review)", all[8])
 	}
 	if all[9].ID != "mdadm" || all[9].APIPrefix != "/api/v1/mdadm" || all[9].OpPrefix != "" || all[9].Path != "/storage/mdadm" || len(all[9].Scopes) != 1 || all[9].Scopes[0] != "mdadm.read" {
@@ -59,7 +59,8 @@ func TestRegistryIsClosed(t *testing.T) {
 	}
 	for op, want := range map[string]string{"services.unit.apply": "services", "operations.journal.list": "", "broker.info": "", "servicesx": "", "storage.probe": "storage",
 		"host.settings.plan": "", "host.settings.apply": "", "packages.installed": "packages", "packages.search": "packages", "packagesx": "",
-		"mergerfs.snapraid.status": "mergerfs", "mergerfs.pool.apply": "mergerfs", "mergerfs.maintain.apply": "mergerfs", "mergerfsx.status": ""} {
+		"mergerfs.snapraid.status": "mergerfs", "mergerfs.pool.apply": "mergerfs", "mergerfs.maintain.apply": "mergerfs", "mergerfsx.status": "",
+		"ext4.format.plan": "ext4", "ext4.format.apply": "ext4"} {
 		if got := ForOp(op); got != want {
 			t.Errorf("ForOp(%q) = %q", op, got)
 		}

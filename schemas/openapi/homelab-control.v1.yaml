@@ -56,7 +56,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, services.systemctl, storage.read, storage.probe, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read, mergerfs.configure, mergerfs.maintain, zfs.read, lvm.read, btrfs.read, ext4.read, mdadm.read, f2fs.read, xfs.read] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, services.systemctl, storage.read, storage.probe, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read, mergerfs.configure, mergerfs.maintain, zfs.read, lvm.read, btrfs.read, ext4.read, ext4.format, mdadm.read, f2fs.read, xfs.read] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
@@ -1382,7 +1382,8 @@ components:
       required: [tooling, ext4, kernelExt4]
       description: >
         Read-only ext4 checkpoint. The dumpe2fs binary is Stat'd, never
-        executed. No format, grow, or repair exists. Audit records mount
+        executed. This inventory does not format, grow, or repair. Format is
+        Ext4FormatPlan / Ext4FormatOutcome. Audit records mount
         counts only. A mount source is a /dev path from bounded
         /proc/self/mountinfo. Package names are named only where verified; an
         unknown family names no package.
@@ -1440,6 +1441,34 @@ components:
           properties:
             present: { type: boolean }
             reason: { type: string }
+    Ext4FormatPlan:
+      type: object
+      required: [action, risk, step_up_required, confirmation_required, token, expires_at, identity_kind, rdev, effect, consequences, warnings]
+      description: Review of one ext4 format. The disk is not formatted.
+      properties:
+        action: { type: string, const: format }
+        risk: { type: string, const: destructive }
+        step_up_required: { type: boolean }
+        confirmation_required: { type: boolean }
+        token: { type: string }
+        expires_at: { type: string, format: date-time }
+        identity_kind: { type: string, enum: [wwn, nvme-uuid, serial] }
+        rdev: { type: string }
+        effect: { type: string }
+        consequences: { type: array, items: { type: string } }
+        warnings: { type: array, items: { type: string } }
+    Ext4FormatOutcome:
+      type: object
+      required: [operation_id, action, outcome, message, started_at, finished_at]
+      description: Result of one ext4 format. succeeded means mkfs.ext4 exited 0 and the device identity still matched. The superblock is not read back.
+      properties:
+        operation_id: { type: string }
+        action: { type: string, const: format }
+        outcome: { type: string, enum: [succeeded, failed, uncertain] }
+        message: { type: string }
+        recovery: { type: array, items: { type: string } }
+        started_at: { type: string, format: date-time }
+        finished_at: { type: string, format: date-time }
     MdadmInventory:
       type: object
       required: [tooling, md]
@@ -2949,8 +2978,10 @@ paths:
         tooling is the dumpe2fs binary, Stat'd and never executed. An unknown
         family names no package and never adds a third-party repository.
         kernelExt4 is a read-only /proc/filesystems probe (ext4 type only;
-        listed is not proof a filesystem is mounted). No mkfs, tune2fs, resize2fs, or e2fsck exists. No device open or
-        module load exists. Origin and X-CSRF-Token are required; audit records
+        listed is not proof a filesystem is mounted). This GET does not format,
+        grow, or repair a filesystem and does not open a device or load a
+        module. Format is POST /ext4/format/plan and POST /ext4/format/apply
+        (scope ext4.format). Origin and X-CSRF-Token are required; audit records
         counts only, never device or mountpoint paths.
       security: [{ session: [] }]
       x-required-scope: ext4.read
@@ -2962,6 +2993,74 @@ paths:
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: Missing ext4.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: Collection busy, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /ext4/format/plan:
+    post:
+      summary: Review a quiet ext4 format of one by-id disk (scope ext4.format, broker op ext4.format.plan). Nothing is formatted.
+      description: >
+        Requires ext4.format. ext4.read does not grant this. The body names one
+        /dev/disk/by-id path, a persist identity (wwn, nvme-uuid, or serial),
+        and confirm exactly ["format"]. The plan token is bound to that
+        identity. The by-id path is discovery and is part of the state digest.
+        The disk must be a block device, unmounted, and without holders.
+        Password re-entry is required on apply. Origin and X-CSRF-Token are
+        required. The audit record stores the identity kind, not the path.
+      security: [{ session: [] }]
+      x-required-scope: ext4.format
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [by_id, identity_kind, identity_value, confirm]
+              properties:
+                by_id: { type: string, maxLength: 128 }
+                identity_kind: { type: string, enum: [wwn, nvme-uuid, serial] }
+                identity_value: { type: string, maxLength: 128 }
+                confirm: { type: array, items: { type: string }, minItems: 1, maxItems: 1 }
+      responses:
+        '200': { description: Plan token. The disk was not formatted., content: { application/json: { schema: { $ref: '#/components/schemas/Ext4FormatPlan' } } } }
+        '400': { description: Invalid JSON or identity, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: No session, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing ext4.format, policy refusal, or CSRF/Origin rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Another format of this disk is in progress, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '415': { description: Not application/json, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Broker, disk visibility, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /ext4/format/apply:
+    post:
+      summary: Format one reviewed disk with mkfs.ext4 -q (scope ext4.format, broker op ext4.format.apply).
+      description: >
+        Runs the closed template mkfs.ext4 -q -- <one by-id path>. No -F.
+        Requires the plan token and a recent password re-entry. The disk is
+        checked again immediately before exec. A killed format is not retried.
+        ext4.read does not grant this. The main broker unit is unchanged
+        (PrivateDevices=yes). Origin and X-CSRF-Token are required.
+      security: [{ session: [] }]
+      x-required-scope: ext4.format
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [by_id, identity_kind, identity_value, confirm, token]
+              properties:
+                by_id: { type: string, maxLength: 128 }
+                identity_kind: { type: string, enum: [wwn, nvme-uuid, serial] }
+                identity_value: { type: string, maxLength: 128 }
+                confirm: { type: array, items: { type: string }, minItems: 1, maxItems: 1 }
+                token: { type: string, description: Single-use plan token from POST /ext4/format/plan }
+      responses:
+        '200': { description: Outcome. Succeeded means mkfs.ext4 exited 0 and the device identity still matched., content: { application/json: { schema: { $ref: '#/components/schemas/Ext4FormatOutcome' } } } }
+        '400': { description: Invalid JSON or malformed token, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: No session, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing ext4.format, step-up required, or CSRF/Origin rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: Plan invalid, expired, already used, or the disk changed, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '415': { description: Not application/json, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '502': { description: The helper did not return a result, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Audit unavailable before exec, or the broker journal is down, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /mdadm:
     get:
       summary: Read-only Linux software RAID inventory (scope mdadm.read).
