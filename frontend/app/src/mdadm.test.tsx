@@ -123,7 +123,7 @@ describe('Software RAID read-only page', () => {
     data.md.arraysTruncated = true;
     vi.mocked(getMdadm).mockResolvedValue(data);
     renderPage();
-    expect(await screen.findByText(/Showing 1 arrays from a truncated inventory/)).toBeTruthy();
+    expect(await screen.findByText(/Showing 2 arrays from a truncated inventory/)).toBeTruthy();
     expect(screen.getByRole('rowheader', { name: 'md0' })).toBeTruthy();
   });
 });
