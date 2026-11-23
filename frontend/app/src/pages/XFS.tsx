@@ -90,7 +90,7 @@ export function XFSView({
           <header className="panel-head">
             <h2 id="xfs-offer-heading">XFS tools</h2>
           </header>
-          <p>xfs_info is required. This page does not run it.</p>
+          <p>Missing required tools: {missingRequired.map((tool) => tool.id).join(', ')}. This page does not run them.</p>
           <RequiredOffers items={missingRequired} canInstall={canInstall} />
         </section>
       )}
@@ -107,8 +107,8 @@ export function XFSView({
         ) : null}
         {xfs.mounts.length > 0 ? (
           <ul className="pool-list">
-            {xfs.mounts.map((m) => (
-              <li key={`${m.mountpoint}\0${m.device}`}>
+            {xfs.mounts.map((m, index) => (
+              <li key={`${m.mountpoint}\0${m.device}\0${index}`}>
                 <code>{m.mountpoint}</code>
                 <dl>
                   <dt>Device</dt>
