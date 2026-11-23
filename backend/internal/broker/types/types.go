@@ -465,6 +465,36 @@ type HostSettingChange struct {
 	Reason    string `json:"reason,omitempty"`
 }
 
+// Ext4FormatPlan is the result of ext4.format.plan. The token is bound to
+// the persist identity (wwn, nvme-uuid, or serial), not to the by-id path
+// alone. Nothing is formatted.
+type Ext4FormatPlan struct {
+	Action               string    `json:"action"`
+	Risk                 string    `json:"risk"`
+	StepUpRequired       bool      `json:"step_up_required"`
+	ConfirmationRequired bool      `json:"confirmation_required"`
+	Token                string    `json:"token"`
+	ExpiresAt            time.Time `json:"expires_at"`
+	IdentityKind         string    `json:"identity_kind"`
+	Rdev                 string    `json:"rdev"`
+	Effect               string    `json:"effect"`
+	Consequences         []string  `json:"consequences"`
+	Warnings             []string  `json:"warnings"`
+}
+
+// Ext4FormatOutcome is the result of ext4.format.apply. Succeeded means
+// the format child exited 0 and the device rdev still matched the plan. It does
+// not read the superblock back.
+type Ext4FormatOutcome struct {
+	OperationID string    `json:"operation_id"`
+	Action      string    `json:"action"`
+	Outcome     string    `json:"outcome"`
+	Message     string    `json:"message"`
+	Recovery    []string  `json:"recovery,omitempty"`
+	StartedAt   time.Time `json:"started_at"`
+	FinishedAt  time.Time `json:"finished_at"`
+}
+
 // HostSettingsOutcome is the result of host.settings.apply. "succeeded" means
 // every requested field matches hostnamectl/timedatectl after the change.
 type HostSettingsOutcome struct {

@@ -60,6 +60,10 @@ var opTimeouts = map[string]time.Duration{
 	// disruptive applies. The client must outlive it.
 	"services.systemctl.plan":  20 * time.Second,
 	"services.systemctl.apply": 70 * time.Second,
+	// ext4 format: plan is a 15s root read; apply's broker budget is 9 minutes
+	// so a large disk can finish. The client must outlive both.
+	"ext4.format.plan":  20 * time.Second,
+	"ext4.format.apply": 10 * time.Minute,
 }
 
 // deadline is the client deadline for op.
