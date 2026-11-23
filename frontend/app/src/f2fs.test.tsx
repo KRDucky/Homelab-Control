@@ -81,6 +81,7 @@ describe('f2fs read-only page', () => {
       <F2fs csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
     );
     expect(await screen.findByRole('heading', { name: 'f2fs tools' })).toBeTruthy();
+    expect(screen.getByText(/separate Software Center search and planning dialog/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Install f2fs-tools' }));
     const dialog = await screen.findByRole('dialog', { name: 'Install f2fs-tools' });
     expect(within(dialog).getByRole('link', { name: 'Open Software Center' }).getAttribute('href')).toBe(
@@ -88,14 +89,14 @@ describe('f2fs read-only page', () => {
     );
   });
 
-  it('shows too many mounts to list when the inventory was truncated', async () => {
+  it('identifies the displayed count and incomplete inventory when mounts were omitted', async () => {
     const data = inventory({ f2fsInstalled: true });
     data.f2fs.mountsTruncated = true;
     vi.mocked(getF2fs).mockResolvedValue(data);
     render(
       <F2fs csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
     );
-    expect(await screen.findByText('too many mounts to list')).toBeTruthy();
+    expect(await screen.findByText(/Showing 1 observed mounts; this inventory is incomplete/)).toBeTruthy();
     expect(screen.getByText('/mnt/data')).toBeTruthy();
   });
 
