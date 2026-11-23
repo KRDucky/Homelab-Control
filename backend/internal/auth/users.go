@@ -142,6 +142,11 @@ const (
 	// DefaultScopes and implied by nothing, including storage.read.
 	// RAID5/6 is not offered.
 	ScopeBtrfsRead = "btrfs.read"
+	// ScopeExt4Read allows the read-only ext4 inventory (M7 first
+	// checkpoint): observed ext4 mounts and dumpe2fs binary presence, with
+	// no writes, no broker ops, and no dumpe2fs execution. Not in
+	// DefaultScopes and implied by nothing, including storage.read.
+	ScopeExt4Read = "ext4.read"
 )
 
 // KnownScopes lists every scope the server understands. Unknown scopes in the
@@ -178,6 +183,7 @@ var KnownScopes = map[string]bool{
 	ScopeZFSRead:              true,
 	ScopeLVMRead:              true,
 	ScopeBtrfsRead:            true,
+	ScopeExt4Read:             true,
 }
 
 // DefaultScopes are granted by `hlctl user add` when --scopes is not given.

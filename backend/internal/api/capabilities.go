@@ -20,6 +20,7 @@ import (
 	"homelab-control/backend/internal/broker/types"
 	"homelab-control/backend/internal/brokerclient"
 	"homelab-control/backend/internal/btrfsinfo"
+	"homelab-control/backend/internal/ext4info"
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
 	"homelab-control/backend/internal/lvminfo"
@@ -297,14 +298,29 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 			btrfs.Status, btrfs.Reason = CapDegraded, reason
 		}
 	}
-	caps := []Capability{gate(traefik), gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages), gate(mergerfs), gate(zfs), gate(lvm), gate(btrfs)}
+
+	// M7 first checkpoint: one ext4 page, read-only. Available when the
+	// dumpe2fs binary and kernel ext4 are listed (mounts may still be empty);
+	// degraded when either is missing so the page still mounts. Probe is
+	// os.Stat of well-known paths plus one /proc/filesystems read (no
+	// mountinfo, no dumpe2fs exec), and only when the module is enabled and
+	// the session has ext4.read.
+	ext4 := Capability{ID: "ext4", Label: "ext4", Path: "/storage/ext4", Scope: auth.ScopeExt4Read, Status: CapAvailable}
+	if s.mods.Enabled("ext4") && sess.HasScope(auth.ScopeExt4Read) {
+		if ok, reason := ext4info.ProbeCapability(s.packageFamily()); ok {
+			ext4.Status, ext4.Reason = CapAvailable, ""
+		} else {
+			ext4.Status, ext4.Reason = CapDegraded, reason
+		}
+	}
+	caps := []Capability{gate(traefik), gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages), gate(mergerfs), gate(zfs), gate(lvm), gate(btrfs), gate(ext4)}
 	// Navigation follows the module registry: a disabled module contributes
 	// no capability (and therefore no navigation entry).
 	resp.Capabilities = caps[:0]
 	for _, c := range caps {
-		// M8/M7: mergerfs, zfs, lvm, and btrfs UI paths do not equal their
+		// M8/M7: mergerfs, zfs, lvm, btrfs, and ext4 UI paths do not equal their
 		// API prefixes, so ForRoute cannot map them; gate by module ID directly.
-		if (c.ID == "mergerfs" && !s.mods.Enabled("mergerfs")) || (c.ID == "zfs" && !s.mods.Enabled("zfs")) || (c.ID == "lvm" && !s.mods.Enabled("lvm")) || (c.ID == "btrfs" && !s.mods.Enabled("btrfs")) {
+		if (c.ID == "mergerfs" && !s.mods.Enabled("mergerfs")) || (c.ID == "zfs" && !s.mods.Enabled("zfs")) || (c.ID == "lvm" && !s.mods.Enabled("lvm")) || (c.ID == "btrfs" && !s.mods.Enabled("btrfs")) || (c.ID == "ext4" && !s.mods.Enabled("ext4")) {
 			continue
 		}
 		if s.mods.Enabled(modules.ForRoute("/api/v1" + c.Path)) {
