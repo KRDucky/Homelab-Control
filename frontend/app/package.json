@@ -14,7 +14,7 @@
     "typecheck": "tsc -b --pretty",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --write src/ThemePreview.tsx src/ThemePreview.css src/pages/ThemeStudio.tsx src/tdk-studio.test.tsx src/components.css && node -e \"const fs=require('fs');for(const p of ['src/ThemePreview.tsx','src/ThemePreview.css','src/pages/ThemeStudio.tsx','src/tdk-studio.test.tsx','src/components.css']){const s=fs.readFileSync(p).toString('base64');for(let i=0;i<s.length;i+=1800)console.log('HCFMT|'+p+'|'+(i/1800)+'|'+s.slice(i,i+1800))}\" && exit 1",
+    "format:check": "prettier --check .",
     "test": "vitest run"
   },
   "dependencies": {
