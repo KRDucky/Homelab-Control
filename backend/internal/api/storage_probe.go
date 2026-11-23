@@ -66,7 +66,10 @@ func (s *Server) handleStorageProbe(w http.ResponseWriter, r *http.Request, sess
 	case s.storageSem <- struct{}{}:
 		defer func() { <-s.storageSem }()
 	default:
-		_ = s.auditLog("storage.probe", sess.Username, r, "conflict", "")
+		if err := s.auditLog("storage.probe", sess.Username, r, "conflict", ""); err != nil {
+			writeError(w, http.StatusServiceUnavailable, "audit_unavailable", "The probe refusal could not be audited.")
+			return
+		}
 		writeError(w, http.StatusConflict, "conflict", "A storage probe is already in progress.")
 		return
 	}
