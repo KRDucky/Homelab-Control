@@ -25,6 +25,7 @@ import { LVM } from './pages/LVM';
 import { Btrfs } from './pages/Btrfs';
 import { Ext4 } from './pages/Ext4';
 import { Mdadm } from './pages/Mdadm';
+import { F2fs } from './pages/F2fs';
 import { XFS } from './pages/XFS';
 import { HostSettingsPage } from './pages/HostSettings';
 import { OverviewPage } from './pages/OverviewPage';
@@ -234,6 +235,15 @@ export function App() {
   else if (route?.id === 'mdadm')
     page = (
       <Mdadm
+        csrf={session.csrf_token}
+        scopes={session.scopes ?? []}
+        packagesEnabled={packagesEnabled}
+        onUnauthorized={signedOut}
+      />
+    );
+  else if (route?.id === 'f2fs')
+    page = (
+      <F2fs
         csrf={session.csrf_token}
         scopes={session.scopes ?? []}
         packagesEnabled={packagesEnabled}

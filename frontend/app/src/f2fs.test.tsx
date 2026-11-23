@@ -1,0 +1,142 @@
+// SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+// SPDX-License-Identifier: GPL-3.0-or-later
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { F2fs } from './pages/F2fs';
+import { getF2fs, type F2fsInventory, type F2fsToolItem } from './api';
+
+vi.mock('./api', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('./api')>();
+  return { ...mod, getF2fs: vi.fn() };
+});
+
+const csrf = 'token';
+const onUnauthorized = vi.fn();
+
+function item(id: string, pkg: string, installed: boolean, binary = ''): F2fsToolItem {
+  return { id, package: pkg, installed, binary };
+}
+
+function inventory(opts: {
+  f2fsInstalled: boolean;
+  kernelPresent?: boolean;
+  family?: string;
+  pkg?: string;
+  mounts?: boolean;
+}): F2fsInventory {
+  const kernelPresent = opts.kernelPresent ?? true;
+  const pkg = opts.pkg ?? 'f2fs-tools';
+  return {
+    tooling: {
+      family: opts.family ?? 'debian',
+      required: [item('dump.f2fs', pkg, opts.f2fsInstalled, opts.f2fsInstalled ? '/usr/sbin/dump.f2fs' : '')],
+      optional: [],
+    },
+    f2fs:
+      opts.mounts === false
+        ? {
+            present: opts.f2fsInstalled,
+            reason: opts.f2fsInstalled ? '' : 'dump.f2fs binary was not found',
+            mounts: [],
+            mountsTruncated: false,
+          }
+        : {
+            present: true,
+            reason: '',
+            mounts: [{ mountpoint: '/mnt/data', device: '/dev/sda1' }],
+            mountsTruncated: false,
+          },
+    kernelF2fs: kernelPresent
+      ? { present: true, reason: '' }
+      : { present: false, reason: 'Kernel f2fs is not currently listed.' },
+  };
+}
+
+const originalShowModal = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'showModal');
+const originalClose = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'close');
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
+    configurable: true,
+    value: function (this: HTMLDialogElement) {
+      this.setAttribute('open', '');
+    },
+  });
+  Object.defineProperty(HTMLDialogElement.prototype, 'close', {
+    configurable: true,
+    value: function (this: HTMLDialogElement) {
+      this.removeAttribute('open');
+    },
+  });
+});
+afterEach(() => {
+  cleanup();
+  for (const [name, original] of [
+    ['showModal', originalShowModal],
+    ['close', originalClose],
+  ] as const) {
+    if (original) Object.defineProperty(HTMLDialogElement.prototype, name, original);
+    else Reflect.deleteProperty(HTMLDialogElement.prototype, name);
+  }
+});
+
+describe('f2fs read-only page', () => {
+  it('renders an observed mount and says the binary is probed, not run', async () => {
+    vi.mocked(getF2fs).mockResolvedValue(inventory({ f2fsInstalled: true }));
+    render(
+      <F2fs csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
+    );
+    expect(await screen.findByText('/mnt/data')).toBeTruthy();
+    expect(screen.getByText('/dev/sda1')).toBeTruthy();
+    expect(screen.getByText(/The dump.f2fs binary is probed, not run/)).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'f2fs tools' })).toBeNull();
+  });
+
+  it('shows the install offer for f2fs-tools', async () => {
+    vi.mocked(getF2fs).mockResolvedValue(inventory({ f2fsInstalled: false, mounts: false }));
+    render(
+      <F2fs csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
+    );
+    expect(await screen.findByRole('heading', { name: 'f2fs tools' })).toBeTruthy();
+    expect(screen.getByText(/open Software Center planning/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Install f2fs-tools' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Install f2fs-tools' });
+    expect(within(dialog).getByRole('link', { name: 'Open Software Center' }).getAttribute('href')).toBe(
+      '/software?q=f2fs-tools',
+    );
+  });
+
+  it('identifies the displayed count and incomplete inventory when mounts were omitted', async () => {
+    const data = inventory({ f2fsInstalled: true });
+    data.f2fs.mountsTruncated = true;
+    vi.mocked(getF2fs).mockResolvedValue(data);
+    render(
+      <F2fs csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
+    );
+    expect(await screen.findByText(/Showing 1 mounts; inventory incomplete/)).toBeTruthy();
+    expect(screen.getByText('/mnt/data')).toBeTruthy();
+  });
+
+  it('warns about an incomplete inventory even when no mounts are displayed', async () => {
+    const data = inventory({ f2fsInstalled: true, mounts: false });
+    data.f2fs.mountsTruncated = true;
+    vi.mocked(getF2fs).mockResolvedValue(data);
+    render(
+      <F2fs csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
+    );
+    expect(await screen.findByText(/Showing 0 mounts; inventory incomplete/)).toBeTruthy();
+    expect(screen.getByText('No f2fs mounts found.')).toBeTruthy();
+  });
+
+  it('does not invent a package name for an unknown family', async () => {
+    vi.mocked(getF2fs).mockResolvedValue(
+      inventory({ f2fsInstalled: false, mounts: false, family: 'unknown', pkg: '' }),
+    );
+    render(
+      <F2fs csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
+    );
+    expect(await screen.findByText(/cannot determine a package name for dump\.f2fs/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Install/ })).toBeNull();
+  });
+});

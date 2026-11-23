@@ -40,7 +40,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-	"unicode/utf8"
 
 	"homelab-control/backend/internal/lvmmeta"
 )
@@ -751,31 +750,18 @@ func preflightBytes(res Result) int {
 	return n
 }
 
-// jsonStringLen returns the exact number of bytes encoding/json would emit for
-// s as a JSON string (including the surrounding quotes) with HTML escaping
-// disabled. It mirrors appendString: invalid UTF-8 bytes and control bytes
-// become six-byte \u00XX (or \ufffd), quotes/backslashes and the common
-// escapes are two bytes, U+2028/U+2029 are always escaped to six bytes, and
-// everything else is emitted as its UTF-8 bytes.
+// jsonStringLen returns the JSON-encoded string length,
+// excluding Encoder.Encode's trailing newline.
 func jsonStringLen(s string) int {
-	n := 2 // opening and closing quotes
-	for i := 0; i < len(s); {
-		r, size := utf8.DecodeRuneInString(s[i:])
-		switch {
-		case r == utf8.RuneError && size == 1:
-			n += 6 // \ufffd
-		case r == '"' || r == '\\' || r == '\b' || r == '\f' || r == '\n' || r == '\r' || r == '\t':
-			n += 2
-		case r < 0x20:
-			n += 6 // \u00XX
-		case r == '\u2028' || r == '\u2029':
-			n += 6
-		default:
-			n += size
-		}
-		i += size
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+
+	if err := enc.Encode(s); err != nil {
+		panic(err) // Encoding a string cannot fail.
 	}
-	return n
+
+	return buf.Len() - 1
 }
 
 // UnmarshalRequest parses a closed typed Request. It rejects unknown fields,

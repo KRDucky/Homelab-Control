@@ -152,6 +152,11 @@ const (
 	// broker ops, and no mdadm execution. Not in DefaultScopes and implied by
 	// nothing, including storage.read.
 	ScopeMdadmRead = "mdadm.read"
+	// ScopeF2fsRead allows the read-only f2fs inventory (M7 first
+	// checkpoint): observed f2fs mounts and dump.f2fs binary presence, with
+	// no writes, no broker ops, and no dump.f2fs execution. Not in
+	// DefaultScopes and implied by nothing, including storage.read.
+	ScopeF2fsRead = "f2fs.read"
 	// ScopeXFSRead allows the read-only XFS inventory (M7 first
 	// checkpoint): observed xfs mounts and xfs_info binary presence, with
 	// no writes, no broker ops, and no xfs_info execution. Not in
@@ -195,6 +200,7 @@ var KnownScopes = map[string]bool{
 	ScopeBtrfsRead:            true,
 	ScopeExt4Read:             true,
 	ScopeMdadmRead:            true,
+	ScopeF2fsRead:             true,
 	ScopeXFSRead:              true,
 }
 
