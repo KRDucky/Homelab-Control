@@ -1503,7 +1503,7 @@ export interface XFSKernel {
 export interface XFSInventory {
   tooling: XFSTooling;
   xfs: XFSInfo;
-  kernelXfs: XFSKernel;
+  kernelXfs?: XFSKernel;
 }
 
 export function getXFS(csrf: string): Promise<XFSInventory> {

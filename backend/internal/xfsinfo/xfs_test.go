@@ -160,3 +160,20 @@ func TestCollectFixture(t *testing.T) {
 		t.Fatalf("%+v", snap.Xfs.Mounts[0])
 	}
 }
+
+func TestAbsentReasonPrefersTruncation(t *testing.T) {
+	if got := absentReason(true, "xfs_info binary was not found"); got != "mount inventory was truncated; xfs presence could not be determined" {
+		t.Fatal(got)
+	}
+	if got := absentReason(false, "xfs_info binary was not found"); got != "xfs_info binary was not found" {
+		t.Fatal(got)
+	}
+}
+
+func TestCollectReturnsCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := Collect(ctx, t.TempDir(), "debian"); err == nil {
+		t.Fatal("expected cancellation")
+	}
+}
