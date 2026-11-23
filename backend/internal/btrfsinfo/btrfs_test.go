@@ -167,3 +167,11 @@ func TestCollectFixture(t *testing.T) {
 		t.Fatalf("%+v", snap.Btrfs.Mounts[0])
 	}
 }
+
+func TestCollectReturnsCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := Collect(ctx, t.TempDir(), "debian"); err == nil {
+		t.Fatal("expected cancellation")
+	}
+}

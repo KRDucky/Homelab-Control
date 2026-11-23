@@ -1505,7 +1505,7 @@ export interface BtrfsKernel {
 export interface BtrfsInventory {
   tooling: BtrfsTooling;
   btrfs: BtrfsInfo;
-  kernelBtrfs: BtrfsKernel;
+  kernelBtrfs?: BtrfsKernel;
 }
 
 export function getBtrfs(csrf: string): Promise<BtrfsInventory> {

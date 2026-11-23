@@ -86,8 +86,10 @@ export function BtrfsView({
           </p>
         ) : (
           <p className="banner" role="status">
-            {kernelBtrfs?.reason ||
-              'Kernel Btrfs is not currently listed in /proc/filesystems (this page does not load modules).'}
+            {kernelBtrfs == null
+              ? 'Kernel Btrfs capability data is unavailable; its status has not been checked.'
+              : kernelBtrfs.reason ||
+                'Kernel Btrfs is not currently listed in /proc/filesystems (this page does not load modules).'}
           </p>
         )}
       </section>
@@ -122,13 +124,13 @@ export function BtrfsView({
         </header>
         {btrfs.mountsTruncated ? (
           <p className="banner" role="status">
-            too many mounts to list
+            The mount list is incomplete. Some Btrfs mounts may be omitted.
           </p>
         ) : null}
         {btrfs.mounts.length > 0 ? (
           <ul className="pool-list">
-            {btrfs.mounts.map((m) => (
-              <li key={`${m.mountpoint}\0${m.device}\0${m.subvolId}`}>
+            {btrfs.mounts.map((m, index) => (
+              <li key={`${m.mountpoint}\0${m.device}\0${m.subvolId}\0${index}`}>
                 <code>{m.mountpoint}</code>
                 <dl>
                   <dt>Device</dt>
