@@ -6,6 +6,7 @@ package f2fsinfo
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,16 +46,16 @@ func TestParseMountInfoKeepsOnlyF2fs(t *testing.T) {
 
 func TestParseMountInfoSkipsUnsafeDevice(t *testing.T) {
 	in := "41 1 0:36 / /mnt/skip rw - f2fs /dev/../sda rw\n" + f2fsLine(43)
-	mounts, _, err := ParseMountInfo(strings.NewReader(in))
-	if err != nil || len(mounts) != 1 || mounts[0].Device != "/dev/sda1" {
-		t.Fatalf("mounts=%v err=%v", mounts, err)
+	mounts, truncated, err := ParseMountInfo(strings.NewReader(in))
+	if err != nil || !truncated || len(mounts) != 1 || mounts[0].Device != "/dev/sda1" {
+		t.Fatalf("mounts=%v truncated=%v err=%v", mounts, truncated, err)
 	}
 }
 
 func TestParseMountInfoIgnoresInvalidNonDeviceSource(t *testing.T) {
 	in := "41 1 0:36 / /mnt/skip rw - f2fs remote\\999path rw\n" + f2fsLine(43)
 	mounts, truncated, err := ParseMountInfo(strings.NewReader(in))
-	if err != nil || truncated || len(mounts) != 1 || mounts[0].Device != "/dev/sda1" {
+	if err != nil || !truncated || len(mounts) != 1 || mounts[0].Device != "/dev/sda1" {
 		t.Fatalf("mounts=%v truncated=%v err=%v", mounts, truncated, err)
 	}
 }
@@ -82,6 +83,14 @@ func TestParseMountInfoKeepsDottedNamesAndRejectsDotDot(t *testing.T) {
 	}
 	if mounts[0].Mountpoint != "/mnt/foo..bar" || mounts[0].Device != "/dev/disk..1" {
 		t.Fatalf("%+v", mounts[0])
+	}
+}
+
+func TestParseMountInfoFailsClosedOnMissingSeparator(t *testing.T) {
+	in := f2fsLine(40) + "41 1 0:36 / /mnt/bad rw f2fs /dev/sdb1 rw\n"
+	mounts, truncated, err := ParseMountInfo(strings.NewReader(in))
+	if err == nil || mounts != nil || truncated {
+		t.Fatalf("malformed mountinfo must fail closed: mounts=%v truncated=%v err=%v", mounts, truncated, err)
 	}
 }
 
@@ -175,7 +184,7 @@ func TestAbsentReasonPrefersTruncation(t *testing.T) {
 func TestCollectReturnsCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err := Collect(ctx, t.TempDir(), "debian"); err == nil {
-		t.Fatal("expected cancellation")
+	if _, err := Collect(ctx, t.TempDir(), "debian"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got %v", err)
 	}
 }
