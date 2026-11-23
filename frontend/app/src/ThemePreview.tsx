@@ -112,7 +112,7 @@ export function ThemePreview({
                 </article>
                 <article className="theme-mini-wide">
                   <h4>Resource trends</h4>
-                  <div className="theme-mini-chart" aria-label="Simulated CPU and RAM trend">
+                  <div className="theme-mini-chart" role="img" aria-label="Simulated CPU and RAM trend">
                     <svg viewBox="0 0 320 84" preserveAspectRatio="none" aria-hidden="true">
                       <path d="M0 80 H320 M0 40 H320" className="theme-mini-gridline" />
                       <polyline
