@@ -106,7 +106,7 @@ describe('ext4 read-only page', () => {
     render(
       <Ext4 csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
     );
-    expect(await screen.findByText(/cannot determine the package name/)).toBeTruthy();
+    expect(await screen.findByText(/cannot determine a package name for dumpe2fs/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Install/ })).toBeNull();
   });
 });
