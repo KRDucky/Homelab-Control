@@ -69,4 +69,38 @@ describe('Theme Development Kit in the WebUI', () => {
     expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'text-primary hex colour' }));
     expect(activeTheme()).toBeNull();
   });
+  it('switches representative scenes and responsive sizes without modifying the active theme', () => {
+    render(<ThemeStudio />);
+    const preview = screen.getByLabelText('Theme preview with example data');
+    expect(screen.getByLabelText('Dashboard scene')).toBeTruthy();
+    expect(preview.getAttribute('data-preview-scene')).toBe('dashboard');
+    expect(preview.getAttribute('data-preview-width')).toBe('desktop');
+    expect(preview.querySelector('[aria-label="Example sidebar"]')).not.toBeNull();
+    expect(preview.textContent).toContain('Resource trends');
+    expect(preview.textContent).not.toContain('Webmin');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Navigation' }));
+    expect(screen.getByLabelText('Navigation scene')).toBeTruthy();
+    expect(preview.textContent).toContain('ZFS pools');
+    fireEvent.click(screen.getByRole('button', { name: 'Module detail' }));
+    expect(screen.getByLabelText('Module scene')).toBeTruthy();
+    expect(preview.textContent).toContain('backup.service');
+
+    fireEvent.change(screen.getByLabelText('Preview width'), { target: { value: 'phone' } });
+    expect(preview.getAttribute('data-preview-width')).toBe('phone');
+    expect(preview.querySelector('[aria-label="Example sidebar"]')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Preview width'), { target: { value: 'tablet' } });
+    expect(preview.querySelector('[aria-label="Example sidebar"]')).not.toBeNull();
+
+    fireEvent.click(screen.getByText('accent colours'));
+    fireEvent.change(screen.getByRole('textbox', { name: 'accent-base hex colour' }), {
+      target: { value: '#2288aa' },
+    });
+    expect((preview as HTMLElement).style.getPropertyValue('--hc-color-accent-base')).toBe('#2288aa');
+    expect(document.documentElement.style.getPropertyValue('--hc-color-accent-base')).toBe('');
+    expect(activeTheme()).toBeNull();
+    expect(localStorage.getItem('hc.dashboard.v1')).toBeNull();
+    expect(localStorage.getItem('hc.theme.active.v1')).toBeNull();
+  });
+
 });
