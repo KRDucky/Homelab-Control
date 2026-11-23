@@ -237,7 +237,7 @@ func TestUnitFilesCapabilityNeedsFilesScope(t *testing.T) {
 	}
 }
 
-// The mergerfs, zfs, lvm, btrfs and xfs pages live under /storage/* in the UI, but
+// The mergerfs, zfs, lvm, btrfs, ext4 and xfs pages live under /storage/* in the UI, but
 // each is its own module. Disabling Storage must not hide them, and disabling
 // one of them must not hide Storage.
 func TestStorageSubpageCapabilitiesFollowTheirOwnModule(t *testing.T) {
@@ -248,7 +248,7 @@ func TestStorageSubpageCapabilitiesFollowTheirOwnModule(t *testing.T) {
 	}
 	h.srv.WithModules(set)
 	c := caps(t, h)
-	for _, id := range []string{"mergerfs", "zfs", "lvm", "btrfs", "xfs"} {
+	for _, id := range []string{"mergerfs", "zfs", "lvm", "btrfs", "ext4", "xfs"} {
 		if _, ok := c[id]; !ok {
 			t.Errorf("%s capability hidden when only storage is disabled", id)
 		}
@@ -257,13 +257,13 @@ func TestStorageSubpageCapabilitiesFollowTheirOwnModule(t *testing.T) {
 		t.Error("storage capability listed while the storage module is disabled")
 	}
 
-	set, err = modules.Parse([]byte(`{"version":1,"disabled":["mergerfs","zfs","lvm","btrfs","xfs"]}`))
+	set, err = modules.Parse([]byte(`{"version":1,"disabled":["mergerfs","zfs","lvm","btrfs","ext4","xfs"]}`))
 	if err != nil {
 		t.Fatal(err)
 	}
 	h.srv.WithModules(set)
 	c = caps(t, h)
-	for _, id := range []string{"mergerfs", "zfs", "lvm", "btrfs", "xfs"} {
+	for _, id := range []string{"mergerfs", "zfs", "lvm", "btrfs", "ext4", "xfs"} {
 		if _, ok := c[id]; ok {
 			t.Errorf("%s capability listed while its module is disabled", id)
 		}
