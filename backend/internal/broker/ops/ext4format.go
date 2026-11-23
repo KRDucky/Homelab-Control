@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -27,14 +28,16 @@ import (
 // Review rules:
 //   - the only argv is runner.RootMkfsExt4 (mkfs.ext4 -q -- <one by-id>);
 //   - no -F, no extra flags, no caller argv;
-//   - persist identity is wwn, nvme-uuid, or serial; the by-id string is
-//     discovery and is inside the state digest, not the token target (G4);
+//   - persist identity is wwn, nvme-uuid, or serial, and the by-id basename
+//     must name that same identity; the by-id string is also inside the
+//     state digest, not the token target (G4);
 //   - risk is destructive, so a recent password re-entry is required;
-//   - the device must be a block device, unmounted (including partitions
-//     and swap), and without sysfs holders or slaves, under the format lock;
+//   - the device must be a block device, unmounted (including swap and
+//     partitions listed as sysfs symlinks), and without holders or slaves,
+//     under the format lock;
 //   - that check runs again immediately before exec (G2);
 //   - the child uses the runner's non-TTY stdin (G1);
-//   - a killed or timed-out mkfs is uncertain and is not retried (G5);
+//   - a killed, timed-out, or non-zero mkfs is uncertain and is not retried (G5);
 //   - the main broker unit is not widened (G3). A broker that cannot see
 //     the device fails closed.
 
@@ -84,6 +87,7 @@ var (
 	ext4WWNValueRE  = regexp.MustCompile(`^(?:naa\.[0-9a-fA-F]{16}|0x[0-9a-fA-F]{16}|0x[0-9a-fA-F]{32}|[0-9a-fA-F]{16}|[0-9a-fA-F]{32})$`)
 	ext4UUIDValueRE = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 	ext4SerialRE    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$`)
+	ext4PartSuffix  = regexp.MustCompile(`^-part[0-9]{1,3}$`)
 )
 
 func ext4FormatAuditArgs(raw json.RawMessage) string {
@@ -130,10 +134,48 @@ func ext4FormatRequest(a ext4FormatArgs) (storagecap.IdentityKind, string, error
 	if err != nil {
 		return "", "", err
 	}
+	if err := ext4IdentityAgrees(kind, value, a.ByID); err != nil {
+		return "", "", err
+	}
 	if len(a.Confirm) != 1 || a.Confirm[0] != string(storagecap.ConfirmFormat) {
 		return "", "", &proto.Error{Code: proto.CodeBadRequest, Message: "confirm must be exactly [format]"}
 	}
 	return kind, value, nil
+}
+
+// ext4IdentityAgrees requires the by-id basename to name the same disk as the
+// persist identity. A virtio path with some other disk's WWN is refused.
+func ext4IdentityAgrees(kind storagecap.IdentityKind, value, byID string) error {
+	base := filepath.Base(byID)
+	if i := strings.LastIndex(base, "-part"); i > 0 && ext4PartSuffix.MatchString(base[i:]) {
+		base = base[:i]
+	}
+	var ok bool
+	switch {
+	case strings.HasPrefix(base, "wwn-0x"):
+		ok = kind == storagecap.IdentityWWN && ext4WWNHex(value) == strings.ToLower(strings.TrimPrefix(base, "wwn-0x"))
+	case strings.HasPrefix(base, "nvme-eui."):
+		ok = kind == storagecap.IdentityWWN && ext4WWNHex(value) == strings.ToLower(strings.TrimPrefix(base, "nvme-eui."))
+	case strings.HasPrefix(base, "nvme-uuid."):
+		ok = kind == storagecap.IdentityNVMeUUID && value == strings.ToLower(strings.TrimPrefix(base, "nvme-uuid."))
+	case strings.HasPrefix(base, "ata-"), strings.HasPrefix(base, "scsi-"), strings.HasPrefix(base, "virtio-"):
+		rest := base[strings.IndexByte(base, '-')+1:]
+		ok = kind == storagecap.IdentitySerial && ext4SerialInName(rest, value)
+	}
+	if !ok {
+		return &proto.Error{Code: proto.CodeBadRequest, Message: "by_id does not match the persist identity"}
+	}
+	return nil
+}
+
+func ext4WWNHex(value string) string {
+	value = strings.ToLower(value)
+	value = strings.TrimPrefix(value, "naa.")
+	return strings.TrimPrefix(value, "0x")
+}
+
+func ext4SerialInName(rest, serial string) bool {
+	return rest == serial || strings.HasSuffix(rest, "_"+serial) || strings.HasSuffix(rest, "-"+serial)
 }
 
 func ext4IdentityTarget(kind storagecap.IdentityKind, value string) string {
@@ -398,7 +440,7 @@ func classifyExt4Format(res runner.Result, runErr error, after Ext4DeviceFact, a
 		}
 		return OutcomeUncertain, "mkfs.ext4 failed and the device identity could not be read back, so the result is not verified."
 	case res.ExitCode != 0:
-		return OutcomeFailed, fmt.Sprintf("mkfs.ext4 exited with status %d. The device identity still matches. Nothing further was run.", res.ExitCode)
+		return OutcomeUncertain, fmt.Sprintf("mkfs.ext4 exited with status %d. The disk may already have been written. Nothing further was run.", res.ExitCode)
 	default:
 		return OutcomeSucceeded, "mkfs.ext4 exited 0 and the device identity still matches the plan. The superblock was not read back."
 	}
