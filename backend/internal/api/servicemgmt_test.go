@@ -307,7 +307,7 @@ func TestDisabledModuleRoutes404(t *testing.T) {
 			t.Errorf("capability %s of a disabled module listed", c.ID)
 		}
 	}
-	if len(cr.Modules) != 7 {
+	if len(cr.Modules) != 8 {
 		t.Fatalf("modules: %+v", cr.Modules)
 	}
 	for _, m := range cr.Modules {
@@ -325,6 +325,9 @@ func TestDisabledModuleRoutes404(t *testing.T) {
 		}
 		if m.ID == "lvm" && !m.Enabled {
 			t.Errorf("lvm module should stay enabled: %+v", m)
+		}
+		if m.ID == "f2fs" && !m.Enabled {
+			t.Errorf("f2fs module should stay enabled: %+v", m)
 		}
 	}
 	// Core routes are unaffected.

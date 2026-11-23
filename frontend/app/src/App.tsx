@@ -22,6 +22,7 @@ import { Software } from './pages/Software';
 import { MergerFS } from './pages/MergerFS';
 import { ZFS } from './pages/ZFS';
 import { LVM } from './pages/LVM';
+import { F2fs } from './pages/F2fs';
 import { HostSettingsPage } from './pages/HostSettings';
 import { OverviewPage } from './pages/OverviewPage';
 import { Services } from './pages/Services';
@@ -203,6 +204,15 @@ export function App() {
   else if (route?.id === 'lvm')
     page = (
       <LVM
+        csrf={session.csrf_token}
+        scopes={session.scopes ?? []}
+        packagesEnabled={packagesEnabled}
+        onUnauthorized={signedOut}
+      />
+    );
+  else if (route?.id === 'f2fs')
+    page = (
+      <F2fs
         csrf={session.csrf_token}
         scopes={session.scopes ?? []}
         packagesEnabled={packagesEnabled}
