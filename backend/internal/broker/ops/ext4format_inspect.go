@@ -193,16 +193,21 @@ func ext4PartitionRdevs(env *Env, name string) (map[string]bool, error) {
 	out := map[string]bool{}
 	n := 0
 	for _, e := range entries {
-		if !e.IsDir() {
+		if !ext4PartitionEntry(name, e.Name()) {
 			continue
+		}
+		// Partition nodes are symlinks on sysfs. DirEntry.IsDir is false
+		// for a symlink, so a directory-only walk misses a mounted partition.
+		if !e.IsDir() && e.Type()&os.ModeSymlink == 0 {
+			return nil, ext4Unreadable("partitions")
 		}
 		b, err := readFixed(filepath.Join(dir, e.Name(), "dev"), 64)
 		if err != nil {
-			continue
+			return nil, ext4Unreadable("partitions")
 		}
 		rdev := strings.TrimSpace(string(b))
-		if rdev == "" {
-			continue
+		if rdev == "" || strings.ContainsAny(rdev, "\n/") {
+			return nil, ext4Unreadable("partitions")
 		}
 		n++
 		if n > 256 {
@@ -211,6 +216,23 @@ func ext4PartitionRdevs(env *Env, name string) (map[string]bool, error) {
 		out[rdev] = true
 	}
 	return out, nil
+}
+
+func ext4PartitionEntry(disk, entry string) bool {
+	rest, ok := strings.CutPrefix(entry, disk)
+	if !ok || rest == "" {
+		return false
+	}
+	rest = strings.TrimPrefix(rest, "p")
+	if rest == "" {
+		return false
+	}
+	for _, c := range rest {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func ext4HasHolders(env *Env, rdev string) (bool, error) {

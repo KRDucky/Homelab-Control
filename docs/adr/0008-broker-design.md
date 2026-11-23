@@ -262,9 +262,11 @@ main broker unit.
 - **Gates the caller enforces.** G1: the runner's stdin is `/dev/null` (no existing-FS prompt)
   and apply holds the per-identity lock. G2: the path must be a block device immediately
   before exec; a regular file is refused. G4: the plan token target is the persist identity
-  (`wwn`, `nvme-uuid`, or `serial`); the by-id path and rdev are in the state digest, so a
-  path swap is a conflict and does not format. G5: the child budget is 8 minutes on a
-  context independent of the request; timeout or panic is `uncertain` and is not retried.
+  (`wwn`, `nvme-uuid`, or `serial`) and the by-id basename must name that same identity.
+  The by-id path and rdev are also in the state digest, so a path swap is a conflict and
+  does not format. Partition device numbers include sysfs symlink entries, so a mounted
+  partition is busy. G5: the child budget is 8 minutes on a context independent of the
+  request; timeout, panic, or a non-zero exit is `uncertain` and is not retried.
 - **G3 is not met.** The main broker unit stays `PrivateDevices=yes`. This caller does not
   add `DeviceAllow` and does not change `homelab-control-storage-helper.service`
   (`ExecStart=/bin/false`). A broker that cannot see the disk fails closed before exec.

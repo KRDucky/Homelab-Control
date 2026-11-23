@@ -21,7 +21,7 @@ import (
 	"homelab-control/backend/internal/storagecap"
 )
 
-const ext4TestByID = "/dev/disk/by-id/virtio-mmvtestdisk01"
+const ext4TestByID = "/dev/disk/by-id/wwn-0x5000cca252c8d2a1"
 
 const ext4TestWWN = "naa.5000cca252c8d2a1"
 
@@ -72,6 +72,10 @@ func newExt4Env(t *testing.T) *ext4Env {
 		Actor: proto.Actor{User: "alice", Session: "sess-a", RequestID: "r1", StepUpAt: time.Now().Unix()},
 		Ext4Mkfs: func(_ context.Context, argv []string) (runner.Result, error) {
 			e.argv = append(e.argv, append([]string{}, argv...))
+			if len(argv) == 0 {
+				t.Error("hook called with empty argv")
+				return runner.Result{}, runner.ErrTimeout
+			}
 			if _, err := runner.RootArgv(runner.RootMkfsExt4, argv[len(argv)-1]); err != nil {
 				t.Errorf("hook argv rejected by the closed template: %v", err)
 			}
@@ -147,6 +151,7 @@ func TestExt4FormatRefusesWeakIdentityAndBadPath(t *testing.T) {
 		ext4Raw(ext4TestByID, "kernel", "vda"),
 		ext4Raw("/dev/vda", "wwn", ext4TestWWN),
 		ext4Raw(ext4TestByID, "serial", "ab"),
+		ext4Raw("/dev/disk/by-id/virtio-mmvtestdisk01", "wwn", ext4TestWWN),
 	} {
 		if _, err := ext4FormatPlan(context.Background(), e.env, raw); code(err) != proto.CodeBadRequest {
 			t.Fatalf("accepted %s: %v", raw, err)
@@ -165,7 +170,7 @@ func TestExt4FormatRefusesWeakIdentityAndBadPath(t *testing.T) {
 func TestExt4FormatPathSwapDoesNotFormat(t *testing.T) {
 	e := newExt4Env(t)
 	p := ext4Plan(t, e)
-	other := "/dev/disk/by-id/virtio-mmvtestdisk02"
+	other := "/dev/disk/by-id/wwn-0x5000cca252c8d2a1-part1"
 	if _, err := ext4FormatApply(context.Background(), e.env, ext4ApplyRaw(other, "wwn", ext4TestWWN, p.Token)); code(err) != proto.CodeConflict {
 		t.Fatalf("swap: %v", err)
 	}
@@ -177,7 +182,7 @@ func TestExt4FormatPathSwapDoesNotFormat(t *testing.T) {
 func TestExt4FormatIdentitySwapDoesNotFormat(t *testing.T) {
 	e := newExt4Env(t)
 	p := ext4Plan(t, e)
-	if _, err := ext4FormatApply(context.Background(), e.env, ext4ApplyRaw(ext4TestByID, "wwn", "naa.5000cca2deadbeef", p.Token)); code(err) != proto.CodeInvalidToken {
+	if _, err := ext4FormatApply(context.Background(), e.env, ext4ApplyRaw(ext4TestByID, "wwn", "naa.5000cca2deadbeef", p.Token)); code(err) != proto.CodeBadRequest {
 		t.Fatalf("identity swap: %v", err)
 	}
 	if e.env.Writes.Outstanding() != 1 || len(e.argv) != 0 {
@@ -298,7 +303,7 @@ func TestExt4FormatMissingBinaryRefuses(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.env.Ext4Tooling = &ext4ToolFact{Family: "unknown", Installed: true}
-	if _, err := ext4FormatPlan(context.Background(), e.env, ext4Raw(ext4TestByID, "serial", "WD-WCAY12345678")); code(err) != proto.CodePolicyDenied {
+	if _, err := ext4FormatPlan(context.Background(), e.env, ext4Raw("/dev/disk/by-id/ata-VBOX_HARDDISK_WD-WCAY12345678", "serial", "WD-WCAY12345678")); code(err) != proto.CodePolicyDenied {
 		t.Fatal(err)
 	}
 }
@@ -315,6 +320,106 @@ func TestExt4FormatNoRootExecDoesNotCallMkfs(t *testing.T) {
 	out := got.(Ext4FormatOutcome)
 	if out.Outcome != OutcomeUncertain || !strings.Contains(out.Message, "not verified") {
 		t.Fatalf("%+v", out)
+	}
+}
+
+func TestExt4FormatNonZeroIsUncertain(t *testing.T) {
+	e := newExt4Env(t)
+	p := ext4Plan(t, e)
+	e.env.Ext4Mkfs = func(_ context.Context, argv []string) (runner.Result, error) {
+		e.argv = append(e.argv, append([]string{}, argv...))
+		return runner.Result{ExitCode: 1}, nil
+	}
+	got, err := ext4FormatApply(context.Background(), e.env, ext4ApplyRaw(ext4TestByID, "wwn", ext4TestWWN, p.Token))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := got.(Ext4FormatOutcome)
+	if out.Outcome != OutcomeUncertain || len(out.Recovery) == 0 || !strings.Contains(out.Message, "may already have been written") {
+		t.Fatalf("%+v", out)
+	}
+}
+
+func TestExt4FormatSerialMatchesVirtioByID(t *testing.T) {
+	e := newExt4Env(t)
+	if _, err := ext4FormatPlan(context.Background(), e.env, ext4Raw("/dev/disk/by-id/virtio-mmvtestdisk01", "serial", "mmvtestdisk01")); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestExt4IdentityAgrees(t *testing.T) {
+	ok := []struct{ kind, value, byID string }{
+		{"wwn", "naa.5000cca252c8d2a1", "/dev/disk/by-id/wwn-0x5000cca252c8d2a1"},
+		{"wwn", "0x5000cca252c8d2a1", "/dev/disk/by-id/wwn-0x5000CCA252C8D2A1-part1"},
+		{"wwn", "5000cca252c8d2a1", "/dev/disk/by-id/nvme-eui.5000cca252c8d2a1"},
+		{"nvme-uuid", "12345678-1234-1234-1234-123456789abc", "/dev/disk/by-id/nvme-uuid.12345678-1234-1234-1234-123456789ABC"},
+		{"serial", "mmvtestdisk01", "/dev/disk/by-id/virtio-mmvtestdisk01"},
+		{"serial", "WD-WCAY12345678", "/dev/disk/by-id/ata-VBOX_HARDDISK_WD-WCAY12345678"},
+	}
+	for _, c := range ok {
+		kind, value, err := canonicalExt4Identity(c.kind, c.value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := ext4IdentityAgrees(kind, value, c.byID); err != nil {
+			t.Fatalf("%s %s: %v", c.kind, c.byID, err)
+		}
+	}
+	kind, value, err := canonicalExt4Identity("wwn", ext4TestWWN)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ext4IdentityAgrees(kind, value, "/dev/disk/by-id/virtio-mmvtestdisk01"); err == nil {
+		t.Fatal("virtio path accepted a wwn identity")
+	}
+}
+
+func TestExt4PartitionSymlinkIsBusy(t *testing.T) {
+	root := t.TempDir()
+	part := filepath.Join(root, "sys/class/block/vda1")
+	if err := os.MkdirAll(part, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(part, "dev"), []byte("8:1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	block := filepath.Join(root, "sys/block/vda")
+	if err := os.MkdirAll(block, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("../../class/block/vda1", filepath.Join(block, "vda1")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(block, "queue"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(block, "dev"), []byte("8:0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dirPart := filepath.Join(block, "vda2")
+	if err := os.MkdirAll(dirPart, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dirPart, "dev"), []byte("8:2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	env := &Env{Roots: Roots{Root: root}}
+	parts, err := ext4PartitionRdevs(env, "vda")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !parts["8:1"] || !parts["8:2"] {
+		t.Fatalf("partition dev missed: %#v", parts)
+	}
+	if parts["8:0"] {
+		t.Fatal("disk dev file treated as a partition")
+	}
+	if !ext4MountBusy("36 35 8:1 / /mnt rw - ext4 /dev/vda1 rw\n", "8:0", parts) {
+		t.Fatal("mounted symlink partition not busy")
+	}
+	busy, err := ext4SwapBusy(env, "Filename Type\n8:2 partition\n", "8:0", parts)
+	if err != nil || !busy {
+		t.Fatalf("swap partition busy %v err %v", busy, err)
 	}
 }
 
