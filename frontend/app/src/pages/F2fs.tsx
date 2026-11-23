@@ -96,8 +96,8 @@ export function F2fsView({
           </header>
           <p>Missing required tools: {missingToolNames}. This page does not run them.</p>
           <p>
-            Install options open a separate Software Center search and planning dialog. This page does not
-            install packages or change storage devices.
+            Install options open a separate Software Center planning dialog.
+            This page does not install packages or modify storage.
           </p>
           <RequiredOffers items={missingRequired} canInstall={canInstall} />
         </section>
@@ -110,8 +110,7 @@ export function F2fsView({
         </header>
         {f2fs.mountsTruncated ? (
           <p className="banner" role="status">
-            Showing {f2fs.mounts.length} observed mounts; this inventory is incomplete. Additional mounts
-            may be omitted.
+            Showing {f2fs.mounts.length} mounts. Inventory incomplete; other mounts may be omitted.
           </p>
         ) : null}
         {f2fs.mounts.length > 0 ? (
