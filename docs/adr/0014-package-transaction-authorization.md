@@ -13,6 +13,14 @@ The M4-1a parsers and M4-1b Software Center provide cache-oriented reads. They d
 
 The core broker exclusively owns process execution and mutation; Extensions may supply pure parsing and presentation but may not choose commands, privileges, paths, sources or grants. Unknown distro/tool versions fail closed.
 
+## Product model: APT web frontend, not another resolver
+
+The initial Debian/Ubuntu Software Center is a graphical front end to **APT**. Search and selection should feel like Synaptic/Aptitude: browse names, descriptions, installed/available versions, origins, upgrade state, and a queue of marked actions. APT remains responsible for the authoritative dependency calculation, conflicts, maintainer scripts, package downloads, unpack/configure and dpkg state. HomeControl does **not** implement its own dependency-solving algorithm.
+
+Use reviewed APT/dpkg interfaces by task: `apt-cache search/show/policy` and `dpkg-query` for browse/details/installed, apt's cached upgrade metadata for update previews; `apt-get -s` to generate a proposed transaction; fixed `apt-get install/remove/purge/upgrade` templates (and a separately approved `apt-get update` flow) for application. The exact per-version argv and behavior must be verified before use. Non-interactive execution must make conffile questions, debconf prompts and lock contention explicit rather than silently choosing unsafe defaults. The UI shows APT's own proposed dependency additions, removals, upgrades and downgrades and requires explicit confirmation.
+
+A simulation is **not** a transaction lock or guarantee: fresh metadata, installed state, pin priorities, repositories and APT resolver decisions may change before apply. Existing broker plan tokens, digest/revalidation, approved source trust and durable transaction journal still apply. If the actual transaction cannot be constrained to the reviewed plan, refuse rather than claim the simulation enforces exact outcomes. No shell, generic CLI, homegrown package database or new dependency graph engine.
+
 ## Proposed decision — separately authorize before implementation
 
 * Add explicit `packages.manage` (known, never default, never implied by `packages.read` or admin-facing UI). Gate API and broker independently. Leave existing GET semantics unchanged.
