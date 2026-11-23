@@ -136,6 +136,17 @@ const (
 	// binary presence, with no writes, no broker ops, and no lvm execution.
 	// Not in DefaultScopes and implied by nothing, including storage.read.
 	ScopeLVMRead = "lvm.read"
+	// ScopeBtrfsRead allows the read-only Btrfs inventory (M7 first
+	// checkpoint): observed btrfs mounts and btrfs binary presence, with
+	// no writes, no broker ops, and no btrfs execution. Not in
+	// DefaultScopes and implied by nothing, including storage.read.
+	// RAID5/6 is not offered.
+	ScopeBtrfsRead = "btrfs.read"
+	// ScopeExt4Read allows the read-only ext4 inventory (M7 first
+	// checkpoint): observed ext4 mounts and dumpe2fs binary presence, with
+	// no writes, no broker ops, and no dumpe2fs execution. Not in
+	// DefaultScopes and implied by nothing, including storage.read.
+	ScopeExt4Read = "ext4.read"
 	// ScopeF2fsRead allows the read-only f2fs inventory (M7 first
 	// checkpoint): observed f2fs mounts and dump.f2fs binary presence, with
 	// no writes, no broker ops, and no dump.f2fs execution. Not in
@@ -176,6 +187,8 @@ var KnownScopes = map[string]bool{
 	ScopeMergerFSMaintain:     true,
 	ScopeZFSRead:              true,
 	ScopeLVMRead:              true,
+	ScopeBtrfsRead:            true,
+	ScopeExt4Read:             true,
 	ScopeF2fsRead:             true,
 }
 
