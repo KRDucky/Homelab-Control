@@ -54,6 +54,14 @@ func TestParseMountInfoSkipsUnsafeDeviceAndSubvol(t *testing.T) {
 	}
 }
 
+func TestParseMountInfoFlagsInvalidSubvolumeAsTruncated(t *testing.T) {
+	in := "42 1 0:36 / /mnt/badsub rw - btrfs /dev/sdb1 rw,subvolid=invalid,subvol=/\\n" + btrfsLine(43)
+	mounts, truncated, err := ParseMountInfo(strings.NewReader(in))
+	if err != nil || !truncated || len(mounts) != 1 || mounts[0].Device != "/dev/sda1" {
+		t.Fatalf("mounts=%v truncated=%v err=%v", mounts, truncated, err)
+	}
+}
+
 func TestParseMountInfoMissingOptionsDoesNotPanic(t *testing.T) {
 	in := "40 1 0:36 / /mnt/data rw - btrfs /dev/sda1\n"
 	_, _, err := ParseMountInfo(strings.NewReader(in))
