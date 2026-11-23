@@ -106,7 +106,7 @@ describe('f2fs read-only page', () => {
     render(
       <F2fs csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
     );
-    expect(await screen.findByText(/cannot determine the package name/)).toBeTruthy();
+    expect(await screen.findByText(/cannot determine a package name for dump\.f2fs/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Install/ })).toBeNull();
   });
 });
