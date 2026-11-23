@@ -241,6 +241,9 @@ func Collect(ctx context.Context, osRoot, family string) (Snapshot, error) {
 	snap.Tooling = ProbeTooling(family)
 	snap.KernelExt4 = ProbeKernelExt4(osRoot)
 	mounts, truncated, err := collectMounts(osRoot)
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return Snapshot{}, ctxErr
+	}
 	if mounts == nil {
 		mounts = []Mount{}
 	}
@@ -256,7 +259,11 @@ func Collect(ctx context.Context, osRoot, family string) (Snapshot, error) {
 		snap.Ext4 = base
 	} else {
 		base.Present = false
-		base.Reason = "dumpe2fs binary was not found"
+		if truncated {
+			base.Reason = "mount inventory was truncated; ext4 presence could not be determined"
+		} else {
+			base.Reason = "dumpe2fs binary was not found"
+		}
 		snap.Ext4 = base
 	}
 	return snap, nil
