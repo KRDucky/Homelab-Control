@@ -47,7 +47,9 @@ export function ThemePreview({
   const exampleServices = [
     { name: 'backup.service', state: 'Active' },
     { name: 'media.service', state: 'Warning' },
-  ].filter((service) => service.name.toLowerCase().includes(serviceFilter.toLowerCase()));
+  ].filter((service) =>
+    service.name.toLowerCase().includes(serviceFilter.toLowerCase()),
+  );
   useEffect(() => {
     if (root.current) applyTheme(draft, root.current);
   }, [draft]);
@@ -193,7 +195,9 @@ export function ThemePreview({
                       <span role="cell">{service.name}</span>
                       <span
                         role="cell"
-                        className={service.state === 'Active' ? 'theme-mini-positive' : 'theme-mini-caution'}
+                        className={
+                          service.state === 'Active' ? 'theme-mini-positive' : 'theme-mini-caution'
+                        }
                       >
                         {service.state}
                       </span>
