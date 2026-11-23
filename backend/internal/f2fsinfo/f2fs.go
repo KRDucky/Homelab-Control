@@ -58,8 +58,8 @@ const (
 // even when the rest of the record is malformed. A line over mountinfoMaxLine
 // is skipped and marks the inventory truncated. A line with no filesystem
 // type, or a f2fs line with a bad mountpoint or a record missing its options
-// field, still fails the parse. A f2fs source that is not a /dev path is
-// skipped.
+// field, still fails the parse. F2fs sources outside /dev or with unsafe
+// device paths are omitted and mark the result truncated (incomplete).
 func ParseMountInfo(r io.Reader) ([]Mount, bool, error) {
 	br := bufio.NewReader(io.LimitReader(r, mountinfoMaxBytes+1))
 	mounts := []Mount{}
@@ -123,6 +123,7 @@ func ParseMountInfo(r io.Reader) ([]Mount, bool, error) {
 		// Skip them before decoding so a malformed non-device escape cannot hide
 		// otherwise valid f2fs mounts.
 		if !strings.HasPrefix(fields[sep+2], "/dev/") {
+			truncated = true // Omitted f2fs mount: source is not an allowed device path.
 			continue
 		}
 		source, err := unescape(fields[sep+2])
@@ -130,6 +131,7 @@ func ParseMountInfo(r io.Reader) ([]Mount, bool, error) {
 			return nil, false, fmt.Errorf("invalid f2fs source")
 		}
 		if !validDevice(source) {
+			truncated = true // Omitted f2fs mount: unsafe device path.
 			continue
 		}
 		if len(mounts) >= f2fsMaxMounts {
