@@ -107,14 +107,16 @@ func ParseMountInfo(r io.Reader) ([]Mount, bool, error) {
 			}
 			continue
 		}
-		if sep < 6 || len(fields) < sep+3 {
+		// super-options is fields[sep+3]. A shorter btrfs record is malformed.
+		// Returning an error avoids indexing off the end.
+		if sep < 6 || len(fields) < sep+4 {
 			return nil, false, fmt.Errorf("invalid mountinfo record")
 		}
 		if _, e := strconv.ParseUint(fields[0], 10, 64); e != nil {
 			return nil, false, fmt.Errorf("invalid mount identifier")
 		}
 		point, err := unescape(fields[4])
-		if err != nil || !strings.HasPrefix(point, "/") || strings.Contains(point, "..") {
+		if err != nil || !strings.HasPrefix(point, "/") || hasDotDot(point) {
 			return nil, false, fmt.Errorf("invalid btrfs mountpoint")
 		}
 		source, err := unescape(fields[sep+2])
@@ -170,10 +172,21 @@ func validDevice(name string) bool {
 	if len(name) < len("/dev/x") || len(name) > deviceMaxBytes || !strings.HasPrefix(name, "/dev/") {
 		return false
 	}
-	if strings.Contains(name, "..") || strings.Contains(name, "//") {
+	if hasDotDot(name) || strings.Contains(name, "//") {
 		return false
 	}
 	return true
+}
+
+// hasDotDot reports a path component that is exactly "..". A name such as
+// foo..bar is kept. A component ".." is not.
+func hasDotDot(path string) bool {
+	for _, c := range strings.Split(path, "/") {
+		if c == ".." {
+			return true
+		}
+	}
+	return false
 }
 
 // parseSubvol reads subvol= and subvolid= from a mount-options field.
@@ -187,7 +200,7 @@ func parseSubvol(options string) (subvol, id string, ok bool) {
 		}
 		switch key {
 		case "subvol":
-			if len(val) == 0 || len(val) > subvolMaxBytes || !strings.HasPrefix(val, "/") || strings.Contains(val, "..") {
+			if len(val) == 0 || len(val) > subvolMaxBytes || !strings.HasPrefix(val, "/") || hasDotDot(val) {
 				return "", "", false
 			}
 			subvol = val
