@@ -106,7 +106,7 @@ describe('XFS read-only page', () => {
     render(
       <XFS csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
     );
-    expect(await screen.findByText(/cannot determine the package name/)).toBeTruthy();
+    expect(await screen.findByText(/cannot determine a package name for xfs_info/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Install/ })).toBeNull();
   });
 });
