@@ -176,6 +176,8 @@ export interface Capability {
     | 'mergerfs'
     | 'zfs'
     | 'lvm'
+    | 'btrfs'
+    | 'ext4'
     | 'f2fs'
     | 'traefik';
   label: string;
@@ -1468,6 +1470,91 @@ export function getLVM(csrf: string): Promise<LVMInventory> {
   return request<LVMInventory>('/api/v1/lvm', { headers: { 'X-CSRF-Token': csrf } });
 }
 
+// ---- M7 first checkpoint: Btrfs (read-only) ---------------------------------
+
+export interface BtrfsToolItem {
+  id: string;
+  package: string;
+  installed: boolean;
+  binary: string;
+}
+
+export interface BtrfsTooling {
+  family: string;
+  required: BtrfsToolItem[];
+  optional: BtrfsToolItem[];
+}
+
+export interface BtrfsMount {
+  mountpoint: string;
+  device: string;
+  subvol: string;
+  subvolId: string;
+}
+
+export interface BtrfsInfo {
+  present: boolean;
+  reason: string;
+  mounts: BtrfsMount[];
+  mountsTruncated: boolean;
+}
+
+export interface BtrfsKernel {
+  present: boolean;
+  reason: string;
+}
+
+export interface BtrfsInventory {
+  tooling: BtrfsTooling;
+  btrfs: BtrfsInfo;
+  kernelBtrfs?: BtrfsKernel;
+}
+
+export function getBtrfs(csrf: string): Promise<BtrfsInventory> {
+  return request<BtrfsInventory>('/api/v1/btrfs', { headers: { 'X-CSRF-Token': csrf } });
+}
+
+// ---- M7 first checkpoint: ext4 (read-only) ---------------------------------
+
+export interface Ext4ToolItem {
+  id: string;
+  package: string;
+  installed: boolean;
+  binary: string;
+}
+
+export interface Ext4Tooling {
+  family: string;
+  required: Ext4ToolItem[];
+  optional: Ext4ToolItem[];
+}
+
+export interface Ext4Mount {
+  mountpoint: string;
+  device: string;
+}
+
+export interface Ext4Info {
+  present: boolean;
+  reason: string;
+  mounts: Ext4Mount[];
+  mountsTruncated: boolean;
+}
+
+export interface Ext4Kernel {
+  present: boolean;
+  reason: string;
+}
+
+export interface Ext4Inventory {
+  tooling: Ext4Tooling;
+  ext4: Ext4Info;
+  kernelExt4?: Ext4Kernel;
+}
+
+export function getExt4(csrf: string): Promise<Ext4Inventory> {
+  return request<Ext4Inventory>('/api/v1/ext4', { headers: { 'X-CSRF-Token': csrf } });
+}
 // ---- M7 first checkpoint: f2fs (read-only) ---------------------------------
 
 export interface F2fsToolItem {
