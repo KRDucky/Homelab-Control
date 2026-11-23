@@ -90,7 +90,7 @@ export function F2fsView({
           <header className="panel-head">
             <h2 id="f2fs-offer-heading">f2fs tools</h2>
           </header>
-          <p>dump.f2fs is required. This page does not run it.</p>
+          <p>Missing required tools: {missingRequired.map((tool) => tool.id).join(', ')}. This page does not run them.</p>
           <RequiredOffers items={missingRequired} canInstall={canInstall} />
         </section>
       )}
@@ -135,7 +135,7 @@ function RequiredOffers({ items, canInstall }: { items: F2fsToolItem[]; canInsta
   return (
     <>
       {items.map((item) => {
-        const key = item.package || '__no-package__';
+        const key = item.package || `missing:${item.id}`;
         if (seen.has(key)) return null;
         seen.add(key);
         return (
