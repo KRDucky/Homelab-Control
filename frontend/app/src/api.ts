@@ -176,6 +176,7 @@ export interface Capability {
     | 'mergerfs'
     | 'zfs'
     | 'lvm'
+    | 'mdadm'
     | 'traefik';
   label: string;
   path: string;
@@ -1465,6 +1466,46 @@ export interface LVMInventory {
 
 export function getLVM(csrf: string): Promise<LVMInventory> {
   return request<LVMInventory>('/api/v1/lvm', { headers: { 'X-CSRF-Token': csrf } });
+}
+
+// ---- Read-only Linux software RAID (mdadm, /proc/mdstat) ----------------------
+
+export interface MdadmToolItem {
+  id: string;
+  package: string;
+  installed: boolean;
+  binary: string;
+}
+
+export interface MdadmTooling {
+  family: string;
+  required: MdadmToolItem[];
+  optional: MdadmToolItem[];
+}
+
+/** One /proc/mdstat array line, as printed. */
+export interface MdadmArray {
+  name: string;
+  level: string;
+  state: string;
+  memberCount: number | null;
+}
+
+export interface MdadmMD {
+  present: boolean;
+  reason: string;
+  personalities: string[];
+  arrays: MdadmArray[];
+  arraysTruncated: boolean;
+}
+
+export interface MdadmInventory {
+  tooling: MdadmTooling;
+  md: MdadmMD;
+}
+
+export function getMdadm(csrf: string): Promise<MdadmInventory> {
+  return request<MdadmInventory>('/api/v1/mdadm', { headers: { 'X-CSRF-Token': csrf } });
 }
 
 // Read-only Traefik helper integration. The browser never receives helper credentials.

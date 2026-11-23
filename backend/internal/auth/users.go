@@ -136,6 +136,11 @@ const (
 	// binary presence, with no writes, no broker ops, and no lvm execution.
 	// Not in DefaultScopes and implied by nothing, including storage.read.
 	ScopeLVMRead = "lvm.read"
+	// ScopeMdadmRead allows the read-only Linux software RAID inventory:
+	// /proc/mdstat array lines and mdadm binary presence, with no writes, no
+	// broker ops, and no mdadm execution. Not in DefaultScopes and implied by
+	// nothing, including storage.read.
+	ScopeMdadmRead = "mdadm.read"
 )
 
 // KnownScopes lists every scope the server understands. Unknown scopes in the
@@ -171,6 +176,7 @@ var KnownScopes = map[string]bool{
 	ScopeMergerFSMaintain:     true,
 	ScopeZFSRead:              true,
 	ScopeLVMRead:              true,
+	ScopeMdadmRead:            true,
 }
 
 // DefaultScopes are granted by `hlctl user add` when --scopes is not given.
