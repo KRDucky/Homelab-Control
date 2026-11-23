@@ -142,6 +142,11 @@ const (
 	// DefaultScopes and implied by nothing, including storage.read.
 	// RAID5/6 is not offered.
 	ScopeBtrfsRead = "btrfs.read"
+	// ScopeExt4Read allows the read-only ext4 inventory (M7 first
+	// checkpoint): observed ext4 mounts and dumpe2fs binary presence, with
+	// no writes, no broker ops, and no dumpe2fs execution. Not in
+	// DefaultScopes and implied by nothing, including storage.read.
+	ScopeExt4Read = "ext4.read"
 	// ScopeMdadmRead allows the read-only Linux software RAID inventory:
 	// /proc/mdstat array lines and mdadm binary presence, with no writes, no
 	// broker ops, and no mdadm execution. Not in DefaultScopes and implied by
@@ -183,6 +188,7 @@ var KnownScopes = map[string]bool{
 	ScopeZFSRead:              true,
 	ScopeLVMRead:              true,
 	ScopeBtrfsRead:            true,
+	ScopeExt4Read:             true,
 	ScopeMdadmRead:            true,
 }
 

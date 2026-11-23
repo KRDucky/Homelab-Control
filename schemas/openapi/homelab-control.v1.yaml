@@ -56,7 +56,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, services.systemctl, storage.read, storage.probe, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read, mergerfs.configure, mergerfs.maintain, zfs.read, lvm.read, btrfs.read, mdadm.read] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, services.systemctl, storage.read, storage.probe, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read, mergerfs.configure, mergerfs.maintain, zfs.read, lvm.read, btrfs.read, ext4.read, mdadm.read] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
@@ -1373,6 +1373,70 @@ components:
           required: [present, reason]
           additionalProperties: false
           description: Read-only /proc/filesystems probe for the btrfs type (listed, not ready). Never loads a module, never opens a device.
+          properties:
+            present: { type: boolean }
+            reason: { type: string }
+
+    Ext4Inventory:
+      type: object
+      required: [tooling, ext4, kernelExt4]
+      description: >
+        Read-only ext4 checkpoint. The dumpe2fs binary is Stat'd, never
+        executed. No format, grow, or repair exists. Audit records mount
+        counts only. A mount source is a /dev path from bounded
+        /proc/self/mountinfo. Package names are named only where verified; an
+        unknown family names no package.
+      properties:
+        tooling:
+          type: object
+          required: [family, required, optional]
+          properties:
+            family: { type: string, enum: [debian, fedora, suse, arch, unknown] }
+            required:
+              type: array
+              items:
+                type: object
+                required: [id, package, installed, binary]
+                properties:
+                  id: { type: string }
+                  package: { type: string }
+                  installed: { type: boolean }
+                  binary: { type: string }
+            optional:
+              type: array
+              description: Optional tools. Clients match items by id; order is not a contract.
+              items:
+                type: object
+                required: [id, package, installed, binary]
+                properties:
+                  id: { type: string }
+                  package: { type: string }
+                  installed: { type: boolean }
+                  binary: { type: string }
+        ext4:
+          type: object
+          required: [present, reason, mounts, mountsTruncated]
+          properties:
+            present: { type: boolean }
+            reason: { type: string }
+            mountsTruncated:
+              type: boolean
+              description: True when the ext4 row cap or mountinfo byte/record limit was hit. The page shows the fixed text "too many mounts to list".
+            mounts:
+              type: array
+              maxItems: 256
+              items:
+                type: object
+                required: [mountpoint, device]
+                additionalProperties: false
+                properties:
+                  mountpoint: { type: string, maxLength: 256 }
+                  device: { type: string, maxLength: 256, description: Absolute /dev path from mountinfo. }
+        kernelExt4:
+          type: object
+          required: [present, reason]
+          additionalProperties: false
+          description: Read-only /proc/filesystems probe for the ext4 type (listed, not ready). Never loads a module, never opens a device.
           properties:
             present: { type: boolean }
             reason: { type: string }
@@ -2745,6 +2809,30 @@ paths:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/BtrfsInventory' } } } }
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: Missing btrfs.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Collection busy, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /ext4:
+    get:
+      summary: Read-only ext4 inventory (scope ext4.read).
+      description: >
+        Parses bounded /proc/self/mountinfo for fstype ext4 mounts (mountpoint
+        and /dev source only). A source that is not an absolute /dev path, or a
+        mountpoint with a ".." component, is refused or skipped. Required
+        tooling is the dumpe2fs binary, Stat'd and never executed. An unknown
+        family names no package and never adds a third-party repository.
+        kernelExt4 is a read-only /proc/filesystems probe (ext4 type only;
+        listed is not proof a filesystem is mounted). No mkfs, tune2fs, resize2fs, or e2fsck exists. No device open or
+        module load exists. Origin and X-CSRF-Token are required; audit records
+        counts only, never device or mountpoint paths.
+      security: [{ session: [] }]
+      x-required-scope: ext4.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Ext4Inventory' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing ext4.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: Collection busy, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /mdadm:
     get:
