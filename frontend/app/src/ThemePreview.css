@@ -142,7 +142,7 @@
 }
 .theme-mini-cards article,
 .theme-mini-module-panel,
-.theme-mini-module-grid > div {
+.theme-mini-module-grid > button {
   min-width: 0;
   background: var(--hc-color-surface-raised);
   border: 1px solid var(--hc-color-border-subtle);
@@ -223,6 +223,19 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.5rem;
+}
+.theme-mini-module-grid > button {
+  text-align: left;
+  cursor: pointer;
+  color: var(--hc-color-text-primary);
+}
+.theme-mini-module-grid > button[aria-pressed='true'] {
+  border-color: var(--hc-color-accent-base);
+  background: var(--hc-color-surface-selected);
+}
+.theme-mini-module-grid > button:focus-visible {
+  outline: 2px solid var(--hc-color-accent-base);
+  outline-offset: 2px;
 }
 .theme-mini-module-grid strong {
   display: block;
