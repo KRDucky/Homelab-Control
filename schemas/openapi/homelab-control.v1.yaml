@@ -56,7 +56,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, services.systemctl, storage.read, storage.probe, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read, mergerfs.configure, mergerfs.maintain, zfs.read, lvm.read, btrfs.read, ext4.read, xfs.read] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, services.systemctl, storage.read, storage.probe, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read, mergerfs.configure, mergerfs.maintain, zfs.read, lvm.read, btrfs.read, ext4.read, mdadm.read, xfs.read] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
@@ -1440,6 +1440,71 @@ components:
           properties:
             present: { type: boolean }
             reason: { type: string }
+    MdadmInventory:
+      type: object
+      required: [tooling, md]
+      description: >
+        Read-only Linux software RAID checkpoint. The mdadm binary is Stat'd,
+        never executed. No create, assemble, add, remove, grow, or reshape.
+        Inventory is bounded /proc/mdstat only: no component device or array
+        device is opened and no superblock is parsed. Audit records the array
+        count only. Debian, Fedora, SUSE, and Arch name package mdadm; an
+        unknown family names no package.
+      properties:
+        tooling:
+          type: object
+          required: [family, required, optional]
+          properties:
+            family: { type: string, enum: [debian, fedora, suse, arch, unknown] }
+            required:
+              type: array
+              items:
+                type: object
+                required: [id, package, installed, binary]
+                properties:
+                  id: { type: string }
+                  package: { type: string }
+                  installed: { type: boolean }
+                  binary: { type: string }
+            optional:
+              type: array
+              description: Always empty for this module.
+              items:
+                type: object
+                required: [id, package, installed, binary]
+                properties:
+                  id: { type: string }
+                  package: { type: string }
+                  installed: { type: boolean }
+                  binary: { type: string }
+        md:
+          type: object
+          required: [present, reason, personalities, arrays, arraysTruncated]
+          description: >
+            present is false, with fixed reason text and no arrays, when
+            /proc/mdstat is missing, unreadable, over 1 MiB, or malformed
+            (fail closed).
+          properties:
+            present: { type: boolean }
+            reason: { type: string }
+            personalities:
+              type: array
+              maxItems: 64
+              description: Names from the "Personalities :" line of /proc/mdstat (loaded kernel RAID personalities).
+              items: { type: string, maxLength: 32 }
+            arraysTruncated: { type: boolean, description: True when more than 256 array lines were printed. }
+            arrays:
+              type: array
+              maxItems: 256
+              items:
+                type: object
+                required: [name, level, state, memberCount]
+                additionalProperties: false
+                properties:
+                  name: { type: string, maxLength: 32, description: Kernel array name as printed, e.g. md0 }
+                  level: { type: string, maxLength: 32, description: RAID level as printed (e.g. raid1); empty when the line prints none, e.g. an inactive array }
+                  state: { type: string, description: "State as printed: active or inactive, optionally followed by (read-only) or (auto-read-only)" }
+                  memberCount: { type: [integer, "null"], description: Number of component entries listed on the array line; null when the line lists none. Not a health verdict. }
 
     XFSInventory:
       type: object
@@ -2832,6 +2897,29 @@ paths:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Ext4Inventory' } } } }
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: Missing ext4.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Collection busy, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /mdadm:
+    get:
+      summary: Read-only Linux software RAID inventory (scope mdadm.read).
+      description: >
+        Reads bounded /proc/mdstat and returns each array's name, RAID level
+        and state as printed, plus the number of component entries listed on
+        the array line. No degraded verdict is derived beyond what
+        /proc/mdstat prints. Required tooling is the mdadm binary (Stat of
+        /usr/sbin/mdadm then /usr/bin/mdadm; package mdadm on Debian, Fedora,
+        SUSE, and Arch; an unknown family names no package). mdadm is never
+        executed; no create, assemble, add, remove, grow, device open, or
+        module load exists. Origin and X-CSRF-Token are required; audit
+        records counts only.
+      security: [{ session: [] }]
+      x-required-scope: mdadm.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/MdadmInventory' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing mdadm.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: Collection busy, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
 
   /xfs:

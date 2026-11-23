@@ -40,6 +40,7 @@ import (
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
 	"homelab-control/backend/internal/lvminfo"
+	"homelab-control/backend/internal/mdadminfo"
 	"homelab-control/backend/internal/mergerfsinfo"
 	"homelab-control/backend/internal/modules"
 	"homelab-control/backend/internal/oidclogin"
@@ -98,6 +99,8 @@ type Server struct {
 	btrfsSem          chan struct{}
 	ext4Collect       func(context.Context) (ext4info.Snapshot, error)
 	ext4Sem           chan struct{}
+	mdadmCollect      func(context.Context) (mdadminfo.Snapshot, error)
+	mdadmSem          chan struct{}
 	xfsCollect        func(context.Context) (xfsinfo.Snapshot, error)
 	xfsSem            chan struct{}
 	snapraidConfig    string
@@ -195,6 +198,10 @@ func New(cfg Config, users *auth.Store, audit *audit.Logger, collector *hostinfo
 		return ext4info.Collect(ctx, "/", s.packageFamily())
 	}
 	s.ext4Sem = make(chan struct{}, 1)
+	s.mdadmCollect = func(ctx context.Context) (mdadminfo.Snapshot, error) {
+		return mdadminfo.Collect(ctx, "/", s.packageFamily())
+	}
+	s.mdadmSem = make(chan struct{}, 1)
 	s.xfsCollect = func(ctx context.Context) (xfsinfo.Snapshot, error) {
 		return xfsinfo.Collect(ctx, "/", s.packageFamily())
 	}
@@ -318,6 +325,8 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/btrfs", auth.ScopeBtrfsRead, s.handleBtrfs)
 	// M7 first checkpoint: read-only ext4 (no broker ops, never exec).
 	s.handle("GET /api/v1/ext4", auth.ScopeExt4Read, s.handleExt4)
+	// Read-only Linux software RAID (no broker ops, never exec mdadm).
+	s.handle("GET /api/v1/mdadm", auth.ScopeMdadmRead, s.handleMdadm)
 	// M7 first checkpoint: read-only XFS (no broker ops, never exec).
 	s.handle("GET /api/v1/xfs", auth.ScopeXFSRead, s.handleXFS)
 	s.handle("GET /api/v1/legacy/webmin", auth.ScopeSystemRead, s.handleLegacy)

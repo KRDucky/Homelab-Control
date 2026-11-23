@@ -12,7 +12,7 @@ import (
 
 func TestRegistryIsClosed(t *testing.T) {
 	all := All()
-	if len(all) != 10 || all[0].ID != "services" || all[0].APIPrefix != "/api/v1/services" || all[0].OpPrefix != "services." {
+	if len(all) != 11 || all[0].ID != "services" || all[0].APIPrefix != "/api/v1/services" || all[0].OpPrefix != "services." {
 		t.Fatalf("registry: %+v (new modules need review)", all)
 	}
 	if all[1].ID != "storage" || all[1].APIPrefix != "/api/v1/storage" || all[1].OpPrefix != "storage." || all[1].Path != "/storage" || len(all[1].Scopes) != 3 || all[1].Scopes[0] != "storage.read" || all[1].Scopes[1] != "storage.probe" || all[1].Scopes[2] != "layout.manage" {
@@ -39,14 +39,17 @@ func TestRegistryIsClosed(t *testing.T) {
 	if all[8].ID != "ext4" || all[8].APIPrefix != "/api/v1/ext4" || all[8].OpPrefix != "" || all[8].Path != "/storage/ext4" || len(all[8].Scopes) != 1 || all[8].Scopes[0] != "ext4.read" {
 		t.Fatalf("ext4 module: %+v (new modules need review)", all[8])
 	}
-	if all[9].ID != "xfs" || all[9].APIPrefix != "/api/v1/xfs" || all[9].OpPrefix != "" || all[9].Path != "/storage/xfs" || len(all[9].Scopes) != 1 || all[9].Scopes[0] != "xfs.read" {
-		t.Fatalf("xfs module: %+v (new modules need review)", all[9])
+	if all[9].ID != "mdadm" || all[9].APIPrefix != "/api/v1/mdadm" || all[9].OpPrefix != "" || all[9].Path != "/storage/mdadm" || len(all[9].Scopes) != 1 || all[9].Scopes[0] != "mdadm.read" {
+		t.Fatalf("mdadm module: %+v (new modules need review)", all[9])
+	}
+	if all[10].ID != "xfs" || all[10].APIPrefix != "/api/v1/xfs" || all[10].OpPrefix != "" || all[10].Path != "/storage/xfs" || len(all[10].Scopes) != 1 || all[10].Scopes[0] != "xfs.read" {
+		t.Fatalf("xfs module: %+v (new modules need review)", all[10])
 	}
 	for path, want := range map[string]string{"/api/v1/services": "services", "/api/v1/services/units/{unit}/plan": "services",
 		"/api/v1/servicesx": "", "/api/v1/audit": "", "/api/v1/operations": "", "/api/v1/capabilities": "",
 		"/api/v1/files": "", "/api/v1/files/roots": "", "/api/v1/files/entries": "", "/": "",
 		"/api/v1/storage": "storage", "/api/v1/storage/probe": "storage", "/api/v1/storage/layout/chassis": "storage", "/api/v1/storagex": "",
-		"/api/v1/networking/reverse-proxy/traefik/inventory": "networking", "/api/v1/networkingx": "", "/api/v1/packages": "packages", "/api/v1/packages/search": "packages", "/api/v1/packagesx": "", "/api/v1/mergerfs": "mergerfs", "/api/v1/mergerfs/snapraid/status": "mergerfs", "/api/v1/mergerfs/pool/plan": "mergerfs", "/api/v1/mergerfs/maintain/apply": "mergerfs", "/api/v1/mergerfsx": "", "/api/v1/zfs": "zfs", "/api/v1/zfsx": "", "/api/v1/lvm": "lvm", "/api/v1/lvmx": "", "/api/v1/btrfs": "btrfs", "/api/v1/btrfsx": "", "/api/v1/ext4": "ext4", "/api/v1/ext4x": "", "/api/v1/xfs": "xfs", "/api/v1/xfsx": ""} {
+		"/api/v1/networking/reverse-proxy/traefik/inventory": "networking", "/api/v1/networkingx": "", "/api/v1/packages": "packages", "/api/v1/packages/search": "packages", "/api/v1/packagesx": "", "/api/v1/mergerfs": "mergerfs", "/api/v1/mergerfs/snapraid/status": "mergerfs", "/api/v1/mergerfs/pool/plan": "mergerfs", "/api/v1/mergerfs/maintain/apply": "mergerfs", "/api/v1/mergerfsx": "", "/api/v1/zfs": "zfs", "/api/v1/zfsx": "", "/api/v1/lvm": "lvm", "/api/v1/lvmx": "", "/api/v1/btrfs": "btrfs", "/api/v1/btrfsx": "", "/api/v1/ext4": "ext4", "/api/v1/ext4x": "", "/api/v1/mdadm": "mdadm", "/api/v1/mdadmx": "", "/api/v1/xfs": "xfs", "/api/v1/xfsx": ""} {
 		if got := ForRoute(path); got != want {
 			t.Errorf("ForRoute(%q) = %q, want %q", path, got, want)
 		}
@@ -104,7 +107,7 @@ func TestLoadFailsClosed(t *testing.T) {
 		t.Fatal("symlinked setting must fail closed")
 	}
 	_ = os.WriteFile(p, []byte(`{"version":1,"disabled":["nope"]}`), 0o644)
-	if s := LoadOrFailClosed(p, false); s.Enabled("services") || len(s.Disabled()) != 10 {
+	if s := LoadOrFailClosed(p, false); s.Enabled("services") || len(s.Disabled()) != 11 {
 		t.Fatal("invalid setting must disable every module")
 	}
 }
