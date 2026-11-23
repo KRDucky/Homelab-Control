@@ -118,12 +118,12 @@ describe('Software RAID read-only page', () => {
     expect(screen.queryByRole('table')).toBeNull();
   });
 
-  it('shows too many arrays to list when the inventory was truncated', async () => {
+  it('identifies the displayed count when the array inventory is truncated', async () => {
     const data = inventory({ installed: true });
     data.md.arraysTruncated = true;
     vi.mocked(getMdadm).mockResolvedValue(data);
     renderPage();
-    expect(await screen.findByText('too many arrays to list')).toBeTruthy();
+    expect(await screen.findByText(/Showing 1 arrays from a truncated inventory/)).toBeTruthy();
     expect(screen.getByRole('rowheader', { name: 'md0' })).toBeTruthy();
   });
 });
