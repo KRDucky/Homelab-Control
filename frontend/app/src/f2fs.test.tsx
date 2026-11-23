@@ -81,7 +81,7 @@ describe('f2fs read-only page', () => {
       <F2fs csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
     );
     expect(await screen.findByRole('heading', { name: 'f2fs tools' })).toBeTruthy();
-    expect(screen.getByText(/separate Software Center planning dialog/)).toBeTruthy();
+    expect(screen.getByText(/open Software Center planning/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Install f2fs-tools' }));
     const dialog = await screen.findByRole('dialog', { name: 'Install f2fs-tools' });
     expect(within(dialog).getByRole('link', { name: 'Open Software Center' }).getAttribute('href')).toBe(
@@ -96,7 +96,7 @@ describe('f2fs read-only page', () => {
     render(
       <F2fs csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
     );
-    expect(await screen.findByText(/Showing 1 mounts. Inventory incomplete/)).toBeTruthy();
+    expect(await screen.findByText(/Showing 1 mounts; inventory incomplete/)).toBeTruthy();
     expect(screen.getByText('/mnt/data')).toBeTruthy();
   });
 
