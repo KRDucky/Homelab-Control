@@ -52,6 +52,7 @@ export function BtrfsView({
   const { tooling, btrfs } = data;
   const kernelBtrfs = data.kernelBtrfs;
   const missingRequired = tooling.required.filter((t) => !t.installed);
+  const missingToolNames = missingRequired.map((tool) => tool.id).join(', ');
   const missingSmart = tooling.optional.filter(
     (t) => t.id === 'smartctl' && !t.installed && t.package && btrfs.mounts.length > 0,
   );
@@ -96,7 +97,7 @@ export function BtrfsView({
           <header className="panel-head">
             <h2 id="btrfs-offer-heading">Btrfs tools</h2>
           </header>
-          <p>Missing required tools: {missingRequired.map((tool) => tool.id).join(', ')}. This page does not run them.</p>
+          <p>Missing required tools: {missingToolNames}. This page does not run them.</p>
           <RequiredOffers items={missingRequired} canInstall={canInstall} />
         </section>
       )}
