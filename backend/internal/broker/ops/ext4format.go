@@ -33,8 +33,9 @@ import (
 //     state digest, not the token target (G4);
 //   - risk is destructive, so a recent password re-entry is required;
 //   - the device must be a block device, unmounted (including swap and
-//     partitions listed as sysfs symlinks), and without holders or slaves,
-//     under the format lock;
+//     partitions listed as sysfs symlinks), and without holders or slaves.
+//     Apply holds the identity lock and a lock on the device number, so a
+//     WWN alias and a serial alias of the same disk cannot format at once;
 //   - that check runs again immediately before exec (G2);
 //   - the child uses the runner's non-TTY stdin (G1);
 //   - a killed, timed-out, or non-zero mkfs is uncertain and is not retried (G5);
@@ -184,6 +185,10 @@ func ext4IdentityTarget(kind storagecap.IdentityKind, value string) string {
 
 func ext4FormatLock(target string) string { return "ext4-format:" + target }
 
+// ext4DeviceLock is the disk itself. Identity aliases (wwn and serial) do
+// not share ext4FormatLock, but they do share this key when rdev matches.
+func ext4DeviceLock(rdev string) string { return "ext4-format-dev:" + rdev }
+
 func ext4StateDigest(kind storagecap.IdentityKind, value, byID, rdev string) string {
 	sum := sha256.Sum256([]byte(string(kind) + "\n" + value + "\n" + byID + "\n" + rdev + "\nformat"))
 	return hex.EncodeToString(sum[:])
@@ -285,7 +290,7 @@ func ext4FormatPlan(ctx context.Context, env *Env, raw json.RawMessage) (any, er
 		return nil, err
 	}
 	target := ext4IdentityTarget(kind, value)
-	if env.Writes.Locked(ext4FormatLock(target)) {
+	if env.Writes.Locked(ext4FormatLock(target)) || env.Writes.Locked(ext4DeviceLock(fact.Rdev)) {
 		return nil, &proto.Error{Code: proto.CodeBusy, Message: "another ext4 format of this disk is in progress"}
 	}
 	digest := ext4StateDigest(kind, value, a.ByID, fact.Rdev)
@@ -357,6 +362,13 @@ func ext4FormatApply(ctx context.Context, env *Env, raw json.RawMessage) (any, e
 	fact, err := env.ext4View().Inspect(ctx, env, a.ByID)
 	if err != nil {
 		return nil, err
+	}
+	if fact.Rdev != "" {
+		unlockDev, err := env.Writes.Lock(ext4DeviceLock(fact.Rdev))
+		if err != nil {
+			return nil, &proto.Error{Code: proto.CodeBusy, Message: "another ext4 format of this disk is in progress"}
+		}
+		defer unlockDev()
 	}
 	dev := storagecap.DeviceRef{Kind: kind, Value: value}
 	if err := ext4Gate(tool, dev, fact); err != nil {

@@ -92,7 +92,7 @@ func TestRegistryIsClosed(t *testing.T) {
 		phase := ""
 		if op.Write != nil {
 			phase = op.Write.Phase
-			wantLock := map[string]string{"services.unit": "service:<unit id>", "services.enablement": "service:<unit id>+unit-files", "host.settings": "host-settings", "services.systemctl": "systemd-manager", "mergerfs.pool": "mergerfs-array", "mergerfs.maintain": "mergerfs-array", "ext4.format": "ext4-format:<identity>"}[strings.TrimSuffix(strings.TrimSuffix(name, ".plan"), ".apply")]
+			wantLock := map[string]string{"services.unit": "service:<unit id>", "services.enablement": "service:<unit id>+unit-files", "host.settings": "host-settings", "services.systemctl": "systemd-manager", "mergerfs.pool": "mergerfs-array", "mergerfs.maintain": "mergerfs-array", "ext4.format": "ext4-format:<identity>+ext4-format-dev:<rdev>"}[strings.TrimSuffix(strings.TrimSuffix(name, ".plan"), ".apply")]
 			if op.Write.LockDomain != wantLock || len(op.Write.Risks) == 0 || op.AuditArgs == nil {
 				t.Errorf("%s: incomplete write spec %+v", name, op.Write)
 			}

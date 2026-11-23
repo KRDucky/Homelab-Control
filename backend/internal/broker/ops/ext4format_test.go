@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -164,6 +166,49 @@ func TestExt4FormatRefusesWeakIdentityAndBadPath(t *testing.T) {
 	}
 	if len(e.argv) != 0 {
 		t.Fatal("mkfs ran")
+	}
+}
+
+func TestExt4FormatAliasLockBlocksSecondMkfs(t *testing.T) {
+	e := newExt4Env(t)
+	wwnPlan, err := ext4FormatPlan(context.Background(), e.env, ext4Raw(ext4TestByID, "wwn", ext4TestWWN))
+	if err != nil {
+		t.Fatal(err)
+	}
+	serialByID := "/dev/disk/by-id/virtio-mmvtestdisk01"
+	serialPlan, err := ext4FormatPlan(context.Background(), e.env, ext4Raw(serialByID, "serial", "mmvtestdisk01"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	var calls atomic.Int32
+	e.env.Ext4Mkfs = func(context.Context, []string) (runner.Result, error) {
+		if calls.Add(1) == 1 {
+			close(entered)
+			<-release
+		}
+		return runner.Result{ExitCode: 0}, nil
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, err := ext4FormatApply(context.Background(), e.env, ext4ApplyRaw(ext4TestByID, "wwn", ext4TestWWN, wwnPlan.(Ext4FormatPlan).Token))
+		done <- err
+	}()
+	var once sync.Once
+	letGo := func() { once.Do(func() { close(release) }) }
+	defer letGo()
+	<-entered
+	_, err = ext4FormatApply(context.Background(), e.env, ext4ApplyRaw(serialByID, "serial", "mmvtestdisk01", serialPlan.(Ext4FormatPlan).Token))
+	if code(err) != proto.CodeBusy {
+		t.Fatalf("alias apply: %v", err)
+	}
+	letGo()
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("mkfs calls = %d", calls.Load())
 	}
 }
 
