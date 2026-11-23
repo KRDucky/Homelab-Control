@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The Homelab Control Authors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { applyTheme, type ThemeDocument } from './theme';
 import './ThemePreview.css';
 
@@ -42,6 +42,12 @@ export function ThemePreview({
   width: PreviewWidth;
 }) {
   const root = useRef<HTMLDivElement>(null);
+  const [selectedModule, setSelectedModule] = useState('Storage overview');
+  const [serviceFilter, setServiceFilter] = useState('');
+  const exampleServices = [
+    { name: 'backup.service', state: 'Active' },
+    { name: 'media.service', state: 'Warning' },
+  ].filter(({ name }) => name.toLowerCase().includes(serviceFilter.toLowerCase()));
   useEffect(() => {
     if (root.current) applyTheme(draft, root.current);
   }, [draft]);
@@ -133,17 +139,20 @@ export function ThemePreview({
             <div className="theme-mini-content" aria-label="Navigation scene">
               <h3>Find a module</h3>
               <p>Grouped, capability-aware navigation</p>
-              <label className="theme-mini-search">
-                Search modules <input readOnly value="Storage" aria-label="Example module search" />
-              </label>
               <div className="theme-mini-module-grid">
                 {['Storage overview', 'ZFS pools', 'LVM volumes', 'File manager'].map((name) => (
-                  <div key={name}>
+                  <button
+                    key={name}
+                    type="button"
+                    aria-pressed={selectedModule === name}
+                    onClick={() => setSelectedModule(name)}
+                  >
                     <strong>{name}</strong>
                     <small>Available · Example</small>
-                  </div>
+                  </button>
                 ))}
               </div>
+              <p aria-live="polite">Selected example module: {selectedModule}</p>
               <p className="theme-mini-banner">
                 ⓘ Unavailable modules display an explanation, not an action.
               </p>
@@ -166,24 +175,34 @@ export function ThemePreview({
               <article className="theme-mini-module-panel">
                 <h4>Service health</h4>
                 <p>2 running · 1 warning</p>
+                <label className="theme-mini-search">
+                  Filter example services
+                  <input
+                    value={serviceFilter}
+                    onChange={(event) => setServiceFilter(event.target.value)}
+                    placeholder="Search services"
+                  />
+                </label>
                 <div className="theme-mini-table" role="table" aria-label="Example services">
                   <div role="row">
                     <strong role="columnheader">Unit</strong>
                     <strong role="columnheader">State</strong>
                   </div>
-                  <div role="row">
-                    <span role="cell">backup.service</span>
-                    <span role="cell" className="theme-mini-positive">
-                      Active
-                    </span>
-                  </div>
-                  <div role="row">
-                    <span role="cell">media.service</span>
-                    <span role="cell" className="theme-mini-caution">
-                      Warning
-                    </span>
-                  </div>
+                  {exampleServices.map((service) => (
+                    <div role="row" key={service.name}>
+                      <span role="cell">{service.name}</span>
+                      <span
+                        role="cell"
+                        className={service.state === 'Active' ? 'theme-mini-positive' : 'theme-mini-caution'}
+                      >
+                        {service.state}
+                      </span>
+                    </div>
+                  ))}
                 </div>
+                <button type="button" onClick={() => setServiceFilter('')}>
+                  Clear filter
+                </button>
               </article>
               <p className="theme-mini-banner">
                 ⓘ Example warning: review service health before making changes.
