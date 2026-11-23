@@ -79,9 +79,6 @@ try {
   check('disclosure targets stay at least 24px at 90% text', await page.locator('summary').evaluateAll((nodes) => nodes.length > 0 && nodes.every((n) => n.getBoundingClientRect().height >= 24)));
   await page.evaluate(() => document.documentElement.setAttribute('data-hc-text-scale', '100'));
   await page.setViewportSize({ width: 390, height: 900 });
-  // Container-query layout can finish after the viewport resize resolves.
-  await page.waitForFunction(() => { const captions = [...document.querySelectorAll('.hc-data-table caption')]; return captions.length > 0 && captions.every((c) => c.getBoundingClientRect().width > 150); });
-  check('table captions keep their width when a table becomes cards', await page.evaluate(() => [...document.querySelectorAll('.hc-data-table caption')].every((c) => c.getBoundingClientRect().width > 150)));
   if ((process.env.HC_BROWSER ?? 'chromium') === 'chromium') {
     await page.emulateMedia({ forcedColors: 'active' });
     await page.keyboard.press('Tab');
@@ -102,6 +99,11 @@ try {
       if (theme === 'midnight' && width === 1920) await page.screenshot({ path: `${artifacts}/studio-desktop.png`, fullPage: true });
       await goto(`${url}/services`);
       await page.getByRole('table', { name: 'Units' }).waitFor();
+      if (theme === 'midnight' && width === 390) {
+        // Check responsive table captions on the Services page, where the table is rendered.
+        await page.waitForFunction(() => { const captions = [...document.querySelectorAll('.hc-data-table caption')]; return captions.length > 0 && captions.every((c) => c.getBoundingClientRect().width > 150); });
+        check('table captions keep their width when a table becomes cards', await page.evaluate(() => [...document.querySelectorAll('.hc-data-table caption')].every((c) => c.getBoundingClientRect().width > 150)));
+      }
       await noOverflow(`${theme}/${width}: Services fits at 125% text`);
       if (width === 390 || width === 1100) await audit(`${theme}/${width} services`);
       await goto(`${url}/appearance/themes`);
