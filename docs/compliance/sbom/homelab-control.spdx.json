@@ -1,15 +1,15 @@
 {
   "SPDXID": "SPDXRef-DOCUMENT",
   "creationInfo": {
-    "comment": "Inputs sha256 e4c391062f3f20644b4c11d294183d2fdf3060819b4279e29e41e6943d1c5d5d over frontend/app/package-lock.json, backend/go.mod, backend/go.sum, backend/go-deps-allowlist.json, backend/audit-retention/Cargo.lock, backend/audit-retention/rust-deps-allowlist.json, compat/webmin.lock, scripts/gen-sbom.py. Build toolchain (CI): Go 1.26.11, Node.js 22, npm lockfileVersion 3, Vite 8.3.4, TypeScript 6.0.3. Package-payload inventories are produced per build by scripts/package-inventory.sh.",
-    "created": "2026-11-22T20:35:48Z",
+    "comment": "Inputs sha256 3014afe90c6f0a0e189502d9bbbddea3e0240a94495efbf09e253f52d7947e61 over frontend/app/package-lock.json, backend/go.mod, backend/go.sum, backend/go-deps-allowlist.json, backend/audit-retention/Cargo.lock, backend/audit-retention/rust-deps-allowlist.json, compat/webmin.lock, scripts/gen-sbom.py. Build toolchain (CI): Go 1.26.11, Node.js 22, npm lockfileVersion 3, Vite 8.3.4, TypeScript 6.0.3. Package-payload inventories are produced per build by scripts/package-inventory.sh.",
+    "created": "2026-11-23T12:54:47Z",
     "creators": [
       "Person: Ian comings",
       "Tool: homelab-control-gen-sbom-1.0"
     ]
   },
   "dataLicense": "CC0-1.0",
-  "documentNamespace": "https://github.com/KRDucky/Homelab-Control---Webmin-Fork/spdx/e4c391062f3f20644b4c11d294183d2fdf3060819b4279e29e41e6943d1c5d5d",
+  "documentNamespace": "https://github.com/KRDucky/Homelab-Control---Webmin-Fork/spdx/3014afe90c6f0a0e189502d9bbbddea3e0240a94495efbf09e253f52d7947e61",
   "name": "homelab-control-source-sbom",
   "packages": [
     {
@@ -4045,20 +4045,20 @@
       "versionInfo": "4.12.2"
     },
     {
-      "SPDXID": "SPDXRef-Package-npm--eslint-config-array-0.23.5",
+      "SPDXID": "SPDXRef-Package-npm--eslint-config-array-0.23.6",
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "63790a2ef0b576f4ce4fea0696a350d572ea2ba0f51d4d985cf739d8d98094965b30c583cc66173223d127c4d80f7f66b83fce4e395998d27889beddbd2acc04"
+          "checksumValue": "5ab4c7ee78a823d40f6383591a7b32c2679cb3025d81eab804233beaaa24f558234cedbd66053352f72e24b54f61540ce2e0db68f054d0cdf747d0c8c48f17df"
         }
       ],
       "comment": "Development/test only; not redistributed.",
       "copyrightText": "NOASSERTION",
-      "downloadLocation": "https://registry.npmjs.org/@eslint/config-array/-/config-array-0.23.5.tgz",
+      "downloadLocation": "https://registry.npmjs.org/@eslint/config-array/-/config-array-0.23.6.tgz",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
-          "referenceLocator": "pkg:npm/%40eslint/config-array@0.23.5",
+          "referenceLocator": "pkg:npm/%40eslint/config-array@0.23.6",
           "referenceType": "purl"
         }
       ],
@@ -4066,7 +4066,7 @@
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "Apache-2.0",
       "name": "@eslint/config-array",
-      "versionInfo": "0.23.5"
+      "versionInfo": "0.23.6"
     },
     {
       "SPDXID": "SPDXRef-Package-npm--eslint-config-helpers-0.7.0",
@@ -4379,6 +4379,30 @@
       "licenseDeclared": "Apache-2.0",
       "name": "@humanwhocodes/retry",
       "versionInfo": "0.4.3"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-npm--isaacs-nonrecursive-glob-match-1.1.0",
+      "checksums": [
+        {
+          "algorithm": "SHA512",
+          "checksumValue": "18f9bf0dbbe4e512e68519f15c86bb9d3a4ad31b65e04d308f432c96cb8d889d45211394fb6fbd960502fdd805ec4cb84025a17c4b20c6294c44c09d1cf7c37f"
+        }
+      ],
+      "comment": "Development/test only; not redistributed.",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "https://registry.npmjs.org/@isaacs/nonrecursive-glob-match/-/nonrecursive-glob-match-1.1.0.tgz",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:npm/%40isaacs/nonrecursive-glob-match@1.1.0",
+          "referenceType": "purl"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "BlueOak-1.0.0",
+      "name": "@isaacs/nonrecursive-glob-match",
+      "versionInfo": "1.1.0"
     },
     {
       "SPDXID": "SPDXRef-Package-npm--jridgewell-gen-mapping-0.3.13",
@@ -5197,20 +5221,20 @@
       "versionInfo": "19.3.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-npm--typescript-eslint-eslint-plugin-8.71.2",
+      "SPDXID": "SPDXRef-Package-npm--typescript-eslint-eslint-plugin-8.73.0",
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "2bbdbfa6f4fbaa99bcab793c1b9bbddcd09237545c2f15f987b1b0d1b4296cc5ef8811de63a371d561309a4f703fe78a4d243c79cc6f720b7f657feb07ddfcc5"
+          "checksumValue": "524ca03057abe776339f6f4c0981531dfdf88465dfe4a26188359f226d6d5ed5d1af29b5092ea5e47f58df20ad3d60a1a42d3f7fddc7f3c81d8fcb4dd1d77893"
         }
       ],
       "comment": "Development/test only; not redistributed.",
       "copyrightText": "NOASSERTION",
-      "downloadLocation": "https://registry.npmjs.org/@typescript-eslint/eslint-plugin/-/eslint-plugin-8.71.2.tgz",
+      "downloadLocation": "https://registry.npmjs.org/@typescript-eslint/eslint-plugin/-/eslint-plugin-8.73.0.tgz",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
-          "referenceLocator": "pkg:npm/%40typescript-eslint/eslint-plugin@8.71.2",
+          "referenceLocator": "pkg:npm/%40typescript-eslint/eslint-plugin@8.73.0",
           "referenceType": "purl"
         }
       ],
@@ -5218,23 +5242,23 @@
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "MIT",
       "name": "@typescript-eslint/eslint-plugin",
-      "versionInfo": "8.71.2"
+      "versionInfo": "8.73.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-npm-ignore-7.0.12",
+      "SPDXID": "SPDXRef-Package-npm-ignore-7.0.16",
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "ffc52fa803d4f4319323d9389b1b5fe3d537ec8b1fc2bf14b6cf7af920472241713c99c74b4130e1fd34b0ce1271df15f048ccd2350db550ddbf590f76ddf996"
+          "checksumValue": "e7637e6381d130e2666cb9abf83a8ee22491cb207b379da09bb3d6093ea1d29f7bf3ea0a6ea1c207b808248c19bc152c8e549d59bac116a51298814d64ca67d0"
         }
       ],
       "comment": "Development/test only; not redistributed.",
       "copyrightText": "NOASSERTION",
-      "downloadLocation": "https://registry.npmjs.org/ignore/-/ignore-7.0.12.tgz",
+      "downloadLocation": "https://registry.npmjs.org/ignore/-/ignore-7.0.16.tgz",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
-          "referenceLocator": "pkg:npm/ignore@7.0.12",
+          "referenceLocator": "pkg:npm/ignore@7.0.16",
           "referenceType": "purl"
         }
       ],
@@ -5242,23 +5266,23 @@
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "MIT",
       "name": "ignore",
-      "versionInfo": "7.0.12"
+      "versionInfo": "7.0.16"
     },
     {
-      "SPDXID": "SPDXRef-Package-npm--typescript-eslint-parser-8.71.2",
+      "SPDXID": "SPDXRef-Package-npm--typescript-eslint-parser-8.73.0",
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "693b66663a7fc7782c187903b34e3fd48f24368801264a5069e19a3743df886e373730c4996da7f8e3f98a6f707ecbf25f4c8fd5465606b006b4305f1fd8c457"
+          "checksumValue": "02e2f8e5b55c9acb077d9dc38b772cf50d25e20066e19155ac9390104ed5a6a5be3d5810684c12c1acf3e1354888569b5e493a539d44a6b603c2ac3e1d1f1e3f"
         }
       ],
       "comment": "Development/test only; not redistributed.",
       "copyrightText": "NOASSERTION",
-      "downloadLocation": "https://registry.npmjs.org/@typescript-eslint/parser/-/parser-8.71.2.tgz",
+      "downloadLocation": "https://registry.npmjs.org/@typescript-eslint/parser/-/parser-8.73.0.tgz",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
-          "referenceLocator": "pkg:npm/%40typescript-eslint/parser@8.71.2",
+          "referenceLocator": "pkg:npm/%40typescript-eslint/parser@8.73.0",
           "referenceType": "purl"
         }
       ],
@@ -5266,23 +5290,23 @@
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "MIT",
       "name": "@typescript-eslint/parser",
-      "versionInfo": "8.71.2"
+      "versionInfo": "8.73.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-npm--typescript-eslint-project-service-8.71.2",
+      "SPDXID": "SPDXRef-Package-npm--typescript-eslint-project-service-8.73.0",
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "3ddebc1ac2d587965795c11c7053dd8523afb4767fd965345ec03cce65ce4b7175e7c95595c4cb85f43aaafb4bd51cdb3227b42a9f31b5b570020e277a328f1f"
+          "checksumValue": "fe911ff1173832393ea899d8d2e3b5f8669d79a97cbafe74c69ba273eb2b1b6bc855ab40d17c6f58c51e32d16fb3a3821ea7ed890efffaa1f869e846e6cb7320"
         }
       ],
       "comment": "Development/test only; not redistributed.",
       "copyrightText": "NOASSERTION",
-      "downloadLocation": "https://registry.npmjs.org/@typescript-eslint/project-service/-/project-service-8.71.2.tgz",
+      "downloadLocation": "https://registry.npmjs.org/@typescript-eslint/project-service/-/project-service-8.73.0.tgz",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
-          "referenceLocator": "pkg:npm/%40typescript-eslint/project-service@8.71.2",
+          "referenceLocator": "pkg:npm/%40typescript-eslint/project-service@8.73.0",
           "referenceType": "purl"
         }
       ],
@@ -5290,23 +5314,23 @@
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "MIT",
       "name": "@typescript-eslint/project-service",
-      "versionInfo": "8.71.2"
+      "versionInfo": "8.73.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-npm--typescript-eslint-scope-manager-8.71.2",
+      "SPDXID": "SPDXRef-Package-npm--typescript-eslint-scope-manager-8.73.0",
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "605e30820e62517e4e6f2c2869cdbb079e85868ccc34585d2526e1d751f9181030981b5fc9186681342a5bdb5134d9870efb19d825fa506ce8cfe61f627d8b7a"
+          "checksumValue": "fd38c3ef7f08ab6af38f9cf48b154e8be4ecbe08c0cd93cb3da1f5c96743072b51fc74d1e60329c985997827b95934192f0937868f0057b5379aea10091b5705"
         }
       ],
       "comment": "Development/test only; not redistributed.",
       "copyrightText": "NOASSERTION",
-      "downloadLocation": "https://registry.npmjs.org/@typescript-eslint/scope-manager/-/scope-manager-8.71.2.tgz",
+      "downloadLocation": "https://registry.npmjs.org/@typescript-eslint/scope-manager/-/scope-manager-8.73.0.tgz",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
-          "referenceLocator": "pkg:npm/%40typescript-eslint/scope-manager@8.71.2",
+          "referenceLocator": "pkg:npm/%40typescript-eslint/scope-manager@8.73.0",
           "referenceType": "purl"
         }
       ],
@@ -5314,23 +5338,23 @@
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "MIT",
       "name": "@typescript-eslint/scope-manager",
-      "versionInfo": "8.71.2"
+      "versionInfo": "8.73.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-npm--typescript-eslint-tsconfig-utils-8.71.2",
+      "SPDXID": "SPDXRef-Package-npm--typescript-eslint-tsconfig-utils-8.73.0",
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "8f3e3d4c05a8926ffbc960fdfe8f37ee761ac7d0f200bc483ce2267489af573a3a71a9c10996338a7f33272a8d4799358fd2b50c4d1b56faf45d807ef7db8076"
+          "checksumValue": "966b4214e7d86897e9a99cb01ae5e2e05a4db44f8d43e60b7b74f42bdaed103716f19b865af7c8fbea63f2bd39b18308f2f593d8260ae2b5b279d983e91a78a2"
         }
       ],
       "comment": "Development/test only; not redistributed.",
       "copyrightText": "NOASSERTION",
-      "downloadLocation": "https://registry.npmjs.org/@typescript-eslint/tsconfig-utils/-/tsconfig-utils-8.71.2.tgz",
+      "downloadLocation": "https://registry.npmjs.org/@typescript-eslint/tsconfig-utils/-/tsconfig-utils-8.73.0.tgz",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
-          "referenceLocator": "pkg:npm/%40typescript-eslint/tsconfig-utils@8.71.2",
+          "referenceLocator": "pkg:npm/%40typescript-eslint/tsconfig-utils@8.73.0",
           "referenceType": "purl"
         }
       ],
@@ -5338,23 +5362,23 @@
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "MIT",
       "name": "@typescript-eslint/tsconfig-utils",
-      "versionInfo": "8.71.2"
+      "versionInfo": "8.73.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-npm--typescript-eslint-type-utils-8.71.2",
+      "SPDXID": "SPDXRef-Package-npm--typescript-eslint-type-utils-8.73.0",
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "702f1469a9425622646f7ac7ff12c8be2744c28151b4c64c52a0e38c930610a6931706111d805ca1cce51061eebe41c43bcb2f443ae0674c9080e02b166c1a9e"
+          "checksumValue": "30e0bd8b8c72d45eca70375eec8a7c8dfd52ad18802dbd8a9b8516c46363504d989618c8128d5ac84dbb187230210c9f5ae1d3984a27413d78bb2bab9720ba68"
         }
       ],
       "comment": "Development/test only; not redistributed.",
       "copyrightText": "NOASSERTION",
-      "downloadLocation": "https://registry.npmjs.org/@typescript-eslint/type-utils/-/type-utils-8.71.2.tgz",
+      "downloadLocation": "https://registry.npmjs.org/@typescript-eslint/type-utils/-/type-utils-8.73.0.tgz",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
-          "referenceLocator": "pkg:npm/%40typescript-eslint/type-utils@8.71.2",
+          "referenceLocator": "pkg:npm/%40typescript-eslint/type-utils@8.73.0",
           "referenceType": "purl"
         }
       ],
@@ -5362,23 +5386,23 @@
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "MIT",
       "name": "@typescript-eslint/type-utils",
-      "versionInfo": "8.71.2"
+      "versionInfo": "8.73.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-npm--typescript-eslint-types-8.71.2",
+      "SPDXID": "SPDXRef-Package-npm--typescript-eslint-types-8.73.0",
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "cb9524977a15a7b7bf546c6a228117a1e6ff4688fbd4f009e161bf37f4468fe79e0ef2912ccd79906afd3228cb6cdd22d374b9db3c6edf567df04e605828492b"
+          "checksumValue": "3bfd72b58cdf945d7a403297c78fea39783522e669fa7ee1afdb7e4b49efecdff64e5f2b262342b21ced57581c494bc76cfb685f7fb398d6ed480c956f3c557f"
         }
       ],
       "comment": "Development/test only; not redistributed.",
       "copyrightText": "NOASSERTION",
-      "downloadLocation": "https://registry.npmjs.org/@typescript-eslint/types/-/types-8.71.2.tgz",
+      "downloadLocation": "https://registry.npmjs.org/@typescript-eslint/types/-/types-8.73.0.tgz",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
-          "referenceLocator": "pkg:npm/%40typescript-eslint/types@8.71.2",
+          "referenceLocator": "pkg:npm/%40typescript-eslint/types@8.73.0",
           "referenceType": "purl"
         }
       ],
@@ -5386,23 +5410,23 @@
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "MIT",
       "name": "@typescript-eslint/types",
-      "versionInfo": "8.71.2"
+      "versionInfo": "8.73.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-npm--typescript-eslint-typescript-estree-8.71.2",
+      "SPDXID": "SPDXRef-Package-npm--typescript-eslint-typescript-estree-8.73.0",
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "0e034e12c978a5d633c122fe37f0a5df7b57d47970dc5bc877bdcb9ca5dfabb8e7ac5daf88e127ed7f8fed1064912582566f7682759ddbc1880b9bc9b8b44478"
+          "checksumValue": "2278e506449d59c788c080564b04b710d529fa2d0ed363c65f766fdb09e2856242d560d51af1bb9931ee7fc6f9eee01a2138fde1dead44f0c7fac504b5775141"
         }
       ],
       "comment": "Development/test only; not redistributed.",
       "copyrightText": "NOASSERTION",
-      "downloadLocation": "https://registry.npmjs.org/@typescript-eslint/typescript-estree/-/typescript-estree-8.71.2.tgz",
+      "downloadLocation": "https://registry.npmjs.org/@typescript-eslint/typescript-estree/-/typescript-estree-8.73.0.tgz",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
-          "referenceLocator": "pkg:npm/%40typescript-eslint/typescript-estree@8.71.2",
+          "referenceLocator": "pkg:npm/%40typescript-eslint/typescript-estree@8.73.0",
           "referenceType": "purl"
         }
       ],
@@ -5410,23 +5434,23 @@
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "MIT",
       "name": "@typescript-eslint/typescript-estree",
-      "versionInfo": "8.71.2"
+      "versionInfo": "8.73.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-npm-semver-7.8.5",
+      "SPDXID": "SPDXRef-Package-npm-semver-7.8.6",
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "63bfca0ec6fc2e3a28669c1aa86cae94ee8342592c8029dc7211c693eb19218e1206f52870c044147e54af57c8e1d57e26f974c3a723bee71a222e34a6e462a0"
+          "checksumValue": "f65a52494e0c972de6aedaeec0bb3578b2bafa0cdbcea78117044d8c88c4fbd2ee0e959d61cb6b4254377a3d489608bb8249e9b134673e82cff03a421ea1c827"
         }
       ],
       "comment": "Development/test only; not redistributed.",
       "copyrightText": "NOASSERTION",
-      "downloadLocation": "https://registry.npmjs.org/semver/-/semver-7.8.5.tgz",
+      "downloadLocation": "https://registry.npmjs.org/semver/-/semver-7.8.6.tgz",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
-          "referenceLocator": "pkg:npm/semver@7.8.5",
+          "referenceLocator": "pkg:npm/semver@7.8.6",
           "referenceType": "purl"
         }
       ],
@@ -5434,23 +5458,23 @@
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "ISC",
       "name": "semver",
-      "versionInfo": "7.8.5"
+      "versionInfo": "7.8.6"
     },
     {
-      "SPDXID": "SPDXRef-Package-npm--typescript-eslint-utils-8.71.2",
+      "SPDXID": "SPDXRef-Package-npm--typescript-eslint-utils-8.73.0",
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "47229ad46d4cf6b2870e1ae4f8726d885d4cbcb0f9531d895b74d2933c3ed36a5100b76925bf90cc6d58e5e9be2ef0a0cc6c2083c1fb9814452a58cdcfb2263f"
+          "checksumValue": "8f6495249bd59177542f459c133a38bc41f598ed6f222f0a955ba4718036320319bd83762e5651e0f9ac5be1934b1496db88fa43f10fefe30e89f2ed839866b0"
         }
       ],
       "comment": "Development/test only; not redistributed.",
       "copyrightText": "NOASSERTION",
-      "downloadLocation": "https://registry.npmjs.org/@typescript-eslint/utils/-/utils-8.71.2.tgz",
+      "downloadLocation": "https://registry.npmjs.org/@typescript-eslint/utils/-/utils-8.73.0.tgz",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
-          "referenceLocator": "pkg:npm/%40typescript-eslint/utils@8.71.2",
+          "referenceLocator": "pkg:npm/%40typescript-eslint/utils@8.73.0",
           "referenceType": "purl"
         }
       ],
@@ -5458,23 +5482,23 @@
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "MIT",
       "name": "@typescript-eslint/utils",
-      "versionInfo": "8.71.2"
+      "versionInfo": "8.73.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-npm--typescript-eslint-visitor-keys-8.71.2",
+      "SPDXID": "SPDXRef-Package-npm--typescript-eslint-visitor-keys-8.73.0",
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "ce8ce5374500df66d21b6ce4280810c916126c4212568c94eafbe4298a366929f2ef80fc261e1ef8f3a427a2e4d1d95ecd98b9c7b4ed0fef3c5dbd3a201f2786"
+          "checksumValue": "93896c155a5164809b96d9081041f8859464c1792a0c5d461c1a4294a40e1d063e464a19000bb2735722dc8ea9f8207abf75388da1c852c85ce11cf34176562e"
         }
       ],
       "comment": "Development/test only; not redistributed.",
       "copyrightText": "NOASSERTION",
-      "downloadLocation": "https://registry.npmjs.org/@typescript-eslint/visitor-keys/-/visitor-keys-8.71.2.tgz",
+      "downloadLocation": "https://registry.npmjs.org/@typescript-eslint/visitor-keys/-/visitor-keys-8.73.0.tgz",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
-          "referenceLocator": "pkg:npm/%40typescript-eslint/visitor-keys@8.71.2",
+          "referenceLocator": "pkg:npm/%40typescript-eslint/visitor-keys@8.73.0",
           "referenceType": "purl"
         }
       ],
@@ -5482,7 +5506,7 @@
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "MIT",
       "name": "@typescript-eslint/visitor-keys",
-      "versionInfo": "8.71.2"
+      "versionInfo": "8.73.0"
     },
     {
       "SPDXID": "SPDXRef-Package-npm--vitejs-plugin-react-6.1.2",
@@ -6325,20 +6349,20 @@
       "versionInfo": "4.0.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-npm-eslint-10.12.0",
+      "SPDXID": "SPDXRef-Package-npm-eslint-10.15.0",
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "9e91e3ac76f6a387a11f7984f98bb100147ed20c9bd1a556088a258090c0af00a21c422ca27066dd92a37a5e5bd14e7e6be31b12f232442182cc3dde28a2b634"
+          "checksumValue": "fb95a0e29fb37b7b06d5612b62050eff71f521021f141ca6554034168fd74de04e2d2e9440851e929489f2c751927eceef08e1f386f9e70feba2a6af1f669272"
         }
       ],
       "comment": "Development/test only; not redistributed.",
       "copyrightText": "NOASSERTION",
-      "downloadLocation": "https://registry.npmjs.org/eslint/-/eslint-10.12.0.tgz",
+      "downloadLocation": "https://registry.npmjs.org/eslint/-/eslint-10.15.0.tgz",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
-          "referenceLocator": "pkg:npm/eslint@10.12.0",
+          "referenceLocator": "pkg:npm/eslint@10.15.0",
           "referenceType": "purl"
         }
       ],
@@ -6346,7 +6370,7 @@
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "MIT",
       "name": "eslint",
-      "versionInfo": "10.12.0"
+      "versionInfo": "10.15.0"
     },
     {
       "SPDXID": "SPDXRef-Package-npm-eslint-plugin-react-hooks-7.1.1",
@@ -7741,20 +7765,20 @@
       "versionInfo": "2.27.1"
     },
     {
-      "SPDXID": "SPDXRef-Package-npm-minimatch-10.2.6",
+      "SPDXID": "SPDXRef-Package-npm-minimatch-11.0.9",
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "be92d012cf952c2af59d4d015d2d3b99a628170943007d209e042ebadb71230bad0c510c1ead9b957fbcbe98310dd2b72753f08c22627a9efb3a2b536782e5d4"
+          "checksumValue": "2821647f28ea7ab3654acb6396120635720a64603fe8ee15e1196167e0ecafadb548f3f0d26ce5ca913d0fd64ea0f89579f1c80fe8fbfd7b8c325a9f0ff17ad1"
         }
       ],
       "comment": "Development/test only; not redistributed.",
       "copyrightText": "NOASSERTION",
-      "downloadLocation": "https://registry.npmjs.org/minimatch/-/minimatch-10.2.6.tgz",
+      "downloadLocation": "https://registry.npmjs.org/minimatch/-/minimatch-11.0.9.tgz",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
-          "referenceLocator": "pkg:npm/minimatch@10.2.6",
+          "referenceLocator": "pkg:npm/minimatch@11.0.9",
           "referenceType": "purl"
         }
       ],
@@ -7762,7 +7786,7 @@
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "BlueOak-1.0.0",
       "name": "minimatch",
-      "versionInfo": "10.2.6"
+      "versionInfo": "11.0.9"
     },
     {
       "SPDXID": "SPDXRef-Package-npm-ms-2.1.3",
@@ -8773,20 +8797,20 @@
       "versionInfo": "6.0.3"
     },
     {
-      "SPDXID": "SPDXRef-Package-npm-typescript-eslint-8.71.2",
+      "SPDXID": "SPDXRef-Package-npm-typescript-eslint-8.73.0",
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "473e1e7df6cccb683dc27bce2591ba49b55abd7df5dcb6a9d6f3446e4d51528721ce2724bf33fc3f81c1f9b90d8397b9d1e573d614068e1f4ad68988d7107807"
+          "checksumValue": "f849cacbdae460fba7e25fa41b66c3b98590eb2d6d19581d47fb58d54f400ba876d428c4c0ea1cee0b23c1ed055c1f2e585ce4e1088215bb915a05fbe7c3e202"
         }
       ],
       "comment": "Development/test only; not redistributed.",
       "copyrightText": "NOASSERTION",
-      "downloadLocation": "https://registry.npmjs.org/typescript-eslint/-/typescript-eslint-8.71.2.tgz",
+      "downloadLocation": "https://registry.npmjs.org/typescript-eslint/-/typescript-eslint-8.73.0.tgz",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
-          "referenceLocator": "pkg:npm/typescript-eslint@8.71.2",
+          "referenceLocator": "pkg:npm/typescript-eslint@8.73.0",
           "referenceType": "purl"
         }
       ],
@@ -8794,23 +8818,23 @@
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "MIT",
       "name": "typescript-eslint",
-      "versionInfo": "8.71.2"
+      "versionInfo": "8.73.0"
     },
     {
-      "SPDXID": "SPDXRef-Package-npm-undici-8.12.1",
+      "SPDXID": "SPDXRef-Package-npm-undici-8.13.1",
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "baccf73954017a1d4bc4d9f40f3534be82d73209f9094fd651da41b18e938b969f35aa3ebd39269f81ff371a17a25735d1c3aa7b6f98206d07b29ab6aec97ae3"
+          "checksumValue": "2adec468f8e1d2cf779491ff3e65b7779ae191ca546ba7d2de3a99efe606c4d77d2fb5f2fe2f36ef17b80b6ba186afa925e6cce2d40e9790201e65b5d46e5292"
         }
       ],
       "comment": "Development/test only; not redistributed.",
       "copyrightText": "NOASSERTION",
-      "downloadLocation": "https://registry.npmjs.org/undici/-/undici-8.12.1.tgz",
+      "downloadLocation": "https://registry.npmjs.org/undici/-/undici-8.13.1.tgz",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
-          "referenceLocator": "pkg:npm/undici@8.12.1",
+          "referenceLocator": "pkg:npm/undici@8.13.1",
           "referenceType": "purl"
         }
       ],
@@ -8818,7 +8842,7 @@
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "MIT",
       "name": "undici",
-      "versionInfo": "8.12.1"
+      "versionInfo": "8.13.1"
     },
     {
       "SPDXID": "SPDXRef-Package-npm-update-browserslist-db-1.3.4",
@@ -9943,6 +9967,11 @@
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
+      "relationshipType": "TEST_DEPENDENCY_OF",
+      "spdxElementId": "SPDXRef-Package-webmin-reference"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-homelab-control",
       "relationshipType": "DEV_DEPENDENCY_OF",
       "spdxElementId": "SPDXRef-Package-npm--asamuzakjp-css-color-7.1.5"
     },
@@ -10104,7 +10133,7 @@
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
       "relationshipType": "DEV_DEPENDENCY_OF",
-      "spdxElementId": "SPDXRef-Package-npm--eslint-config-array-0.23.5"
+      "spdxElementId": "SPDXRef-Package-npm--eslint-config-array-0.23.6"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
@@ -10170,6 +10199,11 @@
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
       "relationshipType": "DEV_DEPENDENCY_OF",
       "spdxElementId": "SPDXRef-Package-npm--humanwhocodes-retry-0.4.3"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-homelab-control",
+      "relationshipType": "DEV_DEPENDENCY_OF",
+      "spdxElementId": "SPDXRef-Package-npm--isaacs-nonrecursive-glob-match-1.1.0"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
@@ -10344,62 +10378,62 @@
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
       "relationshipType": "DEV_DEPENDENCY_OF",
-      "spdxElementId": "SPDXRef-Package-npm--typescript-eslint-eslint-plugin-8.71.2"
+      "spdxElementId": "SPDXRef-Package-npm--typescript-eslint-eslint-plugin-8.73.0"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
       "relationshipType": "DEV_DEPENDENCY_OF",
-      "spdxElementId": "SPDXRef-Package-npm-ignore-7.0.12"
+      "spdxElementId": "SPDXRef-Package-npm-ignore-7.0.16"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
       "relationshipType": "DEV_DEPENDENCY_OF",
-      "spdxElementId": "SPDXRef-Package-npm--typescript-eslint-parser-8.71.2"
+      "spdxElementId": "SPDXRef-Package-npm--typescript-eslint-parser-8.73.0"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
       "relationshipType": "DEV_DEPENDENCY_OF",
-      "spdxElementId": "SPDXRef-Package-npm--typescript-eslint-project-service-8.71.2"
+      "spdxElementId": "SPDXRef-Package-npm--typescript-eslint-project-service-8.73.0"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
       "relationshipType": "DEV_DEPENDENCY_OF",
-      "spdxElementId": "SPDXRef-Package-npm--typescript-eslint-scope-manager-8.71.2"
+      "spdxElementId": "SPDXRef-Package-npm--typescript-eslint-scope-manager-8.73.0"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
       "relationshipType": "DEV_DEPENDENCY_OF",
-      "spdxElementId": "SPDXRef-Package-npm--typescript-eslint-tsconfig-utils-8.71.2"
+      "spdxElementId": "SPDXRef-Package-npm--typescript-eslint-tsconfig-utils-8.73.0"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
       "relationshipType": "DEV_DEPENDENCY_OF",
-      "spdxElementId": "SPDXRef-Package-npm--typescript-eslint-type-utils-8.71.2"
+      "spdxElementId": "SPDXRef-Package-npm--typescript-eslint-type-utils-8.73.0"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
       "relationshipType": "DEV_DEPENDENCY_OF",
-      "spdxElementId": "SPDXRef-Package-npm--typescript-eslint-types-8.71.2"
+      "spdxElementId": "SPDXRef-Package-npm--typescript-eslint-types-8.73.0"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
       "relationshipType": "DEV_DEPENDENCY_OF",
-      "spdxElementId": "SPDXRef-Package-npm--typescript-eslint-typescript-estree-8.71.2"
+      "spdxElementId": "SPDXRef-Package-npm--typescript-eslint-typescript-estree-8.73.0"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
       "relationshipType": "DEV_DEPENDENCY_OF",
-      "spdxElementId": "SPDXRef-Package-npm-semver-7.8.5"
+      "spdxElementId": "SPDXRef-Package-npm-semver-7.8.6"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
       "relationshipType": "DEV_DEPENDENCY_OF",
-      "spdxElementId": "SPDXRef-Package-npm--typescript-eslint-utils-8.71.2"
+      "spdxElementId": "SPDXRef-Package-npm--typescript-eslint-utils-8.73.0"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
       "relationshipType": "DEV_DEPENDENCY_OF",
-      "spdxElementId": "SPDXRef-Package-npm--typescript-eslint-visitor-keys-8.71.2"
+      "spdxElementId": "SPDXRef-Package-npm--typescript-eslint-visitor-keys-8.73.0"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
@@ -10579,7 +10613,7 @@
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
       "relationshipType": "DEV_DEPENDENCY_OF",
-      "spdxElementId": "SPDXRef-Package-npm-eslint-10.12.0"
+      "spdxElementId": "SPDXRef-Package-npm-eslint-10.15.0"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
@@ -10874,7 +10908,7 @@
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
       "relationshipType": "DEV_DEPENDENCY_OF",
-      "spdxElementId": "SPDXRef-Package-npm-minimatch-10.2.6"
+      "spdxElementId": "SPDXRef-Package-npm-minimatch-11.0.9"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
@@ -11089,12 +11123,12 @@
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
       "relationshipType": "DEV_DEPENDENCY_OF",
-      "spdxElementId": "SPDXRef-Package-npm-typescript-eslint-8.71.2"
+      "spdxElementId": "SPDXRef-Package-npm-typescript-eslint-8.73.0"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
       "relationshipType": "DEV_DEPENDENCY_OF",
-      "spdxElementId": "SPDXRef-Package-npm-undici-8.12.1"
+      "spdxElementId": "SPDXRef-Package-npm-undici-8.13.1"
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
@@ -11180,11 +11214,6 @@
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
       "relationshipType": "DEV_DEPENDENCY_OF",
       "spdxElementId": "SPDXRef-Package-npm-zod-validation-error-4.0.2"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-homelab-control",
-      "relationshipType": "TEST_DEPENDENCY_OF",
-      "spdxElementId": "SPDXRef-Package-webmin-reference"
     }
   ],
   "spdxVersion": "SPDX-2.3"
