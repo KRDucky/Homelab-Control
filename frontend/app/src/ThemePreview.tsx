@@ -193,9 +193,7 @@ export function ThemePreview({
                       <span role="cell">{service.name}</span>
                       <span
                         role="cell"
-                        className={
-                          service.state === 'Active' ? 'theme-mini-positive' : 'theme-mini-caution'
-                        }
+                        className={service.state === 'Active' ? 'theme-mini-positive' : 'theme-mini-caution'}
                       >
                         {service.state}
                       </span>
