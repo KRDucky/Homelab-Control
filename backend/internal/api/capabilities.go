@@ -29,6 +29,7 @@ import (
 	"homelab-control/backend/internal/mergerfsinfo"
 	"homelab-control/backend/internal/modules"
 	"homelab-control/backend/internal/servicepolicy"
+	"homelab-control/backend/internal/xfsinfo"
 	"homelab-control/backend/internal/zfsinfo"
 )
 
@@ -342,14 +343,34 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 			f2fs.Status, f2fs.Reason = CapDegraded, reason
 		}
 	}
-	caps := []Capability{gate(traefik), gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages), gate(mergerfs), gate(zfs), gate(lvm), gate(btrfs), gate(ext4), gate(mdadm), gate(f2fs)}
+
+	// M7 first checkpoint: one XFS page, read-only. Available when the
+	// xfs_info binary and kernel XFS are listed (mounts may still be empty);
+	// degraded when either is missing so the page still mounts. Probe is
+	// os.Stat of well-known paths plus one /proc/filesystems read (no
+	// mountinfo, no xfs_info exec), and only when the module is enabled and
+	// the session has xfs.read.
+	xfs := Capability{ID: "xfs", Label: "XFS", Path: "/storage/xfs", Scope: auth.ScopeXFSRead, Status: CapAvailable}
+	if s.mods.Enabled("xfs") && sess.HasScope(auth.ScopeXFSRead) {
+		if ok, reason := xfsinfo.ProbeCapability(s.packageFamily()); ok {
+			xfs.Status, xfs.Reason = CapAvailable, ""
+		} else {
+			xfs.Status, xfs.Reason = CapDegraded, reason
+		}
+	}
+	caps := []Capability{gate(traefik), gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages), gate(mergerfs), gate(zfs), gate(lvm), gate(btrfs), gate(ext4), gate(mdadm), gate(f2fs), gate(xfs)}
 	// Navigation follows the module registry: a disabled module contributes
 	// no capability (and therefore no navigation entry).
 	resp.Capabilities = caps[:0]
 	for _, c := range caps {
-		// M8/M7: mergerfs, zfs, lvm, btrfs, ext4, mdadm, and f2fs UI paths do not equal their
-		// API prefixes, so ForRoute cannot map them; gate by module ID directly.
-		if (c.ID == "mergerfs" && !s.mods.Enabled("mergerfs")) || (c.ID == "zfs" && !s.mods.Enabled("zfs")) || (c.ID == "lvm" && !s.mods.Enabled("lvm")) || (c.ID == "btrfs" && !s.mods.Enabled("btrfs")) || (c.ID == "ext4" && !s.mods.Enabled("ext4")) || (c.ID == "mdadm" && !s.mods.Enabled("mdadm")) || (c.ID == "f2fs" && !s.mods.Enabled("f2fs")) {
+		// M8/M7: mergerfs, zfs, lvm, btrfs, ext4, mdadm, f2fs, and xfs UI paths sit under /storage but
+		// are separate modules, so ForRoute would map them to storage. Gate
+		// them by their own module ID only.
+		switch c.ID {
+		case "mergerfs", "zfs", "lvm", "btrfs", "ext4", "mdadm", "f2fs", "xfs":
+			if s.mods.Enabled(c.ID) {
+				resp.Capabilities = append(resp.Capabilities, c)
+			}
 			continue
 		}
 		if s.mods.Enabled(modules.ForRoute("/api/v1" + c.Path)) {

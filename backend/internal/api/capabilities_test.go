@@ -16,6 +16,7 @@ import (
 	"homelab-control/backend/internal/broker/proto"
 	"homelab-control/backend/internal/brokerclient"
 	"homelab-control/backend/internal/hwinfo"
+	"homelab-control/backend/internal/modules"
 )
 
 // fakeBroker answers ops from a table and records actors.
@@ -233,5 +234,41 @@ func TestUnitFilesCapabilityNeedsFilesScope(t *testing.T) {
 		"ops": []map[string]string{{"name": "broker.info"}, {"name": "services.systemd.list"}}}
 	if c := caps(t, harnessWith(t, fb, []string{auth.ScopeServicesRead, auth.ScopeServicesFiles})); c["unit_files"].Status != CapUnavailable {
 		t.Fatalf("broker without the op: %+v", c["unit_files"])
+	}
+}
+
+// The mergerfs, zfs, lvm, btrfs, ext4, mdadm, f2fs and xfs pages live under /storage/* in the UI, but
+// each is its own module. Disabling Storage must not hide them, and disabling
+// one of them must not hide Storage.
+func TestStorageSubpageCapabilitiesFollowTheirOwnModule(t *testing.T) {
+	h := harnessWith(t, newFake(), allScopes)
+	set, err := modules.Parse([]byte(`{"version":1,"disabled":["storage"]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.srv.WithModules(set)
+	c := caps(t, h)
+	for _, id := range []string{"mergerfs", "zfs", "lvm", "btrfs", "ext4", "mdadm", "f2fs", "xfs"} {
+		if _, ok := c[id]; !ok {
+			t.Errorf("%s capability hidden when only storage is disabled", id)
+		}
+	}
+	if _, ok := c["storage"]; ok {
+		t.Error("storage capability listed while the storage module is disabled")
+	}
+
+	set, err = modules.Parse([]byte(`{"version":1,"disabled":["mergerfs","zfs","lvm","btrfs","ext4","mdadm","f2fs","xfs"]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.srv.WithModules(set)
+	c = caps(t, h)
+	for _, id := range []string{"mergerfs", "zfs", "lvm", "btrfs", "ext4", "mdadm", "f2fs", "xfs"} {
+		if _, ok := c[id]; ok {
+			t.Errorf("%s capability listed while its module is disabled", id)
+		}
+	}
+	if _, ok := c["storage"]; !ok {
+		t.Error("storage capability hidden when only its subpage modules are disabled")
 	}
 }

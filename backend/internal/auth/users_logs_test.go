@@ -419,3 +419,25 @@ func TestF2fsReadNotGrantedByDefaultOrImplied(t *testing.T) {
 		t.Fatal("every other scope together must not imply f2fs.read")
 	}
 }
+
+// M7 first checkpoint: read-only XFS needs xfs.read, never granted by
+// default and implied by no other scope (including storage.read).
+func TestXFSReadNotGrantedByDefaultOrImplied(t *testing.T) {
+	if !KnownScopes[ScopeXFSRead] || ScopeXFSRead != "xfs.read" {
+		t.Fatal("xfs.read must be a known scope")
+	}
+	for _, s := range strings.Split(DefaultScopes, ",") {
+		if s == ScopeXFSRead || strings.HasPrefix(s, "xfs.") {
+			t.Fatalf("default scopes grant %s", s)
+		}
+	}
+	var others []string
+	for s := range KnownScopes {
+		if s != ScopeXFSRead {
+			others = append(others, s)
+		}
+	}
+	if (&Session{Scopes: others}).HasScope(ScopeXFSRead) {
+		t.Fatal("every other scope together must not imply xfs.read")
+	}
+}

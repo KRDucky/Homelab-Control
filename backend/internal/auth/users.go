@@ -157,6 +157,11 @@ const (
 	// no writes, no broker ops, and no dump.f2fs execution. Not in
 	// DefaultScopes and implied by nothing, including storage.read.
 	ScopeF2fsRead = "f2fs.read"
+	// ScopeXFSRead allows the read-only XFS inventory (M7 first
+	// checkpoint): observed xfs mounts and xfs_info binary presence, with
+	// no writes, no broker ops, and no xfs_info execution. Not in
+	// DefaultScopes and implied by nothing, including storage.read.
+	ScopeXFSRead = "xfs.read"
 )
 
 // KnownScopes lists every scope the server understands. Unknown scopes in the
@@ -196,6 +201,7 @@ var KnownScopes = map[string]bool{
 	ScopeExt4Read:             true,
 	ScopeMdadmRead:            true,
 	ScopeF2fsRead:             true,
+	ScopeXFSRead:              true,
 }
 
 // DefaultScopes are granted by `hlctl user add` when --scopes is not given.
