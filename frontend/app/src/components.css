@@ -122,6 +122,35 @@
 .studio-preview-wrap {
   min-width: 0;
 }
+.studio-preview-wrap {
+  container-type: inline-size;
+}
+.studio-preview-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.75rem;
+}
+.studio-preview-scenes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.studio-preview-scenes legend {
+  margin-bottom: 0.35rem;
+  font-size: 0.8rem;
+}
+.studio-preview-scenes button {
+  font-size: 0.8rem;
+}
+.studio-preview-scene-selected {
+  background: var(--hc-color-accent-base);
+  color: var(--hc-color-accent-contrast);
+}
 .studio-field {
   display: grid;
   gap: 0.4rem;
