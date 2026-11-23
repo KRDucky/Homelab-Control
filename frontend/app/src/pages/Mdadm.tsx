@@ -93,7 +93,7 @@ export function MdadmView({
         )}
         {md.arraysTruncated ? (
           <p className="banner" role="status">
-            too many arrays to list
+            Showing {md.arrays.length} arrays from a truncated inventory; additional arrays may be omitted.
           </p>
         ) : null}
         {!md.present ? (
