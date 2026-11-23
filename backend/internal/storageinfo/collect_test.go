@@ -105,6 +105,7 @@ func TestCollectRealisticPartitionAndStackedSysfsLinks(t *testing.T) {
 	put("sys/devices/sda/sda1/dev", "8:1")
 	put("sys/devices/sda/sda1/size", "2048")
 	put("sys/devices/sda/sda1/partition", "1")
+	put("sys/devices/sda/sda1/start", "2048")
 	put("sys/devices/dm-0/dev", "253:0")
 	put("sys/devices/dm-0/size", "1024")
 	put("sys/devices/dm-0/dm/uuid", "LVM-fixture")
@@ -132,6 +133,15 @@ func TestCollectRealisticPartitionAndStackedSysfsLinks(t *testing.T) {
 		want := map[string]string{"sda": "42", "sda1": "42", "dm-0": ""}[n.Name]
 		if n.DiskSeq != want {
 			t.Fatalf("%s diskseq = %q, want %q (partitions report their disk's)", n.Name, n.DiskSeq, want)
+		}
+		if n.Name == "sda1" {
+			if n.StartBytes == nil || *n.StartBytes != 2048*512 {
+				t.Fatalf("sda1 start_bytes = %v, want 1 MiB", n.StartBytes)
+			}
+			continue
+		}
+		if n.StartBytes != nil {
+			t.Fatalf("%s start_bytes = %d, want unset", n.Name, *n.StartBytes)
 		}
 	}
 }

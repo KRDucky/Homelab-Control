@@ -355,6 +355,19 @@ package install. MergerFS tooling JSON is unchanged (types aliased). Not P0 comp
 not production. Ext4 format has broker unit tests with a fake child. A live
 `mkfs.ext4` in a guest has not been run for this caller. Do not format the MediaMouse host.
 
+## M6 partition planner (first checkpoint; not acceptance)
+
+Partition nodes in the storage graph include `start_bytes` when sysfs `start` is readable
+(512-byte sectors). A missing or unreadable start stays unset, including offset zero only
+when the kernel reported zero. `POST /api/v1/storage/plan/dry-run` (scope `storage.read`,
+CSRF, audit detail is the slice count) checks overlap, 1 MiB alignment, bounds, and the
+filesystem allowlist ext4, xfs, f2fs, btrfs, exfat, swap, or none. The report always has
+`executes: false`, and every step has `executable: false`. The call does not collect
+devices, call the broker, partition, format, or mount. The Storage page draws a
+proportional bar from observed partition starts and can check a layout. The only live
+format path remains `ext4.format` on a whole by-id disk. Virtual-disk tests and
+destructive partition execution are not in this checkpoint. Not M6 acceptance.
+
 ## M2-3: expanded service management (development authorized 2026-11-04; implementation not accepted)
 
 **Current update (2026-11-18):** the owner authorized KVM Phase A and Phase B and opening an M2 PR. The

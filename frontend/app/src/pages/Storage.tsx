@@ -8,6 +8,7 @@ import { DataTable } from '../DataTable';
 import { formatBytes } from '../format';
 import { Section } from '../ui';
 import { DriveBays } from './DriveBays';
+import { PartitionPlan } from './PartitionPlan';
 import { explain, useData } from '../useData';
 import {
   DRIVE_LABEL_KEY,
@@ -503,6 +504,16 @@ export function Storage({
           meta={{ status: 'ok', sources: current.evidence.map((evidence) => evidence.source) }}
         >
           <h3 className="subhead mono">{driveLabel(current, preference).value}</h3>
+          {(current.kind === 'block' || current.kind === 'disk') && (
+            <PartitionPlan
+              key={current.id}
+              disk={current}
+              nodes={nodes}
+              edges={edges}
+              csrf={csrf}
+              onUnauthorized={onUnauthorized}
+            />
+          )}
           <dl className="facts">
             <div>
               <dt>Kernel/display name</dt>

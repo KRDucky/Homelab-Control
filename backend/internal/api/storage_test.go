@@ -216,6 +216,7 @@ func TestStorageModuleDisabledBeforeCollectionOrBroker(t *testing.T) {
 	for _, tc := range []struct{ method, path string }{
 		{"GET", "/api/v1/storage"},
 		{"POST", "/api/v1/storage/probe"},
+		{"POST", "/api/v1/storage/plan/dry-run"},
 		{"GET", "/api/v1/storage/layout/chassis"},
 	} {
 		hdr := map[string]string{}

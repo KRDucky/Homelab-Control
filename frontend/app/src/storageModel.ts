@@ -35,6 +35,8 @@ export interface StorageNode {
   device_number?: string;
   disk_seq?: string;
   size_bytes?: number;
+  /** Partition start in bytes from sysfs. Absent when unreadable. Zero is a real offset. */
+  start_bytes?: number;
   filesystem_type?: string;
   signature_uuid?: string;
   mountpoint?: string;
