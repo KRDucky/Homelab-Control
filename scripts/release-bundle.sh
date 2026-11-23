@@ -15,7 +15,7 @@
 # 2. Extracts that archive in an empty directory and builds the binaries and packages ONLY
 #    from it. A missing file fails here.
 # 3. Builds the same commit from a git worktree and requires byte-identical binaries and
-#    .deb/.rpm packages. This shows the archive is complete and the build reproducible across
+#    the .deb. This shows the archive is complete and the build reproducible across
 #    two build directories on the same machine; CI repeats the whole run on two independent
 #    runners and compares the results (release-repro job).
 # 4. Writes SHA256SUMS over all release files and the version-stamped SBOM. No signing, tagging or
@@ -63,7 +63,7 @@ node=$(node --version)
 npm=$(npm --version)
 rust=$(cd backend/audit-retention && rustc --version | cut -d' ' -f2)
 build_command=make build VERSION=$ver SOURCE_DATE_EPOCH=$sde
-packages_command=packaging/debian/build-deb.sh $ver; packaging/fedora/build-rpm.sh $ver; packaging/arch/build-pkg.sh $ver (on Arch Linux, packaging the binaries built above)
+packages_command=packaging/debian/build-deb.sh $ver (first release is Debian/Ubuntu; Fedora and Arch scripts stay in the tree and are not built here)
 excluded=compat/webmin/ (upstream Webmin reference tree; not used to build any binary; available at the tagged commit)
 INFO
 )
@@ -91,7 +91,6 @@ mkdir -p "$work/cargo-home-archive"
   GOFLAGS=-mod=readonly GOTOOLCHAIN=local CARGO_HOME="$work/cargo-home-archive" \
   make -s build VERSION="$ver" SOURCE_DATE_EPOCH="$sde" CARGO="cargo --offline --config $work/cargo-offline.toml" >/dev/null)
 (cd "$src" && packaging/debian/build-deb.sh "$ver" >/dev/null)
-if command -v rpmbuild >/dev/null 2>&1; then (cd "$src" && packaging/fedora/build-rpm.sh "$ver" >/dev/null); else echo "SKIPPED: rpm (rpmbuild not installed)"; fi
 
 echo "== 3. same commit from git must give identical binaries"
 git worktree add --detach "$work/wt" "$commit" >/dev/null
@@ -104,14 +103,16 @@ if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::notice title=release dry run::bina
 
 echo "== 3b. packages from both trees must be byte-identical"
 (cd "$work/wt" && packaging/debian/build-deb.sh "$ver" >/dev/null)
-if command -v rpmbuild >/dev/null 2>&1; then (cd "$work/wt" && packaging/fedora/build-rpm.sh "$ver" >/dev/null); fi
 pkgsum=""
-for p in "$src"/build/*.deb "$src"/build/*.rpm; do
+n=0
+for p in "$src"/build/*.deb; do
   [ -e "$p" ] || continue
   q="$work/wt/build/$(basename "$p")"
   cmp -s "$p" "$q" || { echo "FAIL: $(basename "$p") differs between archive and git builds"; sha256sum "$p" "$q"; exit 1; }
   pkgsum="$pkgsum $(sha256sum "$p" | cut -c1-16)…  $(basename "$p");"
+  n=$((n + 1))
 done
+[ "$n" -eq 1 ] || { echo "FAIL: expected exactly one .deb, compared $n"; exit 1; }
 echo "OK: packages identical:$pkgsum"
 if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::notice title=release dry run::packages built from the archive and from git are byte-identical:$pkgsum"; fi
 
@@ -121,13 +122,12 @@ install -Dm0755 -t "$bin" "$src/build/hc-api" "$src/build/hlctl" "$src/build/hc-
 install -Dm0644 -t "$bin" "$src/LICENSE.md" "$src/NOTICE.md" "$src/docs/compliance/THIRD-PARTY-NOTICES.md"
 tar --sort=name --owner=0 --group=0 --numeric-owner --mtime="@$sde" -C "$work/bin" -cf - "$(basename "$bin")" | gzip -n -9 > "$out/$(basename "$bin").tar.gz"
 cp "$src"/build/*.deb "$out/"
-cp "$src"/build/*.rpm "$out/" 2>/dev/null || true
 cp "$src/LICENSE.md" "$src/NOTICE.md" "$src/docs/compliance/THIRD-PARTY-NOTICES.md" "$out/"
 # SBOM stamped with this release's version, commit and exact Go toolchain (ADR 0009 R4).
 python3 -I "$root/scripts/release-tool.py" stamp-sbom "$src/docs/compliance/sbom/homelab-control.spdx.json" \
   "$out/$name.spdx.json" --version "$ver" --commit "$commit" --go "$(go env GOVERSION)"
 printf '%s\n' "$buildinfo" > "$out/RELEASE-BUILDINFO"
-for p in "$out"/*.deb "$out"/*.rpm; do [ -e "$p" ] && "$root/scripts/package-inventory.sh" "$p" >/dev/null; done
+for p in "$out"/*.deb; do [ -e "$p" ] && "$root/scripts/package-inventory.sh" "$p" >/dev/null; done
 (cd "$out" && sha256sum -- * > "$work/SHA256SUMS") && mv "$work/SHA256SUMS" "$out/SHA256SUMS"
 echo "DRY RUN complete, nothing published. Files in $out:"
 (cd "$out" && ls -l)

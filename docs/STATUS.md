@@ -205,11 +205,15 @@ capacity. Zero-byte measured filesystems still include the numbers.
 Pool mount, array definition (fstab plus snapraid.conf), sync, scrub, and filtered recovery
 (`snapraid fix -m -f` only) are plan/apply broker ops. `mergerfs.configure` and `mergerfs.maintain`
 are not default grants and do not imply `mergerfs.read` or each other. The broker dials an opt-in
-helper socket. The package does not ship `/etc/homelab-control/mergerfs-apply.enabled` and does not
-enable the socket. Sync and scrub refuse a missing disk or removed files. There is no `--force`,
-no `-e`, and no unfiltered fix. Disks are not formatted. `storagecap.Advance` still does not execute.
+helper socket. The package ships `/etc/homelab-control/mergerfs-apply.enabled`. The socket has no
+`[Install]` section and the package does not enable it at boot. Sync and scrub refuse a missing disk
+or removed files. There is no `--force`, no `-e`, and no unfiltered fix. Disks are not formatted.
+`storagecap.Advance` enters `execute` after a passing confirm, then `progress` and `postcheck`.
+It still does not format a device or call a helper. No broker op calls `mkfs.ext4`.
 The unused `homelab-control-storage-helper.service` stays `ExecStart=/bin/false`.
-The helper unit is opt-in and is not MAC-confined. It does not use a private mount or network namespace
+Debian and Ubuntu install a drop-in that sets `AppArmorProfile=hc-mergerfs-apply`. The shared unit does not set it. The first release is Debian and Ubuntu only. The profile is enforce mode, allows
+`mount` and the helper's three binaries, and denies other network families. It is not the probe
+profile. There is no SELinux policy for this helper. It does not use a private mount or network namespace
 (`PrivateMounts=no`, `PrivateNetwork=no`, `IPAddressDeny=any`). `@system-service` excludes `@mount`,
 so the unit adds `@mount`. mergerfs is started in its own systemd scope so the oneshot does not stop it.
 One disposable Ubuntu 24.04 guest exercised that helper socket: the pool mount stayed visible, the
@@ -222,9 +226,16 @@ A later disposable Ubuntu 24.04 guest exercised the same actions through hc-api 
 login, step-up, and POST plan/apply for the pool mount, the array definition, sync, a refused sync
 after a file was removed, `fix -m -f` of that file, scrub, and a refused sync after a data directory
 was removed. Outcomes were succeeded, succeeded, succeeded, failed, succeeded, succeeded, failed.
-The mount plan argv was the mergerfs command. The enable marker existed only inside that guest.
+The mount plan argv was the mergerfs command. That guest created the marker itself.
 The UI was not part of this guest. Evidence run `src-20261121T225047Z-8c8798`.
-Not production-approved. Not M8 acceptance. This checkpoint is not on main.
+That plan/apply checkpoint is on main.
+A later disposable Ubuntu 24.04 guest loaded `hc-mergerfs-apply` in enforce mode and
+ran the same helper under that profile. Mount, persist, sync, the removed-file sync
+refusal, `fix -m -f`, scrub, and the hidden-directory sync refusal all completed, and
+the journal had no AppArmor denial for the helper. The guest created the enable marker
+itself; it did not install the package. The UI was not in this guest. `storagecap.Advance`
+was not part of this guest. Evidence run `src-20261122T022248Z-d6dead`.
+Not production-approved. Not M8 acceptance.
 
 ## P0 storage shared (development; not production, not ADR 0014)
 
@@ -567,8 +578,8 @@ The owner authorized completing the remaining frontend and adding a user Theme D
   - lint, Go and Vitest tests;
   - security gate: govulncheck **v1.9.0**, npm audit, reuse, notices/DEP-5/SBOM drift, Webmin inventory, secret scan, shellcheck;
   - reproducible build;
-  - DEB/RPM/Arch payload checks with lintian;
-  - install matrix on Debian stable/oldstable, Ubuntu 22.04/24.04/26.04, Fedora, openSUSE Tumbleweed/Leap and Arch;
+  - Debian/Ubuntu `.deb` payload check with lintian. Fedora, openSUSE and Arch are not in this release;
+  - install matrix on Debian stable/oldstable and Ubuntu 22.04/24.04/26.04;
   - real systemd on Ubuntu 24.04 and 26.04, configured to run the M2-2 service-operations scenario in
     short mode (the token and step-up expiry waits need `HC_M2_LONG=1`, which CI does not set);
   - browser e2e plus the theme CSP probe (Chromium, Firefox, WebKit), and the M2-2 service-operations
@@ -577,8 +588,8 @@ The owner authorized completing the remaining frontend and adding a user Theme D
   - upgrade test from the published v0.1.0-dev.1 package (`upgrade-ubuntu`, PR #13) and 60-second fuzz
     runs of the log-argument (`FuzzLogsArgs`) and write-operation argument (`FuzzWriteArgs`) fuzzers;
   - release dry run through the same reusable workflow as the release (`release-build.yml`, exact
-    toolchain pins): two runners plus Arch, reproducibility comparison, fail-closed candidate verification,
-    negative tests, release notes.
+    toolchain pins): two runners, reproducibility comparison, fail-closed candidate verification,
+    negative tests, release notes. The candidate is a Debian/Ubuntu `.deb` plus source, binaries, SBOM and notices.
 - **Job count:** 21 check runs on every PR head from #13 to #22, all green. PR #12 had 20; the difference is
   the `upgrade-ubuntu` job added by #13 (compared by check-run name). Not re-counted for #25–#28.
 - **Actions:** official `actions/*` releases on the node24 runtime, pinned by commit SHA, read-only token,
@@ -590,9 +601,11 @@ The owner authorized completing the remaining frontend and adding a user Theme D
   after publication, including an independent rebuild outside GitHub (binaries and `.deb` byte-identical).
   Signing (Phase 3) and attestations (Phase 2) remain deferred; no stable releases or package repositories.
   Procedure: `docs/release/RELEASING.md`.
-- Release **dry run** in CI: complete corresponding-source archive; binaries, DEB, RPM and Arch packages
-  built only from it; archive build = Git build; two independent runs compared file by file. RPM and Arch
-  nondeterminism found and fixed. Not tested with other toolchain versions or distributions.
+- Release **dry run** in CI: complete corresponding-source archive; binaries and the Debian/Ubuntu `.deb`
+  built only from it; archive build = Git build; two independent runs compared file by file. The first
+  release does not build or publish Fedora, openSUSE or Arch packages. Earlier RPM and Arch
+  nondeterminism was found and fixed while those packages were still in the candidate. Not tested with
+  other toolchain versions or distributions.
 - **Webmin independence:** distributed Homelab Control artifacts (packages, binaries, release source
   archives) contain no Webmin code, enforced in CI. `compat/webmin/` stays an unchanged
   development/reference subtree until separately authorized migration work (phase 1 is approved for its

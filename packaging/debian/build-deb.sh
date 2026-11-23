@@ -30,6 +30,9 @@ install -Dm0644 "$root/packaging/common/homelab-control-storage-probe.socket" "$
 install -Dm0644 "$root/packaging/common/homelab-control-mergerfs-apply@.service" "$stage/usr/lib/systemd/system/homelab-control-mergerfs-apply@.service"
 install -Dm0644 "$root/packaging/common/homelab-control-mergerfs-apply.socket" "$stage/usr/lib/systemd/system/homelab-control-mergerfs-apply.socket"
 install -Dm0644 "$root/packaging/debian/apparmor/usr.lib.homelab-control.hc-storage-probe" "$stage/etc/apparmor.d/usr.lib.homelab-control.hc-storage-probe"
+install -Dm0644 "$root/packaging/debian/apparmor/usr.lib.homelab-control.hc-mergerfs-apply" "$stage/etc/apparmor.d/usr.lib.homelab-control.hc-mergerfs-apply"
+install -Dm0644 "$root/packaging/debian/homelab-control-mergerfs-apply@.service.d/apparmor.conf" "$stage/usr/lib/systemd/system/homelab-control-mergerfs-apply@.service.d/apparmor.conf"
+install -Dm0640 "$root/packaging/common/mergerfs-apply.enabled" "$stage/etc/homelab-control/mergerfs-apply.enabled"
 install -Dm0644 "$root/packaging/common/homelab-control-audit-retention.service" "$stage/usr/lib/systemd/system/homelab-control-audit-retention.service"
 install -Dm0644 "$root/packaging/common/homelab-control-audit-retention.timer" "$stage/usr/lib/systemd/system/homelab-control-audit-retention.timer"
 install -Dm0644 "$root/packaging/common/sysusers.conf" "$stage/usr/lib/sysusers.d/homelab-control.conf"
@@ -42,7 +45,7 @@ install -Dm0644 "$root/README.md"  "$stage/usr/share/doc/homelab-control/README.
 # Debian Policy 12.5: machine-readable copyright file (generated, LA-12).
 install -Dm0644 "$root/packaging/debian/copyright" "$stage/usr/share/doc/homelab-control/copyright"
 mkdir -p "$stage/DEBIAN"
-printf '%s\n' /etc/homelab-control/hc-api.env /etc/homelab-control/audit-retention.conf /etc/apparmor.d/usr.lib.homelab-control.hc-storage-probe > "$stage/DEBIAN/conffiles"
+printf '%s\n' /etc/homelab-control/hc-api.env /etc/homelab-control/audit-retention.conf /etc/homelab-control/mergerfs-apply.enabled /etc/apparmor.d/usr.lib.homelab-control.hc-storage-probe /etc/apparmor.d/usr.lib.homelab-control.hc-mergerfs-apply > "$stage/DEBIAN/conffiles"
 cat > "$stage/DEBIAN/control" <<CTRL
 Package: homelab-control
 Provides: homelab-control-api
@@ -71,6 +74,10 @@ if [ "$1" = configure ]; then
     adduser --system --group --no-create-home --home /nonexistent homelab-control
   fi
   chgrp homelab-control /etc/homelab-control /etc/homelab-control/hc-api.env /etc/homelab-control/audit-retention.conf
+  # The marker is the off switch. An administrator who removed it must still be able to upgrade.
+  if [ -e /etc/homelab-control/mergerfs-apply.enabled ]; then
+    chgrp homelab-control /etc/homelab-control/mergerfs-apply.enabled
+  fi
   chmod 0750 /etc/homelab-control
   install -d -m 0700 -o homelab-control -g homelab-control /var/log/homelab-control
   install -d -m 0700 -o homelab-control -g homelab-control /var/lib/homelab-control
@@ -86,13 +93,14 @@ if [ "$1" = configure ]; then
   echo "  sudo chown homelab-control:homelab-control /etc/homelab-control/users.json"
   echo "then configure /etc/homelab-control/hc-api.env and run:"
   echo "  systemctl enable --now homelab-control-broker.socket homelab-control.service"
+  echo "The mergerfs apply marker is installed. Its socket is not enabled and does not start at boot."
 fi
 POST
 cat > "$stage/DEBIAN/prerm" <<'PRE'
 #!/bin/sh
 set -e
 if [ -d /run/systemd/system ] && [ "$1" = remove ]; then
-  systemctl stop homelab-control.service homelab-control-broker.service homelab-control-broker.socket || true
+  systemctl stop homelab-control.service homelab-control-broker.service homelab-control-broker.socket homelab-control-mergerfs-apply.socket 'homelab-control-mergerfs-apply@*' || true
   systemctl disable homelab-control.service homelab-control-broker.socket >/dev/null 2>&1 || true
   systemctl disable --now homelab-control-audit-retention.timer >/dev/null 2>&1 || true
 fi

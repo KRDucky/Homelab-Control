@@ -10,8 +10,8 @@ import (
 )
 
 // Phase is one step of the SHARED-02 mutating storage state machine.
-// Execute is typed here so later broker templates can plug in; P0 never
-// reaches it (storage root template registered unused; DefaultReadOnly).
+// Advance can enter execute after a passing confirm. It still does not
+// format a device or call a helper, and no broker op calls mkfs.
 type Phase string
 
 const (
@@ -45,7 +45,7 @@ const (
 	BlockDuplicateDevice  Block = "device-duplicate"
 )
 
-const blockNoExecuteReason = "P0 storage writes are not implemented; no storage apply op and no device helper unit (G3). ADR 0011 apply is unused here."
+const blockNoExecuteReason = "this phase is not part of the storage state machine"
 
 // DevicePreflight is necessary, not sufficient, observed device state from a
 // later privileged helper (not hc-api). This package does not stat, open, or
@@ -287,10 +287,10 @@ func preflightBlock(devs []DeviceRef, facts []DevicePreflight, planned []string)
 			return BlockPreflightMissing, "execute needs a fresh block-device preflight per target"
 		}
 		if !p.BlockDevice {
-			return BlockNotBlockDevice, "target must be a block device immediately before exec"
+			return BlockNotBlockDevice, "preflight snapshot must show a block device"
 		}
 		if !validRdev(p.Rdev) || !validRdev(planned[i]) {
-			return BlockRdevInvalid, "target rdev must be major:minor immediately before exec"
+			return BlockRdevInvalid, "preflight snapshot rdev must be major:minor"
 		}
 		if p.Rdev != planned[i] {
 			return BlockIdentityChanged, "identity changed since plan; revalidate before action"
@@ -328,8 +328,11 @@ func fail(op Op, b Block, reason string) Op {
 	return op
 }
 
-// Advance moves one step, or stays and sets Block. Execute is never
-// entered: WritesAllowed is still not authorization to write.
+// Advance moves one step, or stays and sets Block. A confirm that passes
+// the gate, identity, and preflight checks enters execute. The preflight
+// check reads the snapshot already stored on the op. This function still
+// does not stat devices, format devices, spawn processes, or call a helper.
+// Later phases do not perform a write.
 func Advance(op Op) Op {
 	if op.Block != "" {
 		return op
@@ -386,16 +389,27 @@ func Advance(op Op) Op {
 		if b := identityBlock(op.Devices); b != "" {
 			return identityFail(op, b)
 		}
-		if op.ObservedDigest == "" {
-			op.ObservedDigest = DigestDevices(op.Devices)
+		// A missing observation is not a match. Do not hash the planned
+		// devices and compare that digest with itself.
+		if op.ObservedDigest == "" || op.IdentityDigest == "" {
+			return fail(op, BlockIdentityChanged, "confirm needs an observed device digest")
 		}
-		if op.IdentityDigest == "" || op.ObservedDigest != op.IdentityDigest {
+		if op.ObservedDigest != op.IdentityDigest {
 			return fail(op, BlockIdentityChanged, "identity changed since plan; revalidate before action")
 		}
 		if b, reason := preflightBlock(op.Devices, op.Preflight, op.PlannedRdev); b != "" {
 			return fail(op, b, reason)
 		}
-		return fail(op, BlockNoExecute, blockNoExecuteReason)
+		op.Phase = PhaseExecute
+		return op
+	case PhaseExecute:
+		op.Phase = PhaseProgress
+		return op
+	case PhaseProgress:
+		op.Phase = PhasePostcheck
+		return op
+	case PhasePostcheck, PhaseRemediate:
+		return op
 	default:
 		return fail(op, BlockNoExecute, blockNoExecuteReason)
 	}

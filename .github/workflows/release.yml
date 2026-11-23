@@ -12,7 +12,7 @@
 #   preflight  main only; version valid; tag and published release absent; ci green on main for the commit
 #   gate       make check (lint, Go/frontend tests, security gate incl. govulncheck, REUSE, SBOM, notices)
 #              with the exact release toolchain
-#   build      release-build.yml: two independent builds, Arch packages, byte-for-byte comparison,
+#   build      release-build.yml: two independent Debian/Ubuntu builds, byte-for-byte comparison,
 #              candidate verification, negative tests, release notes (read-only)
 #   draft      (contents: write) re-checks the candidate and that no release/draft/tag exists for the
 #              version, creates the draft marked INCOMPLETE, downloads every uploaded asset back and
@@ -101,7 +101,7 @@ jobs:
           package-manager-cache: false
       - name: Tools (same pins as ci.yml)
         run: |
-          sudo apt-get update && sudo apt-get install -y shellcheck rpm musl-tools
+          sudo apt-get update && sudo apt-get install -y shellcheck musl-tools
           # Rust for hc-audit-retention (ADR 0006 amendment 4): exact RUST_VERSION from toolchain.env via the
           # runner's rustup (no installer script); musl-gcc compiles the bundled SQLite for the static binary.
           RUST_VERSION=$(sed -n 's/^RUST_VERSION=//p' packaging/release/toolchain.env)
