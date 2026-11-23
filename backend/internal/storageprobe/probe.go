@@ -763,7 +763,7 @@ func jsonStringLen(s string) int {
 		r, size := utf8.DecodeRuneInString(s[i:])
 		switch {
 		case r == utf8.RuneError && size == 1:
-			n += 6 // \ufffd
+			n += 3 // UTF-8 replacement character U+FFFD
 		case r == '"' || r == '\\' || r == '\b' || r == '\f' || r == '\n' || r == '\r' || r == '\t':
 			n += 2
 		case r < 0x20:
