@@ -51,6 +51,14 @@ func TestParseMountInfoSkipsUnsafeDevice(t *testing.T) {
 	}
 }
 
+func TestParseMountInfoIgnoresInvalidNonDeviceSource(t *testing.T) {
+	in := "41 1 0:36 / /mnt/skip rw - f2fs remote\\\\999path rw\\n" + f2fsLine(43)
+	mounts, truncated, err := ParseMountInfo(strings.NewReader(in))
+	if err != nil || truncated || len(mounts) != 1 || mounts[0].Device != "/dev/sda1" {
+		t.Fatalf("mounts=%v truncated=%v err=%v", mounts, truncated, err)
+	}
+}
+
 func TestParseMountInfoMissingOptionsDoesNotPanic(t *testing.T) {
 	in := "40 1 0:36 / /mnt/data rw - f2fs /dev/sda1\n"
 	_, _, err := ParseMountInfo(strings.NewReader(in))
