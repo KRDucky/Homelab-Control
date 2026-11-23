@@ -146,7 +146,9 @@ func TestProbeMdstatFailsClosed(t *testing.T) {
 	if inv := ProbeMdstat(fixtureRoot(t, &bad)); inv.Present || inv.Reason != reasonUnread || len(inv.Arrays) != 0 {
 		t.Fatalf("malformed: %+v", inv)
 	}
-	big := strings.Repeat("\n", mdstatMaxBytes+1)
+	// Keep a valid array at the front: exceeding the byte limit must fail even
+	// when the content would otherwise produce a legitimate inventory.
+	big := sampleMdstat + strings.Repeat("\n", mdstatMaxBytes+1)
 	if inv := ProbeMdstat(fixtureRoot(t, &big)); inv.Present || inv.Reason != reasonUnread {
 		t.Fatalf("oversized: %+v", inv)
 	}
@@ -166,7 +168,7 @@ func TestProbeMdstatRefusesEscapingSymlink(t *testing.T) {
 	if err := os.Symlink(outside, filepath.Join(root, "proc", "mdstat")); err != nil {
 		t.Fatal(err)
 	}
-	if inv := ProbeMdstat(root); inv.Present || len(inv.Arrays) != 0 {
+	if inv := ProbeMdstat(root); inv.Present || inv.Reason != reasonUnread || len(inv.Arrays) != 0 {
 		t.Fatalf("escaping symlink was read: %+v", inv)
 	}
 }
