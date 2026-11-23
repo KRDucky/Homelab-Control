@@ -180,6 +180,7 @@ export interface Capability {
     | 'ext4'
     | 'mdadm'
     | 'f2fs'
+    | 'xfs'
     | 'traefik';
   label: string;
   path: string;
@@ -1636,6 +1637,47 @@ export interface F2fsInventory {
 
 export function getF2fs(csrf: string): Promise<F2fsInventory> {
   return request<F2fsInventory>('/api/v1/f2fs', { headers: { 'X-CSRF-Token': csrf } });
+}
+// ---- M7 first checkpoint: XFS (read-only) ---------------------------------
+
+export interface XFSToolItem {
+  id: string;
+  package: string;
+  installed: boolean;
+  binary: string;
+}
+
+export interface XFSTooling {
+  family: string;
+  required: XFSToolItem[];
+  optional: XFSToolItem[];
+}
+
+export interface XFSMount {
+  mountpoint: string;
+  device: string;
+}
+
+export interface XFSInfo {
+  present: boolean;
+  reason: string;
+  mounts: XFSMount[];
+  mountsTruncated: boolean;
+}
+
+export interface XFSKernel {
+  present: boolean;
+  reason: string;
+}
+
+export interface XFSInventory {
+  tooling: XFSTooling;
+  xfs: XFSInfo;
+  kernelXfs?: XFSKernel;
+}
+
+export function getXFS(csrf: string): Promise<XFSInventory> {
+  return request<XFSInventory>('/api/v1/xfs', { headers: { 'X-CSRF-Token': csrf } });
 }
 // Read-only Traefik helper integration. The browser never receives helper credentials.
 export interface TraefikResource {

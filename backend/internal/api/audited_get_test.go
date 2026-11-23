@@ -30,6 +30,7 @@ func TestAuditedGETKeepsEachWrapperMessage(t *testing.T) {
 		{"ext4", h.srv.ext4ProtectedGET, "ext4 inventory requires an access audit logger."},
 		{"mdadm", h.srv.mdadmProtectedGET, "Software RAID inventory requires an access audit logger."},
 		{"f2fs", h.srv.f2fsProtectedGET, "f2fs inventory requires an access audit logger."},
+		{"xfs", h.srv.xfsProtectedGET, "XFS inventory requires an access audit logger."},
 		{"mergerfs", h.srv.mergerfsProtectedGET, "MergerFS inventory requires an access audit logger."},
 	}
 

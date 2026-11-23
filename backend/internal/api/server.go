@@ -50,6 +50,7 @@ import (
 	"homelab-control/backend/internal/storageinfo"
 	"homelab-control/backend/internal/traefikclient"
 	"homelab-control/backend/internal/version"
+	"homelab-control/backend/internal/xfsinfo"
 	"homelab-control/backend/internal/zfsinfo"
 )
 
@@ -103,6 +104,8 @@ type Server struct {
 	mdadmSem          chan struct{}
 	f2fsCollect       func(context.Context) (f2fsinfo.Snapshot, error)
 	f2fsSem           chan struct{}
+	xfsCollect        func(context.Context) (xfsinfo.Snapshot, error)
+	xfsSem            chan struct{}
 	snapraidConfig    string
 	layouts           LayoutStore
 	cfg               Config
@@ -206,6 +209,10 @@ func New(cfg Config, users *auth.Store, audit *audit.Logger, collector *hostinfo
 		return f2fsinfo.Collect(ctx, "/", s.packageFamily())
 	}
 	s.f2fsSem = make(chan struct{}, 1)
+	s.xfsCollect = func(ctx context.Context) (xfsinfo.Snapshot, error) {
+		return xfsinfo.Collect(ctx, "/", s.packageFamily())
+	}
+	s.xfsSem = make(chan struct{}, 1)
 	s.routes()
 	return s
 }
@@ -329,6 +336,8 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/mdadm", auth.ScopeMdadmRead, s.handleMdadm)
 	// M7 first checkpoint: read-only f2fs (no broker ops, never exec).
 	s.handle("GET /api/v1/f2fs", auth.ScopeF2fsRead, s.handleF2fs)
+	// M7 first checkpoint: read-only XFS (no broker ops, never exec).
+	s.handle("GET /api/v1/xfs", auth.ScopeXFSRead, s.handleXFS)
 	s.handle("GET /api/v1/legacy/webmin", auth.ScopeSystemRead, s.handleLegacy)
 	s.mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "unknown API route")

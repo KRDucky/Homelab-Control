@@ -229,6 +229,26 @@ device open. A missing package offers Software Center search when the packages m
 and the session has `packages.read`. This is a checkpoint, not M7 acceptance, not a merge, not
 production. Never touch production pool `tank`.
 
+
+## M7 first checkpoint: XFS (read-only; not M7 acceptance)
+
+One read-only page at `/storage/xfs` (module id `xfs`, scope `xfs.read`, never default and
+implied by nothing, including `storage.read`) probes the required `xfs_info` binary (unprivileged
+`os.Stat` of `/usr/sbin/xfs_info` then `/usr/bin/xfs_info`, no `os/exec`). Package `xfsprogs` is named for Debian, Fedora, SUSE, and Arch.
+Kernel XFS is a bounded read of `/proc/filesystems` (last field exactly `xfs`; never
+modprobe; listed is not ready to format). Observed `fstype=xfs` mounts come from bounded
+`/proc/self/mountinfo` (mountpoint and a `/dev` source only). A record that cannot be listed
+safely (no filesystem type, a malformed xfs record such as one missing its options field, a
+mountpoint with a `..` component or over 256 bytes, or a source that is not a safe `/dev` path) is skipped without
+panicking, and the other mounts are still listed. Parse limits match the other inventory pages at
+4 MiB and 8192 records; xfs rows cap at 256. A cap, a limit or a skipped record sets
+`mountsTruncated`, and the page shows the fixed text “not every mount could be listed”. The XFS
+capability follows the `xfs` module only, so disabling Storage does not hide it (mergerfs, zfs, lvm,
+btrfs, ext4, mdadm and f2fs are gated the same way). No `xfs_info` execution, no format, grow, or repair, and no
+device open. A missing package offers Software Center search when the packages module is enabled
+and the session has `packages.read`. This is a checkpoint, not M7 acceptance, not a merge, not
+production. Never touch production pool `tank`.
+
 ## M8 first checkpoint: MergerFS + optional SnapRAID (not M8 acceptance)
 
 One read-only page at `/storage/mergerfs` (module id `mergerfs`, scope `mergerfs.read`, never default
