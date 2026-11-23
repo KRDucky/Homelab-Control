@@ -54,6 +54,25 @@ func TestParseMountInfoSkipsUnsafeDeviceAndSubvol(t *testing.T) {
 	}
 }
 
+func TestParseMountInfoMissingOptionsDoesNotPanic(t *testing.T) {
+	in := "40 1 0:36 / /mnt/data rw - btrfs /dev/sda1\n"
+	_, _, err := ParseMountInfo(strings.NewReader(in))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestParseMountInfoKeepsDottedNames(t *testing.T) {
+	in := "44 1 0:36 / /mnt/foo..bar rw - btrfs /dev/disk..1 rw,subvol=/snap..1,subvolid=7\n" + btrfsLine(45)
+	mounts, _, err := ParseMountInfo(strings.NewReader(in))
+	if err != nil || len(mounts) != 2 {
+		t.Fatalf("mounts=%v err=%v", mounts, err)
+	}
+	if mounts[0].Mountpoint != "/mnt/foo..bar" || mounts[0].Device != "/dev/disk..1" || mounts[0].Subvol != "/snap..1" || mounts[0].SubvolID != "7" {
+		t.Fatalf("%+v", mounts[0])
+	}
+}
+
 func TestParseMountInfoRejectsTypelessLine(t *testing.T) {
 	if _, _, err := ParseMountInfo(strings.NewReader("not-a-mountinfo-line\n")); err == nil {
 		t.Fatal("expected error")
