@@ -79,8 +79,10 @@ export function Ext4View({
           </p>
         ) : (
           <p className="banner" role="status">
-            {kernelExt4?.reason ||
-              'The kernel ext4 filesystem is not currently listed in /proc/filesystems (this page does not load modules).'}
+            {kernelExt4 == null
+              ? 'Kernel ext4 capability data is unavailable; its status has not been checked.'
+              : kernelExt4.reason ||
+                'The kernel ext4 filesystem is not currently listed in /proc/filesystems (this page does not load modules).'}
           </p>
         )}
       </section>
