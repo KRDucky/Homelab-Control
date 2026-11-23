@@ -128,6 +128,7 @@ func ParseMountInfo(r io.Reader) ([]Mount, bool, error) {
 		}
 		subvol, subvolID, ok := parseSubvol(fields[sep+3])
 		if !ok {
+			truncated = true // A btrfs record was omitted because its options were unsafe or invalid.
 			continue
 		}
 		if len(mounts) >= btrfsMaxMounts {
@@ -287,7 +288,11 @@ func Collect(ctx context.Context, osRoot, family string) (Snapshot, error) {
 		snap.Btrfs = base
 	} else {
 		base.Present = false
-		base.Reason = "btrfs binary was not found"
+		if truncated {
+			base.Reason = "mount inventory was truncated; btrfs presence could not be determined"
+		} else {
+			base.Reason = "btrfs binary was not found"
+		}
 		snap.Btrfs = base
 	}
 	return snap, nil
