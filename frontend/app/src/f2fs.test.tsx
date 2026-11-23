@@ -52,18 +52,26 @@ function inventory(opts: {
   };
 }
 
+const originalShowModal = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'showModal');
+const originalClose = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'close');
+
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.spyOn(HTMLDialogElement.prototype, 'showModal').mockImplementation(function (this: HTMLDialogElement) {
-    this.setAttribute('open', '');
+  Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
+    configurable: true,
+    value: function (this: HTMLDialogElement) { this.setAttribute('open', ''); },
   });
-  vi.spyOn(HTMLDialogElement.prototype, 'close').mockImplementation(function (this: HTMLDialogElement) {
-    this.removeAttribute('open');
+  Object.defineProperty(HTMLDialogElement.prototype, 'close', {
+    configurable: true,
+    value: function (this: HTMLDialogElement) { this.removeAttribute('open'); },
   });
 });
 afterEach(() => {
   cleanup();
-  vi.restoreAllMocks();
+  for (const [name, original] of [['showModal', originalShowModal], ['close', originalClose]] as const) {
+    if (original) Object.defineProperty(HTMLDialogElement.prototype, name, original);
+    else Reflect.deleteProperty(HTMLDialogElement.prototype, name);
+  }
 });
 
 describe('f2fs read-only page', () => {
