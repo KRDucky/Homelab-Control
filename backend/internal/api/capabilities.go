@@ -19,6 +19,7 @@ import (
 	"homelab-control/backend/internal/broker/proto"
 	"homelab-control/backend/internal/broker/types"
 	"homelab-control/backend/internal/brokerclient"
+	"homelab-control/backend/internal/btrfsinfo"
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
 	"homelab-control/backend/internal/lvminfo"
@@ -281,14 +282,29 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 			lvm.Status, lvm.Reason = CapDegraded, reason
 		}
 	}
-	caps := []Capability{gate(traefik), gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages), gate(mergerfs), gate(zfs), gate(lvm)}
+	// M7 first checkpoint: one Btrfs page, read-only. Available when the
+	// btrfs binary and kernel Btrfs are listed (mounts may still be empty);
+	// degraded when either is missing so the page still mounts. Missing
+	// smartctl never degrades the capability. Probe is os.Stat of well-known
+	// paths plus one /proc/filesystems read (no mountinfo, no btrfs exec),
+	// and only when the module is enabled and the session has btrfs.read.
+	// RAID5/6 is not offered.
+	btrfs := Capability{ID: "btrfs", Label: "Btrfs", Path: "/storage/btrfs", Scope: auth.ScopeBtrfsRead, Status: CapAvailable}
+	if s.mods.Enabled("btrfs") && sess.HasScope(auth.ScopeBtrfsRead) {
+		if ok, reason := btrfsinfo.ProbeCapability(s.packageFamily()); ok {
+			btrfs.Status, btrfs.Reason = CapAvailable, ""
+		} else {
+			btrfs.Status, btrfs.Reason = CapDegraded, reason
+		}
+	}
+	caps := []Capability{gate(traefik), gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages), gate(mergerfs), gate(zfs), gate(lvm), gate(btrfs)}
 	// Navigation follows the module registry: a disabled module contributes
 	// no capability (and therefore no navigation entry).
 	resp.Capabilities = caps[:0]
 	for _, c := range caps {
-		// M8/M7: mergerfs, zfs, and lvm UI paths do not equal their API
-		// prefixes, so ForRoute cannot map them; gate by module ID directly.
-		if (c.ID == "mergerfs" && !s.mods.Enabled("mergerfs")) || (c.ID == "zfs" && !s.mods.Enabled("zfs")) || (c.ID == "lvm" && !s.mods.Enabled("lvm")) {
+		// M8/M7: mergerfs, zfs, lvm, and btrfs UI paths do not equal their
+		// API prefixes, so ForRoute cannot map them; gate by module ID directly.
+		if (c.ID == "mergerfs" && !s.mods.Enabled("mergerfs")) || (c.ID == "zfs" && !s.mods.Enabled("zfs")) || (c.ID == "lvm" && !s.mods.Enabled("lvm")) || (c.ID == "btrfs" && !s.mods.Enabled("btrfs")) {
 			continue
 		}
 		if s.mods.Enabled(modules.ForRoute("/api/v1" + c.Path)) {

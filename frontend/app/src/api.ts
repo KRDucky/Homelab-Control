@@ -176,6 +176,7 @@ export interface Capability {
     | 'mergerfs'
     | 'zfs'
     | 'lvm'
+    | 'btrfs'
     | 'traefik';
   label: string;
   path: string;
@@ -1465,6 +1466,50 @@ export interface LVMInventory {
 
 export function getLVM(csrf: string): Promise<LVMInventory> {
   return request<LVMInventory>('/api/v1/lvm', { headers: { 'X-CSRF-Token': csrf } });
+}
+
+// ---- M7 first checkpoint: Btrfs (read-only) ---------------------------------
+
+export interface BtrfsToolItem {
+  id: string;
+  package: string;
+  installed: boolean;
+  binary: string;
+}
+
+export interface BtrfsTooling {
+  family: string;
+  required: BtrfsToolItem[];
+  optional: BtrfsToolItem[];
+}
+
+export interface BtrfsMount {
+  mountpoint: string;
+  device: string;
+  subvol: string;
+  subvolId: string;
+}
+
+export interface BtrfsInfo {
+  present: boolean;
+  reason: string;
+  mounts: BtrfsMount[];
+  mountsTruncated: boolean;
+}
+
+export interface BtrfsKernel {
+  present: boolean;
+  reason: string;
+}
+
+export interface BtrfsInventory {
+  tooling: BtrfsTooling;
+  btrfs: BtrfsInfo;
+  kernelBtrfs?: BtrfsKernel;
+}
+
+export function getBtrfs(csrf: string): Promise<BtrfsInventory> {
+  return request<BtrfsInventory>('/api/v1/btrfs', { headers: { 'X-CSRF-Token': csrf } });
 }
 
 // Read-only Traefik helper integration. The browser never receives helper credentials.
