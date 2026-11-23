@@ -97,7 +97,10 @@ function NavItem({
 const NAV_SECTIONS: { title: string; ids: readonly string[] }[] = [
   { title: 'Dashboard', ids: ['overview'] },
   { title: 'System', ids: ['services', 'hardware', 'host_settings', 'packages'] },
-  { title: 'Storage & files', ids: ['storage', 'mergerfs', 'zfs', 'lvm', 'btrfs', 'ext4', 'f2fs', 'files'] },
+  {
+    title: 'Storage & files',
+    ids: ['storage', 'mergerfs', 'zfs', 'lvm', 'btrfs', 'ext4', 'mdadm', 'f2fs', 'files'],
+  },
   { title: 'Network & applications', ids: ['traefik'] },
   { title: 'Administration', ids: ['audit'] },
 ];
