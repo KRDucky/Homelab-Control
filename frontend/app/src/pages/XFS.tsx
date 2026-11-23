@@ -51,6 +51,7 @@ export function XFSView({
   const { tooling, xfs } = data;
   const kernelXfs = data.kernelXfs;
   const missingRequired = tooling.required.filter((t) => !t.installed);
+  const missingToolNames = missingRequired.map((tool) => tool.id).join(', ');
   const canInstall = packagesEnabled && (scopes ?? []).includes('packages.read');
 
   return (
@@ -90,7 +91,7 @@ export function XFSView({
           <header className="panel-head">
             <h2 id="xfs-offer-heading">XFS tools</h2>
           </header>
-          <p>Missing required tools: {missingRequired.map((tool) => tool.id).join(', ')}. This page does not run them.</p>
+          <p>Missing required tools: {missingToolNames}. This page does not run them.</p>
           <RequiredOffers items={missingRequired} canInstall={canInstall} />
         </section>
       )}
