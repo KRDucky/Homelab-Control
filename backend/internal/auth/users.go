@@ -136,6 +136,12 @@ const (
 	// binary presence, with no writes, no broker ops, and no lvm execution.
 	// Not in DefaultScopes and implied by nothing, including storage.read.
 	ScopeLVMRead = "lvm.read"
+	// ScopeBtrfsRead allows the read-only Btrfs inventory (M7 first
+	// checkpoint): observed btrfs mounts and btrfs binary presence, with
+	// no writes, no broker ops, and no btrfs execution. Not in
+	// DefaultScopes and implied by nothing, including storage.read.
+	// RAID5/6 is not offered.
+	ScopeBtrfsRead = "btrfs.read"
 	// ScopeMdadmRead allows the read-only Linux software RAID inventory:
 	// /proc/mdstat array lines and mdadm binary presence, with no writes, no
 	// broker ops, and no mdadm execution. Not in DefaultScopes and implied by
@@ -176,6 +182,7 @@ var KnownScopes = map[string]bool{
 	ScopeMergerFSMaintain:     true,
 	ScopeZFSRead:              true,
 	ScopeLVMRead:              true,
+	ScopeBtrfsRead:            true,
 	ScopeMdadmRead:            true,
 }
 
