@@ -20,9 +20,9 @@ pkgver=$(hc_arch_pkgver "$ver_in")
 work=${HC_MAKEPKG_DIR:-/tmp/homelab-control-makepkg}
 rm -rf "$work"; mkdir -p "$work"; trap 'rm -rf "$work"' EXIT
 cp "$root/build/hc-api" "$root/build/hc-broker" "$root/build/hlctl" "$root/build/hc-audit-retention" "$root/build/hc-storage-probe" "$root/build/hc-mergerfs-apply" "$work/"
-cp "$root"/packaging/common/{homelab-control.service,homelab-control-broker.service,homelab-control-broker.socket,homelab-control-storage-helper.service,homelab-control-storage-probe@.service,homelab-control-storage-probe.socket,homelab-control-mergerfs-apply@.service,homelab-control-mergerfs-apply.socket,homelab-control-audit-retention.service,homelab-control-audit-retention.timer,sysusers.conf,hc-api.env,audit-retention.conf} "$work/"
+cp "$root"/packaging/common/{homelab-control.service,homelab-control-broker.service,homelab-control-broker.socket,homelab-control-storage-helper.service,homelab-control-storage-probe@.service,homelab-control-storage-probe.socket,homelab-control-mergerfs-apply@.service,homelab-control-mergerfs-apply.socket,homelab-control-audit-retention.service,homelab-control-audit-retention.timer,sysusers.conf,hc-api.env,audit-retention.conf,mergerfs-apply.enabled} "$work/"
 cp "$root/LICENSE.md" "$root/NOTICE.md" "$root/README.md" "$root/docs/compliance/THIRD-PARTY-NOTICES.md" "$work/"
-sources=(hc-api hc-broker hlctl hc-audit-retention hc-storage-probe hc-mergerfs-apply homelab-control.service homelab-control-broker.service homelab-control-broker.socket homelab-control-storage-helper.service homelab-control-storage-probe@.service homelab-control-storage-probe.socket homelab-control-mergerfs-apply@.service homelab-control-mergerfs-apply.socket homelab-control-audit-retention.service homelab-control-audit-retention.timer sysusers.conf hc-api.env audit-retention.conf LICENSE.md NOTICE.md THIRD-PARTY-NOTICES.md README.md)
+sources=(hc-api hc-broker hlctl hc-audit-retention hc-storage-probe hc-mergerfs-apply homelab-control.service homelab-control-broker.service homelab-control-broker.socket homelab-control-storage-helper.service homelab-control-storage-probe@.service homelab-control-storage-probe.socket homelab-control-mergerfs-apply@.service homelab-control-mergerfs-apply.socket homelab-control-audit-retention.service homelab-control-audit-retention.timer sysusers.conf hc-api.env audit-retention.conf mergerfs-apply.enabled LICENSE.md NOTICE.md THIRD-PARTY-NOTICES.md README.md)
 checksums=()
 for source in "${sources[@]}"; do
   checksums+=("$(sha256sum -- "$work/$source" | awk '{print $1}')")
@@ -39,14 +39,21 @@ post_install() {
   systemctl enable homelab-control-audit-retention.timer >/dev/null 2>&1 || true
   if [ -d /run/systemd/system ]; then systemctl start homelab-control-audit-retention.timer >/dev/null 2>&1 || true; fi
   echo "homelab-control installed but NOT enabled. See /usr/share/doc/homelab-control/README.md"
+  echo "The mergerfs apply marker is installed. Its socket is not enabled and does not start at boot."
 }
 hc_owner() {
   systemd-sysusers /usr/lib/sysusers.d/homelab-control.conf
   chgrp homelab-control /etc/homelab-control /etc/homelab-control/hc-api.env /etc/homelab-control/audit-retention.conf
+  # The marker is the off switch. An administrator who removed it must still be able to upgrade.
+  if [ -e /etc/homelab-control/mergerfs-apply.enabled ]; then
+    chgrp homelab-control /etc/homelab-control/mergerfs-apply.enabled
+  fi
 }
 post_upgrade() { hc_owner; }
 pre_remove() {
   systemctl disable --now homelab-control.service homelab-control-broker.socket homelab-control-broker.service homelab-control-audit-retention.timer >/dev/null 2>&1 || true
+  # The socket has no [Install] section, so disable does not stop a running helper.
+  systemctl stop homelab-control-mergerfs-apply.socket 'homelab-control-mergerfs-apply@*' >/dev/null 2>&1 || true
 }
 INST
 cat > "$work/PKGBUILD" <<PKG
@@ -58,7 +65,7 @@ arch=('x86_64')
 url="https://github.com/KRDucky/Homelab-Control---Webmin-Fork"
 license=('GPL-3.0-or-later' 'MIT' 'OFL-1.1' 'BSD-3-Clause' 'Apache-2.0' 'Unicode-3.0' 'Zlib')
 depends=('systemd')
-backup=('etc/homelab-control/hc-api.env' 'etc/homelab-control/audit-retention.conf')
+backup=('etc/homelab-control/hc-api.env' 'etc/homelab-control/audit-retention.conf' 'etc/homelab-control/mergerfs-apply.enabled')
 install=homelab-control.install
 options=('!debug' '!strip')
 $source_line
@@ -78,6 +85,7 @@ package() {
   install -dm0750 "\$pkgdir/etc/homelab-control"
   install -Dm0640 hc-api.env "\$pkgdir/etc/homelab-control/hc-api.env"
   install -Dm0640 audit-retention.conf "\$pkgdir/etc/homelab-control/audit-retention.conf"
+  install -Dm0640 mergerfs-apply.enabled "\$pkgdir/etc/homelab-control/mergerfs-apply.enabled"
   install -Dm0644 LICENSE.md NOTICE.md THIRD-PARTY-NOTICES.md -t "\$pkgdir/usr/share/licenses/\$pkgname/"
   install -Dm0644 README.md "\$pkgdir/usr/share/doc/\$pkgname/README.md"
 }

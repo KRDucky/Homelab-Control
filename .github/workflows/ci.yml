@@ -46,7 +46,7 @@ jobs:
           package-manager-cache: false
       - name: Tools
         run: |
-          sudo apt-get update && sudo apt-get install -y shellcheck rpm lintian musl-tools
+          sudo apt-get update && sudo apt-get install -y shellcheck lintian musl-tools
           # Rust for hc-audit-retention (ADR 0006 amendment 4): exact RUST_VERSION from toolchain.env via the
           # runner's rustup (no installer script); musl-gcc compiles the bundled SQLite for the static binary.
           RUST_VERSION=$(sed -n 's/^RUST_VERSION=//p' packaging/release/toolchain.env)
@@ -78,13 +78,11 @@ jobs:
         run: make security
       - name: Reproducible build check
         run: make repro-check
-      - name: Packages (deb, rpm)
+      - name: Packages (deb)
+        run: make deb
+      - name: Release payload compliance (deb)
         run: |
-          make deb
-          packaging/fedora/build-rpm.sh "$(git describe --tags --always)"
-      - name: Release payload compliance (deb, rpm)
-        run: |
-          for p in build/*.deb build/*.rpm; do scripts/package-inventory.sh "$p" "$p.inventory.txt"; done
+          for p in build/*.deb; do scripts/package-inventory.sh "$p" "$p.inventory.txt"; done
           # Debian copyright/licence tags only; other lintian findings are tracked separately (dev package).
           for p in build/*.deb; do
             lintian --tag-display-limit 0 "$p" | tee "$p.lintian.txt" || true
@@ -102,16 +100,16 @@ jobs:
             build/hlctl
             build/SHA256SUMS
             build/*.deb
-            build/*.rpm
             build/*.inventory.txt
             build/*.lintian.txt
 
   # LA-13 / ADR 0009: the complete release pipeline as a dry run on every PR and push, with the exact
   # release toolchain (packaging/release/toolchain.env): corresponding-source archive (with the npm
-  # sources of everything compiled in), binaries and .deb/.rpm built only from that archive and matched
-  # against a git build, the Arch package from the archive, two independent runs compared byte for byte,
-  # then the assembled candidate verified (SBOM, notices, checksums, no Webmin, package payloads) with
+  # sources of everything compiled in), binaries and the Debian/Ubuntu .deb built only from that
+  # archive and matched against a git build, two independent runs compared byte for byte, then the
+  # assembled candidate verified (SBOM, notices, checksums, no Webmin, package payload) with
   # negative tests. Same reusable workflow as release.yml; here it is read-only and publishes nothing.
+  # Fedora, openSUSE and Arch are not part of the first release. Their packaging scripts stay in the tree.
   release-dry-run:
     needs: check
     uses: ./.github/workflows/release-build.yml
@@ -119,53 +117,21 @@ jobs:
       mode: dry-run
       commit: ${{ github.sha }}
 
-  arch-package:
-    needs: check
-    runs-on: ubuntu-24.04
-    container: archlinux:latest
-    steps:
-      - name: Build tools
-        run: pacman -Syu --noconfirm --needed base-devel git
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: build
-          path: build
-      - name: makepkg (as unprivileged builder)
-        run: |
-          chmod +x build/hc-api build/hc-broker build/hlctl build/hc-audit-retention build/hc-storage-probe build/hc-mergerfs-apply
-          useradd -m builder
-          chown -R builder "$GITHUB_WORKSPACE"
-          su builder -c "cd '$GITHUB_WORKSPACE' && packaging/arch/build-pkg.sh '${GITHUB_SHA::8}'"
-      - name: Release payload compliance (Arch)
-        run: for p in build/*.pkg.tar.zst; do scripts/package-inventory.sh "$p" "$p.inventory.txt"; done
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: arch-package
-          path: |
-            build/*.pkg.tar.zst
-            build/*.inventory.txt
-
-  # Install/run/remove the native package in each target distro (no systemd as PID 1:
-  # the broker and API are started by hand; services must report "unsupported").
+  # Install/run/remove the .deb (no systemd as PID 1: the broker and API are started by
+  # hand; services must report "unsupported"). First release: Debian and Ubuntu only.
+  # openSUSE used the Fedora rpm, so it leaves this matrix with Fedora and Arch.
   install-matrix:
-    needs: [check, arch-package]
+    needs: check
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { image: 'debian:stable', kind: deb, prep: 'apt-get update && apt-get install -y curl' }
-          - { image: 'debian:oldstable', kind: deb, prep: 'apt-get update && apt-get install -y curl' }
-          - { image: 'ubuntu:24.04', kind: deb, prep: 'apt-get update && apt-get install -y curl' }
-          - { image: 'ubuntu:26.04', kind: deb, prep: 'apt-get update && apt-get install -y curl' }
-          - { image: 'ubuntu:22.04', kind: deb, prep: 'apt-get update && apt-get install -y curl' }
-          - { image: 'fedora:latest', kind: rpm, prep: 'dnf install -y curl util-linux shadow-utils findutils' }
-          - { image: 'opensuse/tumbleweed', kind: rpm, prep: 'zypper -n in curl util-linux shadow findutils' }
-          - { image: 'opensuse/leap:latest', kind: rpm, prep: 'zypper -n in curl util-linux shadow findutils' }
-          - { image: 'archlinux:latest', kind: zst, prep: 'pacman -Syu --noconfirm --needed curl util-linux' }
+          - { image: 'debian:stable', prep: 'apt-get update && apt-get install -y curl' }
+          - { image: 'debian:oldstable', prep: 'apt-get update && apt-get install -y curl' }
+          - { image: 'ubuntu:24.04', prep: 'apt-get update && apt-get install -y curl' }
+          - { image: 'ubuntu:26.04', prep: 'apt-get update && apt-get install -y curl' }
+          - { image: 'ubuntu:22.04', prep: 'apt-get update && apt-get install -y curl' }
     container: ${{ matrix.image }}
     steps:
       - name: Prepare
@@ -179,18 +145,10 @@ jobs:
         with:
           name: build
           path: artifacts
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: arch-package
-          path: artifacts
       - name: Install test
         run: |
           touch /etc/hc-disposable
-          case "${{ matrix.kind }}" in
-            deb) pkg=$(ls artifacts/*.deb) ;;
-            rpm) pkg=$(ls artifacts/*.rpm) ;;
-            zst) pkg=$(ls artifacts/*.pkg.tar.zst) ;;
-          esac
+          pkg=$(ls artifacts/*.deb)
           HC_DISTRO="${{ matrix.image }}" tests/packaging/install-test.sh "$pkg"
 
   # Real systemd: the GitHub runner VM boots systemd as PID 1 and is discarded after the job.

@@ -27,7 +27,7 @@ if hits=$(grep -iE 'webmin|miniserv|authentic|gray-theme|\.cgi$|\.pl$|\.pm$|/com
   bad "Webmin-derived or Perl/CGI paths in payload: $(tr '\n' ' ' <<<"$hits")"
 fi
 # 2. Only expected install locations (RPM also lists the directories it owns, without a trailing slash).
-if extra=$(grep -vE '^/(usr/bin/(hc-api|hlctl|hc-audit-retention)|usr/lib/homelab-control/hc-(broker|storage-probe|mergerfs-apply)|etc/apparmor\.d/usr\.lib\.homelab-control\.hc-storage-probe|usr/lib/systemd/system/homelab-control[a-z-]*@?\.(service|socket|timer)|usr/lib/sysusers\.d/homelab-control\.conf|etc/homelab-control/(hc-api\.env|audit-retention\.conf)|usr/share/(doc|licenses)/homelab-control/[A-Za-z0-9._-]+|etc/homelab-control|usr/lib/homelab-control|usr/share/(doc|licenses)/homelab-control)$' <<<"$files"); then
+if extra=$(grep -vE '^/(usr/bin/(hc-api|hlctl|hc-audit-retention)|usr/lib/homelab-control/hc-(broker|storage-probe|mergerfs-apply)|etc/apparmor\.d/usr\.lib\.homelab-control\.hc-(storage-probe|mergerfs-apply)|usr/lib/systemd/system/homelab-control[a-z-]*@?\.(service|socket|timer)|usr/lib/systemd/system/homelab-control-mergerfs-apply@\.service\.d/apparmor\.conf|usr/lib/sysusers\.d/homelab-control\.conf|etc/homelab-control/(hc-api\.env|audit-retention\.conf|mergerfs-apply\.enabled)|usr/share/(doc|licenses)/homelab-control/[A-Za-z0-9._-]+|etc/homelab-control|usr/lib/homelab-control|usr/share/(doc|licenses)/homelab-control)$' <<<"$files"); then
   bad "unexpected files in payload: $(tr '\n' ' ' <<<"$extra")"
 fi
 # 3. License and notices.

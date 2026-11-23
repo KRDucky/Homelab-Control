@@ -45,6 +45,10 @@ install -Dm0640 packaging/common/hc-api.env %{buildroot}%{_sysconfdir}/homelab-c
 
 %preun
 %systemd_preun homelab-control.service
+if [ $1 -eq 0 ] && [ -d /run/systemd/system ]; then
+  # The socket has no [Install] section, so %%systemd_preun does not stop a running helper.
+  systemctl --no-reload stop homelab-control-mergerfs-apply.socket 'homelab-control-mergerfs-apply@*' >/dev/null 2>&1 || :
+fi
 
 %postun
 %systemd_postun_with_restart homelab-control.service

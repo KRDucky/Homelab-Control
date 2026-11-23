@@ -13,7 +13,7 @@ workflow**, branch **main**). It takes one input, the version.
 |---|---|---|---|
 | `preflight` | `contents: read`, `actions: read` | Must run on `main`; validates the version; the tag and any published release for it must not exist; the `ci` workflow must have **succeeded on `main` for exactly this commit** | Not on `main`, invalid version, tag or release exists, no green `ci` run for the commit yet |
 | `gate` | `contents: read` | `make check` with the exact release toolchain (lint, Go and frontend tests, release tooling tests, security gate incl. `govulncheck`, REUSE, SBOM, notices, Webmin inventory) | Any check fails, toolchain differs from the pins |
-| `build` (`release-build.yml`) | `contents: read` | Two independent builds (a, b) with `scripts/release-bundle.sh`, the Arch package from the source archive in fresh Arch containers, byte-for-byte comparison of a and b, assembly of the candidate, **fail-closed verification** of every mandatory deliverable, negative tests, version-ordering tests, release notes | Any build, reproducibility, verification or test step fails |
+| `build` (`release-build.yml`) | `contents: read` | Two independent builds (a, b) with `scripts/release-bundle.sh` (Debian/Ubuntu `.deb` only), byte-for-byte comparison of a and b, assembly of the candidate, **fail-closed verification** of every mandatory deliverable, negative tests, version-ordering tests, release notes. Fedora and Arch scripts stay in the tree and are not built | Any build, reproducibility, verification or test step fails |
 | `draft` | `contents: write` (only job) | Re-checks the candidate; checks again (now able to see drafts) that **no release, draft or tag** exists for the version; creates the **draft prerelease** titled `[INCOMPLETE - do not publish] …`; downloads **every uploaded asset back** and checks it against `SHA256SUMS`; then retitles it `UNSIGNED DEVELOPMENT BUILD vX.Y.Z-…`. It stays a draft | Duplicate version, upload error, downloaded assets differ, the release is not a draft prerelease |
 
 The workflow **never** publishes, creates or moves tags, deletes or overwrites releases or assets, or
@@ -32,8 +32,9 @@ commands, inputs only through environment variables, actions pinned to the `ci.y
 - Tag: `vX.Y.Z-dev.N`, created by GitHub **when the owner publishes** the draft, pointing at the
   commit the draft was built from (`target_commitish` = full SHA).
 - Each version can be used once. The workflow refuses a version whose tag, release or draft exists.
-- Package versions sort before the final release: `.deb` `0.1.0~dev.1`, `.rpm` `0.1.0-0.m1.0_1_0_dev_1`,
-  Arch `0.1.0dev.1` (`packaging/common/version-map.sh`; checked with `dpkg`, `rpm` and `vercmp`).
+- Package versions sort before the final release: `.deb` `0.1.0~dev.1`
+  (`packaging/common/version-map.sh`, checked with `dpkg`). Fedora and Arch mappings stay in that
+  script for a later release and are not a gate.
 - The `.deb` asset is named `homelab-control_X.Y.Z-dev.N_amd64.deb` (the package inside has the
   Debian version `X.Y.Z~dev.N`); a `~` in an asset name could be changed by GitHub.
 
@@ -43,8 +44,9 @@ the `main` head at the moment the workflow is started.
 
 ## 3. Release files (all verified before the draft is created)
 `homelab-control-<v>-source.tar.gz`, `homelab-control-<v>-linux-amd64.tar.gz`,
-`homelab-control_<v>_amd64.deb`, one `.rpm`, one `.pkg.tar.zst`, `LICENSE.md`, `NOTICE.md`,
+`homelab-control_<v>_amd64.deb`, `LICENSE.md`, `NOTICE.md`,
 `THIRD-PARTY-NOTICES.md`, `homelab-control-<v>.spdx.json`, `RELEASE-BUILDINFO`, `SHA256SUMS`.
+No `.rpm` and no Arch package. openSUSE installed the Fedora `.rpm`, so it is out of this release too.
 
 `scripts/release-tool.py verify` checks, and fails on any deviation:
 - exactly this file set (nothing missing, nothing extra), asset-safe names, non-empty regular files;
@@ -55,12 +57,12 @@ the `main` head at the moment the workflow is started.
   toolchain pins), **no `compat/webmin/`**, no `.git`, no paths or links outside the tree; its notices
   and `RELEASE-BUILDINFO` identical to the separate assets;
 - binaries tarball: exactly the three binaries plus the three notice files;
-- packages: `scripts/package-inventory.sh` (no Webmin/Perl/CGI paths, allow-listed paths only, notice
-  files present, DEP-5 `copyright` in the `.deb`); `.deb` version as above.
+- package: `scripts/package-inventory.sh` on the `.deb` (no Webmin/Perl/CGI paths, allow-listed paths only, notice
+  files present, DEP-5 `copyright`); `.deb` version as above.
 
-`tests/release/negative-tests.sh` then mutates copies of the real candidate (16 cases: missing or
-extra files, corrupted package, wrong version/commit/toolchain, unstamped or invalid SBOM, Webmin file or
-missing npm sources in the source archive, extra file in the binaries tarball, wrong package type) and
+`tests/release/negative-tests.sh` then mutates copies of the real candidate (15 cases: missing or
+extra files, corrupted `.deb`, wrong version/commit/toolchain, unstamped or invalid SBOM, Webmin file or
+missing npm sources in the source archive, extra file in the binaries tarball, `.deb` that is not a package) and
 requires each to fail verification.
 
 ## 4. Owner procedure
@@ -72,16 +74,15 @@ requires each to fail verification.
 3. Actions → **release** → **Run workflow** → branch `main` → version, e.g. `0.1.0-dev.1`.
 4. When it succeeds, open the draft linked in the run summary (*Releases* shows drafts to writers).
    Check: title `UNSIGNED DEVELOPMENT BUILD v…`, *Set as a pre-release* ticked, the notes, the commit,
-   the 11 files.
+   the 9 files.
    Check that the draft's tag reads `vX.Y.Z-…`, not `untagged-…` (see §5), and that its target is the
    commit from the run's preflight notice.
 5. **Publish by hand** (*Edit* → *Publish release*). This creates the tag. Keep *Set as a pre-release*.
 6. **Verify the published release (R11)**: download all files; `sha256sum -c SHA256SUMS`; rebuild from
    the source archive per `BUILDING.md` with the toolchain in `RELEASE-BUILDINFO` and compare the
-   binaries; run `scripts/package-inventory.sh` on the three packages. Record the result in
-   `docs/STATUS.md`. Only then can LA-13 be closed for Phase 1.
-   Build the `.rpm` on a host without a `homelab-control` group (see `BUILDING.md`). First done for
-   v0.1.0-dev.1 on 2026-10-21 (LA-13 closed).
+   binaries; run `scripts/package-inventory.sh` on the `.deb`. Record the result in
+   `docs/STATUS.md`. LA-13 was closed for the earlier v0.1.0-dev.1 prerelease on 2026-10-21.
+   That prerelease also shipped an `.rpm`. This release does not.
 
 ## 5. Failures and recovery
 Nothing is ever published by a failed run. What can be left behind, and what to do:

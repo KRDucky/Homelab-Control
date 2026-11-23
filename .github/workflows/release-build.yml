@@ -9,8 +9,8 @@
 # This workflow never publishes, tags or uploads to a release: callers give it read-only permissions.
 #
 #   build (a, b)   release-bundle.sh on two independent runners with the exact toolchain pins: source
-#                  archive, binaries and .deb/.rpm built only from the archive and compared with a git build
-#   arch (a, b)    Arch package built from that source archive in a fresh Arch container
+#                  archive, binaries and the Debian/Ubuntu .deb built only from the archive and compared
+#                  with a git build. Fedora and Arch scripts stay in the tree and are not built here.
 #   verify         run a == run b byte for byte; assemble the candidate; verify every mandatory
 #                  deliverable (fail closed); negative tests; version ordering; release notes
 #
@@ -87,7 +87,7 @@ jobs:
           package-manager-cache: false
       - name: Tools
         run: |
-          sudo apt-get update && sudo apt-get install -y rpm musl-tools
+          sudo apt-get update && sudo apt-get install -y musl-tools
           # Rust for hc-audit-retention (ADR 0006 amendment 4): exact RUST_VERSION from toolchain.env via the
           # runner's rustup (no installer script); musl-gcc compiles the bundled SQLite for the static binary.
           RUST_VERSION=$(sed -n 's/^RUST_VERSION=//p' packaging/release/toolchain.env)
@@ -106,47 +106,8 @@ jobs:
           retention-days: ${{ inputs.retention-days }}
           if-no-files-found: error
 
-  # Arch package built from the matching source archive (packaging files from the archive, binaries
-  # from the archive build), in a fresh Arch container per run.
-  arch:
-    name: arch (${{ matrix.run }})
-    needs: build
-    runs-on: ubuntu-24.04
-    container: archlinux:latest
-    strategy:
-      matrix:
-        run: [a, b]
-    steps:
-      - name: Build tools
-        run: pacman -Syu --noconfirm --needed base-devel
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: release-run-${{ matrix.run }}
-          path: rel
-      - name: makepkg from the source archive (as unprivileged builder)
-        run: |
-          set -euo pipefail
-          sde=$(sed -n 's/^source_date_epoch=//p' rel/RELEASE-BUILDINFO)
-          ver=$(sed -n 's/^version=//p' rel/RELEASE-BUILDINFO)
-          mkdir -p x && tar -xzf rel/homelab-control-*-source.tar.gz -C x
-          src=$(echo x/homelab-control-*)
-          mkdir -p "$src/build" && tar -xzf rel/homelab-control-*-linux-amd64.tar.gz -C "$src/build" --strip-components=1
-          useradd -m builder && chown -R builder x
-          su builder -c "cd '$src' && SOURCE_DATE_EPOCH=$sde packaging/arch/build-pkg.sh '$ver'"
-          "$src/scripts/package-inventory.sh" "$src"/build/*.pkg.tar.zst >/dev/null
-          mkdir -p out && cp "$src"/build/*.pkg.tar.zst out/ && (cd out && sha256sum -- *.pkg.tar.zst | tee SHA256SUMS)
-      - name: Prerelease versions sort before the release (pacman vercmp)
-        run: |
-          for t in x/homelab-control-*/tests/release/version-order-test.sh; do "$t" --require arch; done
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: release-arch-${{ matrix.run }}
-          path: out
-          retention-days: ${{ inputs.retention-days }}
-          if-no-files-found: error
-
   verify:
-    needs: [build, arch]
+    needs: build
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -160,20 +121,17 @@ jobs:
       - name: Run a and run b must be identical (reproducibility)
         run: |
           set -euo pipefail
-          for k in release-run release-arch; do
-            echo "== $k"; cat "r/$k-a/SHA256SUMS"
-            if ! diff -u "r/$k-a/SHA256SUMS" "r/$k-b/SHA256SUMS"; then
-              echo "::error title=release reproducibility::$k differs between independent runs"; exit 1
-            fi
-          done
-          n=$(cat r/release-run-a/SHA256SUMS r/release-arch-a/SHA256SUMS | wc -l)
-          echo "::notice title=release reproducibility::all $n release files identical across two independent runners ($(cut -c1-12 r/release-arch-a/SHA256SUMS | tr '\n' ' ')arch)"
+          echo "== release-run"; cat r/release-run-a/SHA256SUMS
+          if ! diff -u r/release-run-a/SHA256SUMS r/release-run-b/SHA256SUMS; then
+            echo "::error title=release reproducibility::release-run differs between independent runs"; exit 1
+          fi
+          n=$(wc -l < r/release-run-a/SHA256SUMS)
+          echo "::notice title=release reproducibility::all $n release files identical across two independent runners"
       - name: Tools
         run: |
-          sudo apt-get update && sudo apt-get install -y rpm zstd
           python3 -m venv /tmp/spdx && /tmp/spdx/bin/pip install -q spdx-tools==0.8.3  # same pin as ci.yml
           echo /tmp/spdx/bin >> "$GITHUB_PATH"
-      - name: Assemble the candidate (run a + Arch package, asset-safe names, SHA256SUMS)
+      - name: Assemble the candidate (Debian/Ubuntu .deb, asset-safe names, SHA256SUMS)
         id: cand
         env:
           COMMIT: ${{ inputs.commit }}
@@ -181,7 +139,7 @@ jobs:
           set -euo pipefail
           ver=$(sed -n 's/^version=//p' r/release-run-a/RELEASE-BUILDINFO)
           echo "version=$ver" >> "$GITHUB_OUTPUT"
-          python3 -I scripts/release-tool.py assemble --run r/release-run-a --arch r/release-arch-a --out dist/candidate --version "$ver"
+          python3 -I scripts/release-tool.py assemble --run r/release-run-a --out dist/candidate --version "$ver"
       - name: Verify every mandatory deliverable (fail closed)
         env:
           MODE: ${{ inputs.mode }}
@@ -195,8 +153,8 @@ jobs:
           VERSION: ${{ steps.cand.outputs.version }}
           COMMIT: ${{ inputs.commit }}
         run: tests/release/negative-tests.sh dist/candidate "$VERSION" "$COMMIT" --require-tools
-      - name: Prerelease versions sort before the release (dpkg, rpm)
-        run: tests/release/version-order-test.sh --require deb,rpm
+      - name: Prerelease versions sort before the release (dpkg)
+        run: tests/release/version-order-test.sh --require deb
       - name: Release notes (UNSIGNED DEVELOPMENT BUILD)
         env:
           VERSION: ${{ steps.cand.outputs.version }}
