@@ -178,6 +178,23 @@ packages module is enabled and the session has `packages.read`. `smartctl` is of
 btrfs mount is observed, and missing it does not degrade capability. This is a checkpoint, not M7
 acceptance, not a merge, not production. Issue #88 stays open. Never touch production pool `tank`.
 
+
+## M7 first checkpoint: ext4 (read-only; not M7 acceptance)
+
+One read-only page at `/storage/ext4` (module id `ext4`, scope `ext4.read`, never default and
+implied by nothing, including `storage.read`) probes the required `dumpe2fs` binary (unprivileged
+`os.Stat` of `/usr/sbin/dumpe2fs` then `/usr/bin/dumpe2fs`, no `os/exec`). Package `e2fsprogs` is named for Debian, Fedora, SUSE, and Arch.
+Kernel ext4 is a bounded read of `/proc/filesystems` (last field exactly `ext4`; never
+modprobe; listed is not ready to format). Observed `fstype=ext4` mounts come from bounded
+`/proc/self/mountinfo` (mountpoint and a `/dev` source only). A source that is not an absolute
+`/dev` path, or a mountpoint with a `..` component, is skipped or refused. A record missing its
+options field still fails the inventory instead of panicking. Parse limits match the other
+inventory pages at 4 MiB and 8192 records; ext4 rows cap at 256 with `mountsTruncated` and the
+fixed text “too many mounts to list”. No `dumpe2fs` execution, no format, grow, or repair, and no
+device open. A missing package offers Software Center search when the packages module is enabled
+and the session has `packages.read`. This is a checkpoint, not M7 acceptance, not a merge, not
+production. Never touch production pool `tank`.
+
 ## Software RAID (mdadm) first checkpoint (read-only; not acceptance)
 
 One read-only page at `/storage/mdadm` (module id `mdadm`, scope `mdadm.read`, never default and
