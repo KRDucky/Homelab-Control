@@ -59,16 +59,23 @@ beforeEach(() => {
   vi.clearAllMocks();
   Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
     configurable: true,
-    value: function (this: HTMLDialogElement) { this.setAttribute('open', ''); },
+    value: function (this: HTMLDialogElement) {
+      this.setAttribute('open', '');
+    },
   });
   Object.defineProperty(HTMLDialogElement.prototype, 'close', {
     configurable: true,
-    value: function (this: HTMLDialogElement) { this.removeAttribute('open'); },
+    value: function (this: HTMLDialogElement) {
+      this.removeAttribute('open');
+    },
   });
 });
 afterEach(() => {
   cleanup();
-  for (const [name, original] of [['showModal', originalShowModal], ['close', originalClose]] as const) {
+  for (const [name, original] of [
+    ['showModal', originalShowModal],
+    ['close', originalClose],
+  ] as const) {
     if (original) Object.defineProperty(HTMLDialogElement.prototype, name, original);
     else Reflect.deleteProperty(HTMLDialogElement.prototype, name);
   }
