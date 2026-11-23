@@ -56,7 +56,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, services.systemctl, storage.read, storage.probe, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read, mergerfs.configure, mergerfs.maintain, zfs.read, lvm.read, ext4.read] }} }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, services.systemctl, storage.read, storage.probe, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read, mergerfs.configure, mergerfs.maintain, zfs.read, lvm.read, btrfs.read, ext4.read] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
@@ -1305,6 +1305,74 @@ components:
           required: [present, reason]
           additionalProperties: false
           description: Read-only /proc/devices probe for the device-mapper target (listed, not ready to create a PV). present false uses the fixed "not currently listed" text, including when dm_mod is not loaded. The capability may show degraded. This page does not load a module and never opens a device.
+          properties:
+            present: { type: boolean }
+            reason: { type: string }
+    BtrfsInventory:
+      type: object
+      required: [tooling, btrfs, kernelBtrfs]
+      description: >
+        Read-only Btrfs checkpoint. The btrfs binary is Stat'd, never executed.
+        No format, balance, scrub, or replace. RAID5/6 is not offered. Audit
+        records mount counts only. A mount source is a /dev path; subvol and
+        subvolId come from mount options. Multi-device membership is not joined
+        from one mount source. Debian, Fedora, and Arch name btrfs-progs; SUSE
+        names btrfsprogs; an unknown family names no package. smartctl
+        (smartmontools) is optional on known families, never executed, and
+        missing it does not degrade capability.
+      properties:
+        tooling:
+          type: object
+          required: [family, required, optional]
+          properties:
+            family: { type: string, enum: [debian, fedora, suse, arch, unknown] }
+            required:
+              type: array
+              items:
+                type: object
+                required: [id, package, installed, binary]
+                properties:
+                  id: { type: string }
+                  package: { type: string }
+                  installed: { type: boolean }
+                  binary: { type: string }
+            optional:
+              type: array
+              description: Optional tools. Clients match items by id; order is not a contract.
+              items:
+                type: object
+                required: [id, package, installed, binary]
+                properties:
+                  id: { type: string }
+                  package: { type: string }
+                  installed: { type: boolean }
+                  binary: { type: string }
+        btrfs:
+          type: object
+          required: [present, reason, mounts, mountsTruncated]
+          properties:
+            present: { type: boolean }
+            reason: { type: string }
+            mountsTruncated:
+              type: boolean
+              description: True when the btrfs row cap or mountinfo byte/record limit was hit. The page shows the fixed text "too many mounts to list".
+            mounts:
+              type: array
+              maxItems: 256
+              items:
+                type: object
+                required: [mountpoint, device, subvol, subvolId]
+                additionalProperties: false
+                properties:
+                  mountpoint: { type: string, maxLength: 256 }
+                  device: { type: string, maxLength: 256, description: Absolute /dev path from mountinfo. Not proof of every member of a multi-device filesystem. }
+                  subvol: { type: string, maxLength: 256 }
+                  subvolId: { type: string, maxLength: 20 }
+        kernelBtrfs:
+          type: object
+          required: [present, reason]
+          additionalProperties: false
+          description: Read-only /proc/filesystems probe for the btrfs type (listed, not ready). Never loads a module, never opens a device.
           properties:
             present: { type: boolean }
             reason: { type: string }
@@ -2647,6 +2715,35 @@ paths:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/LVMInventory' } } } }
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: Missing lvm.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Collection busy, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /btrfs:
+    get:
+      summary: Read-only Btrfs inventory (scope btrfs.read).
+      description: >
+        Parses bounded /proc/self/mountinfo for fstype btrfs mounts (mountpoint,
+        /dev source, and subvol/subvolid options only). A source that is not an
+        absolute /dev path, or an unsafe subvol, is skipped. Multi-device
+        membership is not joined from one mount source. Required tooling is the
+        btrfs binary (Debian, Fedora, and Arch package btrfs-progs; SUSE
+        btrfsprogs; an unknown family names no package and never adds a
+        third-party repository). Optional smartctl (smartmontools) is named on
+        known families and never executed; missing it does not degrade
+        capability and no disk is opened. The page offers the smartctl install
+        link only when at least one btrfs mount is observed and the package
+        name is known. kernelBtrfs is a read-only /proc/filesystems probe
+        (btrfs type only; listed is not proof a filesystem is mounted). No
+        format, balance, scrub, replace, device open, or module load exists.
+        RAID5/6 is not offered. Origin and X-CSRF-Token are required; audit
+        records counts only, never device or mountpoint paths.
+      security: [{ session: [] }]
+      x-required-scope: btrfs.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/BtrfsInventory' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing btrfs.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: Collection busy, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
 
   /ext4:

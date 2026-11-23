@@ -32,6 +32,7 @@ import (
 
 	"homelab-control/backend/internal/audit"
 	"homelab-control/backend/internal/auth"
+	"homelab-control/backend/internal/btrfsinfo"
 	"homelab-control/backend/internal/composediscovery"
 	"homelab-control/backend/internal/containeridentity"
 	"homelab-control/backend/internal/ext4info"
@@ -92,6 +93,8 @@ type Server struct {
 	zfsSem            chan struct{}
 	lvmCollect        func(context.Context) (lvminfo.Snapshot, error)
 	lvmSem            chan struct{}
+	btrfsCollect      func(context.Context) (btrfsinfo.Snapshot, error)
+	btrfsSem          chan struct{}
 	ext4Collect       func(context.Context) (ext4info.Snapshot, error)
 	ext4Sem           chan struct{}
 	snapraidConfig    string
@@ -181,6 +184,10 @@ func New(cfg Config, users *auth.Store, audit *audit.Logger, collector *hostinfo
 		return lvminfo.Collect(ctx, "/", s.packageFamily())
 	}
 	s.lvmSem = make(chan struct{}, 1)
+	s.btrfsCollect = func(ctx context.Context) (btrfsinfo.Snapshot, error) {
+		return btrfsinfo.Collect(ctx, "/", s.packageFamily())
+	}
+	s.btrfsSem = make(chan struct{}, 1)
 	s.ext4Collect = func(ctx context.Context) (ext4info.Snapshot, error) {
 		return ext4info.Collect(ctx, "/", s.packageFamily())
 	}
@@ -300,6 +307,8 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/zfs", auth.ScopeZFSRead, s.handleZFS)
 	// M7 first checkpoint: read-only LVM (no broker ops, never exec).
 	s.handle("GET /api/v1/lvm", auth.ScopeLVMRead, s.handleLVM)
+	// M7 first checkpoint: read-only Btrfs (no broker ops, never exec).
+	s.handle("GET /api/v1/btrfs", auth.ScopeBtrfsRead, s.handleBtrfs)
 	// M7 first checkpoint: read-only ext4 (no broker ops, never exec).
 	s.handle("GET /api/v1/ext4", auth.ScopeExt4Read, s.handleExt4)
 	s.handle("GET /api/v1/legacy/webmin", auth.ScopeSystemRead, s.handleLegacy)
