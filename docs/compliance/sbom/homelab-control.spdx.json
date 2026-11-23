@@ -9967,11 +9967,6 @@
     },
     {
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
-      "relationshipType": "TEST_DEPENDENCY_OF",
-      "spdxElementId": "SPDXRef-Package-webmin-reference"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-homelab-control",
       "relationshipType": "DEV_DEPENDENCY_OF",
       "spdxElementId": "SPDXRef-Package-npm--asamuzakjp-css-color-7.1.5"
     },
@@ -11214,6 +11209,11 @@
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
       "relationshipType": "DEV_DEPENDENCY_OF",
       "spdxElementId": "SPDXRef-Package-npm-zod-validation-error-4.0.2"
+    },
+    {
+      "relatedSpdxElement": "SPDXRef-Package-homelab-control",
+      "relationshipType": "TEST_DEPENDENCY_OF",
+      "spdxElementId": "SPDXRef-Package-webmin-reference"
     }
   ],
   "spdxVersion": "SPDX-2.3"
