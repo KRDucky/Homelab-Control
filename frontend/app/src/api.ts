@@ -176,6 +176,7 @@ export interface Capability {
     | 'mergerfs'
     | 'zfs'
     | 'lvm'
+    | 'f2fs'
     | 'traefik';
   label: string;
   path: string;
@@ -1467,6 +1468,47 @@ export function getLVM(csrf: string): Promise<LVMInventory> {
   return request<LVMInventory>('/api/v1/lvm', { headers: { 'X-CSRF-Token': csrf } });
 }
 
+// ---- M7 first checkpoint: f2fs (read-only) ---------------------------------
+
+export interface F2fsToolItem {
+  id: string;
+  package: string;
+  installed: boolean;
+  binary: string;
+}
+
+export interface F2fsTooling {
+  family: string;
+  required: F2fsToolItem[];
+  optional: F2fsToolItem[];
+}
+
+export interface F2fsMount {
+  mountpoint: string;
+  device: string;
+}
+
+export interface F2fsInfo {
+  present: boolean;
+  reason: string;
+  mounts: F2fsMount[];
+  mountsTruncated: boolean;
+}
+
+export interface F2fsKernel {
+  present: boolean;
+  reason: string;
+}
+
+export interface F2fsInventory {
+  tooling: F2fsTooling;
+  f2fs: F2fsInfo;
+  kernelF2fs: F2fsKernel;
+}
+
+export function getF2fs(csrf: string): Promise<F2fsInventory> {
+  return request<F2fsInventory>('/api/v1/f2fs', { headers: { 'X-CSRF-Token': csrf } });
+}
 // Read-only Traefik helper integration. The browser never receives helper credentials.
 export interface TraefikResource {
   rule?: string;

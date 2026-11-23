@@ -56,7 +56,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, services.systemctl, storage.read, storage.probe, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read, mergerfs.configure, mergerfs.maintain, zfs.read, lvm.read] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, services.systemctl, storage.read, storage.probe, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read, mergerfs.configure, mergerfs.maintain, zfs.read, lvm.read, f2fs.read] }} }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
@@ -1305,6 +1305,70 @@ components:
           required: [present, reason]
           additionalProperties: false
           description: Read-only /proc/devices probe for the device-mapper target (listed, not ready to create a PV). present false uses the fixed "not currently listed" text, including when dm_mod is not loaded. The capability may show degraded. This page does not load a module and never opens a device.
+          properties:
+            present: { type: boolean }
+            reason: { type: string }
+
+    F2fsInventory:
+      type: object
+      required: [tooling, f2fs, kernelF2fs]
+      description: >
+        Read-only f2fs checkpoint. The dump.f2fs binary is Stat'd, never
+        executed. No format, grow, or repair exists. Audit records mount
+        counts only. A mount source is a /dev path from bounded
+        /proc/self/mountinfo. Package names are named only where verified; an
+        unknown family names no package.
+      properties:
+        tooling:
+          type: object
+          required: [family, required, optional]
+          properties:
+            family: { type: string, enum: [debian, fedora, suse, arch, unknown] }
+            required:
+              type: array
+              items:
+                type: object
+                required: [id, package, installed, binary]
+                properties:
+                  id: { type: string }
+                  package: { type: string }
+                  installed: { type: boolean }
+                  binary: { type: string }
+            optional:
+              type: array
+              description: Optional tools. Clients match items by id; order is not a contract.
+              items:
+                type: object
+                required: [id, package, installed, binary]
+                properties:
+                  id: { type: string }
+                  package: { type: string }
+                  installed: { type: boolean }
+                  binary: { type: string }
+        f2fs:
+          type: object
+          required: [present, reason, mounts, mountsTruncated]
+          properties:
+            present: { type: boolean }
+            reason: { type: string }
+            mountsTruncated:
+              type: boolean
+              description: True when the f2fs row cap or mountinfo byte/record limit was hit. The page shows the fixed text "too many mounts to list".
+            mounts:
+              type: array
+              maxItems: 256
+              items:
+                type: object
+                required: [mountpoint, device]
+                additionalProperties: false
+                properties:
+                  mountpoint: { type: string, maxLength: 256 }
+                  device: { type: string, maxLength: 256, description: Absolute /dev path from mountinfo. }
+        kernelF2fs:
+          type: object
+          required: [present, reason]
+          additionalProperties: false
+          description: Read-only /proc/filesystems probe for the f2fs type (listed, not ready). Never loads a module, never opens a device.
           properties:
             present: { type: boolean }
             reason: { type: string }
@@ -2583,6 +2647,30 @@ paths:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/LVMInventory' } } } }
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: Missing lvm.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Collection busy, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /f2fs:
+    get:
+      summary: Read-only f2fs inventory (scope f2fs.read).
+      description: >
+        Parses bounded /proc/self/mountinfo for fstype f2fs mounts (mountpoint
+        and /dev source only). A source that is not an absolute /dev path, or a
+        mountpoint with a ".." component, is refused or skipped. Required
+        tooling is the dump.f2fs binary, Stat'd and never executed. An unknown
+        family names no package and never adds a third-party repository.
+        kernelF2fs is a read-only /proc/filesystems probe (f2fs type only;
+        listed is not proof a filesystem is mounted). No mkfs.f2fs or resize.f2fs exists. No device open or
+        module load exists. Origin and X-CSRF-Token are required; audit records
+        counts only, never device or mountpoint paths.
+      security: [{ session: [] }]
+      x-required-scope: f2fs.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/F2fsInventory' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing f2fs.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: Collection busy, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /storage:
     get:

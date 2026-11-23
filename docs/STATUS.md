@@ -159,6 +159,23 @@ A missing `lvm2` package offers Software Center search (`/software?q=lvm2`) when
 is enabled and the session has `packages.read`. This is a checkpoint, not M7 acceptance, not a merge,
 not production. Never touch production pool `tank`.
 
+
+## M7 first checkpoint: f2fs (read-only; not M7 acceptance)
+
+One read-only page at `/storage/f2fs` (module id `f2fs`, scope `f2fs.read`, never default and
+implied by nothing, including `storage.read`) probes the required `dump.f2fs` binary (unprivileged
+`os.Stat` of `/usr/sbin/dump.f2fs` then `/usr/bin/dump.f2fs`, no `os/exec`). Package Debian `f2fs-tools` is named only where verified; Fedora, Suse, Arch name no package.
+Kernel f2fs is a bounded read of `/proc/filesystems` (last field exactly `f2fs`; never
+modprobe; listed is not ready to format). Observed `fstype=f2fs` mounts come from bounded
+`/proc/self/mountinfo` (mountpoint and a `/dev` source only). A source that is not an absolute
+`/dev` path, or a mountpoint with a `..` component, is skipped or refused. A record missing its
+options field still fails the inventory instead of panicking. Parse limits match the other
+inventory pages at 4 MiB and 8192 records; f2fs rows cap at 256 with `mountsTruncated` and the
+fixed text “too many mounts to list”. No `dump.f2fs` execution, no format, grow, or repair, and no
+device open. A missing package offers Software Center search when the packages module is enabled
+and the session has `packages.read`. This is a checkpoint, not M7 acceptance, not a merge, not
+production. Never touch production pool `tank`.
+
 ## M8 first checkpoint: MergerFS + optional SnapRAID (not M8 acceptance)
 
 One read-only page at `/storage/mergerfs` (module id `mergerfs`, scope `mergerfs.read`, never default

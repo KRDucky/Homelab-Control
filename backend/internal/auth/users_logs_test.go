@@ -331,3 +331,25 @@ func TestLVMReadNotGrantedByDefaultOrImplied(t *testing.T) {
 		t.Fatal("every other scope together must not imply lvm.read")
 	}
 }
+
+// M7 first checkpoint: read-only f2fs needs f2fs.read, never granted by
+// default and implied by no other scope (including storage.read).
+func TestF2fsReadNotGrantedByDefaultOrImplied(t *testing.T) {
+	if !KnownScopes[ScopeF2fsRead] || ScopeF2fsRead != "f2fs.read" {
+		t.Fatal("f2fs.read must be a known scope")
+	}
+	for _, s := range strings.Split(DefaultScopes, ",") {
+		if s == ScopeF2fsRead || strings.HasPrefix(s, "f2fs.") {
+			t.Fatalf("default scopes grant %s", s)
+		}
+	}
+	var others []string
+	for s := range KnownScopes {
+		if s != ScopeF2fsRead {
+			others = append(others, s)
+		}
+	}
+	if (&Session{Scopes: others}).HasScope(ScopeF2fsRead) {
+		t.Fatal("every other scope together must not imply f2fs.read")
+	}
+}
