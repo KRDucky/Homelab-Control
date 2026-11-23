@@ -119,6 +119,12 @@ func ParseMountInfo(r io.Reader) ([]Mount, bool, error) {
 		if err != nil || !strings.HasPrefix(point, "/") || hasDotDot(point) {
 			return nil, false, fmt.Errorf("invalid f2fs mountpoint")
 		}
+		// Sources that are not device paths never enter this read-only inventory.
+		// Skip them before decoding so a malformed non-device escape cannot hide
+		// otherwise valid f2fs mounts.
+		if !strings.HasPrefix(fields[sep+2], "/dev/") {
+			continue
+		}
 		source, err := unescape(fields[sep+2])
 		if err != nil {
 			return nil, false, fmt.Errorf("invalid f2fs source")
