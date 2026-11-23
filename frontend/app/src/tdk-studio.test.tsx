@@ -82,8 +82,17 @@ describe('Theme Development Kit in the WebUI', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Navigation' }));
     expect(screen.getByLabelText('Navigation scene')).toBeTruthy();
     expect(preview.textContent).toContain('ZFS pools');
+    fireEvent.click(screen.getByRole('button', { name: /ZFS pools/ }));
+    expect(preview.textContent).toContain('Selected example module: ZFS pools');
     fireEvent.click(screen.getByRole('button', { name: 'Module detail' }));
     expect(screen.getByLabelText('Module scene')).toBeTruthy();
+    expect(preview.textContent).toContain('backup.service');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Filter example services' }), {
+      target: { value: 'media' },
+    });
+    expect(preview.textContent).not.toContain('backup.service');
+    expect(preview.textContent).toContain('media.service');
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filter' }));
     expect(preview.textContent).toContain('backup.service');
 
     fireEvent.change(screen.getByLabelText('Preview width'), { target: { value: 'phone' } });
