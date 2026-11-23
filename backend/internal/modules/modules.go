@@ -75,6 +75,7 @@ var registry = []Module{
 	{ID: "mergerfs", Title: "MergerFS", Description: "MergerFS pools and optional SnapRAID: read-only inventory, plus plan/apply mount, definition, sync, scrub, and filtered recovery", Scopes: []string{"mergerfs.read", "mergerfs.configure", "mergerfs.maintain"}, APIPrefix: "/api/v1/mergerfs", OpPrefix: "mergerfs.", Path: "/storage/mergerfs"},
 	{ID: "zfs", Title: "ZFS", Description: "read-only OpenZFS inventory from the local host", Scopes: []string{"zfs.read"}, APIPrefix: "/api/v1/zfs", Path: "/storage/zfs"},
 	{ID: "lvm", Title: "LVM", Description: "read-only LVM inventory from the local host", Scopes: []string{"lvm.read"}, APIPrefix: "/api/v1/lvm", Path: "/storage/lvm"},
+	{ID: "btrfs", Title: "Btrfs", Description: "read-only Btrfs inventory from the local host", Scopes: []string{"btrfs.read"}, APIPrefix: "/api/v1/btrfs", Path: "/storage/btrfs"},
 	{ID: "mdadm", Title: "Software RAID (mdadm)", Description: "read-only Linux software RAID inventory from /proc/mdstat on the local host", Scopes: []string{"mdadm.read"}, APIPrefix: "/api/v1/mdadm", Path: "/storage/mdadm"},
 }
 
