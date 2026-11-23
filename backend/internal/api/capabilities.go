@@ -302,9 +302,14 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 	// no capability (and therefore no navigation entry).
 	resp.Capabilities = caps[:0]
 	for _, c := range caps {
-		// M8/M7: mergerfs, zfs, and lvm UI paths do not equal their API
-		// prefixes, so ForRoute cannot map them; gate by module ID directly.
-		if (c.ID == "mergerfs" && !s.mods.Enabled("mergerfs")) || (c.ID == "zfs" && !s.mods.Enabled("zfs")) || (c.ID == "lvm" && !s.mods.Enabled("lvm")) || (c.ID == "xfs" && !s.mods.Enabled("xfs")) {
+		// M8/M7: mergerfs, zfs, lvm, and xfs UI paths sit under /storage but
+		// are separate modules, so ForRoute would map them to storage. Gate
+		// them by their own module ID only.
+		switch c.ID {
+		case "mergerfs", "zfs", "lvm", "xfs":
+			if s.mods.Enabled(c.ID) {
+				resp.Capabilities = append(resp.Capabilities, c)
+			}
 			continue
 		}
 		if s.mods.Enabled(modules.ForRoute("/api/v1" + c.Path)) {
