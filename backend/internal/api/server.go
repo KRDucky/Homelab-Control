@@ -38,6 +38,7 @@ import (
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
 	"homelab-control/backend/internal/lvminfo"
+	"homelab-control/backend/internal/mdadminfo"
 	"homelab-control/backend/internal/mergerfsinfo"
 	"homelab-control/backend/internal/modules"
 	"homelab-control/backend/internal/oidclogin"
@@ -91,6 +92,8 @@ type Server struct {
 	zfsSem            chan struct{}
 	lvmCollect        func(context.Context) (lvminfo.Snapshot, error)
 	lvmSem            chan struct{}
+	mdadmCollect      func(context.Context) (mdadminfo.Snapshot, error)
+	mdadmSem          chan struct{}
 	snapraidConfig    string
 	layouts           LayoutStore
 	cfg               Config
@@ -178,6 +181,10 @@ func New(cfg Config, users *auth.Store, audit *audit.Logger, collector *hostinfo
 		return lvminfo.Collect(ctx, "/", s.packageFamily())
 	}
 	s.lvmSem = make(chan struct{}, 1)
+	s.mdadmCollect = func(ctx context.Context) (mdadminfo.Snapshot, error) {
+		return mdadminfo.Collect(ctx, "/", s.packageFamily())
+	}
+	s.mdadmSem = make(chan struct{}, 1)
 	s.routes()
 	return s
 }
@@ -293,6 +300,8 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/zfs", auth.ScopeZFSRead, s.handleZFS)
 	// M7 first checkpoint: read-only LVM (no broker ops, never exec).
 	s.handle("GET /api/v1/lvm", auth.ScopeLVMRead, s.handleLVM)
+	// Read-only Linux software RAID (no broker ops, never exec mdadm).
+	s.handle("GET /api/v1/mdadm", auth.ScopeMdadmRead, s.handleMdadm)
 	s.handle("GET /api/v1/legacy/webmin", auth.ScopeSystemRead, s.handleLegacy)
 	s.mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "unknown API route")

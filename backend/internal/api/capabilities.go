@@ -22,6 +22,7 @@ import (
 	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
 	"homelab-control/backend/internal/lvminfo"
+	"homelab-control/backend/internal/mdadminfo"
 	"homelab-control/backend/internal/mergerfsinfo"
 	"homelab-control/backend/internal/modules"
 	"homelab-control/backend/internal/servicepolicy"
@@ -281,14 +282,27 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 			lvm.Status, lvm.Reason = CapDegraded, reason
 		}
 	}
-	caps := []Capability{gate(traefik), gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages), gate(mergerfs), gate(zfs), gate(lvm)}
+	// Read-only software RAID: available when the mdadm binary is present
+	// and /proc/mdstat is readable; degraded otherwise so the page still
+	// mounts. Probe is os.Stat of well-known paths plus one bounded
+	// /proc/mdstat read, only when the module is enabled and the session has
+	// mdadm.read. mdadm is never executed.
+	mdadm := Capability{ID: "mdadm", Label: "Software RAID", Path: "/storage/mdadm", Scope: auth.ScopeMdadmRead, Status: CapAvailable}
+	if s.mods.Enabled("mdadm") && sess.HasScope(auth.ScopeMdadmRead) {
+		if ok, reason := mdadminfo.ProbeCapability(s.packageFamily()); ok {
+			mdadm.Status, mdadm.Reason = CapAvailable, ""
+		} else {
+			mdadm.Status, mdadm.Reason = CapDegraded, reason
+		}
+	}
+	caps := []Capability{gate(traefik), gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages), gate(mergerfs), gate(zfs), gate(lvm), gate(mdadm)}
 	// Navigation follows the module registry: a disabled module contributes
 	// no capability (and therefore no navigation entry).
 	resp.Capabilities = caps[:0]
 	for _, c := range caps {
-		// M8/M7: mergerfs, zfs, and lvm UI paths do not equal their API
+		// M8/M7: mergerfs, zfs, lvm, and mdadm UI paths do not equal their API
 		// prefixes, so ForRoute cannot map them; gate by module ID directly.
-		if (c.ID == "mergerfs" && !s.mods.Enabled("mergerfs")) || (c.ID == "zfs" && !s.mods.Enabled("zfs")) || (c.ID == "lvm" && !s.mods.Enabled("lvm")) {
+		if (c.ID == "mergerfs" && !s.mods.Enabled("mergerfs")) || (c.ID == "zfs" && !s.mods.Enabled("zfs")) || (c.ID == "lvm" && !s.mods.Enabled("lvm")) || (c.ID == "mdadm" && !s.mods.Enabled("mdadm")) {
 			continue
 		}
 		if s.mods.Enabled(modules.ForRoute("/api/v1" + c.Path)) {
