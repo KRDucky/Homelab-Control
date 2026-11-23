@@ -162,3 +162,20 @@ func TestCollectFixture(t *testing.T) {
 		t.Fatalf("%+v", snap.F2fs.Mounts[0])
 	}
 }
+
+func TestAbsentReasonPrefersTruncation(t *testing.T) {
+	if got := absentReason(true, "dump.f2fs binary was not found"); got != "mount inventory was truncated; f2fs presence could not be determined" {
+		t.Fatal(got)
+	}
+	if got := absentReason(false, "dump.f2fs binary was not found"); got != "dump.f2fs binary was not found" {
+		t.Fatal(got)
+	}
+}
+
+func TestCollectReturnsCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := Collect(ctx, t.TempDir(), "debian"); err == nil {
+		t.Fatal("expected cancellation")
+	}
+}

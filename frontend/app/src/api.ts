@@ -1503,7 +1503,7 @@ export interface F2fsKernel {
 export interface F2fsInventory {
   tooling: F2fsTooling;
   f2fs: F2fsInfo;
-  kernelF2fs: F2fsKernel;
+  kernelF2fs?: F2fsKernel;
 }
 
 export function getF2fs(csrf: string): Promise<F2fsInventory> {

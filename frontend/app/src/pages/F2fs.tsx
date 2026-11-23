@@ -80,8 +80,10 @@ export function F2fsView({
           </p>
         ) : (
           <p className="banner" role="status">
-            {kernelF2fs?.reason ||
-              'The kernel f2fs filesystem is not currently listed in /proc/filesystems (this page does not load modules).'}
+            {kernelF2fs == null
+              ? 'Kernel f2fs capability data is unavailable; its status has not been checked.'
+              : kernelF2fs.reason ||
+                'The kernel f2fs filesystem is not currently listed in /proc/filesystems (this page does not load modules).'}
           </p>
         )}
       </section>
@@ -108,8 +110,8 @@ export function F2fsView({
         ) : null}
         {f2fs.mounts.length > 0 ? (
           <ul className="pool-list">
-            {f2fs.mounts.map((m) => (
-              <li key={`${m.mountpoint}\0${m.device}`}>
+            {f2fs.mounts.map((m, index) => (
+              <li key={`${m.mountpoint}\0${m.device}\0${index}`}>
                 <code>{m.mountpoint}</code>
                 <dl>
                   <dt>Device</dt>
@@ -164,7 +166,7 @@ function InstallOffer({
   const [open, setOpen] = useState(false);
   const pkg = item?.package ?? '';
   if (!pkg) {
-    return <p>Software Center cannot determine the package name for this distribution.</p>;
+    return <p>Software Center cannot determine a package name for {item?.id} on this distribution.</p>;
   }
   if (!canInstall) {
     return (
