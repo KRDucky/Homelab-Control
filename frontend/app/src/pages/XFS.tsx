@@ -8,9 +8,10 @@ import { InstallPlanDialog } from '../InstallPlanDialog';
 import { explain, useData } from '../useData';
 
 /**
- * XFS (M7 first checkpoint, read-only). Probe the xfs_info binary, show a
- * Software Center search link when the package name is known and missing, and
- * list observed xfs mounts. No format, grow, or repair exists in the DOM.
+ * XFS (M7 first checkpoint, read-only). Probe the xfs_info binary and, when it
+ * is missing and the package name is known, offer an Install button that opens
+ * a dialog linking to a Software Center search (it installs nothing itself).
+ * List observed xfs mounts. No format, grow, or repair exists in the DOM.
  */
 export function XFS({
   csrf,
@@ -124,7 +125,11 @@ export function XFSView({
           </ul>
         ) : (
           <p className="empty">
-            {xfs.present ? 'No xfs mounts found.' : xfs.reason || 'No xfs mounts found.'}
+            {xfs.mountsTruncated
+              ? 'No xfs mounts could be listed.'
+              : xfs.present
+                ? 'No xfs mounts found.'
+                : xfs.reason || 'No xfs mounts found.'}
           </p>
         )}
       </section>
