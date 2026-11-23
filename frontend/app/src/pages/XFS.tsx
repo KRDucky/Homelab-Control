@@ -80,8 +80,10 @@ export function XFSView({
           </p>
         ) : (
           <p className="banner" role="status">
-            {kernelXfs?.reason ||
-              'The kernel XFS filesystem is not currently listed in /proc/filesystems (this page does not load modules).'}
+            {kernelXfs == null
+              ? 'Kernel XFS capability data is unavailable; its status has not been checked.'
+              : kernelXfs.reason ||
+                'The kernel XFS filesystem is not currently listed in /proc/filesystems (this page does not load modules).'}
           </p>
         )}
       </section>
@@ -136,7 +138,7 @@ function RequiredOffers({ items, canInstall }: { items: XFSToolItem[]; canInstal
   return (
     <>
       {items.map((item) => {
-        const key = item.package || '__no-package__';
+        const key = item.package || `missing:${item.id}`;
         if (seen.has(key)) return null;
         seen.add(key);
         return (
@@ -164,7 +166,7 @@ function InstallOffer({
   const [open, setOpen] = useState(false);
   const pkg = item?.package ?? '';
   if (!pkg) {
-    return <p>Software Center cannot determine the package name for this distribution.</p>;
+    return <p>Software Center cannot determine a package name for {item?.id} on this distribution.</p>;
   }
   if (!canInstall) {
     return (

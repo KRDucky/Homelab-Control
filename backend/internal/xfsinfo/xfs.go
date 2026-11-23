@@ -241,6 +241,9 @@ func Collect(ctx context.Context, osRoot, family string) (Snapshot, error) {
 	snap.Tooling = ProbeTooling(family)
 	snap.KernelXfs = ProbeKernelXfs(osRoot)
 	mounts, truncated, err := collectMounts(osRoot)
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return Snapshot{}, ctxErr
+	}
 	if mounts == nil {
 		mounts = []Mount{}
 	}
@@ -256,8 +259,17 @@ func Collect(ctx context.Context, osRoot, family string) (Snapshot, error) {
 		snap.Xfs = base
 	} else {
 		base.Present = false
-		base.Reason = "xfs_info binary was not found"
+		base.Reason = absentReason(truncated, "xfs_info binary was not found")
 		snap.Xfs = base
 	}
 	return snap, nil
+}
+
+// absentReason explains an empty inventory. A truncated read must not be
+// reported as a missing binary: the mount may have been past the cap.
+func absentReason(truncated bool, missingBinary string) string {
+	if truncated {
+		return "mount inventory was truncated; xfs presence could not be determined"
+	}
+	return missingBinary
 }
