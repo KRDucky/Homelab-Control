@@ -195,6 +195,23 @@ device open. A missing package offers Software Center search when the packages m
 and the session has `packages.read`. This is a checkpoint, not M7 acceptance, not a merge, not
 production. Never touch production pool `tank`.
 
+## Software RAID (mdadm) first checkpoint (read-only; not acceptance)
+
+One read-only page at `/storage/mdadm` (module id `mdadm`, scope `mdadm.read`, never default and
+implied by nothing, including `storage.read`; API `GET /api/v1/mdadm`) probes the required `mdadm`
+binary (unprivileged `os.Stat` of `/usr/sbin/mdadm` then `/usr/bin/mdadm`, no `os/exec`). Debian,
+Fedora, SUSE, and Arch name the package `mdadm`; an unknown family names no package. The inventory is
+bounded `/proc/mdstat` only (1 MiB file and 64 KiB line caps, read through `os.Root`): per array the
+name, RAID level as printed (empty when none is printed), state as printed (`active` / `inactive`,
+optionally `(read-only)` / `(auto-read-only)`), and the number of component entries listed on the array
+line (null when none). The "Personalities :" line of the same file is shown. A missing file, an
+unreadable or oversized file, or any malformed array line fails closed: no arrays and fixed reason
+text. Rows cap at 256 with `arraysTruncated`. No component or array device is opened, no superblock is
+parsed, and no degraded verdict is derived beyond what `/proc/mdstat` prints. No create, assemble,
+add, remove, grow, or reshape. A missing `mdadm` offers Software Center search when the package name
+is known, the packages module is enabled and the session has `packages.read` (no POST install). This
+is a checkpoint, not acceptance, not a merge, not production.
+
 
 ## M7 first checkpoint: XFS (read-only; not M7 acceptance)
 
@@ -210,7 +227,7 @@ panicking, and the other mounts are still listed. Parse limits match the other i
 4 MiB and 8192 records; xfs rows cap at 256. A cap, a limit or a skipped record sets
 `mountsTruncated`, and the page shows the fixed text “not every mount could be listed”. The XFS
 capability follows the `xfs` module only, so disabling Storage does not hide it (mergerfs, zfs, lvm,
-btrfs and ext4 are gated the same way). No `xfs_info` execution, no format, grow, or repair, and no
+btrfs, ext4 and mdadm are gated the same way). No `xfs_info` execution, no format, grow, or repair, and no
 device open. A missing package offers Software Center search when the packages module is enabled
 and the session has `packages.read`. This is a checkpoint, not M7 acceptance, not a merge, not
 production. Never touch production pool `tank`.
