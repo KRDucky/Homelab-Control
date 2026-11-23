@@ -738,6 +738,29 @@ export function probeStorage(csrf: string): Promise<StorageInventory> {
   });
 }
 
+export interface PartitionPlanStep {
+  action: string;
+  detail: string;
+  destructive: boolean;
+  executable: false;
+}
+
+export interface PartitionPlanReport {
+  ok: boolean;
+  errors: string[];
+  steps: PartitionPlanStep[];
+  /** Always false. The server does not partition or format from this call. */
+  executes: false;
+}
+
+/** Validate a proposed layout. storage.read. Nothing is partitioned or formatted. */
+export function dryRunPartitionPlan(
+  csrf: string,
+  body: { disk_bytes: number; parts: { start_bytes: number; size_bytes: number; filesystem: string }[] },
+): Promise<PartitionPlanReport> {
+  return postJSON<PartitionPlanReport>('/api/v1/storage/plan/dry-run', csrf, body);
+}
+
 // M2-6 skeleton: read-only host settings and a non-executing preview.
 export interface HostSetting {
   value?: string;

@@ -104,6 +104,17 @@ func Collect(ctx context.Context, osRoot string) (Graph, error) {
 			b.Kind = "partition"
 			b.Parent = read(base + "../dev")
 			b.DiskSeq = diskSeq(read(base + "../diskseq"))
+			// sysfs start is 512-byte sectors. A missing file stays unset so
+			// a layout bar can tell "unknown" from a partition at offset 0.
+			if start := read(base + "start"); start != "" {
+				sectors, e := strconv.ParseUint(start, 10, 64)
+				if e == nil && sectors <= math.MaxUint64/512 {
+					v := sectors * 512
+					b.StartBytes = &v
+				} else {
+					notes = append(notes, "A partition has an unreadable or overflowing start sector.")
+				}
+			}
 		} else {
 			b.DiskSeq = diskSeq(read(base + "diskseq"))
 			collectIdentity(&b, base, read, readRaw)

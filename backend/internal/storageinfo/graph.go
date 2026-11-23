@@ -31,10 +31,14 @@ type Node struct {
 	DeviceNumber   string       `json:"device_number,omitempty"`
 	// DiskSeq is the kernel's per-boot disk sequence number (sysfs diskseq;
 	// a partition reports its disk's). It detects device-number reuse.
-	DiskSeq    string `json:"disk_seq,omitempty"`
-	SizeBytes  uint64 `json:"size_bytes,omitempty"`
-	FSType     string `json:"filesystem_type,omitempty"`
-	Mountpoint string `json:"mountpoint,omitempty"`
+	DiskSeq   string `json:"disk_seq,omitempty"`
+	SizeBytes uint64 `json:"size_bytes,omitempty"`
+	// StartBytes is the partition start in bytes, from sysfs "start"
+	// (512-byte sectors). Nil when this is not a partition or the file is
+	// missing or unreadable. Zero is a real offset and is encoded.
+	StartBytes *uint64 `json:"start_bytes,omitempty"`
+	FSType     string  `json:"filesystem_type,omitempty"`
+	Mountpoint string  `json:"mountpoint,omitempty"`
 	// SignatureUUID is the UUID an observed signature reports (for
 	// LVM2_member, the PV UUID). Set only on signature nodes.
 	SignatureUUID string     `json:"signature_uuid,omitempty"`
@@ -87,9 +91,11 @@ type Block struct {
 	ByID                            []string
 	Lower                           []string
 	SizeBytes                       uint64
-	DiskSeq                         string
-	Source                          string
-	MD                              *MDState
+	// StartBytes is set only for a partition whose sysfs start was readable.
+	StartBytes *uint64
+	DiskSeq    string
+	Source     string
+	MD         *MDState
 }
 
 type Mount struct {
@@ -200,7 +206,7 @@ func Build(blocks []Block, mounts []Mount) Graph {
 		if source == "" {
 			source = "/sys/class/block"
 		}
-		n := Node{ID: key("block", b.DeviceNumber), Kind: b.Kind, Name: b.Name, DeviceNumber: b.DeviceNumber, DiskSeq: b.DiskSeq, SizeBytes: b.SizeBytes, IdentityStatus: "unavailable", Evidence: []Evidence{{source, "observed"}}}
+		n := Node{ID: key("block", b.DeviceNumber), Kind: b.Kind, Name: b.Name, DeviceNumber: b.DeviceNumber, DiskSeq: b.DiskSeq, SizeBytes: b.SizeBytes, StartBytes: b.StartBytes, IdentityStatus: "unavailable", Evidence: []Evidence{{source, "observed"}}}
 		n.Identifiers = identifiers(b)
 		n.MD = b.MD
 		for i := range n.Identifiers {

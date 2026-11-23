@@ -56,7 +56,7 @@ var registry = []Module{
 	{
 		ID:          "storage",
 		Title:       "Storage",
-		Description: "read-only disk inventory, on-demand probing and manual drive-bay layouts",
+		Description: "read-only disk inventory, a non-executing partition dry run, on-demand probing and manual drive-bay layouts",
 		Scopes:      []string{"storage.read", "storage.probe", "layout.manage"},
 		APIPrefix:   "/api/v1/storage",
 		OpPrefix:    "storage.",
