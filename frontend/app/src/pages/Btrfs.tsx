@@ -96,7 +96,7 @@ export function BtrfsView({
           <header className="panel-head">
             <h2 id="btrfs-offer-heading">Btrfs tools</h2>
           </header>
-          <p>btrfs is required. This page does not run it.</p>
+          <p>Missing required tools: {missingRequired.map((tool) => tool.id).join(', ')}. This page does not run them.</p>
           <RequiredOffers items={missingRequired} canInstall={canInstall} />
         </section>
       )}
@@ -170,7 +170,7 @@ function RequiredOffers({ items, canInstall }: { items: BtrfsToolItem[]; canInst
   return (
     <>
       {items.map((item) => {
-        const key = item.package || '__no-package__';
+        const key = item.package || `missing:${item.id}`;
         if (seen.has(key)) return null;
         seen.add(key);
         return (
@@ -198,7 +198,7 @@ function InstallOffer({
   const [open, setOpen] = useState(false);
   const pkg = item?.package ?? '';
   if (!pkg) {
-    return <p>Software Center cannot determine the package name for this distribution.</p>;
+    return <p>Software Center cannot determine a package name for {item?.id} on this distribution.</p>;
   }
   if (!canInstall) {
     return (
