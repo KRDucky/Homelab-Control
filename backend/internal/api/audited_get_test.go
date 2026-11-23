@@ -26,6 +26,7 @@ func TestAuditedGETKeepsEachWrapperMessage(t *testing.T) {
 		{"packages", h.srv.packagesProtectedGET, "Package queries require an access audit logger."},
 		{"zfs", h.srv.zfsProtectedGET, "ZFS inventory requires an access audit logger."},
 		{"lvm", h.srv.lvmProtectedGET, "LVM inventory requires an access audit logger."},
+		{"xfs", h.srv.xfsProtectedGET, "XFS inventory requires an access audit logger."},
 		{"mergerfs", h.srv.mergerfsProtectedGET, "MergerFS inventory requires an access audit logger."},
 	}
 
