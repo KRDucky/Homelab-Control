@@ -11,7 +11,8 @@ import (
 
 // Phase is one step of the SHARED-02 mutating storage state machine.
 // Advance can enter execute after a passing confirm. It still does not
-// format a device or call a helper, and no broker op calls mkfs.
+// format a device or call a helper. ext4.format.apply is the broker caller
+// that formats after Advance returns execute.
 type Phase string
 
 const (

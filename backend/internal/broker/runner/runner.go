@@ -51,8 +51,7 @@ var allowlist = map[string][]string{
 	"dnf":        {"/usr/bin/dnf"},
 	"zypper":     {"/usr/bin/zypper"},
 	"pacman":     {"/usr/bin/pacman", "/usr/bin/pacman.static"},
-	// P0 storage (ADR 0008 Amendment 2): mkfs.ext4 is registered unused.
-	// No broker op calls it until independent security review. No -F.
+	// ext4.format.apply is the only caller. Quiet, no -F.
 	"mkfs.ext4": {"/usr/sbin/mkfs.ext4", "/sbin/mkfs.ext4"},
 	// MergerFS SnapRAID status (ADR 0008): only mergerfs.snapraid.status calls
 	// this binary, and only with argv "status". No sync, scrub, fix, diff, or smart.
@@ -108,9 +107,8 @@ const (
 	RootTimedatectlListTimezones RootTemplate = "timedatectl.list-timezones"
 )
 
-// P0 storage: one unused closed mkfs.ext4 template so TestRootTemplatesAreClosed
-// can snapshot it. Advance can enter execute; no broker op calls this
-// until independent security review (ADR 0008 Amendment 2). Quiet only; no -F.
+// Closed mkfs.ext4 template. ext4.format.apply is the only caller.
+// Quiet only; no -F. The argv stays one by-id target.
 const (
 	RootMkfsExt4 RootTemplate = "mkfs.ext4"
 )
@@ -274,7 +272,7 @@ var rootTemplates = map[RootTemplate]rootTemplate{
 	RootTimedatectlSetTimezone:   {"timedatectl", []string{"--no-ask-password", "set-timezone", "--"}, validTimezoneName, 1},
 	RootTimedatectlStatus:        {"timedatectl", []string{"--no-ask-password", "status"}, nil, 0},
 	RootTimedatectlListTimezones: {"timedatectl", []string{"--no-ask-password", "list-timezones"}, nil, 0},
-	// P0 storage: quiet ext4 format of one by-id path. Unused until review.
+	// Quiet ext4 format of one by-id path. Called only by ext4.format.apply.
 	RootMkfsExt4: {"mkfs.ext4", []string{"-q", "--"}, validStorageByID, 1},
 	// services.systemctl. Job-mode verbs queue one job and fail if another is
 	// already queued. File-level verbs pass --no-reload so they do not reload

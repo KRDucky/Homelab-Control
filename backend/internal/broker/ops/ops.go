@@ -83,6 +83,14 @@ type Env struct {
 	// HostSettings overrides the hostnamectl/timedatectl controller (tests);
 	// nil = hostnamectl and timedatectl.
 	HostSettings HostSettingsController
+	// Ext4Format overrides ext4 format device inspection (tests). Nil reads
+	// the host. It never formats.
+	Ext4Format Ext4FormatView
+	// Ext4Mkfs overrides the mkfs.ext4 child (tests). Nil runs RootMkfsExt4
+	// through RootExec. The argv is the closed template's argv.
+	Ext4Mkfs func(ctx context.Context, argv []string) (runner.Result, error)
+	// Ext4Tooling overrides the mkfs.ext4 presence probe (tests).
+	Ext4Tooling *ext4ToolFact
 }
 
 // WriteSpec documents a write op for review and the registry snapshot test
@@ -251,6 +259,20 @@ func Registry() map[string]Op {
 		// reader is the default LVM path (no lvs/pvs execution).
 		{Name: "storage.probe", Scope: "storage.probe", Privilege: PrivRootRead, Timeout: 35 * time.Second, Admission: AdmissionProbe,
 			Description: "On-demand native storage probe (blkid signatures on enumerated devices); wakes disks", Handle: storageProbe},
+		// ext4 format (owner 2026-11-23): the closed mkfs.ext4 template is
+		// this pair's apply, and only this pair's apply. Quiet, one by-id
+		// target, no -F. ext4.read does not grant it. The main broker unit
+		// stays PrivateDevices=yes; a broker that cannot see the device
+		// refuses before exec.
+		{Name: "ext4.format.plan", Scope: "ext4.format", Privilege: PrivRootRead, Timeout: 15 * time.Second, Admission: AdmissionControlPlan,
+			Description: "Review a quiet ext4 format of one by-id disk: persist identity, block device, unmounted, no holders, destructive risk and a single-use plan token. Nothing is formatted",
+			Handle:      ext4FormatPlan, AuditArgs: ext4FormatAuditArgs,
+			Write: &WriteSpec{Phase: "plan", Risks: []string{RiskDestructive}, LockDomain: "ext4-format:<identity>+ext4-format-dev:<rdev>"}},
+		{Name: "ext4.format.apply", Scope: "ext4.format", Privilege: PrivRootExec, Timeout: 9 * time.Minute, Admission: AdmissionControlApply,
+			Description: "Format one reviewed by-id disk with mkfs.ext4 -q. Requires the plan token, password re-entry, and a fresh block-device check immediately before exec. No -F",
+			Handle:      ext4FormatApply, AuditArgs: ext4FormatAuditArgs,
+			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskDestructive}, LockDomain: "ext4-format:<identity>+ext4-format-dev:<rdev>",
+				Templates: []runner.RootTemplate{runner.RootMkfsExt4}}},
 	}
 	m := make(map[string]Op, len(ops))
 	for _, o := range ops {

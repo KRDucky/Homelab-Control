@@ -243,25 +243,35 @@ authorize install, remove, upgrade, repository changes, key import, or metadata 
 - **Proposed status.** This amendment remains subject to review and owner acceptance. It does not accept
   ADR 0008 or authorize M4 acceptance.
 
-## Amendment 6 (2026-11-13, P0 storage, Proposed): unused `mkfs.ext4` root template
+## Amendment 6 (2026-11-13, P0 storage, Proposed): `mkfs.ext4` root template
 
 Proposed with the P0 shared-storage work. **Not accepted.** Independent security review of PR #74
-(approve-with-nits) covers the unused template only. This amendment does not authorize execute
-wiring, guest or host write tests, or a broker unit change.
+covered the unused template. On 2026-11-23 the owner required the template to have a caller
+(`ext4.format.plan` / `ext4.format.apply`) and allowed the proof to run in a disposable VM.
+This amendment still does not accept ADR 0008 for storage writes, and it does not change the
+main broker unit.
 
-- **One unused closed template.** `mkfs.ext4` = `mkfs.ext4 -q -- <by-id>`; exactly one
+- **One closed template.** `mkfs.ext4` = `mkfs.ext4 -q -- <by-id>`; exactly one
   `/dev/disk/by-id` target (`wwn-0x` 16 or 32 hex, `nvme-eui.` 16 hex, `nvme-uuid.`, `ata-`,
   `scsi-`, `virtio-`; optional `-part` 1–3 digits). No `-F`. Kernel names, mapper/md/lvm/dm,
   by-path, usb, `..`, and `//` are refused.
-- **No caller.** No broker op lists or runs this template. `Advance` stays `BlockNoExecute`.
-  `TestUnusedStorageRootTemplateConfined` fails if `RootMkfsExt4` or `mkfs.ext4` appears outside
-  `runner.go` (tests excepted). A wiring PR must change that test on purpose.
-- **Wiring gates (not met here).** G1: non-TTY stdin/stdout skip mke2fs's existing-FS prompt;
-  the op must prove identity, unmounted, not a member, under lock. G2: require a block device
-  immediately before exec (mke2fs may create a regular file). G3: do not widen the main broker
-  unit (`PrivateDevices=yes`); use a narrow helper plus SELinux/AppArmor review. G4: bind
-  confirmation to the plan's recorded identity, not the by-id string. G5: duration policy and
-  recovery for a killed mkfs.
+- **One caller.** `ext4.format.apply` is the only broker op that lists or runs this template.
+  Scope `ext4.format` is not a default and is not implied by `ext4.read` or `storage.read`.
+  Risk is destructive (password re-entry). `TestUnusedStorageRootTemplateConfined` allows the
+  template name only in `runner.go`, the registry, and `ext4format.go`.
+- **Gates the caller enforces.** G1: the runner's stdin is `/dev/null` (no existing-FS prompt)
+  and apply holds the per-identity lock plus a lock on the device number, so a WWN
+  alias and a serial alias cannot format that disk at the same time. G2: the path must be a block device immediately
+  before exec; a regular file is refused. G4: the plan token target is the persist identity
+  (`wwn`, `nvme-uuid`, or `serial`) and the by-id basename must name that same identity.
+  The by-id path and rdev are also in the state digest, so a path swap is a conflict and
+  does not format. Partition device numbers include sysfs symlink entries, so a mounted
+  partition is busy. G5: the child budget is 8 minutes on a context independent of the
+  request; timeout, panic, or a non-zero exit is `uncertain` and is not retried.
+- **G3 is not met.** The main broker unit stays `PrivateDevices=yes`. This caller does not
+  add `DeviceAllow` and does not change `homelab-control-storage-helper.service`
+  (`ExecStart=/bin/false`). A broker that cannot see the disk fails closed before exec.
+  A live format belongs on a disposable VM disk, not the MediaMouse host.
 - **Proposed status.** This amendment remains subject to review and owner acceptance. It does
   not accept ADR 0008 for storage writes.
 

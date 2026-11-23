@@ -330,8 +330,10 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/lvm", auth.ScopeLVMRead, s.handleLVM)
 	// M7 first checkpoint: read-only Btrfs (no broker ops, never exec).
 	s.handle("GET /api/v1/btrfs", auth.ScopeBtrfsRead, s.handleBtrfs)
-	// M7 first checkpoint: read-only ext4 (no broker ops, never exec).
+	// ext4 inventory is read-only. Format is a separate scope and broker pair.
 	s.handle("GET /api/v1/ext4", auth.ScopeExt4Read, s.handleExt4)
+	s.handle("POST /api/v1/ext4/format/plan", auth.ScopeExt4Format, s.handleExt4FormatPlan)
+	s.handle("POST /api/v1/ext4/format/apply", auth.ScopeExt4Format, s.handleExt4FormatApply)
 	// Read-only Linux software RAID (no broker ops, never exec mdadm).
 	s.handle("GET /api/v1/mdadm", auth.ScopeMdadmRead, s.handleMdadm)
 	// M7 first checkpoint: read-only f2fs (no broker ops, never exec).
