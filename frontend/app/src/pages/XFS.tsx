@@ -105,7 +105,7 @@ export function XFSView({
         </header>
         {xfs.mountsTruncated ? (
           <p className="banner" role="status">
-            too many mounts to list
+            not every mount could be listed
           </p>
         ) : null}
         {xfs.mounts.length > 0 ? (

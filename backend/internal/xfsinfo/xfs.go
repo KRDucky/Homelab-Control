@@ -43,23 +43,23 @@ type Snapshot struct {
 
 // mountinfoReadLimits match the other inventory pages so a hostile or
 // oversized kernel file cannot grow memory unbounded. xfsMaxMounts caps
-// returned rows; overflow sets mountsTruncated instead of failing.
+// returned rows; overflow or a skipped record sets mountsTruncated
+// instead of failing.
 const (
-	mountinfoMaxBytes   = 4 * 1024 * 1024
-	mountinfoMaxMounts  = 8192
-	mountinfoMaxLine    = 64 << 10
-	xfsMaxMounts        = 256
-	deviceMaxBytes      = 256
-	reasonTooManyMounts = "too many mounts to list"
+	mountinfoMaxBytes  = 4 * 1024 * 1024
+	mountinfoMaxMounts = 8192
+	mountinfoMaxLine   = 64 << 10
+	xfsMaxMounts       = 256
+	deviceMaxBytes     = 256
 )
 
 // ParseMountInfo parses bounded kernel mountinfo and retains fstype xfs
-// mounts only. Every other filesystem is dropped. A non-xfs line is skipped
-// even when the rest of the record is malformed. A line over mountinfoMaxLine
-// is skipped and marks the inventory truncated. A line with no filesystem
-// type, or a xfs line with a bad mountpoint or a record missing its options
-// field, still fails the parse. A xfs source that is not a /dev path is
-// skipped.
+// mounts only. Every other filesystem is dropped. The boolean reports an
+// incomplete list: it is set when the xfs row cap or a mountinfo byte, record
+// or line limit is hit, and when a record is skipped because it cannot be
+// listed safely (no filesystem type, a malformed xfs record, a bad xfs
+// mountpoint or source, or a source that is not a safe /dev path). One bad
+// record never hides the others. Only a read error fails the parse.
 func ParseMountInfo(r io.Reader) ([]Mount, bool, error) {
 	br := bufio.NewReader(io.LimitReader(r, mountinfoMaxBytes+1))
 	mounts := []Mount{}
@@ -100,39 +100,48 @@ func ParseMountInfo(r io.Reader) ([]Mount, bool, error) {
 		if sep >= 0 && len(fields) > sep+1 {
 			fstype = fields[sep+1]
 		}
-		if fstype != "xfs" {
-			if fstype == "" {
-				return nil, false, fmt.Errorf("invalid mountinfo record")
-			}
+		if fstype == "" {
+			// Without a filesystem type the record might be xfs; skip it
+			// and report the list as incomplete.
+			truncated = true
 			continue
 		}
-		// A xfs record must carry the super-options field (fields[sep+3]);
-		// a shorter record is malformed. Returning an error avoids indexing
-		// off the end.
-		if sep < 6 || len(fields) < sep+4 {
-			return nil, false, fmt.Errorf("invalid mountinfo record")
+		if fstype != "xfs" {
+			continue
 		}
-		if _, e := strconv.ParseUint(fields[0], 10, 64); e != nil {
-			return nil, false, fmt.Errorf("invalid mount identifier")
-		}
-		point, err := unescape(fields[4])
-		if err != nil || !strings.HasPrefix(point, "/") || hasDotDot(point) {
-			return nil, false, fmt.Errorf("invalid xfs mountpoint")
-		}
-		source, err := unescape(fields[sep+2])
-		if err != nil {
-			return nil, false, fmt.Errorf("invalid xfs source")
-		}
-		if !validDevice(source) {
+		mount, ok := parseXfsRecord(fields, sep)
+		if !ok {
+			truncated = true
 			continue
 		}
 		if len(mounts) >= xfsMaxMounts {
 			truncated = true
 			continue
 		}
-		mounts = append(mounts, Mount{Mountpoint: point, Device: source})
+		mounts = append(mounts, mount)
 	}
 	return mounts, truncated, nil
+}
+
+// parseXfsRecord validates one xfs mountinfo record. A record must carry the
+// super-options field (fields[sep+3]); checking the length first avoids
+// indexing off the end.
+func parseXfsRecord(fields []string, sep int) (Mount, bool) {
+	if sep < 6 || len(fields) < sep+4 {
+		return Mount{}, false
+	}
+	if _, err := strconv.ParseUint(fields[0], 10, 64); err != nil {
+		return Mount{}, false
+	}
+	point, err := unescape(fields[4])
+	if err != nil || !strings.HasPrefix(point, "/") || hasDotDot(point) {
+		return Mount{}, false
+	}
+	source, err := unescape(fields[sep+2])
+	if err != nil || !validDevice(source) {
+		return Mount{}, false
+	}
+	return Mount{Mountpoint: point, Device: source}, true
 }
 
 // nextMountLine reads one mountinfo line. n includes the newline when present.
@@ -265,11 +274,12 @@ func Collect(ctx context.Context, osRoot, family string) (Snapshot, error) {
 	return snap, nil
 }
 
-// absentReason explains an empty inventory. A truncated read must not be
-// reported as a missing binary: the mount may have been past the cap.
+// absentReason explains an empty inventory. An incomplete read must not be
+// reported as a missing binary: an xfs mount may have been past a cap or in
+// a skipped record.
 func absentReason(truncated bool, missingBinary string) string {
 	if truncated {
-		return "mount inventory was truncated; xfs presence could not be determined"
+		return "mount inventory was incomplete; xfs presence could not be determined"
 	}
 	return missingBinary
 }

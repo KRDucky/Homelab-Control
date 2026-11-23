@@ -88,14 +88,14 @@ describe('XFS read-only page', () => {
     );
   });
 
-  it('shows too many mounts to list when the inventory was truncated', async () => {
+  it('shows an incomplete-list notice when mountsTruncated is set', async () => {
     const data = inventory({ xfsInstalled: true });
     data.xfs.mountsTruncated = true;
     vi.mocked(getXFS).mockResolvedValue(data);
     render(
       <XFS csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
     );
-    expect(await screen.findByText('too many mounts to list')).toBeTruthy();
+    expect(await screen.findByText('not every mount could be listed')).toBeTruthy();
     expect(screen.getByText('/mnt/data')).toBeTruthy();
   });
 

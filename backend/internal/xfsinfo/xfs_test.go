@@ -43,19 +43,28 @@ func TestParseMountInfoKeepsOnlyXfs(t *testing.T) {
 	}
 }
 
-func TestParseMountInfoSkipsUnsafeDevice(t *testing.T) {
-	in := "41 1 0:36 / /mnt/skip rw - xfs /dev/../sda rw\n" + xfsLine(43)
-	mounts, _, err := ParseMountInfo(strings.NewReader(in))
-	if err != nil || len(mounts) != 1 || mounts[0].Device != "/dev/sda1" {
-		t.Fatalf("mounts=%v err=%v", mounts, err)
+func TestParseMountInfoSkipsUnsafeDeviceAndMarksIncomplete(t *testing.T) {
+	for _, src := range []string{"/dev/../sda", "none", "/dev//sda", "/dev/bad\\999"} {
+		in := "41 1 0:36 / /mnt/skip rw - xfs " + src + " rw\n" + xfsLine(43)
+		mounts, truncated, err := ParseMountInfo(strings.NewReader(in))
+		if err != nil || !truncated || len(mounts) != 1 || mounts[0].Device != "/dev/sda1" {
+			t.Fatalf("source %q: mounts=%v truncated=%v err=%v", src, mounts, truncated, err)
+		}
 	}
 }
 
-func TestParseMountInfoMissingOptionsDoesNotPanic(t *testing.T) {
-	in := "40 1 0:36 / /mnt/data rw - xfs /dev/sda1\n"
-	_, _, err := ParseMountInfo(strings.NewReader(in))
-	if err == nil {
-		t.Fatal("expected error")
+func TestParseMountInfoMalformedXfsRecordKeepsOtherMounts(t *testing.T) {
+	for _, bad := range []string{
+		"40 1 0:36 / /mnt/data rw - xfs /dev/sda1",      // missing super options
+		"x 1 0:36 / /mnt/data rw - xfs /dev/sdb1 rw",    // bad mount ID
+		"40 1 0:36 / relative rw - xfs /dev/sdb1 rw",    // relative mountpoint
+		"40 1 0:36 / /mnt/bad\\9 rw - xfs /dev/sdb1 rw", // bad escape
+	} {
+		in := bad + "\n" + xfsLine(41)
+		mounts, truncated, err := ParseMountInfo(strings.NewReader(in))
+		if err != nil || !truncated || len(mounts) != 1 || mounts[0].Mountpoint != "/mnt/data" {
+			t.Fatalf("%q: mounts=%v truncated=%v err=%v", bad, mounts, truncated, err)
+		}
 	}
 }
 
@@ -63,13 +72,18 @@ func TestParseMountInfoKeepsDottedNamesAndRejectsDotDot(t *testing.T) {
 	in := "44 1 0:36 / /mnt/foo..bar rw - xfs /dev/disk..1 rw\n" +
 		"45 1 0:36 / /../bad rw - xfs /dev/sdb1 rw\n" +
 		xfsLine(46)
-	_, _, err := ParseMountInfo(strings.NewReader(in))
-	if err == nil {
-		t.Fatal("expected error for a dotdot mountpoint")
+	mounts, truncated, err := ParseMountInfo(strings.NewReader(in))
+	if err != nil || !truncated || len(mounts) != 2 {
+		t.Fatalf("dotdot mountpoint must be skipped, not listed: mounts=%v truncated=%v err=%v", mounts, truncated, err)
+	}
+	for _, m := range mounts {
+		if hasDotDot(m.Mountpoint) {
+			t.Fatalf("listed a dotdot mountpoint: %+v", m)
+		}
 	}
 	in = "44 1 0:36 / /mnt/foo..bar rw - xfs /dev/disk..1 rw\n" + xfsLine(45)
-	mounts, _, err := ParseMountInfo(strings.NewReader(in))
-	if err != nil || len(mounts) != 2 {
+	mounts, truncated, err = ParseMountInfo(strings.NewReader(in))
+	if err != nil || truncated || len(mounts) != 2 {
 		t.Fatalf("mounts=%v err=%v", mounts, err)
 	}
 	if mounts[0].Mountpoint != "/mnt/foo..bar" || mounts[0].Device != "/dev/disk..1" {
@@ -77,9 +91,11 @@ func TestParseMountInfoKeepsDottedNamesAndRejectsDotDot(t *testing.T) {
 	}
 }
 
-func TestParseMountInfoRejectsTypelessLine(t *testing.T) {
-	if _, _, err := ParseMountInfo(strings.NewReader("not-a-mountinfo-line\n")); err == nil {
-		t.Fatal("expected error")
+func TestParseMountInfoTypelessLineMarksIncomplete(t *testing.T) {
+	in := "not-a-mountinfo-line\n" + xfsLine(40)
+	mounts, truncated, err := ParseMountInfo(strings.NewReader(in))
+	if err != nil || !truncated || len(mounts) != 1 {
+		t.Fatalf("mounts=%v truncated=%v err=%v", mounts, truncated, err)
 	}
 }
 
@@ -162,7 +178,7 @@ func TestCollectFixture(t *testing.T) {
 }
 
 func TestAbsentReasonPrefersTruncation(t *testing.T) {
-	if got := absentReason(true, "xfs_info binary was not found"); got != "mount inventory was truncated; xfs presence could not be determined" {
+	if got := absentReason(true, "xfs_info binary was not found"); got != "mount inventory was incomplete; xfs presence could not be determined" {
 		t.Fatal(got)
 	}
 	if got := absentReason(false, "xfs_info binary was not found"); got != "xfs_info binary was not found" {
