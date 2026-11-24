@@ -108,3 +108,67 @@ func TestPackagesAuditArgsNeverLeaksQuery(t *testing.T) {
 		t.Fatalf("audit args leaked query: %q", got)
 	}
 }
+
+func TestPackagesSimulationRejectsInvalidRequests(t *testing.T) {
+	env := &Env{Roots: Roots{Root: t.TempDir()}}
+	for _, raw := range []string{
+		`{}`,
+		`{"family":"fedora","action":"install","package":"bash"}`,
+		`{"family":"debian","action":"update","package":"bash"}`,
+		`{"family":"debian","action":"install","package":"--help"}`,
+		`{"family":"debian","action":"install","package":"bash","flags":["--force-yes"]}`,
+	} {
+		if _, err := packagesSimulation(context.Background(), env, json.RawMessage(raw)); err == nil {
+			t.Errorf("accepted %s", raw)
+		}
+	}
+}
+
+func TestPackagesSimulationRequiresCache(t *testing.T) {
+	_, err := packagesSimulation(context.Background(), &Env{Roots: Roots{Root: t.TempDir()}},
+		json.RawMessage(`{"family":"debian","action":"install","package":"bash"}`))
+	var pe *proto.Error
+	if !errors.As(err, &pe) || pe.Code != proto.CodeUnavailable {
+		t.Fatalf("cache missing: %v", err)
+	}
+}
+
+func TestPackagesSimulationAuditRedactsTarget(t *testing.T) {
+	got := packagesSimulationAuditArgs(json.RawMessage(`{"family":"debian","action":"remove","package":"private-package"}`))
+	if got != "family=debian action=remove" {
+		t.Fatalf("unsafe audit: %q", got)
+	}
+}
+
+func TestAptSimulationPreviewFailsClosed(t *testing.T) {
+	// Fixture: stdout of a real non-root "apt-get --simulate
+	// --no-install-recommends install -- sl" (apt 3.3.3, Ubuntu), test data only.
+	ok := `NOTE: This is only a simulation!
+      apt-get needs root privileges for real execution.
+      Keep also in mind that locking is deactivated,
+      so don't depend on the relevance to the real current situation!
+Reading package lists...
+Building dependency tree...
+Reading state information...
+Solving dependencies...
+The following NEW packages will be installed:
+  sl
+0 upgraded, 1 newly installed, 0 to remove and 8 not upgraded.
+Inst sl (5.02-1build1 Ubuntu:26.10/stonking [amd64])
+Conf sl (5.02-1build1 Ubuntu:26.10/stonking [amd64])
+`
+	p, err := aptSimulationPreview(runner.Result{Stdout: []byte(ok)})
+	if err != nil || p.InstallCount != 1 || p.ConfigureCount != 1 || p.Changes[0].Name != "sl" || p.Changes[0].CandidateVersion != "5.02-1build1" {
+		t.Fatalf("clean run: %+v %v", p, err)
+	}
+	for name, res := range map[string]runner.Result{
+		"exit":   {Stdout: []byte(ok), ExitCode: 100},
+		"stderr": {Stdout: []byte(ok), Stderr: "W: something\n"},
+		"parse":  {Stdout: []byte("Inst sl (5.02-1build1 Ubuntu:26.10/stonking [amd64])\n")},
+	} {
+		var pe *proto.Error
+		if _, err := aptSimulationPreview(res); !errors.As(err, &pe) || pe.Code != proto.CodeUnavailable {
+			t.Errorf("%s: want unavailable, got %v", name, err)
+		}
+	}
+}

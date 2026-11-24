@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"net/http"
+	"os"
 	"slices"
 	"strconv"
 	"sync"
@@ -358,7 +359,26 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 			xfs.Status, xfs.Reason = CapDegraded, reason
 		}
 	}
-	caps := []Capability{gate(traefik), gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages), gate(mergerfs), gate(zfs), gate(lvm), gate(btrfs), gate(ext4), gate(mdadm), gate(f2fs), gate(xfs)}
+	// M11 read-only networking. Ports and firewall need their broker op;
+	// bonds read sysfs in hc-api and only degrade when the driver is absent.
+	ports := Capability{ID: "ports", Label: "Port use", Path: "/network/ports", Scope: auth.ScopeNetworkingPortsRead, Status: CapAvailable}
+	firewall := Capability{ID: "firewall", Label: "Firewall", Path: "/network/firewall", Scope: auth.ScopeNetworkingFirewallRead, Status: CapAvailable}
+	for _, c := range []*Capability{&ports, &firewall} {
+		op := map[string]string{"ports": "network.ports.list", "firewall": "network.firewall.config"}[c.ID]
+		switch {
+		case berr != nil:
+			c.Status, c.Reason = CapUnavailable, brokerDownReason
+		case !bi.hasOp(op):
+			c.Status, c.Reason = CapUnavailable, "The running broker does not provide "+op+"."
+		}
+	}
+	bonds := Capability{ID: "bonds", Label: "Bonds / LACP", Path: "/network/bonds", Scope: auth.ScopeNetworkingBondsRead, Status: CapAvailable}
+	if s.mods.Enabled("bonds") && sess.HasScope(auth.ScopeNetworkingBondsRead) {
+		if _, err := os.Stat("/sys/class/net/bonding_masters"); err != nil {
+			bonds.Status, bonds.Reason = CapDegraded, "The kernel bonding driver is not loaded, so no bonds exist. This page does not load it."
+		}
+	}
+	caps := []Capability{gate(traefik), gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages), gate(mergerfs), gate(zfs), gate(lvm), gate(btrfs), gate(ext4), gate(mdadm), gate(f2fs), gate(xfs), gate(ports), gate(bonds), gate(firewall)}
 	// Navigation follows the module registry: a disabled module contributes
 	// no capability (and therefore no navigation entry).
 	resp.Capabilities = caps[:0]
@@ -367,7 +387,7 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 		// are separate modules, so ForRoute would map them to storage. Gate
 		// them by their own module ID only.
 		switch c.ID {
-		case "mergerfs", "zfs", "lvm", "btrfs", "ext4", "mdadm", "f2fs", "xfs":
+		case "mergerfs", "zfs", "lvm", "btrfs", "ext4", "mdadm", "f2fs", "xfs", "ports", "bonds", "firewall":
 			if s.mods.Enabled(c.ID) {
 				resp.Capabilities = append(resp.Capabilities, c)
 			}

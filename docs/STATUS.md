@@ -83,6 +83,28 @@ the total window (≤ 60 months); daily timer, `homelab-control` user. Design: `
 2027-01-31, WAL page-size mitigation); systemd, distribution and KVM runs not yet done; no UI for archived records.
 This amendment does not add retention for the broker log or operation journal; both remain out of scope.
 
+## M11 read-only networking — first checkpoint (2026-11-24; not M11 acceptance)
+
+Branch `feat/m11-network-readonly` from `origin/main` `0f17d108`; code tested at `0bc2a917`. The owner
+asked to start M11 (port-use tracker, LACP/bonding detect, firewall WebUI for the active backend). This
+checkpoint is the read-only slice only:
+
+- **Ports:** `GET /api/v1/ports` with `networking.ports.read`, via broker op `network.ports.list` (root-read,
+  no arguments). It reads PID 1's socket tables. Owners are labelled `process`, `systemd-socket` (observed)
+  or `account` (inferred). `CAP_SYS_PTRACE` is not added.
+- **Bonds:** `GET /api/v1/bonds` with `networking.bonds.read`, read unprivileged in `hc-api` from sysfs. The
+  renderer (systemd-networkd, NetworkManager, ifupdown) is observed from runtime state files or reported
+  `unknown`.
+- **Firewall:** `GET /api/v1/firewall` with `networking.firewall.read`, via broker op
+  `network.firewall.config`. One fixed `systemctl show` picks the active backend (firewalld, ufw, nftables,
+  iptables), and only that backend's saved configuration is parsed. The live ruleset is not read.
+
+ADR 0008 Amendment 9 is Proposed. The scopes are not defaults and are not implied by any other scope.
+There are no write controls. Graphify review (two passes, findings fixed) and disposable-VM end-to-end
+runs on Ubuntu 26.04.1 and Debian 13 (installed package, API 47/47 and UI 15/15 on each) are recorded
+in [`evidence/m11/README.md`](evidence/m11/README.md). Firewall, bond and port-binding writes need their
+own owner authorization and an ADR 0011 review. Not a merge, not production.
+
 ## M3 plugin SDK — first checkpoint on main (development note; not M3 acceptance, not M2 close)
 
 The plugin half of the M3 Theme/Plugin SDK landed on `main` as PR #54 (squash `20ddc2b7`, on PR #53

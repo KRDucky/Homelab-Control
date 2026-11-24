@@ -80,6 +80,11 @@ var registry = []Module{
 	{ID: "mdadm", Title: "Software RAID (mdadm)", Description: "read-only Linux software RAID inventory from /proc/mdstat on the local host", Scopes: []string{"mdadm.read"}, APIPrefix: "/api/v1/mdadm", Path: "/storage/mdadm"},
 	{ID: "f2fs", Title: "f2fs", Description: "read-only f2fs inventory from the local host", Scopes: []string{"f2fs.read"}, APIPrefix: "/api/v1/f2fs", Path: "/storage/f2fs"},
 	{ID: "xfs", Title: "XFS", Description: "read-only XFS inventory from the local host", Scopes: []string{"xfs.read"}, APIPrefix: "/api/v1/xfs", Path: "/storage/xfs"},
+	// M11 read-only networking. Op prefixes tie each broker op to its module
+	// so disabling the module also refuses the op.
+	{ID: "ports", Title: "Port use", Description: "read-only host-wide map of listening ports and the process, unit or container that owns them", Scopes: []string{"networking.ports.read"}, APIPrefix: "/api/v1/ports", OpPrefix: "network.ports.", Path: "/network/ports"},
+	{ID: "bonds", Title: "Bonds / LACP", Description: "read-only kernel bonding and LACP (802.3ad) inventory with the observed configuration stack", Scopes: []string{"networking.bonds.read"}, APIPrefix: "/api/v1/bonds", Path: "/network/bonds"},
+	{ID: "firewall", Title: "Firewall", Description: "read-only view of the active firewall backend and its saved configuration", Scopes: []string{"networking.firewall.read"}, APIPrefix: "/api/v1/firewall", OpPrefix: "network.firewall.", Path: "/network/firewall"},
 }
 
 // All returns the registered modules.

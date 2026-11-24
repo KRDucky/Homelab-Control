@@ -12,8 +12,23 @@ import (
 
 func TestRegistryIsClosed(t *testing.T) {
 	all := All()
-	if len(all) != 12 || all[0].ID != "services" || all[0].APIPrefix != "/api/v1/services" || all[0].OpPrefix != "services." {
+	if len(all) != 15 || all[0].ID != "services" || all[0].APIPrefix != "/api/v1/services" || all[0].OpPrefix != "services." {
 		t.Fatalf("registry: %+v (new modules need review)", all)
+	}
+	// M11 read-only networking: the broker-backed modules own their op
+	// prefix so a disabled module also refuses its op; bonds has no op.
+	for i, want := range []Module{
+		{ID: "ports", APIPrefix: "/api/v1/ports", OpPrefix: "network.ports.", Path: "/network/ports", Scopes: []string{"networking.ports.read"}},
+		{ID: "bonds", APIPrefix: "/api/v1/bonds", OpPrefix: "", Path: "/network/bonds", Scopes: []string{"networking.bonds.read"}},
+		{ID: "firewall", APIPrefix: "/api/v1/firewall", OpPrefix: "network.firewall.", Path: "/network/firewall", Scopes: []string{"networking.firewall.read"}},
+	} {
+		got := all[12+i]
+		if got.ID != want.ID || got.APIPrefix != want.APIPrefix || got.OpPrefix != want.OpPrefix || got.Path != want.Path || len(got.Scopes) != 1 || got.Scopes[0] != want.Scopes[0] {
+			t.Fatalf("M11 module %d: %+v (new modules need review)", i, got)
+		}
+	}
+	if ForOp("network.ports.list") != "ports" || ForOp("network.firewall.config") != "firewall" || ForRoute("/api/v1/networking/x") != "networking" {
+		t.Fatal("M11 op/route ownership")
 	}
 	if all[1].ID != "storage" || all[1].APIPrefix != "/api/v1/storage" || all[1].OpPrefix != "storage." || all[1].Path != "/storage" || len(all[1].Scopes) != 4 || all[1].Scopes[0] != "storage.read" || all[1].Scopes[1] != "storage.probe" || all[1].Scopes[2] != "layout.manage" || all[1].Scopes[3] != "storage.partition" {
 		t.Fatalf("storage module: %+v (new modules need review)", all[1])
@@ -111,7 +126,7 @@ func TestLoadFailsClosed(t *testing.T) {
 		t.Fatal("symlinked setting must fail closed")
 	}
 	_ = os.WriteFile(p, []byte(`{"version":1,"disabled":["nope"]}`), 0o644)
-	if s := LoadOrFailClosed(p, false); s.Enabled("services") || len(s.Disabled()) != 12 {
+	if s := LoadOrFailClosed(p, false); s.Enabled("services") || len(s.Disabled()) != 15 {
 		t.Fatal("invalid setting must disable every module")
 	}
 }
