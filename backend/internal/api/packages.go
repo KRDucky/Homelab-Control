@@ -11,6 +11,7 @@ import (
 	"homelab-control/backend/internal/auth"
 	"homelab-control/backend/internal/broker/types"
 	"homelab-control/backend/internal/hostinfo"
+	"homelab-control/backend/internal/aptplan"
 )
 
 // packagesProtectedGET is the Software Center bar on identifier-bearing GETs.
@@ -132,4 +133,40 @@ func (s *Server) handlePackagesSources(w http.ResponseWriter, r *http.Request, s
 		return
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+// handlePackagesPreview returns an informational APT simulation. No apply
+// token or write permission is implied by the packages.read scope.
+func (s *Server) handlePackagesPreview(w http.ResponseWriter, r *http.Request, sess *auth.Session, _ string) {
+	if !s.packagesProtectedGET(w, r, sess) {
+		return
+	}
+	name := r.URL.Query().Get("package")
+	action := r.URL.Query().Get("action")
+	if name == "" || len(name) > 160 || action == "" || len(action) > 16 {
+		writeError(w, http.StatusBadRequest, "bad_request", "package and action are required")
+		return
+	}
+	if s.packageFamily() != "debian" {
+		writeError(w, http.StatusServiceUnavailable, "unsupported", "APT preview is only supported on Debian/Ubuntu")
+		return
+	}
+	// Validation is repeated by the broker before any execution.
+	var out aptplan.Preview
+	if !s.packagesCall(w, r, sess, "packages.simulation", packagesPreviewRequest{Family: s.packageFamily(), Action: action, Package: name}, &out) {
+		return
+	}
+	// Never include unvalidated package input or entire resolver output in audit.
+	if err := s.auditLog("packages.simulation.read", sess.Username, r, "returned",
+		"action="+action+" changes="+strconv.Itoa(len(out.Changes))); err != nil {
+		writeError(w, http.StatusServiceUnavailable, "audit_unavailable", "APT preview cannot be returned because its access could not be audited.")
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+type packagesPreviewRequest struct {
+	Family  string `json:"family"`
+	Action  string `json:"action"`
+	Package string `json:"package"`
 }
