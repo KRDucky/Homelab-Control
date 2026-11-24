@@ -16,10 +16,10 @@ import (
 	"strings"
 	"time"
 
+	"homelab-control/backend/internal/aptplan"
 	"homelab-control/backend/internal/broker/proto"
 	"homelab-control/backend/internal/broker/runner"
 	"homelab-control/backend/internal/pkgcenter"
-	"homelab-control/backend/internal/aptplan"
 )
 
 // M4-1b read-only package queries (ADR 0008 Amendment 5, Proposed). Every op
