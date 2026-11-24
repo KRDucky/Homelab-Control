@@ -166,4 +166,3 @@ func (s *Server) handlePackagesPreview(w http.ResponseWriter, r *http.Request, s
 	}
 	writeJSON(w, http.StatusOK, out)
 }
-
