@@ -103,6 +103,20 @@ func ValidMirrorURI(s string) error {
 	return nil
 }
 
+// mirrorList matches the mirror-list URI that Debian cloud images use for
+// their archive (URIs: mirror+file:///etc/apt/mirrors/debian.list). It may
+// be replaced by a plain mirror; it is never written.
+var mirrorList = regexp.MustCompile(`^mirror\+file:///etc/apt/mirrors/[a-z0-9-]{1,32}\.list$`)
+
+// ValidCurrentURI accepts what an archive entry may use now: a plain mirror
+// or a Debian cloud image mirror list.
+func ValidCurrentURI(s string) error {
+	if mirrorList.MatchString(s) {
+		return nil
+	}
+	return ValidMirrorURI(s)
+}
+
 // ParseSources parses one vendor file. Commented one-line entries and
 // comments are skipped; their bytes are kept by SetMirror.
 func ParseSources(file, text string, d Distro) ([]Entry, error) {
@@ -364,8 +378,8 @@ func classify(e *Entry, d Distro) {
 		e.Reason = "It lists more than one URI; change it by hand."
 	case e.uriEnd == 0:
 		e.Reason = "Its URIs field spans several lines; change it by hand."
-	case ValidMirrorURI(e.URI) != nil:
-		e.Reason = "Its URI is not a plain http or https address."
+	case ValidCurrentURI(e.URI) != nil:
+		e.Reason = "Its URI is not a plain http or https address or a Debian mirror list."
 	default:
 		e.Switchable = true
 	}

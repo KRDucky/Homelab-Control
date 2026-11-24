@@ -300,3 +300,28 @@ func TestParseOSRelease(t *testing.T) {
 		t.Fatalf("bad codename accepted: %+v", d)
 	}
 }
+
+func TestDebianCloudMirrorListCanBeReplaced(t *testing.T) {
+	// Fixture: shaped like the Debian 13 cloud image's debian.sources (test data only).
+	text := "Types: deb deb-src\nURIs: mirror+file:///etc/apt/mirrors/debian.list\nSuites: trixie trixie-updates trixie-backports\n" +
+		"Components: main\nSigned-By: /usr/share/keyrings/debian-archive-keyring.pgp\n\n" +
+		"Types: deb deb-src\nURIs: mirror+file:///etc/apt/mirrors/debian-security.list\nSuites: trixie-security\n" +
+		"Components: main\nSigned-By: /usr/share/keyrings/debian-archive-keyring.pgp\n"
+	es, err := ParseSources(DebianSources, text, trixie)
+	if err != nil || !es[0].Switchable || es[1].Role != RoleSecurity || es[1].Switchable {
+		t.Fatalf("%v %+v", err, es)
+	}
+	out, n, err := SetMirror(DebianSources, text, trixie, "mirror+file:///etc/apt/mirrors/debian.list", "http://ftp.de.debian.org/debian/")
+	if err != nil || n != 1 || !strings.Contains(out, "URIs: http://ftp.de.debian.org/debian/\n") || !strings.Contains(out, "debian-security.list") {
+		t.Fatalf("%v %d\n%s", err, n, out)
+	}
+	if err := Validate(Request{Version: 1, Action: ActionMirrorSet, File: DebianSources, From: "mirror+file:///etc/apt/mirrors/debian.list",
+		To: "mirror+file:///etc/apt/mirrors/other.list", Digest: strings.Repeat("a", 64)}); err == nil {
+		t.Fatal("a mirror list was accepted as the new mirror")
+	}
+	for _, bad := range []string{"mirror+file:///etc/passwd", "mirror+file:///etc/apt/mirrors/../x.list", "mirror+http://x/y.list"} {
+		if ValidCurrentURI(bad) == nil {
+			t.Errorf("%s accepted", bad)
+		}
+	}
+}

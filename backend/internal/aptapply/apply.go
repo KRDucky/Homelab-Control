@@ -86,7 +86,7 @@ func Validate(r Request) error {
 		if !IsVendorFile(r.File) || r.Digest == "" || r.Tunables != (Tunables{}) {
 			return fmt.Errorf("%w: mirror request", ErrInvalid)
 		}
-		if err := ValidMirrorURI(r.From); err != nil {
+		if err := ValidCurrentURI(r.From); err != nil {
 			return err
 		}
 		if err := ValidMirrorURI(r.To); err != nil {
