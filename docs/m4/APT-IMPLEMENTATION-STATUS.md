@@ -75,5 +75,6 @@ lint/tests (no cargo on the host), `make security`, `make deb`. Debian/Ubuntu VM
 Owner-authorized (2026-11-24). Software Center tabs **APT settings** and **Mirrors**; broker ops
 `packages.aptconfig.*`, `packages.mirrors.inventory`, `packages.mirror.*`; opt-in root helper `hc-apt-apply`;
 mirror probe in hc-api (`internal/aptmirror`); scope `packages.configure`. Design and limits: ADR 0008
-Amendment 10. Unit, API, guard and UI tests pass locally. **Disposable Debian/Ubuntu VM validation of the
-installed package: NOT RUN yet**, so this is a partial checkpoint, not accepted.
+Amendment 10. Unit, API, guard and UI tests pass. Installed-package VM validation on `856d0031`: Ubuntu 26.04,
+Debian 13 and Ubuntu 22.04 31/31 each; Ubuntu 24.04 and Debian 12 not run. Evidence:
+`docs/evidence/m4/APT-CONFIG-MIRRORS.md`. Partial checkpoint, not accepted.
