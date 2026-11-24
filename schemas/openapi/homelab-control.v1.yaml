@@ -121,6 +121,7 @@ components:
         device_number: { type: string, description: Volatile kernel major/minor observation }
         disk_seq: { type: string, description: "Kernel per-boot disk sequence number (sysfs diskseq; a partition reports its disk's). Detects device-number reuse; not a persistent identity" }
         size_bytes: { type: integer, minimum: 0 }
+        start_bytes: { type: integer, minimum: 0, description: "Partition start in bytes from sysfs start (512-byte sectors). Absent when the device is not a partition or the start is unreadable. Zero is a real offset." }
         filesystem_type: { type: string }
         signature_uuid: { type: string, description: "UUID reported by an observed signature (signature nodes only; for LVM2_member, the PV UUID)" }
         mountpoint: { type: string }
@@ -129,6 +130,45 @@ components:
         md: { $ref: '#/components/schemas/StorageMDState' }
         evidence: { type: array, items: { $ref: '#/components/schemas/StorageEvidence' } }
         notes: { type: array, items: { type: string } }
+    PartitionPlanRequest:
+      type: object
+      additionalProperties: false
+      required: [disk_bytes, parts]
+      description: A proposed layout. It is not a device identity and it does not authorize a write.
+      properties:
+        disk_bytes: { type: integer, minimum: 1, description: "Observed disk size in bytes. The server also refuses zero and sizes above 256 TiB." }
+        parts:
+          type: array
+          minItems: 1
+          maxItems: 128
+          items:
+            type: object
+            additionalProperties: false
+            required: [start_bytes, size_bytes, filesystem]
+            properties:
+              start_bytes: { type: integer, minimum: 0 }
+              size_bytes: { type: integer, minimum: 1 }
+              filesystem: { type: string, description: "ext4, xfs, f2fs, btrfs, exfat, swap, none, empty, or unknown. unknown means the type was not observed and is not reported as unformatted. Any other name is rejected." }
+    PartitionPlanReport:
+      type: object
+      additionalProperties: false
+      required: [ok, errors, steps, executes]
+      description: Dry-run result. ok false is a rejected layout. executes is always false.
+      properties:
+        ok: { type: boolean }
+        errors: { type: array, items: { type: string } }
+        executes: { type: boolean, enum: [false] }
+        steps:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [action, detail, destructive, executable]
+            properties:
+              action: { type: string }
+              detail: { type: string }
+              destructive: { type: boolean }
+              executable: { type: boolean, enum: [false] }
     StorageEdge:
       type: object
       required: [from, to, kind, evidence]
@@ -3161,6 +3201,32 @@ paths:
         '409': { description: Probe already in flight, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '429': { description: Broker-side rate limit exceeded (Retry-After header in seconds), content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: Broker/probe helper unavailable, busy, or refused (device_policy_unresolved -> storage_probe_unavailable), content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /storage/plan/dry-run:
+    post:
+      summary: Validate a partition layout without partitioning, formatting, or mounting
+      description: >
+        Checks a proposal for overlap, 1 MiB alignment, bounds inside the disk,
+        and an allowlisted filesystem. Gaps are allowed. The response always
+        has executes false, and every step has executable false. The call does
+        not collect devices, call the broker, or write a host. The only live
+        format path remains ext4.format on a whole by-id disk. storage.read is
+        required. The session X-CSRF-Token header is required. The audit record
+        is the slice count only.
+      security: [{ session: [] }]
+      x-required-scope: storage.read
+      parameters:
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PartitionPlanRequest' }
+      responses:
+        '200': { description: Validation report. A rejected layout is HTTP 200 with ok false., content: { application/json: { schema: { $ref: '#/components/schemas/PartitionPlanReport' } } } }
+        '400': { description: Malformed JSON or unknown fields, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing storage.read permission, or missing/invalid Origin or CSRF token, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: The dry run could not be audited, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /storage/layout:
     get:
       summary: Stored manual drive-bay layout (M2-5 Stage A). Application state only; no collection or host access.

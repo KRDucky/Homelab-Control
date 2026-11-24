@@ -150,6 +150,221 @@ describe('Storage read-only interface', () => {
   });
 });
 
+describe('partition dry run', () => {
+  it('draws an observed layout and posts a dry run that does not execute', async () => {
+    const disk = observation.graph.nodes[0];
+    const mount = observation.graph.nodes[1];
+    if (!disk || !mount) throw new Error('Missing storage fixture');
+    const laidOut: StorageInventory = {
+      ...observation,
+      graph: {
+        ...observation.graph,
+        nodes: [
+          { ...disk, size_bytes: 4 * 1048576 },
+          mount,
+          {
+            id: 'part-1',
+            kind: 'partition',
+            name: 'sda1',
+            identity_status: 'unavailable',
+            start_bytes: 1048576,
+            size_bytes: 1048576,
+            filesystem_type: 'ext4',
+            evidence: [{ source: 'fixture sysfs', confidence: 'observed' }],
+          },
+        ],
+        edges: [
+          ...observation.graph.edges,
+          {
+            from: 'disk-A',
+            to: 'part-1',
+            kind: 'contains',
+            evidence: { source: 'fixture sysfs', confidence: 'observed' },
+          },
+        ],
+      },
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const path = String(url);
+        if (path.includes('/storage/plan/dry-run')) {
+          const body = JSON.parse(String(init?.body)) as {
+            disk_bytes: number;
+            parts: { start_bytes: number; size_bytes: number; filesystem: string }[];
+          };
+          expect(body).toEqual({
+            disk_bytes: 4 * 1048576,
+            parts: [{ start_bytes: 1048576, size_bytes: 1048576, filesystem: 'ext4' }],
+          });
+          expect(new Headers(init?.headers).get('X-CSRF-Token')).toBe('example-csrf');
+          return new Response(
+            JSON.stringify({
+              ok: true,
+              errors: [],
+              executes: false,
+              steps: [
+                {
+                  action: 'format',
+                  detail:
+                    'slice 1 would be formatted as ext4. The only live format path is ext4.format on a whole by-id disk, not this slice. This dry run does not partition or format.',
+                  destructive: true,
+                  executable: false,
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+        const payload = path.includes('/storage/layout') ? { chassis: [] } : laidOut;
+        return new Response(JSON.stringify(payload), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }),
+    );
+    render(<Storage csrf="example-csrf" onUnauthorized={() => undefined} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Inspect SERIAL-A' }));
+    expect(
+      screen.getByRole('img', { name: 'Partition layout: sda1 from 1048576 bytes, 1048576 bytes' }),
+    ).toBeTruthy();
+    expect(screen.getByText('Dry run only. Nothing is partitioned or formatted.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /apply/i })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Validate observed layout' }));
+    expect(await screen.findByText(/ext4.format on a whole by-id disk, not this slice/)).toBeTruthy();
+  });
+
+  it('lists a partition whose start was not observed and does not validate it', async () => {
+    const partial: StorageInventory = {
+      ...observation,
+      graph: {
+        ...observation.graph,
+        nodes: [
+          ...observation.graph.nodes,
+          {
+            id: 'part-1',
+            kind: 'partition',
+            name: 'sda1',
+            identity_status: 'unavailable',
+            size_bytes: 1048576,
+            evidence: [{ source: 'fixture sysfs', confidence: 'observed' }],
+          },
+        ],
+        edges: [
+          ...observation.graph.edges,
+          {
+            from: 'disk-A',
+            to: 'part-1',
+            kind: 'contains',
+            evidence: { source: 'fixture sysfs', confidence: 'observed' },
+          },
+        ],
+      },
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        const payload = String(url).includes('/storage/layout') ? { chassis: [] } : partial;
+        return new Response(JSON.stringify(payload), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }),
+    );
+    render(<Storage csrf="example-csrf" onUnauthorized={() => undefined} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Inspect SERIAL-A' }));
+    expect(screen.getByText(/start not observed/)).toBeTruthy();
+    expect(screen.queryByRole('img', { name: /Partition layout/ })).toBeNull();
+    const validate = screen.getByRole('button', { name: 'Validate observed layout' }) as HTMLButtonElement;
+    expect(validate.disabled).toBe(true);
+  });
+
+  it('sends an unobserved filesystem as unknown', async () => {
+    const disk = observation.graph.nodes[0];
+    if (!disk) throw new Error('Missing storage fixture');
+    const laidOut: StorageInventory = {
+      ...observation,
+      graph: {
+        ...observation.graph,
+        nodes: [
+          { ...disk, size_bytes: 4 * 1048576 },
+          {
+            id: 'part-1',
+            kind: 'partition',
+            name: 'sda1',
+            identity_status: 'unavailable',
+            start_bytes: 1048576,
+            size_bytes: 1048576,
+            filesystem_type: 'ntfs',
+            evidence: [{ source: 'fixture sysfs', confidence: 'observed' }],
+          },
+          {
+            id: 'part-2',
+            kind: 'partition',
+            name: 'sda2',
+            identity_status: 'unavailable',
+            start_bytes: 2 * 1048576,
+            size_bytes: 1048576,
+            evidence: [{ source: 'fixture sysfs', confidence: 'observed' }],
+          },
+        ],
+        edges: [
+          {
+            from: 'disk-A',
+            to: 'part-1',
+            kind: 'contains',
+            evidence: { source: 'fixture sysfs', confidence: 'observed' },
+          },
+          {
+            from: 'disk-A',
+            to: 'part-2',
+            kind: 'contains',
+            evidence: { source: 'fixture sysfs', confidence: 'observed' },
+          },
+        ],
+      },
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const path = String(url);
+        if (path.includes('/storage/plan/dry-run')) {
+          const body = JSON.parse(String(init?.body)) as {
+            parts: { filesystem: string }[];
+          };
+          expect(body.parts.map((part) => part.filesystem)).toEqual(['unknown', 'unknown']);
+          return new Response(
+            JSON.stringify({
+              ok: true,
+              errors: [],
+              executes: false,
+              steps: [
+                {
+                  action: 'unknown',
+                  detail: 'slice 1 filesystem was not observed. This dry run does not partition or format.',
+                  destructive: false,
+                  executable: false,
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+        const payload = path.includes('/storage/layout') ? { chassis: [] } : laidOut;
+        return new Response(JSON.stringify(payload), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }),
+    );
+    render(<Storage csrf="example-csrf" onUnauthorized={() => undefined} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Inspect SERIAL-A' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Validate observed layout' }));
+    expect(await screen.findByText(/not observed/)).toBeTruthy();
+    expect(screen.queryByText(/stays unformatted/)).toBeNull();
+  });
+});
+
 describe('drive label policy', () => {
   const base: StorageNode = {
     id: 'block:example',

@@ -473,6 +473,34 @@ tbody th {
   font-weight: 600;
   overflow-wrap: anywhere;
 }
+.partition-plan {
+  margin: var(--hc-space-4) 0;
+}
+.partition-bar {
+  position: relative;
+  height: 1.75rem;
+  margin: var(--hc-space-2) 0;
+  border: 1px solid var(--hc-color-border-strong);
+  border-radius: var(--hc-radius-sm);
+  background: var(--hc-color-surface-overlay);
+}
+.partition-bar > span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--hc-color-accent-base);
+  min-width: 2px;
+}
+.partition-rows {
+  display: grid;
+  gap: var(--hc-space-2);
+  margin: var(--hc-space-3) 0;
+}
+.partition-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: var(--hc-space-2);
+}
 .cell-note {
   font-size: var(--hc-font-size-xs);
   font-weight: 400;
