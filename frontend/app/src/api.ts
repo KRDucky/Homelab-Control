@@ -1239,6 +1239,31 @@ export function getPackagesSources(csrf: string): Promise<SourceList> {
   return request<SourceList>('/api/v1/packages/sources', { headers: { 'X-CSRF-Token': csrf } });
 }
 
+// M4 APT preview is informational only. No package write operation exists here.
+export interface AptPreviewChange {
+  action: 'install' | 'remove' | 'configure';
+  name: string;
+  installed_version?: string;
+  candidate_version?: string;
+}
+export interface AptPreview {
+  changes: AptPreviewChange[];
+  install_count: number;
+  remove_count: number;
+  configure_count: number;
+}
+
+export function getAptPreview(
+  action: 'install' | 'remove' | 'upgrade',
+  name: string,
+  csrf: string,
+): Promise<AptPreview> {
+  const query = new URLSearchParams({ action, package: name });
+  return request<AptPreview>(`/api/v1/packages/preview?${query.toString()}`, {
+    headers: { 'X-CSRF-Token': csrf },
+  });
+}
+
 // ---- M8 first checkpoint: MergerFS + optional SnapRAID (read-only) ---------
 
 export interface MergerFSToolItem {
