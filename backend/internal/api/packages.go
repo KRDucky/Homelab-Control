@@ -8,10 +8,10 @@ import (
 	"net/http"
 	"strconv"
 
+	"homelab-control/backend/internal/aptplan"
 	"homelab-control/backend/internal/auth"
 	"homelab-control/backend/internal/broker/types"
 	"homelab-control/backend/internal/hostinfo"
-	"homelab-control/backend/internal/aptplan"
 )
 
 // packagesProtectedGET is the Software Center bar on identifier-bearing GETs.
