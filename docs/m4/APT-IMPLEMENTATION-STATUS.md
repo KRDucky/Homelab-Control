@@ -16,3 +16,14 @@ This slice adds `backend/internal/aptplan`, a bounded pure-Go parser for the `In
 ## Still required before M4 acceptance
 
 The current new package is not wired to the API, broker or UI. Implement fixed reviewed APT simulation templates, typed broker and API preview operations, trusted source attribution, per-package selection UX, authorization framework, broker-only write templates, job progress, journal, state revalidation and VM-backed install/remove/update/purge tests. ADR 0014 and ADR 0015 remain proposed and must be explicitly accepted before enabling privileged transactions. Build and install the actual HomeControl `.deb` in disposable Debian/Ubuntu VMs and capture per-guest evidence. Re-run Graphify on this new code after index refresh, fix its findings and rerun tests before closing the checkpoint.
+
+## Follow-on checkpoint: broker/API/WebUI simulation (PR #161, 2026-11-24)
+
+A separate draft PR adds the unprivileged closed `apt-get --simulate --no-download` runner, Debian/Ubuntu-only `packages.simulation` broker op, audited scoped `GET /api/v1/packages/preview` endpoint, OpenAPI contract, and a read-only APT Preview tab with package/action selection. Install, remove and single-package upgrade **simulations only** are represented; purge is deliberately excluded until APT `Purg` records are handled and tested. No write execution or source-trust approval is included.
+
+- Graphify pre-change neighbor review covered runner, package ops, API, broker client, Software page/client and impacted test files. Indexed commits inspected: `e83d4d6` (backend) and `66fccef` (frontend). The feature branch and its newly added symbols were not indexed, so **post-change Graphify review is still pending**, not successful.
+- Review-driven fixes: added the new operation to the closed registry snapshot tests and broker-client timeout table; kept the existing Software read-only banner test contract. These are branch changes, not independently verified test passes.
+- GitHub Actions workflow on PR #161 is not yet concluded at the time of this note. **Do not claim Go, frontend, contract, security, or repository-wide CI passed.**
+- Local `apt-get --simulate --no-download --no-install-recommends install -- bash` ran successfully in the tool sandbox with an empty change summary. This is a **read-only command compatibility spot-check only**, not HomeControl integration evidence.
+- Debian/Ubuntu VMs and installed `.deb` guest acceptance: **NOT RUN**. No VM-execution interface was available.
+- M4 remains **incomplete**. A working *preview* is not a safe *apply*: ADR 0014/0015 owner acceptance, trusted repository identity, transaction locking, revalidation, audit journal, privileged execution and VM proof remain required.
