@@ -361,7 +361,8 @@ Partition nodes in the storage graph include `start_bytes` when sysfs `start` is
 (512-byte sectors). A missing or unreadable start stays unset, including offset zero only
 when the kernel reported zero. `POST /api/v1/storage/plan/dry-run` (scope `storage.read`,
 CSRF, audit detail is the slice count) checks overlap, 1 MiB alignment, bounds, and the
-filesystem allowlist ext4, xfs, f2fs, btrfs, exfat, swap, or none. The report always has
+filesystem allowlist ext4, xfs, f2fs, btrfs, exfat, swap, none, or unknown.
+`unknown` is an unobserved type and is not reported as unformatted. The report always has
 `executes: false`, and every step has `executable: false`. The call does not collect
 devices, call the broker, partition, format, or mount. The Storage page draws a
 proportional bar from observed partition starts and can check a layout. The only live

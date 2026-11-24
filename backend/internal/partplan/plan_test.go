@@ -111,6 +111,28 @@ func TestDryRunAdjacentSlicesAndEmpty(t *testing.T) {
 	}
 }
 
+func TestDryRunUnknownIsNotUnformatted(t *testing.T) {
+	rep := DryRun(Request{DiskBytes: 1 << 20, Parts: []Slice{{StartBytes: 0, SizeBytes: 1 << 20, FSType: "unknown"}}})
+	if !rep.OK || rep.Executes {
+		t.Fatalf("%+v", rep)
+	}
+	var saw bool
+	for _, step := range rep.Steps {
+		if step.Executable || step.Destructive {
+			t.Fatalf("unknown step can run: %+v", step)
+		}
+		if strings.Contains(strings.ToLower(step.Detail), "unformatted") {
+			t.Fatalf("unknown filesystem reported as unformatted: %+v", step)
+		}
+		if step.Action == "unknown" && strings.Contains(step.Detail, "not observed") {
+			saw = true
+		}
+	}
+	if !saw {
+		t.Fatalf("steps %+v", rep.Steps)
+	}
+}
+
 func TestDryRunSourceStaysClosed(t *testing.T) {
 	b, err := os.ReadFile("plan.go")
 	if err != nil {

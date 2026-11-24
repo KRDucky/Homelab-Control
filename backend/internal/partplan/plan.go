@@ -148,6 +148,8 @@ func canonicalFS(s string) (string, bool) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "", "none":
 		return "none", true
+	case "unknown":
+		return "unknown", true
 	case "ext4", "xfs", "f2fs", "btrfs", "exfat", "swap":
 		return strings.ToLower(strings.TrimSpace(s)), true
 	default:
@@ -158,6 +160,9 @@ func canonicalFS(s string) (string, bool) {
 func describe(it placed) Step {
 	if !it.fsOK {
 		return Step{Action: "rejected", Detail: fmt.Sprintf("slice %d was not planned because its filesystem is not allowed", it.n)}
+	}
+	if it.slice.FSType == "unknown" {
+		return Step{Action: "unknown", Detail: fmt.Sprintf("slice %d filesystem was not observed. This dry run does not partition or format.", it.n)}
 	}
 	if it.slice.FSType == "none" {
 		return Step{Action: "leave", Detail: fmt.Sprintf("slice %d stays unformatted. This dry run does not partition.", it.n)}
