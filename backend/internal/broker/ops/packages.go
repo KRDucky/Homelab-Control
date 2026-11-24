@@ -391,6 +391,16 @@ func sourceFileLabel(family string) string {
 	}
 }
 
+// packagesSimulationAuditArgs deliberately excludes the package identifier.
+// Detailed targets stay within the validated broker request.
+func packagesSimulationAuditArgs(raw json.RawMessage) string {
+	var a simulationArgs
+	if proto.DecodeArgs(raw, &a) != nil {
+		return "invalid args"
+	}
+	return "family=" + clean(a.Family, 16) + " action=" + clean(a.Action, 16)
+}
+
 // packagesAuditArgs summarises the search op for the broker audit record:
 // family and query length only, never the query text (ADR 0008 Amendment 5).
 func packagesAuditArgs(raw json.RawMessage) string {
