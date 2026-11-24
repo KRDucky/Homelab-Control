@@ -115,8 +115,8 @@ export function Software({ csrf, onUnauthorized }: { csrf: string; onUnauthorize
     <div className="page">
       <h1 className="page-title">Software</h1>
       <p className="banner" role="status">
-        Read-only preview — no package changes can be applied. Package data and APT simulations
-        use local metadata only, without refreshing repositories.
+        Read-only preview — no package changes can be applied. Package data and APT simulations use local
+        metadata only, without refreshing repositories.
       </p>
       <div className="tabs" role="tablist" aria-label="Software Center views">
         {TABS.map((t) => (
@@ -321,26 +321,54 @@ function SoftwarePreview({ csrf, onUnauthorized }: { csrf: string; onUnauthorize
   return (
     <section aria-label="APT transaction simulation">
       <p className="banner" role="status">
-        Informational simulation only. APT resolves dependencies using the currently cached metadata.
-        This does not confirm repository trust, reserve package versions or authorize installation.
+        Informational simulation only. APT resolves dependencies using the currently cached metadata. This
+        does not confirm repository trust, reserve package versions or authorize installation.
       </p>
-      <form className="inline-field grow" onSubmit={(e) => { void onPreview(e); }}>
+      <form
+        className="inline-field grow"
+        onSubmit={(e) => {
+          void onPreview(e);
+        }}
+      >
         <label htmlFor="apt-preview-action">Simulate action</label>
-        <select id="apt-preview-action" value={action} onChange={(e) => { setAction(e.target.value as PreviewAction); setPreview(null); }}>
+        <select
+          id="apt-preview-action"
+          value={action}
+          onChange={(e) => {
+            setAction(e.target.value as PreviewAction);
+            setPreview(null);
+          }}
+        >
           <option value="install">Install</option>
           <option value="remove">Remove</option>
           <option value="upgrade">Upgrade selected package</option>
         </select>
         <label htmlFor="apt-preview-package">Package</label>
-        <input id="apt-preview-package" value={name} maxLength={160} onChange={(e) => { setName(e.target.value); setPreview(null); }} placeholder="e.g. nginx" />
-        <button type="submit" disabled={busy}>Preview effects</button>
+        <input
+          id="apt-preview-package"
+          value={name}
+          maxLength={160}
+          onChange={(e) => {
+            setName(e.target.value);
+            setPreview(null);
+          }}
+          placeholder="e.g. nginx"
+        />
+        <button type="submit" disabled={busy}>
+          Preview effects
+        </button>
       </form>
       {busy && <p className="muted">Asking APT to simulate the changes…</p>}
-      {error && <p className="banner" role="alert">{explain(error)}</p>}
+      {error && (
+        <p className="banner" role="alert">
+          {explain(error)}
+        </p>
+      )}
       {preview && (
         <>
           <p className="footnote">
-            APT proposes {preview.install_count} installs/upgrades, {preview.remove_count} removals and {preview.configure_count} configurations.
+            APT proposes {preview.install_count} installs/upgrades, {preview.remove_count} removals and{' '}
+            {preview.configure_count} configurations.
           </p>
           {preview.changes.length === 0 ? (
             <p className="empty">APT reports no changes for this selection.</p>
