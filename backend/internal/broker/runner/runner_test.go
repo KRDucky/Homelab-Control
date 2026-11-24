@@ -148,7 +148,7 @@ func TestAllowListedBinariesAreClosed(t *testing.T) {
 	want := map[string]bool{
 		"systemctl": true, "journalctl": true, "hostnamectl": true, "timedatectl": true,
 		// M4-1b (ADR 0008 Amendment 5, Proposed): read-only package managers.
-		"dpkg-query": true, "apt-cache": true, "apt": true, "apt-get": true, "rpm": true, "dnf": true, "zypper": true, "pacman": true,
+		"dpkg-query": true, "apt-cache": true, "apt": true, "apt-get": true, "apt-config": true, "rpm": true, "dnf": true, "zypper": true, "pacman": true,
 		"mkfs.ext4": true,
 		"snapraid":  true,
 	}
@@ -739,6 +739,9 @@ func TestAptGetCannotUseGenericRunner(t *testing.T) {
 	if _, err := r.RunWithGroups(context.Background(), nil, "apt-get", "--simulate", "install", "bash"); !errors.Is(err, ErrNotAllowed) {
 		t.Fatalf("generic apt-get simulate accepted: %v", err)
 	}
+	if _, err := r.Run(context.Background(), "apt-config", "shell", "X", "APT"); !errors.Is(err, ErrNotAllowed) {
+		t.Fatalf("generic apt-config accepted: %v", err)
+	}
 }
 
 // TestAptSimulationArgvClosed ensures no mutating path or supplied option can
@@ -805,5 +808,22 @@ func TestRunAptSimulationExecutesFixedArgv(t *testing.T) {
 	}
 	if _, err := os.Stat(marker); err == nil {
 		t.Fatal("rejected request reached exec")
+	}
+}
+
+func TestRunAptConfigDumpExecutesOnlyDump(t *testing.T) {
+	if _, err := exec.LookPath("sh"); err != nil {
+		t.Skip("sh not available")
+	}
+	fake := filepath.Join(t.TempDir(), "apt-config")
+	if err := os.WriteFile(fake, []byte("#!/bin/sh\nprintf '%s\\n' \"$@\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	r := testRunner(t)
+	r.skipOwnerCheck = true
+	r.paths["apt-config"] = fake
+	res, err := r.RunAptConfigDump(context.Background())
+	if err != nil || strings.TrimSpace(string(res.Stdout)) != "dump" {
+		t.Fatalf("argv = %q, %v", res.Stdout, err)
 	}
 }

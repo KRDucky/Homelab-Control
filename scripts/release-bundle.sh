@@ -118,7 +118,7 @@ if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::notice title=release dry run::pack
 
 echo "== 4. release files"
 bin=$work/bin/$name-linux-$(go env GOARCH)
-install -Dm0755 -t "$bin" "$src/build/hc-api" "$src/build/hlctl" "$src/build/hc-broker" "$src/build/hc-audit-retention" "$src/build/hc-storage-probe" "$src/build/hc-mergerfs-apply"
+install -Dm0755 -t "$bin" "$src/build/hc-api" "$src/build/hlctl" "$src/build/hc-broker" "$src/build/hc-audit-retention" "$src/build/hc-storage-probe" "$src/build/hc-mergerfs-apply" "$src/build/hc-apt-apply"
 install -Dm0644 -t "$bin" "$src/LICENSE.md" "$src/NOTICE.md" "$src/docs/compliance/THIRD-PARTY-NOTICES.md"
 tar --sort=name --owner=0 --group=0 --numeric-owner --mtime="@$sde" -C "$work/bin" -cf - "$(basename "$bin")" | gzip -n -9 > "$out/$(basename "$bin").tar.gz"
 cp "$src"/build/*.deb "$out/"

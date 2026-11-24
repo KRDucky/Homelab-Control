@@ -18,8 +18,9 @@ import {
 } from '../api';
 import { DataTable } from '../DataTable';
 import { explain } from '../useData';
+import { AptMirrorsView, AptSettings } from './SoftwareAptConfig';
 
-type Tab = 'search' | 'installed' | 'updates' | 'sources' | 'preview';
+type Tab = 'search' | 'installed' | 'updates' | 'sources' | 'preview' | 'settings' | 'mirrors';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'search', label: 'Search' },
@@ -27,6 +28,8 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'updates', label: 'Updates' },
   { id: 'sources', label: 'Sources' },
   { id: 'preview', label: 'APT Preview' },
+  { id: 'settings', label: 'APT settings' },
+  { id: 'mirrors', label: 'Mirrors' },
 ];
 
 type SoftwareData = PackageList | UpdateList | SourceList;
@@ -67,7 +70,12 @@ export function Software({ csrf, onUnauthorized }: { csrf: string; onUnauthorize
   useEffect(() => {
     // Search does not fetch until a non-empty query is submitted (hc-ui nit 1);
     // the render shows an empty state, so nothing is reset here.
-    if (tab === 'preview' || (tab === 'search' && submitted === '')) {
+    if (
+      tab === 'preview' ||
+      tab === 'settings' ||
+      tab === 'mirrors' ||
+      (tab === 'search' && submitted === '')
+    ) {
       return;
     }
     let cancelled = false;
@@ -115,8 +123,9 @@ export function Software({ csrf, onUnauthorized }: { csrf: string; onUnauthorize
     <div className="page">
       <h1 className="page-title">Software</h1>
       <p className="banner" role="status">
-        Read-only preview — no package changes can be applied. Package data and APT simulations use local
-        metadata only, without refreshing repositories.
+        Read-only preview — no packages are installed, removed or updated here. Package data and APT
+        simulations use local metadata only, without refreshing repositories. APT settings and mirror changes
+        are reviewed before they are written and need the packages.configure scope.
       </p>
       <div className="tabs" role="tablist" aria-label="Software Center views">
         {TABS.map((t) => (
@@ -150,6 +159,8 @@ export function Software({ csrf, onUnauthorized }: { csrf: string; onUnauthorize
           {tab === t.id && (
             <>
               {t.id === 'preview' && <SoftwarePreview csrf={csrf} onUnauthorized={onUnauthorized} />}
+              {t.id === 'settings' && <AptSettings csrf={csrf} onUnauthorized={onUnauthorized} />}
+              {t.id === 'mirrors' && <AptMirrorsView csrf={csrf} onUnauthorized={onUnauthorized} />}
               {t.id === 'search' && (
                 <form className="inline-field grow" onSubmit={onSearch}>
                   <label htmlFor="software-query">Search packages</label>

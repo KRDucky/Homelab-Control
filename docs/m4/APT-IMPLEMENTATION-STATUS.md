@@ -69,3 +69,12 @@ versions" and directs scripts to `apt-get`, and apt 3.3.3 prints `Summary: Upgra
 Checks after the fixes: gofmt, `go vet`, `go test ./...` (non-root) pass; SDK, extensions and HCIS checks
 pass; frontend typecheck, ESLint, Prettier clean, Vitest 31 files / 298 tests pass. Not run locally: Rust
 lint/tests (no cargo on the host), `make security`, `make deb`. Debian/Ubuntu VM acceptance: **still NOT RUN**.
+
+## APT settings and mirror writes (branch `feature/m4-apt-config-mirrors`, 2026-11-24)
+
+Owner-authorized (2026-11-24). Software Center tabs **APT settings** and **Mirrors**; broker ops
+`packages.aptconfig.*`, `packages.mirrors.inventory`, `packages.mirror.*`; opt-in root helper `hc-apt-apply`;
+mirror probe in hc-api (`internal/aptmirror`); scope `packages.configure`. Design and limits: ADR 0008
+Amendment 10. Unit, API, guard and UI tests pass. Installed-package VM validation on `856d0031`: Ubuntu 26.04,
+Debian 13 and Ubuntu 22.04 31/31 each; Ubuntu 24.04 and Debian 12 not run. Evidence:
+`docs/evidence/m4/APT-CONFIG-MIRRORS.md`. Partial checkpoint, not accepted.

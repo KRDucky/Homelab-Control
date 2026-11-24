@@ -1,0 +1,58 @@
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# One request per connection. The helper writes only
+# /etc/apt/apt.conf.d/60homelab-control, the archive URI of
+# /etc/apt/sources.list or /etc/apt/sources.list.d/{debian,ubuntu}.sources,
+# and backups under /var/lib/homelab-control-apt-apply. It runs no programs and
+# has no network. Root owns every file it writes, so it needs no capability.
+# Debian and Ubuntu add a drop-in that names the hc-apt-apply AppArmor profile.
+[Unit]
+Description=Homelab Control APT settings helper (opt-in, one request)
+Requires=homelab-control-apt-apply.socket
+After=homelab-control-apt-apply.socket
+ConditionPathExists=/etc/homelab-control/apt-apply.enabled
+RefuseManualStart=yes
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/homelab-control/hc-apt-apply
+StandardInput=socket
+StandardOutput=socket
+StandardError=journal
+User=root
+Group=root
+CapabilityBoundingSet=
+AmbientCapabilities=
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/etc/apt
+StateDirectory=homelab-control-apt-apply
+StateDirectoryMode=0700
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateNetwork=yes
+IPAddressDeny=any
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictAddressFamilies=AF_UNIX
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources @mount
+SystemCallErrorNumber=EPERM
+UMask=0077
+TimeoutStartSec=15
+MemoryMax=64M
+TasksMax=8
+LimitCORE=0

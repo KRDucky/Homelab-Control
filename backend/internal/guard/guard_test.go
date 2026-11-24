@@ -226,6 +226,8 @@ func TestStorageProbeNoLinkPrivilegedCode(t *testing.T) {
 		"homelab-control/backend/internal/storageprobe",
 		"homelab-control/backend/cmd/hc-mergerfs-apply",
 		"homelab-control/backend/internal/mergerfsapply",
+		"homelab-control/backend/cmd/hc-apt-apply",
+		"homelab-control/backend/internal/aptapply",
 	} {
 		visited := map[string]bool{}
 		queue := []string{start}
@@ -566,6 +568,44 @@ func TestUnusedStorageHelperUnitConfined(t *testing.T) {
 					t.Errorf("%s must not %s the unused helper: %s", rel, n, strings.TrimSpace(line))
 				}
 			}
+		}
+	}
+}
+
+// TestAptApplyHelperConfined keeps hc-apt-apply a file writer only: it may
+// not execute programs or open network connections, and its unit has no
+// capability, no network and writes only /etc/apt plus its state directory.
+func TestAptApplyHelperConfined(t *testing.T) {
+	root, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{"homelab-control/backend/cmd/hc-apt-apply", "homelab-control/backend/internal/aptapply", "homelab-control/backend/internal/safefile"} {
+		for _, imp := range moduleImports(t, root, p) {
+			switch imp {
+			case "os/exec", "net", "net/http", "syscall/js", "plugin":
+				t.Errorf("%s imports %s", p, imp)
+			}
+		}
+	}
+	unit, err := os.ReadFile(filepath.Join(root, "..", "packaging/common/homelab-control-apt-apply@.service"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := map[string]bool{}
+	for _, l := range strings.Split(string(unit), "\n") {
+		lines[strings.TrimSpace(l)] = true
+	}
+	for _, want := range []string{"CapabilityBoundingSet=", "AmbientCapabilities=", "NoNewPrivileges=yes", "ProtectSystem=strict",
+		"ReadWritePaths=/etc/apt", "PrivateNetwork=yes", "IPAddressDeny=any", "RestrictAddressFamilies=AF_UNIX",
+		"ConditionPathExists=/etc/homelab-control/apt-apply.enabled", "RefuseManualStart=yes"} {
+		if !lines[want] {
+			t.Errorf("hc-apt-apply unit lacks %q", want)
+		}
+	}
+	for l := range lines {
+		if strings.HasPrefix(l, "ReadWritePaths=") && l != "ReadWritePaths=/etc/apt" {
+			t.Errorf("unexpected writable path: %s", l)
 		}
 	}
 }

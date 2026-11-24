@@ -18,10 +18,10 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"syscall"
 	"time"
 
 	"homelab-control/backend/internal/mergerfsapply"
+	"homelab-control/backend/internal/safefile"
 )
 
 const (
@@ -260,22 +260,14 @@ func persist(root string, spec mergerfsapply.Spec) error {
 }
 
 func readNoFollow(path string) ([]byte, error) {
-	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	fi, err := f.Stat()
-	if err != nil {
-		return nil, err
-	}
-	if !fi.Mode().IsRegular() || fi.Mode()&os.ModeSymlink != 0 {
+	b, err := safefile.Read(path, maxFileBytes)
+	if errors.Is(err, safefile.ErrNotRegular) {
 		return nil, errors.New("not a regular file")
 	}
-	if fi.Size() > maxFileBytes {
+	if errors.Is(err, safefile.ErrTooLarge) {
 		return nil, errors.New("file too large")
 	}
-	return io.ReadAll(io.LimitReader(f, maxFileBytes+1))
+	return b, err
 }
 
 func backupAndWrite(path, backup string, data []byte) error {
@@ -296,23 +288,7 @@ func backupAndWrite(path, backup string, data []byte) error {
 }
 
 func writeNoFollow(path string, data []byte) error {
-	tmp := path + ".hc-tmp"
-	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_NOFOLLOW, 0o644)
-	if err != nil {
-		return err
-	}
-	if _, err := f.Write(data); err != nil {
-		f.Close()
-		return err
-	}
-	if err := f.Sync(); err != nil {
-		f.Close()
-		return err
-	}
-	if err := f.Close(); err != nil {
-		return err
-	}
-	return os.Rename(tmp, path)
+	return safefile.Write(path, data, 0o644)
 }
 
 func dirOf(path string) string {
