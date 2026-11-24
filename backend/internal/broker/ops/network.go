@@ -35,21 +35,18 @@ func networkPortsList(ctx context.Context, env *Env, raw json.RawMessage) (any, 
 	if root == "" {
 		root = "/"
 	}
-	list := env.PortsSockets
-	if list == nil && env.Runner != nil && env.Runner.Available("systemctl") {
-		list = func(ctx context.Context) ([]byte, int, error) {
-			res, err := env.Runner.Run(ctx, "systemctl", portsSocketsArgs...)
+	run := env.PortsSystemctl
+	if run == nil && env.Runner != nil && env.Runner.Available("systemctl") {
+		run = func(ctx context.Context, args []string) ([]byte, int, error) {
+			res, err := env.Runner.Run(ctx, "systemctl", args...)
 			return res.Stdout, res.ExitCode, err
 		}
 	}
 	var units []netinfo.SocketUnit
-	if list != nil {
-		out, code, err := list(ctx)
+	if run != nil {
+		units = systemdSocketUnits(ctx, run)
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
-		}
-		if err == nil && code == 0 {
-			units = socketUnits(out)
 		}
 	}
 	pm, err := netinfo.CollectPorts(ctx, root, units)
@@ -66,25 +63,94 @@ func networkPortsList(ctx context.Context, env *Env, raw json.RawMessage) (any, 
 // services.sockets.list).
 var portsSocketsArgs = []string{"list-sockets", "--all", "--output=json", "--no-pager"}
 
-// socketUnits keeps the IP listen rows of `systemctl list-sockets` JSON with
-// a valid .socket unit name. Bad output yields none (owners stay unknown).
-func socketUnits(b []byte) []netinfo.SocketUnit {
-	var rows []rawSocket
-	if json.Unmarshal(b, &rows) != nil {
+// socketListenArgs is the fixed query for the listen type of socket units:
+// list-sockets JSON has listen, unit and activates but no type (Ubuntu 26.04
+// guest, 2026-11-24), and an IP:port alone does not say TCP or UDP. The
+// names passed unitNameRE and end in .socket; they follow "--".
+func socketListenArgs(units []string) []string {
+	return append([]string{"show", "--no-pager", "--property=Id,Listen", "--"}, units...)
+}
+
+const maxSocketUnits = 256
+
+// systemdSocketUnits returns the IP listen addresses of systemd socket units
+// with their type (Stream = TCP, Datagram = UDP). Any failure yields none:
+// owners then stay unidentified rather than guessed.
+func systemdSocketUnits(ctx context.Context, run func(context.Context, []string) ([]byte, int, error)) []netinfo.SocketUnit {
+	out, code, err := run(ctx, portsSocketsArgs)
+	if err != nil || code != 0 {
 		return nil
 	}
-	var out []netinfo.SocketUnit
+	var rows []rawSocket
+	if json.Unmarshal(out, &rows) != nil {
+		return nil
+	}
+	activates := map[string]string{}
+	var names []string
 	for _, r := range rows {
-		if !unitNameRE.MatchString(r.Unit) || !strings.HasSuffix(r.Unit, ".socket") || len(out) >= 1024 {
+		// The runner refuses '\\' (systemd escapes) in an argument, and one bad
+		// name would fail the whole show; such units are skipped.
+		if !unitNameRE.MatchString(r.Unit) || !strings.HasSuffix(r.Unit, ".socket") || strings.ContainsAny(r.Unit, "\\") || r.Unit[0] == '-' {
 			continue
 		}
-		u := netinfo.SocketUnit{Listen: clean(r.Listen, 200), Type: clean(r.Type, 16), Unit: r.Unit}
-		if r.Activates != nil && unitNameRE.MatchString(*r.Activates) {
-			u.Activates = *r.Activates
+		if _, _, ok := netinfo.ParseListen(r.Listen); !ok {
+			continue
 		}
-		out = append(out, u)
+		if _, seen := activates[r.Unit]; !seen {
+			if len(names) >= maxSocketUnits {
+				continue
+			}
+			names = append(names, r.Unit)
+			activates[r.Unit] = ""
+		}
+		if r.Activates != nil && unitNameRE.MatchString(*r.Activates) {
+			activates[r.Unit] = *r.Activates
+		}
 	}
-	return out
+	if len(names) == 0 {
+		return nil
+	}
+	out, code, err = run(ctx, socketListenArgs(names))
+	if err != nil || code != 0 {
+		return nil
+	}
+	return parseSocketListen(out, activates)
+}
+
+// parseSocketListen reads `systemctl show --property=Id,Listen` blocks:
+// "Id=ssh.socket" then one "Listen=0.0.0.0:22 (Stream)" line per address.
+// Only units from the listing (activates) are kept.
+func parseSocketListen(b []byte, activates map[string]string) []netinfo.SocketUnit {
+	var res []netinfo.SocketUnit
+	for _, block := range strings.Split(strings.ReplaceAll(string(b), "\r", ""), "\n\n") {
+		var id string
+		var listens []string
+		for _, line := range strings.Split(block, "\n") {
+			k, v, ok := strings.Cut(line, "=")
+			if !ok {
+				continue
+			}
+			switch k {
+			case "Id":
+				id = v
+			case "Listen":
+				listens = append(listens, v)
+			}
+		}
+		act, known := activates[id]
+		if !known {
+			continue
+		}
+		for _, l := range listens {
+			addr, typ, ok := strings.Cut(strings.TrimSpace(l), " (")
+			typ = strings.TrimSuffix(typ, ")")
+			if !ok || (typ != "Stream" && typ != "Datagram") || len(res) >= 1024 {
+				continue
+			}
+			res = append(res, netinfo.SocketUnit{Listen: clean(addr, 200), Type: typ, Unit: id, Activates: act})
+		}
+	}
+	return res
 }
 
 // firewallShowArgs is the fixed state query. Every name is a compile-time

@@ -3268,8 +3268,9 @@ paths:
         arguments) reads the TCP/UDP socket tables of PID 1's network
         namespace and attributes each listening TCP or bound, unconnected UDP
         socket: source process (open files reference it; observed), source
-        systemd-socket (systemd lists a socket unit on that address, from one
-        fixed unprivileged systemctl list-sockets; observed), or source
+        systemd-socket (systemd lists a socket unit on that address with the
+        matching Stream/Datagram type, from fixed unprivileged systemctl
+        list-sockets and show Id,Listen; observed), or source
         account (every process of the socket's non-root account runs in one
         unit; inferred). The broker holds only CAP_SETUID/CAP_SETGID and no
         CAP_SYS_PTRACE, so most fd tables are unreadable; they are counted in

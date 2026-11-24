@@ -125,32 +125,71 @@ func TestNetworkFirewallConfigHonoursCancel(t *testing.T) {
 	}
 }
 
+// The listing fixture is the real shape from the Ubuntu 26.04 guest
+// (list-sockets-as-service-user.json, 2026-11-24): no "type" field.
 func TestNetworkPortsListUsesSystemdSocketList(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "proc/1/net/tcp", "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n"+
 		"   0: 00000000:0016 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 9 1 0 100 0 0 10 0\n", 0o644)
-	if err := os.MkdirAll(filepath.Join(root, "proc/self"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	listing := `[{"listen":"[::]:22","type":"Stream","unit":"ssh.socket","activates":"ssh.service"},` +
-		`{"listen":"0.0.0.0:22","type":"Stream","unit":"ssh.socket","activates":"ssh.service"},` +
-		`{"listen":"0.0.0.0:22","type":"Stream","unit":"bad name;.socket","activates":null}]`
-	env := &Env{Roots: Roots{Root: root}, PortsSockets: func(context.Context) ([]byte, int, error) { return []byte(listing), 0, nil }}
+	write(t, root, "proc/1/net/udp", "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode ref pointer drops\n"+
+		"   0: 00000000:0016 00000000:0000 07 00000000:00000000 00:00000000 00000000     0        0 10 2 0 0\n", 0o644)
+	listing := `[{"listen":"0.0.0.0:22","unit":"ssh.socket","activates":"ssh.service"},` +
+		`{"listen":"[::]:22","unit":"ssh.socket","activates":"ssh.service"},` +
+		`{"listen":"/run/ssh-unix-local/socket","unit":"sshd-unix-local.socket","activates":null},` +
+		`{"listen":"0.0.0.0:22","unit":"bad name;.socket","activates":null},` +
+		`{"listen":"0.0.0.0:23","unit":"a\\x2db.socket","activates":null}]`
+	show := "Id=ssh.socket\nListen=0.0.0.0:22 (Stream)\nListen=[::]:22 (Stream)\n\nId=other.socket\nListen=0.0.0.0:22 (Datagram)\n"
+	var calls [][]string
+	env := &Env{Roots: Roots{Root: root}, PortsSystemctl: func(_ context.Context, args []string) ([]byte, int, error) {
+		calls = append(calls, args)
+		if args[0] == "list-sockets" {
+			return []byte(listing), 0, nil
+		}
+		return []byte(show), 0, nil
+	}}
 	got, err := networkPortsList(context.Background(), env, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	o := got.(netinfo.PortMap).Sockets[0].Owners
-	if len(o) != 1 || o[0].Socket != "ssh.socket" || o[0].Unit != "ssh.service" || o[0].Source != netinfo.OwnerSystemdSocket {
-		t.Fatalf("owners: %+v", o)
+	if len(calls) != 2 || strings.Join(calls[0], " ") != "list-sockets --all --output=json --no-pager" ||
+		strings.Join(calls[1], " ") != "show --no-pager --property=Id,Listen -- ssh.socket" {
+		t.Fatalf("argv: %q", calls)
+	}
+	pm := got.(netinfo.PortMap)
+	var tcp, udp netinfo.Socket
+	for _, s := range pm.Sockets {
+		if s.Proto == "tcp" {
+			tcp = s
+		} else {
+			udp = s
+		}
+	}
+	if o := tcp.Owners; len(o) != 1 || o[0].Socket != "ssh.socket" || o[0].Unit != "ssh.service" || o[0].Source != netinfo.OwnerSystemdSocket {
+		t.Fatalf("tcp owners: %+v", o)
+	}
+	if len(udp.Owners) != 0 {
+		t.Fatalf("a Stream socket unit must not claim a UDP socket, nor an unlisted unit: %+v", udp.Owners)
 	}
 	// A failing listing is not an error: owners just stay unknown.
-	env.PortsSockets = func(context.Context) ([]byte, int, error) { return []byte("not json"), 0, nil }
-	got, err = networkPortsList(context.Background(), env, nil)
-	if err != nil || len(got.(netinfo.PortMap).Sockets[0].Owners) != 0 {
-		t.Fatalf("bad listing: %v %+v", err, got)
-	}
-	if strings.Join(portsSocketsArgs, " ") != "list-sockets --all --output=json --no-pager" {
-		t.Fatalf("argv: %v", portsSocketsArgs)
+	for name, f := range map[string]func(context.Context, []string) ([]byte, int, error){
+		"bad json": func(context.Context, []string) ([]byte, int, error) { return []byte("not json"), 0, nil },
+		"exit 1":   func(context.Context, []string) ([]byte, int, error) { return []byte(listing), 1, nil },
+		"show fails": func(_ context.Context, a []string) ([]byte, int, error) {
+			if a[0] == "list-sockets" {
+				return []byte(listing), 0, nil
+			}
+			return nil, 0, errors.New("boom")
+		},
+	} {
+		env.PortsSystemctl = f
+		got, err = networkPortsList(context.Background(), env, nil)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		for _, s := range got.(netinfo.PortMap).Sockets {
+			if len(s.Owners) != 0 {
+				t.Fatalf("%s: owners guessed: %+v", name, s.Owners)
+			}
+		}
 	}
 }
