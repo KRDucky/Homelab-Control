@@ -66,6 +66,7 @@ func TestRegistryIsClosed(t *testing.T) {
 		"packages.updates":         {PrivUnprivilegedExec, "packages.read", ""},
 		"packages.sources":         {PrivUnprivilegedExec, "packages.read", ""},
 		"packages.search":          {PrivUnprivilegedExec, "packages.read", ""},
+		"packages.simulation":      {PrivUnprivilegedExec, "packages.read", ""},
 		"mergerfs.snapraid.status": {PrivUnprivilegedExec, "mergerfs.read", ""},
 		"mergerfs.pool.plan":       {PrivNone, "mergerfs.configure", "plan"},
 		"mergerfs.pool.apply":      {PrivRootRead, "mergerfs.configure", "apply"},
@@ -73,6 +74,9 @@ func TestRegistryIsClosed(t *testing.T) {
 		"mergerfs.maintain.apply":  {PrivRootRead, "mergerfs.maintain", "apply"},
 		// M2-4 O-1 (owner-approved implementation/isolated validation).
 		"storage.probe": {PrivRootRead, "storage.probe", ""},
+		// M11 (ADR 0008 Amendment 9, Proposed): read-only networking.
+		"network.ports.list":      {PrivRootRead, "networking.ports.read", ""},
+		"network.firewall.config": {PrivRootRead, "networking.firewall.read", ""},
 		// ext4 format: destructive, not granted by ext4.read.
 		"ext4.format.plan":        {PrivRootRead, "ext4.format", "plan"},
 		"ext4.format.apply":       {PrivRootExec, "ext4.format", "apply"},
@@ -436,6 +440,7 @@ func TestAdmissionClasses(t *testing.T) {
 		"packages.updates":          AdmissionPackages,
 		"packages.sources":          AdmissionPackages,
 		"packages.search":           AdmissionPackages,
+		"packages.simulation":       AdmissionPackages,
 		"mergerfs.snapraid.status":  AdmissionServicesRead,
 		"mergerfs.pool.plan":        AdmissionControlPlan,
 		"mergerfs.pool.apply":       AdmissionControlApply,
@@ -446,6 +451,8 @@ func TestAdmissionClasses(t *testing.T) {
 		"ext4.format.apply":         AdmissionControlApply,
 		"storage.partition.plan":    AdmissionControlPlan,
 		"storage.partition.apply":   AdmissionControlApply,
+		"network.ports.list":        AdmissionSystemRead,
+		"network.firewall.config":   AdmissionSystemRead,
 	}
 	reg := Registry()
 	if len(reg) != len(want) {

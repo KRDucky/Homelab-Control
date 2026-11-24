@@ -472,3 +472,27 @@ func TestXFSReadNotGrantedByDefaultOrImplied(t *testing.T) {
 		t.Fatal("every other scope together must not imply xfs.read")
 	}
 }
+
+// M11 read-only networking: each scope is known, never default, and implied
+// by no other scope (including networking.proxy.read and each other).
+func TestNetworkingReadScopesNotGrantedByDefaultOrImplied(t *testing.T) {
+	for _, want := range []string{ScopeNetworkingPortsRead, ScopeNetworkingBondsRead, ScopeNetworkingFirewallRead} {
+		if !KnownScopes[want] {
+			t.Fatalf("%s must be a known scope", want)
+		}
+		for _, s := range strings.Split(DefaultScopes, ",") {
+			if s == want {
+				t.Fatalf("default scopes grant %s", s)
+			}
+		}
+		var others []string
+		for s := range KnownScopes {
+			if s != want {
+				others = append(others, s)
+			}
+		}
+		if (&Session{Scopes: others}).HasScope(want) {
+			t.Fatalf("every other scope together must not imply %s", want)
+		}
+	}
+}

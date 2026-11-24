@@ -326,10 +326,50 @@ production activation. Details and residual privilege:
 - **Startup.** The `/proc/devices` group self-check is the helper's duty (Exec lines inside the
   MAC domain cannot run `grep`).
 
-## Amendment 9 (2026-11-24, M6 partition apply, Proposed): `sfdisk` GPT template
+## Amendment 9 (2026-11-24, M11, Proposed): read-only networking reads
+
+Proposed for the M11 read-only networking checkpoint (`docs/project/04-ROADMAP.md` M11; owner slot
+2026-11-07 in `docs/m2/OWNER-DECISIONS.md`). **Not accepted.** It authorizes no firewall, bond, or
+port-binding change, and it does not change the broker unit.
+
+- **Two root-read ops, no arguments.** `network.ports.list` (scope `networking.ports.read`) and
+  `network.firewall.config` (scope `networking.firewall.read`), both `root-read`, admission
+  `system-read`, 10 s. They are tied to the `ports` and `firewall` modules by op prefix, so a disabled
+  module refuses its op.
+- **Ports: fixed `/proc` reads in-process.** The broker unit has `PrivateNetwork=yes`, so the op reads
+  `/proc/1/net/{tcp,tcp6,udp,udp6}` (the host namespace, as seen by PID 1). Owners come from three
+  sources, each labelled: `process` (a `/proc/<pid>/fd` link names the socket inode; observed),
+  `systemd-socket` (fixed unprivileged `systemctl list-sockets --all --output=json --no-pager`, whose JSON
+  has no type, then `systemctl show --no-pager --property=Id,Listen -- <listed .socket units>` for the
+  Stream/Datagram type; observed) and `account` (every process of the socket's non-root
+  account runs in one unit, from `/proc/<pid>/status` and `cgroup`, which need no ptrace access;
+  inferred). The kernel's ptrace check on `/proc/<pid>/fd` needs the reader's capabilities to cover the
+  target's, so with only `CAP_SETUID`/`CAP_SETGID` the broker reads almost no fd table, including those
+  of full-capability root daemons (observed on the Ubuntu 26.04 guest, 2026-11-24). `CAP_SYS_PTRACE` is
+  **not** added: it would let the broker read any process's memory and needs its own review. Bounded:
+  4096 sockets, 32768 processes, 65536 fds per process.
+- **Firewall: saved configuration only.** One fixed unprivileged `systemctl show --no-pager
+  --property=Id,LoadState,ActiveState,UnitFileState --` over the closed unit list
+  (`firewalld`, `ufw`, `nftables`, `netfilter-persistent`, `iptables`, `ip6tables`) decides the active
+  backend (firewalld, then ufw with `ENABLED=yes`, then nftables, then iptables). Only that backend's
+  fixed configuration paths are read as root (`O_NOFOLLOW`, regular file, 1 MiB cap). The live kernel
+  ruleset is **not** read: that would need `CAP_NET_ADMIN` and the host network namespace in the broker,
+  which needs its own review.
+- **Bonds stay in `hc-api`.** Kernel bonding state is world-readable sysfs plus runtime state files of
+  systemd-networkd, NetworkManager and ifupdown; no broker op. NetworkManager keyfiles and netplan YAML
+  (which can hold secrets) are never read.
+- **No secrets, counts-only audit.** Results hold addresses, ports, process names, units, short
+  container IDs and firewall rule text. API audit records socket/bond counts or the backend ID only.
+- **Scopes.** `networking.ports.read`, `networking.bonds.read`, `networking.firewall.read`: not
+  defaults, not implied by any scope (including `networking.proxy.read`) or by each other.
+- **Proposed status.** Subject to review and owner acceptance. Firewall writes need their own owner
+  authorization and an ADR 0011 review.
+
+## Amendment 10 (2026-11-24, M6 partition apply, Proposed): `sfdisk` GPT template
 
 Proposed. **Not accepted.** This amendment does not accept ADR 0008 for storage
 writes, and it does not change the main broker unit or the unused storage helper.
+Amendment 9 is the M11 read-only networking checkpoint and is unchanged.
 
 - **One closed template.** `sfdisk.gpt` = `sfdisk --wipe=always --wipe-partitions=always -- <by-id>`.
   Exactly one whole `/dev/disk/by-id` path (the same families as `mkfs.ext4`, without `-partN`).

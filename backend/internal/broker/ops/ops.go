@@ -73,6 +73,13 @@ type Env struct {
 	// SnapraidStatus overrides `snapraid status` in tests. Production leaves
 	// it nil. The production path runs Runner with argv exactly "status".
 	SnapraidStatus func(ctx context.Context) (stdout []byte, stderr string, exitCode int, err error)
+	// PortsSystemctl overrides the two unprivileged systemctl reads of
+	// network.ports.list (list-sockets, then show Id,Listen) in tests; it
+	// receives the argv. Production leaves it nil and runs the runner.
+	PortsSystemctl func(ctx context.Context, args []string) (stdout []byte, exitCode int, err error)
+	// FirewallShow overrides the firewall unit-state query in tests.
+	// Production leaves it nil and runs the fixed firewallShowArgs argv.
+	FirewallShow func(ctx context.Context) (stdout []byte, exitCode int, err error)
 	// MergerFSApply overrides the socket helper in tests. Production dials
 	// mergerfs-apply.sock. The broker never executes mergerfs or snapraid sync.
 	MergerFSApply func(ctx context.Context, req mergerfsapply.Request) (mergerfsapply.Result, error)
@@ -237,6 +244,8 @@ func Registry() map[string]Op {
 			Description: "Configured repositories and package sources with third-party and unsigned flags (args: family)", Handle: packagesSources},
 		{Name: "packages.search", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second, Admission: AdmissionPackages,
 			Description: "Search the local package cache of one family (args: family, q)", Handle: packagesSearch, AuditArgs: packagesAuditArgs},
+		{Name: "packages.simulation", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second, Admission: AdmissionPackages,
+			Description: "Simulate one Debian/Ubuntu APT action without root, downloads or package writes", Handle: packagesSimulation, AuditArgs: packagesSimulationAuditArgs},
 		// MergerFS: read-only snapraid status. No client path, no --conf, no
 		// sync/diff/fix/scrub/smart. Shares the services-read admission bucket.
 		{Name: "mergerfs.snapraid.status", Scope: "mergerfs.read", Privilege: PrivUnprivilegedExec, Timeout: 15 * time.Second, Admission: AdmissionServicesRead,
@@ -267,6 +276,13 @@ func Registry() map[string]Op {
 		// reader is the default LVM path (no lvs/pvs execution).
 		{Name: "storage.probe", Scope: "storage.probe", Privilege: PrivRootRead, Timeout: 35 * time.Second, Admission: AdmissionProbe,
 			Description: "On-demand native storage probe (blkid signatures on enumerated devices); wakes disks", Handle: storageProbe},
+		// M11 (ADR 0008 Amendment 9, Proposed): read-only networking. In-process
+		// root reads of fixed /proc and config paths; the firewall op also runs
+		// one fixed unprivileged systemctl show. No live ruleset, no writes.
+		{Name: "network.ports.list", Scope: "networking.ports.read", Privilege: PrivRootRead, Timeout: 10 * time.Second, Admission: AdmissionSystemRead,
+			Description: "Host-wide listening TCP and bound UDP sockets of the host network namespace with owning account, process, unit and container", Handle: networkPortsList},
+		{Name: "network.firewall.config", Scope: "networking.firewall.read", Privilege: PrivRootRead, Timeout: 10 * time.Second, Admission: AdmissionSystemRead,
+			Description: "Active firewall backend (firewalld, ufw, nftables or iptables) and its saved configuration; the live kernel ruleset is not read", Handle: networkFirewallConfig},
 		// ext4 format (owner 2026-11-23): the closed mkfs.ext4 template is
 		// this pair's apply, and only this pair's apply. Quiet, one by-id
 		// target, no -F. ext4.read does not grant it. The main broker unit

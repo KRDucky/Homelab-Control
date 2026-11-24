@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"homelab-control/backend/internal/aptplan"
 	"homelab-control/backend/internal/auth"
 	"homelab-control/backend/internal/broker/types"
 	"homelab-control/backend/internal/hostinfo"
@@ -50,8 +51,10 @@ func packageFamilyBinary(family string) string {
 }
 
 type packagesRequest struct {
-	Family string `json:"family"`
-	Q      string `json:"q,omitempty"`
+	Family  string `json:"family"`
+	Q       string `json:"q,omitempty"`
+	Action  string `json:"action,omitempty"`
+	Package string `json:"package,omitempty"`
 }
 
 // packagesCall runs one read op and returns the broker error for the handler.
@@ -129,6 +132,36 @@ func (s *Server) handlePackagesSources(w http.ResponseWriter, r *http.Request, s
 	}
 	if err := s.auditLog("packages.sources.read", sess.Username, r, "returned", "family="+s.packageFamily()+" sources="+strconv.Itoa(len(out.Sources))); err != nil {
 		writeError(w, http.StatusServiceUnavailable, "audit_unavailable", "Configured sources cannot be returned because their access could not be audited.")
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// handlePackagesPreview returns an informational APT simulation. No apply
+// token or write permission is implied by the packages.read scope.
+func (s *Server) handlePackagesPreview(w http.ResponseWriter, r *http.Request, sess *auth.Session, _ string) {
+	if !s.packagesProtectedGET(w, r, sess) {
+		return
+	}
+	name := r.URL.Query().Get("package")
+	action := r.URL.Query().Get("action")
+	if name == "" || len(name) > 160 || action == "" || len(action) > 16 {
+		writeError(w, http.StatusBadRequest, "bad_request", "package and action are required")
+		return
+	}
+	if s.packageFamily() != "debian" {
+		writeError(w, http.StatusServiceUnavailable, "unsupported", "APT preview is only supported on Debian/Ubuntu")
+		return
+	}
+	// Validation is repeated by the broker before any execution.
+	var out aptplan.Preview
+	if !s.packagesCall(w, r, sess, "packages.simulation", packagesRequest{Family: s.packageFamily(), Action: action, Package: name}, &out) {
+		return
+	}
+	// Never include unvalidated package input or entire resolver output in audit.
+	if err := s.auditLog("packages.simulation.read", sess.Username, r, "returned",
+		"action="+action+" changes="+strconv.Itoa(len(out.Changes))); err != nil {
+		writeError(w, http.StatusServiceUnavailable, "audit_unavailable", "APT preview cannot be returned because its access could not be audited.")
 		return
 	}
 	writeJSON(w, http.StatusOK, out)
