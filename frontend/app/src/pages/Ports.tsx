@@ -59,6 +59,8 @@ export function PortsView({ data, error }: { data: PortMap; error: Error | null 
       return hay.includes(q);
     });
   }, [data.sockets, filter, exposedOnly]);
+  // Bind scope only. The port map carries no firewall state, so a socket
+  // bound beyond loopback is not necessarily reachable from the network.
   const exposed = data.sockets.filter((s) => s.exposure !== 'loopback').length;
 
   return (
@@ -94,8 +96,12 @@ export function PortsView({ data, error }: { data: PortMap; error: Error | null 
           <span className="tag">observed</span>
         </header>
         <p>
-          {data.sockets.length} sockets, {exposed} reachable beyond this host. Sources:{' '}
+          {data.sockets.length} sockets, {exposed} bound to an address other than loopback. Sources:{' '}
           {data.sources.join(', ')}.
+        </p>
+        <p>
+          This shows where each socket is bound, not whether it can be reached: firewall rules are not applied
+          here, so a port bound to all addresses may still be blocked. See the Firewall page for the rules.
         </p>
         <div className="toolbar">
           <label>
@@ -114,7 +120,7 @@ export function PortsView({ data, error }: { data: PortMap; error: Error | null 
                 <th scope="col">Port</th>
                 <th scope="col">Protocol</th>
                 <th scope="col">Address</th>
-                <th scope="col">Reachable from</th>
+                <th scope="col">Bound to</th>
                 <th scope="col">Account</th>
                 <th scope="col">Owner</th>
               </tr>

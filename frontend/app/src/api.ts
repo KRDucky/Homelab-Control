@@ -2212,6 +2212,7 @@ export interface PortSocket {
   proto: 'tcp' | 'tcp6' | 'udp' | 'udp6';
   address: string;
   port: number;
+  /** Bind scope of the address only. Firewall rules are not applied, so this is not reachability. */
   exposure: 'loopback' | 'all' | 'address';
   uid: number;
   account?: string;
