@@ -148,7 +148,7 @@ func TestAllowListedBinariesAreClosed(t *testing.T) {
 	want := map[string]bool{
 		"systemctl": true, "journalctl": true, "hostnamectl": true, "timedatectl": true,
 		// M4-1b (ADR 0008 Amendment 5, Proposed): read-only package managers.
-		"dpkg-query": true, "apt-cache": true, "apt": true, "rpm": true, "dnf": true, "zypper": true, "pacman": true,
+		"dpkg-query": true, "apt-cache": true, "apt": true, "apt-get": true, "rpm": true, "dnf": true, "zypper": true, "pacman": true,
 		"mkfs.ext4": true,
 		"snapraid":  true,
 	}
@@ -726,6 +726,30 @@ func TestValidPackageQuery(t *testing.T) {
 	for _, bad := range []string{"", "-o", "--config", "-", "--", "a b", "a;b", "$(id)", "`id`", "a|b", "a>b", "a*b", "a?b", "a/b", "a\\b", "a\x00b", strings.Repeat("a", 65), "é", "a\nb", "a\tb"} {
 		if ValidPackageQuery(bad) {
 			t.Errorf("query %q should be rejected", bad)
+		}
+	}
+}
+
+// TestAptSimulationArgvClosed ensures no mutating path or supplied option can
+// escape the closed, simulation-only template.
+func TestAptSimulationArgvClosed(t *testing.T) {
+	for _, action := range []string{"install", "remove", "upgrade"} {
+		args, err := AptSimulationArgv(action, "libssl3:amd64")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(args) != 6 || args[0] != "--simulate" || args[1] != "--no-download" || args[4] != "--" || args[5] != "libssl3:amd64" {
+			t.Fatalf("unsafe argv %q: %v", action, args)
+		}
+	}
+	for _, action := range []string{"purge", "update", "autoremove", "dist-upgrade", "", "--help"} {
+		if _, err := AptSimulationArgv(action, "bash"); !errors.Is(err, ErrBadArg) {
+			t.Errorf("allowed unsafe action %q: %v", action, err)
+		}
+	}
+	for _, pkg := range []string{"", "--help", "a/b", "../x", "a..b", "A", "a b", "a;id", "a\nname", "bash=2.0", "bash::amd64"} {
+		if _, err := AptSimulationArgv("install", pkg); !errors.Is(err, ErrBadArg) {
+			t.Errorf("allowed unsafe package %q: %v", pkg, err)
 		}
 	}
 }
