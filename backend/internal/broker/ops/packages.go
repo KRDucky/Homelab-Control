@@ -19,6 +19,7 @@ import (
 	"homelab-control/backend/internal/broker/proto"
 	"homelab-control/backend/internal/broker/runner"
 	"homelab-control/backend/internal/pkgcenter"
+	"homelab-control/backend/internal/aptplan"
 )
 
 // M4-1b read-only package queries (ADR 0008 Amendment 5, Proposed). Every op
@@ -131,6 +132,47 @@ func runPackageQuery(ctx context.Context, env *Env, q runner.PackageQuery, query
 		return runner.Result{}, &proto.Error{Code: proto.CodeUnavailable, Message: fmt.Sprintf("%s failed (exit %d)", binary, res.ExitCode)}
 	}
 	return res, nil
+}
+
+// simulationArgs carries only an action and one literal package name.
+// The broker validates the family independently of caller-supplied metadata.
+type simulationArgs struct {
+	Family  string `json:"family"`
+	Action  string `json:"action"`
+	Package string `json:"package"`
+}
+
+// packagesSimulation is unprivileged and cache-only. It never grants an apply
+// token; a parsed simulation is informational and may drift before execution.
+func packagesSimulation(ctx context.Context, env *Env, raw json.RawMessage) (any, error) {
+	var a simulationArgs
+	if err := proto.DecodeArgs(raw, &a); err != nil {
+		return nil, &proto.Error{Code: proto.CodeBadRequest, Message: "invalid APT preview request"}
+	}
+	if a.Family != pkgcenter.FamilyDebian {
+		return nil, &proto.Error{Code: proto.CodeUnavailable, Message: "APT preview supports Debian and Ubuntu only"}
+	}
+	if _, err := runner.AptSimulationArgv(a.Action, a.Package); err != nil {
+		return nil, &proto.Error{Code: proto.CodeBadRequest, Message: "invalid APT action or package"}
+	}
+	if cacheMtime(env, a.Family) == "" {
+		return nil, &proto.Error{Code: proto.CodeUnavailable, Message: "APT metadata cache is not available"}
+	}
+	if env.Runner == nil || !env.Runner.Available("apt-get") {
+		return nil, &proto.Error{Code: proto.CodeUnavailable, Message: "apt-get is unavailable"}
+	}
+	res, err := env.Runner.RunAptSimulation(ctx, a.Action, a.Package)
+	if err != nil {
+		return nil, runPackageErr(err, "apt-get")
+	}
+	if res.ExitCode != 0 || strings.TrimSpace(res.Stderr) != "" {
+		return nil, &proto.Error{Code: proto.CodeUnavailable, Message: "APT simulation failed or reported diagnostics"}
+	}
+	p, err := aptplan.ParseSimulation(string(res.Stdout))
+	if err != nil {
+		return nil, &proto.Error{Code: proto.CodeUnavailable, Message: "APT simulation could not be safely previewed"}
+	}
+	return p, nil
 }
 
 func packagesInstalled(ctx context.Context, env *Env, raw json.RawMessage) (any, error) {
