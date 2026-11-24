@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { Software } from './pages/Software';
-import { getPackageSearch, getAptPreview, type PackageList, type SourceList, type UpdateList } from './api';
+import { getAptPreview, getPackageSearch, type PackageList, type SourceList, type UpdateList } from './api';
 
 const installedFixture: PackageList = {
   packages: [{ name: 'nginx', version: '1.2.3', arch: 'amd64', installed: true }],
@@ -37,7 +37,12 @@ vi.mock('./api', async (importOriginal) => {
     getPackagesInstalled: vi.fn(async () => installedFixture),
     getPackagesUpdates: vi.fn(async () => updatesFixture),
     getPackagesSources: vi.fn(async () => sourcesFixture),
-    getAptPreview: vi.fn(async () => ({ changes: [{ action: 'install', name: 'libdemo', candidate_version: '1.2' }], install_count: 1, remove_count: 0, configure_count: 0 })),
+    getAptPreview: vi.fn(async () => ({
+      changes: [{ action: 'install', name: 'libdemo', candidate_version: '1.2' }],
+      install_count: 1,
+      remove_count: 0,
+      configure_count: 0,
+    })),
   };
 });
 
@@ -95,6 +100,7 @@ describe('Software Center UI model', () => {
       window.history.replaceState(null, '', '/software');
     }
   });
+
   it('simulates an APT selection without an apply control', async () => {
     render(<Software csrf={csrf} onUnauthorized={onUnauthorized} />);
     fireEvent.click(screen.getByRole('tab', { name: 'APT Preview' }));
@@ -115,5 +121,4 @@ describe('Software Center UI model', () => {
     expect(await screen.findByText(/Enter a valid Debian/)).toBeTruthy();
     expect(vi.mocked(getAptPreview)).not.toHaveBeenCalled();
   });
-
 });
