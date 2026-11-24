@@ -32,8 +32,10 @@ func packagesFake() *fakeBroker {
 		"source":    "fixture",
 	}
 	fb.results["packages.simulation"] = map[string]any{
-		"changes": []map[string]any{{"action": "install", "name": "nginx", "candidate_version": "1.2.3"}},
-		"install_count": 1, "remove_count": 0, "configure_count": 0,
+		"changes":         []map[string]any{{"action": "install", "name": "nginx", "candidate_version": "1.2.3"}},
+		"install_count":   1,
+		"remove_count":    0,
+		"configure_count": 0,
 	}
 	fb.results["packages.search"] = map[string]any{
 		"packages":  []map[string]any{{"name": "nginx", "summary": "web server", "installed": false}},
