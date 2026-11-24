@@ -262,6 +262,7 @@ var rootExecFiles = map[string]bool{
 	"internal/broker/ops/ops.go":                true, // registry lists apply's templates (W1)
 	"internal/broker/ops/systemctl.go":          true, // services.systemctl apply (owner 2026-11-21)
 	"internal/broker/ops/ext4format.go":         true, // ext4.format.apply calls RootMkfsExt4
+	"internal/broker/ops/partapply.go":          true, // storage.partition.apply calls RootSfdiskGPT
 	"internal/broker/server/server.go":          true, // passes the handle to root-exec ops only
 	"cmd/hc-broker/main.go":                     true, // creates the single handle
 }
@@ -273,7 +274,8 @@ var rootExecNames = map[string]bool{
 	"RootSystemctlShowInstall": true, "RootSystemctlShow": true, "RootSystemctlShowManager": true,
 	"RootHostnamectlSetStatic": true, "RootHostnamectlSetPretty": true, "RootHostnamectlStatus": true,
 	"RootTimedatectlSetTimezone": true, "RootTimedatectlStatus": true, "RootTimedatectlListTimezones": true,
-	"RootMkfsExt4": true,
+	"RootMkfsExt4":  true,
+	"RootSfdiskGPT": true,
 }
 
 func TestRootExecConfined(t *testing.T) {
@@ -375,6 +377,45 @@ func TestUnusedStorageRootTemplateConfined(t *testing.T) {
 		if err != nil || (!strings.Contains(string(b), "RootMkfsExt4") && !strings.Contains(string(b), "mkfs.ext4")) {
 			t.Errorf("%s is an ext4 format template file but does not name the template", f)
 		}
+	}
+}
+
+var sfdiskTemplateFiles = map[string]bool{
+	"internal/broker/runner/runner.go": true,
+	"internal/broker/ops/ops.go":       true,
+	"internal/broker/ops/partapply.go": true,
+}
+
+func TestSfdiskTemplateConfined(t *testing.T) {
+	root, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() && (d.Name() == "testdata" || d.Name() == "node_modules") {
+			return filepath.SkipDir
+		}
+		if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		rel, _ := filepath.Rel(root, path)
+		if sfdiskTemplateFiles[rel] {
+			return nil
+		}
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if strings.Contains(string(b), "RootSfdiskGPT") || strings.Contains(string(b), "sfdisk") {
+			t.Errorf("%s mentions the partition root template; only storage.partition may call it", rel)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

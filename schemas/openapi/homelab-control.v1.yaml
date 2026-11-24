@@ -56,7 +56,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, services.systemctl, storage.read, storage.probe, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read, mergerfs.configure, mergerfs.maintain, zfs.read, lvm.read, btrfs.read, ext4.read, ext4.format, mdadm.read, f2fs.read, xfs.read] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, services.systemctl, storage.read, storage.probe, storage.partition, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read, mergerfs.configure, mergerfs.maintain, zfs.read, lvm.read, btrfs.read, ext4.read, ext4.format, mdadm.read, f2fs.read, xfs.read] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
@@ -169,6 +169,52 @@ components:
               detail: { type: string }
               destructive: { type: boolean }
               executable: { type: boolean, enum: [false] }
+    PartitionWriteRequest:
+      type: object
+      additionalProperties: false
+      required: [by_id, identity_kind, identity_value, confirm, disk_bytes, parts]
+      description: A reviewed GPT proposal. It does not format a filesystem.
+      properties:
+        by_id: { type: string }
+        identity_kind: { type: string, enum: [wwn, nvme-uuid, serial] }
+        identity_value: { type: string }
+        confirm: { type: array, items: { type: string, enum: [partition] }, minItems: 1, maxItems: 1 }
+        disk_bytes: { type: integer, minimum: 1 }
+        parts:
+          type: array
+          minItems: 1
+          maxItems: 128
+          items: { $ref: '#/components/schemas/PartitionPlanRequest/properties/parts/items' }
+        token: { type: string, description: Present only on apply. }
+    PartitionWritePlan:
+      type: object
+      additionalProperties: false
+      required: [action, risk, step_up_required, confirmation_required, token, expires_at, identity_kind, rdev, slice_count, effect, consequences, warnings]
+      properties:
+        action: { type: string, enum: [partition] }
+        risk: { type: string, enum: [destructive] }
+        step_up_required: { type: boolean, enum: [true] }
+        confirmation_required: { type: boolean, enum: [true] }
+        token: { type: string }
+        expires_at: { type: string, format: date-time }
+        identity_kind: { type: string }
+        rdev: { type: string }
+        slice_count: { type: integer }
+        effect: { type: string }
+        consequences: { type: array, items: { type: string } }
+        warnings: { type: array, items: { type: string } }
+    PartitionWriteOutcome:
+      type: object
+      additionalProperties: false
+      required: [operation_id, action, outcome, message, started_at, finished_at]
+      properties:
+        operation_id: { type: string }
+        action: { type: string }
+        outcome: { type: string }
+        message: { type: string }
+        recovery: { type: array, items: { type: string } }
+        started_at: { type: string, format: date-time }
+        finished_at: { type: string, format: date-time }
     StorageEdge:
       type: object
       required: [from, to, kind, evidence]
@@ -3208,8 +3254,10 @@ paths:
         Checks a proposal for overlap, 1 MiB alignment, bounds inside the disk,
         and an allowlisted filesystem. Gaps are allowed. The response always
         has executes false, and every step has executable false. The call does
-        not collect devices, call the broker, or write a host. The only live
-        format path remains ext4.format on a whole by-id disk. storage.read is
+        not collect devices, call the broker, or write a host. Writing the
+        table is POST /storage/partition/plan and POST /storage/partition/apply
+        (scope storage.partition) and does not format. The only live format
+        path remains ext4.format on a whole by-id disk. storage.read is
         required. The session X-CSRF-Token header is required. The audit record
         is the slice count only.
       security: [{ session: [] }]
@@ -3227,6 +3275,56 @@ paths:
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: Missing storage.read permission, or missing/invalid Origin or CSRF token, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: The dry run could not be audited, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /storage/partition/plan:
+    post:
+      summary: Review a GPT partition of one whole by-id disk (scope storage.partition). Nothing is partitioned or formatted.
+      description: >
+        Requires storage.partition. storage.read and ext4.format do not grant
+        this. The body names one whole /dev/disk/by-id path, a persist identity
+        that matches that name, confirm ["partition"], and a layout. The broker
+        checks that the disk is a block device, unmounted, and without holders.
+        Origin and X-CSRF-Token are required. The audit record is the identity
+        kind and the slice count.
+      security: [{ session: [] }]
+      x-required-scope: storage.partition
+      parameters:
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PartitionWriteRequest' }
+      responses:
+        '200': { description: Review token. The disk is not partitioned., content: { application/json: { schema: { $ref: '#/components/schemas/PartitionWritePlan' } } } }
+        '400': { description: Malformed body or a layout the GPT script rejects, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing storage.partition, policy refusal, or CSRF/Origin rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /storage/partition/apply:
+    post:
+      summary: Write one reviewed GPT layout with sfdisk (scope storage.partition). No filesystem is formatted.
+      description: >
+        Requires the plan token and a recent password re-entry. The disk is
+        checked again immediately before sfdisk. A non-zero or killed sfdisk is
+        uncertain and is not retried. storage.read does not grant this.
+      security: [{ session: [] }]
+      x-required-scope: storage.partition
+      parameters:
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - { $ref: '#/components/schemas/PartitionWriteRequest' }
+                - type: object
+                  required: [token]
+      responses:
+        '200': { description: Partition result. succeeded means sfdisk exited 0 and the device identity still matched., content: { application/json: { schema: { $ref: '#/components/schemas/PartitionWriteOutcome' } } } }
+        '400': { description: Malformed token or body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing storage.partition, step-up required, or CSRF/Origin rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: The disk or layout changed since review, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /storage/layout:
     get:
       summary: Stored manual drive-bay layout (M2-5 Stage A). Application state only; no collection or host access.

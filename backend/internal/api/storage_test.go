@@ -217,6 +217,8 @@ func TestStorageModuleDisabledBeforeCollectionOrBroker(t *testing.T) {
 		{"GET", "/api/v1/storage"},
 		{"POST", "/api/v1/storage/probe"},
 		{"POST", "/api/v1/storage/plan/dry-run"},
+		{"POST", "/api/v1/storage/partition/plan"},
+		{"POST", "/api/v1/storage/partition/apply"},
 		{"GET", "/api/v1/storage/layout/chassis"},
 	} {
 		hdr := map[string]string{}

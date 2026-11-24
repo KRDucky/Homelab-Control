@@ -53,6 +53,8 @@ var allowlist = map[string][]string{
 	"pacman":     {"/usr/bin/pacman", "/usr/bin/pacman.static"},
 	// ext4.format.apply is the only caller. Quiet, no -F.
 	"mkfs.ext4": {"/usr/sbin/mkfs.ext4", "/sbin/mkfs.ext4"},
+	// storage.partition.apply is the only caller. GPT script on stdin.
+	"sfdisk": {"/usr/sbin/sfdisk", "/usr/bin/sfdisk", "/sbin/sfdisk"},
 	// MergerFS SnapRAID status (ADR 0008): only mergerfs.snapraid.status calls
 	// this binary, and only with argv "status". No sync, scrub, fix, diff, or smart.
 	"snapraid": {"/usr/bin/snapraid", "/usr/sbin/snapraid"},
@@ -111,6 +113,12 @@ const (
 // Quiet only; no -F. The argv stays one by-id target.
 const (
 	RootMkfsExt4 RootTemplate = "mkfs.ext4"
+)
+
+// Closed sfdisk template. storage.partition.apply is the only caller.
+// The script is stdin, not an argument. No --force.
+const (
+	RootSfdiskGPT RootTemplate = "sfdisk.gpt"
 )
 
 // Closed systemctl templates for services.systemctl (owner 2026-11-21).
@@ -274,6 +282,8 @@ var rootTemplates = map[RootTemplate]rootTemplate{
 	RootTimedatectlListTimezones: {"timedatectl", []string{"--no-ask-password", "list-timezones"}, nil, 0},
 	// Quiet ext4 format of one by-id path. Called only by ext4.format.apply.
 	RootMkfsExt4: {"mkfs.ext4", []string{"-q", "--"}, validStorageByID, 1},
+	// GPT only. The script is stdin. Called only by storage.partition.apply.
+	RootSfdiskGPT: {"sfdisk", []string{"--wipe=always", "--wipe-partitions=always", "--"}, validWholeDiskByID, 1},
 	// services.systemctl. Job-mode verbs queue one job and fail if another is
 	// already queued. File-level verbs pass --no-reload so they do not reload
 	// PID 1; daemon-reload is its own template. No --now, --force, --runtime,
@@ -318,6 +328,7 @@ var templateFlagsByID = map[RootTemplate]templateFlags{
 	RootSystemctlAddWants:    {exact: true},
 	RootSystemctlAddRequires: {exact: true},
 	RootSystemctlEdit:        {leadPrefix: "--drop-in=", leadValid: validDropInName, readsStdin: true, exact: true},
+	RootSfdiskGPT:            {readsStdin: true, exact: true},
 }
 
 func validStaticHostname(t string) bool { return hostinfo.ValidStaticHostname(t) == "" }
@@ -364,6 +375,13 @@ func validStorageByID(t string) bool {
 		return false
 	}
 	return storageByIDRE.MatchString(t)
+}
+
+// wholeDiskByIDRE is validStorageByID without a partition symlink.
+var wholeDiskByIDRE = regexp.MustCompile(`^/dev/disk/by-id/(wwn-0x[0-9a-fA-F]{16}|wwn-0x[0-9a-fA-F]{32}|nvme-eui\.[0-9a-fA-F]{16}|nvme-uuid\.[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}|ata-[A-Za-z0-9._-]+|scsi-[A-Za-z0-9._-]+|virtio-[A-Za-z0-9._-]+)$`)
+
+func validWholeDiskByID(t string) bool {
+	return validStorageByID(t) && wholeDiskByIDRE.MatchString(t) && !strings.Contains(t, "-part")
 }
 
 // Identity is the uid/gid children run as.

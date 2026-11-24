@@ -365,9 +365,16 @@ filesystem allowlist ext4, xfs, f2fs, btrfs, exfat, swap, none, or unknown.
 `unknown` is an unobserved type and is not reported as unformatted. The report always has
 `executes: false`, and every step has `executable: false`. The call does not collect
 devices, call the broker, partition, format, or mount. The Storage page draws a
-proportional bar from observed partition starts and can check a layout. The only live
-format path remains `ext4.format` on a whole by-id disk. Destructive partition
-execution is still gated. Not M6 acceptance.
+proportional bar from observed partition starts and can check a layout. The page
+still does not partition. `POST /api/v1/storage/partition/plan` and
+`POST /api/v1/storage/partition/apply` (scope `storage.partition`, not a default
+and not implied by `storage.read` or `ext4.format`) write one GPT label with
+`sfdisk --wipe=always --wipe-partitions=always` and a generated script. The
+target is one whole by-id disk. Slices are not formatted. The apply locks the
+same device number as `ext4.format`. A non-zero or killed `sfdisk` is uncertain
+and is not retried. The main broker still cannot see host disks
+(`PrivateDevices=yes`). The only live format path remains `ext4.format` on a
+whole by-id disk. Not M6 acceptance.
 
 Two virtual-disk checks have run, and they are partial. On 2026-11-23 the
 disposable guest `m6-partplan-c1e73d69b` (Ubuntu 26.04.1, kernel

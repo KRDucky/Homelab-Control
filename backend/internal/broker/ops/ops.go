@@ -91,6 +91,14 @@ type Env struct {
 	Ext4Mkfs func(ctx context.Context, argv []string) (runner.Result, error)
 	// Ext4Tooling overrides the mkfs.ext4 presence probe (tests).
 	Ext4Tooling *ext4ToolFact
+	// PartDisk overrides partition device inspection (tests). Nil reads the host.
+	PartDisk Ext4FormatView
+	// PartGeometry overrides the sysfs logical block size and disk size (tests).
+	PartGeometry func(rdev string) (sector, diskBytes uint64, err error)
+	// PartSfdisk overrides the sfdisk child (tests). Nil runs RootSfdiskGPT.
+	PartSfdisk func(ctx context.Context, argv []string, stdin []byte) (runner.Result, error)
+	// PartTooling overrides the sfdisk presence probe (tests).
+	PartTooling *partToolFact
 }
 
 // WriteSpec documents a write op for review and the registry snapshot test
@@ -273,6 +281,17 @@ func Registry() map[string]Op {
 			Handle:      ext4FormatApply, AuditArgs: ext4FormatAuditArgs,
 			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskDestructive}, LockDomain: "ext4-format:<identity>+ext4-format-dev:<rdev>",
 				Templates: []runner.RootTemplate{runner.RootMkfsExt4}}},
+		// GPT partition write. The script is generated, not caller argv.
+		// The device-number lock is shared with ext4 format.
+		{Name: "storage.partition.plan", Scope: "storage.partition", Privilege: PrivRootRead, Timeout: 15 * time.Second, Admission: AdmissionControlPlan,
+			Description: "Review a GPT partition of one whole by-id disk. Nothing is partitioned or formatted",
+			Handle:      partApplyPlan, AuditArgs: partApplyAuditArgs,
+			Write: &WriteSpec{Phase: "plan", Risks: []string{RiskDestructive}, LockDomain: "storage-partition:<identity>+ext4-format-dev:<rdev>"}},
+		{Name: "storage.partition.apply", Scope: "storage.partition", Privilege: PrivRootExec, Timeout: 3 * time.Minute, Admission: AdmissionControlApply,
+			Description: "Write one reviewed GPT layout with sfdisk. Requires the plan token, password re-entry, and a fresh block-device check immediately before exec. No format",
+			Handle:      partApplyApply, AuditArgs: partApplyAuditArgs,
+			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskDestructive}, LockDomain: "storage-partition:<identity>+ext4-format-dev:<rdev>",
+				Templates: []runner.RootTemplate{runner.RootSfdiskGPT}}},
 	}
 	m := make(map[string]Op, len(ops))
 	for _, o := range ops {

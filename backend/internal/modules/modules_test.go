@@ -15,7 +15,7 @@ func TestRegistryIsClosed(t *testing.T) {
 	if len(all) != 12 || all[0].ID != "services" || all[0].APIPrefix != "/api/v1/services" || all[0].OpPrefix != "services." {
 		t.Fatalf("registry: %+v (new modules need review)", all)
 	}
-	if all[1].ID != "storage" || all[1].APIPrefix != "/api/v1/storage" || all[1].OpPrefix != "storage." || all[1].Path != "/storage" || len(all[1].Scopes) != 3 || all[1].Scopes[0] != "storage.read" || all[1].Scopes[1] != "storage.probe" || all[1].Scopes[2] != "layout.manage" {
+	if all[1].ID != "storage" || all[1].APIPrefix != "/api/v1/storage" || all[1].OpPrefix != "storage." || all[1].Path != "/storage" || len(all[1].Scopes) != 4 || all[1].Scopes[0] != "storage.read" || all[1].Scopes[1] != "storage.probe" || all[1].Scopes[2] != "layout.manage" || all[1].Scopes[3] != "storage.partition" {
 		t.Fatalf("storage module: %+v (new modules need review)", all[1])
 	}
 	if all[2].ID != "packages" || all[2].APIPrefix != "/api/v1/packages" || all[2].OpPrefix != "packages." || all[2].Path != "/software" || len(all[2].Scopes) != 1 || all[2].Scopes[0] != "packages.read" {
@@ -51,7 +51,7 @@ func TestRegistryIsClosed(t *testing.T) {
 	for path, want := range map[string]string{"/api/v1/services": "services", "/api/v1/services/units/{unit}/plan": "services",
 		"/api/v1/servicesx": "", "/api/v1/audit": "", "/api/v1/operations": "", "/api/v1/capabilities": "",
 		"/api/v1/files": "", "/api/v1/files/roots": "", "/api/v1/files/entries": "", "/": "",
-		"/api/v1/storage": "storage", "/api/v1/storage/probe": "storage", "/api/v1/storage/plan/dry-run": "storage", "/api/v1/storage/layout/chassis": "storage", "/api/v1/storagex": "",
+		"/api/v1/storage": "storage", "/api/v1/storage/probe": "storage", "/api/v1/storage/plan/dry-run": "storage", "/api/v1/storage/partition/plan": "storage", "/api/v1/storage/partition/apply": "storage", "/api/v1/storage/layout/chassis": "storage", "/api/v1/storagex": "",
 		"/api/v1/networking/reverse-proxy/traefik/inventory": "networking", "/api/v1/networkingx": "", "/api/v1/packages": "packages", "/api/v1/packages/search": "packages", "/api/v1/packagesx": "", "/api/v1/mergerfs": "mergerfs", "/api/v1/mergerfs/snapraid/status": "mergerfs", "/api/v1/mergerfs/pool/plan": "mergerfs", "/api/v1/mergerfs/maintain/apply": "mergerfs", "/api/v1/mergerfsx": "", "/api/v1/zfs": "zfs", "/api/v1/zfsx": "", "/api/v1/lvm": "lvm", "/api/v1/lvmx": "", "/api/v1/btrfs": "btrfs", "/api/v1/btrfsx": "", "/api/v1/ext4": "ext4", "/api/v1/ext4x": "", "/api/v1/mdadm": "mdadm", "/api/v1/mdadmx": "", "/api/v1/f2fs": "f2fs", "/api/v1/f2fsx": "", "/api/v1/xfs": "xfs", "/api/v1/xfsx": ""} {
 		if got := ForRoute(path); got != want {
 			t.Errorf("ForRoute(%q) = %q, want %q", path, got, want)
@@ -60,7 +60,7 @@ func TestRegistryIsClosed(t *testing.T) {
 	for op, want := range map[string]string{"services.unit.apply": "services", "operations.journal.list": "", "broker.info": "", "servicesx": "", "storage.probe": "storage",
 		"host.settings.plan": "", "host.settings.apply": "", "packages.installed": "packages", "packages.search": "packages", "packagesx": "",
 		"mergerfs.snapraid.status": "mergerfs", "mergerfs.pool.apply": "mergerfs", "mergerfs.maintain.apply": "mergerfs", "mergerfsx.status": "",
-		"ext4.format.plan": "ext4", "ext4.format.apply": "ext4"} {
+		"ext4.format.plan": "ext4", "ext4.format.apply": "ext4", "storage.partition.plan": "storage", "storage.partition.apply": "storage"} {
 		if got := ForOp(op); got != want {
 			t.Errorf("ForOp(%q) = %q", op, got)
 		}
