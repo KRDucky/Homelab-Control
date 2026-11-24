@@ -101,7 +101,7 @@ const NAV_SECTIONS: { title: string; ids: readonly string[] }[] = [
     title: 'Storage & files',
     ids: ['storage', 'mergerfs', 'zfs', 'lvm', 'btrfs', 'ext4', 'mdadm', 'f2fs', 'xfs', 'files'],
   },
-  { title: 'Network & applications', ids: ['traefik'] },
+  { title: 'Network & applications', ids: ['ports', 'bonds', 'firewall', 'traefik'] },
   { title: 'Administration', ids: ['audit'] },
 ];
 

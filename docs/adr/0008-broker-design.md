@@ -325,3 +325,35 @@ production activation. Details and residual privilege:
   the LSM is active and the policy is missing. No unconfined, `lib_t` or `bin_t` shortcut.
 - **Startup.** The `/proc/devices` group self-check is the helper's duty (Exec lines inside the
   MAC domain cannot run `grep`).
+
+## Amendment 9 (2026-11-24, M11, Proposed): read-only networking reads
+
+Proposed for the M11 read-only networking checkpoint (`docs/project/04-ROADMAP.md` M11; owner slot
+2026-11-07 in `docs/m2/OWNER-DECISIONS.md`). **Not accepted.** It authorizes no firewall, bond, or
+port-binding change, and it does not change the broker unit.
+
+- **Two root-read ops, no arguments.** `network.ports.list` (scope `networking.ports.read`) and
+  `network.firewall.config` (scope `networking.firewall.read`), both `root-read`, admission
+  `system-read`, 10 s. They are tied to the `ports` and `firewall` modules by op prefix, so a disabled
+  module refuses its op.
+- **Ports: fixed `/proc` reads in-process.** The broker unit has `PrivateNetwork=yes`, so the op reads
+  `/proc/1/net/{tcp,tcp6,udp,udp6}` (the host namespace, as seen by PID 1), then walks `/proc/<pid>/fd`
+  links, `comm` and `cgroup` to attribute owners. With only `CAP_SETUID`/`CAP_SETGID` the broker can read
+  the fd tables of uid-0 processes only; the rest are counted as hidden and keep their socket's account.
+  `CAP_SYS_PTRACE` is **not** added. Bounded: 4096 sockets, 32768 processes, 65536 fds per process.
+- **Firewall: saved configuration only.** One fixed unprivileged `systemctl show --no-pager
+  --property=Id,LoadState,ActiveState,UnitFileState --` over the closed unit list
+  (`firewalld`, `ufw`, `nftables`, `netfilter-persistent`, `iptables`, `ip6tables`) decides the active
+  backend (firewalld, then ufw with `ENABLED=yes`, then nftables, then iptables). Only that backend's
+  fixed configuration paths are read as root (`O_NOFOLLOW`, regular file, 1 MiB cap). The live kernel
+  ruleset is **not** read: that would need `CAP_NET_ADMIN` and the host network namespace in the broker,
+  which needs its own review.
+- **Bonds stay in `hc-api`.** Kernel bonding state is world-readable sysfs plus runtime state files of
+  systemd-networkd, NetworkManager and ifupdown; no broker op. NetworkManager keyfiles and netplan YAML
+  (which can hold secrets) are never read.
+- **No secrets, counts-only audit.** Results hold addresses, ports, process names, units, short
+  container IDs and firewall rule text. API audit records socket/bond counts or the backend ID only.
+- **Scopes.** `networking.ports.read`, `networking.bonds.read`, `networking.firewall.read`: not
+  defaults, not implied by any scope (including `networking.proxy.read`) or by each other.
+- **Proposed status.** Subject to review and owner acceptance. Firewall writes need their own owner
+  authorization and an ADR 0011 review.

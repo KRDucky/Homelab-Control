@@ -1639,6 +1639,114 @@ components:
             present: { type: boolean }
             reason: { type: string }
 
+    PortMap:
+      type: object
+      required: [sockets, truncated, namespace, processesScanned, processesHidden, sources, notes]
+      description: Read-only host port-use map (M11). Observed from kernel tables; not a security scan.
+      properties:
+        sockets:
+          type: array
+          items:
+            type: object
+            required: [proto, address, port, exposure, uid, owners]
+            properties:
+              proto: { type: string, enum: [tcp, tcp6, udp, udp6] }
+              address: { type: string }
+              port: { type: integer }
+              exposure: { type: string, enum: [loopback, all, address] }
+              uid: { type: integer }
+              account: { type: string }
+              owners:
+                type: array
+                items:
+                  type: object
+                  required: [pid, command]
+                  properties:
+                    pid: { type: integer }
+                    command: { type: string }
+                    unit: { type: string }
+                    container: { type: string }
+        truncated: { type: boolean }
+        namespace: { type: string }
+        processesScanned: { type: integer }
+        processesHidden: { type: integer }
+        sources: { type: array, items: { type: string } }
+        notes: { type: array, items: { type: string } }
+    BondSnapshot:
+      type: object
+      required: [driverLoaded, bonds, stacks, truncated]
+      description: Read-only kernel bonding inventory (M11 detect). Renderer confidence is observed or unknown, never inferred as verified.
+      properties:
+        driverLoaded: { type: boolean }
+        stacks: { type: array, items: { type: string } }
+        truncated: { type: boolean }
+        bonds:
+          type: array
+          items:
+            type: object
+            required: [name, mode, lacp, operState, slaves, renderer]
+            properties:
+              name: { type: string }
+              mode: { type: string }
+              lacp: { type: boolean }
+              operState: { type: string }
+              miimonMs: { type: string }
+              lacpRate: { type: string }
+              xmitHashPolicy: { type: string }
+              aggregatorId: { type: string }
+              partnerMac: { type: string }
+              activeSlave: { type: string }
+              slaves:
+                type: array
+                items:
+                  type: object
+                  required: [name, state, miiStatus, linkFailures]
+                  properties:
+                    name: { type: string }
+                    state: { type: string }
+                    miiStatus: { type: string }
+                    linkFailures: { type: integer }
+                    speed: { type: string }
+                    aggregatorId: { type: string }
+              renderer:
+                type: object
+                required: [id, confidence]
+                properties:
+                  id: { type: string, enum: [systemd-networkd, NetworkManager, ifupdown, unknown] }
+                  via: { type: string }
+                  source: { type: string }
+                  confidence: { type: string, enum: [observed, unknown] }
+    FirewallSnapshot:
+      type: object
+      required: [active, activeReason, alsoActive, backends, source, notes]
+      description: >
+        Read-only firewall view (M11). Only the active backend's saved
+        configuration is parsed; the live kernel ruleset is not read.
+        Exactly one of firewalld, ufw, nftables or iptables is present when
+        active names that backend.
+      properties:
+        active: { type: string, enum: [firewalld, ufw, nftables, iptables, none, unknown] }
+        activeReason: { type: string }
+        alsoActive: { type: array, items: { type: string } }
+        source: { type: string, enum: [saved-configuration] }
+        notes: { type: array, items: { type: string } }
+        backends:
+          type: array
+          items:
+            type: object
+            required: [id, installed, role]
+            properties:
+              id: { type: string }
+              installed: { type: boolean }
+              binary: { type: string }
+              unit: { type: string }
+              activeState: { type: string }
+              enabled: { type: string }
+              role: { type: string, enum: [active, installed, absent] }
+        firewalld: { type: object, description: Permanent zones (/etc overrides /usr/lib), default zone, rich rules as text. }
+        ufw: { type: object, description: ufw.conf, /etc/default/ufw policies and user rule tuples. }
+        nftables: { type: object, description: Summary of the saved nft script (tables, chains, hook, policy, rule lines); includes are listed, not followed. }
+        iptables: { type: object, description: Saved iptables-save files (rules.v4/v6 or /etc/sysconfig). }
     XFSInventory:
       type: object
       required: [tooling, xfs, kernelXfs]
@@ -2712,7 +2820,7 @@ paths:
         required: true
         content: { application/json: { schema: { type: object, additionalProperties: false, required: [token], properties: { token: { type: string, maxLength: 2048 } } } } }
       responses:
-        '200': { description: Deleted, content: { application/json: { schema: { type: object, required: [root, path, status], properties: { root: { type: string }, path: { type: string }, status: { type: string } } } } }
+        '200': { description: Deleted, content: { application/json: { schema: { type: object, required: [root, path, status], properties: { root: { type: string }, path: { type: string }, status: { type: string } } } } } }
         '400': { description: Invalid body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: 'Missing files.destroy, Origin/CSRF rejected, step_up_required, or invalid_token', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
@@ -3149,6 +3257,77 @@ paths:
         '403': { description: Missing f2fs.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: Collection busy, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
 
+  /ports:
+    get:
+      summary: Read-only host port-use map (scope networking.ports.read; M11, ADR 0008 Amendment 9 Proposed).
+      description: >
+        Broker op network.ports.list (root-read, in-process, no exec, no
+        arguments) reads the TCP/UDP socket tables of PID 1's network
+        namespace and attributes each listening TCP or bound, unconnected UDP
+        socket to processes whose open files reference it (comm, systemd unit
+        and short container ID from the cgroup). The broker holds only
+        CAP_SETUID/CAP_SETGID, so fd tables of processes running as another
+        user are not readable; they are counted in processesHidden and the
+        socket keeps its owning account. Read-only: changing a binding is a
+        write in the owning module. Audit records counts only.
+      security: [{ session: [] }]
+      x-required-scope: networking.ports.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/PortMap' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing networking.ports.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Module disabled, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Broker unavailable, socket tables unreadable, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /bonds:
+    get:
+      summary: Read-only kernel bonding / LACP inventory (scope networking.bonds.read; M11).
+      description: >
+        Read unprivileged in hc-api from /sys/class/net (bonding and
+        bonding_slave attributes) plus the runtime state files of
+        systemd-networkd, NetworkManager and ifupdown, to name the stack
+        observed to manage each bond (confidence observed or unknown). It never
+        reads NetworkManager keyfiles or netplan YAML, never loads the bonding
+        driver and never changes a bond. No broker op. Audit records the bond
+        count only.
+      security: [{ session: [] }]
+      x-required-scope: networking.bonds.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/BondSnapshot' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing networking.bonds.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Module disabled, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Collection busy or failed, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /firewall:
+    get:
+      summary: Read-only active firewall backend and its saved configuration (scope networking.firewall.read; M11).
+      description: >
+        Broker op network.firewall.config (root-read, no arguments) runs one
+        fixed unprivileged systemctl show over firewalld, ufw, nftables,
+        netfilter-persistent, iptables and ip6tables units, picks the active
+        backend (firewalld, then ufw, then nftables, then iptables), and
+        parses only that backend's saved configuration files (fixed paths,
+        O_NOFOLLOW, size-capped). source is always saved-configuration: the
+        live kernel ruleset is not read (the broker has no CAP_NET_ADMIN and
+        a private network namespace). No firewall change exists. Audit records
+        the backend ID only.
+      security: [{ session: [] }]
+      x-required-scope: networking.firewall.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/FirewallSnapshot' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing networking.firewall.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Module disabled, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '502': { description: Unexpected broker response, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Broker unavailable or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /xfs:
     get:
       summary: Read-only XFS inventory (scope xfs.read).

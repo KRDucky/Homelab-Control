@@ -44,6 +44,7 @@ import (
 	"homelab-control/backend/internal/mdadminfo"
 	"homelab-control/backend/internal/mergerfsinfo"
 	"homelab-control/backend/internal/modules"
+	"homelab-control/backend/internal/netinfo"
 	"homelab-control/backend/internal/oidclogin"
 	"homelab-control/backend/internal/platform"
 	"homelab-control/backend/internal/ratelimit"
@@ -106,6 +107,8 @@ type Server struct {
 	f2fsSem           chan struct{}
 	xfsCollect        func(context.Context) (xfsinfo.Snapshot, error)
 	xfsSem            chan struct{}
+	bondsCollect      func(context.Context) (netinfo.BondSnapshot, error)
+	bondsSem          chan struct{}
 	snapraidConfig    string
 	layouts           LayoutStore
 	cfg               Config
@@ -213,6 +216,10 @@ func New(cfg Config, users *auth.Store, audit *audit.Logger, collector *hostinfo
 		return xfsinfo.Collect(ctx, "/", s.packageFamily())
 	}
 	s.xfsSem = make(chan struct{}, 1)
+	s.bondsCollect = func(ctx context.Context) (netinfo.BondSnapshot, error) {
+		return netinfo.CollectBonds(ctx, "/")
+	}
+	s.bondsSem = make(chan struct{}, 1)
 	s.routes()
 	return s
 }
@@ -342,6 +349,10 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/f2fs", auth.ScopeF2fsRead, s.handleF2fs)
 	// M7 first checkpoint: read-only XFS (no broker ops, never exec).
 	s.handle("GET /api/v1/xfs", auth.ScopeXFSRead, s.handleXFS)
+	// M11 read-only networking (ADR 0008 Amendment 9, Proposed).
+	s.handle("GET /api/v1/ports", auth.ScopeNetworkingPortsRead, s.handlePorts)
+	s.handle("GET /api/v1/bonds", auth.ScopeNetworkingBondsRead, s.handleBonds)
+	s.handle("GET /api/v1/firewall", auth.ScopeNetworkingFirewallRead, s.handleFirewall)
 	s.handle("GET /api/v1/legacy/webmin", auth.ScopeSystemRead, s.handleLegacy)
 	s.mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "unknown API route")
