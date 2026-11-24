@@ -32,10 +32,14 @@ def check(name, cond):
 
 
 def show_detailed_report(page):
-    """The dashboard is the landing view; legacy inventory assertions live in its report tab."""
+    """The dashboard is the landing view; legacy inventory assertions live in its report tab.
+
+    A 429 leaves the report empty until the page's next poll. The wait covers
+    one refill (one token each 5s) plus that 10s poll.
+    """
     page.get_by_role("tab", name="Detailed host report").click()
     heading = page.locator("h1.faceplate-host")
-    expect(heading).to_be_visible(timeout=10000)
+    expect(heading).to_be_visible(timeout=25000)
     return heading
 
 
@@ -83,6 +87,9 @@ with sync_playwright() as p:
     overflow = mp.evaluate("document.documentElement.scrollWidth > window.innerWidth + 1")
     check("mobile layout has no horizontal page scroll", not overflow)
     mp.screenshot(path=f"{ART}/04-overview-mobile.png", full_page=True)
+    # Close extra pages. Each one keeps polling the overview, and together
+    # they hold the per-user request limit so a later page never loads.
+    mobile.close()
 
     light = browser.new_context(viewport={"width": 1440, "height": 900}, color_scheme="light",
                                 storage_state=ctx.storage_state())
@@ -90,6 +97,7 @@ with sync_playwright() as p:
     lp.goto(URL)
     show_detailed_report(lp)
     lp.screenshot(path=f"{ART}/05-overview-light.png")
+    light.close()
 
     # HCIS shell (step 3): appearance preferences are independent of the theme and persist.
     layout_js = """() => { const r = (s) => { const b = document.querySelector(s).getBoundingClientRect();
