@@ -124,3 +124,33 @@ func TestNetworkFirewallConfigHonoursCancel(t *testing.T) {
 		t.Fatalf("cancel: %v", err)
 	}
 }
+
+func TestNetworkPortsListUsesSystemdSocketList(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "proc/1/net/tcp", "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n"+
+		"   0: 00000000:0016 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 9 1 0 100 0 0 10 0\n", 0o644)
+	if err := os.MkdirAll(filepath.Join(root, "proc/self"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	listing := `[{"listen":"[::]:22","type":"Stream","unit":"ssh.socket","activates":"ssh.service"},` +
+		`{"listen":"0.0.0.0:22","type":"Stream","unit":"ssh.socket","activates":"ssh.service"},` +
+		`{"listen":"0.0.0.0:22","type":"Stream","unit":"bad name;.socket","activates":null}]`
+	env := &Env{Roots: Roots{Root: root}, PortsSockets: func(context.Context) ([]byte, int, error) { return []byte(listing), 0, nil }}
+	got, err := networkPortsList(context.Background(), env, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o := got.(netinfo.PortMap).Sockets[0].Owners
+	if len(o) != 1 || o[0].Socket != "ssh.socket" || o[0].Unit != "ssh.service" || o[0].Source != netinfo.OwnerSystemdSocket {
+		t.Fatalf("owners: %+v", o)
+	}
+	// A failing listing is not an error: owners just stay unknown.
+	env.PortsSockets = func(context.Context) ([]byte, int, error) { return []byte("not json"), 0, nil }
+	got, err = networkPortsList(context.Background(), env, nil)
+	if err != nil || len(got.(netinfo.PortMap).Sockets[0].Owners) != 0 {
+		t.Fatalf("bad listing: %v %+v", err, got)
+	}
+	if strings.Join(portsSocketsArgs, " ") != "list-sockets --all --output=json --no-pager" {
+		t.Fatalf("argv: %v", portsSocketsArgs)
+	}
+}

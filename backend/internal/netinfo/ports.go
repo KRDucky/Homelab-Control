@@ -25,10 +25,27 @@ import (
 	"strings"
 )
 
-// Owner is one process that holds a listening socket.
+// Owner sources and confidence (the API never labels an inference observed).
+const (
+	// OwnerProcess: the process's open files reference the socket inode.
+	OwnerProcess = "process"
+	// OwnerSystemdSocket: systemd lists a socket unit on this address.
+	OwnerSystemdSocket = "systemd-socket"
+	// OwnerAccount: every process of the socket's account is in one unit.
+	OwnerAccount = "account"
+)
+
+// Owner is one process or unit that holds a listening socket.
 type Owner struct {
+	// PID is 0 for a systemd socket unit.
 	PID     int    `json:"pid"`
 	Command string `json:"command"`
+	// Source is process, systemd-socket or account; Confidence is observed
+	// for process and systemd-socket, inferred for account.
+	Source     string `json:"source"`
+	Confidence string `json:"confidence"`
+	// Socket is the systemd socket unit (source systemd-socket only).
+	Socket string `json:"socket,omitempty"`
 	// Unit is the systemd unit (or scope) from the process cgroup, when known.
 	Unit string `json:"unit,omitempty"`
 	// Container is the short container ID from a docker/libpod/containerd
@@ -65,6 +82,15 @@ type PortMap struct {
 	// Sources lists the kernel tables that were read ("tcp", "udp6", ...).
 	Sources []string `json:"sources"`
 	Notes   []string `json:"notes"`
+}
+
+// SocketUnit is one listen address of a systemd socket unit, from
+// `systemctl list-sockets`. Stream maps to TCP, Datagram to UDP.
+type SocketUnit struct {
+	Listen    string
+	Type      string
+	Unit      string
+	Activates string
 }
 
 const (
@@ -300,7 +326,7 @@ func isHex(s string) bool {
 // attributes each socket to the processes whose open files reference its
 // inode. A process whose fd table cannot be read is counted as hidden; its
 // sockets still show the owning account.
-func CollectPorts(ctx context.Context, root string) (PortMap, error) {
+func CollectPorts(ctx context.Context, root string, units []SocketUnit) (PortMap, error) {
 	pm := PortMap{Sockets: []Socket{}, Notes: []string{}, Sources: []string{}, Namespace: "host (network namespace of PID 1)"}
 	var all []Socket
 	for _, proto := range []string{"tcp", "tcp6", "udp", "udp6"} {
@@ -327,9 +353,12 @@ func CollectPorts(ctx context.Context, root string) (PortMap, error) {
 	if len(all) > maxSockets {
 		all, pm.Truncated = all[:maxSockets], true
 	}
-	if err := attributeOwners(ctx, root, all, &pm); err != nil {
+	procs, err := attributeOwners(ctx, root, all, &pm)
+	if err != nil {
 		return pm, err
 	}
+	attributeSocketUnits(all, units)
+	attributeAccounts(all, procs)
 	if b, err := readSmall(filepath.Join(root, "/etc/passwd"), passwdMaxBytes); err == nil {
 		names := ParsePasswd(strings.NewReader(string(b)))
 		for i := range all {
@@ -338,7 +367,7 @@ func CollectPorts(ctx context.Context, root string) (PortMap, error) {
 	}
 	pm.Sockets = all
 	if pm.ProcessesHidden > 0 {
-		pm.Notes = append(pm.Notes, fmt.Sprintf("%d processes could not be inspected; sockets they hold show the owning account only.", pm.ProcessesHidden))
+		pm.Notes = append(pm.Notes, fmt.Sprintf("The open files of %d processes could not be read (the privileged helper does not hold CAP_SYS_PTRACE). Their owners come from systemd's socket list or are inferred from the socket's account, and are labelled as such.", pm.ProcessesHidden))
 	}
 	return pm, nil
 }
@@ -369,7 +398,17 @@ func mergeSockets(in []Socket) []Socket {
 	return out
 }
 
-func attributeOwners(ctx context.Context, root string, socks []Socket, pm *PortMap) error {
+// procFact is what /proc/<pid>/{status,comm,cgroup} say about a process.
+// None of these files needs ptrace access.
+type procFact struct {
+	pid       int
+	uid       int
+	command   string
+	unit      string
+	container string
+}
+
+func attributeOwners(ctx context.Context, root string, socks []Socket, pm *PortMap) ([]procFact, error) {
 	want := map[uint64]int{}
 	for i, s := range socks {
 		for _, ino := range s.inodes {
@@ -377,13 +416,14 @@ func attributeOwners(ctx context.Context, root string, socks []Socket, pm *PortM
 		}
 	}
 	if len(want) == 0 {
-		return nil
+		return nil, nil
 	}
 	procDir := filepath.Join(root, "/proc")
 	ents, err := os.ReadDir(procDir)
 	if err != nil {
-		return errors.New("cannot list processes")
+		return nil, errors.New("cannot list processes")
 	}
+	var facts []procFact
 	seen := 0
 	for _, e := range ents {
 		pid, err := strconv.Atoi(e.Name())
@@ -396,9 +436,22 @@ func attributeOwners(ctx context.Context, root string, socks []Socket, pm *PortM
 		}
 		seen++
 		if err := ctx.Err(); err != nil {
-			return err
+			return nil, err
 		}
 		pdir := filepath.Join(procDir, e.Name())
+		f := procFact{pid: pid, uid: -1}
+		if b, err := readSmall(filepath.Join(pdir, "status"), smallFileMax); err == nil {
+			f.uid = statusUID(b)
+		}
+		if b, err := readSmall(filepath.Join(pdir, "comm"), 64); err == nil {
+			f.command = cleanText(string(b), 32)
+		}
+		if b, err := readSmall(filepath.Join(pdir, "cgroup"), smallFileMax); err == nil {
+			f.unit, f.container = UnitFromCgroup(b)
+		}
+		if f.uid >= 0 {
+			facts = append(facts, f)
+		}
 		fds, err := readDirNames(filepath.Join(pdir, "fd"), maxFDsPerProc)
 		if err != nil {
 			if !errors.Is(err, os.ErrNotExist) { // exited between list and read
@@ -427,13 +480,7 @@ func attributeOwners(ctx context.Context, root string, socks []Socket, pm *PortM
 		if len(hit) == 0 {
 			continue
 		}
-		o := Owner{PID: pid}
-		if b, err := readSmall(filepath.Join(pdir, "comm"), 64); err == nil {
-			o.Command = cleanText(string(b), 32)
-		}
-		if b, err := readSmall(filepath.Join(pdir, "cgroup"), smallFileMax); err == nil {
-			o.Unit, o.Container = UnitFromCgroup(b)
-		}
+		o := Owner{PID: pid, Command: f.command, Unit: f.unit, Container: f.container, Source: OwnerProcess, Confidence: "observed"}
 		for i := range hit {
 			if len(socks[i].Owners) < maxOwnersPerSock && !hasPID(socks[i].Owners, pid) {
 				socks[i].Owners = append(socks[i].Owners, o)
@@ -443,7 +490,130 @@ func attributeOwners(ctx context.Context, root string, socks []Socket, pm *PortM
 	for i := range socks {
 		sort.Slice(socks[i].Owners, func(a, b int) bool { return socks[i].Owners[a].PID < socks[i].Owners[b].PID })
 	}
-	return nil
+	return facts, nil
+}
+
+// statusUID returns the real uid from /proc/<pid>/status ("Uid:\treal ...").
+func statusUID(b []byte) int {
+	for _, line := range strings.Split(string(b), "\n") {
+		if rest, ok := strings.CutPrefix(line, "Uid:"); ok {
+			if f := strings.Fields(rest); len(f) > 0 {
+				if n, err := strconv.Atoi(f[0]); err == nil && n >= 0 {
+					return n
+				}
+			}
+		}
+	}
+	return -1
+}
+
+// ParseListen splits a systemd listen address ("0.0.0.0:22", "[::]:22",
+// "*:53") into address and port. Unix, netlink and other non-IP listeners
+// return ok=false.
+func ParseListen(s string) (addr string, port int, ok bool) {
+	var host, p string
+	if strings.HasPrefix(s, "[") {
+		h, rest, found := strings.Cut(s[1:], "]")
+		if !found || !strings.HasPrefix(rest, ":") {
+			return "", 0, false
+		}
+		host, p = h, rest[1:]
+	} else {
+		i := strings.LastIndex(s, ":")
+		if i <= 0 || strings.Contains(s[:i], ":") {
+			return "", 0, false
+		}
+		host, p = s[:i], s[i+1:]
+	}
+	n, err := strconv.Atoi(p)
+	if err != nil || n <= 0 || n > 65535 {
+		return "", 0, false
+	}
+	if host == "*" {
+		return "*", n, true
+	}
+	a, err := netip.ParseAddr(strings.Split(host, "%")[0])
+	if err != nil {
+		return "", 0, false
+	}
+	return a.Unmap().String(), n, true
+}
+
+// attributeSocketUnits adds the systemd socket unit that systemd itself
+// lists on a socket's address (socket activation: PID 1 holds the fd).
+func attributeSocketUnits(socks []Socket, units []SocketUnit) {
+	for _, u := range units {
+		addr, port, ok := ParseListen(u.Listen)
+		if !ok {
+			continue
+		}
+		tcp := u.Type == "Stream"
+		if !tcp && u.Type != "Datagram" {
+			continue
+		}
+		for i := range socks {
+			s := &socks[i]
+			if s.Port != port || strings.HasPrefix(s.Proto, "tcp") != tcp || len(s.Owners) >= maxOwnersPerSock {
+				continue
+			}
+			if addr != "*" && addr != s.Address {
+				continue
+			}
+			if hasUnitOwner(s.Owners, u.Unit) {
+				continue
+			}
+			s.Owners = append(s.Owners, Owner{Command: "systemd", Unit: u.Activates, Socket: u.Unit, Source: OwnerSystemdSocket, Confidence: "observed"})
+		}
+	}
+}
+
+func hasUnitOwner(owners []Owner, socket string) bool {
+	for _, o := range owners {
+		if o.Socket == socket {
+			return true
+		}
+	}
+	return false
+}
+
+// attributeAccounts infers the owner of a socket that still has none: when
+// every process of the socket's (non-root) account runs in one unit, that
+// unit is named with confidence inferred. Root and accounts spread over
+// several units get no inference.
+func attributeAccounts(socks []Socket, procs []procFact) {
+	byUID := map[int][]procFact{}
+	for _, p := range procs {
+		byUID[p.uid] = append(byUID[p.uid], p)
+	}
+	for i := range socks {
+		s := &socks[i]
+		if len(s.Owners) > 0 || s.UID == 0 {
+			continue
+		}
+		ps := byUID[s.UID]
+		if len(ps) == 0 {
+			continue
+		}
+		unit, ctr := ps[0].unit, ps[0].container
+		same := unit != ""
+		for _, p := range ps[1:] {
+			if p.unit != unit || p.container != ctr {
+				same = false
+				break
+			}
+		}
+		if !same {
+			continue
+		}
+		cmd := ps[0].command
+		for _, p := range ps[1:] {
+			if p.command != cmd {
+				cmd = ""
+				break
+			}
+		}
+		s.Owners = append(s.Owners, Owner{Command: cmd, Unit: unit, Container: ctr, Source: OwnerAccount, Confidence: "inferred"})
+	}
 }
 
 func hasPID(owners []Owner, pid int) bool {

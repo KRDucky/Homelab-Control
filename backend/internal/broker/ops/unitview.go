@@ -528,6 +528,7 @@ type rawTimer struct {
 
 type rawSocket struct {
 	Listen    string  `json:"listen"`
+	Type      string  `json:"type"`
 	Unit      string  `json:"unit"`
 	Activates *string `json:"activates"`
 }
