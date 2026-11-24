@@ -48,11 +48,11 @@ var allowlist = map[string][]string{
 	"apt-cache":  {"/usr/bin/apt-cache"},
 	"apt":        {"/usr/bin/apt"},
 	// M4: unprivileged APT simulation only. No root or mutating template.
-	"apt-get":    {"/usr/bin/apt-get"},
-	"rpm":        {"/usr/bin/rpm", "/bin/rpm"},
-	"dnf":        {"/usr/bin/dnf"},
-	"zypper":     {"/usr/bin/zypper"},
-	"pacman":     {"/usr/bin/pacman", "/usr/bin/pacman.static"},
+	"apt-get": {"/usr/bin/apt-get"},
+	"rpm":     {"/usr/bin/rpm", "/bin/rpm"},
+	"dnf":     {"/usr/bin/dnf"},
+	"zypper":  {"/usr/bin/zypper"},
+	"pacman":  {"/usr/bin/pacman", "/usr/bin/pacman.static"},
 	// ext4.format.apply is the only caller. Quiet, no -F.
 	"mkfs.ext4": {"/usr/sbin/mkfs.ext4", "/sbin/mkfs.ext4"},
 	// MergerFS SnapRAID status (ADR 0008): only mergerfs.snapraid.status calls
