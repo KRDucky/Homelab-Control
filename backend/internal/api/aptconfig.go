@@ -271,17 +271,15 @@ func (s *Server) handleAptMirrorProbe(w http.ResponseWriter, r *http.Request, se
 	if len(cands) > 0 {
 		resp.Results = m.prober(ctx, cands, inv.Distro.Codename, hosts)
 	}
+	// Only mirrors that answered with a current, matching index can be planned.
 	offered := []string{}
-	for _, c := range cands {
-		offered = append(offered, c.URI)
-	}
-	m.offer(offered)
-	ok := 0
 	for _, res := range resp.Results {
 		if res.Status == aptmirror.StatusOK {
-			ok++
+			offered = append(offered, res.URI)
 		}
 	}
+	m.offer(offered)
+	ok := len(offered)
 	if aerr := s.auditLog("packages.mirrors.probe", sess.Username, r, "returned",
 		"country="+b.Country+" candidates="+strconv.Itoa(len(cands))+" usable="+strconv.Itoa(ok)); aerr != nil {
 		writeError(w, http.StatusServiceUnavailable, "audit_unavailable", "The probe result cannot be returned because it could not be audited.")

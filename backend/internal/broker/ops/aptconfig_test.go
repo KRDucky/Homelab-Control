@@ -8,10 +8,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"homelab-control/backend/internal/aptapply"
 	"homelab-control/backend/internal/broker/proto"
@@ -253,5 +255,45 @@ func TestAptOpsRefuseOtherDistributions(t *testing.T) {
 	}
 	if _, err := aptConfigRead(context.Background(), env, raw(struct{}{})); code(err) != proto.CodeUnavailable {
 		t.Fatalf("read on fedora: %v", err)
+	}
+}
+
+// TestDialAptApplyProtocol runs the real socket client against a stand-in
+// helper: one JSON request per connection, version checked.
+func TestDialAptApplyProtocol(t *testing.T) {
+	sock := filepath.Join(t.TempDir(), "apt-apply.sock")
+	old := aptApplySock
+	aptApplySock = sock
+	t.Cleanup(func() { aptApplySock = old })
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	versions := []int{aptapply.ProtocolVersion, 99}
+	go func() {
+		for _, v := range versions {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			var req aptapply.Request
+			_ = json.NewDecoder(c).Decode(&req)
+			_ = json.NewEncoder(c).Encode(aptapply.Result{Version: v, OK: req.Action == aptapply.ActionConfRemove, Message: "seen " + req.Action})
+			c.Close()
+		}
+	}()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	res, err := dialAptApply(ctx, aptapply.Request{Version: 1, Action: aptapply.ActionConfRemove})
+	if err != nil || !res.OK || res.Message != "seen conf.remove" {
+		t.Fatalf("%+v %v", res, err)
+	}
+	if _, err := dialAptApply(ctx, aptapply.Request{Version: 1, Action: aptapply.ActionConfRemove}); err == nil {
+		t.Fatal("a reply with another protocol version was accepted")
+	}
+	aptApplySock = filepath.Join(t.TempDir(), "absent.sock")
+	if _, err := dialAptApply(ctx, aptapply.Request{Version: 1}); err == nil {
+		t.Fatal("dial to a missing socket succeeded")
 	}
 }

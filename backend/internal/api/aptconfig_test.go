@@ -8,11 +8,13 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 
 	"homelab-control/backend/internal/aptmirror"
 	"homelab-control/backend/internal/auth"
+	"homelab-control/backend/internal/hostinfo"
 )
 
 const testToken = "hcp1.abc." + "0123456789012345678901234567890123456789012"
@@ -93,13 +95,18 @@ func TestAptMirrorProbeThenPlanOnlyOfferedMirrors(t *testing.T) {
 			if u != "http://mirrors.ubuntu.com/US.txt" {
 				t.Errorf("list URL %s", u)
 			}
-			return []byte("http://mirror.example.edu/ubuntu/\n"), nil
+			return []byte("http://mirror.example.edu/ubuntu/\nhttp://stale.example.org/ubuntu/\n"), nil
 		},
 		prober: func(_ context.Context, cs []aptmirror.Candidate, codename string, current map[string]bool) []aptmirror.Result {
 			gotCurrent = current
 			out := []aptmirror.Result{}
 			for i, c := range cs {
-				out = append(out, aptmirror.Result{URI: c.URI, Source: c.Source, Status: aptmirror.StatusOK, Rank: i + 1})
+				r := aptmirror.Result{URI: c.URI, Source: c.Source, Status: aptmirror.StatusOK, Rank: i + 1}
+				// A stale mirror is listed but must not become plannable.
+				if strings.Contains(c.URI, "stale") {
+					r.Status, r.Rank = aptmirror.StatusStale, 0
+				}
+				out = append(out, r)
 			}
 			return out
 		},
@@ -114,8 +121,12 @@ func TestAptMirrorProbeThenPlanOnlyOfferedMirrors(t *testing.T) {
 	}
 	var resp mirrorProbeResponse
 	_ = json.Unmarshal(rr.Body.Bytes(), &resp)
-	if resp.Codename != "noble" || len(resp.Results) != 2 || resp.Results[0].Source != aptmirror.SourceCurrent {
+	if resp.Codename != "noble" || len(resp.Results) != 3 || resp.Results[0].Source != aptmirror.SourceCurrent {
 		t.Fatalf("probe response %+v", resp)
+	}
+	stale := strings.Replace(plan, "mirror.example.edu", "stale.example.org", 1)
+	if rr := h.do("POST", "/api/v1/packages/mirrors/plan", stale, jsonHeaders(h)); rr.Code != http.StatusConflict {
+		t.Fatalf("plan with a stale probed mirror: %d", rr.Code)
 	}
 	if !gotCurrent["us.archive.ubuntu.com"] || gotCurrent["security.ubuntu.com"] {
 		t.Fatalf("only the switchable current mirror may be private-exempt: %v", gotCurrent)
@@ -137,5 +148,33 @@ func TestAptMirrorProbeThenPlanOnlyOfferedMirrors(t *testing.T) {
 	}
 	if rr := h.do("POST", "/api/v1/packages/mirrors/probe", `{"country":"usa"}`, jsonHeaders(h)); rr.Code != http.StatusBadRequest {
 		t.Fatalf("bad country: %d", rr.Code)
+	}
+}
+
+func TestDefaultCountryFromTimeZone(t *testing.T) {
+	root := t.TempDir()
+	zi := root + "/usr/share/zoneinfo"
+	if err := os.MkdirAll(zi+"/Europe", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(zi+"/Europe/Berlin", []byte("TZif"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Fixture: zone.tab lines (test data only).
+	if err := os.WriteFile(zi+"/zone.tab", []byte("# x\nDE\t+5230+01322\tEurope/Berlin\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(root+"/etc", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("../usr/share/zoneinfo/Europe/Berlin", root+"/etc/localtime"); err != nil {
+		t.Fatal(err)
+	}
+	s := &Server{collector: &hostinfo.Collector{Roots: hostinfo.Roots{Etc: root + "/etc"}}}
+	if got := s.defaultCountry(); got != "DE" {
+		t.Fatalf("country = %q", got)
+	}
+	if got := (&Server{}).defaultCountry(); got != "" {
+		t.Fatalf("no collector: %q", got)
 	}
 }

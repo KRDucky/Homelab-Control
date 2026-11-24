@@ -24,8 +24,10 @@ import (
 
 // APT settings and mirror writes (owner authorization 2026-11-24). The broker
 // reviews and journals; the opt-in hc-apt-apply helper writes the files.
+// aptApplySock is the helper socket; tests point it at a temporary socket.
+var aptApplySock = "/run/homelab-control/apt-apply.sock"
+
 const (
-	aptApplySock      = "/run/homelab-control/apt-apply.sock"
 	aptFilesLock      = "apt-files"
 	aptConfigApplyOp  = "packages.aptconfig.apply"
 	aptMirrorApplyOp  = "packages.mirror.apply"
