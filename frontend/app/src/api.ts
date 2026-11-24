@@ -1267,6 +1267,130 @@ export function getAptPreview(
   });
 }
 
+// Owner 2026-11-24: APT settings file and archive mirror changes (plan → confirm
+// → apply through the opt-in hc-apt-apply helper). Nothing installs packages.
+export interface AptTunables {
+  install_recommends?: boolean;
+  install_suggests?: boolean;
+  skip_translations?: boolean;
+  force_ipv4?: boolean;
+  pdiffs?: boolean;
+  keep_downloaded?: boolean;
+  retries?: number;
+  timeout_seconds?: number;
+  queue_mode?: 'host' | 'access';
+  http_proxy?: string;
+}
+export interface AptEffective {
+  install_recommends: boolean;
+  install_suggests: boolean;
+  skip_translations: boolean;
+  force_ipv4: boolean;
+  pdiffs: boolean;
+  keep_downloaded: boolean;
+  retries: number;
+  timeout_seconds: number;
+  queue_mode: string;
+  http_proxy_set: boolean;
+}
+export interface AptConfigView {
+  effective?: AptEffective;
+  effective_error?: string;
+  managed: AptTunables;
+  managed_present: boolean;
+  managed_changed_by_hand: boolean;
+  path: string;
+}
+export interface AptPlan {
+  action: 'conf.write' | 'conf.remove' | 'mirror.set';
+  risk: 'reversible';
+  step_up_required: boolean;
+  confirmation_required: boolean;
+  token: string;
+  expires_at: string;
+  file: string;
+  before?: string;
+  after?: string;
+  lines?: { line: number; before: string; after: string }[];
+  effect: string;
+  consequences: string[];
+}
+export interface AptOutcome {
+  operation_id: string;
+  action: string;
+  outcome: 'succeeded' | 'failed' | 'uncertain';
+  message: string;
+  backup?: string;
+  overridden_by_other_files?: string[];
+}
+export interface AptSourceEntry {
+  file: string;
+  format: 'one-line' | 'deb822';
+  line: number;
+  enabled: boolean;
+  types: string[];
+  uri: string;
+  suites: string[];
+  components: string[];
+  signed_by?: string;
+  role: 'archive' | 'security' | 'ports' | 'other';
+  switchable: boolean;
+  reason?: string;
+}
+export interface AptMirrors {
+  distro: { id: string; codename: string };
+  files: { path: string; format: string; digest: string; error?: string }[];
+  entries: AptSourceEntry[];
+  default_country: string;
+}
+export interface MirrorResult {
+  uri: string;
+  host: string;
+  source: 'current' | 'official';
+  status: 'ok' | 'stale' | 'mismatch' | 'expired' | 'unreachable';
+  reason?: string;
+  first_byte_ms?: number;
+  total_ms?: number;
+  kb_per_second?: number;
+  index_date?: string;
+  rank?: number;
+  current?: boolean;
+}
+export interface MirrorProbe {
+  country: string;
+  codename: string;
+  results: MirrorResult[];
+  note?: string;
+}
+export type AptConfigChange = { reset: true } | { tunables: AptTunables };
+export interface MirrorChange {
+  file: string;
+  from: string;
+  to: string;
+}
+
+export function getAptConfig(csrf: string): Promise<AptConfigView> {
+  return request<AptConfigView>('/api/v1/packages/apt-config', { headers: { 'X-CSRF-Token': csrf } });
+}
+export function planAptConfig(change: AptConfigChange, csrf: string): Promise<AptPlan> {
+  return postJSON<AptPlan>('/api/v1/packages/apt-config/plan', csrf, change);
+}
+export function applyAptConfig(change: AptConfigChange, token: string, csrf: string): Promise<AptOutcome> {
+  return postJSON<AptOutcome>('/api/v1/packages/apt-config/apply', csrf, { ...change, token });
+}
+export function getAptMirrors(csrf: string): Promise<AptMirrors> {
+  return request<AptMirrors>('/api/v1/packages/mirrors', { headers: { 'X-CSRF-Token': csrf } });
+}
+export function probeAptMirrors(country: string, csrf: string): Promise<MirrorProbe> {
+  return postJSON<MirrorProbe>('/api/v1/packages/mirrors/probe', csrf, { country });
+}
+export function planAptMirror(change: MirrorChange, csrf: string): Promise<AptPlan> {
+  return postJSON<AptPlan>('/api/v1/packages/mirrors/plan', csrf, change);
+}
+export function applyAptMirror(change: MirrorChange, token: string, csrf: string): Promise<AptOutcome> {
+  return postJSON<AptOutcome>('/api/v1/packages/mirrors/apply', csrf, { ...change, token });
+}
+
 // ---- M8 first checkpoint: MergerFS + optional SnapRAID (read-only) ---------
 
 export interface MergerFSToolItem {

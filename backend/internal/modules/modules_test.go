@@ -33,7 +33,7 @@ func TestRegistryIsClosed(t *testing.T) {
 	if all[1].ID != "storage" || all[1].APIPrefix != "/api/v1/storage" || all[1].OpPrefix != "storage." || all[1].Path != "/storage" || len(all[1].Scopes) != 4 || all[1].Scopes[0] != "storage.read" || all[1].Scopes[1] != "storage.probe" || all[1].Scopes[2] != "layout.manage" || all[1].Scopes[3] != "storage.partition" {
 		t.Fatalf("storage module: %+v (new modules need review)", all[1])
 	}
-	if all[2].ID != "packages" || all[2].APIPrefix != "/api/v1/packages" || all[2].OpPrefix != "packages." || all[2].Path != "/software" || len(all[2].Scopes) != 1 || all[2].Scopes[0] != "packages.read" {
+	if all[2].ID != "packages" || all[2].APIPrefix != "/api/v1/packages" || all[2].OpPrefix != "packages." || all[2].Path != "/software" || len(all[2].Scopes) != 2 || all[2].Scopes[0] != "packages.read" || all[2].Scopes[1] != "packages.configure" {
 		t.Fatalf("packages module: %+v (new modules need review)", all[2])
 	}
 	if all[3].ID != "networking" || all[3].OpPrefix != "" {

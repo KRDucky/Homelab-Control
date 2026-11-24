@@ -119,6 +119,8 @@ type Server struct {
 	preauthLimit      *ratelimit.Preauth
 	limitSummary      *ratelimit.OncePer
 	audit             *audit.Logger
+	aptMirror         *aptMirrorState
+	aptMirrorOnce     sync.Once
 	collector         *hostinfo.Collector
 	ui                fs.FS
 	loginSem          chan struct{}
@@ -329,6 +331,15 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/packages/sources", auth.ScopePackagesRead, s.handlePackagesSources)
 	// Preview only: no package writes or transaction authorization.
 	s.handle("GET /api/v1/packages/preview", auth.ScopePackagesRead, s.handlePackagesPreview)
+	// Owner 2026-11-24: APT settings file and archive mirror writes
+	// (plan → confirm → apply through hc-apt-apply) and the mirror probe.
+	s.handle("GET /api/v1/packages/apt-config", auth.ScopePackagesRead, s.handleAptConfig)
+	s.handle("POST /api/v1/packages/apt-config/plan", auth.ScopePackagesConfigure, s.handleAptConfigPlan)
+	s.handle("POST /api/v1/packages/apt-config/apply", auth.ScopePackagesConfigure, s.handleAptConfigApply)
+	s.handle("GET /api/v1/packages/mirrors", auth.ScopePackagesRead, s.handleAptMirrors)
+	s.handle("POST /api/v1/packages/mirrors/probe", auth.ScopePackagesConfigure, s.handleAptMirrorProbe)
+	s.handle("POST /api/v1/packages/mirrors/plan", auth.ScopePackagesConfigure, s.handleAptMirrorPlan)
+	s.handle("POST /api/v1/packages/mirrors/apply", auth.ScopePackagesConfigure, s.handleAptMirrorApply)
 	// MergerFS: read inventory and status, plus plan/apply mount, definition,
 	// sync, scrub, and filtered recovery. Read does not grant the writes.
 	s.handle("GET /api/v1/mergerfs", auth.ScopeMergerFSRead, s.handleMergerFS)

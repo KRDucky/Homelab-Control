@@ -50,12 +50,12 @@ packaging/debian/build-deb.sh <version>      # the release package: .deb
 ```
 Run the packaging commands with the same `SOURCE_DATE_EPOCH` exported; package timestamps come from it.
 `make build` runs `npm ci --ignore-scripts`, builds the UI, embeds it and builds `build/hc-api`,
-`build/hlctl`, `build/hc-broker`, the static `build/hc-audit-retention`, `build/hc-storage-probe`, and `build/hc-mergerfs-apply`. Version and timestamps come
+`build/hlctl`, `build/hc-broker`, the static `build/hc-audit-retention`, `build/hc-storage-probe`, `build/hc-mergerfs-apply`, and `build/hc-apt-apply`. Version and timestamps come
 from the command line, not from Git.
 
 ## Verify
 ```bash
-cd build && sha256sum hc-api hlctl hc-broker hc-audit-retention hc-storage-probe hc-mergerfs-apply *.deb
+cd build && sha256sum hc-api hlctl hc-broker hc-audit-retention hc-storage-probe hc-mergerfs-apply hc-apt-apply *.deb
 # compare with the binaries in homelab-control-<version>-linux-<arch>.tar.gz and the release SHA256SUMS
 ```
 For a prerelease such as `0.1.0-dev.1`, the `.deb` you build is named `homelab-control_0.1.0~dev.1_amd64.deb`
