@@ -118,7 +118,7 @@ describe('Ports page', () => {
     expect(within(table).getByText('avahi-daemon.service (inferred from the account)')).toBeTruthy();
     expect(within(table).getByText('systemd socket ssh.socket → ssh.service')).toBeTruthy();
     expect(screen.getByText(/open files of 3 of 43 processes\s+could not be read/)).toBeTruthy();
-    expect(screen.getByText(/5 sockets, 4 reachable beyond this host/)).toBeTruthy();
+    expect(screen.getByText(/5 sockets, 4 bound to an address other than loopback/)).toBeTruthy();
     expect(getPorts).toHaveBeenCalledWith('t');
   });
 
@@ -131,6 +131,18 @@ describe('Ports page', () => {
     expect(within(table).queryByText('631')).toBeNull();
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'docker' } });
     expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(2);
+  });
+
+  it('does not claim a bound port is reachable, because the firewall is not applied', async () => {
+    vi.mocked(getPorts).mockResolvedValue(portMap);
+    render(<Ports csrf="t" onUnauthorized={onUnauthorized} />);
+    const table = await screen.findByRole('table');
+    // The socket map comes from the kernel socket tables only. A port bound to
+    // 0.0.0.0 can still be dropped by the firewall, so the page must describe
+    // the bind scope, never reachability.
+    expect(screen.queryByText(/reachable/i)).toBeNull();
+    expect(within(table).getByRole('columnheader', { name: 'Bound to' })).toBeTruthy();
+    expect(screen.getByText(/firewall rules are not applied/i)).toBeTruthy();
   });
 
   it('offers no write control', async () => {

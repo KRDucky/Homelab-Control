@@ -1699,7 +1699,7 @@ components:
               proto: { type: string, enum: [tcp, tcp6, udp, udp6] }
               address: { type: string }
               port: { type: integer }
-              exposure: { type: string, enum: [loopback, all, address] }
+              exposure: { type: string, enum: [loopback, all, address], description: "Bind scope of the socket address only (127.0.0.0/8 or ::1, unspecified, or one address). Firewall rules are not applied, so this is not reachability." }
               uid: { type: integer }
               account: { type: string }
               owners:

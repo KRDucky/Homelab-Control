@@ -60,7 +60,8 @@ type Socket struct {
 	Address string `json:"address"`
 	Port    int    `json:"port"`
 	// Exposure is "loopback" (127.0.0.0/8, ::1), "all" (0.0.0.0, ::) or
-	// "address" (one specific address).
+	// "address" (one specific address). It is the bind scope only: firewall
+	// rules are not applied, so it does not say whether the port is reachable.
 	Exposure string `json:"exposure"`
 	UID      int    `json:"uid"`
 	// Account is the passwd name of UID ("" when it is not in /etc/passwd).
