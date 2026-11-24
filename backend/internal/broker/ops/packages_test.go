@@ -108,3 +108,34 @@ func TestPackagesAuditArgsNeverLeaksQuery(t *testing.T) {
 		t.Fatalf("audit args leaked query: %q", got)
 	}
 }
+
+func TestPackagesSimulationRejectsInvalidRequests(t *testing.T) {
+	env := &Env{Roots: Roots{Root: t.TempDir()}}
+	for _, raw := range []string{
+		`{}`,
+		`{"family":"fedora","action":"install","package":"bash"}`,
+		`{"family":"debian","action":"update","package":"bash"}`,
+		`{"family":"debian","action":"install","package":"--help"}`,
+		`{"family":"debian","action":"install","package":"bash","flags":["--force-yes"]}`,
+	} {
+		if _, err := packagesSimulation(context.Background(), env, json.RawMessage(raw)); err == nil {
+			t.Errorf("accepted %s", raw)
+		}
+	}
+}
+
+func TestPackagesSimulationRequiresCache(t *testing.T) {
+	_, err := packagesSimulation(context.Background(), &Env{Roots: Roots{Root: t.TempDir()}},
+		json.RawMessage(`{"family":"debian","action":"install","package":"bash"}`))
+	var pe *proto.Error
+	if !errors.As(err, &pe) || pe.Code != proto.CodeUnavailable {
+		t.Fatalf("cache missing: %v", err)
+	}
+}
+
+func TestPackagesSimulationAuditRedactsTarget(t *testing.T) {
+	got := packagesSimulationAuditArgs(json.RawMessage(`{"family":"debian","action":"remove","package":"private-package"}`))
+	if got != "family=debian action=remove" {
+		t.Fatalf("unsafe audit: %q", got)
+	}
+}
