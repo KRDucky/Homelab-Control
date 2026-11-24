@@ -325,3 +325,19 @@ production activation. Details and residual privilege:
   the LSM is active and the policy is missing. No unconfined, `lib_t` or `bin_t` shortcut.
 - **Startup.** The `/proc/devices` group self-check is the helper's duty (Exec lines inside the
   MAC domain cannot run `grep`).
+
+## Amendment 9 (2026-11-24, M6 partition apply, Proposed): `sfdisk` GPT template
+
+Proposed. **Not accepted.** This amendment does not accept ADR 0008 for storage
+writes, and it does not change the main broker unit or the unused storage helper.
+
+- **One closed template.** `sfdisk.gpt` = `sfdisk --wipe=always --wipe-partitions=always -- <by-id>`.
+  Exactly one whole `/dev/disk/by-id` path (the same families as `mkfs.ext4`, without `-partN`).
+  No `--force`. The script is stdin, generated from the reviewed layout, and is not caller argv.
+- **One caller.** `storage.partition.apply` is the only broker op that lists or runs this template.
+  Scope `storage.partition` is not a default and is not implied by `storage.read` or `ext4.format`.
+  Risk is destructive (password re-entry). The apply also takes the ext4 format device-number lock.
+- **What it does not do.** It does not format a filesystem, mount, or resize. `unknown` is refused.
+  A slice must start at or after 1 MiB and end at least 1 MiB before the disk.
+- **G3 is not met.** The main broker unit stays `PrivateDevices=yes`. A broker that cannot see
+  the disk fails closed before exec. A live partition belongs on a disposable VM disk.

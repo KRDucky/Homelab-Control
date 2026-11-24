@@ -74,8 +74,10 @@ func TestRegistryIsClosed(t *testing.T) {
 		// M2-4 O-1 (owner-approved implementation/isolated validation).
 		"storage.probe": {PrivRootRead, "storage.probe", ""},
 		// ext4 format: destructive, not granted by ext4.read.
-		"ext4.format.plan":  {PrivRootRead, "ext4.format", "plan"},
-		"ext4.format.apply": {PrivRootExec, "ext4.format", "apply"},
+		"ext4.format.plan":        {PrivRootRead, "ext4.format", "plan"},
+		"ext4.format.apply":       {PrivRootExec, "ext4.format", "apply"},
+		"storage.partition.plan":  {PrivRootRead, "storage.partition", "plan"},
+		"storage.partition.apply": {PrivRootExec, "storage.partition", "apply"},
 	}
 	if len(reg) != len(snapshot) {
 		t.Fatalf("registry has %d ops, want %d — new ops need review and this test updated", len(reg), len(snapshot))
@@ -92,7 +94,7 @@ func TestRegistryIsClosed(t *testing.T) {
 		phase := ""
 		if op.Write != nil {
 			phase = op.Write.Phase
-			wantLock := map[string]string{"services.unit": "service:<unit id>", "services.enablement": "service:<unit id>+unit-files", "host.settings": "host-settings", "services.systemctl": "systemd-manager", "mergerfs.pool": "mergerfs-array", "mergerfs.maintain": "mergerfs-array", "ext4.format": "ext4-format:<identity>+ext4-format-dev:<rdev>"}[strings.TrimSuffix(strings.TrimSuffix(name, ".plan"), ".apply")]
+			wantLock := map[string]string{"services.unit": "service:<unit id>", "services.enablement": "service:<unit id>+unit-files", "host.settings": "host-settings", "services.systemctl": "systemd-manager", "mergerfs.pool": "mergerfs-array", "mergerfs.maintain": "mergerfs-array", "ext4.format": "ext4-format:<identity>+ext4-format-dev:<rdev>", "storage.partition": "storage-partition:<identity>+ext4-format-dev:<rdev>"}[strings.TrimSuffix(strings.TrimSuffix(name, ".plan"), ".apply")]
 			if op.Write.LockDomain != wantLock || len(op.Write.Risks) == 0 || op.AuditArgs == nil {
 				t.Errorf("%s: incomplete write spec %+v", name, op.Write)
 			}
@@ -162,6 +164,13 @@ func TestRegistryIsClosed(t *testing.T) {
 	}
 	if reg["ext4.format.plan"].Scope != "ext4.format" || reg["ext4.format.apply"].Scope != "ext4.format" {
 		t.Error("ext4 format must require ext4.format, never ext4.read")
+	}
+	got = reg["storage.partition.apply"].Write.Templates
+	if fmt.Sprint(got) != "[sfdisk.gpt]" {
+		t.Errorf("partition apply templates: %v", got)
+	}
+	if reg["storage.partition.plan"].Scope != "storage.partition" || reg["storage.partition.apply"].Scope != "storage.partition" {
+		t.Error("partition must require storage.partition, never storage.read")
 	}
 }
 
@@ -435,6 +444,8 @@ func TestAdmissionClasses(t *testing.T) {
 		"storage.probe":             AdmissionProbe,
 		"ext4.format.plan":          AdmissionControlPlan,
 		"ext4.format.apply":         AdmissionControlApply,
+		"storage.partition.plan":    AdmissionControlPlan,
+		"storage.partition.apply":   AdmissionControlApply,
 	}
 	reg := Registry()
 	if len(reg) != len(want) {

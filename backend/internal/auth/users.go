@@ -151,6 +151,11 @@ const (
 	// one by-id disk). Not in DefaultScopes and implied by nothing, including
 	// ext4.read and storage.read.
 	ScopeExt4Format = "ext4.format"
+	// ScopeStoragePartition allows storage.partition plan/apply (one GPT
+	// label on one whole by-id disk). It does not format. Not in
+	// DefaultScopes and implied by nothing, including storage.read and
+	// ext4.format.
+	ScopeStoragePartition = "storage.partition"
 	// ScopeMdadmRead allows the read-only Linux software RAID inventory:
 	// /proc/mdstat array lines and mdadm binary presence, with no writes, no
 	// broker ops, and no mdadm execution. Not in DefaultScopes and implied by
@@ -180,6 +185,7 @@ var KnownScopes = map[string]bool{
 	ScopeKubernetesRead:       true,
 	ScopeStorageRead:          true,
 	ScopeStorageProbe:         true,
+	ScopeStoragePartition:     true,
 	ScopeSystemRead:           true,
 	ScopeServicesRead:         true,
 	ScopeHardwareRead:         true,
