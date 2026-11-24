@@ -341,8 +341,7 @@ describe('partition dry run', () => {
               steps: [
                 {
                   action: 'unknown',
-                  detail:
-                    'slice 1 filesystem was not observed. This dry run does not partition or format.',
+                  detail: 'slice 1 filesystem was not observed. This dry run does not partition or format.',
                   destructive: false,
                   executable: false,
                 },
