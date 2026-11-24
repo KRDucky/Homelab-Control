@@ -56,7 +56,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, services.systemctl, storage.read, storage.probe, storage.partition, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, packages.configure, networking.proxy.read, mergerfs.read, mergerfs.configure, mergerfs.maintain, zfs.read, lvm.read, btrfs.read, ext4.read, ext4.format, mdadm.read, f2fs.read, xfs.read] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, services.systemctl, storage.read, storage.probe, storage.partition, host.settings.preview, host.settings.apply, layout.manage, files.read, files.write, files.destroy, packages.read, packages.configure, networking.proxy.read, networking.proxy.apply, docker.compose.read, platforms.read, podman.read, kubernetes.read, mergerfs.read, mergerfs.configure, mergerfs.maintain, zfs.read, lvm.read, btrfs.read, ext4.read, ext4.format, mdadm.read, f2fs.read, xfs.read, networking.ports.read, networking.bonds.read, networking.firewall.read] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
