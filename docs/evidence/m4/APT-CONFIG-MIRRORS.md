@@ -27,6 +27,8 @@ these two writes: `docs/m2/OWNER-DECISIONS.md` ("APT settings and mirrors"). Des
 | 1 | `36ec3be8` (feature commit) | `backend/`, `frontend/app/src/`, AST only, 468 code files | 5433 / 21316 | 1 confirmed finding, 2 test gaps, method-call false positives |
 | 2 | `ac7e299f` (after fixes) | same | 5435 / 21329 | no new finding |
 | 3 | `856d0031` (= tested commit) | same | 5437 / 21338 | no new finding; `ValidCurrentURI` callers and tests linked |
+| 4 | `2060503c` (#165 re-applied onto main for #167) | same, 489 code files | 5588 / 22601 | 2 confirmed findings (below) |
+| 5 | `bcc897f2` (after fixes) | same, 490 code files | 5590 / 22690 | no new finding; new enum test indexed |
 
 Graph health: about 2006 dangling-endpoint edges (stdlib and external symbols), 285 collapsed duplicates,
 0 missing endpoints. "No callers" for `offer`/`wasOffered` is the extractor's method-call gap (checked in source).
@@ -46,6 +48,20 @@ Other findings while building (each with a regression test that fails without th
   distribution's components now decide.
 - Debian cloud images use `mirror+file:///etc/apt/mirrors/debian.list`; that exact form may now be replaced.
 - `OpenAPI` `POST /files/delete/apply` had a missing brace (also on the base branch) that made the spec unparsable.
+
+
+**Passes 4-5 (#167 merge onto main).** The review covered the 12 files that both #165 and the later main PRs
+(#163 M11 networking, #164 `sfdisk`) changed. Runner allowlist, broker op registry, lock domains, admission,
+client deadlines and routes merge without overlap. The `packages.` module op prefix covers the new ops.
+
+1. **Confirmed, fixed (`bcc897f2`), pre-existing on main.** The OpenAPI `Session.scopes` enum lacked ten known
+   scopes (`files.write`, `files.destroy`, `networking.proxy.apply`, `docker.compose.read`, `platforms.read`,
+   `podman.read`, `kubernetes.read`, `networking.ports.read`, `networking.bonds.read`, `networking.firewall.read`).
+   New test `TestOpenAPISessionScopeEnumMatchesKnownScopes` fails without the fix.
+2. **Confirmed, fixed (`bcc897f2`).** The Software module metadata still said read-only and listed only
+   `packages.read`; it now lists `packages.configure` too (`modules_test` updated).
+
+Installed-package VM runs were not repeated on the merged commits.
 
 ## Disposable VM end-to-end
 
