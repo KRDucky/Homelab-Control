@@ -22,4 +22,4 @@ Web UI receives untrusted input and runs near sensitive host resources. Threats:
 - SnapRAID: do not auto-sync when disks are missing or recovery is unresolved; clarify parity is point-in-time.
 
 ## Release gates
-Security tests, dependency/license scan, packaging provenance, update/rollback documentation, backup/restore of app configuration, test matrix sign-off. Destructive operations require VM test evidence and human review before enablement.
+Security tests, dependency/license scan, packaging provenance, update/rollback documentation, backup/restore of app configuration, test matrix sign-off. **All full-function implementations (including read-only features)** require real disposable-VM end-to-end evidence on supported distro guests before acceptance; see `08-TESTING-AND-ACCEPTANCE.md`. Destructive operations additionally require disposable-resource safety evidence and human review before enablement. Partial checkpoints may merge but cannot assert full-function acceptance.
