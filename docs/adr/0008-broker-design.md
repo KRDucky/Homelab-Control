@@ -381,3 +381,35 @@ Amendment 9 is the M11 read-only networking checkpoint and is unchanged.
   A slice must start at or after 1 MiB and end at least 1 MiB before the disk.
 - **G3 is not met.** The main broker unit stays `PrivateDevices=yes`. A broker that cannot see
   the disk fails closed before exec. A live partition belongs on a disposable VM disk.
+
+## Amendment 11 (2026-11-24, M4, owner-authorized writes): APT settings file and archive mirror
+
+Numbered 11 because Amendment 9 (M11 networking) and Amendment 10 (M6 `sfdisk`) came first. The
+owner authorized these two writes on 2026-11-24 (`docs/m2/OWNER-DECISIONS.md`, "APT settings and mirrors"). They follow ADR 0011
+(plan → confirm → apply, journal, lock domain `apt-files`, reversible risk, no step-up). They do not
+authorize package install/remove/upgrade, `apt update`, adding repositories or importing keys.
+
+- **Ops.** `packages.aptconfig.read` (unprivileged `apt-config dump`, new allow-listed binary with one
+  fixed argv, kept off the generic `Run` path like `apt-get`), `packages.aptconfig.plan|apply`,
+  `packages.mirrors.inventory`, `packages.mirror.plan|apply`. Plans read files only; applies send the
+  reviewed request to the helper. Scope `packages.configure` (not default, implies nothing else).
+- **Helper.** `hc-apt-apply`, socket-activated (`Accept=yes`, `MaxConnections=1`), opt-in marker
+  `/etc/homelab-control/apt-apply.enabled`, socket not enabled by the package. `User=root` with an empty
+  capability set (root owns every file it writes), `ProtectSystem=strict`, `ReadWritePaths=/etc/apt`,
+  `StateDirectory=homelab-control-apt-apply` for backups, `PrivateNetwork=yes`, AF_UNIX only, AppArmor
+  `hc-apt-apply` on Debian/Ubuntu. It executes no programs (guard test `TestAptApplyHelperConfined`).
+- **What it writes.** Only `/etc/apt/apt.conf.d/60homelab-control`, rendered from a closed typed set
+  (no free text in APT syntax; the proxy is a credential-free http(s) URL), and the archive URI of
+  `/etc/apt/sources.list` or `/etc/apt/sources.list.d/{debian,ubuntu}.sources`. A mirror change edits only
+  the URI bytes of entries classified as this release's archive (suites, the distribution's components,
+  vendor or no `Signed-By`, one URI); security, ports and other entries are never changed. The helper
+  re-reads the file, refuses a symlink, a non-root owner or a digest that differs from the plan, writes a
+  0600 backup (newest 10 kept), replaces the file through a temporary file and rename, and reads it back.
+- **Trust.** The signing key of a changed entry is unchanged, so APT verifies the new mirror with the same
+  key at its next update. Candidates come from the official lists (Ubuntu `mirrors.ubuntu.com/<CC>.txt`,
+  which is plain HTTP; Debian `deb.debian.org` and `ftp.<cc>.debian.org`) and are probed by hc-api over
+  HTTP(S) without credentials; list candidates must resolve to public addresses. The plan accepts only a
+  mirror offered by a probe in the last 30 minutes. A frozen or stale mirror is shown as stale (index more
+  than 12 hours older than the newest seen); the probe does not verify signatures.
+- **Proposed status.** Implementation and VM validation are pending review; this amendment does not
+  accept ADR 0014 or ADR 0015.

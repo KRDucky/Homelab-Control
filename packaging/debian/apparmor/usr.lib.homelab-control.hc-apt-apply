@@ -1,0 +1,59 @@
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# AppArmor profile for the APT settings helper (owner authorization
+# 2026-11-24). Enforce mode. The Debian package installs it and does not load
+# it; apparmor.service loads it at boot. The unit sets
+# AppArmorProfile=hc-apt-apply, so a host with AppArmor active and this
+# profile unloaded cannot start the helper.
+#
+# The helper executes nothing, holds no capability and has no network.
+
+#include <tunables/global>
+
+profile hc-apt-apply /usr/lib/homelab-control/hc-apt-apply flags=(enforce) {
+  #include <abstractions/base>
+
+  deny capability,
+  deny network inet,
+  deny network inet6,
+  deny network netlink,
+  deny network packet,
+  deny network bluetooth,
+  deny network vsock,
+  deny ptrace,
+  deny mount,
+  deny pivot_root,
+
+  /usr/lib/homelab-control/hc-apt-apply mr,
+  /etc/os-release r,
+  /usr/lib/os-release r,
+
+  /etc/apt/apt.conf.d/ r,
+  /etc/apt/apt.conf.d/60homelab-control rw,
+  /etc/apt/apt.conf.d/60homelab-control.hc-tmp rw,
+  /etc/apt/sources.list rw,
+  /etc/apt/sources.list.hc-tmp rw,
+  /etc/apt/sources.list.d/ r,
+  /etc/apt/sources.list.d/{debian,ubuntu}.sources rw,
+  /etc/apt/sources.list.d/{debian,ubuntu}.sources.hc-tmp rw,
+
+  /var/lib/homelab-control-apt-apply/ rw,
+  /var/lib/homelab-control-apt-apply/backups/ rw,
+  /var/lib/homelab-control-apt-apply/backups/* rw,
+
+  # The Go runtime reads its cgroup at start to size GOMAXPROCS (read-only).
+  @{PROC}/@{pid}/cgroup r,
+  @{PROC}/@{pid}/mountinfo r,
+  /sys/fs/cgroup/ r,
+  /sys/fs/cgroup/** r,
+  # ... and the huge page size on kernels that expose it (Ubuntu 22.04).
+  /sys/kernel/mm/transparent_hugepage/hpage_pmd_size r,
+
+  /run/systemd/journal/socket w,
+  unix (receive, send, getattr, shutdown, getopt, setopt) type=stream,
+
+  deny /etc/homelab-control/** rwklmx,
+  deny /var/lib/homelab-control/** rwklmx,
+  deny /var/log/homelab-control{,-broker}/** rwklmx,
+}

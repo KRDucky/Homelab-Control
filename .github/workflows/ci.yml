@@ -97,6 +97,7 @@ jobs:
             build/hc-audit-retention
             build/hc-storage-probe
             build/hc-mergerfs-apply
+            build/hc-apt-apply
             build/hlctl
             build/SHA256SUMS
             build/*.deb

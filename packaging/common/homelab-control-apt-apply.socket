@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Opt-in socket for hc-apt-apply (APT settings file and archive mirror writes,
+# owner authorization 2026-11-24). The package does not enable it. Enable it
+# with: systemctl enable --now homelab-control-apt-apply.socket
+[Unit]
+Description=Homelab Control APT settings helper socket (opt-in)
+ConditionPathExists=/etc/homelab-control/apt-apply.enabled
+
+[Socket]
+ListenStream=/run/homelab-control/apt-apply.sock
+Accept=yes
+MaxConnections=1
+SocketMode=0600
+SocketUser=root
+SocketGroup=root
+DirectoryMode=0755
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target

@@ -65,8 +65,8 @@ var registry = []Module{
 	{
 		ID:          "packages",
 		Title:       "Software",
-		Description: "read-only Software Center: package search, installed list, pending-update preview and configured sources from the local cache",
-		Scopes:      []string{"packages.read"},
+		Description: "Software Center: package search, installed list, pending-update preview and configured sources from the local cache; APT settings and archive mirror changes with packages.configure",
+		Scopes:      []string{"packages.read", "packages.configure"},
 		APIPrefix:   "/api/v1/packages",
 		OpPrefix:    "packages.",
 		Path:        "/software",

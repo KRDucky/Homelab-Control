@@ -49,10 +49,12 @@ var allowlist = map[string][]string{
 	"apt":        {"/usr/bin/apt"},
 	// M4: unprivileged APT simulation only. No root or mutating template.
 	"apt-get": {"/usr/bin/apt-get"},
-	"rpm":     {"/usr/bin/rpm", "/bin/rpm"},
-	"dnf":     {"/usr/bin/dnf"},
-	"zypper":  {"/usr/bin/zypper"},
-	"pacman":  {"/usr/bin/pacman", "/usr/bin/pacman.static"},
+	// M4 (owner 2026-11-24): unprivileged `apt-config dump` only.
+	"apt-config": {"/usr/bin/apt-config"},
+	"rpm":        {"/usr/bin/rpm", "/bin/rpm"},
+	"dnf":        {"/usr/bin/dnf"},
+	"zypper":     {"/usr/bin/zypper"},
+	"pacman":     {"/usr/bin/pacman", "/usr/bin/pacman.static"},
 	// ext4.format.apply is the only caller. Quiet, no -F.
 	"mkfs.ext4": {"/usr/sbin/mkfs.ext4", "/sbin/mkfs.ext4"},
 	// storage.partition.apply is the only caller. GPT script on stdin.
@@ -482,8 +484,8 @@ func (r *Runner) Run(ctx context.Context, name string, args ...string) (Result, 
 // (still the unprivileged service uid/gid; never root).
 func (r *Runner) RunWithGroups(ctx context.Context, groups []uint32, name string, args ...string) (Result, error) {
 	// APT is intentionally excluded from the general-purpose runner API.
-	// Its only permitted use is through RunAptSimulation and a fixed argv.
-	if name == "apt-get" {
+	// Its only permitted uses are RunAptSimulation and RunAptConfigDump.
+	if name == "apt-get" || name == "apt-config" {
 		return Result{}, ErrNotAllowed
 	}
 	for _, g := range groups {
@@ -785,6 +787,19 @@ func (r *Runner) RunAptSimulation(ctx context.Context, action, pkg string) (Resu
 		return Result{}, err
 	}
 	return r.exec(ctx, path, argv, &syscall.Credential{Uid: r.identity.UID, Gid: r.identity.GID}, nil)
+}
+
+// RunAptConfigDump runs exactly `apt-config dump` as the service identity. It
+// prints APT's effective configuration and changes nothing.
+func (r *Runner) RunAptConfigDump(ctx context.Context) (Result, error) {
+	path, ok := r.paths["apt-config"]
+	if !ok {
+		return Result{}, os.ErrNotExist
+	}
+	if err := checkBinary(path, r.skipOwnerCheck); err != nil {
+		return Result{}, err
+	}
+	return r.exec(ctx, path, []string{"dump"}, &syscall.Credential{Uid: r.identity.UID, Gid: r.identity.GID}, nil)
 }
 
 // Root runs the fixed root argv templates (root-exec class). The broker

@@ -488,3 +488,14 @@ Recorded here:
 - E2 was not run. It is not a deployment gate.
 - Issue #90 and GitHub milestone 3 are closed. That does not accept Proposed ADRs that this note does not name, and it does not start M3 or M4.
 - A free-form shell stays out. Packages, storage writes, containers, and user or group management stay out.
+
+## APT settings and mirrors (owner, 2026-11-24)
+
+- The owner asked for APT tunables as checkboxes in the Software Center and a tool that finds the fastest
+  mirror and configures it for the repositories.
+- Asked whether to stay read-only, the owner chose **"Authorize both writes"**: writing the managed APT
+  settings file and changing the archive mirror, under ADR 0011.
+- Asked how the vendor source files may change, the owner chose **"Edit URIs in place"**: only the URI of
+  official archive entries changes, with a backup and a diff in the plan; keys and `Signed-By` stay.
+- This does not authorize package installs, removals, upgrades, metadata refresh, new repositories or keys.
+  `apt` (rather than `apt-get`) was considered and kept out: apt(8) directs scripts to `apt-get`.
