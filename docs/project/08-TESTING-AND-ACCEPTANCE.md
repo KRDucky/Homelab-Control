@@ -10,6 +10,19 @@
 - Security: injection, path traversal, symlink races, privilege boundary, plugin supply chain, secrets redaction, hostile config imports.
 - Packaging: install, upgrade, rollback, uninstall and coexistence/migration across supported distributions.
 
+## Mandatory Graphify code-review and remediation gate (owner, 2026-11-23)
+
+**Every testing effort for code changes must include Graphify review of the relevant code and dependencies, followed by fixes for valid findings and rerunning affected tests.** This applies to all milestones, modules, test levels and partial checkpoints, not only full-function milestones or releases. Graphify is an additional code-review tool, not a replacement for tests.
+
+Required workflow:
+1. Before testing, use Graphify to inspect changed definitions and their callers, callees, imports, dependent files, and linked tests; include authorization, audit, execution and integration paths where applicable. Verify the indexed repository/commit against the actual commit under test. If indexing is stale, unavailable or incomplete, cross-check against the current source and record that Graphify coverage is incomplete; do not claim a successful Graphify review.
+2. Record findings with location, affected behavior, severity, reproduction where possible, and disposition. Confirm findings against current source; do not blindly change code based on graph suggestions or treat a missing edge as proof of safety.
+3. **Fix every confirmed actionable issue** before treating testing as complete. Add or update regression tests for fixes where practical and rerun the relevant unit, contract, integration, browser, security and/or VM tests; repeat Graphify impact review for the changed areas.
+4. Any unresolved finding or unavailable review must be disclosed as a blocker for test completion/acceptance unless independently reviewed and explicitly documented as non-applicable or an accepted limitation by the owner. Do not claim zero findings merely because Graphify returned no results or was unavailable.
+5. Include Graphify repository ID, indexed SHA, changed/tested SHA, areas inspected, findings, remediation commit(s), regression tests and remaining limitations in the test evidence.
+
+This rule does not imply that Graphify executes code, proves behavior or replaces real VM verification. A documentation-only change can record Graphify applicability as N/A with rationale; don't manufacture code findings.
+
 ## Mandatory VM gate for full-function implementation (owner, 2026-11-23)
 
 **Every milestone or module claiming full, functioning implementation requires end-to-end testing on real disposable VMs before acceptance.** This applies to read and write functionality, not only destructive operations, storage, packaging or M4. For each claimed supported distribution, install the actual build/package in a guest, run the feature through the supported API and WebUI as applicable, exercise the real system integration, and verify the observed outcome independently. VM guest tests supplement unit, contract, integration, browser and security tests; mocks, fixtures, containers and CI compilation alone cannot substitute for them.
@@ -30,6 +43,7 @@ For every VM acceptance report record: source commit and built artifact identity
 7. Supported distro means tested, not merely theoretically compatible.
 8. Theme/plugin install, disable, uninstall and compatibility failures are tested.
 9. Any claimed full-function implementation passes the mandatory disposable-VM end-to-end gate above on each claimed supported distro; missing VM evidence prevents full-function or milestone acceptance.
+10. Every code-related testing effort includes documented Graphify review, remediation of confirmed issues, and rerun of affected tests under the gate above.
 
 ## Evidence format
-For every milestone provide commit hashes, test commands, passing/failing counts, environment, screenshots where appropriate, security considerations and known unsupported scenarios. Do not invent test results.
+For every milestone provide commit hashes, test commands, passing/failing counts, environment, screenshots where appropriate, security considerations, Graphify review and fix/retest evidence (or documented non-applicability for docs-only changes), and known unsupported scenarios. Do not invent test results.
