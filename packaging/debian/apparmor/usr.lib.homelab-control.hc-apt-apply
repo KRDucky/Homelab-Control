@@ -42,6 +42,12 @@ profile hc-apt-apply /usr/lib/homelab-control/hc-apt-apply flags=(enforce) {
   /var/lib/homelab-control-apt-apply/backups/ rw,
   /var/lib/homelab-control-apt-apply/backups/* rw,
 
+  # The Go runtime reads its cgroup at start to size GOMAXPROCS (read-only).
+  @{PROC}/@{pid}/cgroup r,
+  @{PROC}/@{pid}/mountinfo r,
+  /sys/fs/cgroup/ r,
+  /sys/fs/cgroup/** r,
+
   /run/systemd/journal/socket w,
   unix (receive, send, getattr, shutdown, getopt, setopt) type=stream,
 
