@@ -31,6 +31,10 @@ func packagesFake() *fakeBroker {
 		"truncated": false,
 		"source":    "fixture",
 	}
+	fb.results["packages.simulation"] = map[string]any{
+		"changes": []map[string]any{{"action": "install", "name": "nginx", "candidate_version": "1.2.3"}},
+		"install_count": 1, "remove_count": 0, "configure_count": 0,
+	}
 	fb.results["packages.search"] = map[string]any{
 		"packages":  []map[string]any{{"name": "nginx", "summary": "web server", "installed": false}},
 		"truncated": false,
@@ -103,5 +107,33 @@ func TestPackagesUnsupportedFamilyIsNotEmptySuccess(t *testing.T) {
 	rr := h.do("GET", "/api/v1/packages/installed", "", packagesHeaders(h))
 	if rr.Code != http.StatusServiceUnavailable || !strings.Contains(rr.Body.String(), "unsupported") {
 		t.Fatalf("unsupported: %d %s", rr.Code, rr.Body)
+	}
+}
+
+func TestPackagesPreviewRequiresScopeAndCSRF(t *testing.T) {
+	h := newHarness(t)
+	h.login("reader", "reader-password-123")
+	url := "/api/v1/packages/preview?action=install&package=nginx"
+	if rr := h.do("GET", url, "", packagesHeaders(h)); rr.Code != http.StatusForbidden {
+		t.Fatalf("scope: %d %s", rr.Code, rr.Body)
+	}
+	h2 := harnessWith(t, packagesFake(), []string{auth.ScopePackagesRead})
+	if rr := h2.do("GET", url, "", map[string]string{"Origin": testOrigin}); rr.Code != http.StatusForbidden {
+		t.Fatalf("csrf: %d %s", rr.Code, rr.Body)
+	}
+}
+
+func TestPackagesPreviewAuditAndResponse(t *testing.T) {
+	h := harnessWith(t, packagesFake(), []string{auth.ScopePackagesRead})
+	rr := h.do("GET", "/api/v1/packages/preview?action=install&package=nginx", "", packagesHeaders(h))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("preview: %d %s", rr.Code, rr.Body)
+	}
+	if !strings.Contains(rr.Body.String(), "candidate_version") || !strings.Contains(rr.Body.String(), "nginx") {
+		t.Fatalf("bad response: %s", rr.Body)
+	}
+	auditLine := h.audit.String()
+	if !strings.Contains(auditLine, "packages.simulation.read") || strings.Contains(auditLine, "nginx") {
+		t.Fatalf("audit leaked target or missing event: %s", auditLine)
 	}
 }
