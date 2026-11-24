@@ -30,6 +30,7 @@ Then: `docs/adr/README.md`, `docs/audit/SPEC-CONTRADICTIONS.md`, `docs/dev/DEVEL
 - Themes must be declarative and non-executable by default. Plugins must declare permissions, dependencies, compatibility and lifecycle hooks.
 - No fabricated data in production views. All examples and mockups must be labeled.
 - Implement milestone-by-milestone with tests, documentation, and honest status reports. Do not continue to the next milestone without approval.
+- **Owner 2026-11-23, applies across every milestone/module:** a claim of *fully functioning* implementation requires real, disposable-VM end-to-end validation of the actual installed build on each claimed supported distribution, for read and write behavior alike. Mocks, fixture-only tests, containers and CI are not substitutes. Include observed state, negative/failure paths, exact guest versions, tested commit/artifact, and sanitized evidence. Partial/design-only checkpoints may merge but remain explicitly unaccepted. Follow `docs/project/08-TESTING-AND-ACCEPTANCE.md`; do not retroactively reopen prior owner acceptance. M4 explicitly includes code implementation and Debian/Ubuntu VM testing, not ADRs alone.
 
 ## Owner stance (2026-11-20)
 
