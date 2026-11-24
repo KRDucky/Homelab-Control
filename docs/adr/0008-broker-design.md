@@ -339,8 +339,9 @@ port-binding change, and it does not change the broker unit.
 - **Ports: fixed `/proc` reads in-process.** The broker unit has `PrivateNetwork=yes`, so the op reads
   `/proc/1/net/{tcp,tcp6,udp,udp6}` (the host namespace, as seen by PID 1). Owners come from three
   sources, each labelled: `process` (a `/proc/<pid>/fd` link names the socket inode; observed),
-  `systemd-socket` (one fixed unprivileged `systemctl list-sockets --all --output=json --no-pager`
-  lists a socket unit on that address; observed) and `account` (every process of the socket's non-root
+  `systemd-socket` (fixed unprivileged `systemctl list-sockets --all --output=json --no-pager`, whose JSON
+  has no type, then `systemctl show --no-pager --property=Id,Listen -- <listed .socket units>` for the
+  Stream/Datagram type; observed) and `account` (every process of the socket's non-root
   account runs in one unit, from `/proc/<pid>/status` and `cgroup`, which need no ptrace access;
   inferred). The kernel's ptrace check on `/proc/<pid>/fd` needs the reader's capabilities to cover the
   target's, so with only `CAP_SETUID`/`CAP_SETGID` the broker reads almost no fd table, including those
