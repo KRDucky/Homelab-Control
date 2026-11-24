@@ -47,6 +47,8 @@ profile hc-apt-apply /usr/lib/homelab-control/hc-apt-apply flags=(enforce) {
   @{PROC}/@{pid}/mountinfo r,
   /sys/fs/cgroup/ r,
   /sys/fs/cgroup/** r,
+  # ... and the huge page size on kernels that expose it (Ubuntu 22.04).
+  /sys/kernel/mm/transparent_hugepage/hpage_pmd_size r,
 
   /run/systemd/journal/socket w,
   unix (receive, send, getattr, shutdown, getopt, setopt) type=stream,
