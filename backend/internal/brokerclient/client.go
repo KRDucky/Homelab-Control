@@ -48,10 +48,11 @@ var opTimeouts = map[string]time.Duration{
 	"mergerfs.maintain.apply": 110 * time.Second,
 	// M4-1b: package queries have a 30 s broker timeout (cache-only reads can
 	// scan a large local package DB), so clients wait longer than that.
-	"packages.installed": 40 * time.Second,
-	"packages.updates":   40 * time.Second,
-	"packages.sources":   40 * time.Second,
-	"packages.search":    40 * time.Second,
+	"packages.installed":  40 * time.Second,
+	"packages.updates":    40 * time.Second,
+	"packages.sources":    40 * time.Second,
+	"packages.search":     40 * time.Second,
+	"packages.simulation": 40 * time.Second,
 	// M2-4 O-1: probe has a 35 s broker timeout (helper's own 25 s budget plus
 	// socket overhead); the client waits longer so a Partial/refusal answer is
 	// received rather than cut off.

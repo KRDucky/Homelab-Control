@@ -47,10 +47,12 @@ var allowlist = map[string][]string{
 	"dpkg-query": {"/usr/bin/dpkg-query"},
 	"apt-cache":  {"/usr/bin/apt-cache"},
 	"apt":        {"/usr/bin/apt"},
-	"rpm":        {"/usr/bin/rpm", "/bin/rpm"},
-	"dnf":        {"/usr/bin/dnf"},
-	"zypper":     {"/usr/bin/zypper"},
-	"pacman":     {"/usr/bin/pacman", "/usr/bin/pacman.static"},
+	// M4: unprivileged APT simulation only. No root or mutating template.
+	"apt-get": {"/usr/bin/apt-get"},
+	"rpm":     {"/usr/bin/rpm", "/bin/rpm"},
+	"dnf":     {"/usr/bin/dnf"},
+	"zypper":  {"/usr/bin/zypper"},
+	"pacman":  {"/usr/bin/pacman", "/usr/bin/pacman.static"},
 	// ext4.format.apply is the only caller. Quiet, no -F.
 	"mkfs.ext4": {"/usr/sbin/mkfs.ext4", "/sbin/mkfs.ext4"},
 	// MergerFS SnapRAID status (ADR 0008): only mergerfs.snapraid.status calls
@@ -461,6 +463,11 @@ func (r *Runner) Run(ctx context.Context, name string, args ...string) (Result, 
 // RunWithGroups is Run with additional supplementary groups for the child
 // (still the unprivileged service uid/gid; never root).
 func (r *Runner) RunWithGroups(ctx context.Context, groups []uint32, name string, args ...string) (Result, error) {
+	// APT is intentionally excluded from the general-purpose runner API.
+	// Its only permitted use is through RunAptSimulation and a fixed argv.
+	if name == "apt-get" {
+		return Result{}, ErrNotAllowed
+	}
 	for _, g := range groups {
 		if g == 0 {
 			return Result{}, fmt.Errorf("group 0: %w", ErrBadArg)
@@ -713,6 +720,48 @@ func (r *Runner) RunPackageQuery(ctx context.Context, q PackageQuery, query stri
 			return Result{}, fmt.Errorf("%s: %w", tpl.binary, os.ErrNotExist)
 		}
 		return Result{}, fmt.Errorf("%q: %w", tpl.binary, ErrNotAllowed)
+	}
+	if err := checkBinary(path, r.skipOwnerCheck); err != nil {
+		return Result{}, err
+	}
+	return r.exec(ctx, path, argv, &syscall.Credential{Uid: r.identity.UID, Gid: r.identity.GID}, nil)
+}
+
+// AptSimulationArgv returns a closed, non-mutating APT preview template.
+// No generic argv, free-form options or repository configurations are accepted.
+// This output cannot authorize a real package transaction.
+func AptSimulationArgv(action, pkg string) ([]string, error) {
+	if !aptSimulationPackageRE.MatchString(pkg) || strings.Contains(pkg, "..") {
+		return nil, ErrBadArg
+	}
+	switch action {
+	// No --no-download: a simulation never fetches, and with that flag APT
+	// refuses any install whose .deb is not already in the local archive
+	// cache ("Unable to fetch some archives"), which is the normal case.
+	case "install", "remove":
+		return []string{"--simulate", "--no-install-recommends", action, "--", pkg}, nil
+	case "upgrade":
+		// A single-package upgrade uses install, not the host-wide upgrade.
+		// --only-upgrade makes APT skip a package that is not installed
+		// instead of previewing a fresh install as an "upgrade".
+		return []string{"--simulate", "--no-install-recommends", "--only-upgrade", "install", "--", pkg}, nil
+	default:
+		return nil, ErrBadArg
+	}
+}
+
+var aptSimulationPackageRE = regexp.MustCompile(`^[a-z0-9][a-z0-9+.-]{0,127}(?::[a-z0-9][a-z0-9-]{0,31})?$`)
+
+// RunAptSimulation runs only the fixed, unprivileged simulation above.
+// The service identity, replaced environment, timeout and output cap apply.
+func (r *Runner) RunAptSimulation(ctx context.Context, action, pkg string) (Result, error) {
+	argv, err := AptSimulationArgv(action, pkg)
+	if err != nil {
+		return Result{}, err
+	}
+	path, ok := r.paths["apt-get"]
+	if !ok {
+		return Result{}, os.ErrNotExist
 	}
 	if err := checkBinary(path, r.skipOwnerCheck); err != nil {
 		return Result{}, err

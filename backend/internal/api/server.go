@@ -318,6 +318,8 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/packages/installed", auth.ScopePackagesRead, s.handlePackagesInstalled)
 	s.handle("GET /api/v1/packages/updates", auth.ScopePackagesRead, s.handlePackagesUpdates)
 	s.handle("GET /api/v1/packages/sources", auth.ScopePackagesRead, s.handlePackagesSources)
+	// Preview only: no package writes or transaction authorization.
+	s.handle("GET /api/v1/packages/preview", auth.ScopePackagesRead, s.handlePackagesPreview)
 	// MergerFS: read inventory and status, plus plan/apply mount, definition,
 	// sync, scrub, and filtered recovery. Read does not grant the writes.
 	s.handle("GET /api/v1/mergerfs", auth.ScopeMergerFSRead, s.handleMergerFS)

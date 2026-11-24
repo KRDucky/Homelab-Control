@@ -229,6 +229,8 @@ func Registry() map[string]Op {
 			Description: "Configured repositories and package sources with third-party and unsigned flags (args: family)", Handle: packagesSources},
 		{Name: "packages.search", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second, Admission: AdmissionPackages,
 			Description: "Search the local package cache of one family (args: family, q)", Handle: packagesSearch, AuditArgs: packagesAuditArgs},
+		{Name: "packages.simulation", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second, Admission: AdmissionPackages,
+			Description: "Simulate one Debian/Ubuntu APT action without root, downloads or package writes", Handle: packagesSimulation, AuditArgs: packagesSimulationAuditArgs},
 		// MergerFS: read-only snapraid status. No client path, no --conf, no
 		// sync/diff/fix/scrub/smart. Shares the services-read admission bucket.
 		{Name: "mergerfs.snapraid.status", Scope: "mergerfs.read", Privilege: PrivUnprivilegedExec, Timeout: 15 * time.Second, Admission: AdmissionServicesRead,
