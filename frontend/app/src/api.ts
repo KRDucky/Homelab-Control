@@ -2049,8 +2049,12 @@ export const previewIdentity = (
 // ---- M11: read-only networking (port use, bonds/LACP, firewall) -----------
 
 export interface PortOwner {
+  /** 0 for a systemd socket unit or an account inference. */
   pid: number;
   command: string;
+  source: 'process' | 'systemd-socket' | 'account';
+  confidence: 'observed' | 'inferred';
+  socket?: string;
   unit?: string;
   container?: string;
 }

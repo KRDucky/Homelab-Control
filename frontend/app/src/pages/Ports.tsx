@@ -32,10 +32,16 @@ const EXPOSURE_LABEL: Record<PortSocket['exposure'], string> = {
 };
 
 function ownerText(s: PortSocket): string {
-  if (s.owners.length === 0) return 'Process not visible';
+  if (s.owners.length === 0) return 'Not identified';
   return s.owners
     .map((o) => {
+      if (o.source === 'systemd-socket') {
+        return `systemd socket ${o.socket ?? ''}${o.unit ? ` → ${o.unit}` : ''}`;
+      }
       const where = o.container ? `container ${o.container}` : o.unit;
+      if (o.source === 'account') {
+        return `${where ?? 'unknown unit'} (inferred from the account)`;
+      }
       return `${o.command || '?'} (PID ${o.pid}${where ? `, ${where}` : ''})`;
     })
     .join('; ');
@@ -76,8 +82,9 @@ export function PortsView({ data, error }: { data: PortMap; error: Error | null 
       )}
       {data.processesHidden > 0 && (
         <p className="banner" role="status">
-          {data.processesHidden} of {data.processesScanned + data.processesHidden} processes could not be
-          inspected because they run as another user. Their ports show the owning account but not the process.
+          The open files of {data.processesHidden} of {data.processesScanned + data.processesHidden} processes
+          could not be read. For their ports, the owner comes from systemd's socket list, is inferred from the
+          account (labelled), or is shown as not identified.
         </p>
       )}
 

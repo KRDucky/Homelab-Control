@@ -42,7 +42,7 @@ const portMap: PortMap = {
       exposure: 'all',
       uid: 0,
       account: 'root',
-      owners: [{ pid: 700, command: 'sshd', unit: 'ssh.service' }],
+      owners: [{ pid: 700, command: 'sshd', unit: 'ssh.service', source: 'process', confidence: 'observed' }],
     },
     {
       proto: 'tcp',
@@ -59,7 +59,50 @@ const portMap: PortMap = {
       port: 8080,
       exposure: 'all',
       uid: 0,
-      owners: [{ pid: 900, command: 'docker-proxy', container: '0123456789ab' }],
+      owners: [
+        {
+          pid: 900,
+          command: 'docker-proxy',
+          container: '0123456789ab',
+          source: 'process',
+          confidence: 'observed',
+        },
+      ],
+    },
+    {
+      proto: 'udp',
+      address: '0.0.0.0',
+      port: 5353,
+      exposure: 'all',
+      uid: 104,
+      account: 'avahi',
+      owners: [
+        {
+          pid: 0,
+          command: 'avahi-daemon',
+          unit: 'avahi-daemon.service',
+          source: 'account',
+          confidence: 'inferred',
+        },
+      ],
+    },
+    {
+      proto: 'tcp6',
+      address: '::',
+      port: 22,
+      exposure: 'all',
+      uid: 0,
+      account: 'root',
+      owners: [
+        {
+          pid: 0,
+          command: 'systemd',
+          socket: 'ssh.socket',
+          unit: 'ssh.service',
+          source: 'systemd-socket',
+          confidence: 'observed',
+        },
+      ],
     },
   ],
 };
@@ -71,9 +114,11 @@ describe('Ports page', () => {
     const table = await screen.findByRole('table', { name: /listening tcp and bound udp sockets/i });
     expect(within(table).getByText('sshd (PID 700, ssh.service)')).toBeTruthy();
     expect(within(table).getByText('docker-proxy (PID 900, container 0123456789ab)')).toBeTruthy();
-    expect(within(table).getByText('Process not visible')).toBeTruthy();
-    expect(screen.getByText(/3 of 43 processes could not be inspected/)).toBeTruthy();
-    expect(screen.getByText(/3 sockets, 2 reachable beyond this host/)).toBeTruthy();
+    expect(within(table).getByText('Not identified')).toBeTruthy();
+    expect(within(table).getByText('avahi-daemon.service (inferred from the account)')).toBeTruthy();
+    expect(within(table).getByText('systemd socket ssh.socket → ssh.service')).toBeTruthy();
+    expect(screen.getByText(/open files of 3 of 43 processes\s+could not be read/)).toBeTruthy();
+    expect(screen.getByText(/5 sockets, 4 reachable beyond this host/)).toBeTruthy();
     expect(getPorts).toHaveBeenCalledWith('t');
   });
 
@@ -81,7 +126,7 @@ describe('Ports page', () => {
     vi.mocked(getPorts).mockResolvedValue(portMap);
     render(<Ports csrf="t" onUnauthorized={onUnauthorized} />);
     const table = await screen.findByRole('table');
-    expect(within(table).getAllByRole('row')).toHaveLength(4);
+    expect(within(table).getAllByRole('row')).toHaveLength(6);
     fireEvent.click(screen.getByRole('checkbox', { name: /hide ports bound to this host only/i }));
     expect(within(table).queryByText('631')).toBeNull();
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'docker' } });

@@ -141,6 +141,9 @@ func TestParsePasswd(t *testing.T) {
 
 // writeProc builds a fixture /proc with one PID-1 socket table and processes
 // whose fd symlinks point at socket inodes.
+// uids maps fixture PIDs to their real uid (default 0).
+var uids = map[int]int{}
+
 func writeProc(t *testing.T, root string, tcp string, procs map[int][]string, cgroups map[int]string) {
 	t.Helper()
 	must := func(err error) {
@@ -154,6 +157,7 @@ func writeProc(t *testing.T, root string, tcp string, procs map[int][]string, cg
 		d := filepath.Join(root, "proc", fmt.Sprint(pid))
 		must(os.MkdirAll(filepath.Join(d, "fd"), 0o755))
 		must(os.WriteFile(filepath.Join(d, "comm"), []byte(fmt.Sprintf("proc%d\n", pid)), 0o644))
+		must(os.WriteFile(filepath.Join(d, "status"), []byte(fmt.Sprintf("Name:\tproc%d\nUid:\t%d\t%d\t%d\t%d\n", pid, uids[pid], uids[pid], uids[pid], uids[pid])), 0o644))
 		if cg, ok := cgroups[pid]; ok {
 			must(os.WriteFile(filepath.Join(d, "cgroup"), []byte(cg), 0o644))
 		}
@@ -176,7 +180,7 @@ func TestCollectPortsAttributesOwners(t *testing.T) {
 		200: {"/dev/null", "socket:[501]", "pipe:[9]"},
 		300: {"socket:[999]"},
 	}, map[int]string{200: "0::/system.slice/ssh.service\n"})
-	pm, err := CollectPorts(context.Background(), root)
+	pm, err := CollectPorts(context.Background(), root, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,7 +188,8 @@ func TestCollectPortsAttributesOwners(t *testing.T) {
 		t.Fatalf("twins must merge: %+v", pm.Sockets)
 	}
 	ssh := pm.Sockets[0]
-	if ssh.Port != 22 || len(ssh.Owners) != 2 || ssh.Owners[0].PID != 1 || ssh.Owners[1].Unit != "ssh.service" || ssh.Owners[1].Command != "proc200" || ssh.Account != "root" {
+	if ssh.Port != 22 || len(ssh.Owners) != 2 || ssh.Owners[0].PID != 1 || ssh.Owners[1].Unit != "ssh.service" || ssh.Owners[1].Command != "proc200" || ssh.Account != "root" ||
+		ssh.Owners[1].Source != OwnerProcess || ssh.Owners[1].Confidence != "observed" {
 		t.Fatalf("ssh row: %+v", ssh)
 	}
 	web := pm.Sockets[1]
@@ -207,7 +212,7 @@ func TestCollectPortsCountsHiddenProcesses(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.Chmod(filepath.Join(root, "proc/40/fd"), 0o755) })
-	pm, err := CollectPorts(context.Background(), root)
+	pm, err := CollectPorts(context.Background(), root, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,7 +222,7 @@ func TestCollectPortsCountsHiddenProcesses(t *testing.T) {
 }
 
 func TestCollectPortsNoTables(t *testing.T) {
-	if _, err := CollectPorts(context.Background(), t.TempDir()); err == nil {
+	if _, err := CollectPorts(context.Background(), t.TempDir(), nil); err == nil {
 		t.Fatal("no socket table must be an error, not an empty map")
 	}
 }
@@ -227,7 +232,79 @@ func TestCollectPortsHonoursCancel(t *testing.T) {
 	writeProc(t, root, tcpHeader+tcpLine(0, hex4(0, 0, 0, 0)+":0016", "00000000:0000", "0A", 0, 5), map[int][]string{9: {"socket:[5]"}}, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err := CollectPorts(ctx, root); err == nil {
+	if _, err := CollectPorts(ctx, root, nil); err == nil {
 		t.Fatal("cancelled scan returned a map")
+	}
+}
+
+func TestParseListen(t *testing.T) {
+	for in, want := range map[string]string{
+		"0.0.0.0:22": "0.0.0.0 22", "[::]:22": ":: 22", "127.0.0.53%lo:53": "127.0.0.53 53",
+		"*:631": "* 631", "[::ffff:10.0.0.1]:80": "10.0.0.1 80",
+	} {
+		a, p, ok := ParseListen(in)
+		if !ok || fmt.Sprintf("%s %d", a, p) != want {
+			t.Errorf("%q -> %q %d %v", in, a, p, ok)
+		}
+	}
+	for _, bad := range []string{"/run/dbus/system_bus_socket", "audit 1", "kobject-uevent 1", "1.2.3.4:0", "1.2.3.4:99999", "[::1]", "x:22"} {
+		if _, _, ok := ParseListen(bad); ok {
+			t.Errorf("%q accepted", bad)
+		}
+	}
+}
+
+// VM check 2026-11-24 (Ubuntu 26.04, installed package): the broker can read
+// almost no fd table, so every socket came back without an owner. Owners now
+// come from systemd's socket list (observed) and the account (inferred).
+func TestCollectPortsAttributesWithoutFDAccess(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root reads every fd table")
+	}
+	root := t.TempDir()
+	tcp := tcpHeader +
+		tcpLine(0, hex4(0, 0, 0, 0)+":0016", "00000000:0000", "0A", 0, 10) + // socket-activated ssh
+		tcpLine(1, hex4(0, 0, 0, 0)+":1F90", "00000000:0000", "0A", 65534, 11) + // nobody, one unit
+		tcpLine(2, hex4(0, 0, 0, 0)+":1F91", "00000000:0000", "0A", 33, 12) + // www-data, two units
+		tcpLine(3, hex4(127, 0, 0, 1)+":0277", "00000000:0000", "0A", 0, 13) // root, no inference
+	uids = map[int]int{1: 0, 50: 65534, 51: 65534, 60: 33, 61: 33, 70: 0}
+	t.Cleanup(func() { uids = map[int]int{} })
+	writeProc(t, root, tcp, map[int][]string{1: {"socket:[10]"}, 50: {"socket:[11]"}, 51: nil, 60: {"socket:[12]"}, 61: nil, 70: {"socket:[13]"}},
+		map[int]string{1: "0::/init.scope\n", 50: "0::/system.slice/web.service\n", 51: "0::/system.slice/web.service\n",
+			60: "0::/system.slice/a.service\n", 61: "0::/system.slice/b.service\n", 70: "0::/system.slice/cups.service\n"})
+	for _, pid := range []int{1, 50, 51, 60, 61, 70} {
+		if err := os.Chmod(filepath.Join(root, "proc", fmt.Sprint(pid), "fd"), 0); err != nil {
+			t.Fatal(err)
+		}
+		p := filepath.Join(root, "proc", fmt.Sprint(pid), "fd")
+		t.Cleanup(func() { _ = os.Chmod(p, 0o755) })
+	}
+	units := []SocketUnit{
+		{Listen: "0.0.0.0:22", Type: "Stream", Unit: "ssh.socket", Activates: "ssh.service"},
+		{Listen: "0.0.0.0:22", Type: "Datagram", Unit: "wrong-proto.socket"},
+		{Listen: "/run/x.sock", Type: "Stream", Unit: "x.socket"},
+	}
+	pm, err := CollectPorts(context.Background(), root, units)
+	if err != nil {
+		t.Fatal(err)
+	}
+	by := map[int]Socket{}
+	for _, s := range pm.Sockets {
+		by[s.Port] = s
+	}
+	if o := by[22].Owners; len(o) != 1 || o[0].Socket != "ssh.socket" || o[0].Unit != "ssh.service" || o[0].Source != OwnerSystemdSocket || o[0].Confidence != "observed" || o[0].PID != 0 {
+		t.Fatalf("ssh: %+v", o)
+	}
+	if o := by[8080].Owners; len(o) != 1 || o[0].Unit != "web.service" || o[0].Source != OwnerAccount || o[0].Confidence != "inferred" || o[0].Command != "proc50" && o[0].Command != "" {
+		t.Fatalf("nobody: %+v", o)
+	}
+	if o := by[8081].Owners; len(o) != 0 {
+		t.Fatalf("an account spread over two units must not be inferred: %+v", o)
+	}
+	if o := by[631].Owners; len(o) != 0 {
+		t.Fatalf("root must never be inferred: %+v", o)
+	}
+	if pm.ProcessesHidden != 6 || !strings.Contains(pm.Notes[0], "CAP_SYS_PTRACE") {
+		t.Fatalf("hidden/notes: %d %v", pm.ProcessesHidden, pm.Notes)
 	}
 }

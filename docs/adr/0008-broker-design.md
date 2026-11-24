@@ -337,10 +337,16 @@ port-binding change, and it does not change the broker unit.
   `system-read`, 10 s. They are tied to the `ports` and `firewall` modules by op prefix, so a disabled
   module refuses its op.
 - **Ports: fixed `/proc` reads in-process.** The broker unit has `PrivateNetwork=yes`, so the op reads
-  `/proc/1/net/{tcp,tcp6,udp,udp6}` (the host namespace, as seen by PID 1), then walks `/proc/<pid>/fd`
-  links, `comm` and `cgroup` to attribute owners. With only `CAP_SETUID`/`CAP_SETGID` the broker can read
-  the fd tables of uid-0 processes only; the rest are counted as hidden and keep their socket's account.
-  `CAP_SYS_PTRACE` is **not** added. Bounded: 4096 sockets, 32768 processes, 65536 fds per process.
+  `/proc/1/net/{tcp,tcp6,udp,udp6}` (the host namespace, as seen by PID 1). Owners come from three
+  sources, each labelled: `process` (a `/proc/<pid>/fd` link names the socket inode; observed),
+  `systemd-socket` (one fixed unprivileged `systemctl list-sockets --all --output=json --no-pager`
+  lists a socket unit on that address; observed) and `account` (every process of the socket's non-root
+  account runs in one unit, from `/proc/<pid>/status` and `cgroup`, which need no ptrace access;
+  inferred). The kernel's ptrace check on `/proc/<pid>/fd` needs the reader's capabilities to cover the
+  target's, so with only `CAP_SETUID`/`CAP_SETGID` the broker reads almost no fd table, including those
+  of full-capability root daemons (observed on the Ubuntu 26.04 guest, 2026-11-24). `CAP_SYS_PTRACE` is
+  **not** added: it would let the broker read any process's memory and needs its own review. Bounded:
+  4096 sockets, 32768 processes, 65536 fds per process.
 - **Firewall: saved configuration only.** One fixed unprivileged `systemctl show --no-pager
   --property=Id,LoadState,ActiveState,UnitFileState --` over the closed unit list
   (`firewalld`, `ufw`, `nftables`, `netfilter-persistent`, `iptables`, `ip6tables`) decides the active

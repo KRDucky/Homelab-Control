@@ -1660,10 +1660,13 @@ components:
                 type: array
                 items:
                   type: object
-                  required: [pid, command]
+                  required: [pid, command, source, confidence]
                   properties:
-                    pid: { type: integer }
+                    pid: { type: integer, description: 0 for a systemd socket unit or an account inference }
                     command: { type: string }
+                    source: { type: string, enum: [process, systemd-socket, account] }
+                    confidence: { type: string, enum: [observed, inferred] }
+                    socket: { type: string, description: systemd socket unit (source systemd-socket) }
                     unit: { type: string }
                     container: { type: string }
         truncated: { type: boolean }
@@ -3264,11 +3267,13 @@ paths:
         Broker op network.ports.list (root-read, in-process, no exec, no
         arguments) reads the TCP/UDP socket tables of PID 1's network
         namespace and attributes each listening TCP or bound, unconnected UDP
-        socket to processes whose open files reference it (comm, systemd unit
-        and short container ID from the cgroup). The broker holds only
-        CAP_SETUID/CAP_SETGID, so fd tables of processes running as another
-        user are not readable; they are counted in processesHidden and the
-        socket keeps its owning account. Read-only: changing a binding is a
+        socket: source process (open files reference it; observed), source
+        systemd-socket (systemd lists a socket unit on that address, from one
+        fixed unprivileged systemctl list-sockets; observed), or source
+        account (every process of the socket's non-root account runs in one
+        unit; inferred). The broker holds only CAP_SETUID/CAP_SETGID and no
+        CAP_SYS_PTRACE, so most fd tables are unreadable; they are counted in
+        processesHidden. Read-only: changing a binding is a
         write in the owning module. Audit records counts only.
       security: [{ session: [] }]
       x-required-scope: networking.ports.read
