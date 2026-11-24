@@ -2,6 +2,10 @@
 
 Times are rough effort bands for a small team with AI assistance, not delivery guarantees. Do not skip acceptance gates.
 
+**Cross-milestone acceptance rule (owner 2026-11-23):** All code testing requires Graphify dependency/impact review, remediation of confirmed findings, and relevant test reruns, including partial checkpoints. Graphify availability/index freshness and remediation evidence must be reported; see [08-TESTING-AND-ACCEPTANCE.md](08-TESTING-AND-ACCEPTANCE.md).
+
+**Full-function VM rule (owner 2026-11-23):** Every milestone delivering a **fully functioning** feature must implement it end-to-end and pass real disposable-VM tests of the installed build on each claimed supported distro. This applies to read-only and write features alike, M0–M14 and later milestones. Unit tests, mocks, browser fixtures, containers and CI alone are insufficient. Design-only or partial checkpoints can merge with honest labels but cannot close a milestone or claim production readiness. Test evidence requirements and exceptions for partial work are in [08-TESTING-AND-ACCEPTANCE.md](08-TESTING-AND-ACCEPTANCE.md). Prior owner-accepted milestones are not retroactively reopened by this policy. Debian/Ubuntu are the initial release targets; RPM and Pacman distros follow a stable functioning `.deb` release.
+
 | Milestone | Focus | Acceptance gate |
 |---|---|---|
 | M0 | Fork/audit Webmin; source provenance, license audit, CI, dev VM | Reproducible baseline build, documented upstream sync and threat model |
@@ -30,4 +34,4 @@ Times are rough effort bands for a small team with AI assistance, not delivery g
 M0–M4 establish the foundation. M5 precedes M6–M9 because all disk operations require trustworthy identity. M10 can run in parallel with later storage work once M2–M4 are stable. Release packaging must be exercised from M0, not deferred until M14.
 
 ## Reporting format per milestone
-Goal; code changes; architecture decisions; tests run with evidence; unsupported cases; security impact; regressions; packaging results; blockers; next proposed milestone. Stop for approval.
+Goal; code changes; architecture decisions; **disposable VM guest matrix and real end-to-end results when full function is claimed**; other tests run with evidence; **Graphify review, findings, fixes and retests**; unsupported cases; security impact; regressions; packaging results; blockers; next proposed milestone. Stop for approval.
