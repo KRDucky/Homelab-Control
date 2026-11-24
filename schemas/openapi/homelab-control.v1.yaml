@@ -2791,6 +2791,48 @@ paths:
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: Missing packages.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: Broker down, unsupported family, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /packages/preview:
+    get:
+      summary: Informational APT simulation for one Debian/Ubuntu package (read-only; scope packages.read).
+      description: >
+        Uses the unprivileged broker's closed apt-get --simulate command and cached APT metadata.
+        A preview is advisory, not a trusted transaction plan, confirmation token or installation
+        authorization. No package-manager mutation, download, repository enrollment or refresh.
+        An inconsistent simulation is refused. Origin and X-CSRF-Token are required.
+      security: [{ session: [] }]
+      x-required-scope: packages.read
+      parameters:
+        - { name: Origin, in: header, required: true, schema: { type: string } }
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string } }
+        - { name: package, in: query, required: true, schema: { type: string, maxLength: 160 }, description: Strict Debian package name }
+        - { name: action, in: query, required: true, schema: { type: string, enum: [install, remove, upgrade] } }
+      responses:
+        '200':
+          description: Advisory APT simulation
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [changes, install_count, remove_count, configure_count]
+                properties:
+                  changes:
+                    type: array
+                    maxItems: 4096
+                    items:
+                      type: object
+                      required: [action, name]
+                      properties:
+                        action: { type: string, enum: [install, remove, configure] }
+                        name: { type: string }
+                        installed_version: { type: string }
+                        candidate_version: { type: string }
+                  install_count: { type: integer, minimum: 0 }
+                  remove_count: { type: integer, minimum: 0 }
+                  configure_count: { type: integer, minimum: 0 }
+        '400': { description: Invalid action or package, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: Missing packages.read or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Unsupported distro, missing cache/tool, unsafe simulation or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /mergerfs:
     get:
       summary: Read-only MergerFS pool inventory and optional SnapRAID configuration (scope mergerfs.read).
