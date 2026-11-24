@@ -27,3 +27,7 @@ A separate draft PR adds the unprivileged closed `apt-get --simulate --no-downlo
 - Local `apt-get --simulate --no-download --no-install-recommends install -- bash` ran successfully in the tool sandbox with an empty change summary. This is a **read-only command compatibility spot-check only**, not HomeControl integration evidence.
 - Debian/Ubuntu VMs and installed `.deb` guest acceptance: **NOT RUN**. No VM-execution interface was available.
 - M4 remains **incomplete**. A working *preview* is not a safe *apply*: ADR 0014/0015 owner acceptance, trusted repository identity, transaction locking, revalidation, audit journal, privileged execution and VM proof remain required.
+
+### Additional source-review finding and fix
+
+The first generated patch for `backend/internal/broker/runner/runner.go` was corrupted by replacement-string interpolation around a Go regexp containing a trailing dollar sign/backtick. It duplicated repository source into the middle of the new regexp. This was caught by inspecting the actual branch file, **before accepting CI or submitting the PR for merge**. The runner file was rebuilt from the clean current `main` with only the intended allow-list and closed simulation changes (fix commit `1b6c7307d364848f0b1e0fbf6c1342c967dc6610`); inspection verified one SPDX header, one simulation method and expected file size. This is source inspection evidence, **not** a claim of compiled/tested correctness. Full CI and fresh Graphify branch review remain mandatory.
