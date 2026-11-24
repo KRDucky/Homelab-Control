@@ -54,13 +54,22 @@ func networkFirewallConfig(ctx context.Context, env *Env, raw json.RawMessage) (
 	if err := requireNoArgs(raw); err != nil {
 		return nil, err
 	}
+	show := env.FirewallShow
+	if show == nil && env.Runner != nil && env.Runner.Available("systemctl") {
+		show = func(ctx context.Context) ([]byte, int, error) {
+			res, err := env.Runner.Run(ctx, "systemctl", firewallShowArgs()...)
+			return res.Stdout, res.ExitCode, err
+		}
+	}
+	// nil units = systemd could not be asked: the backend is reported unknown.
 	var units map[string]netinfo.UnitState
-	if env.Runner != nil && env.Runner.Available("systemctl") {
-		res, err := env.Runner.Run(ctx, "systemctl", firewallShowArgs()...)
-		if err == nil && res.ExitCode == 0 {
-			units = netinfo.ParseUnitStates(res.Stdout)
-		} else if ctx.Err() != nil {
+	if show != nil {
+		out, code, err := show(ctx)
+		if ctx.Err() != nil {
 			return nil, ctx.Err()
+		}
+		if err == nil && code == 0 {
+			units = netinfo.ParseUnitStates(out)
 		}
 	}
 	root := env.Roots.Root

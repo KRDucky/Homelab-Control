@@ -73,6 +73,9 @@ type Env struct {
 	// SnapraidStatus overrides `snapraid status` in tests. Production leaves
 	// it nil. The production path runs Runner with argv exactly "status".
 	SnapraidStatus func(ctx context.Context) (stdout []byte, stderr string, exitCode int, err error)
+	// FirewallShow overrides the firewall unit-state query in tests.
+	// Production leaves it nil and runs the fixed firewallShowArgs argv.
+	FirewallShow func(ctx context.Context) (stdout []byte, exitCode int, err error)
 	// MergerFSApply overrides the socket helper in tests. Production dials
 	// mergerfs-apply.sock. The broker never executes mergerfs or snapraid sync.
 	MergerFSApply func(ctx context.Context, req mergerfsapply.Request) (mergerfsapply.Result, error)
