@@ -109,9 +109,12 @@ func ParseSimulation(stdout string) (Preview, error) {
 			if sawSummary {
 				return Preview{}, fmt.Errorf("%w: repeated APT summary", ErrUnsafe)
 			}
-			upgraded, _ := strconv.Atoi(m[1])
-			added, _ := strconv.Atoi(m[2])
-			removed, _ := strconv.Atoi(m[3])
+			upgraded, errU := strconv.Atoi(m[1])
+			added, errA := strconv.Atoi(m[2])
+			removed, errR := strconv.Atoi(m[3])
+			if errU != nil || errA != nil || errR != nil || upgraded > maxActions || added > maxActions || removed > maxActions || upgraded > maxActions-added {
+				return Preview{}, fmt.Errorf("%w: invalid APT summary counts", ErrUnsafe)
+			}
 			expectedInst, expectedRemove = upgraded+added, removed
 			if expectedInst > maxActions || expectedRemove > maxActions {
 				return Preview{}, ErrUnsafe
