@@ -28,6 +28,7 @@ type ExtraConfirm string
 
 const (
 	ConfirmFormat              ExtraConfirm = "format"
+	ConfirmPartition           ExtraConfirm = "partition"
 	ConfirmMetadataWipe        ExtraConfirm = "metadata-wipe"
 	ConfirmForcedImport        ExtraConfirm = "forced-import"
 	ConfirmDegradedMount       ExtraConfirm = "degraded-mount"
