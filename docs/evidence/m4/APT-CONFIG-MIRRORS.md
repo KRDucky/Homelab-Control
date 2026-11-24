@@ -26,6 +26,7 @@ these two writes: `docs/m2/OWNER-DECISIONS.md` ("APT settings and mirrors"). Des
 |---|---|---|---|---|
 | 1 | `36ec3be8` (feature commit) | `backend/`, `frontend/app/src/`, AST only, 468 code files | 5433 / 21316 | 1 confirmed finding, 2 test gaps, method-call false positives |
 | 2 | `ac7e299f` (after fixes) | same | 5435 / 21329 | no new finding |
+| 3 | `856d0031` (= tested commit) | same | 5437 / 21338 | no new finding; `ValidCurrentURI` callers and tests linked |
 
 Graph health: about 2006 dangling-endpoint edges (stdlib and external symbols), 285 collapsed duplicates,
 0 missing endpoints. "No callers" for `offer`/`wasOffered` is the extractor's method-call gap (checked in source).
