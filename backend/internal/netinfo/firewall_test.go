@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -30,11 +31,40 @@ func touchBin(t *testing.T, root string, paths ...string) {
 	}
 }
 
+func showOutput(active string, extra string) string {
+	var b strings.Builder
+	for _, u := range FirewallUnits {
+		st := "Id=" + u + "\nLoadState=not-found\nActiveState=inactive\nUnitFileState=\n\n"
+		if u == active {
+			st = "Id=" + u + "\nLoadState=loaded\nActiveState=active\nUnitFileState=enabled\n\n"
+		}
+		b.WriteString(st)
+	}
+	return b.String() + extra
+}
+
 func TestParseUnitStatesKeepsOnlyFixedUnits(t *testing.T) {
-	out := "Id=ufw.service\nLoadState=loaded\nActiveState=active\nUnitFileState=enabled\n\nId=evil.service\nActiveState=active\n\nId=nftables.service\nLoadState=not-found\nActiveState=inactive\nUnitFileState=\n"
-	m := ParseUnitStates([]byte(out))
-	if len(m) != 2 || m["ufw.service"].ActiveState != "active" || m["nftables.service"].LoadState != "not-found" {
+	m := ParseUnitStates([]byte(showOutput("ufw.service", "Id=evil.service\nActiveState=active\n")))
+	if len(m) != len(FirewallUnits) || m["ufw.service"].ActiveState != "active" || m["nftables.service"].LoadState != "not-found" {
 		t.Fatalf("%+v", m)
+	}
+	if _, ok := m["evil.service"]; ok {
+		t.Fatal("unit outside the closed list kept")
+	}
+}
+
+// Graphify review 2026-11-24: output missing a unit used to yield a partial
+// map, which CollectFirewall reported as "no firewall service is active".
+func TestParseUnitStatesIncompleteIsUnknown(t *testing.T) {
+	partial := "Id=ufw.service\nLoadState=loaded\nActiveState=inactive\nUnitFileState=enabled\n"
+	if m := ParseUnitStates([]byte(partial)); m != nil {
+		t.Fatalf("partial output must be unknown: %+v", m)
+	}
+	if m := ParseUnitStates(nil); m != nil {
+		t.Fatalf("empty output must be unknown: %+v", m)
+	}
+	if snap := CollectFirewall(t.TempDir(), ParseUnitStates([]byte(partial))); snap.Active != FirewallUnknown {
+		t.Fatalf("partial systemd answer reported as %q", snap.Active)
 	}
 }
 

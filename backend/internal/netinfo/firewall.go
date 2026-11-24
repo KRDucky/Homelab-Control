@@ -88,7 +88,10 @@ var firewallBinaries = map[string][]string{
 
 // ParseUnitStates parses `systemctl show --property=Id,LoadState,ActiveState,
 // UnitFileState -- <units>` output: one block per unit separated by a blank
-// line. Only names in FirewallUnits are kept.
+// line. Only names in FirewallUnits are kept. systemctl prints a block (with
+// LoadState=not-found) even for a unit that does not exist, so output that
+// lacks any of FirewallUnits is not what this parser expects: it returns nil
+// (state unknown) rather than a partial map that would read as "inactive".
 func ParseUnitStates(b []byte) map[string]UnitState {
 	out := map[string]UnitState{}
 	allowed := map[string]bool{}
@@ -106,6 +109,9 @@ func ParseUnitStates(b []byte) map[string]UnitState {
 			ActiveState:   cleanText(kv["ActiveState"], 32),
 			UnitFileState: cleanText(kv["UnitFileState"], 32),
 		}
+	}
+	if len(out) != len(FirewallUnits) {
+		return nil
 	}
 	return out
 }
