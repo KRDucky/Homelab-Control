@@ -295,15 +295,17 @@ function SoftwarePreview({ csrf, onUnauthorized }: { csrf: string; onUnauthorize
   const [name, setName] = useState('');
   const [preview, setPreview] = useState<AptPreview | null>(null);
   const [error, setError] = useState<Error | null>(null);
+  const [validationError, setValidationError] = useState('');
   const [busy, setBusy] = useState(false);
 
   async function onPreview(e: FormEvent) {
     e.preventDefault();
     setPreview(null);
     setError(null);
+    setValidationError('');
     const pkg = name.trim();
     if (!/^[a-z0-9][a-z0-9+.-]{0,127}(?::[a-z0-9][a-z0-9-]{0,31})?$/.test(pkg) || pkg.includes('..')) {
-      setError(new Error('Enter a valid Debian/Ubuntu package name.'));
+      setValidationError('Enter a valid Debian/Ubuntu package name.');
       return;
     }
     setBusy(true);
@@ -337,6 +339,7 @@ function SoftwarePreview({ csrf, onUnauthorized }: { csrf: string; onUnauthorize
           onChange={(e) => {
             setAction(e.target.value as PreviewAction);
             setPreview(null);
+            setValidationError('');
           }}
         >
           <option value="install">Install</option>
@@ -351,6 +354,7 @@ function SoftwarePreview({ csrf, onUnauthorized }: { csrf: string; onUnauthorize
           onChange={(e) => {
             setName(e.target.value);
             setPreview(null);
+            setValidationError('');
           }}
           placeholder="e.g. nginx"
         />
@@ -359,6 +363,11 @@ function SoftwarePreview({ csrf, onUnauthorized }: { csrf: string; onUnauthorize
         </button>
       </form>
       {busy && <p className="muted">Asking APT to simulate the changes…</p>}
+      {validationError && (
+        <p className="banner" role="alert">
+          {validationError}
+        </p>
+      )}
       {error && (
         <p className="banner" role="alert">
           {explain(error)}
