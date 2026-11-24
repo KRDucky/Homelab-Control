@@ -730,8 +730,8 @@ func AptSimulationArgv(action, pkg string) ([]string, error) {
 		return nil, ErrBadArg
 	}
 	switch action {
-	case "install", "remove", "purge", "upgrade":
-		// All four verbs are simulated; APT, not HomeControl, resolves dependencies.
+	case "install", "remove", "upgrade":
+		// All accepted verbs are simulated; APT resolves dependencies.
 		// "upgrade" of one package is expressed as apt-get install <pkg>,
 		// to avoid the host-wide effects of apt-get upgrade.
 		verb := action
