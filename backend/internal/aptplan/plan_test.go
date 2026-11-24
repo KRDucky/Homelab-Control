@@ -48,6 +48,8 @@ func TestRejectDangerousAndAmbiguousOutput(t *testing.T) {
 		strings.Replace(good, "Conf demo", "Purg demo", 1),
 		strings.Replace(good, "Inst libdemo", "Inst libdemo", 1) + "Inst libdemo (1.2 Debian)\n",
 		strings.Repeat("x", maxOutput+1),
+		"999999999999999999999999999 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.\n",
+		"0 upgraded, 1 newly installed, 0 to remove and 0 not upgraded.\n",
 		strings.Replace(good, "Inst libdemo (1.2-1 Debian:13/stable [amd64])", "Inst libdemo (bogus", 1),
 	}
 	for i, x := range cases {
