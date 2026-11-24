@@ -369,7 +369,7 @@ proportional bar from observed partition starts and can check a layout. The only
 format path remains `ext4.format` on a whole by-id disk. Destructive partition
 execution is still gated. Not M6 acceptance.
 
-One Ubuntu virtual-disk check has run, and it is partial. On 2026-11-23 the
+Two virtual-disk checks have run, and they are partial. On 2026-11-23 the
 disposable guest `m6-partplan-c1e73d69b` (Ubuntu 26.04.1, kernel
 `7.0.0-43-generic`) had a blank 1 GiB virtio disk. `sfdisk` wrote a GPT label
 only on that disk: starts 2048 and 32768 of 512-byte sectors, 16384 sectors
@@ -381,8 +381,14 @@ observed layout posted as filesystem `unknown` was ok, with `executes: false`,
 two unknown steps, and gap steps. Forcing both slices onto the first start was
 not ok, with `executes: false` and the error `slice 2 overlaps another slice`.
 No step was executable. Nothing was formatted. Evidence is on the VM host at
-`/mnt/tank/claude-vms/artifacts/m6-partition-plan-c1e73d69/`. Debian was not
-run. This was not an installed package and not the Web UI.
+`/mnt/tank/claude-vms/artifacts/m6-partition-plan-c1e73d69/`.
+
+The same probe passed on Debian 13.8 (`VERSION_ID=13`) in guest
+`m6-partplan-c1e73d69-deb13efi`. The generic cloud image looped in BIOS GRUB,
+so this guest used the already installed UEFI firmware. The blank virtio disk
+showed the same starts, sizes, unknown steps, and overlap rejection. A BIOS
+domain from that attempt was left shut off and was not undefined. This was
+not an installed package and not the Web UI.
 
 ## M2-3: expanded service management (development authorized 2026-11-04; implementation not accepted)
 
