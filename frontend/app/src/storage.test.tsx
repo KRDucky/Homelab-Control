@@ -278,6 +278,92 @@ describe('partition dry run', () => {
     const validate = screen.getByRole('button', { name: 'Validate observed layout' }) as HTMLButtonElement;
     expect(validate.disabled).toBe(true);
   });
+
+  it('sends an unobserved filesystem as unknown', async () => {
+    const disk = observation.graph.nodes[0];
+    if (!disk) throw new Error('Missing storage fixture');
+    const laidOut: StorageInventory = {
+      ...observation,
+      graph: {
+        ...observation.graph,
+        nodes: [
+          { ...disk, size_bytes: 4 * 1048576 },
+          {
+            id: 'part-1',
+            kind: 'partition',
+            name: 'sda1',
+            identity_status: 'unavailable',
+            start_bytes: 1048576,
+            size_bytes: 1048576,
+            filesystem_type: 'ntfs',
+            evidence: [{ source: 'fixture sysfs', confidence: 'observed' }],
+          },
+          {
+            id: 'part-2',
+            kind: 'partition',
+            name: 'sda2',
+            identity_status: 'unavailable',
+            start_bytes: 2 * 1048576,
+            size_bytes: 1048576,
+            evidence: [{ source: 'fixture sysfs', confidence: 'observed' }],
+          },
+        ],
+        edges: [
+          {
+            from: 'disk-A',
+            to: 'part-1',
+            kind: 'contains',
+            evidence: { source: 'fixture sysfs', confidence: 'observed' },
+          },
+          {
+            from: 'disk-A',
+            to: 'part-2',
+            kind: 'contains',
+            evidence: { source: 'fixture sysfs', confidence: 'observed' },
+          },
+        ],
+      },
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const path = String(url);
+        if (path.includes('/storage/plan/dry-run')) {
+          const body = JSON.parse(String(init?.body)) as {
+            parts: { filesystem: string }[];
+          };
+          expect(body.parts.map((part) => part.filesystem)).toEqual(['unknown', 'unknown']);
+          return new Response(
+            JSON.stringify({
+              ok: true,
+              errors: [],
+              executes: false,
+              steps: [
+                {
+                  action: 'unknown',
+                  detail:
+                    'slice 1 filesystem was not observed. This dry run does not partition or format.',
+                  destructive: false,
+                  executable: false,
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+        const payload = path.includes('/storage/layout') ? { chassis: [] } : laidOut;
+        return new Response(JSON.stringify(payload), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }),
+    );
+    render(<Storage csrf="example-csrf" onUnauthorized={() => undefined} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Inspect SERIAL-A' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Validate observed layout' }));
+    expect(await screen.findByText(/not observed/)).toBeTruthy();
+    expect(screen.queryByText(/stays unformatted/)).toBeNull();
+  });
 });
 
 describe('drive label policy', () => {

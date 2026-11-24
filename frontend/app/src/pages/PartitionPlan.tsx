@@ -16,9 +16,14 @@ interface Row {
 
 const emptyRow = (): Row => ({ start: '', size: '', fs: 'none' });
 
-function allowedFilesystem(value: string | undefined): (typeof FILESYSTEMS)[number] {
-  const name = (value ?? '').toLowerCase();
-  return FILESYSTEMS.find((item) => item === name) ?? 'none';
+function allowedFilesystem(value: string | undefined): (typeof FILESYSTEMS)[number] | 'unknown' {
+  const name = (value ?? '').trim().toLowerCase();
+  if (name === '') return 'unknown';
+  return FILESYSTEMS.find((item) => item === name) ?? 'unknown';
+}
+
+function formFilesystem(value: string): (typeof FILESYSTEMS)[number] {
+  return FILESYSTEMS.find((item) => item === value) ?? 'none';
 }
 
 function wholeBytes(value: string): number | null {
@@ -200,7 +205,7 @@ export function PartitionPlan({
                   onChange={(event) =>
                     setRows((current) =>
                       current.map((item, i) =>
-                        i === index ? { ...item, fs: allowedFilesystem(event.target.value) } : item,
+                        i === index ? { ...item, fs: formFilesystem(event.target.value) } : item,
                       ),
                     )
                   }

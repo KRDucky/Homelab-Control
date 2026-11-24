@@ -148,7 +148,7 @@ components:
             properties:
               start_bytes: { type: integer, minimum: 0 }
               size_bytes: { type: integer, minimum: 1 }
-              filesystem: { type: string, description: "ext4, xfs, f2fs, btrfs, exfat, swap, none, or empty. Any other name is rejected." }
+              filesystem: { type: string, description: "ext4, xfs, f2fs, btrfs, exfat, swap, none, empty, or unknown. unknown means the type was not observed and is not reported as unformatted. Any other name is rejected." }
     PartitionPlanReport:
       type: object
       additionalProperties: false
