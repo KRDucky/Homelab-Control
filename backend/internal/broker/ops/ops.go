@@ -259,6 +259,13 @@ func Registry() map[string]Op {
 		// reader is the default LVM path (no lvs/pvs execution).
 		{Name: "storage.probe", Scope: "storage.probe", Privilege: PrivRootRead, Timeout: 35 * time.Second, Admission: AdmissionProbe,
 			Description: "On-demand native storage probe (blkid signatures on enumerated devices); wakes disks", Handle: storageProbe},
+		// M11 (ADR 0008 Amendment 9, Proposed): read-only networking. In-process
+		// root reads of fixed /proc and config paths; the firewall op also runs
+		// one fixed unprivileged systemctl show. No live ruleset, no writes.
+		{Name: "network.ports.list", Scope: "networking.ports.read", Privilege: PrivRootRead, Timeout: 10 * time.Second, Admission: AdmissionSystemRead,
+			Description: "Host-wide listening TCP and bound UDP sockets of the host network namespace with owning account, process, unit and container", Handle: networkPortsList},
+		{Name: "network.firewall.config", Scope: "networking.firewall.read", Privilege: PrivRootRead, Timeout: 10 * time.Second, Admission: AdmissionSystemRead,
+			Description: "Active firewall backend (firewalld, ufw, nftables or iptables) and its saved configuration; the live kernel ruleset is not read", Handle: networkFirewallConfig},
 		// ext4 format (owner 2026-11-23): the closed mkfs.ext4 template is
 		// this pair's apply, and only this pair's apply. Quiet, one by-id
 		// target, no -F. ext4.read does not grant it. The main broker unit

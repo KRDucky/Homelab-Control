@@ -166,47 +166,61 @@ const (
 	// no writes, no broker ops, and no xfs_info execution. Not in
 	// DefaultScopes and implied by nothing, including storage.read.
 	ScopeXFSRead = "xfs.read"
+	// M11 read-only networking (ADR 0008 Amendment 9, Proposed). None is in
+	// DefaultScopes and none implies another or is implied by any scope.
+	//
+	// ScopeNetworkingPortsRead allows the host port-use map (listening
+	// sockets with owning account, process, unit and container).
+	ScopeNetworkingPortsRead = "networking.ports.read"
+	// ScopeNetworkingBondsRead allows the kernel bonding / LACP inventory.
+	ScopeNetworkingBondsRead = "networking.bonds.read"
+	// ScopeNetworkingFirewallRead allows the active firewall backend and its
+	// saved configuration. It grants no firewall change.
+	ScopeNetworkingFirewallRead = "networking.firewall.read"
 )
 
 // KnownScopes lists every scope the server understands. Unknown scopes in the
 // users file are rejected at load time so typos cannot silently grant nothing
 // (or, in later milestones, the wrong thing). All M1 scopes are read-only.
 var KnownScopes = map[string]bool{
-	ScopeNetworkingProxyRead:  true,
-	ScopeNetworkingProxyApply: true,
-	ScopeComposeRead:          true,
-	ScopePlatformsRead:        true,
-	ScopePodmanRead:           true,
-	ScopeKubernetesRead:       true,
-	ScopeStorageRead:          true,
-	ScopeStorageProbe:         true,
-	ScopeSystemRead:           true,
-	ScopeServicesRead:         true,
-	ScopeHardwareRead:         true,
-	ScopeServicesLogs:         true,
-	ScopeAuditRead:            true,
-	ScopeServicesOperate:      true,
-	ScopeServicesConfigure:    true,
-	ScopeServicesFiles:        true,
-	ScopeServicesSystemctl:    true,
-	ScopeHostSettingsPreview:  true,
-	ScopeHostSettingsApply:    true,
-	ScopeLayoutManage:         true,
-	ScopeFilesRead:            true,
-	ScopeFilesWrite:           true,
-	ScopeFilesDestroy:         true,
-	ScopePackagesRead:         true,
-	ScopeMergerFSRead:         true,
-	ScopeMergerFSConfigure:    true,
-	ScopeMergerFSMaintain:     true,
-	ScopeZFSRead:              true,
-	ScopeLVMRead:              true,
-	ScopeBtrfsRead:            true,
-	ScopeExt4Read:             true,
-	ScopeExt4Format:           true,
-	ScopeMdadmRead:            true,
-	ScopeF2fsRead:             true,
-	ScopeXFSRead:              true,
+	ScopeNetworkingProxyRead:    true,
+	ScopeNetworkingProxyApply:   true,
+	ScopeComposeRead:            true,
+	ScopePlatformsRead:          true,
+	ScopePodmanRead:             true,
+	ScopeKubernetesRead:         true,
+	ScopeStorageRead:            true,
+	ScopeStorageProbe:           true,
+	ScopeSystemRead:             true,
+	ScopeServicesRead:           true,
+	ScopeHardwareRead:           true,
+	ScopeServicesLogs:           true,
+	ScopeAuditRead:              true,
+	ScopeServicesOperate:        true,
+	ScopeServicesConfigure:      true,
+	ScopeServicesFiles:          true,
+	ScopeServicesSystemctl:      true,
+	ScopeHostSettingsPreview:    true,
+	ScopeHostSettingsApply:      true,
+	ScopeLayoutManage:           true,
+	ScopeFilesRead:              true,
+	ScopeFilesWrite:             true,
+	ScopeFilesDestroy:           true,
+	ScopePackagesRead:           true,
+	ScopeMergerFSRead:           true,
+	ScopeMergerFSConfigure:      true,
+	ScopeMergerFSMaintain:       true,
+	ScopeZFSRead:                true,
+	ScopeLVMRead:                true,
+	ScopeBtrfsRead:              true,
+	ScopeExt4Read:               true,
+	ScopeExt4Format:             true,
+	ScopeMdadmRead:              true,
+	ScopeF2fsRead:               true,
+	ScopeXFSRead:                true,
+	ScopeNetworkingPortsRead:    true,
+	ScopeNetworkingBondsRead:    true,
+	ScopeNetworkingFirewallRead: true,
 }
 
 // DefaultScopes are granted by `hlctl user add` when --scopes is not given.

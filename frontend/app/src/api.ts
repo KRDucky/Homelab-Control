@@ -181,6 +181,9 @@ export interface Capability {
     | 'mdadm'
     | 'f2fs'
     | 'xfs'
+    | 'ports'
+    | 'bonds'
+    | 'firewall'
     | 'traefik';
   label: string;
   path: string;
@@ -2042,3 +2045,183 @@ export const previewIdentity = (
     csrf,
     body,
   );
+
+// ---- M11: read-only networking (port use, bonds/LACP, firewall) -----------
+
+export interface PortOwner {
+  pid: number;
+  command: string;
+  unit?: string;
+  container?: string;
+}
+
+export interface PortSocket {
+  proto: 'tcp' | 'tcp6' | 'udp' | 'udp6';
+  address: string;
+  port: number;
+  exposure: 'loopback' | 'all' | 'address';
+  uid: number;
+  account?: string;
+  owners: PortOwner[];
+}
+
+export interface PortMap {
+  sockets: PortSocket[];
+  truncated: boolean;
+  namespace: string;
+  processesScanned: number;
+  processesHidden: number;
+  sources: string[];
+  notes: string[];
+}
+
+export function getPorts(csrf: string): Promise<PortMap> {
+  return request<PortMap>('/api/v1/ports', { headers: { 'X-CSRF-Token': csrf } });
+}
+
+export interface BondSlave {
+  name: string;
+  state: string;
+  miiStatus: string;
+  linkFailures: number;
+  speed?: string;
+  aggregatorId?: string;
+}
+
+export interface BondRenderer {
+  id: 'systemd-networkd' | 'NetworkManager' | 'ifupdown' | 'unknown';
+  via?: string;
+  source?: string;
+  confidence: 'observed' | 'unknown';
+}
+
+export interface Bond {
+  name: string;
+  mode: string;
+  lacp: boolean;
+  operState: string;
+  miimonMs?: string;
+  lacpRate?: string;
+  xmitHashPolicy?: string;
+  aggregatorId?: string;
+  partnerMac?: string;
+  activeSlave?: string;
+  slaves: BondSlave[];
+  renderer: BondRenderer;
+}
+
+export interface BondSnapshot {
+  driverLoaded: boolean;
+  bonds: Bond[];
+  stacks: string[];
+  truncated: boolean;
+}
+
+export function getBonds(csrf: string): Promise<BondSnapshot> {
+  return request<BondSnapshot>('/api/v1/bonds', { headers: { 'X-CSRF-Token': csrf } });
+}
+
+export type FirewallBackendId = 'firewalld' | 'ufw' | 'nftables' | 'iptables';
+
+export interface FirewallBackend {
+  id: FirewallBackendId;
+  installed: boolean;
+  binary?: string;
+  unit?: string;
+  activeState?: string;
+  enabled?: string;
+  role: 'active' | 'installed' | 'absent';
+}
+
+export interface UfwRule {
+  action: string;
+  direction: string;
+  interface?: string;
+  route: boolean;
+  proto: string;
+  to: string;
+  toPort: string;
+  from: string;
+  fromPort: string;
+  app?: string;
+  comment?: string;
+  ipv6: boolean;
+}
+
+export interface UfwView {
+  enabled: boolean;
+  logLevel?: string;
+  defaultInput?: string;
+  defaultOutput?: string;
+  defaultForward?: string;
+  ipv6?: string;
+  rules: UfwRule[];
+  truncated: boolean;
+  unreadable: string[];
+}
+
+export interface FirewalldZone {
+  name: string;
+  default: boolean;
+  target: string;
+  source: string;
+  interfaces: string[];
+  sources: string[];
+  services: string[];
+  ports: string[];
+  masquerade: boolean;
+  forwardPorts: string[];
+  richRules: string[];
+}
+
+export interface FirewalldView {
+  defaultZone: string;
+  zones: FirewalldZone[];
+  truncated: boolean;
+  unreadable: string[];
+}
+
+export interface NftChain {
+  name: string;
+  type?: string;
+  hook?: string;
+  priority?: string;
+  policy?: string;
+  rules: string[];
+}
+
+export interface NftablesView {
+  file: string;
+  tables: { family: string; name: string; chains: NftChain[]; sets: string[] }[];
+  includes: string[];
+  flushRuleset: boolean;
+  truncated: boolean;
+  unreadable: string[];
+}
+
+export interface IptablesView {
+  files: {
+    path: string;
+    ipv6: boolean;
+    tables: { name: string; chains: { name: string; policy: string; rules: string[] }[] }[];
+  }[];
+  truncated: boolean;
+  unreadable: string[];
+}
+
+export interface FirewallSnapshot {
+  active: FirewallBackendId | 'none' | 'unknown';
+  activeReason: string;
+  alsoActive: string[];
+  backends: FirewallBackend[];
+  source: 'saved-configuration';
+  firewalld?: FirewalldView;
+  ufw?: UfwView;
+  nftables?: NftablesView;
+  iptables?: IptablesView;
+  notes: string[];
+}
+
+export function getFirewall(csrf: string): Promise<FirewallSnapshot> {
+  return request<FirewallSnapshot>('/api/v1/firewall', { headers: { 'X-CSRF-Token': csrf } });
+}

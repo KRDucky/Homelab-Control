@@ -73,6 +73,9 @@ func TestRegistryIsClosed(t *testing.T) {
 		"mergerfs.maintain.apply":  {PrivRootRead, "mergerfs.maintain", "apply"},
 		// M2-4 O-1 (owner-approved implementation/isolated validation).
 		"storage.probe": {PrivRootRead, "storage.probe", ""},
+		// M11 (ADR 0008 Amendment 9, Proposed): read-only networking.
+		"network.ports.list":      {PrivRootRead, "networking.ports.read", ""},
+		"network.firewall.config": {PrivRootRead, "networking.firewall.read", ""},
 		// ext4 format: destructive, not granted by ext4.read.
 		"ext4.format.plan":  {PrivRootRead, "ext4.format", "plan"},
 		"ext4.format.apply": {PrivRootExec, "ext4.format", "apply"},
@@ -435,6 +438,8 @@ func TestAdmissionClasses(t *testing.T) {
 		"storage.probe":             AdmissionProbe,
 		"ext4.format.plan":          AdmissionControlPlan,
 		"ext4.format.apply":         AdmissionControlApply,
+		"network.ports.list":        AdmissionSystemRead,
+		"network.firewall.config":   AdmissionSystemRead,
 	}
 	reg := Registry()
 	if len(reg) != len(want) {
