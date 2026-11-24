@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { Software } from './pages/Software';
-import { getPackageSearch, type PackageList, type SourceList, type UpdateList } from './api';
+import { getPackageSearch, getAptPreview, type PackageList, type SourceList, type UpdateList } from './api';
 
 const installedFixture: PackageList = {
   packages: [{ name: 'nginx', version: '1.2.3', arch: 'amd64', installed: true }],
@@ -37,6 +37,7 @@ vi.mock('./api', async (importOriginal) => {
     getPackagesInstalled: vi.fn(async () => installedFixture),
     getPackagesUpdates: vi.fn(async () => updatesFixture),
     getPackagesSources: vi.fn(async () => sourcesFixture),
+    getAptPreview: vi.fn(async () => ({ changes: [{ action: 'install', name: 'libdemo', candidate_version: '1.2' }], install_count: 1, remove_count: 0, configure_count: 0 })),
   };
 });
 
@@ -51,7 +52,7 @@ const onUnauthorized = vi.fn();
 describe('Software Center UI model', () => {
   it('renders the four tabs and the read-only preview label', async () => {
     render(<Software csrf={csrf} onUnauthorized={onUnauthorized} />);
-    for (const label of ['Search', 'Installed', 'Updates', 'Sources']) {
+    for (const label of ['Search', 'Installed', 'Updates', 'Sources', 'APT Preview']) {
       expect(screen.getByRole('tab', { name: label })).toBeTruthy();
     }
     expect(await screen.findByText(/Read-only preview/)).toBeTruthy();
@@ -94,4 +95,25 @@ describe('Software Center UI model', () => {
       window.history.replaceState(null, '', '/software');
     }
   });
+  it('simulates an APT selection without an apply control', async () => {
+    render(<Software csrf={csrf} onUnauthorized={onUnauthorized} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'APT Preview' }));
+    expect(vi.mocked(getAptPreview)).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Package'), { target: { value: 'nginx' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Preview effects' }));
+    expect(await screen.findByText('libdemo')).toBeTruthy();
+    expect(vi.mocked(getAptPreview)).toHaveBeenCalledWith('install', 'nginx', csrf);
+    expect(screen.queryByRole('button', { name: 'Apply changes' })).toBeNull();
+    expect(screen.getByText(/package operations cannot be executed/i)).toBeTruthy();
+  });
+
+  it('rejects invalid package names before calling APT', async () => {
+    render(<Software csrf={csrf} onUnauthorized={onUnauthorized} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'APT Preview' }));
+    fireEvent.change(screen.getByLabelText('Package'), { target: { value: '--help' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Preview effects' }));
+    expect(await screen.findByText(/Enter a valid Debian/)).toBeTruthy();
+    expect(vi.mocked(getAptPreview)).not.toHaveBeenCalled();
+  });
+
 });
