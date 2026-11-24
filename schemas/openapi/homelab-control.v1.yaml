@@ -56,7 +56,7 @@ components:
       required: [username, scopes, csrf_token, version]
       properties:
         username: { type: string, pattern: '^[a-z_][a-z0-9_-]{0,31}$' }
-        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, services.systemctl, storage.read, storage.probe, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, networking.proxy.read, mergerfs.read, mergerfs.configure, mergerfs.maintain, zfs.read, lvm.read, btrfs.read, ext4.read, ext4.format, mdadm.read, f2fs.read, xfs.read] } }
+        scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, services.systemctl, storage.read, storage.probe, host.settings.preview, host.settings.apply, layout.manage, files.read, packages.read, packages.configure, networking.proxy.read, mergerfs.read, mergerfs.configure, mergerfs.maintain, zfs.read, lvm.read, btrfs.read, ext4.read, ext4.format, mdadm.read, f2fs.read, xfs.read] } }
         csrf_token: { type: string }
         version: { type: string }
         legacy_url: { type: string }
@@ -2712,7 +2712,7 @@ paths:
         required: true
         content: { application/json: { schema: { type: object, additionalProperties: false, required: [token], properties: { token: { type: string, maxLength: 2048 } } } } }
       responses:
-        '200': { description: Deleted, content: { application/json: { schema: { type: object, required: [root, path, status], properties: { root: { type: string }, path: { type: string }, status: { type: string } } } } }
+        '200': { description: Deleted, content: { application/json: { schema: { type: object, required: [root, path, status], properties: { root: { type: string }, path: { type: string }, status: { type: string } } } } } }
         '400': { description: Invalid body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: 'Missing files.destroy, Origin/CSRF rejected, step_up_required, or invalid_token', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
@@ -2833,6 +2833,240 @@ paths:
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: Missing packages.read or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: Unsupported distro, missing cache/tool, unsafe simulation or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /packages/apt-config:
+    get:
+      summary: Effective APT tunables (apt-config dump) and the Homelab Control managed file /etc/apt/apt.conf.d/60homelab-control (read-only; scope packages.read). Debian/Ubuntu only.
+      security: [{ session: [] }]
+      x-required-scope: packages.read
+      parameters:
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, required: [managed, managed_present, managed_changed_by_hand, path], properties: { effective: { type: object }, effective_error: { type: string }, managed: { type: object }, managed_present: { type: boolean }, managed_changed_by_hand: { type: boolean }, path: { type: string } } } } } }
+        '401': { description: 'No session', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing scope, or CSRF/Origin rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'Not Debian/Ubuntu, broker or journal unavailable, or the request could not be audited', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /packages/apt-config/plan:
+    post:
+      summary: 'Review writing (tunables) or removing (reset) the managed APT settings file (broker op packages.aptconfig.plan). Typed values only; nothing is changed. Reversible risk, confirmation required, no step-up. Owner authorization 2026-11-24.'
+      security: [{ session: [] }]
+      x-required-scope: packages.configure
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reset: { type: boolean }
+                tunables:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    install_recommends: { type: boolean }
+                    install_suggests: { type: boolean }
+                    skip_translations: { type: boolean }
+                    force_ipv4: { type: boolean }
+                    pdiffs: { type: boolean }
+                    keep_downloaded: { type: boolean }
+                    retries: { type: integer, minimum: 0, maximum: 10 }
+                    timeout_seconds: { type: integer, minimum: 5, maximum: 300 }
+                    queue_mode: { type: string, enum: [host, access] }
+                    http_proxy: { type: string, maxLength: 200, description: 'http(s)://host[:port] without credentials' }
+      responses:
+        '200':
+          description: Plan with the whole old and new file and a single-use token
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [action, risk, step_up_required, confirmation_required, token, expires_at, file, effect, consequences]
+                properties:
+                  action: { type: string, enum: [conf.write, conf.remove, mirror.set] }
+                  risk: { type: string, enum: [reversible] }
+                  step_up_required: { type: boolean }
+                  confirmation_required: { type: boolean }
+                  token: { type: string }
+                  expires_at: { type: string, format: date-time }
+                  file: { type: string }
+                  before: { type: string, description: Whole managed settings file before (settings plans) }
+                  after: { type: string }
+                  lines: { type: array, items: { type: object, properties: { line: { type: integer }, before: { type: string }, after: { type: string } } } }
+                  effect: { type: string }
+                  consequences: { type: array, items: { type: string } }
+        '400': { description: 'Invalid JSON, values or token', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: 'No session', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing scope, or CSRF/Origin rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: 'Conflict: busy, nothing would change, file changed since review, or mirror not offered by a recent probe', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '415': { description: 'Not application/json', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'Not Debian/Ubuntu, broker or journal unavailable, or the request could not be audited', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /packages/apt-config/apply:
+    post:
+      summary: 'Apply a reviewed APT settings change with its plan token (broker op packages.aptconfig.apply, helper hc-apt-apply). The previous file is backed up; effective values are read back and later files that override a setting are reported. Nothing is installed, downloaded or refreshed.'
+      security: [{ session: [] }]
+      x-required-scope: packages.configure
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reset: { type: boolean }
+                tunables:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    install_recommends: { type: boolean }
+                    install_suggests: { type: boolean }
+                    skip_translations: { type: boolean }
+                    force_ipv4: { type: boolean }
+                    pdiffs: { type: boolean }
+                    keep_downloaded: { type: boolean }
+                    retries: { type: integer, minimum: 0, maximum: 10 }
+                    timeout_seconds: { type: integer, minimum: 5, maximum: 300 }
+                    queue_mode: { type: string, enum: [host, access] }
+                    http_proxy: { type: string, maxLength: 200, description: 'http(s)://host[:port] without credentials' }
+                token: { type: string, maxLength: 2048 }
+      responses:
+        '200':
+          description: Outcome (succeeded, failed or uncertain when the helper did not answer)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [operation_id, action, outcome, message]
+                properties:
+                  operation_id: { type: string }
+                  action: { type: string }
+                  outcome: { type: string, enum: [succeeded, failed, uncertain] }
+                  message: { type: string }
+                  backup: { type: string, description: Backup file name in /var/lib/homelab-control-apt-apply/backups }
+                  overridden_by_other_files: { type: array, items: { type: string } }
+        '400': { description: 'Invalid JSON, values or token', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: 'No session', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing scope, or CSRF/Origin rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: 'Conflict: busy, nothing would change, file changed since review, or mirror not offered by a recent probe', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '415': { description: 'Not application/json', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'Not Debian/Ubuntu, broker or journal unavailable, or the request could not be audited', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /packages/mirrors:
+    get:
+      summary: Vendor APT source entries (sources.list, ubuntu.sources, debian.sources) with role archive/security/ports/other, whether the archive mirror can be changed and why not, and the default country from the host time zone (read-only; scope packages.read).
+      security: [{ session: [] }]
+      x-required-scope: packages.read
+      parameters:
+        - { name: X-CSRF-Token, in: header, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, required: [distro, files, entries, default_country], properties: { distro: { type: object }, files: { type: array, items: { type: object } }, entries: { type: array, items: { type: object } }, default_country: { type: string } } } } } }
+        '401': { description: 'No session', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing scope, or CSRF/Origin rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'Not Debian/Ubuntu, broker or journal unavailable, or the request could not be audited', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /packages/mirrors/probe:
+    post:
+      summary: 'Measure archive mirrors from the official list for a country (Ubuntu: mirrors.ubuntu.com/<CC>.txt; Debian: deb.debian.org and ftp.<cc>.debian.org) plus the configured mirror, by fetching dists/<codename>/InRelease. Read-only network access from hc-api: at most 40 mirrors, 8 at a time, 5 s each; list mirrors must resolve to public addresses. Signatures are not checked here; a mirror change keeps the signing key.'
+      security: [{ session: [] }]
+      x-required-scope: packages.configure
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [country]
+              properties:
+                country: { type: string, pattern: '^[A-Z]{2}$' }
+      responses:
+        '200': { description: 'Ranked results: status ok, stale (index more than 12 h older than the newest seen), mismatch, expired or unreachable', content: { application/json: { schema: { type: object, required: [country, codename, results], properties: { country: { type: string }, codename: { type: string }, note: { type: string }, results: { type: array, items: { type: object } } } } } } }
+        '400': { description: 'Invalid JSON, values or token', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: 'No session', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing scope, or CSRF/Origin rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '415': { description: 'Not application/json', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'Not Debian/Ubuntu, broker or journal unavailable, or the request could not be audited', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /packages/mirrors/plan:
+    post:
+      summary: 'Review replacing one archive URI of a vendor source file with a mirror from a recent probe (broker op packages.mirror.plan). Only the URI changes; security, ports and third-party entries and the signing key are never touched. Nothing is changed.'
+      security: [{ session: [] }]
+      x-required-scope: packages.configure
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [file, from, to]
+              properties:
+                file: { type: string, enum: [/etc/apt/sources.list, /etc/apt/sources.list.d/ubuntu.sources, /etc/apt/sources.list.d/debian.sources] }
+                from: { type: string, maxLength: 256 }
+                to: { type: string, maxLength: 256 }
+      responses:
+        '200':
+          description: Plan with the changed lines and a single-use token
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [action, risk, step_up_required, confirmation_required, token, expires_at, file, effect, consequences]
+                properties:
+                  action: { type: string, enum: [conf.write, conf.remove, mirror.set] }
+                  risk: { type: string, enum: [reversible] }
+                  step_up_required: { type: boolean }
+                  confirmation_required: { type: boolean }
+                  token: { type: string }
+                  expires_at: { type: string, format: date-time }
+                  file: { type: string }
+                  before: { type: string, description: Whole managed settings file before (settings plans) }
+                  after: { type: string }
+                  lines: { type: array, items: { type: object, properties: { line: { type: integer }, before: { type: string }, after: { type: string } } } }
+                  effect: { type: string }
+                  consequences: { type: array, items: { type: string } }
+        '400': { description: 'Invalid JSON, values or token', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: 'No session', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing scope, or CSRF/Origin rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: 'Conflict: busy, nothing would change, file changed since review, or mirror not offered by a recent probe', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '415': { description: 'Not application/json', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'Not Debian/Ubuntu, broker or journal unavailable, or the request could not be audited', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /packages/mirrors/apply:
+    post:
+      summary: 'Apply a reviewed mirror change with its plan token (broker op packages.mirror.apply, helper hc-apt-apply). The previous file is backed up. Package lists are not refreshed.'
+      security: [{ session: [] }]
+      x-required-scope: packages.configure
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [file, from, to, token]
+              properties:
+                file: { type: string, enum: [/etc/apt/sources.list, /etc/apt/sources.list.d/ubuntu.sources, /etc/apt/sources.list.d/debian.sources] }
+                from: { type: string, maxLength: 256 }
+                to: { type: string, maxLength: 256 }
+                token: { type: string, maxLength: 2048 }
+      responses:
+        '200':
+          description: Outcome
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [operation_id, action, outcome, message]
+                properties:
+                  operation_id: { type: string }
+                  action: { type: string }
+                  outcome: { type: string, enum: [succeeded, failed, uncertain] }
+                  message: { type: string }
+                  backup: { type: string, description: Backup file name in /var/lib/homelab-control-apt-apply/backups }
+                  overridden_by_other_files: { type: array, items: { type: string } }
+        '400': { description: 'Invalid JSON, values or token', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: 'No session', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '403': { description: 'Missing scope, or CSRF/Origin rejected', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '409': { description: 'Conflict: busy, nothing would change, file changed since review, or mirror not offered by a recent probe', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '415': { description: 'Not application/json', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: 'Not Debian/Ubuntu, broker or journal unavailable, or the request could not be audited', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /mergerfs:
     get:
       summary: Read-only MergerFS pool inventory and optional SnapRAID configuration (scope mergerfs.read).

@@ -43,7 +43,7 @@ DRYRUN_RE = re.compile(r"0\.0\.0-dryrun\.[0-9a-f]{8}")
 SAFE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")  # names GitHub keeps unchanged as asset names
 PIN_RE = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
 NOTICES = ["LICENSE.md", "NOTICE.md", "THIRD-PARTY-NOTICES.md"]
-BINARIES = ["hc-api", "hc-broker", "hlctl", "hc-audit-retention", "hc-storage-probe", "hc-mergerfs-apply"]
+BINARIES = ["hc-api", "hc-broker", "hlctl", "hc-audit-retention", "hc-storage-probe", "hc-mergerfs-apply", "hc-apt-apply"]
 
 
 class Fail(Exception):

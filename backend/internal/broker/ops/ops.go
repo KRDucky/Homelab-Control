@@ -29,6 +29,7 @@ import (
 	"syscall"
 	"time"
 
+	"homelab-control/backend/internal/aptapply"
 	"homelab-control/backend/internal/broker/proto"
 	"homelab-control/backend/internal/broker/runner"
 	"homelab-control/backend/internal/broker/writes"
@@ -76,6 +77,11 @@ type Env struct {
 	// MergerFSApply overrides the socket helper in tests. Production dials
 	// mergerfs-apply.sock. The broker never executes mergerfs or snapraid sync.
 	MergerFSApply func(ctx context.Context, req mergerfsapply.Request) (mergerfsapply.Result, error)
+	// AptApply overrides the hc-apt-apply socket helper in tests. Production
+	// dials apt-apply.sock. The broker never writes APT files itself.
+	AptApply func(ctx context.Context, req aptapply.Request) (aptapply.Result, error)
+	// AptConfigDump overrides `apt-config dump` in tests (stdout).
+	AptConfigDump func(ctx context.Context) (string, error)
 	// Actor is the caller as asserted by hc-api (per-call copy).
 	Actor proto.Actor
 	// Modules is the administrator's module setting (zero value: all enabled).
@@ -229,6 +235,28 @@ func Registry() map[string]Op {
 			Description: "Configured repositories and package sources with third-party and unsigned flags (args: family)", Handle: packagesSources},
 		{Name: "packages.search", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second, Admission: AdmissionPackages,
 			Description: "Search the local package cache of one family (args: family, q)", Handle: packagesSearch, AuditArgs: packagesAuditArgs},
+		// M4 (owner 2026-11-24): APT settings and mirror writes. Plans read
+		// files only; applies send the reviewed change to hc-apt-apply.
+		{Name: "packages.aptconfig.read", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 15 * time.Second, Admission: AdmissionPackages,
+			Description: "Effective APT tunables (apt-config dump) and the Homelab Control managed settings file", Handle: aptConfigRead},
+		{Name: "packages.aptconfig.plan", Scope: "packages.configure", Privilege: PrivNone, Timeout: 10 * time.Second, Admission: AdmissionControlPlan,
+			Description: "Review writing or removing the managed APT settings file; nothing is changed (args: tunables or reset)",
+			Handle:      aptConfigPlan, AuditArgs: aptConfigAuditArgs,
+			Write: &WriteSpec{Phase: "plan", Risks: []string{RiskReversible}, LockDomain: aptFilesLock}},
+		{Name: "packages.aptconfig.apply", Scope: "packages.configure", Privilege: PrivUnprivilegedExec, Timeout: 40 * time.Second, Admission: AdmissionControlApply,
+			Description: "Write or remove the reviewed managed APT settings file through hc-apt-apply, then read the effective values back (args: tunables or reset, token)",
+			Handle:      aptConfigApply, AuditArgs: aptConfigAuditArgs,
+			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskReversible}, LockDomain: aptFilesLock}},
+		{Name: "packages.mirrors.inventory", Scope: "packages.read", Privilege: PrivNone, Timeout: 10 * time.Second, Admission: AdmissionPackages,
+			Description: "Vendor APT source entries with their role (archive, security, ports, other) and whether their mirror can be changed", Handle: aptMirrorInventory},
+		{Name: "packages.mirror.plan", Scope: "packages.configure", Privilege: PrivNone, Timeout: 10 * time.Second, Admission: AdmissionControlPlan,
+			Description: "Review changing the archive mirror of one vendor source file; nothing is changed (args: file, from, to)",
+			Handle:      aptMirrorPlan, AuditArgs: aptMirrorAuditArgs,
+			Write: &WriteSpec{Phase: "plan", Risks: []string{RiskReversible}, LockDomain: aptFilesLock}},
+		{Name: "packages.mirror.apply", Scope: "packages.configure", Privilege: PrivNone, Timeout: 40 * time.Second, Admission: AdmissionControlApply,
+			Description: "Change the reviewed archive URI through hc-apt-apply; signing keys, suites and security entries are not touched (args: file, from, to, token)",
+			Handle:      aptMirrorApply, AuditArgs: aptMirrorAuditArgs,
+			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskReversible}, LockDomain: aptFilesLock}},
 		{Name: "packages.simulation", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second, Admission: AdmissionPackages,
 			Description: "Simulate one Debian/Ubuntu APT action without root, downloads or package writes", Handle: packagesSimulation, AuditArgs: packagesSimulationAuditArgs},
 		// MergerFS: read-only snapraid status. No client path, no --conf, no

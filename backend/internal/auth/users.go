@@ -113,6 +113,11 @@ const (
 	// DefaultScopes and implied by no other scope. packages.manage stays
 	// reserved for the separately reviewed write ADR and is not granted here.
 	ScopePackagesRead = "packages.read"
+	// ScopePackagesConfigure allows the APT settings file and archive mirror
+	// changes (owner 2026-11-24) through plan → confirm, and the mirror speed
+	// probe. It installs, removes and refreshes nothing. Not in DefaultScopes
+	// and implied by no other scope; it does not imply packages.read.
+	ScopePackagesConfigure = "packages.configure"
 	// ScopeMergerFSRead allows the read-only MergerFS inventory and
 	// mergerfs.snapraid.status. It does not grant pool, sync, scrub, or
 	// recovery operations. Not in DefaultScopes and implied by nothing,
@@ -196,6 +201,7 @@ var KnownScopes = map[string]bool{
 	ScopeFilesWrite:           true,
 	ScopeFilesDestroy:         true,
 	ScopePackagesRead:         true,
+	ScopePackagesConfigure:    true,
 	ScopeMergerFSRead:         true,
 	ScopeMergerFSConfigure:    true,
 	ScopeMergerFSMaintain:     true,
