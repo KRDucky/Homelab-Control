@@ -5,6 +5,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import {
   ApiError,
+  getAptPreview,
+  type AptPreview,
   getPackageSearch,
   getPackagesInstalled,
   getPackagesSources,
@@ -17,13 +19,14 @@ import {
 import { DataTable } from '../DataTable';
 import { explain } from '../useData';
 
-type Tab = 'search' | 'installed' | 'updates' | 'sources';
+type Tab = 'search' | 'installed' | 'updates' | 'sources' | 'preview';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'search', label: 'Search' },
   { id: 'installed', label: 'Installed' },
   { id: 'updates', label: 'Updates' },
   { id: 'sources', label: 'Sources' },
+  { id: 'preview', label: 'APT Preview' },
 ];
 
 type SoftwareData = PackageList | UpdateList | SourceList;
@@ -49,8 +52,8 @@ function isSourceList(d: SoftwareData): d is SourceList {
 
 /**
  * Read-only Software Center (M4-1b): search, installed packages, pending-update
- * preview and configured sources, all from the local cache. No Install, Remove,
- * Update or Add-repo control exists in the DOM, not even disabled.
+ * preview and configured sources, all from the local cache. An optional APT
+ * simulation tab is informational only. No package mutation or Add-repo controls.
  */
 export function Software({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: () => void }) {
   const seeded = seedQuery();
@@ -64,7 +67,7 @@ export function Software({ csrf, onUnauthorized }: { csrf: string; onUnauthorize
   useEffect(() => {
     // Search does not fetch until a non-empty query is submitted (hc-ui nit 1);
     // the render shows an empty state, so nothing is reset here.
-    if (tab === 'search' && submitted === '') {
+    if (tab === 'preview' || (tab === 'search' && submitted === '')) {
       return;
     }
     let cancelled = false;
@@ -112,8 +115,8 @@ export function Software({ csrf, onUnauthorized }: { csrf: string; onUnauthorize
     <div className="page">
       <h1 className="page-title">Software</h1>
       <p className="banner" role="status">
-        Read-only preview — changes are not available. Package data comes from the local cache; it is never
-        refreshed and never changed here.
+        Read-only Software Center — no package changes can be applied. Package data and APT simulations
+        use local metadata only, without refreshing repositories.
       </p>
       <div className="tabs" role="tablist" aria-label="Software Center views">
         {TABS.map((t) => (
@@ -146,6 +149,7 @@ export function Software({ csrf, onUnauthorized }: { csrf: string; onUnauthorize
         >
           {tab === t.id && (
             <>
+              {t.id === 'preview' && <SoftwarePreview csrf={csrf} onUnauthorized={onUnauthorized} />}
               {t.id === 'search' && (
                 <form className="inline-field grow" onSubmit={onSearch}>
                   <label htmlFor="software-query">Search packages</label>
@@ -281,5 +285,81 @@ function SoftwareSources({ sources }: { sources: SourceList }) {
         {sources.source}. Third-party and unsigned sources are flagged and never used automatically.
       </p>
     </>
+  );
+}
+
+type PreviewAction = 'install' | 'remove' | 'upgrade';
+
+function SoftwarePreview({ csrf, onUnauthorized }: { csrf: string; onUnauthorized: () => void }) {
+  const [action, setAction] = useState<PreviewAction>('install');
+  const [name, setName] = useState('');
+  const [preview, setPreview] = useState<AptPreview | null>(null);
+  const [error, setError] = useState<Error | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function onPreview(e: FormEvent) {
+    e.preventDefault();
+    setPreview(null);
+    setError(null);
+    const pkg = name.trim();
+    if (!/^[a-z0-9][a-z0-9+.-]{0,127}(?::[a-z0-9][a-z0-9-]{0,31})?$/.test(pkg) || pkg.includes('..')) {
+      setError(new Error('Enter a valid Debian/Ubuntu package name.'));
+      return;
+    }
+    setBusy(true);
+    try {
+      const next = await getAptPreview(action, pkg, csrf);
+      setPreview(next);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) onUnauthorized();
+      setError(e instanceof Error ? e : new Error(String(e)));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section aria-label="APT transaction simulation">
+      <p className="banner" role="status">
+        Informational simulation only. APT resolves dependencies using the currently cached metadata.
+        This does not confirm repository trust, reserve package versions or authorize installation.
+      </p>
+      <form className="inline-field grow" onSubmit={(e) => { void onPreview(e); }}>
+        <label htmlFor="apt-preview-action">Simulate action</label>
+        <select id="apt-preview-action" value={action} onChange={(e) => { setAction(e.target.value as PreviewAction); setPreview(null); }}>
+          <option value="install">Install</option>
+          <option value="remove">Remove</option>
+          <option value="upgrade">Upgrade selected package</option>
+        </select>
+        <label htmlFor="apt-preview-package">Package</label>
+        <input id="apt-preview-package" value={name} maxLength={160} onChange={(e) => { setName(e.target.value); setPreview(null); }} placeholder="e.g. nginx" />
+        <button type="submit" disabled={busy}>Preview effects</button>
+      </form>
+      {busy && <p className="muted">Asking APT to simulate the changes…</p>}
+      {error && <p className="banner" role="alert">{explain(error)}</p>}
+      {preview && (
+        <>
+          <p className="footnote">
+            APT proposes {preview.install_count} installs/upgrades, {preview.remove_count} removals and {preview.configure_count} configurations.
+          </p>
+          {preview.changes.length === 0 ? (
+            <p className="empty">APT reports no changes for this selection.</p>
+          ) : (
+            <DataTable
+              caption="Simulated APT effects — not approved for execution"
+              rows={preview.changes}
+              rowKey={(c) => c.action + ':' + c.name}
+              columns={[
+                { id: 'action', label: 'Effect', render: (c) => c.action },
+                { id: 'name', label: 'Package', render: (c) => <code>{c.name}</code> },
+                { id: 'current', label: 'Installed version', render: (c) => c.installed_version || '—' },
+                { id: 'candidate', label: 'Candidate version', render: (c) => c.candidate_version || '—' },
+              ]}
+            />
+          )}
+          <p className="footnote">Preview only — package operations cannot be executed from this page.</p>
+        </>
+      )}
+    </section>
   );
 }
