@@ -5,7 +5,7 @@
 | Debian stable | `.deb` | APT | Tier 1 |
 | Ubuntu LTS | `.deb` | APT | Tier 1 |
 | Fedora current supported | `.rpm` | DNF | Later. Not a release gate. After the Debian/Ubuntu production release |
-| openSUSE Leap/Tumbleweed | `.rpm` | zypper | Tier 1 |
+| openSUSE Leap/Tumbleweed | `.rpm` | zypper | Later. Not a release gate. After the Debian/Ubuntu production release |
 | Arch Linux | `.pkg.tar.zst` / PKGBUILD | pacman | Later. Not a release gate. After the Debian/Ubuntu production release |
 | Derivatives (CachyOS, etc.) | Compatible package | distro native | Tier 2, validated separately |
 
@@ -18,6 +18,12 @@ Tagged source archive, Git repository, checksums, SBOM, license notices, signed 
 
 ## Repository policy
 Official distro repo first, then curated vendor repositories with provenance/signature and explicit user consent. Show package origin and planned repo modifications. On Arch, distinguish official repos from AUR builds and warn that AUR PKGBUILDs are third-party scripts.
+
+## VM verification gate for functioning release targets
+
+Before claiming a distribution release is fully functioning or supported, install the real built artifact on a disposable VM for that distribution/version and verify startup, UI/API operations, integration with that distro's native tools, upgrade/removal where relevant, permission denials and recovery. Archive commit, artifact hash, exact OS version, commands and results. Containers, package-build CI and parser fixtures supplement but do not replace real VM evidence. A read-only or design checkpoint is not a fully functioning release. Follow the central gate in `08-TESTING-AND-ACCEPTANCE.md`.
+
+Initial release scope remains Debian/Ubuntu `.deb` only. Other package ecosystems are deferred until the fully functioning Debian/Ubuntu release is stable; entries in the platform table are **longer-term targets**, not current release gates.
 
 ## Build and CI
 Reproducible builds in isolated builders; package install/upgrade/remove tests; fresh and migrated Webmin state; unit/integration/e2e tests per distro; package-signing infrastructure and provenance attestation for public releases. Provide source-build instructions even if binary packages are not yet published.
