@@ -1,0 +1,3 @@
+# Packaged marker for homelab-control-apt-apply.socket.
+# The package does not enable the socket. Remove this file to make
+# ConditionPathExists fail and keep the helper from starting.
