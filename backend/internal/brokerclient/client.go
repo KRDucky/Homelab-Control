@@ -65,6 +65,9 @@ var opTimeouts = map[string]time.Duration{
 	// so a large disk can finish. The client must outlive both.
 	"ext4.format.plan":  20 * time.Second,
 	"ext4.format.apply": 10 * time.Minute,
+	// GPT partition: plan is a short root read; apply's broker budget is 3 minutes.
+	"storage.partition.plan":  20 * time.Second,
+	"storage.partition.apply": 4 * time.Minute,
 }
 
 // deadline is the client deadline for op.

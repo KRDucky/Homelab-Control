@@ -482,6 +482,36 @@ type Ext4FormatPlan struct {
 	Warnings             []string  `json:"warnings"`
 }
 
+// PartitionWritePlan is the result of storage.partition.plan. Nothing is
+// partitioned. The token is bound to the persist identity and the layout.
+type PartitionWritePlan struct {
+	Action               string    `json:"action"`
+	Risk                 string    `json:"risk"`
+	StepUpRequired       bool      `json:"step_up_required"`
+	ConfirmationRequired bool      `json:"confirmation_required"`
+	Token                string    `json:"token"`
+	ExpiresAt            time.Time `json:"expires_at"`
+	IdentityKind         string    `json:"identity_kind"`
+	Rdev                 string    `json:"rdev"`
+	SliceCount           int       `json:"slice_count"`
+	Effect               string    `json:"effect"`
+	Consequences         []string  `json:"consequences"`
+	Warnings             []string  `json:"warnings"`
+}
+
+// PartitionWriteOutcome is the result of storage.partition.apply. Succeeded
+// means the partition child exited 0 and the device rdev still matched. It
+// does not read the partition table back and it does not format a filesystem.
+type PartitionWriteOutcome struct {
+	OperationID string    `json:"operation_id"`
+	Action      string    `json:"action"`
+	Outcome     string    `json:"outcome"`
+	Message     string    `json:"message"`
+	Recovery    []string  `json:"recovery,omitempty"`
+	StartedAt   time.Time `json:"started_at"`
+	FinishedAt  time.Time `json:"finished_at"`
+}
+
 // Ext4FormatOutcome is the result of ext4.format.apply. Succeeded means
 // the format child exited 0 and the device rdev still matched the plan. It does
 // not read the superblock back.

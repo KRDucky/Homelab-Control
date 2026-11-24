@@ -149,8 +149,8 @@ func TestAllowListedBinariesAreClosed(t *testing.T) {
 		"systemctl": true, "journalctl": true, "hostnamectl": true, "timedatectl": true,
 		// M4-1b (ADR 0008 Amendment 5, Proposed): read-only package managers.
 		"dpkg-query": true, "apt-cache": true, "apt": true, "apt-get": true, "rpm": true, "dnf": true, "zypper": true, "pacman": true,
-		"mkfs.ext4": true,
-		"snapraid":  true,
+		"mkfs.ext4": true, "sfdisk": true,
+		"snapraid": true,
 	}
 	if len(allowlist) != len(want) {
 		t.Fatalf("allow-list changed (%d entries); new binaries need security review", len(allowlist))
@@ -189,6 +189,7 @@ func TestRootTemplatesAreClosed(t *testing.T) {
 		RootTimedatectlStatus:        {"timedatectl --no-ask-password status", nil},
 		RootTimedatectlListTimezones: {"timedatectl --no-ask-password list-timezones", nil},
 		RootMkfsExt4:                 {"mkfs.ext4 -q -- /dev/disk/by-id/virtio-mmvtestdisk01", []string{"/dev/disk/by-id/virtio-mmvtestdisk01"}},
+		RootSfdiskGPT:                {"sfdisk --wipe=always --wipe-partitions=always -- /dev/disk/by-id/virtio-mmvtestdisk01", []string{"/dev/disk/by-id/virtio-mmvtestdisk01"}},
 		// services.systemctl (owner 2026-11-21). File-level verbs do not reload PID 1.
 		RootSystemctlStartUnit:       {"systemctl --no-ask-password --job-mode=fail start -- demo.service", []string{"demo.service"}},
 		RootSystemctlStopUnit:        {"systemctl --no-ask-password --job-mode=fail stop -- demo.service", []string{"demo.service"}},
@@ -429,6 +430,32 @@ func TestRootMkfsExt4StorageByID(t *testing.T) {
 	}
 	if _, ok := allowlist[rootTemplates[RootMkfsExt4].binary]; !ok {
 		t.Fatal("mkfs.ext4 binary missing from allow-list")
+	}
+}
+
+func TestRootSfdiskGPTIsAWholeDisk(t *testing.T) {
+	argv, err := RootArgv(RootSfdiskGPT, "/dev/disk/by-id/virtio-mmvtestdisk01")
+	if err != nil || strings.Join(argv, " ") != "--wipe=always --wipe-partitions=always -- /dev/disk/by-id/virtio-mmvtestdisk01" {
+		t.Fatalf("%v %v", argv, err)
+	}
+	for _, p := range []string{
+		"/dev/disk/by-id/wwn-0x5000c500a1b2c3d4-part1",
+		"/dev/disk/by-id/virtio-mmvtestdisk01",
+	} {
+		if p == "/dev/disk/by-id/virtio-mmvtestdisk01" {
+			continue
+		}
+		if _, err := RootArgv(RootSfdiskGPT, p); !errors.Is(err, ErrBadArg) {
+			t.Errorf("partition path accepted: %v", err)
+		}
+	}
+	for _, a := range rootTemplates[RootSfdiskGPT].argv {
+		if a == "--force" || a == "-f" || a == "--no-reread" {
+			t.Errorf("sfdisk flag %q", a)
+		}
+	}
+	if _, err := new(Runner).RootExec().Run(t.Context(), RootSfdiskGPT, "/dev/disk/by-id/virtio-mmvtestdisk01"); !errors.Is(err, ErrBadArg) && !errors.Is(err, ErrNotAllowed) {
+		t.Errorf("sfdisk without stdin: %v", err)
 	}
 }
 

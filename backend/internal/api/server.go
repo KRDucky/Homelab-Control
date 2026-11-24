@@ -299,6 +299,8 @@ func (s *Server) routes() {
 	s.handle("POST /api/v1/storage/probe", auth.ScopeStorageProbe, s.handleStorageProbe)
 	// M6 first checkpoint: validate a layout. No broker op and no host write.
 	s.handle("POST /api/v1/storage/plan/dry-run", auth.ScopeStorageRead, s.handlePartitionDryRun)
+	s.handle("POST /api/v1/storage/partition/plan", auth.ScopeStoragePartition, s.handlePartitionApplyPlan)
+	s.handle("POST /api/v1/storage/partition/apply", auth.ScopeStoragePartition, s.handlePartitionApplyApply)
 	s.handle("GET /api/v1/files/roots", auth.ScopeFilesRead, s.handleFilesRoots)
 	s.handle("GET /api/v1/files/entries", auth.ScopeFilesRead, s.handleFilesEntries)
 	// File-manager read/write slice (2026-11-20): content read/download keep
