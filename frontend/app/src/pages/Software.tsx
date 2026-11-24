@@ -115,7 +115,7 @@ export function Software({ csrf, onUnauthorized }: { csrf: string; onUnauthorize
     <div className="page">
       <h1 className="page-title">Software</h1>
       <p className="banner" role="status">
-        Read-only Software Center — no package changes can be applied. Package data and APT simulations
+        Read-only preview — no package changes can be applied. Package data and APT simulations
         use local metadata only, without refreshing repositories.
       </p>
       <div className="tabs" role="tablist" aria-label="Software Center views">
