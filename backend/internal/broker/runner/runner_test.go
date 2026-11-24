@@ -732,6 +732,16 @@ func TestValidPackageQuery(t *testing.T) {
 
 // TestAptSimulationArgvClosed ensures no mutating path or supplied option can
 // escape the closed, simulation-only template.
+func TestAptGetCannotUseGenericRunner(t *testing.T) {
+	r := testRunner(t)
+	if _, err := r.Run(context.Background(), "apt-get", "install", "bash"); !errors.Is(err, ErrNotAllowed) {
+		t.Fatalf("generic apt-get accepted: %v", err)
+	}
+	if _, err := r.RunWithGroups(context.Background(), nil, "apt-get", "--simulate", "install", "bash"); !errors.Is(err, ErrNotAllowed) {
+		t.Fatalf("generic apt-get simulate accepted: %v", err)
+	}
+}
+
 func TestAptSimulationArgvClosed(t *testing.T) {
 	for _, action := range []string{"install", "remove", "upgrade"} {
 		args, err := AptSimulationArgv(action, "libssl3:amd64")
