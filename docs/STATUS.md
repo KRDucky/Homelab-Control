@@ -366,8 +366,23 @@ filesystem allowlist ext4, xfs, f2fs, btrfs, exfat, swap, none, or unknown.
 `executes: false`, and every step has `executable: false`. The call does not collect
 devices, call the broker, partition, format, or mount. The Storage page draws a
 proportional bar from observed partition starts and can check a layout. The only live
-format path remains `ext4.format` on a whole by-id disk. Virtual-disk tests and
-destructive partition execution are not in this checkpoint. Not M6 acceptance.
+format path remains `ext4.format` on a whole by-id disk. Destructive partition
+execution is still gated. Not M6 acceptance.
+
+One Ubuntu virtual-disk check has run, and it is partial. On 2026-11-23 the
+disposable guest `m6-partplan-c1e73d69b` (Ubuntu 26.04.1, kernel
+`7.0.0-43-generic`) had a blank 1 GiB virtio disk. `sfdisk` wrote a GPT label
+only on that disk: starts 2048 and 32768 of 512-byte sectors, 16384 sectors
+each, Linux filesystem GUID `0FC63DAF-8483-4772-8E79-3D69D8477DE4`. A static
+probe built from `c1e73d69` with Go 1.26.11 and `CGO_ENABLED=0` ran
+`storageinfo.Collect` and `partplan.DryRun` in the guest. Observed
+`start_bytes` were 1048576 and 16777216, and both sizes were 8388608. The
+observed layout posted as filesystem `unknown` was ok, with `executes: false`,
+two unknown steps, and gap steps. Forcing both slices onto the first start was
+not ok, with `executes: false` and the error `slice 2 overlaps another slice`.
+No step was executable. Nothing was formatted. Evidence is on the VM host at
+`/mnt/tank/claude-vms/artifacts/m6-partition-plan-c1e73d69/`. Debian was not
+run. This was not an installed package and not the Web UI.
 
 ## M2-3: expanded service management (development authorized 2026-11-04; implementation not accepted)
 
