@@ -463,6 +463,11 @@ func (r *Runner) Run(ctx context.Context, name string, args ...string) (Result, 
 // RunWithGroups is Run with additional supplementary groups for the child
 // (still the unprivileged service uid/gid; never root).
 func (r *Runner) RunWithGroups(ctx context.Context, groups []uint32, name string, args ...string) (Result, error) {
+	// APT is intentionally excluded from the general-purpose runner API.
+	// Its only permitted use is through RunAptSimulation and a fixed argv.
+	if name == "apt-get" {
+		return Result{}, ErrNotAllowed
+	}
 	for _, g := range groups {
 		if g == 0 {
 			return Result{}, fmt.Errorf("group 0: %w", ErrBadArg)
