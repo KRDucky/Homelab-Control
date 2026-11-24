@@ -735,13 +735,16 @@ func AptSimulationArgv(action, pkg string) ([]string, error) {
 		return nil, ErrBadArg
 	}
 	switch action {
-	case "install", "remove", "upgrade":
+	// No --no-download: a simulation never fetches, and with that flag APT
+	// refuses any install whose .deb is not already in the local archive
+	// cache ("Unable to fetch some archives"), which is the normal case.
+	case "install", "remove":
+		return []string{"--simulate", "--no-install-recommends", action, "--", pkg}, nil
+	case "upgrade":
 		// A single-package upgrade uses install, not the host-wide upgrade.
-		verb := action
-		if action == "upgrade" {
-			verb = "install"
-		}
-		return []string{"--simulate", "--no-download", "--no-install-recommends", verb, "--", pkg}, nil
+		// --only-upgrade makes APT skip a package that is not installed
+		// instead of previewing a fresh install as an "upgrade".
+		return []string{"--simulate", "--no-install-recommends", "--only-upgrade", "install", "--", pkg}, nil
 	default:
 		return nil, ErrBadArg
 	}

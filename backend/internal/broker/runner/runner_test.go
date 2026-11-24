@@ -730,8 +730,7 @@ func TestValidPackageQuery(t *testing.T) {
 	}
 }
 
-// TestAptSimulationArgvClosed ensures no mutating path or supplied option can
-// escape the closed, simulation-only template.
+// TestAptGetCannotUseGenericRunner keeps apt-get off the generic Run path.
 func TestAptGetCannotUseGenericRunner(t *testing.T) {
 	r := testRunner(t)
 	if _, err := r.Run(context.Background(), "apt-get", "install", "bash"); !errors.Is(err, ErrNotAllowed) {
@@ -742,14 +741,23 @@ func TestAptGetCannotUseGenericRunner(t *testing.T) {
 	}
 }
 
+// TestAptSimulationArgvClosed ensures no mutating path or supplied option can
+// escape the closed, simulation-only template.
 func TestAptSimulationArgvClosed(t *testing.T) {
-	for _, action := range []string{"install", "remove", "upgrade"} {
+	want := map[string]string{
+		"install": "--simulate --no-install-recommends install -- libssl3:amd64",
+		"remove":  "--simulate --no-install-recommends remove -- libssl3:amd64",
+		// Without --only-upgrade, "upgrade" of a package that is not installed
+		// would preview a fresh install.
+		"upgrade": "--simulate --no-install-recommends --only-upgrade install -- libssl3:amd64",
+	}
+	for action, w := range want {
 		args, err := AptSimulationArgv(action, "libssl3:amd64")
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(args) != 6 || args[0] != "--simulate" || args[1] != "--no-download" || args[4] != "--" || args[5] != "libssl3:amd64" {
-			t.Fatalf("unsafe argv %q: %v", action, args)
+		if got := strings.Join(args, " "); got != w {
+			t.Fatalf("%s argv = %q, want %q", action, got, w)
 		}
 	}
 	for _, action := range []string{"purge", "update", "autoremove", "dist-upgrade", "", "--help"} {
@@ -761,5 +769,41 @@ func TestAptSimulationArgvClosed(t *testing.T) {
 		if _, err := AptSimulationArgv("install", pkg); !errors.Is(err, ErrBadArg) {
 			t.Errorf("allowed unsafe package %q: %v", pkg, err)
 		}
+	}
+}
+
+// TestRunAptSimulationExecutesFixedArgv runs a stand-in apt-get and checks the
+// exact argv it receives, and that an invalid request never reaches exec.
+func TestRunAptSimulationExecutesFixedArgv(t *testing.T) {
+	if _, err := exec.LookPath("sh"); err != nil {
+		t.Skip("sh not available")
+	}
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "ran")
+	fake := filepath.Join(dir, "apt-get")
+	body := "#!/bin/sh\n: >'" + marker + "'\nprintf '%s\\n' \"$@\"\n"
+	if err := os.WriteFile(fake, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	r := testRunner(t)
+	r.skipOwnerCheck = true
+	r.paths["apt-get"] = fake
+	res, err := r.RunAptSimulation(context.Background(), "upgrade", "nginx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Fields(string(res.Stdout))
+	want := []string{"--simulate", "--no-install-recommends", "--only-upgrade", "install", "--", "nginx"}
+	if strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Fatalf("argv = %q, want %q", got, want)
+	}
+	if err := os.Remove(marker); err != nil {
+		t.Fatalf("stand-in did not run: %v", err)
+	}
+	if _, err := r.RunAptSimulation(context.Background(), "purge", "nginx"); !errors.Is(err, ErrBadArg) {
+		t.Fatalf("purge accepted: %v", err)
+	}
+	if _, err := os.Stat(marker); err == nil {
+		t.Fatal("rejected request reached exec")
 	}
 }

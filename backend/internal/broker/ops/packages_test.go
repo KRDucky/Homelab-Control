@@ -139,3 +139,36 @@ func TestPackagesSimulationAuditRedactsTarget(t *testing.T) {
 		t.Fatalf("unsafe audit: %q", got)
 	}
 }
+
+func TestAptSimulationPreviewFailsClosed(t *testing.T) {
+	// Fixture: stdout of a real non-root "apt-get --simulate
+	// --no-install-recommends install -- sl" (apt 3.3.3, Ubuntu), test data only.
+	ok := `NOTE: This is only a simulation!
+      apt-get needs root privileges for real execution.
+      Keep also in mind that locking is deactivated,
+      so don't depend on the relevance to the real current situation!
+Reading package lists...
+Building dependency tree...
+Reading state information...
+Solving dependencies...
+The following NEW packages will be installed:
+  sl
+0 upgraded, 1 newly installed, 0 to remove and 8 not upgraded.
+Inst sl (5.02-1build1 Ubuntu:26.10/stonking [amd64])
+Conf sl (5.02-1build1 Ubuntu:26.10/stonking [amd64])
+`
+	p, err := aptSimulationPreview(runner.Result{Stdout: []byte(ok)})
+	if err != nil || p.InstallCount != 1 || p.ConfigureCount != 1 || p.Changes[0].Name != "sl" || p.Changes[0].CandidateVersion != "5.02-1build1" {
+		t.Fatalf("clean run: %+v %v", p, err)
+	}
+	for name, res := range map[string]runner.Result{
+		"exit":   {Stdout: []byte(ok), ExitCode: 100},
+		"stderr": {Stdout: []byte(ok), Stderr: "W: something\n"},
+		"parse":  {Stdout: []byte("Inst sl (5.02-1build1 Ubuntu:26.10/stonking [amd64])\n")},
+	} {
+		var pe *proto.Error
+		if _, err := aptSimulationPreview(res); !errors.As(err, &pe) || pe.Code != proto.CodeUnavailable {
+			t.Errorf("%s: want unavailable, got %v", name, err)
+		}
+	}
+}

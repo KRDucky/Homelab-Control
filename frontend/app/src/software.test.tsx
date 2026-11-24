@@ -113,6 +113,26 @@ describe('Software Center UI model', () => {
     expect(screen.getByText(/package operations cannot be executed/i)).toBeTruthy();
   });
 
+  it('locks the selection while a simulation is in flight', async () => {
+    let finish: (v: Awaited<ReturnType<typeof getAptPreview>>) => void = () => {};
+    vi.mocked(getAptPreview).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    render(<Software csrf={csrf} onUnauthorized={onUnauthorized} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'APT Preview' }));
+    fireEvent.change(screen.getByLabelText('Package'), { target: { value: 'nginx' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Preview effects' }));
+    // A late answer must not appear under a different package or action.
+    expect((screen.getByLabelText('Package') as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByLabelText('Simulate action') as HTMLSelectElement).disabled).toBe(true);
+    finish({ changes: [], install_count: 0, remove_count: 0, configure_count: 0 });
+    expect(await screen.findByText(/APT reports no changes/)).toBeTruthy();
+    expect((screen.getByLabelText('Package') as HTMLInputElement).disabled).toBe(false);
+  });
+
   it('rejects invalid package names before calling APT', async () => {
     render(<Software csrf={csrf} onUnauthorized={onUnauthorized} />);
     fireEvent.click(screen.getByRole('tab', { name: 'APT Preview' }));

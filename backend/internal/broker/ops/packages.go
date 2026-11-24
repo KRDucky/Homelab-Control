@@ -165,12 +165,18 @@ func packagesSimulation(ctx context.Context, env *Env, raw json.RawMessage) (any
 	if err != nil {
 		return nil, runPackageErr(err, "apt-get")
 	}
+	return aptSimulationPreview(res)
+}
+
+// aptSimulationPreview accepts only a clean apt-get run: exit 0, no stderr
+// diagnostics, and stdout the fail-closed parser accepts.
+func aptSimulationPreview(res runner.Result) (aptplan.Preview, error) {
 	if res.ExitCode != 0 || strings.TrimSpace(res.Stderr) != "" {
-		return nil, &proto.Error{Code: proto.CodeUnavailable, Message: "APT simulation failed or reported diagnostics"}
+		return aptplan.Preview{}, &proto.Error{Code: proto.CodeUnavailable, Message: "APT simulation failed or reported diagnostics"}
 	}
 	p, err := aptplan.ParseSimulation(string(res.Stdout))
 	if err != nil {
-		return nil, &proto.Error{Code: proto.CodeUnavailable, Message: "APT simulation could not be safely previewed"}
+		return aptplan.Preview{}, &proto.Error{Code: proto.CodeUnavailable, Message: "APT simulation could not be safely previewed"}
 	}
 	return p, nil
 }

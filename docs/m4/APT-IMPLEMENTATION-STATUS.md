@@ -19,15 +19,53 @@ The current new package is not wired to the API, broker or UI. Implement fixed r
 
 ## Follow-on checkpoint: broker/API/WebUI simulation (PR #161, 2026-11-24)
 
-A separate draft PR adds the unprivileged closed `apt-get --simulate --no-download` runner, Debian/Ubuntu-only `packages.simulation` broker op, audited scoped `GET /api/v1/packages/preview` endpoint, OpenAPI contract, and a read-only APT Preview tab with package/action selection. Install, remove and single-package upgrade **simulations only** are represented; purge is deliberately excluded until APT `Purg` records are handled and tested. No write execution or source-trust approval is included.
+A separate draft PR adds the unprivileged closed `apt-get --simulate` runner, Debian/Ubuntu-only `packages.simulation` broker op, audited scoped `GET /api/v1/packages/preview` endpoint, OpenAPI contract, and a read-only APT Preview tab with package/action selection. Install, remove and single-package upgrade **simulations only** are represented; purge is deliberately excluded until APT `Purg` records are handled and tested. No write execution or source-trust approval is included.
 
-- Graphify pre-change neighbor review covered runner, package ops, API, broker client, Software page/client and impacted test files. Indexed commits inspected: `e83d4d6` (backend) and `66fccef` (frontend). The feature branch and its newly added symbols were not indexed, so **post-change Graphify review is still pending**, not successful.
+- Graphify pre-change neighbor review covered runner, package ops, API, broker client, Software page/client and impacted test files. Indexed commits inspected: `e83d4d6` (backend) and `66fccef` (frontend). The feature branch and its newly added symbols were not indexed at that time; the post-change review is recorded below.
 - Review-driven fixes: added the new operation to the closed registry snapshot tests and broker-client timeout table; kept the existing Software read-only banner test contract. These are branch changes, not independently verified test passes.
 - GitHub Actions workflow on PR #161 is not yet concluded at the time of this note. **Do not claim Go, frontend, contract, security, or repository-wide CI passed.**
-- Local `apt-get --simulate --no-download --no-install-recommends install -- bash` ran successfully in the tool sandbox with an empty change summary. This is a **read-only command compatibility spot-check only**, not HomeControl integration evidence.
+- Local `apt-get --simulate --no-download --no-install-recommends install -- bash` ran successfully in the tool sandbox with an empty change summary. This is a **read-only command compatibility spot-check only**, not HomeControl integration evidence. It hid the `--no-download` finding below because `bash` was already installed.
 - Debian/Ubuntu VMs and installed `.deb` guest acceptance: **NOT RUN**. No VM-execution interface was available.
 - M4 remains **incomplete**. A working *preview* is not a safe *apply*: ADR 0014/0015 owner acceptance, trusted repository identity, transaction locking, revalidation, audit journal, privileged execution and VM proof remain required.
 
 ### Additional source-review finding and fix
 
 The first generated patch for `backend/internal/broker/runner/runner.go` was corrupted by replacement-string interpolation around a Go regexp containing a trailing dollar sign/backtick. It duplicated repository source into the middle of the new regexp. This was caught by inspecting the actual branch file, **before accepting CI or submitting the PR for merge**. The runner file was rebuilt from the clean current `main` with only the intended allow-list and closed simulation changes (fix commit `1b6c7307d364848f0b1e0fbf6c1342c967dc6610`); inspection verified one SPDX header, one simulation method and expected file size. This is source inspection evidence, **not** a claim of compiled/tested correctness. Full CI and fresh Graphify branch review remain mandatory.
+
+### Post-change Graphify review (2026-11-24)
+
+| Pass | Indexed SHA | Scope | Nodes / edges | Result |
+|---|---|---|---|---|
+| 1 | `0f74af27` (PR head, clean worktree) | `backend/`, `frontend/app/src/`, AST only, 451 code files | 5226 / 20397 | 4 confirmed findings, 1 nit |
+| 2 | `0f74af27` + the fixes below | same | 5229 / 20407 | no new finding |
+
+Graph health on both passes: 1905 dangling-endpoint edges (stdlib and external symbols), 272 collapsed duplicate
+edges, 0 missing endpoints. The extractor misses some method calls, so `RunAptSimulation` shows no test caller;
+`TestRunAptSimulationExecutesFixedArgv` calls it (checked in source).
+
+Findings, all fixed with regression tests that fail on `0f74af27`:
+
+1. **`--no-download` broke install previews.** With it, `apt-get --simulate install` exits 100 with
+   "Unable to fetch some archives" whenever the `.deb` is not already in the local archive cache, which is the
+   normal case. A simulation never fetches, so the flag is removed. Reproduced on the host with a non-root
+   `apt-get` 3.3.3 (`sl`: exit 100 with the flag, a clean `0 upgraded, 1 newly installed` plan without it).
+2. **"Upgrade" previewed a fresh install.** `upgrade` mapped to plain `install`, so upgrading a package that
+   is not installed showed it being installed. It now uses `--only-upgrade install`; APT then prints "Skipping
+   …, it is not installed" and an empty plan (checked on the host). Tests: `TestAptSimulationArgvClosed`
+   (exact argv per action), `TestRunAptSimulationExecutesFixedArgv` (a stand-in `apt-get` receives exactly
+   that argv; a refused action never reaches exec).
+3. **No test of the run-result gate.** The exit-code, stderr and parser refusals in `packagesSimulation`
+   were untested. They are now `aptSimulationPreview`, tested with real captured non-root `apt-get` stdout
+   (labelled fixture) and with exit 100, stderr diagnostics and an unparsable plan.
+4. **Stale preview under a changed selection.** While a request was in flight only the button was disabled,
+   so a late answer could appear under a different package or action. The inputs are now disabled while
+   busy (test: "locks the selection while a simulation is in flight").
+5. Nit: a test doc comment sat above the wrong test.
+
+`apt` was considered instead of `apt-get` and kept out: apt(8) says its command line "may change behavior between
+versions" and directs scripts to `apt-get`, and apt 3.3.3 prints `Summary: Upgrading: …` instead of the
+`N upgraded, N newly installed, …` line the fail-closed parser requires.
+
+Checks after the fixes: gofmt, `go vet`, `go test ./...` (non-root) pass; SDK, extensions and HCIS checks
+pass; frontend typecheck, ESLint, Prettier clean, Vitest 31 files / 298 tests pass. Not run locally: Rust
+lint/tests (no cargo on the host), `make security`, `make deb`. Debian/Ubuntu VM acceptance: **still NOT RUN**.

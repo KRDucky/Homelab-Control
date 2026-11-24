@@ -336,6 +336,7 @@ function SoftwarePreview({ csrf, onUnauthorized }: { csrf: string; onUnauthorize
         <select
           id="apt-preview-action"
           value={action}
+          disabled={busy}
           onChange={(e) => {
             setAction(e.target.value as PreviewAction);
             setPreview(null);
@@ -351,6 +352,7 @@ function SoftwarePreview({ csrf, onUnauthorized }: { csrf: string; onUnauthorize
           id="apt-preview-package"
           value={name}
           maxLength={160}
+          disabled={busy}
           onChange={(e) => {
             setName(e.target.value);
             setPreview(null);
