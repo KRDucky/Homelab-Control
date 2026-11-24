@@ -51,8 +51,10 @@ func packageFamilyBinary(family string) string {
 }
 
 type packagesRequest struct {
-	Family string `json:"family"`
-	Q      string `json:"q,omitempty"`
+	Family  string `json:"family"`
+	Q       string `json:"q,omitempty"`
+	Action  string `json:"action,omitempty"`
+	Package string `json:"package,omitempty"`
 }
 
 // packagesCall runs one read op and returns the broker error for the handler.
@@ -153,7 +155,7 @@ func (s *Server) handlePackagesPreview(w http.ResponseWriter, r *http.Request, s
 	}
 	// Validation is repeated by the broker before any execution.
 	var out aptplan.Preview
-	if !s.packagesCall(w, r, sess, "packages.simulation", packagesPreviewRequest{Family: s.packageFamily(), Action: action, Package: name}, &out) {
+	if !s.packagesCall(w, r, sess, "packages.simulation", packagesRequest{Family: s.packageFamily(), Action: action, Package: name}, &out) {
 		return
 	}
 	// Never include unvalidated package input or entire resolver output in audit.
@@ -165,8 +167,3 @@ func (s *Server) handlePackagesPreview(w http.ResponseWriter, r *http.Request, s
 	writeJSON(w, http.StatusOK, out)
 }
 
-type packagesPreviewRequest struct {
-	Family  string `json:"family"`
-	Action  string `json:"action"`
-	Package string `json:"package"`
-}
