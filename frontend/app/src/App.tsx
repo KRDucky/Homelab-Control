@@ -26,6 +26,9 @@ import { Btrfs } from './pages/Btrfs';
 import { Ext4 } from './pages/Ext4';
 import { Mdadm } from './pages/Mdadm';
 import { F2fs } from './pages/F2fs';
+import { Ports } from './pages/Ports';
+import { Bonds } from './pages/Bonds';
+import { Firewall } from './pages/Firewall';
 import { XFS } from './pages/XFS';
 import { HostSettingsPage } from './pages/HostSettings';
 import { OverviewPage } from './pages/OverviewPage';
@@ -250,6 +253,9 @@ export function App() {
         onUnauthorized={signedOut}
       />
     );
+  else if (route?.id === 'ports') page = <Ports csrf={session.csrf_token} onUnauthorized={signedOut} />;
+  else if (route?.id === 'bonds') page = <Bonds csrf={session.csrf_token} onUnauthorized={signedOut} />;
+  else if (route?.id === 'firewall') page = <Firewall csrf={session.csrf_token} onUnauthorized={signedOut} />;
   else if (route?.id === 'xfs')
     page = (
       <XFS
