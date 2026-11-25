@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The Homelab Control Authors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Package containeridentity is HomeControl CORE's runtime-neutral model for
+// Package containeridentity is Homelab Control CORE's runtime-neutral model for
 // container process identity: PUID, PGID, UMASK and supplemental groups.
 //
 // It resolves layered desired settings (image, platform, application,
@@ -44,7 +44,7 @@ const (
 type Mode string
 
 const (
-	ModeImage   Mode = "image"   // use image defaults: HomeControl sets nothing
+	ModeImage   Mode = "image"   // use image defaults: Homelab Control sets nothing
 	ModeInherit Mode = "inherit" // platform/host defaults, refined by application defaults and an optional profile
 	ModeCustom  Mode = "custom"  // as inherit, plus per-container overrides
 )
@@ -109,7 +109,7 @@ const (
 	MethodRuntimeUser IdentityMethod = "runtime-user"
 	// MethodFixed: the image only works with its built-in identity.
 	MethodFixed IdentityMethod = "fixed"
-	// MethodUnknown: nothing is declared; HomeControl must not guess.
+	// MethodUnknown: nothing is declared; Homelab Control must not guess.
 	MethodUnknown IdentityMethod = "unknown"
 )
 
@@ -118,7 +118,7 @@ type UmaskMethod string
 
 const (
 	UmaskEnv        UmaskMethod = "env"        // the image documents a variable (UMASK, UMASK_SET, ...)
-	UmaskEntrypoint UmaskMethod = "entrypoint" // HomeControl-owned entrypoint applies the variable before exec
+	UmaskEntrypoint UmaskMethod = "entrypoint" // Homelab Control-owned entrypoint applies the variable before exec
 	UmaskNone       UmaskMethod = "none"       // declared unsupported
 	UmaskUnknown    UmaskMethod = "unknown"
 )

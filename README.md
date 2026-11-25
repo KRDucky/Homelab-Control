@@ -19,6 +19,11 @@ more, each as an independent module behind the same typed, audited privilege bou
 Homelab Control is an independent project. It is not a fork of Webmin, contains no Webmin code, and is
 not affiliated with or endorsed by the Webmin project.
 
+![Homelab Control dashboard: host, processor, memory, storage, network and module status from a test VM](docs/screenshots/overview-desktop.png)
+
+<sub>The dashboard of the current build, signed in with a read-only test account on a disposable Ubuntu 26.04
+VM. More screenshots: [Web UI screenshots](#web-ui-screenshots).</sub>
+
 ## Current web interface
 
 The React/TypeScript interface is **Homelab Control's own UI**. Its navigation and routes do not include a Webmin or legacy-Webmin page. Modules appear according to API-reported capabilities, configured module enablement and the signed-in account's permissions.
@@ -36,11 +41,56 @@ The current UI source contains these module groups:
 
 Not all modules or operations are available on every installation. A module's availability and permitted actions depend on the host, broker, installed dependencies, and account scopes. Showing a module in the frontend source does **not** imply that all its backend operations are production-ready; consult [current status](docs/STATUS.md) and the milestone acceptance records.
 
-### Screenshots
+## Web UI screenshots
 
-The previous README gallery was captured **before the 2026-11-25 removal of the legacy integration** and is intentionally omitted here: it cannot be presented as evidence of the current interface. Fresh screenshots should be captured from a built instance of the current `main` branch, with the module navigation visible and no legacy navigation entry, before being published here.
+Real screenshots of the current build (`f8a259b`), taken with Playwright (Chromium, 1440 × 900; phones
+390 × 844) on a **disposable Ubuntu 26.04.1 VM** with the privileged broker and the read-only storage
+helper enabled, signed in with a **read-only test account**. The storage shown is **test data on blank
+virtual disks** created for the capture: an LVM volume group on a virtual SATA disk, a ZFS mirror, a
+Btrfs filesystem and a MergerFS pool with a SnapRAID configuration; the NVMe and SATA disks are QEMU's
+emulated drives. Nothing here is a production system. Procedure and checks:
+[`docs/evidence/ui/SCREENSHOTS.md`](docs/evidence/ui/SCREENSHOTS.md).
 
-Older test evidence remains available for historical review under [`docs/evidence/`](docs/evidence/) and [`docs/m2/evidence/`](docs/m2/evidence/), but is not a current UI gallery.
+<table>
+<tr>
+<td width="32%"><img src="docs/screenshots/navigation-desktop.png" alt="Sidebar with the Dashboard, System, Storage &amp; files, Network &amp; applications and Administration groups"></td>
+<td><img src="docs/screenshots/storage-desktop.png" alt="Storage page after a probe: test disks with identifiers, size, use and SMART health"></td>
+</tr>
+<tr>
+<td><sub><b>Navigation.</b> Modules grouped by area. "Limited" marks a module that works with reduced data on this host.</sub></td>
+<td><sub><b>Storage</b> after <i>Probe storage</i>: lsblk, smartctl and pvs/lvs run by the read-only helper. SATA and NVMe SMART health is read; virtio disks have no SMART. Filtered to the VM's test disks.</sub></td>
+</tr>
+</table>
+
+| | |
+|---|---|
+| ![Services](docs/screenshots/services-desktop.png) **Services**: systemd units with state; start, stop, restart, enable and the closed systemctl verbs are plan → confirm → apply (not used by this read-only account). | ![Hardware](docs/screenshots/hardware-desktop.png) **Hardware**: DMI identity and drives with stable identifiers and confidence labels. |
+| ![Software](docs/screenshots/software-desktop.png) **Software**: installed packages, update preview, sources, APT preview, APT settings and mirrors (Debian/Ubuntu). | ![Files](docs/screenshots/files-desktop.png) **Files**: browsing of administrator-allowed roots (here a test share). |
+| ![ZFS](docs/screenshots/zfs-desktop.png) **ZFS**: kernel module, tooling and mounted datasets (read-only; pool topology and health are not shown yet). | ![MergerFS](docs/screenshots/mergerfs-desktop.png) **MergerFS / SnapRAID**: pools with per-branch capacity, configured mounts and SnapRAID configuration checks. |
+| ![LVM](docs/screenshots/lvm-desktop.png) **LVM**: device-mapper volumes from sysfs (read-only; the full LVM inventory is on the Storage page after a probe). | ![Btrfs](docs/screenshots/btrfs-desktop.png) **Btrfs**: kernel support, tooling and mounted filesystems (read-only). |
+| ![Ports](docs/screenshots/network-ports-desktop.png) **Port use**: listening sockets with their process, systemd socket or account, and bind scope (firewall rules are not applied here). | ![Firewall](docs/screenshots/network-firewall-desktop.png) **Firewall**: the active backend and its saved configuration (read-only; the live kernel ruleset is not read). |
+| ![Bonds](docs/screenshots/network-bonds-desktop.png) **Bonds / LACP**: kernel bonding inventory. Shown as *Limited*: the test VM has no bond. | ![Theme Studio](docs/screenshots/theme-studio-desktop.png) **Themes & Theme Studio**: built-in themes and browser-local theme editing. |
+
+**Light theme (Daybreak) and phones:**
+
+<table>
+<tr>
+<td width="40%"><img src="docs/screenshots/theme-daybreak.png" alt="Dashboard in the Daybreak light theme"></td>
+<td width="30%"><img src="docs/screenshots/overview-mobile.png" alt="Dashboard on a phone"></td>
+<td width="30%"><img src="docs/screenshots/navigation-mobile.png" alt="Navigation drawer on a phone"></td>
+</tr>
+<tr>
+<td><sub>Dashboard in <b>Daybreak</b> (the light theme; the screenshots above use <b>Midnight</b>).</sub></td>
+<td><sub>Dashboard on a phone.</sub></td>
+<td><sub>Navigation drawer on a phone.</sub></td>
+</tr>
+</table>
+
+**Not shown as working:** the Traefik reverse-proxy page needs a configured Traefik extension, which the test
+VM does not have; its honest unavailable state is in [`traefik-desktop.png`](docs/screenshots/traefik-desktop.png).
+ext4, XFS, f2fs and Software RAID pages exist but are not pictured; f2fs is *Limited* on this VM (no
+`dump.f2fs`). Screenshots show the interface, not production acceptance of a module; see
+[current status](docs/STATUS.md).
 
 ## Current status
 

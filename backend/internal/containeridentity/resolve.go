@@ -124,7 +124,7 @@ type MechanismSummary struct {
 	Umask              UmaskMethod    `json:"umask"`
 	SupplementalGroups bool           `json:"supplementalGroups"`
 	// Declared is true when every rendered value depends on the image's
-	// declaration being accurate (env-based identity/umask): HomeControl can
+	// declaration being accurate (env-based identity/umask): Homelab Control can
 	// show what it configures but not prove the process honours it.
 	Declared bool `json:"declared"`
 }
@@ -168,7 +168,7 @@ func Resolve(req Request) Preview {
 		return finish(p)
 	}
 
-	// Collect layers. Image mode uses nothing HomeControl-supplied.
+	// Collect layers. Image mode uses nothing Homelab Control-supplied.
 	var profile *Profile
 	if req.Profile != "" {
 		if req.Mode == ModeImage {
@@ -189,7 +189,7 @@ func Resolve(req Request) Preview {
 	case ModeImage:
 		sets = []Settings{{}, {}, {}, {}}
 		if !isZero(req.Override) || !isZero(req.Application) {
-			add(SeverityInfo, "image_defaults", "", "Image defaults selected: HomeControl leaves the image's identity, UMASK and groups unchanged.")
+			add(SeverityInfo, "image_defaults", "", "Image defaults selected: Homelab Control leaves the image's identity, UMASK and groups unchanged.")
 		}
 	case ModeInherit:
 		if !isZero(req.Override) {
@@ -264,7 +264,7 @@ func resolveIdentity(req Request, uid, gid sourced[uint32], add func(Severity, s
 				return ru, rg
 			}
 			if s.v.v != nil && *s.v.v == 0 {
-				add(SeverityBlocker, "root_identity", s.name, "HomeControl never configures %s 0 (root). Use a non-root identity; image defaults are left unchanged when nothing is set.", strings.ToUpper(s.name))
+				add(SeverityBlocker, "root_identity", s.name, "Homelab Control never configures %s 0 (root). Use a non-root identity; image defaults are left unchanged when nothing is set.", strings.ToUpper(s.name))
 				return ru, rg
 			}
 		}
@@ -286,7 +286,7 @@ func resolveIdentity(req Request, uid, gid sourced[uint32], add func(Severity, s
 			if explicit(uid) || explicit(gid) {
 				sev = SeverityBlocker
 			}
-			add(sev, "identity_unsupported", "uid", "The image does not declare how it accepts a process identity, so HomeControl does not configure one (no variables are injected). Declare env or runtime-user support in the manifest first.")
+			add(sev, "identity_unsupported", "uid", "The image does not declare how it accepts a process identity, so Homelab Control does not configure one (no variables are injected). Declare env or runtime-user support in the manifest first.")
 		}
 		return imageDefault(img.DefaultUID), imageDefault(img.DefaultGID)
 	}
@@ -350,7 +350,7 @@ func resolveUmask(req Request, um sourced[Umask], add func(Severity, string, str
 		if um.src == LayerOverride || um.src == LayerApplication {
 			sev = SeverityBlocker
 		}
-		add(sev, "umask_unsupported", "umask", "The image does not declare UMASK support, so HomeControl does not set it (an unrecognised variable would have no effect). The image's default UMASK applies.")
+		add(sev, "umask_unsupported", "umask", "The image does not declare UMASK support, so Homelab Control does not set it (an unrecognised variable would have no effect). The image's default UMASK applies.")
 		return ResolvedUmask{Source: LayerUnset}
 	}
 	v := *um.v
@@ -428,9 +428,9 @@ func resolveGroups(req Request, grp sourced[[]uint32], add func(Severity, string
 				blocked = true
 			}
 		} else if names[g] == "" {
-			// Without a configured name, HomeControl cannot tell whether this GID
+			// Without a configured name, Homelab Control cannot tell whether this GID
 			// is a privileged host group (for example docker or lxd); say so.
-			add(SeverityWarning, "group_unnamed", "supplementalGroups", "GID %d is not in the platform's configured group table, so HomeControl cannot tell whether it grants elevated authority (for example a container daemon or hypervisor group). Verify it on the host before use.", g)
+			add(SeverityWarning, "group_unnamed", "supplementalGroups", "GID %d is not in the platform's configured group table, so Homelab Control cannot tell whether it grants elevated authority (for example a container daemon or hypervisor group). Verify it on the host before use.", g)
 		}
 	}
 	if blocked {

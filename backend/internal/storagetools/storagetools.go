@@ -232,7 +232,8 @@ type SMART struct {
 }
 
 // UnavailableNVMeAdmin: the kernel allows the NVMe SMART/Health log page
-// (an admin command) only with CAP_SYS_ADMIN, which the helper does not hold.
+// (an admin command) only with CAP_SYS_ADMIN. The helper unit grants it (owner
+// 2026-11-25); this reason remains for a host where it is still refused.
 const UnavailableNVMeAdmin = "nvme-needs-cap-sys-admin"
 
 // Exit-status bits from smartctl(8).

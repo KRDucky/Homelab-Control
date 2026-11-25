@@ -64,7 +64,7 @@ export function ThemePreview({
       <div className="theme-mini-shell">
         {width !== 'phone' && (
           <aside className="theme-mini-sidebar" aria-label="Example sidebar">
-            <strong>◈ HomeControl</strong>
+            <strong>◈ Homelab Control</strong>
             {pages.map((group) => (
               <div className="theme-mini-nav-group" key={group.group}>
                 <span>{group.group}</span>
@@ -82,7 +82,7 @@ export function ThemePreview({
         )}
         <div className="theme-mini-workspace">
           <div className="theme-mini-topbar">
-            <strong>{width === 'phone' ? '☰  HomeControl' : 'HomeControl'}</strong>
+            <strong>{width === 'phone' ? '☰  Homelab Control' : 'Homelab Control'}</strong>
             <span>Preview mode</span>
           </div>
           {scene === 'dashboard' && (

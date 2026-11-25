@@ -520,3 +520,12 @@ Recorded here:
 - Asked how to deliver, the owner chose **"One PR per module"** across M5–M9.
 - First PR (M5): lsblk, smartctl and pvs/lvs replace the native LVM reader (`lvmmeta`) and blkid.
 
+## NVMe SMART: grant CAP_SYS_ADMIN to the storage helper (owner, 2026-11-25)
+
+- After the M5 VM runs showed the kernel refuses the NVMe SMART/Health log without `CAP_SYS_ADMIN`, the owner
+  said: "grant that permission. SMART health for NVMe is important".
+- `hc-storage-probe` now holds `CAP_SYS_RAWIO` and `CAP_SYS_ADMIN` (bounding and ambient), and its AppArmor
+  profile allows exactly `sys_rawio` and `sys_admin`. The broad uses of `CAP_SYS_ADMIN` stay blocked by the
+  unit's system-call filter (`@mount`, `@module`, `@swap`, `@reboot`, `@raw-io`, `@clock`, `@debug`),
+  `RestrictNamespaces=`, `ProtectKernel*`, no network, read-only devices and AppArmor `deny mount`.
+

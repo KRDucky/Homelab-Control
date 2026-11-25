@@ -52,7 +52,7 @@ type VolumeResult struct {
 	Status VolumeStatus `json:"status"`
 	Reason string       `json:"reason"`
 	// Proposals are human-reviewable host changes. They are never executed:
-	// HomeControl does not chmod/chown host paths to make an install work.
+	// Homelab Control does not chmod/chown host paths to make an install work.
 	Proposals []string `json:"proposals,omitempty"`
 }
 
@@ -122,7 +122,7 @@ func evaluate(v Volume, r Resolved, pc PlatformContext) VolumeResult {
 	}
 	res.Proposals = append(res.Proposals,
 		"Choose a PUID/PGID that owns or is in the group of this path, or",
-		fmt.Sprintf("ask an administrator to grant %s to the workload's host identity through a reviewed, approved host change (HomeControl does not change host ownership or modes).", rwx(need)))
+		fmt.Sprintf("ask an administrator to grant %s to the workload's host identity through a reviewed, approved host change (Homelab Control does not change host ownership or modes).", rwx(need)))
 	return res
 }
 

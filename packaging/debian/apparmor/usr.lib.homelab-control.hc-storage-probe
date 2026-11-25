@@ -25,10 +25,12 @@
 profile hc-storage-probe /usr/lib/homelab-control/hc-storage-probe flags=(enforce) {
   #include <abstractions/base>
 
-  # One capability: smartctl's SG_IO pass-through to SATA/SAS disks. Nothing
-  # else privileged, no mounts, no tracing, and no network except the
-  # inherited AF_UNIX connection (see the unix rule below).
+  # Two capabilities, both for smartctl: SG_IO pass-through to SATA/SAS disks
+  # (sys_rawio) and NVMe admin commands for the SMART/Health log (sys_admin).
+  # No mounts, no tracing, and no network except the inherited AF_UNIX
+  # connection (see the unix rule below).
   capability sys_rawio,
+  capability sys_admin,
   deny network inet,
   deny network inet6,
   deny network netlink,

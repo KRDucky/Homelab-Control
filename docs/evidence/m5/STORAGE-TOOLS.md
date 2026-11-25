@@ -33,7 +33,10 @@ The helper takes no device names from its caller (protocol 2). smartmontools is 
 6. **Stale note.** After a probe, the collector's "On-disk signatures have not been probed" note stayed;
    it is now removed once lsblk supplied signatures (regression test in `storage_probe_test.go`).
 
-## Known limitation: NVMe SMART needs CAP_SYS_ADMIN
+## NVMe SMART needs CAP_SYS_ADMIN (granted later, owner 2026-11-25)
+
+> **Update:** the owner granted `CAP_SYS_ADMIN`. NVMe SMART verification after the grant is recorded in
+> `docs/evidence/ui/SCREENSHOTS.md`. The text below records the first checkpoint.
 
 The kernel releases the NVMe SMART/Health log (an admin command) only to a process with `CAP_SYS_ADMIN`.
 Observed in the Ubuntu 26.04 guest (kernel 7.0): with `CAP_SYS_RAWIO` smartctl gets

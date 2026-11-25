@@ -107,7 +107,7 @@ export function ZFSView({
           </header>
           <p>
             smartctl and nvme are optional. This page does not run them or open disks. An installed binary
-            does not mean HomeControl can access raw devices; future use requires a reviewed closed broker
+            does not mean Homelab Control can access raw devices; future use requires a reviewed closed broker
             operation.
           </p>
           <RequiredOffers items={diskToolsMissing} canInstall={canInstall} />

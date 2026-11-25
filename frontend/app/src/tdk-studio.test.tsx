@@ -25,13 +25,13 @@ describe('Theme Development Kit in the WebUI', () => {
     render(<ThemeStudio />);
     fireEvent.click(screen.getByRole('button', { name: 'Create from daybreak' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Theme name' }), {
-      target: { value: 'HomeControl Ocean' },
+      target: { value: 'Homelab Control Ocean' },
     });
     fireEvent.change(screen.getByRole('textbox', { name: 'Identifier' }), {
       target: { value: 'local.ocean' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
-    expect(loadThemes().find((theme) => theme.id === 'local.ocean')?.name).toBe('HomeControl Ocean');
+    expect(loadThemes().find((theme) => theme.id === 'local.ocean')?.name).toBe('Homelab Control Ocean');
     expect(activeTheme()).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Preview on application' }));
