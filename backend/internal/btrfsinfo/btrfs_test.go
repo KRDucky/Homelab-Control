@@ -88,8 +88,8 @@ func TestProbeToolingPackageNames(t *testing.T) {
 	if debian.Required[0].Package != "btrfs-progs" || debian.Required[0].Installed {
 		t.Fatalf("debian: %+v", debian.Required[0])
 	}
-	if debian.Optional[0].ID != "smartctl" || debian.Optional[0].Package != "smartmontools" {
-		t.Fatalf("smartctl: %+v", debian.Optional[0])
+	if debian.Optional == nil || len(debian.Optional) != 0 {
+		t.Fatalf("optional must be empty: %+v", debian.Optional)
 	}
 	suse := probeTooling("suse", stat)
 	if suse.Required[0].Package != "btrfsprogs" {
@@ -100,8 +100,8 @@ func TestProbeToolingPackageNames(t *testing.T) {
 		t.Fatalf("fedora: %+v", fedora.Required[0])
 	}
 	unknown := probeTooling("unknown", stat)
-	if unknown.Required[0].Package != "" || unknown.Optional[0].Package != "" {
-		t.Fatalf("unknown: %+v %+v", unknown.Required[0], unknown.Optional[0])
+	if unknown.Required[0].Package != "" {
+		t.Fatalf("unknown: %+v", unknown.Required[0])
 	}
 }
 

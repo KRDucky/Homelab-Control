@@ -49,7 +49,12 @@ type Request struct {
 }
 
 // ScopeZFS asks only for the OpenZFS report (zpool list, zpool status, zfs list).
-const ScopeZFS = "zfs"
+// ScopeBtrfs asks only for the Btrfs report (filesystem usage, device stats,
+// scrub status, subvolume list) of each mounted Btrfs filesystem.
+const (
+	ScopeZFS   = "zfs"
+	ScopeBtrfs = "btrfs"
+)
 
 // Result is the closed helper output.
 type Result struct {
@@ -62,6 +67,7 @@ type Result struct {
 	PVS     json.RawMessage `json:"pvs,omitempty"`
 	LVS     json.RawMessage `json:"lvs,omitempty"`
 	ZFS     *ZFSReport      `json:"zfs,omitempty"`
+	Btrfs   *BtrfsReport    `json:"btrfs,omitempty"`
 	Tools   map[string]bool `json:"tools"`
 	Errors  []string        `json:"errors,omitempty"`
 	Partial bool            `json:"partial"`

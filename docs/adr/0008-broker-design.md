@@ -460,3 +460,24 @@ name,used,avail,refer,mountpoint,compression,type -t filesystem,volume`. Any oth
   Ubuntu 22.04/24.04 ship OpenZFS 2.1/2.2 without it.
 - **No writes.** No scrub, import, export, online/offline, clear or property change exists.
 
+## Amendment 14 (2026-11-25, M7, owner-authorized): Btrfs through the storage helper
+
+Same activation as Amendment 13. Request scope `btrfs` runs four fixed templates
+(`internal/storagetools/btrfs.go`) per mounted Btrfs filesystem: `btrfs filesystem usage -b <mnt>`,
+`btrfs device stats <mnt>`, `btrfs scrub status <mnt>` and `btrfs subvolume list <mnt>`. None starts,
+cancels, resets or changes anything.
+
+- **Mountpoints are the helper's own.** It reads its `/proc/self/mountinfo`, groups `btrfs` mounts by device
+  number (one filesystem, any number of subvolume mounts) and uses the first mountpoint it can open. No
+  caller names a path. Limits: 16 filesystems, 1024 subvolumes each (1 MiB of `subvolume list` output),
+  256 KiB per other command.
+- **ProtectHome stays.** systemd removes `/home`, `/root` and `/run/user` sub-mounts from the helper's
+  namespace, so a filesystem mounted only there is not inspected; the page names such mounts from its own
+  unprivileged mount list.
+- **Broker op** `btrfs.status`: scope `btrfs.read`, no arguments, `root-read`, admission `system-read`. ZFS
+  and Btrfs share one per-scope 3-second answer cache.
+- **AppArmor.** `ix` for `btrfs`; `/**/ r` (directories only, to open a mountpoint for the ioctls);
+  `/var/lib/btrfs/ r` and `/var/lib/btrfs/scrub.status.* rwk`. `scrub status` takes an exclusive lock on
+  its saved state, which AppArmor counts as write; `ProtectSystem=strict` keeps `/var/lib` read-only in the
+  helper. The policy guard allows write only for `/dev/zfs` and this file, and rejects a file-wide read.
+

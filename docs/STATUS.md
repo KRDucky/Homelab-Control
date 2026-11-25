@@ -224,6 +224,14 @@ packages module is enabled and the session has `packages.read`. `smartctl` is of
 btrfs mount is observed, and missing it does not degrade capability. This is a checkpoint, not M7
 acceptance, not a merge, not production. Issue #88 stays open. Never touch production pool `tank`.
 
+**Update 2026-11-25 (M5–M9 review, "use the standard tools"):** the page now shows each mounted filesystem as
+btrfs-progs reports it. The read-only storage helper runs `btrfs filesystem usage -b`, `device stats`,
+`scrub status` and `subvolume list` (request scope `btrfs`) on one mountpoint per filesystem that it picks from
+its own mount table; the broker op `btrfs.status` (scope `btrfs.read`) returns allocation by profile and
+device, device error counters, scrub status and subvolumes, and `GET /btrfs` adds them as `status`. Mounts
+under `/home`, `/root` and `/run/user` are hidden from the helper and named on the page as not inspected.
+The unused optional smartctl offer was removed (SMART is on the Storage page). Still no format, balance,
+scrub start or replace. ADR 0008 Amendment 14; evidence `docs/evidence/m7/BTRFS-TOOLS.md`.
 
 ## M7 first checkpoint: ext4 (read-only; not M7 acceptance)
 

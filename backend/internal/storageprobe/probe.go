@@ -38,6 +38,7 @@ import (
 	"syscall"
 	"time"
 
+	"homelab-control/backend/internal/mountinfo"
 	"homelab-control/backend/internal/storagetools"
 )
 
@@ -70,6 +71,7 @@ var binaries = map[string]string{
 	"lvs":      "/usr/sbin/lvs",
 	"zpool":    "/usr/sbin/zpool",
 	"zfs":      "/usr/sbin/zfs",
+	"btrfs":    "/usr/bin/btrfs",
 }
 
 // requiredTools must resolve; the others are optional (not installed means
@@ -85,6 +87,7 @@ var toolCandidates = map[string][]string{
 	"lvs":      {"/usr/sbin/lvs", "/sbin/lvs"},
 	"zpool":    {"/usr/sbin/zpool", "/sbin/zpool", "/usr/bin/zpool"},
 	"zfs":      {"/usr/sbin/zfs", "/sbin/zfs", "/usr/bin/zfs"},
+	"btrfs":    {"/usr/bin/btrfs", "/bin/btrfs", "/usr/sbin/btrfs", "/sbin/btrfs"},
 }
 
 // resolved records which tools passed ResolveToolPaths.
@@ -247,11 +250,15 @@ func Run(ctx context.Context, req Request) Result {
 
 	ctx, cancel := context.WithTimeout(ctx, budget(req.Scope))
 	defer cancel()
-	// The ZFS scope talks only to /dev/zfs (its own DeviceAllow entry) and
-	// opens no block device, so the block-class self-check below does not
-	// apply to it.
-	if req.Scope == storagetools.ScopeZFS {
+	// The tool scopes open no block device: ZFS talks only to /dev/zfs (its
+	// own DeviceAllow entry) and btrfs-progs uses ioctls on a mountpoint. The
+	// block-class self-check below does not apply to them.
+	switch req.Scope {
+	case storagetools.ScopeZFS:
 		runZFS(ctx, &res, fail)
+		return res
+	case storagetools.ScopeBtrfs:
+		runBtrfs(ctx, &res, fail)
 		return res
 	}
 
@@ -362,6 +369,132 @@ func runZFS(ctx context.Context, res *Result, fail func(string)) {
 		res.Partial = true
 		res.Errors = append(res.Errors, "the ZFS report exceeded its limits; some pools, vdevs or datasets are not listed")
 	}
+}
+
+// mountinfoPath is the helper's own mount table (a test seam).
+var mountinfoPath = "/proc/self/mountinfo"
+
+// hiddenPrefixes are paths the unit's ProtectHome=yes replaces with empty
+// mounts, so a Btrfs mount there cannot be opened from the helper.
+var hiddenPrefixes = []string{"/home", "/root", "/run/user"}
+
+func hiddenPath(p string) bool {
+	for _, h := range hiddenPrefixes {
+		if p == h || strings.HasPrefix(p, h+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// btrfsTarget is one Btrfs filesystem: the mountpoint the reports are taken
+// from, and every mount of it.
+type btrfsTarget struct {
+	mountpoint string
+	mounts     []string
+}
+
+// btrfsTargets groups btrfs mounts by device number (one filesystem, any
+// number of subvolume mounts) and picks the first mountpoint the helper can
+// open. The helper names the paths itself; no caller supplies one.
+func btrfsTargets(recs []mountinfo.Record) (targets []btrfsTarget, skipped []storagetools.BtrfsSkipped, truncated bool) {
+	order := []string{}
+	groups := map[string][]string{}
+	for _, r := range recs {
+		if r.FSType != "btrfs" || mountinfo.HasDotDot(r.Mountpoint) || len(r.Mountpoint) > mountinfo.MountpointMaxBytes {
+			continue
+		}
+		if _, ok := groups[r.DeviceNumber]; !ok {
+			order = append(order, r.DeviceNumber)
+		}
+		if len(groups[r.DeviceNumber]) < 32 {
+			groups[r.DeviceNumber] = append(groups[r.DeviceNumber], r.Mountpoint)
+		}
+	}
+	for _, dev := range order {
+		mounts := groups[dev]
+		pick := ""
+		for _, m := range mounts {
+			if !hiddenPath(m) {
+				pick = m
+				break
+			}
+		}
+		switch {
+		case pick == "":
+			skipped = append(skipped, storagetools.BtrfsSkipped{Mountpoint: mounts[0],
+				Reason: "mounted only under /home, /root or /run/user, which the read-only helper cannot open"})
+		case len(targets) >= storagetools.MaxBtrfsFilesystems:
+			truncated = true
+			skipped = append(skipped, storagetools.BtrfsSkipped{Mountpoint: pick, Reason: "over the limit of filesystems inspected at once"})
+		default:
+			targets = append(targets, btrfsTarget{mountpoint: pick, mounts: mounts})
+		}
+	}
+	return targets, skipped, truncated
+}
+
+// runBtrfs runs the fixed read-only btrfs-progs templates for each mounted
+// Btrfs filesystem. A failing command is recorded on its filesystem; the
+// others are still reported.
+func runBtrfs(ctx context.Context, res *Result, fail func(string)) {
+	if !res.Tools["btrfs"] {
+		fail("btrfs is not installed (package btrfs-progs); no Btrfs data")
+		return
+	}
+	recs, info, err := mountinfo.ReadFile(mountinfoPath)
+	if err != nil {
+		fail("cannot read the mount table: " + err.Error())
+		return
+	}
+	targets, skipped, truncated := btrfsTargets(recs)
+	rep := storagetools.BtrfsReport{Filesystems: []storagetools.BtrfsFilesystem{}, Skipped: skipped, Truncated: truncated || info.Truncated}
+	for _, t := range targets {
+		fs := storagetools.BtrfsFilesystem{Mountpoint: t.mountpoint, Mounts: t.mounts, Profiles: []storagetools.BtrfsProfile{},
+			Devices: []storagetools.BtrfsDevice{}, Subvolumes: []storagetools.BtrfsSubvol{}}
+		bad := func(what string, err error) { fs.Errors = append(fs.Errors, what+": "+err.Error()) }
+		get := func(max int, args []string) ([]byte, error) {
+			b, code, err := run(ctx, storagetools.HelperCommandTimeout, max, "btrfs", args)
+			if err == nil && code != 0 {
+				err = fmt.Errorf("exit status %d", code)
+			}
+			return b, err
+		}
+		if b, err := get(storagetools.MaxBtrfsBytes, storagetools.BtrfsUsageArgs(t.mountpoint)); err != nil {
+			bad("filesystem usage", err)
+		} else if fs.Overall, fs.Profiles, err = storagetools.ParseBtrfsUsage(b); err != nil {
+			bad("filesystem usage", err)
+		}
+		if b, err := get(storagetools.MaxBtrfsBytes, storagetools.BtrfsDeviceStatsArgs(t.mountpoint)); err != nil {
+			bad("device stats", err)
+		} else if fs.Devices, err = storagetools.ParseBtrfsDeviceStats(b); err != nil {
+			bad("device stats", err)
+		}
+		if b, err := get(storagetools.MaxBtrfsBytes, storagetools.BtrfsScrubStatusArgs(t.mountpoint)); err != nil {
+			bad("scrub status", err)
+		} else if fs.UUID, fs.Scrub, err = storagetools.ParseBtrfsScrub(b); err != nil {
+			bad("scrub status", err)
+		}
+		if b, err := get(storagetools.MaxBtrfsSubvolBytes, storagetools.BtrfsSubvolumeListArgs(t.mountpoint)); err != nil {
+			bad("subvolume list", err)
+		} else if fs.Subvolumes, fs.SubvolumesTruncated, err = storagetools.ParseBtrfsSubvolumes(b); err != nil {
+			bad("subvolume list", err)
+		}
+		if fs.Devices == nil {
+			fs.Devices = []storagetools.BtrfsDevice{}
+		}
+		if fs.Subvolumes == nil {
+			fs.Subvolumes = []storagetools.BtrfsSubvol{}
+		}
+		if fs.Profiles == nil {
+			fs.Profiles = []storagetools.BtrfsProfile{}
+		}
+		if len(fs.Errors) > 0 {
+			res.Partial = true
+		}
+		rep.Filesystems = append(rep.Filesystems, fs)
+	}
+	res.Btrfs = &rep
 }
 
 // admit rate-limits and caps concurrent Runs.
@@ -478,7 +611,7 @@ func UnmarshalRequest(b []byte) (Request, error) {
 	if req.Version != storagetools.ProtocolVersion {
 		return req, fmt.Errorf("unsupported protocol version %d", req.Version)
 	}
-	if req.Scope != "" && req.Scope != storagetools.ScopeZFS {
+	if req.Scope != "" && req.Scope != storagetools.ScopeZFS && req.Scope != storagetools.ScopeBtrfs {
 		return req, fmt.Errorf("unsupported scope %q", req.Scope)
 	}
 	return req, nil

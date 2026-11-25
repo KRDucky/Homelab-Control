@@ -307,6 +307,11 @@ func Registry() map[string]Op {
 		// (owner 2026-11-25). Module "zfs" gates it by the zfs. prefix.
 		{Name: "zfs.status", Scope: "zfs.read", Privilege: PrivRootRead, Timeout: helperOpTimeout(storagetools.ScopeZFS), Admission: AdmissionSystemRead,
 			Description: "OpenZFS pools (health, capacity, scrub, vdev tree with error counters) and datasets: zpool list/status and zfs list through hc-storage-probe", Handle: zfsStatus},
+		// M7 Btrfs: filesystem usage, device stats, scrub status and subvolume
+		// list per mounted filesystem through the read-only helper (owner
+		// 2026-11-25). Module "btrfs" gates it by the btrfs. prefix.
+		{Name: "btrfs.status", Scope: "btrfs.read", Privilege: PrivRootRead, Timeout: helperOpTimeout(storagetools.ScopeBtrfs), Admission: AdmissionSystemRead,
+			Description: "Btrfs filesystems (allocation by profile and device, device error counters, scrub status, subvolumes): btrfs-progs through hc-storage-probe", Handle: btrfsStatus},
 		// M11 (ADR 0008 Amendment 9, Proposed): read-only networking. In-process
 		// root reads of fixed /proc and config paths; the firewall op also runs
 		// one fixed unprivileged systemctl show. No live ruleset, no writes.

@@ -1690,10 +1690,69 @@ export interface BtrfsKernel {
   reason: string;
 }
 
+/** One block-group type with its RAID profile (Data,RAID1); type Unallocated lists free device space. */
+export interface BtrfsProfile {
+  type: string;
+  profile?: string;
+  size?: number;
+  used?: number;
+  devices: { path: string; bytes: number }[];
+}
+
+/** btrfs device stats counters for one device. */
+export interface BtrfsDeviceStats {
+  path: string;
+  write_io_errs?: number;
+  read_io_errs?: number;
+  flush_io_errs?: number;
+  corruption_errs?: number;
+  generation_errs?: number;
+}
+
+export interface BtrfsFilesystem {
+  uuid?: string;
+  mountpoint: string;
+  mounts: string[];
+  overall: {
+    device_size?: number;
+    allocated?: number;
+    unallocated?: number;
+    missing?: number;
+    used?: number;
+    free_estimated?: number;
+    data_ratio?: number;
+    metadata_ratio?: number;
+  };
+  profiles: BtrfsProfile[];
+  devices: BtrfsDeviceStats[];
+  scrub: {
+    started?: string;
+    status?: string;
+    duration?: string;
+    error_summary?: string;
+    never_run?: boolean;
+  };
+  subvolumes: { id: number; top_level: number; path: string }[];
+  subvolumes_truncated?: boolean;
+  errors?: string[];
+}
+
+/** Per-filesystem reports from btrfs-progs (broker op btrfs.status). */
+export interface BtrfsStatus {
+  available: boolean;
+  reason?: string;
+  report?: {
+    filesystems: BtrfsFilesystem[];
+    skipped?: { mountpoint: string; reason: string }[];
+    truncated?: boolean;
+  };
+}
+
 export interface BtrfsInventory {
   tooling: BtrfsTooling;
   btrfs: BtrfsInfo;
   kernelBtrfs?: BtrfsKernel;
+  status?: BtrfsStatus;
 }
 
 export function getBtrfs(csrf: string): Promise<BtrfsInventory> {

@@ -6,9 +6,12 @@ package api
 
 import (
 	"context"
+	"homelab-control/backend/internal/broker/proto"
+	"homelab-control/backend/internal/brokerclient"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"homelab-control/backend/internal/auth"
 	"homelab-control/backend/internal/btrfsinfo"
@@ -84,5 +87,73 @@ func TestBtrfsDisabledModule404(t *testing.T) {
 	rr := h.do("GET", "/api/v1/btrfs", "", nil)
 	if rr.Code != http.StatusNotFound || rr.Body.String() != unknown.Body.String() {
 		t.Fatalf("disabled module: %d %s", rr.Code, rr.Body)
+	}
+}
+
+func TestBtrfsReportFromBroker(t *testing.T) {
+	fb := newFake()
+	fb.results["btrfs.status"] = map[string]any{
+		"filesystems": []map[string]any{{"uuid": "u-1", "mountpoint": "/srv/archive", "mounts": []string{"/srv/archive"},
+			"overall": map[string]any{"device_size": 2147483648}, "profiles": []any{}, "subvolumes": []any{},
+			"devices": []map[string]any{{"path": "/dev/vdd", "corruption_errs": 2}}, "scrub": map[string]any{"status": "finished"}}},
+	}
+	h := harnessWith(t, fb, []string{auth.ScopeBtrfsRead})
+	h.srv.btrfsCollect = btrfsFake()
+	rr := h.do("GET", "/api/v1/btrfs", "", packagesHeaders(h))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("code %d %s", rr.Code, rr.Body)
+	}
+	for _, want := range []string{`"status":{"available":true`, `"corruption_errs":2`, `"uuid":"u-1"`, `"tooling"`} {
+		if !strings.Contains(rr.Body.String(), want) {
+			t.Fatalf("missing %s: %s", want, rr.Body)
+		}
+	}
+	if a := h.audit.String(); !strings.Contains(a, "filesystems=1") || strings.Contains(a, "/srv/archive") {
+		t.Fatalf("audit must record counts only: %s", a)
+	}
+}
+
+func TestBtrfsReportUnavailableIsAReason(t *testing.T) {
+	fb := newFake()
+	fb.errs["btrfs.status"] = &proto.Error{Code: proto.CodeUnavailable, Message: "btrfs is not installed (package btrfs-progs); no Btrfs data"}
+	h := harnessWith(t, fb, []string{auth.ScopeBtrfsRead})
+	h.srv.btrfsCollect = btrfsFake()
+	rr := h.do("GET", "/api/v1/btrfs", "", packagesHeaders(h))
+	if rr.Code != http.StatusOK || !strings.Contains(rr.Body.String(), `"available":false,"reason":"Filesystem status is unavailable: btrfs is not installed`) {
+		t.Fatalf("code %d %s", rr.Code, rr.Body)
+	}
+}
+
+func TestBtrfsNoKernelBtrfsSkipsBroker(t *testing.T) {
+	fb := newFake()
+	h := harnessWith(t, fb, []string{auth.ScopeBtrfsRead})
+	h.srv.btrfsCollect = func(ctx context.Context) (btrfsinfo.Snapshot, error) {
+		s, _ := btrfsFake()(ctx)
+		s.KernelBtrfs.Present = false
+		return s, nil
+	}
+	rr := h.do("GET", "/api/v1/btrfs", "", packagesHeaders(h))
+	if rr.Code != http.StatusOK || !strings.Contains(rr.Body.String(), "no Btrfs loaded") {
+		t.Fatalf("code %d %s", rr.Code, rr.Body)
+	}
+	for _, op := range fb.ops {
+		if op == "btrfs.status" {
+			t.Fatal("broker asked although the kernel has no Btrfs")
+		}
+	}
+}
+
+// As for ZFS: hc-api must not cut btrfs.status shorter than the broker client.
+func TestBtrfsReportWaitsForTheBrokerClient(t *testing.T) {
+	fb := newFake()
+	fb.results["btrfs.status"] = map[string]any{"filesystems": []any{}}
+	h := harnessWith(t, fb, []string{auth.ScopeBtrfsRead})
+	h.srv.btrfsCollect = btrfsFake()
+	if rr := h.do("GET", "/api/v1/btrfs", "", packagesHeaders(h)); rr.Code != http.StatusOK {
+		t.Fatalf("code %d %s", rr.Code, rr.Body)
+	}
+	left, ok := fb.deadlines["btrfs.status"]
+	if want := brokerclient.DefaultDeadline("btrfs.status"); ok && left < want {
+		t.Fatalf("hc-api gave btrfs.status %v, the broker client allows %v", left.Round(time.Second), want)
 	}
 }

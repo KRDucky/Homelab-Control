@@ -15,6 +15,9 @@ const (
 	HelperCommandTimeout = 10 * time.Second
 	// ZFSBudget: zpool list, zpool status and zfs list run in sequence.
 	ZFSBudget = 3 * HelperCommandTimeout
+	// BtrfsBudget bounds the four btrfs-progs commands over all mounted
+	// filesystems; a filesystem reached after it reports its commands failed.
+	BtrfsBudget = 45 * time.Second
 	// ProbeBudget bounds a full storage probe (lsblk, smartctl per disk,
 	// pvs/lvs). It stays below the unit's TimeoutStartSec (60 s).
 	ProbeBudget = 50 * time.Second
@@ -22,8 +25,11 @@ const (
 
 // HelperBudget is how long the helper may take for a request scope.
 func HelperBudget(scope string) time.Duration {
-	if scope == ScopeZFS {
+	switch scope {
+	case ScopeZFS:
 		return ZFSBudget
+	case ScopeBtrfs:
+		return BtrfsBudget
 	}
 	return ProbeBudget
 }

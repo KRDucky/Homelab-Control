@@ -251,7 +251,7 @@ check_apparmor() { # profile
   fi
   # Exactly two capability rules, and only reviewed tools may be executed (ix).
   [ "$(printf '%s\n' "$body" | grep -cE '^[[:space:]]*capability[[:space:]]')" = 2 ] || bad "AppArmor profile must allow exactly sys_rawio and sys_admin"
-  printf '%s\n' "$body" | grep -E '[[:space:]]ix,' | grep -vxF -e '  /{usr/,}{s,}bin/lsblk ix,' -e '  /{usr/,}{s,}bin/smartctl ix,' -e '  /{usr/,}{s,}bin/{lvm,pvs,lvs} ix,' -e '  /{usr/,}{s,}bin/{zpool,zfs} ix,' \
+  printf '%s\n' "$body" | grep -E '[[:space:]]ix,' | grep -vxF -e '  /{usr/,}{s,}bin/lsblk ix,' -e '  /{usr/,}{s,}bin/smartctl ix,' -e '  /{usr/,}{s,}bin/{lvm,pvs,lvs} ix,' -e '  /{usr/,}{s,}bin/{zpool,zfs} ix,' -e '  /{usr/,}{s,}bin/btrfs ix,' \
     | grep -q . && bad "AppArmor profile executes an unreviewed program"
   while IFS= read -r line; do
     line=${line#"${line%%[![:space:]]*}"}
@@ -269,7 +269,13 @@ check_apparmor() { # profile
       /usr/bin/sh*|/bin/sh*|*/bash*|*/dash*) bad "shell exec in AppArmor profile: $line" ;;
     esac
   done <<< "$body"
-  # /dev/**/ (directories only, for LVM's device cache) is allowed; a file glob is not.
+  # Write access exists only for /dev/zfs (libzfs ioctls) and btrfs scrub state (exclusive lock; the unit's
+  # ProtectSystem=strict keeps /var/lib read-only).
+  printf '%s\n' "$body" | sed 's/^[[:space:]]*//' | grep -vE '^(deny|#|capability|network|unix|profile|\})' \
+    | grep -E '^[/@].* [a-z]*w[a-z]*,$' | grep -vxF -e '/dev/zfs rw,' -e '/var/lib/btrfs/scrub.status.* rwk,' \
+    | grep -q . && bad "AppArmor profile grants write outside /dev/zfs and the btrfs scrub state"
+  # /dev/**/ and /**/ (directories only: LVM's device cache, btrfs mountpoints) are allowed; a file glob is not.
+  printf '%s\n' "$body" | sed 's/^[[:space:]]*//' | grep -E '^/\*\*/ ' | grep -qvxF '/**/ r,' && bad "the directory rule /**/ must be read-only: /**/ r,"
   printf '%s\n' "$body" | sed 's/^[[:space:]]*//' | grep -qE '^/dev/\*\*([^/]|$)|^/\*\* ' && bad "AppArmor profile grants a broad path"
   return $((FAILS > 0))
 }
@@ -415,6 +421,10 @@ self_test() {
   mutate aa      "complain mode"                  's/flags=(enforce)/flags=(complain)/'
   mutate aa      "broad device rule"              's#^  /dev/block/ r,#  /dev/** rw,#'
   mutate aa      "broad device read"              's#^  /dev/block/ r,#  /dev/** r,#'
+  mutate aa      "file-wide read"                 's#^  /\*\*/ r,#  /** r,#'
+  mutate aa      "directory write"                's#^  /\*\*/ r,#  /**/ rw,#'
+  mutate aa      "extra file write"               's#^  /etc/blkid.conf r,#  /etc/blkid.conf rw,#'
+  mutate aa      "scrub state widened"            's#^  /var/lib/btrfs/scrub.status.\* rwk,#  /var/lib/btrfs/** rwk,#'
   mutate aa      "profile renamed"                's/^profile hc-storage-probe /profile other /'
   mutate deb     "package starts probe"           "\$a systemctl start homelab-control-storage-probe.socket"
   mutate deb     "package enables probe"          "\$a systemctl enable --now homelab-control-storage-probe.socket"
