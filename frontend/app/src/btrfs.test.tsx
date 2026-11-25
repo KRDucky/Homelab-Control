@@ -205,8 +205,9 @@ describe('Btrfs read-only page', () => {
     render(
       <Btrfs csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
     );
-    await screen.findByRole('article', { name: 'Filesystem /mnt/data' });
+    const fs = await screen.findByRole('article', { name: 'Filesystem /mnt/data' });
     expect(screen.queryByText(/Not inspected/)).toBeNull();
+    expect(within(fs).getByText('/mnt/data, /home/data')).toBeTruthy();
   });
 
   it('marks a filesystem with missing devices', async () => {

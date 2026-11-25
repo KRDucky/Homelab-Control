@@ -269,6 +269,11 @@ check_apparmor() { # profile
       /usr/bin/sh*|/bin/sh*|*/bash*|*/dash*) bad "shell exec in AppArmor profile: $line" ;;
     esac
   done <<< "$body"
+  # Write access exists only for /dev/zfs (libzfs ioctls) and btrfs scrub state (exclusive lock; the unit's
+  # ProtectSystem=strict keeps /var/lib read-only).
+  printf '%s\n' "$body" | sed 's/^[[:space:]]*//' | grep -vE '^(deny|#|capability|network|unix|profile|\})' \
+    | grep -E '^[/@].* [a-z]*w[a-z]*,$' | grep -vxF -e '/dev/zfs rw,' -e '/var/lib/btrfs/scrub.status.* rwk,' \
+    | grep -q . && bad "AppArmor profile grants write outside /dev/zfs and the btrfs scrub state"
   # /dev/**/ and /**/ (directories only: LVM's device cache, btrfs mountpoints) are allowed; a file glob is not.
   printf '%s\n' "$body" | sed 's/^[[:space:]]*//' | grep -E '^/\*\*/ ' | grep -qvxF '/**/ r,' && bad "the directory rule /**/ must be read-only: /**/ r,"
   printf '%s\n' "$body" | sed 's/^[[:space:]]*//' | grep -qE '^/dev/\*\*([^/]|$)|^/\*\* ' && bad "AppArmor profile grants a broad path"
@@ -418,6 +423,8 @@ self_test() {
   mutate aa      "broad device read"              's#^  /dev/block/ r,#  /dev/** r,#'
   mutate aa      "file-wide read"                 's#^  /\*\*/ r,#  /** r,#'
   mutate aa      "directory write"                's#^  /\*\*/ r,#  /**/ rw,#'
+  mutate aa      "extra file write"               's#^  /etc/blkid.conf r,#  /etc/blkid.conf rw,#'
+  mutate aa      "scrub state widened"            's#^  /var/lib/btrfs/scrub.status.\* rwk,#  /var/lib/btrfs/** rwk,#'
   mutate aa      "profile renamed"                's/^profile hc-storage-probe /profile other /'
   mutate deb     "package starts probe"           "\$a systemctl start homelab-control-storage-probe.socket"
   mutate deb     "package enables probe"          "\$a systemctl enable --now homelab-control-storage-probe.socket"

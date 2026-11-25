@@ -134,7 +134,18 @@ export function BtrfsView({
             {data.status?.reason || 'Filesystem status is unavailable.'}
           </p>
         ) : report && report.filesystems.length > 0 ? (
-          report.filesystems.map((fs) => <Filesystem key={fs.mountpoint} fs={fs} />)
+          report.filesystems.map((fs) => (
+            <Filesystem
+              key={fs.mountpoint}
+              fs={fs}
+              mountedAt={mountedAt(
+                fs,
+                btrfs.mounts
+                  .filter((m) => fs.devices.some((d) => d.path === m.device))
+                  .map((m) => m.mountpoint),
+              )}
+            />
+          ))
         ) : (
           <p className="empty">No Btrfs filesystem is mounted.</p>
         )}
@@ -257,6 +268,11 @@ function InstallOffer({
   );
 }
 
+/** Mounts the helper saw plus this page's mounts on the filesystem's devices (e.g. a subvolume under /home). */
+function mountedAt(fs: BtrfsFilesystem, onDevices: string[]): string[] {
+  return [...new Set([...fs.mounts, ...onDevices])];
+}
+
 const errorKeys = [
   'write_io_errs',
   'read_io_errs',
@@ -270,7 +286,7 @@ function deviceErrors(d: BtrfsDeviceStats): number {
 }
 
 /** One filesystem as btrfs-progs reports it. The badge only restates the tool's counters. */
-function Filesystem({ fs }: { fs: BtrfsFilesystem }) {
+function Filesystem({ fs, mountedAt }: { fs: BtrfsFilesystem; mountedAt: string[] }) {
   const missing = (fs.overall.missing ?? 0) > 0;
   const errors = fs.devices.reduce((sum, d) => sum + deviceErrors(d), 0);
   const [tone, word] = missing
@@ -329,7 +345,7 @@ function Filesystem({ fs }: { fs: BtrfsFilesystem }) {
         )}
         <div>
           <dt>Mounted at</dt>
-          <dd>{fs.mounts.join(', ')}</dd>
+          <dd>{mountedAt.join(', ')}</dd>
         </div>
       </dl>
       {fs.errors?.map((e) => (
