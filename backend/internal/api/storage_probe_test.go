@@ -30,7 +30,7 @@ func probeHarness(t *testing.T, scopes ...string) (*harness, *fakeBroker) {
 			Edges:  []storageinfo.Edge{},
 			Claims: []storageinfo.Claim{},
 			Status: "ok",
-			Notes:  []string{},
+			Notes:  []string{storageinfo.NoteSignaturesNotProbed},
 		}, nil
 	}
 	return h, fb
@@ -147,6 +147,9 @@ func TestStorageProbeSuccess(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Fatalf("probe response missing %s: %s", want, body)
 		}
+	}
+	if strings.Contains(body, storageinfo.NoteSignaturesNotProbed) {
+		t.Fatalf("stale 'signatures not probed' note kept after lsblk supplied them: %s", body)
 	}
 }
 

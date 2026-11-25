@@ -68,8 +68,6 @@ func TestStorageProbeServiceFailClosed(t *testing.T) {
 	for key, want := range map[string]string{
 		"ConditionPathExists":     "/etc/homelab-control/storage-probe.enabled",
 		"RefuseManualStart":       "yes",
-		"DynamicUser":             "yes",
-		"SupplementaryGroups":     "disk",
 		"PrivateDevices":          "no",
 		"DevicePolicy":            "closed",
 		"CapabilityBoundingSet":   "CAP_SYS_RAWIO",

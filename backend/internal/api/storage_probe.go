@@ -113,6 +113,16 @@ func mergeProbeSignatures(g *storageinfo.Graph, blocks []storagetools.BlockDevic
 		}
 	}
 	storageinfo.MergeSignatures(g, sigs, "lsblk")
+	if len(blocks) == 0 {
+		return
+	}
+	notes := g.Notes[:0]
+	for _, n := range g.Notes {
+		if n != storageinfo.NoteSignaturesNotProbed {
+			notes = append(notes, n)
+		}
+	}
+	g.Notes = notes
 }
 
 // addProbeLVM decodes the helper's pvs/lvs --readonly reports. They are

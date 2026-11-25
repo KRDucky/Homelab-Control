@@ -45,7 +45,7 @@ export interface StorageNode {
   md?: MDState;
   /** smartctl reading of a whole disk (probe only). */
   smart?: StorageSMART;
-  smart_health?: 'ok' | 'warning' | 'failing' | 'standby' | 'unknown';
+  smart_health?: 'ok' | 'warning' | 'failing' | 'standby' | 'unavailable' | 'unknown';
   evidence: StorageEvidence[];
   notes?: string[];
 }
@@ -70,6 +70,8 @@ export interface StorageSMART {
   nvme_media_errors?: number;
   nvme_available_spare?: number;
   exit_status: number;
+  /** Health not readable by design. */
+  unavailable?: 'nvme-needs-cap-sys-admin';
   messages?: string[];
 }
 export interface StorageEdge {

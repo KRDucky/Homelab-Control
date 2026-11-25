@@ -183,7 +183,7 @@ func Collect(ctx context.Context, osRoot string) (Graph, error) {
 	g.Status = "partial"
 	g.Notes = append(g.Notes, notes...)
 	g.Notes = append(g.Notes, "Serial/ID comes from sysfs only (NVMe controller serial, SCSI/SATA VPD page 0x80, virtio-blk serial); other device types may show an alternative identifier until a reviewed probe adds udev or by-id data.")
-	g.Notes = append(g.Notes, "On-disk signatures have not been probed; absence of a claim does not mean a device is unused.", "ZFS, Btrfs multi-device and offline storage membership require additional observations; this graph is not authorization to write.")
+	g.Notes = append(g.Notes, NoteSignaturesNotProbed, "ZFS, Btrfs multi-device and offline storage membership require additional observations; this graph is not authorization to write.")
 	return g, nil
 }
 
@@ -296,3 +296,7 @@ func collectMD(root *os.Root, base, level string, read func(string) string) (*MD
 	sort.Slice(md.Members, func(i, j int) bool { return md.Members[i].DeviceNumber < md.Members[j].DeviceNumber })
 	return md, notes
 }
+
+// NoteSignaturesNotProbed is the unprivileged collector's limitation note. The
+// storage probe removes it once lsblk has supplied filesystem signatures.
+const NoteSignaturesNotProbed = "On-disk signatures have not been probed; absence of a claim does not mean a device is unused."

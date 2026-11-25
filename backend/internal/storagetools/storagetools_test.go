@@ -73,6 +73,15 @@ func TestParseSMARTNVMe(t *testing.T) {
 	}
 }
 
+func TestParseSMARTNVMeNeedsCapSysAdmin(t *testing.T) {
+	// Real smartctl 7.4 output in the helper sandbox (Ubuntu 26.04 guest, kernel 7.0).
+	in := `{"smartctl":{"exit_status":4,"messages":[{"string":"Read NVMe SMART/Health Information (NSID 0x2) failed: NVME_IOCTL_ADMIN_CMD: Permission denied","severity":"error"}]},"device":{"protocol":"NVMe"},"model_name":"QEMU NVMe Ctrl","serial_number":"HCNVME0001","smart_support":{"available":true,"enabled":true}}`
+	s, err := ParseSMART([]byte(in), 4)
+	if err != nil || s.Unavailable != UnavailableNVMeAdmin || s.Health() != "unavailable" {
+		t.Fatalf("%+v %v health=%s", s, err, s.Health())
+	}
+}
+
 func TestParseSMARTStandbyAndFailing(t *testing.T) {
 	standby := `{"smartctl":{"exit_status":2,"messages":[{"string":"Device is in STANDBY mode, exit(2)","severity":"information"}]}}`
 	s, err := ParseSMART([]byte(standby), 2)
@@ -123,8 +132,8 @@ func TestTemplatesAreFixed(t *testing.T) {
 		t.Fatalf("smartctl template: %s", got)
 	}
 	for _, args := range [][]string{PVSArgs(), LVSArgs()} {
-		if args[0] != "--readonly" {
-			t.Fatalf("LVM template must be read-only: %v", args)
+		if args[0] != "--readonly" || args[1] != "--nolocking" {
+			t.Fatalf("LVM template must be read-only and lock-free: %v", args)
 		}
 	}
 }

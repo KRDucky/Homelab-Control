@@ -128,7 +128,7 @@ components:
         mount_view: { type: string, enum: [service, host] }
         md: { $ref: '#/components/schemas/StorageMDState' }
         smart: { $ref: '#/components/schemas/StorageSMART' }
-        smart_health: { type: string, enum: [ok, warning, failing, standby, unknown], description: "Summary of smart (whole disks, probe only)" }
+        smart_health: { type: string, enum: [ok, warning, failing, standby, unavailable, unknown], description: "Summary of smart (whole disks, probe only)" }
         evidence: { type: array, items: { $ref: '#/components/schemas/StorageEvidence' } }
         notes: { type: array, items: { type: string } }
     StorageSMART:
@@ -155,6 +155,7 @@ components:
         nvme_media_errors: { type: integer, minimum: 0 }
         nvme_available_spare: { type: integer, minimum: 0 }
         exit_status: { type: integer, description: "smartctl exit bitmask (smartctl(8) RETURN VALUES)" }
+        unavailable: { type: string, enum: [nvme-needs-cap-sys-admin], description: "Health not readable by design: the kernel allows the NVMe SMART/Health log only with CAP_SYS_ADMIN, which the helper does not hold" }
         messages: { type: array, maxItems: 8, items: { type: string } }
     PartitionPlanRequest:
       type: object

@@ -43,7 +43,7 @@ StandardError=journal
 # RootImage=, MountImages= or ExtensionImages= is set (systemd.exec(5)); the
 # guard test bans those keys so blkext can never become writable.
 # The cgroup policy is the ONLY write barrier: the block nodes are root:disk
-# 0660, so group membership alone would allow writes. ReadOnlyPaths=/dev is not
+# 0660, so the root owner alone would be allowed to write. ReadOnlyPaths=/dev is not
 # a barrier (a read-only mount does not stop writes to device nodes).
 # Residual privilege: raw reads of EVERY disk in these classes, including the
 # system disk, bypass filesystem permissions. See
@@ -54,9 +54,11 @@ DeviceAllow=block-sd r
 DeviceAllow=block-blkext r
 DeviceAllow=block-virtblk r
 DeviceAllow=block-md r
-# Throwaway account; the only group is disk (DAC read of the block nodes).
-DynamicUser=yes
-SupplementaryGroups=disk
+# Runs as root without capabilities other than CAP_SYS_RAWIO below. LVM's pvs/lvs
+# refuse to scan devices as any other user (VM finding 2026-11-25: "Device open
+# 8:0 has no path names" under DynamicUser). Root owns the block nodes (root:disk
+# 0660), so no CAP_DAC_* is needed; AppArmor and InaccessiblePaths= confine files,
+# and the cgroup device policy below keeps every device read-only.
 # One capability: CAP_SYS_RAWIO, which smartctl needs to send SMART pass-through
 # commands (SG_IO) to SATA/SAS disks on a read-only descriptor. No CAP_SYS_ADMIN
 # (NVMe SMART uses the kernel's unprivileged Get Log Page path where the kernel

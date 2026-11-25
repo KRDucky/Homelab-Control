@@ -84,13 +84,15 @@ const (
 )
 
 // PVSArgs and LVSArgs are the fixed LVM templates. --readonly reads on-disk
-// metadata without locks or device-mapper, so the reports are metadata-only.
+// metadata without device-mapper, so the reports are metadata-only;
+// --nolocking keeps LVM from creating lock files on the helper's read-only
+// filesystem ("File locking initialisation failed" otherwise, VM finding).
 func PVSArgs() []string {
-	return []string{"--readonly", "--reportformat", "json", "--units", "b", "--nosuffix", "--segments", "-o", PVSFields}
+	return []string{"--readonly", "--nolocking", "--reportformat", "json", "--units", "b", "--nosuffix", "--segments", "-o", PVSFields}
 }
 
 func LVSArgs() []string {
-	return []string{"--readonly", "--reportformat", "json", "--units", "b", "--nosuffix", "--segments", "-o", LVSFields}
+	return []string{"--readonly", "--nolocking", "--reportformat", "json", "--units", "b", "--nosuffix", "--segments", "-o", LVSFields}
 }
 
 // BlockDevice is one lsblk row.
@@ -204,27 +206,34 @@ func SMARTCandidate(d BlockDevice) bool {
 
 // SMART is the typed subset of `smartctl --json` that the UI shows.
 type SMART struct {
-	Protocol       string   `json:"protocol,omitempty"` // ATA, NVMe, SCSI
-	Model          string   `json:"model,omitempty"`
-	Serial         string   `json:"serial,omitempty"`
-	Firmware       string   `json:"firmware,omitempty"`
-	Standby        bool     `json:"standby,omitempty"` // in standby: not woken, no data read
-	Available      *bool    `json:"available,omitempty"`
-	Enabled        *bool    `json:"enabled,omitempty"`
-	Passed         *bool    `json:"passed,omitempty"` // overall-health self-assessment
-	TemperatureC   *int64   `json:"temperature_c,omitempty"`
-	PowerOnHours   *uint64  `json:"power_on_hours,omitempty"`
-	Reallocated    *uint64  `json:"reallocated_sectors,omitempty"`   // ATA 5
-	Pending        *uint64  `json:"pending_sectors,omitempty"`       // ATA 197
-	Uncorrectable  *uint64  `json:"offline_uncorrectable,omitempty"` // ATA 198
-	CRCErrors      *uint64  `json:"udma_crc_errors,omitempty"`       // ATA 199
-	CriticalWarn   *uint64  `json:"nvme_critical_warning,omitempty"`
-	PercentageUsed *uint64  `json:"nvme_percentage_used,omitempty"`
-	MediaErrors    *uint64  `json:"nvme_media_errors,omitempty"`
-	AvailableSpare *uint64  `json:"nvme_available_spare,omitempty"`
-	ExitStatus     int      `json:"exit_status"` // smartctl exit bitmask (smartctl(8) RETURN VALUES)
-	Messages       []string `json:"messages,omitempty"`
+	Protocol       string  `json:"protocol,omitempty"` // ATA, NVMe, SCSI
+	Model          string  `json:"model,omitempty"`
+	Serial         string  `json:"serial,omitempty"`
+	Firmware       string  `json:"firmware,omitempty"`
+	Standby        bool    `json:"standby,omitempty"` // in standby: not woken, no data read
+	Available      *bool   `json:"available,omitempty"`
+	Enabled        *bool   `json:"enabled,omitempty"`
+	Passed         *bool   `json:"passed,omitempty"` // overall-health self-assessment
+	TemperatureC   *int64  `json:"temperature_c,omitempty"`
+	PowerOnHours   *uint64 `json:"power_on_hours,omitempty"`
+	Reallocated    *uint64 `json:"reallocated_sectors,omitempty"`   // ATA 5
+	Pending        *uint64 `json:"pending_sectors,omitempty"`       // ATA 197
+	Uncorrectable  *uint64 `json:"offline_uncorrectable,omitempty"` // ATA 198
+	CRCErrors      *uint64 `json:"udma_crc_errors,omitempty"`       // ATA 199
+	CriticalWarn   *uint64 `json:"nvme_critical_warning,omitempty"`
+	PercentageUsed *uint64 `json:"nvme_percentage_used,omitempty"`
+	MediaErrors    *uint64 `json:"nvme_media_errors,omitempty"`
+	AvailableSpare *uint64 `json:"nvme_available_spare,omitempty"`
+	ExitStatus     int     `json:"exit_status"` // smartctl exit bitmask (smartctl(8) RETURN VALUES)
+	// Unavailable is a closed reason when the health data could not be read
+	// by design rather than by fault.
+	Unavailable string   `json:"unavailable,omitempty"`
+	Messages    []string `json:"messages,omitempty"`
 }
+
+// UnavailableNVMeAdmin: the kernel allows the NVMe SMART/Health log page
+// (an admin command) only with CAP_SYS_ADMIN, which the helper does not hold.
+const UnavailableNVMeAdmin = "nvme-needs-cap-sys-admin"
 
 // Exit-status bits from smartctl(8).
 const (
@@ -321,6 +330,9 @@ func ParseSMART(b []byte, processExit int) (SMART, error) {
 		if strings.Contains(strings.ToUpper(m.String), "STANDBY") {
 			s.Standby = true
 		}
+		if s.Protocol == "NVMe" && strings.Contains(m.String, "NVME_IOCTL_ADMIN_CMD") && strings.Contains(m.String, "Permission denied") {
+			s.Unavailable = UnavailableNVMeAdmin
+		}
 		if len(s.Messages) < MaxMessages {
 			s.Messages = append(s.Messages, clip(m.String))
 		}
@@ -330,11 +342,14 @@ func ParseSMART(b []byte, processExit int) (SMART, error) {
 
 // Health summarises a SMART reading for the UI: "failing" when the drive's
 // own self-assessment failed or smartctl flags it, "warning" for degraded
-// counters, "ok" when it passed, "unknown" when nothing could be read.
+// counters, "ok" when it passed, "unavailable" when the data cannot be read by
+// design (see Unavailable), "unknown" when nothing could be read.
 func (s SMART) Health() string {
 	switch {
 	case s.Standby:
 		return "standby"
+	case s.Unavailable != "":
+		return "unavailable"
 	case s.Passed != nil && !*s.Passed, s.ExitStatus&SmartExitDiskFailing != 0:
 		return "failing"
 	case s.ExitStatus&(SmartExitPrefail|SmartExitUsagePast) != 0,

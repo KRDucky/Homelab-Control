@@ -650,6 +650,7 @@ const smartHealthText: Record<NonNullable<StorageNode['smart_health']>, string> 
   warning: 'Warning',
   failing: 'Failing',
   standby: 'Standby (not woken)',
+  unavailable: 'Not readable',
   unknown: 'Unknown',
 };
 
@@ -688,6 +689,12 @@ function SmartFacts({ smart, health }: { smart: StorageSMART; health?: StorageNo
             </li>
           ))}
       </ul>
+      {smart.unavailable === 'nvme-needs-cap-sys-admin' && (
+        <p className="muted">
+          NVMe health is not shown: the kernel releases the NVMe SMART log only to a process with
+          CAP_SYS_ADMIN, which the read-only storage helper does not hold.
+        </p>
+      )}
       {(smart.messages ?? []).map((message) => (
         <p key={message} className="muted">
           smartctl: {message}
