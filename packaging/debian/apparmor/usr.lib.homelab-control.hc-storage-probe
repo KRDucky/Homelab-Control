@@ -47,7 +47,7 @@ profile hc-storage-probe /usr/lib/homelab-control/hc-storage-probe flags=(enforc
   /usr/lib/homelab-control/hc-storage-probe mr,
   /{usr/,}{s,}bin/lsblk ix,
   /{usr/,}{s,}bin/smartctl ix,
-  /{usr/,}{s,}bin/{lvm,pvs,lvs} ix,
+  /{usr/,}{s,}bin/{lvm,pvs,lvs,vgs} ix,
   /{usr/,}{s,}bin/{zpool,zfs} ix,
   /{usr/,}{s,}bin/btrfs ix,
   /{usr/,}{s,}bin/mdadm ix,

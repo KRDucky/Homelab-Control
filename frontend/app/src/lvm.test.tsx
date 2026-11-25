@@ -22,7 +22,8 @@ function inventory(opts: {
   kernelPresent?: boolean;
   family?: string;
   pkg?: string;
-  devices?: boolean;
+  report?: boolean;
+  thinPool?: boolean;
 }): LVMInventory {
   const kernelPresent = opts.kernelPresent ?? true;
   const pkg = opts.pkg ?? 'lvm2';
@@ -30,22 +31,8 @@ function inventory(opts: {
     tooling: {
       family: opts.family ?? 'debian',
       required: [item('lvm', pkg, opts.lvmInstalled, opts.lvmInstalled ? '/usr/sbin/lvm' : '')],
-      optional: [item('thin_check', '', false)],
+      optional: [item('thin_check', 'thin-provisioning-tools', false)],
     },
-    lvm:
-      opts.devices === false
-        ? {
-            present: opts.lvmInstalled,
-            reason: opts.lvmInstalled ? '' : 'lvm binary was not found',
-            devices: [],
-            devicesTruncated: false,
-          }
-        : {
-            present: true,
-            reason: '',
-            devices: [{ name: 'dm-0', mapper: 'vg-lv' }],
-            devicesTruncated: false,
-          },
     kernelDm: kernelPresent
       ? { present: true, reason: '' }
       : {
@@ -53,6 +40,52 @@ function inventory(opts: {
           reason:
             'The kernel device-mapper target is not currently listed in /proc/devices (this page does not load modules).',
         },
+    status:
+      opts.report === false
+        ? { available: false, reason: 'LVM status is unavailable: helper stopped' }
+        : {
+            available: true,
+            report: {
+              volume_groups: [
+                {
+                  uuid: 'vg-u',
+                  name: 'datavg',
+                  size_bytes: 4290772992,
+                  free_bytes: 2680160256,
+                  attributes: 'wz-pn-',
+                  pv_count: 2,
+                  lv_count: 2,
+                  missing_pv_count: 1,
+                },
+              ],
+              volumes: [
+                {
+                  uuid: 'lv-1',
+                  name: 'media',
+                  vg_name: 'datavg',
+                  size_bytes: 1073741824,
+                  health: 'partial',
+                  segments: [{ type: 'raid1' }],
+                  sync_percent: 42,
+                },
+                ...(opts.thinPool
+                  ? [
+                      {
+                        uuid: 'lv-2',
+                        name: 'pool',
+                        vg_name: 'datavg',
+                        health: 'unknown',
+                        segments: [{ type: 'thin-pool' }],
+                      },
+                    ]
+                  : []),
+              ],
+              physical_volumes: [
+                { uuid: 'pv-1', name: '/dev/sda', vg_name: 'datavg', size_bytes: 2145386496, missing: false },
+                { uuid: 'pv-2', vg_name: 'datavg', missing: true },
+              ],
+            },
+          },
   };
 }
 
@@ -68,19 +101,40 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('LVM read-only page', () => {
-  it('renders observed devices', async () => {
+  it('shows volume groups, logical volumes and physical volumes as LVM reports them', async () => {
     vi.mocked(getLVM).mockResolvedValue(inventory({ lvmInstalled: true }));
     render(
       <LVM csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
     );
-    expect(await screen.findByText('dm-0')).toBeTruthy();
-    expect(screen.getByText('vg-lv')).toBeTruthy();
-    expect(screen.getByText(/The lvm binary is probed, not run/)).toBeTruthy();
-    expect(screen.queryByRole('heading', { name: 'LVM tools' })).toBeNull();
+    const vgs = await screen.findByRole('table', { name: 'Volume groups' });
+    const vg = within(vgs).getByText('datavg').closest('tr');
+    if (!vg) throw new Error('vg row missing');
+    expect(within(vg).getByText('1').className).toContain('status-crit');
+    const lvs = screen.getByRole('table', { name: 'Logical volumes' });
+    const media = within(lvs).getByText('media').closest('tr');
+    if (!media) throw new Error('lv row missing');
+    expect(within(media).getByText('raid1')).toBeTruthy();
+    expect(within(media).getByText('partial')).toBeTruthy();
+    expect(within(media).getByText('42%')).toBeTruthy();
+    const pvs = screen.getByRole('table', { name: 'Physical volumes' });
+    expect(within(pvs).getByText('/dev/sda')).toBeTruthy();
+    expect(within(pvs).getByText('Missing').className).toContain('status-crit');
+    // No thin pool reported, so no thin_check offer.
+    expect(screen.queryByRole('heading', { name: 'Thin pool check' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /create|remove|extend|resize/i })).toBeNull();
+  });
+
+  it('states why LVM data is missing', async () => {
+    vi.mocked(getLVM).mockResolvedValue(inventory({ lvmInstalled: true, report: false }));
+    render(
+      <LVM csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
+    );
+    expect(await screen.findByText('LVM status is unavailable: helper stopped')).toBeTruthy();
+    expect(screen.queryByRole('table', { name: 'Logical volumes' })).toBeNull();
   });
 
   it('shows the install offer for lvm2', async () => {
-    vi.mocked(getLVM).mockResolvedValue(inventory({ lvmInstalled: false, devices: false }));
+    vi.mocked(getLVM).mockResolvedValue(inventory({ lvmInstalled: false, report: false }));
     render(
       <LVM csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
     );
@@ -92,20 +146,8 @@ describe('LVM read-only page', () => {
     );
   });
 
-  it('shows too many devices to list when the inventory was truncated', async () => {
-    const data = inventory({ lvmInstalled: true });
-    data.lvm.devicesTruncated = true;
-    vi.mocked(getLVM).mockResolvedValue(data);
-    render(
-      <LVM csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
-    );
-    expect(await screen.findByText('too many devices to list')).toBeTruthy();
-    expect(screen.getByText('dm-0')).toBeTruthy();
-  });
-
-  it('offers thin_check only when the API names a package', async () => {
-    const data = inventory({ lvmInstalled: true });
-    data.tooling.optional = [item('thin_check', 'thin-provisioning-tools', false)];
+  it('offers thin_check only when LVM reports a thin pool', async () => {
+    const data = inventory({ lvmInstalled: true, thinPool: true });
     vi.mocked(getLVM).mockResolvedValue(data);
     render(
       <LVM csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
@@ -120,7 +162,7 @@ describe('LVM read-only page', () => {
 
   it('does not invent a package name for an unknown family', async () => {
     vi.mocked(getLVM).mockResolvedValue(
-      inventory({ lvmInstalled: false, devices: false, family: 'unknown', pkg: '' }),
+      inventory({ lvmInstalled: false, report: false, family: 'unknown', pkg: '' }),
     );
     render(
       <LVM csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,

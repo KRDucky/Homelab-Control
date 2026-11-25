@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useCallback, useState } from 'react';
-import { getLVM, type LVMInventory, type LVMToolItem } from '../api';
+import { getLVM, type LVMInventory, type LVMLogicalVolume, type LVMToolItem } from '../api';
+import { DataTable } from '../DataTable';
+import { formatBytes } from '../format';
 import { InstallPlanDialog } from '../InstallPlanDialog';
 import { explain, useData } from '../useData';
 
@@ -49,10 +51,14 @@ export function LVMView({
   scopes?: string[];
   packagesEnabled: boolean;
 }) {
-  const { tooling, lvm } = data;
+  const { tooling } = data;
   const kernelDm = data.kernelDm;
+  const report = data.status?.available ? data.status.report : undefined;
+  const hasThinPool = (report?.volumes ?? []).some((v) => v.segments.some((s) => s.type === 'thin-pool'));
   const missingRequired = tooling.required.filter((t) => !t.installed);
-  const missingThin = tooling.optional.filter((t) => t.id === 'thin_check' && !t.installed && t.package);
+  const missingThin = hasThinPool
+    ? tooling.optional.filter((t) => t.id === 'thin_check' && !t.installed && t.package)
+    : [];
   const canInstall = packagesEnabled && (scopes ?? []).includes('packages.read');
 
   return (
@@ -60,9 +66,10 @@ export function LVMView({
       <header className="page-head">
         <h1 className="page-title">LVM</h1>
         <p className="page-sub">
-          Read-only observations. The lvm binary is probed, not run. This page does not create or remove
-          physical volumes, volume groups, or logical volumes, and it does not load kernel modules. Devices
-          come from sysfs names whose uuid starts with LVM-, not from pvs.
+          Read-only. Volume groups, logical volumes and physical volumes come from <code>vgs</code>,{' '}
+          <code>lvs</code> and <code>pvs</code> (<code>--readonly --nolocking</code>), run by the read-only
+          storage helper. This page does not create, change or remove anything, and it does not load kernel
+          modules.
         </p>
       </header>
       {error && (
@@ -93,7 +100,7 @@ export function LVMView({
           <header className="panel-head">
             <h2 id="lvm-offer-heading">LVM tools</h2>
           </header>
-          <p>lvm is required. This page does not run it.</p>
+          <p>lvm is required for the LVM reports.</p>
           <RequiredOffers items={missingRequired} canInstall={canInstall} />
         </section>
       )}
@@ -104,45 +111,125 @@ export function LVMView({
             <h2 id="lvm-thin-heading">Thin pool check</h2>
           </header>
           <p>
-            thin_check is optional. It is offered only after a thin pool is observed. This page does not run
-            it.
+            thin_check is optional. It is offered because LVM reports a thin pool. This page does not run it.
           </p>
           <RequiredOffers items={missingThin} canInstall={canInstall} />
         </section>
       )}
 
-      <section className="panel" aria-labelledby="lvm-devices-heading">
+      <section className="panel" aria-labelledby="lvm-vg-heading">
         <header className="panel-head">
-          <h2 id="lvm-devices-heading">LVM devices</h2>
-          {lvm.devices.length > 0 && <span className="tag">observed</span>}
+          <h2 id="lvm-vg-heading">Volume groups</h2>
+          {report && <span className="tag">observed</span>}
         </header>
-        {lvm.devicesTruncated ? (
+        {!report ? (
           <p className="banner" role="status">
-            too many devices to list
+            {data.status?.reason || 'LVM status is unavailable.'}
           </p>
-        ) : null}
-        {lvm.devices.length > 0 ? (
-          <ul className="pool-list">
-            {lvm.devices.map((d) => (
-              <li key={d.name}>
-                <code>{d.name}</code>
-                {d.mapper ? (
-                  <dl>
-                    <dt>Mapper</dt>
-                    <dd>
-                      <code>{d.mapper}</code>
-                    </dd>
-                  </dl>
-                ) : null}
-              </li>
-            ))}
-          </ul>
+        ) : report.volume_groups.length === 0 ? (
+          <p className="empty">LVM reports no volume groups.</p>
         ) : (
-          <p className="empty">
-            {lvm.present ? 'No LVM devices found.' : lvm.reason || 'No LVM devices found.'}
-          </p>
+          <DataTable
+            caption="Volume groups"
+            rows={report.volume_groups}
+            rowKey={(v) => v.uuid}
+            columns={[
+              { id: 'name', label: 'Name', render: (v) => <code>{v.name}</code>, sortValue: (v) => v.name },
+              {
+                id: 'size',
+                label: 'Size',
+                render: (v) => size(v.size_bytes),
+                sortValue: (v) => v.size_bytes ?? -1,
+              },
+              {
+                id: 'free',
+                label: 'Free',
+                render: (v) => size(v.free_bytes),
+                sortValue: (v) => v.free_bytes ?? -1,
+              },
+              { id: 'pvs', label: 'PVs', render: (v) => v.pv_count ?? '' },
+              { id: 'lvs', label: 'LVs', render: (v) => v.lv_count ?? '' },
+              {
+                id: 'missing',
+                label: 'Missing PVs',
+                render: (v) =>
+                  (v.missing_pv_count ?? 0) > 0 ? (
+                    <span className="status status-crit">{v.missing_pv_count}</span>
+                  ) : (
+                    (v.missing_pv_count ?? '')
+                  ),
+              },
+            ]}
+          />
         )}
       </section>
+
+      {report && (
+        <section className="panel" aria-labelledby="lvm-lv-heading">
+          <header className="panel-head">
+            <h2 id="lvm-lv-heading">Logical volumes</h2>
+          </header>
+          {report.volumes.length === 0 ? (
+            <p className="empty">LVM reports no logical volumes.</p>
+          ) : (
+            <DataTable
+              caption="Logical volumes"
+              rows={report.volumes}
+              rowKey={(v) => v.uuid}
+              columns={[
+                { id: 'name', label: 'Name', render: (v) => <code>{v.name}</code>, sortValue: (v) => v.name },
+                { id: 'vg', label: 'Volume group', render: (v) => v.vg_name, sortValue: (v) => v.vg_name },
+                {
+                  id: 'size',
+                  label: 'Size',
+                  render: (v) => size(v.size_bytes),
+                  sortValue: (v) => v.size_bytes ?? -1,
+                },
+                { id: 'type', label: 'Type', render: lvType },
+                { id: 'health', label: 'Health', render: (v) => v.health },
+                {
+                  id: 'sync',
+                  label: 'Sync',
+                  render: (v) => (v.sync_percent === undefined ? '' : `${v.sync_percent}%`),
+                },
+              ]}
+            />
+          )}
+        </section>
+      )}
+
+      {report && (
+        <section className="panel" aria-labelledby="lvm-pv-heading">
+          <header className="panel-head">
+            <h2 id="lvm-pv-heading">Physical volumes</h2>
+          </header>
+          {report.physical_volumes.length === 0 ? (
+            <p className="empty">LVM reports no physical volumes.</p>
+          ) : (
+            <DataTable
+              caption="Physical volumes"
+              rows={report.physical_volumes}
+              rowKey={(p) => p.uuid}
+              columns={[
+                {
+                  id: 'device',
+                  label: 'Device',
+                  render: (p) =>
+                    p.name ? <code>{p.name}</code> : p.ambiguous ? 'Ambiguous (seen on several devices)' : '',
+                },
+                { id: 'vg', label: 'Volume group', render: (p) => p.vg_name ?? '' },
+                { id: 'size', label: 'Size', render: (p) => size(p.size_bytes) },
+                {
+                  id: 'state',
+                  label: 'State',
+                  render: (p) =>
+                    p.missing ? <span className="status status-crit">Missing</span> : 'Present',
+                },
+              ]}
+            />
+          )}
+        </section>
+      )}
     </div>
   );
 }
@@ -199,4 +286,13 @@ function InstallOffer({
       {open && <InstallPlanDialog title={label} pkg={pkg} onClose={() => setOpen(false)} />}
     </>
   );
+}
+
+function size(v?: number): string {
+  return v === undefined ? 'Not reported' : formatBytes(v);
+}
+
+/** The segment types LVM reports (linear, striped, raid1, thin-pool, thin, cache, ...). */
+function lvType(v: LVMLogicalVolume): string {
+  return [...new Set(v.segments.map((s) => s.type))].join(', ');
 }

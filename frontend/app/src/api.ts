@@ -1629,27 +1629,60 @@ export interface LVMTooling {
   optional: LVMToolItem[];
 }
 
-export interface LVMDevice {
-  name: string;
-  mapper: string;
-}
-
-export interface LVMInfo {
-  present: boolean;
-  reason: string;
-  devices: LVMDevice[];
-  devicesTruncated: boolean;
-}
-
 export interface LVMKernel {
   present: boolean;
   reason: string;
 }
 
+/** One `vgs` row. */
+export interface LVMVolumeGroup {
+  uuid: string;
+  name: string;
+  size_bytes?: number;
+  free_bytes?: number;
+  attributes?: string;
+  pv_count?: number;
+  lv_count?: number;
+  missing_pv_count?: number;
+}
+
+/** One logical volume from `lvs --segments` (the fields this page shows). */
+export interface LVMLogicalVolume {
+  uuid: string;
+  name: string;
+  vg_name: string;
+  size_bytes?: number;
+  attributes?: string;
+  health: string;
+  sync_percent?: number;
+  segments: { type: string }[];
+}
+
+/** One physical volume from `pvs` (the fields this page shows). */
+export interface LVMPhysicalVolume {
+  uuid: string;
+  name?: string;
+  vg_name?: string;
+  size_bytes?: number;
+  missing: boolean;
+  ambiguous?: boolean;
+}
+
+/** pvs, lvs and vgs through the read-only storage helper (broker op lvm.status). */
+export interface LVMStatus {
+  available: boolean;
+  reason?: string;
+  report?: {
+    volume_groups: LVMVolumeGroup[];
+    volumes: LVMLogicalVolume[];
+    physical_volumes: LVMPhysicalVolume[];
+  };
+}
+
 export interface LVMInventory {
   tooling: LVMTooling;
-  lvm: LVMInfo;
   kernelDm: LVMKernel;
+  status?: LVMStatus;
 }
 
 export function getLVM(csrf: string): Promise<LVMInventory> {
