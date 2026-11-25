@@ -50,4 +50,3 @@ func TestWriteResponseBounded(t *testing.T) {
 		t.Fatalf("partial output written on overflow: %q", buf2.String())
 	}
 }
-

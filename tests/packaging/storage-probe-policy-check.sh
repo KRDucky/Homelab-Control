@@ -2,12 +2,16 @@
 # SPDX-FileCopyrightText: 2026 The Homelab Control Authors
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Static, fail-closed guard for the M2-4 O-1 read-only storage probe: its two
-# systemd units, the SELinux module source, the AppArmor profile and the
-# packaging scripts. It reads files only: it never starts a unit, loads a policy,
-# or touches a device.
+# Static, fail-closed guard for the read-only storage helper (hc-storage-probe:
+# lsblk, smartctl, pvs/lvs): its two systemd units, the SELinux module source,
+# the AppArmor profile and the packaging scripts. It reads files only: it never
+# starts a unit, loads a policy, or touches a device.
 #
-# What it enforces (the unit is DISABLED by default and must stay that way):
+# Owner 2026-11-25 (ADR 0008 Amendment 12): the package ships the opt-in marker
+# and an administrator may enable the socket; the package never starts or
+# enables it. The helper runs as root with CAP_SYS_RAWIO only.
+#
+# What it enforces:
 #   - keys are a closed set (any new key needs a deliberate edit here);
 #   - every key except DeviceAllow/SystemCallFilter is assigned exactly once,
 #     so systemd's "last assignment wins" cannot hide a conflicting later line;
@@ -16,8 +20,10 @@
 #     duplicates, no empty reset);
 #   - RootImage=/MountImages=/ExtensionImages= are banned (systemd adds
 #     block-blkext and block-loop with rwm for them, systemd.exec(5));
-#   - no [Install] section, no WantedBy/RequiredBy/Alias/Also, and no packaging
-#     script enables, starts or presets the helper or ships its opt-in marker;
+#   - the service has no [Install] section; the socket's only install rule is
+#     WantedBy=sockets.target; no packaging script enables, starts or presets it;
+#   - the service runs as root (no User=, DynamicUser=, SupplementaryGroups=)
+#     with exactly CAP_SYS_RAWIO in the bounding and ambient sets;
 #   - the SELinux and AppArmor sources contain no unconfined/permissive/write
 #     shortcut, and the names used by the units match the policy sources.
 #
@@ -86,8 +92,10 @@ check_keys() {
     n=$(count "$sec" "$key")
     if [ "$n" -gt 1 ] && ! in_list "$key" "$multi"; then bad "$sec $key is assigned $n times"; fi
   done < <(printf '%s\n' "$P" | sort -u)
-  if grep -q 'CAP_' "$f" && grep -vE '^[[:space:]]*[#;]' "$f" | grep -q 'CAP_'; then
-    bad "a CAP_ capability appears in an assignment"
+  # The only capability anywhere is CAP_SYS_RAWIO, and only in the two
+  # capability keys (checked by value in check_service).
+  if grep -vE '^[[:space:]]*[#;]' "$f" | grep 'CAP_' | grep -vqxE '(CapabilityBoundingSet|AmbientCapabilities)=CAP_SYS_RAWIO'; then
+    bad "a capability other than CAP_SYS_RAWIO, or in another key, appears in an assignment"
   fi
 }
 
@@ -97,7 +105,7 @@ check_service() {
   [ -n "$P" ] || { bad "unit is empty or unreadable: $f"; return 1; }
   check_keys "$f" "[Unit] [Service]" \
     "Description Documentation Requires After ConditionPathExists RefuseManualStart" \
-    "Type ExecStart StandardInput StandardOutput StandardError PrivateDevices DevicePolicy DeviceAllow DynamicUser SupplementaryGroups CapabilityBoundingSet AmbientCapabilities NoNewPrivileges ProtectSystem ProtectHome PrivateTmp PrivateNetwork PrivateIPC IPAddressDeny ProtectKernelTunables ProtectKernelModules ProtectKernelLogs ProtectControlGroups ProtectClock ProtectHostname ProtectProc RestrictNamespaces RestrictRealtime RestrictSUIDSGID LockPersonality MemoryDenyWriteExecute RestrictAddressFamilies SystemCallArchitectures SystemCallFilter SystemCallErrorNumber InaccessiblePaths UMask SELinuxContext AppArmorProfile TimeoutStartSec MemoryMax TasksMax LimitCORE" \
+    "Type ExecStart StandardInput StandardOutput StandardError PrivateDevices DevicePolicy DeviceAllow CapabilityBoundingSet AmbientCapabilities NoNewPrivileges ProtectSystem ProtectHome PrivateTmp PrivateNetwork PrivateIPC IPAddressDeny ProtectKernelTunables ProtectKernelModules ProtectKernelLogs ProtectControlGroups ProtectClock ProtectHostname ProtectProc RestrictNamespaces RestrictRealtime RestrictSUIDSGID LockPersonality MemoryDenyWriteExecute RestrictAddressFamilies SystemCallArchitectures SystemCallFilter SystemCallErrorNumber InaccessiblePaths UMask SELinuxContext AppArmorProfile TimeoutStartSec MemoryMax TasksMax LimitCORE" \
     "DeviceAllow SystemCallFilter"
   single "[Unit]" ConditionPathExists "$MARKER"
   single "[Unit]" RefuseManualStart yes
@@ -114,10 +122,9 @@ check_service() {
   single "[Service]" StandardError journal
   single "[Service]" PrivateDevices no
   single "[Service]" DevicePolicy closed
-  single "[Service]" DynamicUser yes
-  single "[Service]" SupplementaryGroups disk
-  single "[Service]" CapabilityBoundingSet ""
-  single "[Service]" AmbientCapabilities ""
+  # Root (LVM refuses to scan as any other user) with one capability.
+  single "[Service]" CapabilityBoundingSet CAP_SYS_RAWIO
+  single "[Service]" AmbientCapabilities CAP_SYS_RAWIO
   single "[Service]" NoNewPrivileges yes
   single "[Service]" ProtectSystem strict
   single "[Service]" ProtectHome yes
@@ -136,8 +143,8 @@ check_service() {
   single "[Service]" UMask 0077
   single "[Service]" SELinuxContext "system_u:system_r:${SEL_TYPE}:s0"
   single "[Service]" AppArmorProfile "$AA_PROFILE"
-  single "[Service]" TimeoutStartSec 30
-  single "[Service]" MemoryMax 64M
+  single "[Service]" TimeoutStartSec 60
+  single "[Service]" MemoryMax 128M
   single "[Service]" TasksMax 16
   single "[Service]" LimitCORE 0
   # SystemCallFilter: the allow group plus the deny groups, nothing else.
@@ -170,9 +177,9 @@ check_socket() {
   local f=$1
   FAILS=0; P=$(parse_unit "$f")
   [ -n "$P" ] || { bad "unit is empty or unreadable: $f"; return 1; }
-  check_keys "$f" "[Unit] [Socket]" \
+  check_keys "$f" "[Unit] [Socket] [Install]" \
     "Description Documentation ConditionPathExists" \
-    "ListenStream Accept MaxConnections SocketMode SocketUser SocketGroup DirectoryMode RemoveOnStop" ""
+    "ListenStream Accept MaxConnections SocketMode SocketUser SocketGroup DirectoryMode RemoveOnStop WantedBy" ""
   single "[Unit]" ConditionPathExists "$MARKER"
   single "[Socket]" ListenStream /run/homelab-control/storage-probe.sock
   single "[Socket]" Accept yes
@@ -182,6 +189,8 @@ check_socket() {
   single "[Socket]" SocketGroup root
   single "[Socket]" DirectoryMode 0755
   single "[Socket]" RemoveOnStop yes
+  # An administrator may enable the socket; nothing else may pull it in.
+  single "[Install]" WantedBy sockets.target
   return $((FAILS > 0))
 }
 
@@ -225,7 +234,7 @@ check_apparmor() { # profile
   [ -r "$f" ] || { bad "AppArmor profile is missing"; return 1; }
   body=$(strip_policy "$f")
   printf '%s\n' "$body" | grep -qxF "profile ${AA_PROFILE} ${EXEC} flags=(enforce) {" || bad "profile header must be: profile ${AA_PROFILE} ${EXEC} flags=(enforce) {"
-  for need in "deny capability," "deny mount," "deny ptrace," "deny network inet," "deny network inet6," \
+  for need in "capability sys_rawio," "deny mount," "deny ptrace," "deny network inet," "deny network inet6," \
               "deny network netlink," "deny network packet," "deny network bluetooth," "deny network vsock," \
               "unix (receive, send, getattr, shutdown) type=stream," '@{PROC}/@{pid}/cgroup r,'; do
     printf '%s\n' "$body" | grep -qxF "  $need" || printf '%s\n' "$body" | grep -qxF "$need" || bad "AppArmor profile lacks: $need"
@@ -236,12 +245,15 @@ check_apparmor() { # profile
   if printf '%s\n' "$body" | grep -qE '^[[:space:]]*(deny[[:space:]]+)?(audit[[:space:]]+)?network[[:space:]]*,'; then
     bad "blanket 'network,' rule (allow or deny) breaks AF_UNIX: use per-family denies"
   fi
-  # LVM is read natively; the profile must not allow executing lvm, lvs or pvs.
-  printf '%s\n' "$body" | grep -qE '/(lvm|lvs|pvs)([[:space:]]|\*|,)' && bad "AppArmor profile must not exec lvm/lvs/pvs (native reader)"
+  # Exactly one capability rule, and only reviewed tools may be executed (ix).
+  [ "$(printf '%s\n' "$body" | grep -cE '^[[:space:]]*capability[[:space:]]')" = 1 ] || bad "AppArmor profile must allow exactly one capability (sys_rawio)"
+  printf '%s\n' "$body" | grep -E '[[:space:]]ix,' | grep -vxF -e '  /{usr/,}{s,}bin/lsblk ix,' -e '  /{usr/,}{s,}bin/smartctl ix,' -e '  /{usr/,}{s,}bin/{lvm,pvs,lvs} ix,' \
+    | grep -q . && bad "AppArmor profile executes an unreviewed program"
   while IFS= read -r line; do
     line=${line#"${line%%[![:space:]]*}"}
     case "$line" in
       deny\ *) continue ;;
+      "capability sys_rawio,") ;;
       capability*|network*|mount*|umount*|pivot_root*|ptrace*) bad "AppArmor rule must be a deny: $line" ;;
       owner\ /dev/*|/dev/*)
         perms=${line##* }; perms=${perms%,}
@@ -253,7 +265,8 @@ check_apparmor() { # profile
       /usr/bin/sh*|/bin/sh*|*/bash*|*/dash*) bad "shell exec in AppArmor profile: $line" ;;
     esac
   done <<< "$body"
-  printf '%s\n' "$body" | grep -qE '^/dev/\*\*|^/\*\* ' && bad "AppArmor profile grants a broad path"
+  # /dev/**/ (directories only, for LVM's device cache) is allowed; a file glob is not.
+  printf '%s\n' "$body" | sed 's/^[[:space:]]*//' | grep -qE '^/dev/\*\*([^/]|$)|^/\*\* ' && bad "AppArmor profile grants a broad path"
   return $((FAILS > 0))
 }
 
@@ -261,10 +274,10 @@ check_packaging() { # root
   local r=$1 hits
   FAILS=0
   hits=$(grep -rnE 'systemctl[^#]*(enable|start|restart|preset|unmask|reload-or-restart|try-restart)[^#]*storage-probe' \
-           "$r/packaging" "$r/scripts" 2>/dev/null | grep -v 'storage-probe-policy-check')
+           "$r/packaging" "$r/scripts" 2>/dev/null | grep -v 'storage-probe-policy-check' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#')
   [ -z "$hits" ] || bad "a packaging script starts or enables the storage probe: $hits"
-  hits=$(grep -rln 'storage-probe\.enabled' "$r/packaging" 2>/dev/null | grep -v "/common/${SVC_NAME}\$" | grep -v "/common/${SOCK_NAME}\$")
-  [ -z "$hits" ] || bad "the opt-in marker is referenced outside the two units: $hits"
+  hits=$(grep -rln 'storage-probe\.enabled' "$r/packaging" 2>/dev/null | grep -v "/common/${SVC_NAME}\$" | grep -v "/common/${SOCK_NAME}\$" | grep -v "/debian/build-deb.sh\$")
+  [ -z "$hits" ] || bad "the opt-in marker is referenced outside the two units and the .deb build: $hits"
   hits=$(find "$r/packaging" -iname '*preset*' 2>/dev/null)
   [ -z "$hits" ] || bad "preset files must not exist for the storage probe: $hits"
   if grep -rqlE 'WantedBy=.*storage-probe|storage-probe.*WantedBy=' "$r/packaging" 2>/dev/null; then
@@ -330,14 +343,15 @@ self_test() {
   mutate service "RootImage"                      '/^LimitCORE=0$/a RootImage=/var/lib/x.img'
   mutate service "MountImages"                    '/^LimitCORE=0$/a MountImages=/var/lib/x.img:/mnt'
   mutate service "ExtensionImages"                '/^LimitCORE=0$/a ExtensionImages=/var/lib/x.raw'
-  mutate service "CAP_SYS_RAWIO bounding"         's/^CapabilityBoundingSet=$/CapabilityBoundingSet=CAP_SYS_RAWIO/'
-  mutate service "CAP_SYS_ADMIN ambient"          's/^AmbientCapabilities=$/AmbientCapabilities=CAP_SYS_ADMIN/'
-  mutate service "no capability line"             '/^CapabilityBoundingSet=$/d'
+  mutate service "CAP_SYS_ADMIN bounding"         's/^CapabilityBoundingSet=CAP_SYS_RAWIO$/CapabilityBoundingSet=CAP_SYS_RAWIO CAP_SYS_ADMIN/'
+  mutate service "CAP_SYS_ADMIN ambient"          's/^AmbientCapabilities=CAP_SYS_RAWIO$/AmbientCapabilities=CAP_SYS_ADMIN/'
+  mutate service "no capability line"             '/^CapabilityBoundingSet=/d'
+  mutate service "inverted bounding set"          's/^CapabilityBoundingSet=CAP_SYS_RAWIO$/CapabilityBoundingSet=~CAP_SYS_ADMIN/'
   mutate service "install section"                "\$a [Install]\nWantedBy=multi-user.target"
   mutate service "WantedBy only"                  '/^LimitCORE=0$/a WantedBy=multi-user.target'
-  mutate service "User=root"                      '/^DynamicUser=yes$/a User=root'
-  mutate service "extra group"                    's/^SupplementaryGroups=disk$/SupplementaryGroups=disk root/'
-  mutate service "no dynamic user"                's/^DynamicUser=yes$/DynamicUser=no/'
+  mutate service "User set"                       '/^LimitCORE=0$/a User=nobody'
+  mutate service "extra group"                    '/^LimitCORE=0$/a SupplementaryGroups=disk'
+  mutate service "dynamic user"                   '/^LimitCORE=0$/a DynamicUser=yes'
   mutate service "no SELinuxContext"              '/^SELinuxContext=/d'
   mutate service "wrong SELinux type"             's/hc_storage_probe_t/unconfined_service_t/'
   mutate service "no AppArmorProfile"             '/^AppArmorProfile=/d'
@@ -352,7 +366,9 @@ self_test() {
   mutate service "no new privileges off"          's/^NoNewPrivileges=yes$/NoNewPrivileges=no/'
   mutate service "unknown key (BindPaths)"        '/^LimitCORE=0$/a BindPaths=/dev'
   mutate service "line continuation"              's#^LimitCORE=0$#LimitCORE=0 \\#'
-  mutate socket  "install section"                "\$a [Install]\nWantedBy=sockets.target"
+  mutate socket  "socket wanted by multi-user"    's/^WantedBy=sockets.target$/WantedBy=multi-user.target/'
+  mutate socket  "socket required by"             '/^WantedBy=sockets.target$/a RequiredBy=homelab-control.service'
+  mutate socket  "socket install alias"           '/^WantedBy=sockets.target$/a Alias=other.socket'
   mutate socket  "no opt-in marker"               '/^ConditionPathExists=/d'
   mutate socket  "world accessible"               's/^SocketMode=0600$/SocketMode=0666/'
   mutate socket  "unlimited connections"          's/^MaxConnections=1$/MaxConnections=64/'
@@ -371,7 +387,8 @@ self_test() {
   mutate fc      "libexec context"                's#/usr/lib/homelab-control#/usr/libexec/homelab-control#'
   mutate fc      "wrong type"                     's/hc_storage_probe_exec_t/bin_t/'
   mutate aa      "device write"                   's#^  /dev/sd\[a-z\]\* r,#  /dev/sd[a-z]* rw,#'
-  mutate aa      "capability allowed"             's/^  deny capability,/  capability sys_admin,/'
+  mutate aa      "capability widened"             's/^  capability sys_rawio,/  capability sys_admin,/'
+  mutate aa      "second capability"              's/^  capability sys_rawio,/  capability sys_rawio,\n  capability dac_override,/'
   mutate aa      "blanket network allow"          's/^  deny network inet,/  network,/'
   mutate aa      "blanket deny network (AF_UNIX)" 's/^  deny network inet,/  deny network,/'
   mutate aa      "inet deny removed"              '/^  deny network inet,/d'
@@ -382,14 +399,14 @@ self_test() {
   mutate aa      "vsock deny removed"             '/^  deny network vsock,/d'
   mutate aa      "unix rule removed"              '/^  unix (receive/d'
   mutate aa      "cgroup read removed"            '/@{PROC}\/@{pid}\/cgroup r,/d'
-  mutate aa      "lvm exec allowed"               's#^  /{usr/,}{s,}bin/blkid ix,#  /{usr/,}{s,}bin/blkid ix,\n  /{usr/,}{s,}bin/lvm ix,#'
-  mutate aa      "unconfined exec"                's#^  /{usr/,}{s,}bin/blkid ix,#  /{usr/,}{s,}bin/blkid Ux,#'
+  mutate aa      "unreviewed exec"                's#^  /{usr/,}{s,}bin/lsblk ix,#  /{usr/,}{s,}bin/lsblk ix,\n  /{usr/,}bin/dd ix,#'
+  mutate aa      "unconfined exec"                's#^  /{usr/,}{s,}bin/lsblk ix,#  /{usr/,}{s,}bin/lsblk Ux,#'
   mutate aa      "complain mode"                  's/flags=(enforce)/flags=(complain)/'
   mutate aa      "broad device rule"              's#^  /dev/block/ r,#  /dev/** rw,#'
+  mutate aa      "broad device read"              's#^  /dev/block/ r,#  /dev/** r,#'
   mutate aa      "profile renamed"                's/^profile hc-storage-probe /profile other /'
   mutate deb     "package starts probe"           "\$a systemctl start homelab-control-storage-probe.socket"
   mutate deb     "package enables probe"          "\$a systemctl enable --now homelab-control-storage-probe.socket"
-  mutate deb     "package ships marker"           "\$a install -Dm0644 /dev/null \"\$stage/etc/homelab-control/storage-probe.enabled\""
   mutate deb     "libexec install"                "\$a install -Dm0755 x \"\$stage/usr/libexec/homelab-control/hc-storage-probe\""
   echo "self-test: $n mutations, $fail not rejected"
   [ "$fail" = 0 ]
