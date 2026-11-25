@@ -338,15 +338,3 @@ export function setContributionEnabled(id: ContributionId, enabled: boolean): vo
   }
   window.dispatchEvent(new Event('hc-plugins-change'));
 }
-
-/** Loads a plugin (enable its contributions). The document is re-validated through the strict parser. */
-export function loadPlugin(doc: PluginDocument): void {
-  const d = parsePlugin(JSON.stringify(doc));
-  for (const id of d.contributions) setContributionEnabled(id, true);
-}
-
-/** Unloads a plugin (disable its contributions). */
-export function unloadPlugin(doc: PluginDocument): void {
-  const d = parsePlugin(JSON.stringify(doc));
-  for (const id of d.contributions) setContributionEnabled(id, false);
-}
