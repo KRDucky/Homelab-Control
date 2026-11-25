@@ -63,6 +63,18 @@ export function BtrfsView({
   const missingRequired = tooling.required.filter((t) => !t.installed);
   const missingToolNames = missingRequired.map((tool) => tool.id).join(', ');
   const report = data.status?.available ? data.status.report : undefined;
+  // Btrfs mounts this page sees whose filesystem the helper did not report
+  // (a mount on a device of a reported filesystem is one of its subvolumes).
+  const uncovered = report
+    ? btrfs.mounts
+        .filter(
+          (m) =>
+            !report.filesystems.some(
+              (fs) => fs.mounts.includes(m.mountpoint) || fs.devices.some((d) => d.path === m.device),
+            ) && !(report.skipped ?? []).some((s) => s.mountpoint === m.mountpoint),
+        )
+        .map((m) => m.mountpoint)
+    : [];
   const canInstall = packagesEnabled && (scopes ?? []).includes('packages.read');
 
   return (
@@ -125,6 +137,12 @@ export function BtrfsView({
           report.filesystems.map((fs) => <Filesystem key={fs.mountpoint} fs={fs} />)
         ) : (
           <p className="empty">No Btrfs filesystem is mounted.</p>
+        )}
+        {uncovered.length > 0 && (
+          <p className="banner" role="status">
+            Not inspected: {uncovered.join(', ')}. The read-only storage helper cannot see mounts under /home,
+            /root or /run/user.
+          </p>
         )}
         {report?.skipped?.map((s) => (
           <p key={s.mountpoint} className="banner" role="status">

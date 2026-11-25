@@ -171,8 +171,42 @@ describe('Btrfs read-only page', () => {
     expect(within(vdc).getByText('3')).toBeTruthy();
     expect(within(fs).getByRole('table', { name: 'Subvolumes of /mnt/pool2' })).toBeTruthy();
     expect(screen.getByText(/which the read-only helper cannot open/)).toBeTruthy();
+    // /mnt/data (on /dev/sda1) is in the page's mount list but no reported filesystem covers it.
+    expect(screen.getByText(/Not inspected: \/mnt\/data\./)).toBeTruthy();
     // The filesystem report replaces the mountinfo list.
     expect(screen.queryByRole('heading', { name: 'Btrfs mounts' })).toBeNull();
+  });
+
+  it('does not flag a subvolume mount of a reported filesystem', async () => {
+    const data = inventory({ btrfsInstalled: true });
+    data.btrfs.mounts.push({
+      mountpoint: '/home/data',
+      device: '/dev/vdd',
+      subvol: '/@data',
+      subvolId: '257',
+    });
+    data.status = {
+      available: true,
+      report: {
+        filesystems: [
+          {
+            mountpoint: '/mnt/data',
+            mounts: ['/mnt/data'],
+            overall: {},
+            profiles: [],
+            devices: [{ path: '/dev/vdd' }],
+            scrub: {},
+            subvolumes: [],
+          },
+        ],
+      },
+    };
+    vi.mocked(getBtrfs).mockResolvedValue(data);
+    render(
+      <Btrfs csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
+    );
+    await screen.findByRole('article', { name: 'Filesystem /mnt/data' });
+    expect(screen.queryByText(/Not inspected/)).toBeNull();
   });
 
   it('marks a filesystem with missing devices', async () => {

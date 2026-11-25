@@ -54,6 +54,9 @@ profile hc-storage-probe /usr/lib/homelab-control/hc-storage-probe flags=(enforc
   # the helper from its own mountinfo) for its read-only ioctls: directories
   # only, never file contents.
   /**/ r,
+  # btrfs scrub status reads the state btrfs-progs saves per filesystem.
+  /var/lib/btrfs/ r,
+  /var/lib/btrfs/scrub.status.* r,
   # OpenZFS: libzfs opens the control node read-write for its ioctls; the
   # helper runs only zpool list/status and zfs list.
   /dev/zfs rw,
