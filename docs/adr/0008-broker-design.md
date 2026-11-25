@@ -496,3 +496,19 @@ device. Limits: 64 arrays, 256 members each, 128 KiB per report; budget 30 s.
   read-only. No new device or write rule.
 - **No writes.** No create, assemble, add, remove, fail, grow or stop exists.
 
+## Amendment 16 (2026-11-25, M7, owner-authorized): LVM page through the storage helper
+
+Request scope `lvm` runs the existing `pvs` and `lvs` templates of Amendment 12 plus one new fixed template,
+`vgs --readonly --nolocking --reportformat json --units b --nosuffix -o
+vg_uuid,vg_name,vg_size,vg_free,vg_attr,pv_count,lv_count,vg_missing_pv_count`, through the same function as
+the full probe. It scans block devices for PV labels, so it runs behind the block-class self-check. Budget
+30 s.
+
+- **Broker op** `lvm.status`: scope `lvm.read`, no arguments, `root-read`, admission `system-read`; it
+  returns the three raw reports only when all three are present.
+- **hc-api** decodes them with `storageinfo.ParseLVM`/`ParsePVS` (as for the Storage page) and the new
+  `ParseVGS`.
+- **Removed:** `lvminfo`'s sysfs `dm-*` name walk, which reconstructed LVs from device-mapper names. The page's
+  `lvm` field (device list) is gone from `GET /lvm`; `thin_check` is offered when `lvs` reports a thin pool.
+- **AppArmor:** `vgs` joins `{lvm,pvs,lvs}` under `ix`. No new device or write rule.
+
