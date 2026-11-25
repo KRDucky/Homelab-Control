@@ -158,11 +158,11 @@ def main():
         report["files"].append("navigation-desktop.png")
         ctx.close()
 
-        # Daybreak theme: overview and storage.
+        # Daybreak theme: overview.
         ctx = browser.new_context(viewport=DESKTOP, device_scale_factor=1, ignore_https_errors=True, color_scheme="light")
         ctx.add_init_script(f"localStorage.setItem('hc.preferences.v1', {json.dumps(prefs('daybreak'))})")
         page = sign_in(ctx)
-        for stem, path in (("theme-daybreak", "/"), ("storage-daybreak", "/storage")):
+        for stem, path in (("theme-daybreak", "/"),):
             page.goto(BASE + path, wait_until="domcontentloaded")
             settle(page)
             check_page(page, stem)
