@@ -223,3 +223,24 @@ func TestCollect(t *testing.T) {
 		t.Fatal("cancelled context must return an error")
 	}
 }
+
+func TestReadMdstatFile(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "mdstat")
+	if err := os.WriteFile(p, []byte("Personalities : [raid1]\nmd0 : active raid1 sdb1[1] sda1[0]\n      1 blocks [2/2] [UU]\n\nunused devices: <none>\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	inv := ReadMdstatFile(p)
+	if !inv.Present || len(inv.Arrays) != 1 || inv.Arrays[0].Name != "md0" {
+		t.Fatalf("%+v", inv)
+	}
+	if inv := ReadMdstatFile(filepath.Join(dir, "absent")); inv.Present || inv.Reason != reasonMissing {
+		t.Fatalf("missing: %+v", inv)
+	}
+	if err := os.WriteFile(p, make([]byte, mdstatMaxBytes+1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if inv := ReadMdstatFile(p); inv.Present || inv.Reason != reasonUnread {
+		t.Fatalf("oversized: %+v", inv)
+	}
+}

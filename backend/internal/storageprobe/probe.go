@@ -507,8 +507,8 @@ func runBtrfs(ctx context.Context, res *Result, fail func(string)) {
 	res.Btrfs = &rep
 }
 
-// mdOSRoot is where the helper reads proc/mdstat (a test seam).
-var mdOSRoot = "/"
+// mdstatPath is the kernel's md status file (a test seam).
+var mdstatPath = "/proc/mdstat"
 
 // runMd runs the fixed `mdadm --detail /dev/<name>` template for each array
 // /proc/mdstat lists. An array mdadm cannot describe keeps its name and the
@@ -518,7 +518,7 @@ func runMd(ctx context.Context, res *Result, fail func(string)) {
 		fail("mdadm is not installed (package mdadm); no array details")
 		return
 	}
-	inv := mdadminfo.ProbeMdstat(mdOSRoot)
+	inv := mdadminfo.ReadMdstatFile(mdstatPath)
 	if !inv.Present {
 		fail(inv.Reason)
 		return

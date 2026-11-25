@@ -51,7 +51,7 @@ func fixture(t *testing.T) (argLog string) {
 	writeScript(t, filepath.Join(bin, "pvs"), "#!/bin/sh\n"+logArgs+"echo '"+report+"'\n")
 	writeScript(t, filepath.Join(bin, "lvs"), "#!/bin/sh\n"+logArgs+"echo '"+strings.Replace(report, "pv", "lv", 1)+"'\n")
 
-	oldBin, oldRes, oldMin, oldLast, oldProc, oldMI, oldMd := binaries, resolved, minRunInterval, lastRun, procDevicesPath, mountinfoPath, mdOSRoot
+	oldBin, oldRes, oldMin, oldLast, oldProc, oldMI, oldMd := binaries, resolved, minRunInterval, lastRun, procDevicesPath, mountinfoPath, mdstatPath
 	binaries = map[string]string{}
 	resolved = map[string]bool{}
 	writeScript(t, filepath.Join(bin, "zpool"), "#!/bin/sh\n"+logArgs+
@@ -67,11 +67,8 @@ func fixture(t *testing.T) (argLog string) {
 	writeScript(t, filepath.Join(bin, "mdadm"), "#!/bin/sh\n"+logArgs+
 		"case $2 in /dev/md127) printf '/dev/md127:\\n        Raid Level : raid1\\n             State : clean, degraded\\n    Failed Devices : 1\\n\\n    Number   Major   Minor   RaidDevice State\\n       0       8       17        0      active sync   /dev/sdb1\\n       1       8       33        1      faulty   /dev/sdc1\\n';;\n"+
 		"*) echo 'mdadm: cannot open' >&2; exit 1;; esac\n")
-	mdOSRoot = filepath.Join(base, "root")
-	if err := os.MkdirAll(filepath.Join(mdOSRoot, "proc"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(mdOSRoot, "proc", "mdstat"), []byte(fakeMdstat), 0o644); err != nil {
+	mdstatPath = filepath.Join(base, "mdstat")
+	if err := os.WriteFile(mdstatPath, []byte(fakeMdstat), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	for _, tool := range []string{"lsblk", "smartctl", "pvs", "lvs", "zpool", "zfs", "btrfs", "mdadm"} {
@@ -86,7 +83,7 @@ func fixture(t *testing.T) (argLog string) {
 	}
 	t.Cleanup(func() {
 		mountinfoPath = oldMI
-		mdOSRoot = oldMd
+		mdstatPath = oldMd
 		binaries, resolved, minRunInterval, lastRun, procDevicesPath = oldBin, oldRes, oldMin, oldLast, oldProc
 	})
 	return argLog
