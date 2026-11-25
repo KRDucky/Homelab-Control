@@ -20,7 +20,7 @@ var ErrSetup = errors.New("invalid Traefik easy-setup directory")
 const officialCompose = `# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# HomeControl easy-setup. Official Traefik image only. Host 80/443 stay free.
+# Homelab Control easy-setup. Official Traefik image only. Host 80/443 stay free.
 # Traefik mounts the host Docker socket (rootless default shown) for its Docker
 # provider. Start with docker compose, or with Arcane/Dockhand if one is on the host.
 name: homelab-traefik
@@ -80,7 +80,7 @@ providers:
 
 // WriteOfficialSetup writes official Traefik compose + static config. It does
 // not start containers and does not bind host 80/443. Starting the project
-// belongs to a detected Arcane or Dockhand API, or to HomeControl's compose
+// belongs to a detected Arcane or Dockhand API, or to Homelab Control's compose
 // fallback (YAML+ENV + Start/Stop/Restart/Remove/Pull/Update) when neither is present.
 func WriteOfficialSetup(dir string) ([]string, error) {
 	abs, err := confinedDir(dir)

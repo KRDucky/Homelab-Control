@@ -441,6 +441,19 @@ function Pools({ pools }: { pools: MergerFSInventory['mergerfs']['pools'] }) {
             <dt>Branches</dt>
             <dd>
               <BranchCapacity pool={pool} />
+              {pool.branchesFrom === 'fstab' || pool.branchesFrom === 'systemd' ? (
+                <p className="muted">
+                  From the configured{' '}
+                  {pool.branchesFrom === 'fstab' ? '/etc/fstab line' : 'systemd mount unit'}: this mount's
+                  fsname= hides its branches from the kernel mount table.
+                </p>
+              ) : (
+                !pool.branchesFrom && (
+                  <p className="muted">
+                    Not known: this mount's fsname= hides its branches and no configured mount names them.
+                  </p>
+                )
+              )}
             </dd>
             <dt>Options</dt>
             <dd>{pool.options.length > 0 ? pool.options.join(', ') : '—'}</dd>

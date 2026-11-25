@@ -24,8 +24,12 @@ import (
 
 // Pool is one observed fuse.mergerfs mount.
 type Pool struct {
-	Mountpoint     string        `json:"mountpoint"`
-	Branches       []string      `json:"branches"`
+	Mountpoint string   `json:"mountpoint"`
+	Branches   []string `json:"branches"`
+	// BranchesFrom says where Branches came from: "mountinfo" (the mount
+	// source), or "fstab"/"systemd" when the mount's fsname= hides them and the
+	// matching configured mount names them. Empty when they are unknown.
+	BranchesFrom   string        `json:"branchesFrom,omitempty"`
 	Options        []string      `json:"options"`
 	Usage          []BranchUsage `json:"usage"`
 	UsageTruncated bool          `json:"usageTruncated,omitempty"`
@@ -104,13 +108,20 @@ func ParseMountInfo(r io.Reader) ([]Pool, error) {
 			return nil, fmt.Errorf("invalid mergerfs source")
 		}
 		branches, ok := parseBranches(source)
-		if !ok || (fstype == "fuseblk" && len(branches) < 2) {
+		if fstype == "fuseblk" && (!ok || len(branches) < 2) {
 			// fuseblk is only accepted when the source clearly looks like
 			// multiple colon-separated absolute mergerfs branches.
 			continue
 		}
+		from := "mountinfo"
+		if !ok {
+			// fuse.mergerfs with fsname= (for example fsname=mergerfs, a common
+			// setting): the source is a label, not the branch list. The pool is
+			// still real; Collect fills its branches from the configured mount.
+			branches, from = []string{}, ""
+		}
 		options := parseOptions(fields[sep+3])
-		pools = append(pools, Pool{Mountpoint: point, Branches: branches, Options: options})
+		pools = append(pools, Pool{Mountpoint: point, Branches: branches, BranchesFrom: from, Options: options})
 	}
 	if err := s.Err(); err != nil {
 		return nil, fmt.Errorf("cannot read bounded mount inventory: %w", err)
@@ -207,6 +218,7 @@ func Collect(ctx context.Context, osRoot, snapraidPath, family string) (Snapshot
 		pools = []Pool{}
 	}
 	configured, truncated := collectConfigured(ctx, osRoot, pools)
+	fillBranchesFromConfigured(pools, configured)
 	base := MergerFS{Pools: pools, Configured: configured, ConfiguredTruncated: truncated}
 	if err != nil {
 		// A mount inventory that cannot be parsed must not read as a healthy
@@ -265,4 +277,24 @@ func unescape(s string) (string, error) {
 		i += 3
 	}
 	return b.String(), nil
+}
+
+// fillBranchesFromConfigured gives a live pool whose mount source did not list
+// its branches (fsname=) the branches of the configured fstab or systemd mount
+// with the same mountpoint. The configured branches are what the mount was
+// started with; a later runtime change through mergerfs' control file would
+// not be seen.
+func fillBranchesFromConfigured(pools []Pool, configured []ConfiguredMount) {
+	for i := range pools {
+		if pools[i].BranchesFrom != "" {
+			continue
+		}
+		for _, c := range configured {
+			if cleanMountpoint(c.Mountpoint) == cleanMountpoint(pools[i].Mountpoint) && len(c.Branches) > 0 {
+				pools[i].Branches = append([]string{}, c.Branches...)
+				pools[i].BranchesFrom = c.Origin
+				break
+			}
+		}
+	}
 }

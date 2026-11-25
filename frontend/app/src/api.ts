@@ -1379,6 +1379,8 @@ export interface MergerFSBranchUsage {
 export interface MergerFSPool {
   mountpoint: string;
   branches: string[];
+  /** Where the branches came from; fstab/systemd when the mount's fsname= hides them. */
+  branchesFrom?: 'mountinfo' | 'fstab' | 'systemd';
   options: string[];
   usage?: MergerFSBranchUsage[];
   usageTruncated?: boolean;

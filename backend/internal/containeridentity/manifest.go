@@ -164,7 +164,7 @@ func (c ContainerRuntime) ImageSupport() (ImageSupport, error) {
 	}
 	s.UmaskVariable = d.Umask.Variable
 	if s.IdentityMethod == MethodFixed && s.FixedUID != nil && *s.FixedUID == 0 {
-		return s, errors.New("a fixed identity of UID 0 (root) is not accepted for HomeControl plugins")
+		return s, errors.New("a fixed identity of UID 0 (root) is not accepted for Homelab Control plugins")
 	}
 	return s, s.Validate()
 }

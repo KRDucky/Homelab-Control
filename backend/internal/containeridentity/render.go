@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-// ComposeFragment holds only the Compose service keys HomeControl would set
+// ComposeFragment holds only the Compose service keys Homelab Control would set
 // for Docker or Podman. Absent keys mean "leave the image default".
 type ComposeFragment struct {
 	Environment map[string]string `json:"environment,omitempty"`

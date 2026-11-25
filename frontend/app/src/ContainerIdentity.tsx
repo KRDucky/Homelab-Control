@@ -14,7 +14,7 @@ import {
 import type { ContainerRuntime } from './plugin';
 
 const layerLabels: Record<IdentityLayer, string> = {
-  unset: 'Image default (not set by HomeControl)',
+  unset: 'Image default (not set by Homelab Control)',
   image: 'Image',
   platform: 'Platform/host defaults',
   application: 'Application defaults',
@@ -142,7 +142,7 @@ export function ContainerIdentity({
     <section className="identity-config" aria-labelledby="identity-heading">
       <h3 id="identity-heading">Container Identity &amp; Permissions</h3>
       <p className="banner">
-        Preview only. HomeControl does not change containers, host ownership or permissions here.
+        Preview only. Homelab Control does not change containers, host ownership or permissions here.
       </p>
       {fixed && (
         <p>

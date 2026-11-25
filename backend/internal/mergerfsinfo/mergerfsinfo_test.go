@@ -48,17 +48,53 @@ func TestParseMountInfoKeepsOnlyMergerFS(t *testing.T) {
 }
 
 func TestParseMountInfoRejectsUnsafeBranches(t *testing.T) {
+	// A fuse.mergerfs mount is real even when its source is not a safe branch
+	// list: it is listed with no branches, and nothing from the source is kept.
 	for _, in := range []string{
 		"1 0 0:1 / /mnt rw - fuse.mergerfs relative:/mnt/disk2 rw\n",
 		"1 0 0:1 / /mnt rw - fuse.mergerfs /mnt/disk1: rw\n",
 		"1 0 0:1 / /mnt rw - fuse.mergerfs /mnt/../etc:/mnt/disk2 rw\n",
+	} {
+		pools, err := ParseMountInfo(strings.NewReader(in))
+		if err != nil || len(pools) != 1 || len(pools[0].Branches) != 0 || pools[0].BranchesFrom != "" {
+			t.Fatalf("%q -> %+v %v", in, pools, err)
+		}
+	}
+	for _, in := range []string{
 		"1 0 0:1 / /mnt rw - fuse.mergerfs /mnt/disk1:/mnt/disk2\n", // missing super-options
 		"1 0 0:1 / /mnt rw - fuseblk /mnt/disk1 rw\n",               // single-branch fuseblk not mergerfs
+		"1 0 0:1 / /mnt rw - fuseblk mergerfs rw\n",                 // fuseblk needs a branch list
 	} {
 		pools, err := ParseMountInfo(strings.NewReader(in))
 		if err == nil && len(pools) != 0 {
 			t.Fatalf("accepted %q -> %+v", in, pools)
 		}
+	}
+}
+
+// fsname=mergerfs (a common setting) replaces the mount source with a label.
+// The pool must still be listed, with its branches from the matching fstab
+// line (VM finding 2026-11-25: the page said "No mergerfs pools found").
+func TestFsnameLabelledPoolUsesConfiguredBranches(t *testing.T) {
+	in := "57 46 0:44 / /mnt/storage rw,relatime shared:90 - fuse.mergerfs mergerfs rw,user_id=0,group_id=0,default_permissions,allow_other\n"
+	pools, err := ParseMountInfo(strings.NewReader(in))
+	if err != nil || len(pools) != 1 || pools[0].Mountpoint != "/mnt/storage" || len(pools[0].Branches) != 0 {
+		t.Fatalf("labelled pool not listed: %+v %v", pools, err)
+	}
+	configured, ok := parseFstabLine("/mnt/disk1:/mnt/disk2 /mnt/storage fuse.mergerfs defaults,allow_other,fsname=mergerfs 0 0")
+	if !ok {
+		t.Fatal("fstab line not parsed")
+	}
+	configured.Origin = originFstab
+	fillBranchesFromConfigured(pools, []ConfiguredMount{configured})
+	if got := strings.Join(pools[0].Branches, ":"); got != "/mnt/disk1:/mnt/disk2" || pools[0].BranchesFrom != "fstab" {
+		t.Fatalf("branches not filled from fstab: %+v", pools[0])
+	}
+	// A pool whose source listed its branches keeps them and says so.
+	listed, _ := ParseMountInfo(strings.NewReader("1 0 0:1 / /mnt/media rw - fuse.mergerfs /mnt/a:/mnt/b rw\n"))
+	fillBranchesFromConfigured(listed, []ConfiguredMount{configured})
+	if listed[0].BranchesFrom != "mountinfo" || listed[0].Branches[0] != "/mnt/a" {
+		t.Fatalf("mount-source branches overwritten: %+v", listed[0])
 	}
 }
 

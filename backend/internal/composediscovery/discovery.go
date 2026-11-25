@@ -25,7 +25,7 @@ type Service struct {
 	Ports                 []Port   `json:"ports"`
 	Networks              []string `json:"networks"`
 	// OfficialTraefik is true when the container image is the official Traefik
-	// image. HomeControl CORE/plugin/browser images are never Traefik.
+	// image. Homelab Control CORE/plugin/browser images are never Traefik.
 	OfficialTraefik bool `json:"officialTraefik,omitempty"`
 	// Image is the container image reference (server-side only; used for
 	// manager detection, never returned to the browser).

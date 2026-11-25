@@ -4,7 +4,7 @@ package composediscovery
 
 import "strings"
 
-// Instance is a detected official Traefik proxy container. HomeControl CORE,
+// Instance is a detected official Traefik proxy container. Homelab Control CORE,
 // plugin, and browser images are not Traefik.
 type Instance struct {
 	Present   bool   `json:"present"`
