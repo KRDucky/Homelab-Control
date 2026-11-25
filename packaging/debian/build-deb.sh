@@ -95,6 +95,14 @@ if [ "$1" = configure ]; then
   install -d -m 0700 -o homelab-control -g homelab-control /var/log/homelab-control
   install -d -m 0700 -o homelab-control -g homelab-control /var/lib/homelab-control
   if [ -d /run/systemd/system ]; then systemctl daemon-reload || true; fi
+  # Load (or reload after an upgrade) the helpers' AppArmor profiles now, as
+  # dh_apparmor does; otherwise a changed profile applies only after a reboot,
+  # and a helper whose unit requires its profile cannot start until then.
+  if command -v aa-enabled >/dev/null 2>&1 && aa-enabled --quiet 2>/dev/null && command -v apparmor_parser >/dev/null 2>&1; then
+    for p in hc-storage-probe hc-mergerfs-apply hc-apt-apply; do
+      apparmor_parser -r -T -W "/etc/apparmor.d/usr.lib.homelab-control.$p" || true
+    done
+  fi
   # Audit retention runs daily from the first install on (it does nothing until
   # hc-api has created state.db). An upgrade keeps the administrator's choice.
   if [ -z "$2" ]; then
