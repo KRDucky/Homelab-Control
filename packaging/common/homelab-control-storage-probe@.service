@@ -36,8 +36,13 @@ StandardError=journal
 #   blkext   NVMe namespaces and extended-minor partitions
 #   virtblk  virtio-blk disks (virtual machines)
 #   md       Linux software RAID arrays
-# No "w" and no "m", no char-* groups, no loop/nbd/zram/ram/sr/fd/rbd, no
-# device-mapper, and no explicit /dev path. DevicePolicy=closed additionally
+# No "w" and no "m" on any block device, no char-* groups, no
+# loop/nbd/zram/ram/sr/fd/rbd, no device-mapper. One explicit node:
+#   /dev/zfs rw  the OpenZFS control device. libzfs opens it read-write for
+#                every ioctl, including the read-only ones zpool list/status
+#                and zfs list use; the helper runs only those (owner
+#                2026-11-25, "Activate read-only helper ... /dev/zfs").
+# DevicePolicy=closed additionally
 # allows only the standard pseudo devices (null, zero, full, random, urandom).
 # systemd adds /dev/loop-control, block-loop and block-blkext with rwm when
 # RootImage=, MountImages= or ExtensionImages= is set (systemd.exec(5)); the
@@ -54,6 +59,7 @@ DeviceAllow=block-sd r
 DeviceAllow=block-blkext r
 DeviceAllow=block-virtblk r
 DeviceAllow=block-md r
+DeviceAllow=/dev/zfs rw
 # Runs as root without capabilities other than CAP_SYS_RAWIO below. LVM's pvs/lvs
 # refuse to scan devices as any other user (VM finding 2026-11-25: "Device open
 # 8:0 has no path names" under DynamicUser). Root owns the block nodes (root:disk

@@ -52,7 +52,10 @@ func fixture(t *testing.T) (argLog string) {
 	oldBin, oldRes, oldMin, oldLast, oldProc := binaries, resolved, minRunInterval, lastRun, procDevicesPath
 	binaries = map[string]string{}
 	resolved = map[string]bool{}
-	for _, tool := range []string{"lsblk", "smartctl", "pvs", "lvs"} {
+	writeScript(t, filepath.Join(bin, "zpool"), "#!/bin/sh\n"+logArgs+
+		"case $1 in list) printf 'tank\\t100\\t10\\t90\\t1\\t10\\tONLINE\\n';; status) printf '  pool: tank\\n state: ONLINE\\nconfig:\\n\\n\\tNAME STATE READ WRITE CKSUM\\n\\ttank ONLINE 0 0 0\\n\\t  vdb ONLINE 0 0 0\\n\\nerrors: No known data errors\\n';; esac\n")
+	writeScript(t, filepath.Join(bin, "zfs"), "#!/bin/sh\n"+logArgs+"printf 'tank\\t10\\t90\\t10\\t/tank\\ton\\tfilesystem\\n'\n")
+	for _, tool := range []string{"lsblk", "smartctl", "pvs", "lvs", "zpool", "zfs"} {
 		binaries[tool] = filepath.Join(bin, tool)
 		resolved[tool] = true
 	}
@@ -159,9 +162,9 @@ func TestRunBadToolOutputIsPartial(t *testing.T) {
 func TestRunTimesOut(t *testing.T) {
 	fixture(t)
 	writeScript(t, binaries["lsblk"], "#!/bin/sh\nsleep 30\n")
-	old := totalTimeout
-	totalTimeout = 300 * time.Millisecond
-	t.Cleanup(func() { totalTimeout = old })
+	old := budget
+	budget = func(string) time.Duration { return 300 * time.Millisecond }
+	t.Cleanup(func() { budget = old })
 	start := time.Now()
 	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion})
 	if !res.Partial || time.Since(start) > 5*time.Second {
@@ -187,6 +190,7 @@ func TestUnmarshalRequestStrict(t *testing.T) {
 		`{"version":2,"version":2}`,
 		`{"version":2} {"version":2}`,
 		`{"version":1}`,
+		`{"version":2,"scope":"all-the-things"}`, // unknown scope
 		`[1,2]`,
 	} {
 		if _, err := UnmarshalRequest([]byte(bad)); err == nil {
@@ -327,5 +331,44 @@ func writeFile(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestRunZFSScopeRunsOnlyZFSTemplates(t *testing.T) {
+	argLog := fixture(t)
+	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion, Scope: storagetools.ScopeZFS})
+	if res.Partial || res.ZFS == nil || len(res.ZFS.Pools) != 1 || res.ZFS.Pools[0].Vdevs[1].Name != "vdb" || len(res.ZFS.Datasets) != 1 {
+		t.Fatalf("%+v %+v", res, res.ZFS)
+	}
+	if len(res.Blocks) != 0 || len(res.SMART) != 0 || res.PVS != nil {
+		t.Fatalf("zfs scope ran the storage probe: %+v", res)
+	}
+	b, _ := os.ReadFile(argLog)
+	want := "zpool " + strings.Join(storagetools.ZpoolListArgs(), " ") + "\n" +
+		"zpool " + strings.Join(storagetools.ZpoolStatusArgs(), " ") + "\n" +
+		"zfs " + strings.Join(storagetools.ZfsListArgs(), " ") + "\n"
+	if string(b) != want {
+		t.Fatalf("invocations:\n%s\nwant:\n%s", b, want)
+	}
+}
+
+func TestRunZFSScopeWithoutTools(t *testing.T) {
+	fixture(t)
+	resolved["zpool"] = false
+	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion, Scope: storagetools.ScopeZFS})
+	if !res.Partial || res.ZFS != nil || !strings.Contains(strings.Join(res.Errors, "|"), "zfsutils-linux") {
+		t.Fatalf("%+v", res)
+	}
+}
+
+// The device-class self-check guards block-device reads (lsblk, smartctl,
+// LVM). The ZFS scope only talks to /dev/zfs, so a host without the reviewed
+// block classes still gets its pool report, and no block-class note.
+func TestRunZFSScopeDoesNotNeedBlockDeviceClasses(t *testing.T) {
+	fixture(t)
+	procDevicesPath = fakeProcDevices(t, t.TempDir(), "Block devices:\n  7 loop\n  253 device-mapper\n")
+	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion, Scope: storagetools.ScopeZFS})
+	if res.Code != "" || res.Partial || res.ZFS == nil || len(res.ZFS.Pools) != 1 || len(res.Errors) != 0 {
+		t.Fatalf("code=%q partial=%v errors=%v zfs=%+v", res.Code, res.Partial, res.Errors, res.ZFS)
 	}
 }

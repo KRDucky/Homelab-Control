@@ -1270,7 +1270,7 @@ components:
           description: True when the warning list hit the cap or the collect deadline.
     ZFSInventory:
       type: object
-      required: [tooling, zfs, kernelZfs]
+      required: [tooling, zfs, kernelZfs, status]
       properties:
         tooling:
           type: object
@@ -1325,6 +1325,66 @@ components:
           properties:
             present: { type: boolean }
             reason: { type: string }
+        status:
+          type: object
+          required: [available]
+          description: "Pools and datasets from the broker op zfs.status: zpool list -Hp, zpool status -p and zfs list -Hp, run by the read-only storage helper. Absent pools or a stopped helper give available=false with a reason; the inventory above is still returned."
+          properties:
+            available: { type: boolean }
+            reason: { type: string }
+            report:
+              type: object
+              required: [pools, datasets]
+              properties:
+                truncated: { type: boolean }
+                pools:
+                  type: array
+                  maxItems: 64
+                  items:
+                    type: object
+                    required: [name, health, vdevs]
+                    properties:
+                      name: { type: string }
+                      health: { type: string, description: "zpool list health (ONLINE, DEGRADED, FAULTED, OFFLINE, UNAVAIL, REMOVED, SUSPENDED)" }
+                      size: { type: integer, minimum: 0 }
+                      alloc: { type: integer, minimum: 0 }
+                      free: { type: integer, minimum: 0 }
+                      frag_pct: { type: integer, minimum: 0 }
+                      cap_pct: { type: integer, minimum: 0 }
+                      state: { type: string }
+                      status: { type: string, description: "zpool status 'status:' text, joined into one line" }
+                      action: { type: string }
+                      scan: { type: string, description: "Last or running scrub/resilver, as zpool status reports it" }
+                      errors: { type: string }
+                      vdevs:
+                        type: array
+                        maxItems: 512
+                        items:
+                          type: object
+                          required: [name, depth]
+                          properties:
+                            name: { type: string }
+                            depth: { type: integer, minimum: 0, description: "0 is the pool or a group row" }
+                            group: { type: boolean, description: "logs, cache, spares, special or dedup heading" }
+                            state: { type: string }
+                            read_errors: { type: integer, minimum: 0 }
+                            write_errors: { type: integer, minimum: 0 }
+                            checksum_errors: { type: integer, minimum: 0 }
+                            note: { type: string }
+                datasets:
+                  type: array
+                  maxItems: 2048
+                  items:
+                    type: object
+                    required: [name, type]
+                    properties:
+                      name: { type: string }
+                      type: { type: string }
+                      used: { type: integer, minimum: 0 }
+                      avail: { type: integer, minimum: 0 }
+                      refer: { type: integer, minimum: 0 }
+                      mountpoint: { type: string }
+                      compression: { type: string }
     LVMInventory:
       type: object
       required: [tooling, lvm, kernelDm]
@@ -3349,15 +3409,13 @@ paths:
       description: >
         Parses bounded /proc/self/mountinfo for fstype zfs mounts (mountpoint and dataset
         source only). Required tooling is zfs plus zpool (Debian/Ubuntu package zfsutils-linux;
-        other families name no package and never add a third-party OpenZFS repository). Optional
-        smartctl (smartmontools) and nvme (nvme-cli) are named on known families and never executed;
-        missing them does not degrade capability and no disk is opened. The page offers install links
-        only when at least one zfs mount is observed. A named package reports only that the binary is
-        installed or absent; it does not mean Homelab Control can access raw devices, and any future use
-        requires a separately reviewed closed broker operation. kernelZfs is a read-only /proc/filesystems probe (zfs type only; listed is
+        other families name no package and never add a third-party OpenZFS repository); tooling.optional
+        is empty (disk health is on the Storage page). kernelZfs is a read-only /proc/filesystems probe (zfs type only; listed is
         not proof a pool is imported). No pool create, import, export, destroy, property write,
         or module load exists. Origin and X-CSRF-Token are required; audit records counts only,
-        never dataset or mountpoint paths.
+        never dataset or mountpoint paths. When the kernel lists zfs, status carries pools (health,
+        capacity, scrub, vdev tree with error counters) and datasets from the broker op zfs.status
+        (zpool list/status and zfs list through the read-only storage helper).
       security: [{ session: [] }]
       x-required-scope: zfs.read
       parameters:

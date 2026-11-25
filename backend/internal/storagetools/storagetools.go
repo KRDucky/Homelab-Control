@@ -43,7 +43,13 @@ const CodeDevicePolicyUnresolved = "device_policy_unresolved"
 // Request is the closed helper input: only the protocol version.
 type Request struct {
 	Version int `json:"version"`
+	// Scope selects what the helper runs: "" is the full storage probe
+	// (lsblk, smartctl, pvs/lvs); ScopeZFS runs only zpool and zfs.
+	Scope string `json:"scope,omitempty"`
 }
+
+// ScopeZFS asks only for the OpenZFS report (zpool list, zpool status, zfs list).
+const ScopeZFS = "zfs"
 
 // Result is the closed helper output.
 type Result struct {
@@ -55,6 +61,7 @@ type Result struct {
 	// and syntax-checked here, decoded by storageinfo.ParsePVS/ParseLVM.
 	PVS     json.RawMessage `json:"pvs,omitempty"`
 	LVS     json.RawMessage `json:"lvs,omitempty"`
+	ZFS     *ZFSReport      `json:"zfs,omitempty"`
 	Tools   map[string]bool `json:"tools"`
 	Errors  []string        `json:"errors,omitempty"`
 	Partial bool            `json:"partial"`

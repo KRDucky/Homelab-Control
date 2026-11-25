@@ -5,9 +5,12 @@
 package storageprobe
 
 import (
+	"homelab-control/backend/internal/storagetools"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // unitDir locates the packaging units relative to this package directory
@@ -101,7 +104,7 @@ func TestStorageProbeServiceFailClosed(t *testing.T) {
 
 	// DeviceAllow is the only grant of raw block access: exactly the reviewed
 	// groups, each read-only, with no duplicates and no empty reset.
-	want := []string{"block-sd r", "block-blkext r", "block-virtblk r", "block-md r"}
+	want := []string{"block-sd r", "block-blkext r", "block-virtblk r", "block-md r", "/dev/zfs rw"}
 	got := unitAssignments(svc, "DeviceAllow")
 	if len(got) != len(want) {
 		t.Errorf("DeviceAllow=%q, want exactly %q", got, want)
@@ -137,9 +140,13 @@ func TestStorageProbeServiceFailClosed(t *testing.T) {
 			t.Errorf("service must not set %s", key)
 		}
 	}
-	// No char devices, loop/dm/other block classes, wildcards or device paths.
+	// No char devices, loop/dm/other block classes, wildcards, device paths
+	// (except the OpenZFS control node) or write access to a block device.
 	for _, sub := range []string{"char-", "block-loop", "block-*", "block-dm", "block-nbd", "block-zram", "/dev", " rw", " rm", " w", " m\n"} {
 		for _, line := range unitAssignments(svc, "DeviceAllow") {
+			if line == "/dev/zfs rw" {
+				continue
+			}
 			if strings.Contains(line+"\n", sub) {
 				t.Errorf("DeviceAllow %q contains forbidden %q", line, sub)
 			}
@@ -181,5 +188,23 @@ func TestStorageProbeSocketAccept(t *testing.T) {
 	}
 	if unitHasKey(sock, "RequiredBy") {
 		t.Error("socket must not be required by another unit")
+	}
+}
+
+// The unit must let the helper run its longest budget and answer: systemd
+// kills a connection's service after TimeoutStartSec.
+func TestUnitOutlastsHelperBudgets(t *testing.T) {
+	v := unitAssignments(readUnit(t, "homelab-control-storage-probe@.service"), "TimeoutStartSec")
+	if len(v) != 1 {
+		t.Fatalf("TimeoutStartSec=%q, want exactly one", v)
+	}
+	secs, err := strconv.Atoi(v[0])
+	if err != nil {
+		t.Fatalf("TimeoutStartSec=%q: %v", v[0], err)
+	}
+	for _, scope := range []string{"", storagetools.ScopeZFS} {
+		if b := storagetools.HelperBudget(scope); time.Duration(secs)*time.Second <= b {
+			t.Errorf("TimeoutStartSec=%ds does not exceed the %q budget %v", secs, scope, b)
+		}
 	}
 }

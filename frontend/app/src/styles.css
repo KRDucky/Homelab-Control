@@ -297,6 +297,29 @@ input {
 .status-unavailable {
   color: var(--hc-color-crit);
 }
+/* Health words reported by a tool (for example zpool's ONLINE/DEGRADED/FAULTED). */
+.status-ok {
+  color: var(--hc-color-status-ok-text);
+}
+.status-warn {
+  color: var(--hc-color-status-warn-text);
+}
+.status-crit {
+  color: var(--hc-color-status-crit-text);
+}
+.zfs-pool + .zfs-pool {
+  margin-top: var(--hc-space-5);
+}
+.vdev-depth-1 {
+  padding-left: var(--hc-space-4);
+}
+.vdev-depth-2 {
+  padding-left: calc(2 * var(--hc-space-4));
+}
+.vdev-depth-3,
+.vdev-depth-4 {
+  padding-left: calc(3 * var(--hc-space-4));
+}
 .empty,
 .footnote,
 .collected {
