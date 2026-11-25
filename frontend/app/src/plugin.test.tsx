@@ -6,12 +6,10 @@ import {
   CONTRIBUTION_IDS,
   PLUGIN_STORAGE,
   isContributionEnabled,
-  loadPlugin,
   parsePlugin,
   readEnabled,
   setContributionEnabled,
   strictParse,
-  unloadPlugin,
 } from './plugin';
 import { PluginContributions } from './plugin-ui';
 import { EXTENSION_COMPONENTS, EXTENSION_PLUGINS } from './extensions.generated';
@@ -135,12 +133,12 @@ describe('browser-local load/unload', () => {
     expect(screen.queryByText('Read-only sample plugin')).toBeNull();
     unmount();
 
-    act(() => loadPlugin(SAMPLE_PLUGIN));
+    act(() => SAMPLE_PLUGIN.contributions.forEach((id) => setContributionEnabled(id, true)));
     render(<PluginContributions slot="overview" />);
     expect(screen.getByText('Read-only sample plugin')).toBeTruthy();
     expect(screen.getByText(/Sample plugin · example only/)).toBeTruthy();
 
-    act(() => unloadPlugin(SAMPLE_PLUGIN));
+    act(() => SAMPLE_PLUGIN.contributions.forEach((id) => setContributionEnabled(id, false)));
     render(<PluginContributions slot="overview" />);
     expect(screen.queryByText('Read-only sample plugin')).toBeNull();
   });

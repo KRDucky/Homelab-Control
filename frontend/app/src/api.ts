@@ -352,32 +352,6 @@ export interface Hardware {
   };
 }
 
-export interface WebminCheck {
-  id: string;
-  level: 'ok' | 'warn' | 'info';
-  message: string;
-}
-
-export interface Legacy {
-  source: 'broker' | 'unprivileged';
-  reason?: string;
-  status?: {
-    installed: boolean;
-    config_dir: string;
-    version?: string;
-    port?: number;
-    tls?: boolean;
-    bind?: string;
-    listens_on_all_interfaces: boolean;
-    running?: boolean;
-    user_count: number;
-    rpc_capable_users: string[];
-    checks: WebminCheck[];
-    notes?: string[];
-  };
-  fallback?: Overview['legacy_webmin'];
-}
-
 export function getCapabilities(): Promise<Capabilities> {
   return request<Capabilities>('/api/v1/capabilities');
 }
@@ -388,10 +362,6 @@ export function getServices(): Promise<UnitList> {
 
 export function getHardware(): Promise<Hardware> {
   return request<Hardware>('/api/v1/hardware');
-}
-
-export function getLegacy(): Promise<Legacy> {
-  return request<Legacy>('/api/v1/legacy/webmin');
 }
 
 // ---- M2 PR-1a: sessions and audit -----------------------------------------
@@ -1890,8 +1860,6 @@ export const getTraefikInventory = (csrf: string) =>
   request<TraefikInventory>(`${traefikPath}/inventory`, { headers: { 'X-CSRF-Token': csrf } });
 export const getTraefikDiagnostics = (csrf: string) =>
   request<TraefikDiagnostics>(`${traefikPath}/diagnostics`, { headers: { 'X-CSRF-Token': csrf } });
-export const previewTraefikLabels = (model: TraefikModel, csrf: string) =>
-  postJSON<{ labels: Record<string, string> }>(`${traefikPath}/labels`, csrf, model);
 
 export interface ComposeService {
   replicaCount?: number;
