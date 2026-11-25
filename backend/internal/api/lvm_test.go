@@ -98,6 +98,9 @@ func TestLVMUnparsableReportIsAReason(t *testing.T) {
 	if rr.Code != http.StatusOK || !strings.Contains(rr.Body.String(), `"available":false,"reason":"LVM status is unavailable: the LVM report could not be read`) {
 		t.Fatalf("code %d %s", rr.Code, rr.Body)
 	}
+	if !strings.Contains(h.audit.String(), "status=unavailable") {
+		t.Fatalf("audit must say the report was unavailable, not count zero: %s", h.audit)
+	}
 }
 
 func TestLVMWithoutLvm2SkipsBroker(t *testing.T) {
