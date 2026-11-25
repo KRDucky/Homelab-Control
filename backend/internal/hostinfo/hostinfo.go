@@ -130,18 +130,6 @@ type Network struct {
 	Interfaces []Interface `json:"interfaces"`
 }
 
-// Legacy describes what can be observed about an installed upstream Webmin
-// without privileges. miniserv.conf is root-only (0600) on standard installs,
-// so port/SSL are usually reported as requiring privilege.
-type Legacy struct {
-	Meta
-	Installed       bool   `json:"installed"`
-	Version         string `json:"version,omitempty"`
-	ConfigReadable  bool   `json:"config_readable"`
-	ConfiguredURL   string `json:"configured_url,omitempty"`
-	PrivilegeNeeded string `json:"privilege_needed,omitempty"`
-}
-
 // Overview is the full read-only response for GET /api/v1/host/overview.
 type Overview struct {
 	CollectedAt time.Time   `json:"collected_at"`
@@ -150,14 +138,12 @@ type Overview struct {
 	Memory      Memory      `json:"memory"`
 	Filesystems Filesystems `json:"filesystems"`
 	Network     Network     `json:"network"`
-	Legacy      Legacy      `json:"legacy_webmin"`
 }
 
 // Collector gathers the overview.
 type Collector struct {
 	Roots     Roots
 	CPUSample time.Duration
-	LegacyURL string
 	// Statfs is replaceable in tests.
 	Statfs func(path string) (total, used, avail uint64, err error)
 	// StatfsTimeout overrides the default per-call timeout (tests).
@@ -167,8 +153,8 @@ type Collector struct {
 }
 
 // NewCollector returns a collector for the live host.
-func NewCollector(legacyURL string) *Collector {
-	return &Collector{Roots: DefaultRoots, CPUSample: 250 * time.Millisecond, LegacyURL: legacyURL, Statfs: statfs, Addrs: liveAddrs}
+func NewCollector() *Collector {
+	return &Collector{Roots: DefaultRoots, CPUSample: 250 * time.Millisecond, Statfs: statfs, Addrs: liveAddrs}
 }
 
 // Collect builds a complete overview. It never fails as a whole; failures are
@@ -181,7 +167,6 @@ func (c *Collector) Collect() Overview {
 		Memory:      c.memory(),
 		Filesystems: c.filesystems(),
 		Network:     c.network(),
-		Legacy:      c.legacy(),
 	}
 }
 
@@ -691,32 +676,4 @@ func (c *Collector) network() Network {
 	}
 	finish(&n.Meta)
 	return n
-}
-
-// LegacyOnly returns just the unprivileged legacy-Webmin detection.
-func (c *Collector) LegacyOnly() Legacy { return c.legacy() }
-
-func (c *Collector) legacy() Legacy {
-	l := Legacy{ConfiguredURL: c.LegacyURL}
-	conf := filepath.Join(c.Roots.Etc, "webmin/miniserv.conf")
-	ver := filepath.Join(c.Roots.Etc, "webmin/version")
-	l.Sources = []string{conf, ver}
-	if _, err := os.Lstat(conf); err == nil {
-		l.Installed = true
-		if f, err := os.Open(conf); err == nil {
-			l.ConfigReadable = true
-			f.Close()
-		} else if errors.Is(err, os.ErrPermission) {
-			l.PrivilegeNeeded = "miniserv.conf is root-only; port/TLS details require the privileged broker (planned, M1/M2)"
-		} else {
-			l.Errors = append(l.Errors, err.Error())
-		}
-		if v, err := readTrim(ver); err == nil {
-			l.Version = v
-		}
-	} else if !errors.Is(err, os.ErrNotExist) {
-		l.Errors = append(l.Errors, fmt.Sprintf("stat %s: %v", conf, err))
-	}
-	finish(&l.Meta)
-	return l
 }

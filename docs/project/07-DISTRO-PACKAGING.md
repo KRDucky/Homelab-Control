@@ -26,7 +26,7 @@ Before claiming a distribution release is fully functioning or supported, instal
 Initial release scope remains Debian/Ubuntu `.deb` only. Other package ecosystems are deferred until the fully functioning Debian/Ubuntu release is stable; entries in the platform table are **longer-term targets**, not current release gates.
 
 ## Build and CI
-Reproducible builds in isolated builders; package install/upgrade/remove tests; fresh and migrated Webmin state; unit/integration/e2e tests per distro; package-signing infrastructure and provenance attestation for public releases. Provide source-build instructions even if binary packages are not yet published.
+Reproducible builds in isolated builders; package install/upgrade/remove tests; fresh and upgraded installs; unit/integration/e2e tests per distro; package-signing infrastructure and provenance attestation for public releases. Provide source-build instructions even if binary packages are not yet published.
 
 ## Installer behavior
-Never overwrite unmanaged configs without explicit approval. Detect existing Webmin installation and explain fork coexistence/migration limitations. Backup configuration and database before migration. Respect distro firewall, service and filesystem conventions.
+Never overwrite unmanaged configs without explicit approval. Backup configuration and database before migration. Respect distro firewall, service and filesystem conventions.

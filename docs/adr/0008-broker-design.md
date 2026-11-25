@@ -1,6 +1,7 @@
 # ADR-0008: Privileged broker design (M1)
 
 **Status:** Accepted (2026-10-16, owner) **for the four existing read-only, argument-free M1 operations only**; Amendment 1 (2026-10-21, `services.unit.logs`) and Amendment 2 (2026-10-23, `root-exec`, owner decision D-4) extend it (`broker.info`, `legacy.webmin.status`, `hardware.dmi.identity`, `services.systemd.list`). Amendments 3 (M2-3), 4 (M2-6), 5 (M4-1b), and 6 (P0 unused mkfs.ext4 template) are **Proposed**. Adding or changing an operation requires a new review.
+> **Amended 2026-11-25 by [ADR 0016](0016-independent-project-webmin-removed.md):** the `legacy.webmin.status` op and its `/etc/webmin` reads were removed.
 > **Owner decision recorded 2026-10-16:** this acceptance is **not** authorization to implement privileged write operations. Any write-capable broker operation needs a separate, explicit owner approval (M2 design: confirmation, locking, audit, rollback).
 
 **Date:** 2026-10-15

@@ -1,6 +1,6 @@
 # Threat model (M0 baseline)
 
-Scope: `hc-api` + web UI as built in M0, coexisting with an optional upstream Webmin. Revisit at every
+Scope: `hc-api` + web UI as built in M0. Revisit at every
 milestone that adds a write path, the broker, plugins or remote access.
 
 ## Assets
@@ -17,7 +17,7 @@ and TLS keys), audit trail integrity, availability of remote management (lockout
 
 ## Trust boundaries
 Browser ↔ hc-api (HTTP/TLS) · hc-api ↔ broker (Unix socket, M1+) · broker ↔ host tools/kernel ·
-build/CI ↔ release artifacts · upstream Webmin ↔ fork.
+build/CI ↔ release artifacts.
 
 ## Threats and controls (STRIDE)
 
@@ -43,7 +43,7 @@ build/CI ↔ release artifacts · upstream Webmin ↔ fork.
 | Lockout | Network change cuts access | No network writes in M0; timed rollback required later | Design (M11) |
 
 ## Residual risks (M0)
-1. Upstream Webmin legacy UI, if installed, still has the post-2.670 issues listed in `docs/upstream/SYNC.md`.
+1. (Withdrawn 2026-11-25, ADR 0016: Homelab Control no longer detects or links to Webmin.)
 2. Sessions are in memory; a restart logs everyone out (availability, not security).
 3. No TLS certificate management yet; operators must supply certs or a reverse proxy.
 4. `govulncheck`/`shellcheck` could not run in the build environment (network policy); they run in CI.
@@ -60,8 +60,7 @@ New trust boundary: `hc-api` (uid homelab-control) ↔ `hc-broker` (root) over
 | Elevation of privilege | Command injection via helper arguments | `runner` is the only `os/exec` user (guard test); allow-listed absolute binaries, root-owned, not group/world-writable; fixed argv; argument charset check; replaced env; no shell | Implemented, tested (incl. injection strings) |
 | Elevation of privilege | Helper process runs as root | Children run as `homelab-control` via `SysProcAttr.Credential`; observed live under systemd 249/255 | Implemented, verified |
 | Spoofing | Another local user talks to the broker | Socket mode 0660 + `SO_PEERCRED` uid allow-list (homelab-control, root); rejections audited | Implemented, verified (`nobody` refused) |
-| Information disclosure | Broker returns secrets from Webmin config | Allow-listed fields only; usernames, never hashes; key files never opened; test asserts hashes/keys absent | Implemented, tested on real Webmin 2.670 |
-| Tampering | Symlink planted at a root-read path | `O_NOFOLLOW` + regular-file check + size caps; pidfile path confined to /var or /run | Implemented, tested |
+| Tampering | Symlink planted at a root-read path | `O_NOFOLLOW` + regular-file check + size caps to /var or /run | Implemented, tested |
 | Denial of service | Slow/oversized/concurrent requests, hung `systemctl` | 5 s read deadline, 16 KiB request cap, 4 MiB response cap; eight nonblocking global slots partitioned as control-plan (1), control-apply (2), services-read (2), system-read (1), packages (1), and storage probe (1); separate one-slot `broker.info` limit; full limits return `busy` without queueing; per-op timeouts killing the process group, output caps, panic containment | Implemented, tested |
 | Repudiation | Broker use not attributable | Broker audit log (root 0600): peer uid/pid, actor, op, outcome, duration | Implemented, verified |
 
@@ -71,7 +70,7 @@ argument-free and returns bounded, non-secret data. Write ops (M2+) need broker-
 locking before they may exist. (M2-2 added them for service start/stop/restart: see the M2-2 section below.)
 
 **Sensitive data newly exposed to authorised users:** SMBIOS serials/UUID (scope `hardware.read`),
-Webmin usernames with RPC capability (scope `system.read`), the full systemd unit list (scope
+the full systemd unit list (scope
 `services.read`). These are read-only but identifying; grant scopes accordingly.
 
 ## M2 PR-1b additions: service logs and hash-chained audit
@@ -203,7 +202,7 @@ Jail directory mode is not enforced (only `files.json`). Isolated fixtures only;
 browse a production or OpenBot host.
 
 ## Residual risks after M1
-1. The legacy Webmin UI at 2.670 still lacks post-2.670 upstream fixes (`docs/upstream/SYNC.md`).
+1. (Withdrawn 2026-11-25, ADR 0016: the Legacy Webmin page and broker op were removed.)
 2. `systemctl` JSON output is not a stable API; parsers are tolerant and tested against systemd 249/255 only.
 3. Real systemd validation used disposable containers (systemd PID 1, cgroup v1 host), not a full VM
    with a real kernel boot; CI adds a GitHub runner VM (pending first run).

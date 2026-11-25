@@ -5,6 +5,8 @@
 > withdraw the prompt's other safeguards (evidence handling, leaving `compat/webmin` pristine, disposable hosts
 > for testing, honest reporting); where they still apply they are governed by the current `CLAUDE.md` and the
 > ADRs. The text below is preserved unchanged for history.
+> **Also superseded (2026-11-25):** Homelab Control is not a Webmin fork; `compat/webmin` and its scripts were
+> removed, so the Webmin steps below no longer apply.
 
 # Next session prompt — Homelab Control (finish M1 verification)
 

@@ -7,8 +7,6 @@ contain the third-party components below. Homelab Control's own code is licensed
 `LICENSE.md` and `NOTICE.md`. Development-only tools are not redistributed and are listed in
 `docs/compliance/DEPENDENCY-LICENSES.md`.
 
-Webmin (`compat/webmin/` in the source repository) is **not** part of any release artifact.
-
 | Component | Version | License | Where it ships | Source |
 |---|---|---|---|---|
 | Go standard library | toolchain used for the build (see `go version -m <binary>`) | BSD-3-Clause | compiled into all three binaries | https://go.dev/ |

@@ -1,22 +1,22 @@
 {
   "SPDXID": "SPDXRef-DOCUMENT",
   "creationInfo": {
-    "comment": "Inputs sha256 3014afe90c6f0a0e189502d9bbbddea3e0240a94495efbf09e253f52d7947e61 over frontend/app/package-lock.json, backend/go.mod, backend/go.sum, backend/go-deps-allowlist.json, backend/audit-retention/Cargo.lock, backend/audit-retention/rust-deps-allowlist.json, compat/webmin.lock, scripts/gen-sbom.py. Build toolchain (CI): Go 1.26.11, Node.js 22, npm lockfileVersion 3, Vite 8.3.4, TypeScript 6.0.3. Package-payload inventories are produced per build by scripts/package-inventory.sh.",
-    "created": "2026-11-23T12:54:47Z",
+    "comment": "Inputs sha256 554f249b7de05fb6918ad30858f5cb969bbd4fd14956a756935d92806c534275 over frontend/app/package-lock.json, backend/go.mod, backend/go.sum, backend/go-deps-allowlist.json, backend/audit-retention/Cargo.lock, backend/audit-retention/rust-deps-allowlist.json, scripts/gen-sbom.py. Build toolchain (CI): Go 1.26.11, Node.js 22, npm lockfileVersion 3, Vite 8.3.4, TypeScript 6.0.3. Package-payload inventories are produced per build by scripts/package-inventory.sh.",
+    "created": "2026-11-25T04:15:28Z",
     "creators": [
       "Person: Ian comings",
       "Tool: homelab-control-gen-sbom-1.0"
     ]
   },
   "dataLicense": "CC0-1.0",
-  "documentNamespace": "https://github.com/KRDucky/Homelab-Control---Webmin-Fork/spdx/3014afe90c6f0a0e189502d9bbbddea3e0240a94495efbf09e253f52d7947e61",
+  "documentNamespace": "https://github.com/KRDucky/Homelab-Control/spdx/554f249b7de05fb6918ad30858f5cb969bbd4fd14956a756935d92806c534275",
   "name": "homelab-control-source-sbom",
   "packages": [
     {
       "SPDXID": "SPDXRef-Package-homelab-control",
       "comment": "Release packages (DEB/RPM/Arch): hc-api, hlctl, hc-broker, hc-audit-retention (Rust), systemd units, sysusers, default env, LICENSE.md, NOTICE.md, THIRD-PARTY-NOTICES.md, README.md (+ Debian copyright). Core code is GPL-3.0-or-later; the design tokens compiled into the UI bundle are MIT (file boundaries in REUSE.toml). Third-party components are listed as separate packages.",
       "copyrightText": "Copyright 2026 The Homelab Control Authors",
-      "downloadLocation": "git+https://github.com/KRDucky/Homelab-Control---Webmin-Fork.git",
+      "downloadLocation": "git+https://github.com/KRDucky/Homelab-Control.git",
       "filesAnalyzed": false,
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "GPL-3.0-or-later AND MIT",
@@ -9251,17 +9251,6 @@
       "licenseDeclared": "MIT",
       "name": "zod-validation-error",
       "versionInfo": "4.0.2"
-    },
-    {
-      "SPDXID": "SPDXRef-Package-webmin-reference",
-      "comment": "Development reference subtree at compat/webmin (tree a8482cc848f28a8e4c806861f237a2094514f533). NOT included in any release package or release source archive (verified by scripts/package-inventory.sh). licenseDeclared is Webmin's top-level licence; many files differ (GPL-2.0-or-later, GPL without version, MIT, Apache-2.0, Artistic, Perl terms, some unstated): per-file inventory in docs/compliance/WEBMIN-LICENSE-INVENTORY.md and REUSE.toml.",
-      "copyrightText": "Copyright (c) Jamie Cameron and contributors (see compat/webmin/LICENCE and per-file headers)",
-      "downloadLocation": "git+https://github.com/webmin/webmin.git@3a2b2b8671c0669c129f5275b3dd1853106ae02b",
-      "filesAnalyzed": false,
-      "licenseConcluded": "NOASSERTION",
-      "licenseDeclared": "BSD-3-Clause",
-      "name": "webmin",
-      "versionInfo": "2.670"
     }
   ],
   "relationships": [
@@ -11209,11 +11198,6 @@
       "relatedSpdxElement": "SPDXRef-Package-homelab-control",
       "relationshipType": "DEV_DEPENDENCY_OF",
       "spdxElementId": "SPDXRef-Package-npm-zod-validation-error-4.0.2"
-    },
-    {
-      "relatedSpdxElement": "SPDXRef-Package-homelab-control",
-      "relationshipType": "TEST_DEPENDENCY_OF",
-      "spdxElementId": "SPDXRef-Package-webmin-reference"
     }
   ],
   "spdxVersion": "SPDX-2.3"

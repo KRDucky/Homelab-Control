@@ -1,10 +1,12 @@
 # Release compliance
 
+> **Amended 2026-11-25 (ADR 0016):** `compat/webmin` was removed. Rows about the Webmin subtree are history.
+
 **Date:** 2026-10-16; revised 2026-10-19 (signing deferred, ADR 0009) ·
 Companion to `LICENSE-AUDIT.md` (findings LA-xx), `LICENSE-EXCEPTIONS.md` (EX-xx) and
 `RELEASE-PIPELINE.md`. Engineering record, not legal advice.
 
-**Release readiness: Phase 1 READY (2026-10-21).** LA-13 is closed for Phase 1: the first unsigned development prerelease, v0.1.0-dev.1 (https://github.com/KRDucky/Homelab-Control---Webmin-Fork/releases/tag/v0.1.0-dev.1), tag → `ec34b21e`, release run 39562079197, was published by the owner and verified after publication (ADR 0009 §5.1, R1–R11). This covers **unsigned development prereleases only**. Signing (OpenPGP, hardware tokens) and attestations stay **deferred**; stable releases and package repositories wait for the Phase 3 decision. LA-02 and LA-03 are decided and implemented. Passing CI or automated scans does not by itself establish compliance.
+**Release readiness: Phase 1 READY (2026-10-21).** LA-13 is closed for Phase 1: the first unsigned development prerelease, v0.1.0-dev.1 (https://github.com/KRDucky/Homelab-Control/releases/tag/v0.1.0-dev.1), tag → `ec34b21e`, release run 39562079197, was published by the owner and verified after publication (ADR 0009 §5.1, R1–R11). This covers **unsigned development prereleases only**. Signing (OpenPGP, hardware tokens) and attestations stay **deferred**; stable releases and package repositories wait for the Phase 3 decision. LA-02 and LA-03 are decided and implemented. Passing CI or automated scans does not by itself establish compliance.
 
 ## 1. Release gate checklist
 | # | Gate | How it is checked | Status |

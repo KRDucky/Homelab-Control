@@ -8,7 +8,7 @@
 # users file and runs the live HTTP security checks plus the browser e2e test.
 # Must run as a non-root user. State lives in a temp dir that is removed on exit.
 #
-# Env: HC_LEGACY_URL (optional, e.g. http://127.0.0.1:10000/), HC_E2E_ARTIFACTS (screenshot dir)
+# Env: HC_E2E_ARTIFACTS (screenshot dir)
 set -euo pipefail
 [ "$(id -u)" -ne 0 ] || { echo "run as an unprivileged user (hc-api refuses root by design)"; exit 1; }
 root=$(cd "$(dirname "$0")/../.." && pwd)
@@ -24,7 +24,7 @@ trap cleanup EXIT
 printf '%s\n' "$pw" | "$bin/hlctl" user add --file "$state/users.json" --username admin >/dev/null
 printf 'noscope-password-123\n' | "$bin/hlctl" user add --file "$state/users.json" --username auditor --scopes "" >/dev/null
 "$bin/hc-api" -listen "127.0.0.1:$port" -dev-insecure-http -users-file "$state/users.json" \
-  -state-db "$state/state.db" ${HC_LEGACY_URL:+-legacy-url "$HC_LEGACY_URL"} >"$state/server.log" 2>&1 &
+  -state-db "$state/state.db" >"$state/server.log" 2>&1 &
 pid=$!
 for _ in $(seq 50); do curl -fsS "$base/api/v1/health" >/dev/null 2>&1 && break; sleep 0.1; done
 

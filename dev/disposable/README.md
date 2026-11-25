@@ -1,19 +1,15 @@
 # Disposable development environment
 
-Two supported disposable environments. **Never run these scripts on a production host**: the
-Webmin baseline installs a root-run upstream Webmin and the scripts refuse to run if `/etc/webmin`
-already exists.
+Two supported disposable environments. **Never run these scripts on a production host.**
 
 ## 1. Disposable container (what M0 was verified in)
-Any throwaway Debian/Ubuntu container or cloud sandbox with Perl, Go ≥ 1.24, Node ≥ 22, curl and
+Any throwaway Debian/Ubuntu container or cloud sandbox with Go ≥ 1.24, Node ≥ 22, curl and
 (optionally) Python Playwright:
 
 ```bash
 make build
-sudo WEBMIN_PASS='choose-a-throwaway-password' dev/disposable/webmin-baseline.sh
-WEBMIN_USER=admin WEBMIN_PASS='…' tests/integration/webmin-baseline-login.sh
 # Homelab Control API + browser e2e, as an unprivileged user:
-HC_LEGACY_URL=http://127.0.0.1:10000/ tests/integration/run-hc-e2e.sh
+tests/integration/run-hc-e2e.sh
 ```
 M0 evidence (Ubuntu 24.04 container, 2026-10-15) is in `docs/evidence/`.
 

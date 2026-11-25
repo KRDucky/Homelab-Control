@@ -1,5 +1,8 @@
 # Upstream Webmin baseline 2.670 — unreleased security fixes and mitigations
 
+> **Historical (2026-11-25).** Homelab Control is not a Webmin fork and contains no Webmin code (ADR 0016).
+> `compat/webmin` and its scripts were removed; this document is kept as a dated record.
+
 **Checked:** 2026-10-16 (05:30 UTC) · **Decision:** keep the verified 2.670 baseline; no backports into `compat/webmin`.
 
 ## Is 2.680 released?

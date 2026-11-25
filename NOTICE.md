@@ -1,32 +1,8 @@
 # Notices and provenance
 
-Homelab Control is a fork and modernization of **Webmin**.
-
-## Upstream Webmin (`compat/webmin/`)
-
-- Source: <https://github.com/webmin/webmin>
-- Pinned baseline: tag `2.670`, commit `3a2b2b8671c0669c129f5275b3dd1853106ae02b`
-  (machine-readable pin: `compat/webmin.lock`; import commit carries
-  `git-subtree-split: 3a2b2b8671c0669c129f5275b3dd1853106ae02b`)
-- License: BSD 3-Clause, Copyright (c) Jamie Cameron. The full text is retained
-  unmodified at `compat/webmin/LICENCE` (and the Japanese translation at
-  `compat/webmin/LICENCE.ja`). Redistributions of this directory, in source or
-  binary form, must reproduce that notice.
-- Webmin's name is used here only to describe provenance. Homelab Control is not
-  affiliated with or endorsed by the Webmin project (BSD-3 clause 3).
-- Fork-specific changes inside `compat/webmin/` are listed in `compat/PATCHES.md`
-  (none as of M0).
-- Not every file in the tree is BSD-3-Clause: several modules and bundled third-party libraries carry
-  other licences (GPL, MIT, Apache-2.0, Artistic, Perl terms), and some bundled third-party files state
-  none. Per-file inventory: `docs/compliance/WEBMIN-LICENSE-INVENTORY.md` (machine-readable in
-  `REUSE.toml`). Homelab Control does not relicense any of these files.
-
-Webmin's Authentic theme (<https://github.com/webmin/authentic-theme>, MIT, Copyright (c) Ilia
-Rostovtsev), which upstream release packages bundle, is **not** part of this repository, and no Webmin
-or Authentic theme assets are used by the new interface.
-
-**Release packages contain no Webmin code or assets**; `compat/webmin/` is a development reference only
-(verified per build by `scripts/package-inventory.sh`; see `docs/compliance/WEBMIN-INDEPENDENCE.md`).
+Homelab Control is an independent project. It is not a fork of Webmin, contains no Webmin code or
+assets, and is not affiliated with or endorsed by the Webmin project. Release packages are checked on
+every build for Webmin, Perl and CGI paths (`scripts/package-inventory.sh`).
 
 ## Homelab Control code
 
@@ -39,7 +15,7 @@ WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A 
 `LICENSE.md` for the full licence text.
 
 SPDX: `GPL-3.0-or-later`, except the parts below. File-level boundaries are recorded in `REUSE.toml` and in
-SPDX headers; `compat/webmin/` keeps its upstream licences and is not relicensed.
+SPDX headers.
 
 ### MIT-licensed parts
 

@@ -102,13 +102,13 @@ func TestInfoAndUnknownOp(t *testing.T) {
 
 func TestScopeRecheckedByBroker(t *testing.T) {
 	f := start(t)
-	if _, err := call(t, f, "legacy.webmin.status"); code(err) != proto.CodeForbidden {
+	if _, err := call(t, f, "hardware.dmi.identity"); code(err) != proto.CodeForbidden {
 		t.Fatalf("missing scope: %v", err)
 	}
-	if _, err := call(t, f, "legacy.webmin.status", "services.read"); code(err) != proto.CodeForbidden {
+	if _, err := call(t, f, "hardware.dmi.identity", "services.read"); code(err) != proto.CodeForbidden {
 		t.Fatalf("wrong scope: %v", err)
 	}
-	if _, err := call(t, f, "legacy.webmin.status", "system.read"); err != nil {
+	if _, err := call(t, f, "hardware.dmi.identity", "hardware.read"); err != nil {
 		t.Fatalf("correct scope: %v", err)
 	}
 }
@@ -149,7 +149,7 @@ func TestMalformedRequests(t *testing.T) {
 		"unknown field":   []byte(`{"v":1,"op":"broker.info","actor":{"user":"x","scopes":[]},"sudo":true}`),
 		"wrong version":   []byte(`{"v":2,"op":"broker.info","actor":{"user":"x","scopes":[]}}`),
 		"trailing data":   []byte(`{"v":1,"op":"broker.info","actor":{"user":"x","scopes":[]}}{}`),
-		"args to no-args": []byte(`{"v":1,"op":"legacy.webmin.status","args":{"path":"/etc/shadow"},"actor":{"user":"x","scopes":["system.read"]}}`),
+		"args to no-args": []byte(`{"v":1,"op":"hardware.dmi.identity","args":{"path":"/etc/shadow"},"actor":{"user":"x","scopes":["hardware.read"]}}`),
 	}
 	for name, p := range cases {
 		resp := rawSend(t, f.sock, p, uint32(len(p)))
@@ -370,7 +370,7 @@ func TestDisabledModuleOpsRefused(t *testing.T) {
 	if err != nil || strings.Contains(string(out), `"services.`) || !strings.Contains(string(out), `"disabled_modules":["services"]`) {
 		t.Fatalf("broker.info: %v %s", err, out)
 	}
-	if _, err := call(t, f, "legacy.webmin.status", "system.read"); err != nil {
+	if _, err := call(t, f, "hardware.dmi.identity", "hardware.read"); err != nil {
 		t.Fatalf("core op affected: %v", err)
 	}
 	// Fail closed: an invalid setting disables every module.

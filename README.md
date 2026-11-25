@@ -16,9 +16,8 @@ more, each as an independent module behind the same typed, audited privilege bou
 [`docs/project/04-ROADMAP.md`](docs/project/04-ROADMAP.md) and [`docs/m2/M2-ROADMAP.md`](docs/m2/M2-ROADMAP.md).
 **Almost all of that is still planned.** See "Current status" below for what actually exists.
 
-Homelab Control does not depend on Webmin, does not run Webmin code, and does not ship Webmin code. It
-began from a Webmin source tree and keeps that tree in this repository for reference only; see
-[Webmin: reference only](#webmin-reference-only).
+Homelab Control is an independent project. It is not a fork of Webmin, contains no Webmin code, and is
+not affiliated with or endorsed by the Webmin project.
 
 ## Current status
 
@@ -35,7 +34,7 @@ deployment gate ([results](docs/m2/M2-2-ACCEPTANCE.md)).
 
 ### Published release
 The only published release is the **unsigned development prerelease
-[`v0.1.0-dev.1`](https://github.com/KRDucky/Homelab-Control---Webmin-Fork/releases/tag/v0.1.0-dev.1)**
+[`v0.1.0-dev.1`](https://github.com/KRDucky/Homelab-Control/releases/tag/v0.1.0-dev.1)**
 (Debian/Ubuntu `.deb`, and, in that prerelease only, a Fedora/openSUSE `.rpm` and an Arch `.pkg.tar.zst`,
 plus binaries, source archive, SBOM and `SHA256SUMS`). The first Home Control release is Debian and Ubuntu
 only. It is not signed, there are no stable releases and no package repositories
@@ -54,8 +53,7 @@ It was built before the "merged to `main`" items below.
 | Hardware | DMI identity and drive inventory with stable identifiers and confidence labels | Read-only inventory; no bay map, SMART or storage management |
 | Persistent state | SQLite state database for sessions and the audit trail | Merged to `main` after the prerelease |
 | Sessions and audit | Session list and revoke for your own sessions; hash-chained, tamper-evident audit logs and `hlctl audit verify` | Merged to `main` after the prerelease; no retention or rotation yet ([`docs/security/AUDIT-LOG.md`](docs/security/AUDIT-LOG.md)) |
-| Legacy Webmin page | Detects and reports on a Webmin installation that the operator installed separately, with a security review of its configuration | Detection only; it reads files and never executes or calls Webmin ([ADR 0003](docs/adr/0003-legacy-module-bridge.md)) |
-| Web UI | Overview, Services, Hardware and Legacy Webmin pages with capability-aware navigation; Sessions and Audit pages and the HCIS colour tokens and bundled Inter and JetBrains Mono fonts were merged to `main` after the prerelease | The rest of the HCIS design system is a design direction, not shipped UI ([`docs/ui/hcis/README.md`](docs/ui/hcis/README.md)) |
+| Web UI | Overview, Services and Hardware pages with capability-aware navigation; Sessions and Audit pages and the HCIS colour tokens and bundled Inter and JetBrains Mono fonts were merged to `main` after the prerelease | The rest of the HCIS design system is a design direction, not shipped UI ([`docs/ui/hcis/README.md`](docs/ui/hcis/README.md)) |
 | Packaging and releases | Debian/Ubuntu `.deb`, hardened systemd units, reproducible builds, SBOM, and a manual draft-only release workflow. Fedora and Arch scripts stay in the tree for later | Unsigned development builds |
 
 ### Not implemented
@@ -104,7 +102,6 @@ Tests: `make check`. Building from a release source archive: [`BUILDING.md`](BUI
 | `packaging/` | systemd units, the Debian/Ubuntu package, later Fedora and Arch scripts, release pins |
 | `tests/`, `dev/` | Integration, end-to-end, security and packaging tests; disposable container and VM setup |
 | `docs/` | Specifications, ADRs, threat model, compliance records, plans and test evidence |
-| `compat/webmin/` | **Reference only, never shipped.** Unmodified upstream Webmin 2.670. See below |
 
 ## Security model
 `hc-api` runs as an unprivileged user and cannot spawn processes (enforced by tests). It checks the
@@ -124,22 +121,6 @@ commands or arbitrary root code. `systemctl link`, `set-property`, a chosen kill
 `switch-root` are not templates.
 Threat model: [`docs/security/THREAT-MODEL.md`](docs/security/THREAT-MODEL.md).
 
-## Webmin: reference only
-Homelab Control began as a fork of [Webmin](https://github.com/webmin/webmin). It has since been
-re-established as an independent product with its own backend, frontend and privilege model.
-
-- `compat/webmin/` is retained **exclusively as an upstream development and reference subtree**:
-  unmodified Webmin 2.670, pinned in [`compat/webmin.lock`](compat/webmin.lock), with provenance in
-  [`NOTICE.md`](NOTICE.md) and any local patch recorded in `compat/PATCHES.md` (none today).
-- It is used only for maintenance checks, for Webmin's own upstream test suite in CI, and to test the
-  optional "Legacy Webmin" detection against a real Webmin installation.
-- **Webmin code is excluded from distributed binaries, packages and release source archives.** CI
-  verifies this for every package build and for the source archive
-  ([`docs/compliance/WEBMIN-INDEPENDENCE.md`](docs/compliance/WEBMIN-INDEPENDENCE.md)).
-- No package depends on Webmin. Homelab Control does not call, proxy or embed Webmin, and the new
-  interface uses no Webmin themes or assets.
-- Homelab Control is not affiliated with or endorsed by the Webmin project.
-
 ## License
 Homelab Control's own code is licensed under **GPL-3.0-or-later** ([`LICENSE.md`](LICENSE.md)), with
 these **MIT** exceptions: the SDK (`sdk/`), schemas including the OpenAPI contract (`schemas/`), theme
@@ -147,13 +128,6 @@ definitions (`themes/`, the draft theme schema and example themes under `docs/ui
 tokens (`frontend/design-system/`, `docs/ui/hcis/tokens/`). Exact per-file boundaries are in
 [`REUSE.toml`](REUSE.toml) and in SPDX headers. Copyright 2026 The Homelab Control Authors
 ([`AUTHORS.md`](AUTHORS.md)). Contributions follow [`CONTRIBUTING.md`](CONTRIBUTING.md).
-
-**`compat/webmin/` is not covered by those licences and is not relicensed.** It keeps Webmin's own
-licensing: BSD-3-Clause, Copyright (c) Jamie Cameron (full text at `compat/webmin/LICENCE`), plus the
-different licences some bundled modules and third-party libraries carry (for example GPL, MIT,
-Apache-2.0, Artistic) and some files that state none. The per-file inventory is
-[`docs/compliance/WEBMIN-LICENSE-INVENTORY.md`](docs/compliance/WEBMIN-LICENSE-INVENTORY.md). Its notices
-and licences stay intact in the repository.
 
 Third-party components in release artifacts and their notices:
 [`docs/compliance/THIRD-PARTY-NOTICES.md`](docs/compliance/THIRD-PARTY-NOTICES.md) (installed with every

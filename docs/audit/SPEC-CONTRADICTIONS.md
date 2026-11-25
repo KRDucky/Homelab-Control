@@ -1,5 +1,7 @@
 # Specification review: contradictions and ambiguities
 
+> **Amended 2026-11-25 (ADR 0016):** `compat/webmin` was removed. Rows about the Webmin subtree are history.
+
 Reviewed before writing code, against `CLAUDE.md` and `docs/project/00`–`10`, the project
 `UI-CONCEPT.png`, the existing repository, and the upstream audit. Each item lists how M0 handled it;
 items marked **Decision needed** are listed again in the M0 report.
@@ -19,5 +21,5 @@ items marked **Decision needed** are listed again in the M0 report.
 | 11 | SQLite is the preferred state store, but Go SQLite needs cgo or a large third-party module, and Go module downloads were blocked in this environment. | conventions, 02 | M0 has no persistent state beyond the users file and audit log; DB choice deferred to M2 (ADR 0004). |
 | 12 | 03 lists `secrets.manage` etc. but no scope for reading legacy Webmin state or for the overview. | 03 | M0 uses `system.read` only. Full scope catalogue to be versioned in M2. |
 | 13 | 08 release gate 1 ("read-only UI shows real host data") vs. 01 "No fabricated data" vs. the concept mockup's sample numbers. | 08, CLAUDE.md, UI-CONCEPT | UI shows only collected data; unknown values render as "Unknown"/"Unavailable" with sources; test fixtures are labeled. |
-| 14 | `09-PROJECT-MEMORY.md` "Fork repository name and hosting organization" is listed as undecided, but the repo `KRDucky/Homelab-Control---Webmin-Fork` exists. | 09 | Used the existing repo; Go module path is the neutral `homelab-control/backend` until the final name is approved. |
+| 14 | `09-PROJECT-MEMORY.md` "Fork repository name and hosting organization" is listed as undecided, but the repo `KRDucky/Homelab-Control` exists. | 09 | Used the existing repo; Go module path is the neutral `homelab-control/backend` until the final name is approved. |
 | 15 | M1 in 04 already includes "authenticated modern UI shell", which M0 step 5 also asks for (conditionally). | 04, 10 | M0 delivers a minimal slice (login + overview). M1 extends it with the broker and legacy fallback. |

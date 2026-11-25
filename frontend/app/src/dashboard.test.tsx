@@ -29,7 +29,6 @@ const data: Overview = {
   },
   filesystems: { status: 'ok', sources: [], view: 'host', items: [] },
   network: { status: 'unavailable', sources: [], interfaces: [] },
-  legacy_webmin: { status: 'ok', sources: [], installed: false, config_readable: false },
 };
 const pages: Capability[] = [
   { id: 'overview', label: 'Overview', path: '/', scope: 'system.read', status: 'available' },

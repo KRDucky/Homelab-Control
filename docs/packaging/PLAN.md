@@ -15,16 +15,9 @@
 and unused closed `homelab-control-storage-helper.service` with no `[Install]`/enable
 step — do not `systemctl enable` it; hardened,
 **not enabled on install**), sysusers entry for `homelab-control`, `/etc/homelab-control/hc-api.env` (conffile), license and notice files.
-Webmin is **not** bundled in the M0 package; upstream Webmin is installed separately from upstream or
-distro packages. Bundling `compat/webmin` (with module pruning per `MODULE-INVENTORY.md`) is an M1/M2
-decision.
-
-## Coexistence with an existing Webmin
-Detected read-only (`/etc/webmin/miniserv.conf` existence, `/etc/webmin/version`). The package never
-writes under `/etc/webmin` and uses a different port (9180 default behind TLS proxy, 9443 suggested for
-direct TLS) so both can run side by side. Migration of Webmin users/config is out of scope until a
-migration tool with backup and rollback exists.
+The package contains no Webmin code (ADR 0016). It uses its own port (9180 default behind a TLS proxy,
+9443 suggested for direct TLS) and never writes another administration tool's configuration.
 
 ## Release artifacts (from M14; partially from M1)
 Tagged source tarball, SHA256SUMS, SPDX SBOM, NOTICE/LICENSE, changelog (signed tags/artifacts deferred: ADR 0009 Phase 3),
-rollback/uninstall guide (`docs/dev/ROLLBACK.md`). Built only in CI from tags (ADR 0005/0006).
+uninstall guide (`docs/dev/REMOVAL.md`). Built only in CI from tags (ADR 0005/0006).

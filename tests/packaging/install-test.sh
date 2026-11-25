@@ -95,7 +95,7 @@ caps=$(curl -s -b "$jar" $b/api/v1/capabilities || true)
 check "broker reachable by service user" 1 "$(grep -c '"broker":{"status":"available"' <<<"$caps" || true)"
 check "services reported unsupported without systemd" 1 "$(grep -c '"id":"services"[^}]*"status":"unsupported"' <<<"$caps" || true)"
 check "hardware endpoint" 200 "$(code -b "$jar" $b/api/v1/hardware)"
-check "legacy endpoint via broker" 1 "$( (curl -s -b "$jar" $b/api/v1/legacy/webmin || true) | grep -c '"source":"broker"' || true)"
+check "hardware identity via broker" 1 "$( (curl -s -b "$jar" $b/api/v1/hardware || true) | grep -c '"identity":{"status":"ok"' || true)"
 check "broker audit written" 1 "$([ -s /tmp/broker-audit.jsonl ] && echo 1 || echo 0)"
 check "sessions endpoint (persistent)" 1 "$( (curl -s -b "$jar" $b/api/v1/auth/sessions || true) | grep -c '"persistent":true' || true)"
 check "state database private to the service user" "600 homelab-control" "$(stat -c '%a %U' /var/lib/homelab-control/state.db)"

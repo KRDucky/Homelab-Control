@@ -6,7 +6,7 @@
 3. **Extension host**: signed/verified package metadata, module registry, plugin lifecycle, capability negotiation, permissions, isolated UI contribution points.
 4. **Management API**: versioned REST/OpenAPI; SSE for status streams; WebSockets only for terminal-like interactive use cases; explicit authentication, authorization and CSRF defenses.
 5. **Core services**: discovery, resource graph, jobs, audit, notifications, configuration and secrets, package resolver, health.
-6. **Host adapters**: Webmin Perl bridge, systemd/D-Bus, udev/sysfs, UDisks2/libblockdev where available, CLI adapters with strict argument arrays, Docker/Podman/libvirt APIs.
+6. **Host adapters**: systemd/D-Bus, udev/sysfs, UDisks2/libblockdev where available, CLI adapters with strict argument arrays, Docker/Podman/libvirt APIs.
 7. **Privileged executor**: narrow allowlisted operations; per-operation RBAC, target revalidation, locking, timeout, audit, safe cancellation.
 
 ## Module principle (owner decision, 2026-10-21)
@@ -30,10 +30,8 @@
 - Design: `docs/m2/MODULE-ARCHITECTURE.md`. This is design authorization only, not implementation.
 
 ## Migration strategy
-- Maintain an upstream Webmin fork with reproducible upstream sync and security patch tracking.
-- Start with new UI and authenticated API facade. Bridge mature Perl modules only through audited endpoints; never expose arbitrary Perl module calls.
-- Move high-value functions to typed adapters one at a time; maintain parity tests.
-- Preserve an advanced legacy interface until feature parity and safety justify retirement.
+- Homelab Control is independent (ADR 0016). There is no Webmin subtree, Perl bridge or legacy interface.
+- Add functions as typed adapters to native OS tools and services, one module at a time, with tests.
 
 ## Core resource graph
 Represent entities and typed edges, not only a tree: controller, enclosure, bay, disk, partition, filesystem, mount, LVM, mdraid, ZFS pool/vdev/dataset, Btrfs filesystem/subvolume, mergerfs branch/pool, SnapRAID data/parity/content file, shares, container bind mounts, services. Each edge records source and confidence. Distinguish observed facts, user labels, inferred links and stale records.
@@ -48,7 +46,6 @@ homelab-control/
   docs/
   frontend/{app,design-system,theme-studio}
   backend/{api,auth,resources,jobs,packages,plugins,adapters}
-  compat/webmin-perl/
   plugins/{storage-zfs,storage-mdraid,storage-btrfs,storage-mergerfs,storage-snapraid,reverse-proxy,tailscale,cooling,...}
   themes/{default-light,default-dark,oled,compact}
   schemas/{openapi,plugin,theme,resources}
@@ -58,4 +55,4 @@ homelab-control/
 ```
 
 ## Key ADRs to write during M0
-Webmin fork maintenance policy; API auth/session model; privilege boundary; legacy Perl migration; plugin isolation; package-source trust; storage resource identifiers; database and secrets; UI theming architecture.
+API auth/session model; privilege boundary; plugin isolation; package-source trust; storage resource identifiers; database and secrets; UI theming architecture.

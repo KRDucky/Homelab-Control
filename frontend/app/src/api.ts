@@ -12,7 +12,6 @@ export interface SessionInfo {
   scopes: string[] | null;
   csrf_token: string;
   version: string;
-  legacy_url?: string;
   /** When this session's password re-entry (D-3) lapses. */
   step_up_until?: string;
 }
@@ -67,13 +66,6 @@ export interface Overview {
   };
   filesystems: Meta & { view: 'host' | 'service'; note?: string; items: Filesystem[] };
   network: Meta & { interfaces: NetInterface[] };
-  legacy_webmin: Meta & {
-    installed: boolean;
-    version?: string;
-    config_readable: boolean;
-    configured_url?: string;
-    privilege_needed?: string;
-  };
 }
 
 export class ApiError extends Error {
@@ -156,7 +148,7 @@ export function getOverview(): Promise<Overview> {
   return request<Overview>('/api/v1/host/overview');
 }
 
-// ---- M1: capabilities, services, hardware, legacy -------------------------
+// ---- M1: capabilities, services, hardware -----------------------------------
 
 export type CapabilityStatus = 'available' | 'degraded' | 'unavailable' | 'unsupported' | 'forbidden';
 
@@ -167,7 +159,6 @@ export interface Capability {
     | 'service_logs'
     | 'unit_files'
     | 'hardware'
-    | 'legacy'
     | 'audit'
     | 'storage'
     | 'host_settings'
@@ -352,32 +343,6 @@ export interface Hardware {
   };
 }
 
-export interface WebminCheck {
-  id: string;
-  level: 'ok' | 'warn' | 'info';
-  message: string;
-}
-
-export interface Legacy {
-  source: 'broker' | 'unprivileged';
-  reason?: string;
-  status?: {
-    installed: boolean;
-    config_dir: string;
-    version?: string;
-    port?: number;
-    tls?: boolean;
-    bind?: string;
-    listens_on_all_interfaces: boolean;
-    running?: boolean;
-    user_count: number;
-    rpc_capable_users: string[];
-    checks: WebminCheck[];
-    notes?: string[];
-  };
-  fallback?: Overview['legacy_webmin'];
-}
-
 export function getCapabilities(): Promise<Capabilities> {
   return request<Capabilities>('/api/v1/capabilities');
 }
@@ -388,10 +353,6 @@ export function getServices(): Promise<UnitList> {
 
 export function getHardware(): Promise<Hardware> {
   return request<Hardware>('/api/v1/hardware');
-}
-
-export function getLegacy(): Promise<Legacy> {
-  return request<Legacy>('/api/v1/legacy/webmin');
 }
 
 // ---- M2 PR-1a: sessions and audit -----------------------------------------
@@ -1890,8 +1851,6 @@ export const getTraefikInventory = (csrf: string) =>
   request<TraefikInventory>(`${traefikPath}/inventory`, { headers: { 'X-CSRF-Token': csrf } });
 export const getTraefikDiagnostics = (csrf: string) =>
   request<TraefikDiagnostics>(`${traefikPath}/diagnostics`, { headers: { 'X-CSRF-Token': csrf } });
-export const previewTraefikLabels = (model: TraefikModel, csrf: string) =>
-  postJSON<{ labels: Record<string, string> }>(`${traefikPath}/labels`, csrf, model);
 
 export interface ComposeService {
   replicaCount?: number;
@@ -2212,6 +2171,7 @@ export interface PortSocket {
   proto: 'tcp' | 'tcp6' | 'udp' | 'udp6';
   address: string;
   port: number;
+  /** Bind scope of the address only. Firewall rules are not applied, so this is not reachability. */
   exposure: 'loopback' | 'all' | 'address';
   uid: number;
   account?: string;

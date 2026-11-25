@@ -6,7 +6,7 @@
 
 # Verifies that the extensions/ subtree is byte-identical to the commit and tree pinned in
 # extensions.lock, with no local edits (committed or not) and no package or module manifests.
-# Unlike compat/webmin, core never patches this prefix: there is no PATCHES exception.
+# Core never patches this prefix: there is no PATCHES exception.
 # Usage: scripts/verify-extensions.sh [--fetch]   (--fetch also checks the pin against the remote)
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"

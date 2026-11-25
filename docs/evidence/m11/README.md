@@ -29,6 +29,7 @@ Amendment 9 is Proposed. Firewall, bond and port-binding writes do not exist and
 |---|---|---|---|---|
 | 1 | `1240cbd0` (= tested commit) | `backend/`, `frontend/app/src/`, AST only, 464 code files | 5383 / 20874 | 2 confirmed findings, 1 graph false positive |
 | 2 | `0bc2a917` (= tested commit) | same, 465 code files | 5406 / 20968 | no new confirmed finding |
+| 3 | `dd31cf8c` + the Ports reachability fix (uncommitted at index time) | same, 465 code files | 5406 / 21070 | 1 confirmed finding (4 below) |
 
 Graph health on both passes: about 1970 dangling-endpoint edges (references to stdlib and external
 symbols) and about 279 collapsed duplicate edges. The extractor does not record `Handle:` references in
@@ -44,6 +45,18 @@ Findings and disposition:
    partial state map that read as "no firewall service is active". It is now `unknown`; regression test
    `TestParseUnitStatesIncompleteIsUnknown`.
 3. **False positive.** `fwRuleXML.text()` "no callers": it is called in `ParseFirewalldZone`.
+4. **Confirmed, fixed (Ports reachability).** The Ports page counted every socket not bound to loopback
+   as "reachable beyond this host" and titled the column "Reachable from", although the port map carries
+   no firewall state, so a port the firewall drops was still counted as reachable. The page now states the
+   bind scope ("bound to an address other than loopback", column "Bound to") and says firewall rules are
+   not applied. Pass 3 traced `ParseProcNet` → `exposure()` → `CollectPorts` → `network.ports.list` →
+   `handlePorts` → `getPorts` → `PortsView`. The public contract had `exposure` as a bare enum, so its
+   meaning is now documented in OpenAPI, `api.ts` and `netinfo`. Regression test: "does not claim a bound
+   port is reachable, because the firewall is not applied" (fails without the fix). Checks: `go test ./...`
+   (non-root) pass; Vitest 32 files / 305 tests pass; `make check` stops at the Rust lint (no cargo on the
+   host). Not VM-tested; the VM rows below are for `0bc2a917`.
+   Observation, not changed: the page does not render the API `notes` field; its only current note is
+   already shown by the hidden-processes banner.
 
 ## Disposable VM end-to-end
 

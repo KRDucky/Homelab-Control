@@ -23,7 +23,6 @@ import (
 	"homelab-control/backend/internal/btrfsinfo"
 	"homelab-control/backend/internal/ext4info"
 	"homelab-control/backend/internal/f2fsinfo"
-	"homelab-control/backend/internal/hostinfo"
 	"homelab-control/backend/internal/hwinfo"
 	"homelab-control/backend/internal/lvminfo"
 	"homelab-control/backend/internal/mdadminfo"
@@ -201,10 +200,6 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 	case !slices.Contains(bi.Exec, "systemctl") || !bi.SystemdBooted:
 		files.Status, files.Reason = CapUnsupported, "This host is not running systemd, so there are no unit files to show."
 	}
-	legacy := Capability{ID: "legacy", Label: "Legacy Webmin", Path: "/legacy", Scope: auth.ScopeSystemRead, Status: CapAvailable}
-	if berr != nil || !bi.hasOp("legacy.webmin.status") {
-		legacy.Status, legacy.Reason = CapDegraded, "Without the privileged helper only Webmin's presence and version can be checked."
-	}
 	auditCap := Capability{ID: "audit", Label: "Audit", Path: "/audit", Scope: auth.ScopeAuditRead, Status: CapAvailable}
 	if s.auditPager == nil {
 		auditCap.Status, auditCap.Reason = CapUnavailable, "Audit history needs the state database, which this server was started without."
@@ -378,7 +373,7 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request, sess
 			bonds.Status, bonds.Reason = CapDegraded, "The kernel bonding driver is not loaded, so no bonds exist. This page does not load it."
 		}
 	}
-	caps := []Capability{gate(traefik), gate(overview), gate(services), gate(hardware), gate(legacy), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages), gate(mergerfs), gate(zfs), gate(lvm), gate(btrfs), gate(ext4), gate(mdadm), gate(f2fs), gate(xfs), gate(ports), gate(bonds), gate(firewall)}
+	caps := []Capability{gate(traefik), gate(overview), gate(services), gate(hardware), gate(auditCap), gate(logs), gate(files), gate(storage), gate(hostSettings), gate(fileMgr), gate(packages), gate(mergerfs), gate(zfs), gate(lvm), gate(btrfs), gate(ext4), gate(mdadm), gate(f2fs), gate(xfs), gate(ports), gate(bonds), gate(firewall)}
 	// Navigation follows the module registry: a disabled module contributes
 	// no capability (and therefore no navigation entry).
 	resp.Capabilities = caps[:0]
@@ -589,26 +584,4 @@ func (s *Server) handleHardware(w http.ResponseWriter, r *http.Request, sess *au
 		resp.Identity.Status, resp.Identity.Data = "ok", &id
 	}
 	writeJSON(w, http.StatusOK, resp)
-}
-
-type legacyResponse struct {
-	Source   string              `json:"source"` // broker | unprivileged
-	Reason   string              `json:"reason,omitempty"`
-	Status   *types.WebminStatus `json:"status,omitempty"`
-	Fallback *hostinfo.Legacy    `json:"fallback,omitempty"`
-}
-
-func (s *Server) handleLegacy(w http.ResponseWriter, r *http.Request, sess *auth.Session, _ string) {
-	var st types.WebminStatus
-	var err error = brokerclient.ErrUnavailable
-	if s.broker != nil {
-		err = s.broker.Call(r.Context(), "legacy.webmin.status", actorFor(sess), &st)
-	}
-	if err == nil {
-		writeJSON(w, http.StatusOK, legacyResponse{Source: "broker", Status: &st})
-		return
-	}
-	// Fall back to what an unprivileged process can observe.
-	l := s.collector.LegacyOnly()
-	writeJSON(w, http.StatusOK, legacyResponse{Source: "unprivileged", Reason: brokerDownReason, Fallback: &l})
 }

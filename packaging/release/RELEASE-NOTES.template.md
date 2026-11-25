@@ -30,15 +30,13 @@ Homelab Control {{VERSION}} — built from commit [`{{SHORT}}`]({{REPO}}/commit/
 ## Files
 | File | Content |
 |---|---|
-| `homelab-control-{{VERSION}}-source.tar.gz` | Complete corresponding source: the repository at the commit (without the `compat/webmin/` Webmin reference tree, which no binary uses), the npm sources of everything compiled in, `RELEASE-BUILDINFO`, `BUILDING.md` |
+| `homelab-control-{{VERSION}}-source.tar.gz` | Complete corresponding source: the repository at the commit, the npm sources of everything compiled in, `RELEASE-BUILDINFO`, `BUILDING.md` |
 | `homelab-control-{{VERSION}}-linux-amd64.tar.gz` | `hc-api`, `hlctl`, `hc-broker`, `hc-audit-retention`, `hc-storage-probe`, `hc-mergerfs-apply`, `hc-apt-apply` and the licence/notice files |
 | `{{DEB}}` | Debian/Ubuntu package (package version `{{DEBVER}}`). First release: this is the only package |
 | `LICENSE.md`, `NOTICE.md`, `THIRD-PARTY-NOTICES.md` | Licence (GPL-3.0-or-later; MIT parts listed in `NOTICE.md`) and third-party notices |
 | `homelab-control-{{VERSION}}.spdx.json` | SPDX 2.3 SBOM stamped with this version and commit |
 | `RELEASE-BUILDINFO` | Commit, `SOURCE_DATE_EPOCH`, exact toolchain, build commands |
 | `SHA256SUMS` | SHA-256 of every other file |
-
-No Webmin code is included in any file. Upstream Webmin is a separate project.
 
 ## Verify
 ```bash

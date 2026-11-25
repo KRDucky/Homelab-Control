@@ -1,5 +1,8 @@
 # Webmin 2.670 module inventory and fork disposition
 
+> **Historical (2026-11-25).** Homelab Control is not a Webmin fork and contains no Webmin code (ADR 0016).
+> `compat/webmin` and its scripts were removed; this document is kept as a dated record.
+
 Generated from every `*/module.info` in `compat/webmin` at 2.670 (126 modules). Disposition is a *plan*,
 not a statement of current capability: in M0 **no** Webmin module is reachable through the new API.
 

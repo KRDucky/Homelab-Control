@@ -161,33 +161,6 @@ func TestNetwork(t *testing.T) {
 	}
 }
 
-func TestLegacyNotInstalled(t *testing.T) {
-	l := fixtureCollector(t).legacy()
-	if l.Installed || l.Status != StatusOK {
-		t.Fatalf("%+v", l)
-	}
-}
-
-func TestLegacyUnreadableConfigNeedsPrivilege(t *testing.T) {
-	if os.Geteuid() == 0 {
-		t.Skip("root can read 0000 files; permission behaviour not testable as root")
-	}
-	etc := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(etc, "webmin"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(etc, "webmin/miniserv.conf"), []byte("port=10000\n"), 0o000); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(etc, "webmin/version"), []byte("2.670\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	l := (&Collector{Roots: Roots{Etc: etc}}).legacy()
-	if !l.Installed || l.ConfigReadable || l.PrivilegeNeeded == "" || l.Version != "2.670" {
-		t.Fatalf("%+v", l)
-	}
-}
-
 func TestMissingRootsReportUnavailable(t *testing.T) {
 	c := &Collector{Roots: Roots{Proc: "/nonexistent", Sys: "/nonexistent", Etc: "/nonexistent"}}
 	o := c.Collect()
