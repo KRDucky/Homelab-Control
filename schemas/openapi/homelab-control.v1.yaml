@@ -1445,16 +1445,15 @@ components:
             reason: { type: string }
     BtrfsInventory:
       type: object
-      required: [tooling, btrfs, kernelBtrfs]
+      required: [tooling, btrfs, kernelBtrfs, status]
       description: >
-        Read-only Btrfs checkpoint. The btrfs binary is Stat'd, never executed.
-        No format, balance, scrub, or replace. RAID5/6 is not offered. Audit
+        Read-only Btrfs view. Tooling and mounts are unprivileged; status carries
+        the btrfs-progs reports. No format, balance, scrub start, or replace. RAID5/6 is not offered. Audit
         records mount counts only. A mount source is a /dev path; subvol and
         subvolId come from mount options. Multi-device membership is not joined
         from one mount source. Debian, Fedora, and Arch name btrfs-progs; SUSE
-        names btrfsprogs; an unknown family names no package. smartctl
-        (smartmontools) is optional on known families, never executed, and
-        missing it does not degrade capability.
+        names btrfsprogs; an unknown family names no package. tooling.optional is
+        empty (disk health is on the Storage page).
       properties:
         tooling:
           type: object
@@ -1511,7 +1510,98 @@ components:
           properties:
             present: { type: boolean }
             reason: { type: string }
-
+        status:
+          type: object
+          required: [available]
+          description: "Per-filesystem reports from the broker op btrfs.status: btrfs filesystem usage -b, device stats, scrub status and subvolume list, run by the read-only storage helper on a mountpoint it picks from its own mount table (one per filesystem; paths under /home, /root and /run/user are hidden from it and listed in skipped). Without kernel Btrfs or with the helper stopped, available is false with a reason."
+          properties:
+            available: { type: boolean }
+            reason: { type: string }
+            report:
+              type: object
+              required: [filesystems]
+              properties:
+                truncated: { type: boolean }
+                skipped:
+                  type: array
+                  items:
+                    type: object
+                    required: [mountpoint, reason]
+                    properties:
+                      mountpoint: { type: string }
+                      reason: { type: string }
+                filesystems:
+                  type: array
+                  maxItems: 16
+                  items:
+                    type: object
+                    required: [mountpoint, mounts, overall, profiles, devices, scrub, subvolumes]
+                    properties:
+                      uuid: { type: string }
+                      mountpoint: { type: string, description: "Where the reports were taken" }
+                      mounts: { type: array, items: { type: string }, description: "Every mount of this filesystem" }
+                      overall:
+                        type: object
+                        properties:
+                          device_size: { type: integer, minimum: 0 }
+                          allocated: { type: integer, minimum: 0 }
+                          unallocated: { type: integer, minimum: 0 }
+                          missing: { type: integer, minimum: 0, description: "Bytes on missing devices (degraded filesystem when above 0)" }
+                          used: { type: integer, minimum: 0 }
+                          free_estimated: { type: integer, minimum: 0 }
+                          data_ratio: { type: number }
+                          metadata_ratio: { type: number }
+                      profiles:
+                        type: array
+                        items:
+                          type: object
+                          required: [type, devices]
+                          properties:
+                            type: { type: string, description: "Data, Metadata, System, or Unallocated" }
+                            profile: { type: string, description: "single, DUP, RAID1, RAID10, ... as btrfs reports it" }
+                            size: { type: integer, minimum: 0 }
+                            used: { type: integer, minimum: 0 }
+                            devices:
+                              type: array
+                              items:
+                                type: object
+                                required: [path, bytes]
+                                properties:
+                                  path: { type: string }
+                                  bytes: { type: integer, minimum: 0 }
+                      devices:
+                        type: array
+                        description: btrfs device stats error counters per device
+                        items:
+                          type: object
+                          required: [path]
+                          properties:
+                            path: { type: string }
+                            write_io_errs: { type: integer, minimum: 0 }
+                            read_io_errs: { type: integer, minimum: 0 }
+                            flush_io_errs: { type: integer, minimum: 0 }
+                            corruption_errs: { type: integer, minimum: 0 }
+                            generation_errs: { type: integer, minimum: 0 }
+                      scrub:
+                        type: object
+                        properties:
+                          started: { type: string }
+                          status: { type: string }
+                          duration: { type: string }
+                          error_summary: { type: string }
+                          never_run: { type: boolean }
+                      subvolumes:
+                        type: array
+                        maxItems: 1024
+                        items:
+                          type: object
+                          required: [id, top_level, path]
+                          properties:
+                            id: { type: integer, minimum: 0 }
+                            top_level: { type: integer, minimum: 0 }
+                            path: { type: string }
+                      subvolumes_truncated: { type: boolean }
+                      errors: { type: array, items: { type: string }, description: "Commands that failed for this filesystem" }
     Ext4Inventory:
       type: object
       required: [tooling, ext4, kernelExt4]
@@ -3468,13 +3558,13 @@ paths:
         membership is not joined from one mount source. Required tooling is the
         btrfs binary (Debian, Fedora, and Arch package btrfs-progs; SUSE
         btrfsprogs; an unknown family names no package and never adds a
-        third-party repository). Optional smartctl (smartmontools) is named on
-        known families and never executed; missing it does not degrade
-        capability and no disk is opened. The page offers the smartctl install
-        link only when at least one btrfs mount is observed and the package
-        name is known. kernelBtrfs is a read-only /proc/filesystems probe
-        (btrfs type only; listed is not proof a filesystem is mounted). No
-        format, balance, scrub, replace, device open, or module load exists.
+        third-party repository). kernelBtrfs is a read-only /proc/filesystems
+        probe (btrfs type only; listed is not proof a filesystem is mounted).
+        When the kernel lists btrfs, status carries each mounted filesystem's
+        allocation by profile and device, device error counters, scrub status
+        and subvolumes from the broker op btrfs.status (btrfs-progs through the
+        read-only storage helper). No format, balance, scrub start, replace, or
+        module load exists.
         RAID5/6 is not offered. Origin and X-CSRF-Token are required; audit
         records counts only, never device or mountpoint paths.
       security: [{ session: [] }]

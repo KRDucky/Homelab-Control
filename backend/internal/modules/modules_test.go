@@ -48,7 +48,7 @@ func TestRegistryIsClosed(t *testing.T) {
 	if all[6].ID != "lvm" || all[6].APIPrefix != "/api/v1/lvm" || all[6].OpPrefix != "" || all[6].Path != "/storage/lvm" || len(all[6].Scopes) != 1 || all[6].Scopes[0] != "lvm.read" {
 		t.Fatalf("lvm module: %+v (new modules need review)", all[6])
 	}
-	if all[7].ID != "btrfs" || all[7].APIPrefix != "/api/v1/btrfs" || all[7].OpPrefix != "" || all[7].Path != "/storage/btrfs" || len(all[7].Scopes) != 1 || all[7].Scopes[0] != "btrfs.read" {
+	if all[7].ID != "btrfs" || all[7].APIPrefix != "/api/v1/btrfs" || all[7].OpPrefix != "btrfs." || all[7].Path != "/storage/btrfs" || len(all[7].Scopes) != 1 || all[7].Scopes[0] != "btrfs.read" {
 		t.Fatalf("btrfs module: %+v (new modules need review)", all[7])
 	}
 	if all[8].ID != "ext4" || all[8].APIPrefix != "/api/v1/ext4" || all[8].OpPrefix != "ext4." || all[8].Path != "/storage/ext4" || len(all[8].Scopes) != 2 || all[8].Scopes[0] != "ext4.read" || all[8].Scopes[1] != "ext4.format" {

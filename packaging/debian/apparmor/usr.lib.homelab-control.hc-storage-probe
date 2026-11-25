@@ -49,6 +49,11 @@ profile hc-storage-probe /usr/lib/homelab-control/hc-storage-probe flags=(enforc
   /{usr/,}{s,}bin/smartctl ix,
   /{usr/,}{s,}bin/{lvm,pvs,lvs} ix,
   /{usr/,}{s,}bin/{zpool,zfs} ix,
+  /{usr/,}{s,}bin/btrfs ix,
+  # btrfs-progs opens a mounted filesystem's mountpoint (a directory chosen by
+  # the helper from its own mountinfo) for its read-only ioctls: directories
+  # only, never file contents.
+  /**/ r,
   # OpenZFS: libzfs opens the control node read-write for its ioctls; the
   # helper runs only zpool list/status and zfs list.
   /dev/zfs rw,

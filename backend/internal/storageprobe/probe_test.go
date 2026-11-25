@@ -7,6 +7,8 @@ package storageprobe
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"homelab-control/backend/internal/mountinfo"
 	"os"
 	"path/filepath"
 	"strings"
@@ -49,19 +51,31 @@ func fixture(t *testing.T) (argLog string) {
 	writeScript(t, filepath.Join(bin, "pvs"), "#!/bin/sh\n"+logArgs+"echo '"+report+"'\n")
 	writeScript(t, filepath.Join(bin, "lvs"), "#!/bin/sh\n"+logArgs+"echo '"+strings.Replace(report, "pv", "lv", 1)+"'\n")
 
-	oldBin, oldRes, oldMin, oldLast, oldProc := binaries, resolved, minRunInterval, lastRun, procDevicesPath
+	oldBin, oldRes, oldMin, oldLast, oldProc, oldMI := binaries, resolved, minRunInterval, lastRun, procDevicesPath, mountinfoPath
 	binaries = map[string]string{}
 	resolved = map[string]bool{}
 	writeScript(t, filepath.Join(bin, "zpool"), "#!/bin/sh\n"+logArgs+
 		"case $1 in list) printf 'tank\\t100\\t10\\t90\\t1\\t10\\tONLINE\\n';; status) printf '  pool: tank\\n state: ONLINE\\nconfig:\\n\\n\\tNAME STATE READ WRITE CKSUM\\n\\ttank ONLINE 0 0 0\\n\\t  vdb ONLINE 0 0 0\\n\\nerrors: No known data errors\\n';; esac\n")
 	writeScript(t, filepath.Join(bin, "zfs"), "#!/bin/sh\n"+logArgs+"printf 'tank\\t10\\t90\\t10\\t/tank\\ton\\tfilesystem\\n'\n")
-	for _, tool := range []string{"lsblk", "smartctl", "pvs", "lvs", "zpool", "zfs"} {
+	writeScript(t, filepath.Join(bin, "btrfs"), "#!/bin/sh\n"+logArgs+
+		"case \"$1 $2\" in\n"+
+		"'filesystem usage') printf 'Overall:\\n    Device size:\\t\\t 1000\\n    Used:\\t\\t 10\\n\\nData,single: Size:100, Used:10 (10.00%%)\\n   /dev/vdd\\t 100\\n';;\n"+
+		"'device stats') printf '[/dev/vdd].write_io_errs    0\\n[/dev/vdd].corruption_errs  2\\n';;\n"+
+		"'scrub status') printf 'UUID:             u-1\\nStatus:           finished\\nError summary:    no errors found\\n';;\n"+
+		"'subvolume list') printf 'ID 256 gen 9 top level 5 path @data\\n'; if [ \"$3\" = /srv/b ]; then exit 1; fi;;\n"+
+		"esac\n")
+	for _, tool := range []string{"lsblk", "smartctl", "pvs", "lvs", "zpool", "zfs", "btrfs"} {
 		binaries[tool] = filepath.Join(bin, tool)
 		resolved[tool] = true
 	}
 	minRunInterval, lastRun = 0, time.Time{}
 	procDevicesPath = fakeProcDevices(t, base, allGroupsProcDevices)
+	mountinfoPath = filepath.Join(base, "mountinfo")
+	if err := os.WriteFile(mountinfoPath, []byte(fakeMountinfo), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	t.Cleanup(func() {
+		mountinfoPath = oldMI
 		binaries, resolved, minRunInterval, lastRun, procDevicesPath = oldBin, oldRes, oldMin, oldLast, oldProc
 	})
 	return argLog
@@ -370,5 +384,85 @@ func TestRunZFSScopeDoesNotNeedBlockDeviceClasses(t *testing.T) {
 	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion, Scope: storagetools.ScopeZFS})
 	if res.Code != "" || res.Partial || res.ZFS == nil || len(res.ZFS.Pools) != 1 || len(res.Errors) != 0 {
 		t.Fatalf("code=%q partial=%v errors=%v zfs=%+v", res.Code, res.Partial, res.Errors, res.ZFS)
+	}
+}
+
+// Two subvolume mounts of one filesystem, one filesystem mounted only under
+// /home (hidden by ProtectHome), one more filesystem, and unrelated mounts.
+const fakeMountinfo = `24 1 252:1 / / rw - ext4 /dev/vda1 rw
+40 24 0:50 /@data /srv/a rw - btrfs /dev/vdd rw,subvol=/@data
+41 24 0:50 /@snap /srv/a-snap rw - btrfs /dev/vdd rw,subvol=/@snap
+42 24 0:51 /@home /home rw - btrfs /dev/vde rw,subvol=/@home
+43 24 0:52 / /srv/b rw - btrfs /dev/vdf rw
+44 24 0:53 / /srv/../x rw - btrfs /dev/vdg rw
+`
+
+func TestRunBtrfsScopeNamesItsOwnMountpoints(t *testing.T) {
+	argLog := fixture(t)
+	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion, Scope: storagetools.ScopeBtrfs})
+	rep := res.Btrfs
+	if rep == nil || len(rep.Filesystems) != 2 || len(rep.Skipped) != 1 || rep.Truncated {
+		t.Fatalf("%+v %+v", res, rep)
+	}
+	a, b := rep.Filesystems[0], rep.Filesystems[1]
+	if a.Mountpoint != "/srv/a" || strings.Join(a.Mounts, ",") != "/srv/a,/srv/a-snap" || a.UUID != "u-1" || *a.Overall.DeviceSize != 1000 ||
+		a.Profiles[0].Profile != "single" || *a.Devices[0].CorruptionErrs != 2 || a.Scrub.Status != "finished" || len(a.Subvolumes) != 1 || len(a.Errors) != 0 {
+		t.Fatalf("a: %+v", a)
+	}
+	// A failing command is recorded on its filesystem; the rest is reported.
+	if b.Mountpoint != "/srv/b" || len(b.Errors) != 1 || !strings.HasPrefix(b.Errors[0], "subvolume list:") || b.Subvolumes == nil || b.UUID != "u-1" || !res.Partial {
+		t.Fatalf("b: %+v partial=%v", b, res.Partial)
+	}
+	if rep.Skipped[0].Mountpoint != "/home" || !strings.Contains(rep.Skipped[0].Reason, "cannot open") {
+		t.Fatalf("skipped: %+v", rep.Skipped)
+	}
+	if len(res.Blocks) != 0 || res.ZFS != nil {
+		t.Fatalf("btrfs scope ran other probes: %+v", res)
+	}
+	got, _ := os.ReadFile(argLog)
+	var want strings.Builder
+	for _, m := range []string{"/srv/a", "/srv/b"} {
+		for _, args := range [][]string{storagetools.BtrfsUsageArgs(m), storagetools.BtrfsDeviceStatsArgs(m), storagetools.BtrfsScrubStatusArgs(m), storagetools.BtrfsSubvolumeListArgs(m)} {
+			want.WriteString("btrfs " + strings.Join(args, " ") + "\n")
+		}
+	}
+	if string(got) != want.String() {
+		t.Fatalf("invocations:\n%s\nwant:\n%s", got, want.String())
+	}
+}
+
+func TestBtrfsTargetLimit(t *testing.T) {
+	var recs []mountinfo.Record
+	for i := 0; i < storagetools.MaxBtrfsFilesystems+2; i++ {
+		recs = append(recs, mountinfo.Record{FSType: "btrfs", DeviceNumber: fmt.Sprintf("0:%d", 60+i), Mountpoint: fmt.Sprintf("/m%d", i)})
+	}
+	targets, skipped, truncated := btrfsTargets(recs)
+	if len(targets) != storagetools.MaxBtrfsFilesystems || len(skipped) != 2 || !truncated {
+		t.Fatalf("targets=%d skipped=%d truncated=%v", len(targets), len(skipped), truncated)
+	}
+}
+
+func TestRunBtrfsScopeWithoutTool(t *testing.T) {
+	fixture(t)
+	resolved["btrfs"] = false
+	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion, Scope: storagetools.ScopeBtrfs})
+	if !res.Partial || res.Btrfs != nil || !strings.Contains(strings.Join(res.Errors, "|"), "btrfs-progs") {
+		t.Fatalf("%+v", res)
+	}
+}
+
+// As for ZFS: btrfs-progs works through mountpoint ioctls and opens no block
+// device, so the block-class self-check must not stop the Btrfs scope.
+func TestRunBtrfsScopeDoesNotNeedBlockDeviceClasses(t *testing.T) {
+	fixture(t)
+	procDevicesPath = fakeProcDevices(t, t.TempDir(), "Block devices:\n  7 loop\n  253 device-mapper\n")
+	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion, Scope: storagetools.ScopeBtrfs})
+	if res.Code != "" || res.Btrfs == nil || len(res.Btrfs.Filesystems) != 2 {
+		t.Fatalf("code=%q errors=%v btrfs=%+v", res.Code, res.Errors, res.Btrfs)
+	}
+	for _, e := range res.Errors {
+		if strings.Contains(e, "block device") {
+			t.Fatalf("block-class note on a Btrfs report: %v", res.Errors)
+		}
 	}
 }

@@ -20,7 +20,7 @@ import (
 
 // storageProbeSocket is the fixed root-only socket-activated helper path. The
 // systemd unit owns this socket (root:root 0600); the op is only its client.
-const storageProbeSocket = "/run/homelab-control/storage-probe.sock"
+var storageProbeSocket = "/run/homelab-control/storage-probe.sock" // a var only as a test seam
 
 // Broker-side interval rate limit. The helper's own limiter resets on every
 // socket activation (Accept=yes starts a fresh process), so the broker — a
@@ -135,35 +135,52 @@ func callProbeHelper(ctx context.Context, req storageProbeRequest) (storageProbe
 	return res, nil
 }
 
-// zfsMinInterval bounds how often the broker asks the helper for the ZFS
-// report; a page refresh inside it gets the previous answer.
-var (
-	zfsMu          sync.Mutex
-	zfsLastRun     time.Time
-	zfsLast        *storagetools.ZFSReport
-	zfsLastErr     error
-	zfsMinInterval = 3 * time.Second
-)
+// scopeMinInterval bounds how often the broker asks the helper for one
+// scope's report; a page refresh inside it gets the previous answer.
+var scopeMinInterval = 3 * time.Second
+
+// scopeCache holds the last helper answer for one request scope.
+type scopeCache struct {
+	mu   sync.Mutex
+	last time.Time
+	res  storageProbeResult
+	err  error
+}
+
+var zfsCache, btrfsCache scopeCache
+
+// get returns the helper's answer for scope, at most once per
+// scopeMinInterval. pick extracts the scope's report; a missing report becomes
+// an unavailable error carrying the helper's messages.
+func (c *scopeCache) get(ctx context.Context, scope string, pick func(storageProbeResult) (any, bool)) (any, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if time.Since(c.last) >= scopeMinInterval {
+		c.last = time.Now()
+		c.res, c.err = callProbeHelper(ctx, storageProbeRequest{Version: storagetools.ProtocolVersion, Scope: scope})
+	}
+	if c.err != nil {
+		return nil, &proto.Error{Code: proto.CodeUnavailable, Message: c.err.Error()}
+	}
+	out, ok := pick(c.res)
+	if !ok {
+		return nil, &proto.Error{Code: proto.CodeUnavailable, Message: strings.Join(c.res.Errors, "; ")}
+	}
+	return out, nil
+}
 
 // zfsStatus asks the helper for the OpenZFS report (scope zfs).
 func zfsStatus(ctx context.Context, _ *Env, raw json.RawMessage) (any, error) {
 	if err := requireNoArgs(raw); err != nil {
 		return nil, err
 	}
-	zfsMu.Lock()
-	defer zfsMu.Unlock()
-	if time.Since(zfsLastRun) < zfsMinInterval {
-		return zfsLast, zfsLastErr
+	return zfsCache.get(ctx, storagetools.ScopeZFS, func(r storageProbeResult) (any, bool) { return r.ZFS, r.ZFS != nil })
+}
+
+// btrfsStatus asks the helper for the Btrfs report (scope btrfs).
+func btrfsStatus(ctx context.Context, _ *Env, raw json.RawMessage) (any, error) {
+	if err := requireNoArgs(raw); err != nil {
+		return nil, err
 	}
-	zfsLastRun = time.Now()
-	res, err := callProbeHelper(ctx, storageProbeRequest{Version: storagetools.ProtocolVersion, Scope: storagetools.ScopeZFS})
-	switch {
-	case err != nil:
-		zfsLast, zfsLastErr = nil, &proto.Error{Code: proto.CodeUnavailable, Message: err.Error()}
-	case res.ZFS == nil:
-		zfsLast, zfsLastErr = nil, &proto.Error{Code: proto.CodeUnavailable, Message: strings.Join(res.Errors, "; ")}
-	default:
-		zfsLast, zfsLastErr = res.ZFS, nil
-	}
-	return zfsLast, zfsLastErr
+	return btrfsCache.get(ctx, storagetools.ScopeBtrfs, func(r storageProbeResult) (any, bool) { return r.Btrfs, r.Btrfs != nil })
 }

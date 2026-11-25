@@ -26,8 +26,8 @@ const capabilityReasonMax = 256
 // ProbeTooling reports btrfs binary presence with family-adapted package
 // names. It never spawns a process and never calls the package manager.
 // Debian, Fedora, and Arch name btrfs-progs. SUSE names btrfsprogs. An
-// unknown family names no package. smartctl is optional, never executed,
-// and missing it does not degrade capability. No disk is opened.
+// unknown family names no package. Optional is empty: disk health (SMART) is
+// on the Storage page.
 func ProbeTooling(family string) Tooling {
 	return probeTooling(family, storagecap.RealStat)
 }
@@ -40,13 +40,8 @@ func probeTooling(family string, stat storagecap.StatFunc) Tooling {
 			pkg = "btrfsprogs"
 		}
 	}
-	opt := ""
-	if storagecap.KnownFamily(family) {
-		opt = "smartmontools"
-	}
 	tool := storagecap.Probe(family, []storagecap.Spec{
 		{ID: "btrfs", Package: pkg, Paths: btrfsBinaryPaths, Required: true},
-		{ID: "smartctl", Package: opt, Paths: storagecap.SmartctlPaths(), Required: false},
 	}, stat)
 	if tool.Optional == nil {
 		tool.Optional = []ToolItem{}
@@ -56,8 +51,9 @@ func probeTooling(family string, stat storagecap.StatFunc) Tooling {
 
 // ProbeCapability is the cheap capabilities GET probe: binary Stat plus one
 // /proc/filesystems read. It never reads mountinfo. Missing the btrfs binary
-// or kernel Btrfs is degraded (the page still mounts). Missing smartctl is
-// not degraded. btrfs and smartctl are never executed.
+// or kernel Btrfs is degraded (the page still mounts). Filesystem reports
+// come from the broker op btrfs.status (btrfs-progs run by the read-only
+// storage helper).
 func ProbeCapability(family string) (available bool, reason string) {
 	return probeCapability(family, storagecap.RealStat, "/")
 }
