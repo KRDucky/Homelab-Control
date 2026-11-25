@@ -1,0 +1,92 @@
+# SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: Capture Web UI screenshots
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/ui-screenshots.yml
+permissions:
+  contents: write
+jobs:
+  screenshots:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build current frontend and unprivileged API
+        run: |
+          set -euo pipefail
+          cd frontend/app
+          npm ci --ignore-scripts --no-fund
+          npm run build
+          cd ../..
+          mkdir -p backend/internal/webui/dist build
+          cp -r frontend/app/dist/. backend/internal/webui/dist/
+          (cd backend && CGO_ENABLED=0 go build -o ../build/hc-api ./cmd/hc-api && CGO_ENABLED=0 go build -o ../build/hlctl ./cmd/hlctl)
+      - name: Install browser
+        run: |
+          python -m pip install 'playwright==1.58.0'
+          python -m playwright install --with-deps chromium
+      - name: Launch temporary API and capture screenshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          work=$(mktemp -d)
+          trap 'kill "${pid:-}" 2>/dev/null || true; rm -rf "$work"' EXIT
+          chmod 700 "$work"
+          pw=$(python -c 'import secrets; print(secrets.token_urlsafe(24))')
+          scopes=system.read,services.read,hardware.read,storage.read,packages.read,mergerfs.read,zfs.read,lvm.read,btrfs.read,ext4.read,mdadm.read,f2fs.read,xfs.read,files.read,networking.ports.read,networking.bonds.read,networking.firewall.read,networking.proxy.read,audit.read
+          printf '%s\n' "$pw" | build/hlctl user add --file "$work/users.json" --username screenshots --scopes "$scopes" >/dev/null
+          build/hc-api -dev-insecure-http -listen 127.0.0.1:9180 -users-file "$work/users.json" -state-db "$work/state.db" -broker-socket "" > "$work/server.log" 2>&1 &
+          pid=$!
+          for i in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:9180/api/v1/health >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:9180/api/v1/health >/dev/null
+          HC_SCREENSHOT_PASSWORD="$pw" HC_SCREENSHOT_URL=http://127.0.0.1:9180 python scripts/capture-readme-ui.py
+          unset pw
+      - name: Publish captured images and update README
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          readme = Path("README.md")
+          s = readme.read_text()
+          before = "### Screenshots\n"
+          after = "## Current status\n"
+          start = s.index(before)
+          end = s.index(after, start)
+          gallery = """### Screenshots (current UI, disposable CI environment)
+
+These are actual Playwright screenshots of the frontend built from this repository, running against a temporary unprivileged API on an Ubuntu CI runner. No privileged broker or real homelab is connected, so unavailable modules are shown honestly; they are not evidence of production-ready operations.
+
+![Current overview and module navigation](docs/screenshots/overview-desktop.png)
+
+| Services | Storage |
+|---|---|
+| ![Services](docs/screenshots/services-desktop.png) | ![Storage](docs/screenshots/storage-desktop.png) |
+
+| Software | Network ports |
+|---|---|
+| ![Software Center](docs/screenshots/software-desktop.png) | ![Network ports](docs/screenshots/network-ports-desktop.png) |
+
+![Responsive mobile navigation](docs/screenshots/navigation-mobile.png)
+
+"""
+          readme.write_text(s[:start] + gallery + s[end:])
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md docs/screenshots/*.png
+          git commit -m "docs: capture current native Web UI in disposable CI [skip ci]"
+          git push
