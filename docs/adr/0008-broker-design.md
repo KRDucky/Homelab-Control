@@ -414,3 +414,23 @@ authorize package install/remove/upgrade, `apt update`, adding repositories or i
   than 12 hours older than the newest seen); the probe does not verify signatures.
 - **Proposed status.** Implementation and VM validation are pending review; this amendment does not
   accept ADR 0014 or ADR 0015.
+
+## Amendment 12 (2026-11-25, M5, owner-authorized): storage helper runs the standard tools
+
+The owner activated the read-only storage helper (`docs/m2/OWNER-DECISIONS.md`, "Use the standard storage
+tools"). `storage.probe` (scope `storage.probe`, not a default) is unchanged on the broker side: no
+arguments, broker rate limit, root-only socket. What changes is the helper behind it:
+
+- **Protocol 2.** The request carries only the version; the helper names devices from its own `lsblk`
+  output (kernel-name grammar, SMART classes `sd*` and `nvme*n*`). Version 1 (caller-named devices,
+  fd-pinned blkid, the native `lvmmeta` reader) is removed.
+- **Fixed templates** (`internal/storagetools`): `lsblk --json --list --bytes --output …`;
+  `smartctl --json=c --nocheck=standby --health --info --attributes /dev/<kname>` (never wakes a disk in
+  standby); `pvs`/`lvs --readonly --reportformat json --units b --nosuffix --segments -o …`
+  (metadata-only; no locks, no device-mapper).
+- **Unit.** Read-only `DeviceAllow=` classes as before, plus `CapabilityBoundingSet=CAP_SYS_RAWIO` and the
+  same ambient capability for SMART pass-through. No `CAP_SYS_ADMIN`. `@raw-io` stays denied. The
+  package ships the opt-in marker; an administrator enables the socket.
+- **Optional tools.** smartmontools and lvm2 are not dependencies. When missing, the result says so and is
+  partial; lsblk (util-linux) is required.
+

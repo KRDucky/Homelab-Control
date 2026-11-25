@@ -1,0 +1,3 @@
+# Packaged marker for homelab-control-storage-probe.socket (read-only storage tools).
+# The package does not enable the socket. Remove this file to make
+# ConditionPathExists fail and keep the helper from starting.

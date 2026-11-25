@@ -39,6 +39,7 @@ install -Dm0644 "$root/packaging/common/homelab-control-apt-apply.socket" "$stag
 install -Dm0644 "$root/packaging/debian/apparmor/usr.lib.homelab-control.hc-apt-apply" "$stage/etc/apparmor.d/usr.lib.homelab-control.hc-apt-apply"
 install -Dm0644 "$root/packaging/debian/homelab-control-apt-apply@.service.d/apparmor.conf" "$stage/usr/lib/systemd/system/homelab-control-apt-apply@.service.d/apparmor.conf"
 install -Dm0640 "$root/packaging/common/apt-apply.enabled" "$stage/etc/homelab-control/apt-apply.enabled"
+install -Dm0640 "$root/packaging/common/storage-probe.enabled" "$stage/etc/homelab-control/storage-probe.enabled"
 install -Dm0644 "$root/packaging/common/homelab-control-audit-retention.service" "$stage/usr/lib/systemd/system/homelab-control-audit-retention.service"
 install -Dm0644 "$root/packaging/common/homelab-control-audit-retention.timer" "$stage/usr/lib/systemd/system/homelab-control-audit-retention.timer"
 install -Dm0644 "$root/packaging/common/sysusers.conf" "$stage/usr/lib/sysusers.d/homelab-control.conf"
@@ -51,7 +52,7 @@ install -Dm0644 "$root/README.md"  "$stage/usr/share/doc/homelab-control/README.
 # Debian Policy 12.5: machine-readable copyright file (generated, LA-12).
 install -Dm0644 "$root/packaging/debian/copyright" "$stage/usr/share/doc/homelab-control/copyright"
 mkdir -p "$stage/DEBIAN"
-printf '%s\n' /etc/homelab-control/hc-api.env /etc/homelab-control/audit-retention.conf /etc/homelab-control/mergerfs-apply.enabled /etc/homelab-control/apt-apply.enabled /etc/apparmor.d/usr.lib.homelab-control.hc-storage-probe /etc/apparmor.d/usr.lib.homelab-control.hc-mergerfs-apply /etc/apparmor.d/usr.lib.homelab-control.hc-apt-apply > "$stage/DEBIAN/conffiles"
+printf '%s\n' /etc/homelab-control/hc-api.env /etc/homelab-control/audit-retention.conf /etc/homelab-control/mergerfs-apply.enabled /etc/homelab-control/apt-apply.enabled /etc/homelab-control/storage-probe.enabled /etc/apparmor.d/usr.lib.homelab-control.hc-storage-probe /etc/apparmor.d/usr.lib.homelab-control.hc-mergerfs-apply /etc/apparmor.d/usr.lib.homelab-control.hc-apt-apply > "$stage/DEBIAN/conffiles"
 cat > "$stage/DEBIAN/control" <<CTRL
 Package: homelab-control
 Provides: homelab-control-api
@@ -63,7 +64,8 @@ Maintainer: Homelab Control developers <noreply@example.invalid>
 Section: admin
 Priority: optional
 Depends: adduser | systemd
-Recommends: systemd
+Recommends: systemd, smartmontools
+Suggests: lvm2
 Homepage: https://github.com/KRDucky/Homelab-Control
 Description: Homelab Control API, web UI and privileged broker (development build, M1)
  Unprivileged API with authenticated sessions and a root broker that exposes
@@ -85,6 +87,9 @@ if [ "$1" = configure ]; then
   fi
   if [ -e /etc/homelab-control/apt-apply.enabled ]; then
     chgrp homelab-control /etc/homelab-control/apt-apply.enabled
+  fi
+  if [ -e /etc/homelab-control/storage-probe.enabled ]; then
+    chgrp homelab-control /etc/homelab-control/storage-probe.enabled
   fi
   chmod 0750 /etc/homelab-control
   install -d -m 0700 -o homelab-control -g homelab-control /var/log/homelab-control

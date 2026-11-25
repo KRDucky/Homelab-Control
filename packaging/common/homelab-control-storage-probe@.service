@@ -1,10 +1,10 @@
 [Unit]
-Description=Homelab Control read-only storage probe (M2-4 O-1, disabled by default)
+Description=Homelab Control read-only storage tools (lsblk, smartctl, pvs/lvs)
 Documentation=file:///usr/share/doc/homelab-control/docs/m2/M2-4-O1-DEVICE-POLICY.md
 Requires=homelab-control-storage-probe.socket
 After=homelab-control-storage-probe.socket
-# Opt-in marker: the helper never runs unless an administrator creates this file
-# in a disposable validation environment. No package ships it.
+# Opt-in marker shipped by the package (owner 2026-11-25); removing it turns the
+# helper off without uninstalling anything.
 ConditionPathExists=/etc/homelab-control/storage-probe.enabled
 # Instances are started only by socket activation, never by hand.
 RefuseManualStart=yes
@@ -24,8 +24,8 @@ StandardInput=socket
 StandardOutput=socket
 StandardError=journal
 
-# O-1 read-only raw block access (owner approval 2026-11-17: implementation and
-# disposable validation only; no host or production activation).
+# Read-only raw block access for the standard tools (owner 2026-11-25: activate
+# the read-only helper; originally O-1, 2026-11-17).
 # PrivateDevices=no is necessary: PrivateDevices=yes builds a private /dev that
 # cannot contain physical disks, and a static unit cannot bind-mount per-device
 # nodes. Read-only access is therefore granted only through the cgroup device
@@ -43,7 +43,7 @@ StandardError=journal
 # RootImage=, MountImages= or ExtensionImages= is set (systemd.exec(5)); the
 # guard test bans those keys so blkext can never become writable.
 # The cgroup policy is the ONLY write barrier: the block nodes are root:disk
-# 0660, so group membership alone would allow writes. ReadOnlyPaths=/dev is not
+# 0660, so the root owner alone would be allowed to write. ReadOnlyPaths=/dev is not
 # a barrier (a read-only mount does not stop writes to device nodes).
 # Residual privilege: raw reads of EVERY disk in these classes, including the
 # system disk, bypass filesystem permissions. See
@@ -54,12 +54,17 @@ DeviceAllow=block-sd r
 DeviceAllow=block-blkext r
 DeviceAllow=block-virtblk r
 DeviceAllow=block-md r
-# Throwaway account; the only group is disk (DAC read of the block nodes).
-DynamicUser=yes
-SupplementaryGroups=disk
-# No capabilities at all (no CAP_SYS_ADMIN, CAP_SYS_RAWIO, CAP_MKNOD, CAP_DAC_*).
-CapabilityBoundingSet=
-AmbientCapabilities=
+# Runs as root without capabilities other than CAP_SYS_RAWIO below. LVM's pvs/lvs
+# refuse to scan devices as any other user (VM finding 2026-11-25: "Device open
+# 8:0 has no path names" under DynamicUser). Root owns the block nodes (root:disk
+# 0660), so no CAP_DAC_* is needed; AppArmor and InaccessiblePaths= confine files,
+# and the cgroup device policy below keeps every device read-only.
+# One capability: CAP_SYS_RAWIO, which smartctl needs to send SMART pass-through
+# commands (SG_IO) to SATA/SAS disks on a read-only descriptor. No CAP_SYS_ADMIN
+# (NVMe SMART uses the kernel's unprivileged Get Log Page path where the kernel
+# allows it), no CAP_MKNOD, no CAP_DAC_*. @raw-io (iopl/ioperm) stays denied.
+CapabilityBoundingSet=CAP_SYS_RAWIO
+AmbientCapabilities=CAP_SYS_RAWIO
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes
@@ -83,7 +88,7 @@ RestrictAddressFamilies=AF_UNIX
 SystemCallArchitectures=native
 SystemCallFilter=@system-service
 SystemCallFilter=~@resources @mount @swap @reboot @raw-io @module @obsolete @debug @cpu-emulation @clock
-# A denied system call returns EPERM instead of killing blkid with SIGSYS.
+# A denied system call returns EPERM instead of killing a tool with SIGSYS.
 SystemCallErrorNumber=EPERM
 # Belt and braces: hc-api secrets and state, and the host-shared /dev IPC dirs.
 InaccessiblePaths=-/etc/homelab-control -/var/lib/homelab-control -/var/log/homelab-control -/var/log/homelab-control-broker -/dev/shm -/dev/mqueue
@@ -93,8 +98,8 @@ UMask=0077
 # instance fails to start (fail closed). No unconfined fallback.
 SELinuxContext=system_u:system_r:hc_storage_probe_t:s0
 AppArmorProfile=hc-storage-probe
-TimeoutStartSec=30
-MemoryMax=64M
+TimeoutStartSec=60
+MemoryMax=128M
 TasksMax=16
 LimitCORE=0
 

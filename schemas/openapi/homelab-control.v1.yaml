@@ -127,8 +127,36 @@ components:
         mount_root: { type: string }
         mount_view: { type: string, enum: [service, host] }
         md: { $ref: '#/components/schemas/StorageMDState' }
+        smart: { $ref: '#/components/schemas/StorageSMART' }
+        smart_health: { type: string, enum: [ok, warning, failing, standby, unavailable, unknown], description: "Summary of smart (whole disks, probe only)" }
         evidence: { type: array, items: { $ref: '#/components/schemas/StorageEvidence' } }
         notes: { type: array, items: { type: string } }
+    StorageSMART:
+      type: object
+      description: "Subset of smartctl --json (smartmontools) for one whole disk. Read with --nocheck=standby, so a sleeping disk reports standby and is not woken."
+      required: [exit_status]
+      properties:
+        protocol: { type: string, description: "ATA, NVMe or SCSI" }
+        model: { type: string }
+        serial: { type: string }
+        firmware: { type: string }
+        standby: { type: boolean }
+        available: { type: boolean }
+        enabled: { type: boolean }
+        passed: { type: boolean, description: The drive's own overall-health self-assessment }
+        temperature_c: { type: integer }
+        power_on_hours: { type: integer, minimum: 0 }
+        reallocated_sectors: { type: integer, minimum: 0 }
+        pending_sectors: { type: integer, minimum: 0 }
+        offline_uncorrectable: { type: integer, minimum: 0 }
+        udma_crc_errors: { type: integer, minimum: 0 }
+        nvme_critical_warning: { type: integer, minimum: 0 }
+        nvme_percentage_used: { type: integer, minimum: 0 }
+        nvme_media_errors: { type: integer, minimum: 0 }
+        nvme_available_spare: { type: integer, minimum: 0 }
+        exit_status: { type: integer, description: "smartctl exit bitmask (smartctl(8) RETURN VALUES)" }
+        unavailable: { type: string, enum: [nvme-needs-cap-sys-admin], description: "Health not readable by design: the kernel allows the NVMe SMART/Health log only with CAP_SYS_ADMIN, which the helper does not hold" }
+        messages: { type: array, maxItems: 8, items: { type: string } }
     PartitionPlanRequest:
       type: object
       additionalProperties: false
@@ -3655,14 +3683,14 @@ paths:
         '503': { description: Metadata or durable access audit unavailable, or collection busy, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /storage/probe:
     post:
-      summary: On-demand native storage probe (O-1); wakes disks, never attached to polling GET
-      description: Reads blkid signatures (fd-pinned) on enumerated, revalidated devices via the broker. LVM is gated off until its fd identity binding is proven. Count-only audit; single-flight; broker-side rate limit. An empty body is required (400 otherwise); devices are enumerated server-side, never caller-supplied. The session X-CSRF-Token header is required. storage.probe is never granted by default. Partial results are folded into graph.status/notes; a device_policy_unresolved helper refusal is a 503 storage_probe_unavailable.
+      summary: On-demand read-only storage tools (lsblk, smartctl, pvs/lvs); never attached to polling GET
+      description: Runs the read-only helper hc-storage-probe through the broker. The helper runs lsblk (filesystem signatures from the udev database), smartctl --nocheck=standby on SATA/SAS/NVMe whole disks (a disk in standby is not woken), and pvs/lvs --readonly (metadata-only LVM inventory). Count-only audit; single-flight; broker-side rate limit. An empty body is required (400 otherwise); devices are enumerated server-side, never caller-supplied. The session X-CSRF-Token header is required. storage.probe is never granted by default. Partial results are folded into graph.status/notes; a device_policy_unresolved helper refusal is a 503 storage_probe_unavailable.
       security: [{ session: [] }]
       parameters:
         - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
       x-required-scope: storage.probe
       responses:
-        '200': { description: Enriched inventory with native signature data (same shape as GET /storage), content: { application/json: { schema: { $ref: '#/components/schemas/StorageInventory' } } } }
+        '200': { description: Enriched inventory with signatures, SMART and LVM (same shape as GET /storage), content: { application/json: { schema: { $ref: '#/components/schemas/StorageInventory' } } } }
         '400': { description: Non-empty or malformed body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: Missing storage.probe permission or missing/invalid CSRF token, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }

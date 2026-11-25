@@ -553,6 +553,47 @@ describe('storage probe action', () => {
     expect(init?.body).toBeUndefined();
   });
 
+  it('shows SMART health from the probe on the disk row and in its details', async () => {
+    const probed: StorageInventory = {
+      ...observation,
+      graph: {
+        ...observation.graph,
+        nodes: observation.graph.nodes.map((node) =>
+          node.id === 'disk-A'
+            ? {
+                ...node,
+                smart_health: 'warning' as const,
+                smart: {
+                  protocol: 'ATA',
+                  passed: true,
+                  pending_sectors: 2,
+                  temperature_c: 34,
+                  exit_status: 0,
+                },
+              }
+            : node,
+        ),
+      },
+    };
+    const fetchMock = probeAwareFetch({
+      probe: new Response(JSON.stringify(probed), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<Storage csrf="example-csrf" scopes={['storage.probe']} onUnauthorized={() => undefined} />);
+    await screen.findByRole('button', { name: 'Probe storage' });
+    expect(screen.getAllByText('Not read').length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Probe storage' }));
+    await screen.findByText(/Probe complete/);
+    expect(screen.getByText('Warning')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Inspect SERIAL-A' }));
+    const values = await screen.findByRole('list', { name: 'SMART values' });
+    expect(values.textContent).toContain('Pending sectors: 2');
+    expect(values.textContent).toContain('Temperature: 34 °C');
+  });
+
   it('surfaces a probe error without crashing', async () => {
     const fetchMock = probeAwareFetch({
       probe: new Response(

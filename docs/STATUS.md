@@ -1,3 +1,10 @@
+# M5 storage tools checkpoint (2026-11-25; not M5 acceptance)
+
+The read-only storage helper is active and runs the standard tools: `lsblk`, `smartctl` (SATA/SAS SMART;
+NVMe SMART needs CAP_SYS_ADMIN, not granted) and `pvs`/`lvs --readonly`. The native LVM reader
+(`internal/lvmmeta`) and blkid fd-pinning are removed. VM-validated on Ubuntu 26.04, Debian 13 and Ubuntu
+22.04 (27/27 each): `docs/evidence/m5/STORAGE-TOOLS.md`.
+
 # Independent project; Webmin removed (2026-11-25)
 
 Owner: Homelab Control is not a fork of Webmin (ADR 0016). `compat/webmin`, the upstream sync, verify and

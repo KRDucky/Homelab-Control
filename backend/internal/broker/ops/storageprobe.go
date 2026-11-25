@@ -10,12 +10,11 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"sync"
 	"time"
 
 	"homelab-control/backend/internal/broker/proto"
-	"homelab-control/backend/internal/lvmmeta"
+	"homelab-control/backend/internal/storagetools"
 )
 
 // storageProbeSocket is the fixed root-only socket-activated helper path. The
@@ -45,43 +44,29 @@ func probeRateLimit(now time.Time) error {
 // validateProbeResult rejects an unsupported helper protocol version or an
 // unknown result code so the API never treats them as success.
 func validateProbeResult(res storageProbeResult) error {
-	if res.Version != 1 {
+	if res.Version != storagetools.ProtocolVersion {
 		return fmt.Errorf("probe result version %d unsupported", res.Version)
 	}
 	switch res.Code {
-	case "", "device_policy_unresolved":
+	case "", storagetools.CodeDevicePolicyUnresolved:
 		return nil
 	default:
 		return fmt.Errorf("probe result code %q unsupported", res.Code)
 	}
 }
 
-// storageProbeMaxResponse bounds the helper's typed Result read. It matches
-// the helper's own 3 MiB frame cap (64 × 16 KiB blkid worst-case-escaped +
-// errors/framing), and stays under proto.MaxResponse (4 MiB) so the broker can
-// re-frame the op result.
+// storageProbeMaxResponse bounds the helper's typed Result read: lsblk, SMART
+// for up to 64 disks and two LVM reports, under proto.MaxResponse (4 MiB).
 const storageProbeMaxResponse = 3 << 20
 
-// storageProbeRequest is the closed helper request (protocol version 1).
-type storageProbeRequest struct {
-	Version int      `json:"version"`
-	Devices []string `json:"devices"`
-}
+type (
+	storageProbeRequest = storagetools.Request
+	storageProbeResult  = storagetools.Result
+)
 
-// storageProbeResult mirrors the helper's closed typed Result. It is returned
-// to the API verbatim; callers classify it by Code, not free text.
-type storageProbeResult struct {
-	Version int                `json:"version"`
-	Code    string             `json:"code,omitempty"`
-	LVM     *lvmmeta.Inventory `json:"lvm,omitempty"`
-	Blkid   map[string]string  `json:"blkid,omitempty"`
-	Errors  []string           `json:"errors,omitempty"`
-	Partial bool               `json:"partial"`
-}
-
-// storageProbe enumerates /sys/class/block and asks the socket-activated
-// helper to probe them. The broker itself never opens a device or runs
-// blkid; it only relays a closed request and reads a capped response.
+// storageProbe asks the socket-activated helper for its read-only tool
+// output (lsblk, smartctl, pvs, lvs). The broker never opens a device or runs
+// a storage tool itself; it relays a closed request and reads a capped result.
 func storageProbe(ctx context.Context, _ *Env, raw json.RawMessage) (any, error) {
 	if err := requireNoArgs(raw); err != nil {
 		return nil, err
@@ -89,30 +74,11 @@ func storageProbe(ctx context.Context, _ *Env, raw json.RawMessage) (any, error)
 	if err := probeRateLimit(time.Now()); err != nil {
 		return nil, err
 	}
-	names, err := enumerateBlockDevices()
-	if err != nil {
-		return nil, &proto.Error{Code: proto.CodeUnavailable, Message: err.Error()}
-	}
-	res, err := callProbeHelper(ctx, storageProbeRequest{Version: 1, Devices: names})
+	res, err := callProbeHelper(ctx, storageProbeRequest{Version: storagetools.ProtocolVersion})
 	if err != nil {
 		return nil, &proto.Error{Code: proto.CodeUnavailable, Message: err.Error()}
 	}
 	return res, nil
-}
-
-// enumerateBlockDevices lists kernel block-device names under /sys/class/block.
-// The helper revalidates each name before any open, so a stale entry is never
-// probed.
-func enumerateBlockDevices() ([]string, error) {
-	ents, err := os.ReadDir("/sys/class/block")
-	if err != nil {
-		return nil, fmt.Errorf("enumerating block devices: %w", err)
-	}
-	names := make([]string, 0, len(ents))
-	for _, e := range ents {
-		names = append(names, e.Name())
-	}
-	return names, nil
 }
 
 // callProbeHelper writes the closed request to the helper socket, half-closes

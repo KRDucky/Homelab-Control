@@ -11,6 +11,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"homelab-control/backend/internal/storagetools"
 	"sort"
 	"strings"
 )
@@ -41,12 +42,15 @@ type Node struct {
 	Mountpoint string  `json:"mountpoint,omitempty"`
 	// SignatureUUID is the UUID an observed signature reports (for
 	// LVM2_member, the PV UUID). Set only on signature nodes.
-	SignatureUUID string     `json:"signature_uuid,omitempty"`
-	MountRoot     string     `json:"mount_root,omitempty"`
-	MountView     string     `json:"mount_view,omitempty"`
-	MD            *MDState   `json:"md,omitempty"`
-	Evidence      []Evidence `json:"evidence"`
-	Notes         []string   `json:"notes,omitempty"`
+	SignatureUUID string   `json:"signature_uuid,omitempty"`
+	MountRoot     string   `json:"mount_root,omitempty"`
+	MountView     string   `json:"mount_view,omitempty"`
+	MD            *MDState `json:"md,omitempty"`
+	// SMART is the smartctl reading of a whole disk (probe only).
+	SMART       *storagetools.SMART `json:"smart,omitempty"`
+	SMARTHealth string              `json:"smart_health,omitempty"`
+	Evidence    []Evidence          `json:"evidence"`
+	Notes       []string            `json:"notes,omitempty"`
 }
 
 type Edge struct {
@@ -293,19 +297,19 @@ func Build(blocks []Block, mounts []Mount) Graph {
 	return g
 }
 
-// BlkidSignature is one observed on-disk filesystem signature from the probe
-// helper. Both fields come from the helper's allow-listed blkid output.
-type BlkidSignature struct {
+// Signature is one observed filesystem/volume signature reported by a tool
+// (lsblk FSTYPE/UUID, from the udev database or libblkid).
+type Signature struct {
 	FSType string
 	UUID   string
 }
 
-// MergeBlkidSignatures folds observed blkid signatures onto a graph by
-// creating signature nodes, claims and has-signature edges, consistent with
-// Build. sigs maps a block node's Name to its observed signature. A node with
-// an empty FSType or UUID is left unchanged. Signature nodes are claims, not
-// proof of exclusive ownership.
-func MergeBlkidSignatures(g *Graph, sigs map[string]BlkidSignature) {
+// MergeSignatures folds observed signatures onto a graph by creating signature
+// nodes, claims and has-signature edges, consistent with Build. sigs maps a
+// block node's Name (kernel name) to its signature; source names the tool. A
+// node with an empty FSType or UUID is left unchanged. Signature nodes are
+// claims, not proof of exclusive ownership.
+func MergeSignatures(g *Graph, sigs map[string]Signature, source string) {
 	if len(sigs) == 0 {
 		return
 	}
@@ -319,7 +323,7 @@ func MergeBlkidSignatures(g *Graph, sigs map[string]BlkidSignature) {
 			continue
 		}
 		n.FSType = sig.FSType
-		g.Claims = append(g.Claims, Claim{Node: n.ID, Technology: sig.FSType, Evidence: Evidence{Source: "blkid", Confidence: "observed"}})
+		g.Claims = append(g.Claims, Claim{Node: n.ID, Technology: sig.FSType, Evidence: Evidence{Source: source, Confidence: "observed"}})
 		signatureID := key("signature", n.DeviceNumber+"\x00"+sig.FSType+"\x00"+sig.UUID)
 		g.Nodes = append(g.Nodes, Node{
 			ID:             signatureID,
@@ -328,13 +332,29 @@ func MergeBlkidSignatures(g *Graph, sigs map[string]BlkidSignature) {
 			FSType:         sig.FSType,
 			SignatureUUID:  sig.UUID,
 			IdentityStatus: "snapshot-local",
-			Evidence:       []Evidence{{Source: "blkid", Confidence: "observed"}},
+			Evidence:       []Evidence{{Source: source, Confidence: "observed"}},
 			Notes:          []string{"Observed signature is not proof of exclusive ownership or current use."},
 		})
-		g.Edges = append(g.Edges, Edge{From: n.ID, To: signatureID, Kind: "has-signature", Evidence: Evidence{Source: "blkid", Confidence: "observed"}})
+		g.Edges = append(g.Edges, Edge{From: n.ID, To: signatureID, Kind: "has-signature", Evidence: Evidence{Source: source, Confidence: "observed"}})
 	}
 	sort.Slice(g.Nodes, func(i, j int) bool { return g.Nodes[i].ID < g.Nodes[j].ID })
 	sort.Slice(g.Edges, func(i, j int) bool { a, b := g.Edges[i], g.Edges[j]; return a.From+a.To+a.Kind < b.From+b.To+b.Kind })
+}
+
+// AttachSMART sets the smartctl reading on whole-disk ("block") nodes, keyed by kernel
+// name. Health is derived by storagetools.SMART.Health.
+func AttachSMART(g *Graph, readings map[string]storagetools.SMART) {
+	for i := range g.Nodes {
+		n := &g.Nodes[i]
+		if n.Kind != "block" {
+			continue
+		}
+		if s, ok := readings[n.Name]; ok {
+			s := s
+			n.SMART = &s
+			n.SMARTHealth = s.Health()
+		}
+	}
 }
 
 func validDeviceNumber(s string) bool {

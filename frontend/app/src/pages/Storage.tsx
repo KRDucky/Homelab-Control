@@ -17,6 +17,8 @@ import {
   savedDriveLabel,
   type DriveLabelPreference,
   type StorageInventory,
+  type StorageNode,
+  type StorageSMART,
 } from '../storageModel';
 
 export function Storage({
@@ -180,8 +182,8 @@ export function Storage({
       </p>
       {canProbe && (
         <p className="muted">
-          Probe re-enumerates and revalidates block devices; it can wake standby disks and reads raw metadata.
-          It runs only when you click it, never automatically.
+          Probe runs the read-only tools lsblk, smartctl and pvs/lvs. A disk in standby is not woken; its
+          SMART health shows as standby. It runs only when you click it, never automatically.
         </p>
       )}
       <Section title="Storage resources" id="storage-resources" live={live} meta={meta}>
@@ -262,6 +264,11 @@ export function Storage({
               render: (node) => (claims.get(node.id) ?? []).join(', ') || 'Not established',
             },
             { id: 'identity-status', label: 'Identity status', render: (node) => node.identity_status },
+            {
+              id: 'smart',
+              label: 'SMART health',
+              render: (node) => (node.smart_health ? smartHealthText[node.smart_health] : 'Not read'),
+            },
           ]}
         />
       </Section>
@@ -565,6 +572,14 @@ export function Storage({
                 </dd>
               </div>
             )}
+            {current.smart && (
+              <div>
+                <dt>SMART (smartctl)</dt>
+                <dd>
+                  <SmartFacts smart={current.smart} health={current.smart_health} />
+                </dd>
+              </div>
+            )}
             <div>
               <dt>Bay (manual, unverified)</dt>
               <dd>
@@ -627,5 +642,64 @@ export function Storage({
         </Section>
       )}
     </div>
+  );
+}
+
+const smartHealthText: Record<NonNullable<StorageNode['smart_health']>, string> = {
+  ok: 'Passed',
+  warning: 'Warning',
+  failing: 'Failing',
+  standby: 'Standby (not woken)',
+  unavailable: 'Not readable',
+  unknown: 'Unknown',
+};
+
+/** SMART facts for one disk. Values are shown only when smartctl reported them. */
+function SmartFacts({ smart, health }: { smart: StorageSMART; health?: StorageNode['smart_health'] }) {
+  const facts: [string, string | number | undefined][] = [
+    ['Health', health ? smartHealthText[health] : undefined],
+    ['Protocol', smart.protocol],
+    ['Model', smart.model],
+    ['Firmware', smart.firmware],
+    ['Temperature', smart.temperature_c === undefined ? undefined : `${smart.temperature_c} °C`],
+    ['Power-on hours', smart.power_on_hours],
+    ['Reallocated sectors', smart.reallocated_sectors],
+    ['Pending sectors', smart.pending_sectors],
+    ['Offline uncorrectable', smart.offline_uncorrectable],
+    ['Interface CRC errors', smart.udma_crc_errors],
+    ['NVMe critical warning', smart.nvme_critical_warning],
+    [
+      'NVMe percentage used',
+      smart.nvme_percentage_used === undefined ? undefined : `${smart.nvme_percentage_used} %`,
+    ],
+    ['NVMe media errors', smart.nvme_media_errors],
+    [
+      'NVMe available spare',
+      smart.nvme_available_spare === undefined ? undefined : `${smart.nvme_available_spare} %`,
+    ],
+  ];
+  return (
+    <>
+      <ul aria-label="SMART values">
+        {facts
+          .filter(([, value]) => value !== undefined)
+          .map(([label, value]) => (
+            <li key={label}>
+              {label}: {value}
+            </li>
+          ))}
+      </ul>
+      {smart.unavailable === 'nvme-needs-cap-sys-admin' && (
+        <p className="muted">
+          NVMe health is not shown: the kernel releases the NVMe SMART log only to a process with
+          CAP_SYS_ADMIN, which the read-only storage helper does not hold.
+        </p>
+      )}
+      {(smart.messages ?? []).map((message) => (
+        <p key={message} className="muted">
+          smartctl: {message}
+        </p>
+      ))}
+    </>
   );
 }

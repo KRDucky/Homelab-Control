@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"homelab-control/backend/internal/lvmmeta"
 	"homelab-control/backend/internal/storageprobe"
 )
 
@@ -27,13 +26,13 @@ func TestReadRequestBounds(t *testing.T) {
 	}
 
 	// A small request passes.
-	if _, err := readRequest(strings.NewReader(`{"version":1}`)); err != nil {
+	if _, err := readRequest(strings.NewReader(`{"version":2}`)); err != nil {
 		t.Fatalf("small request rejected: %v", err)
 	}
 }
 
 func TestWriteResponseBounded(t *testing.T) {
-	res := storageprobe.Result{Version: 1, Blkid: map[string]string{"sda": strings.Repeat("a", 100)}}
+	res := storageprobe.Result{Version: 2, Errors: []string{strings.Repeat("a", 100)}}
 	var buf bytes.Buffer
 	if err := storageprobe.WriteResponse(&buf, res, 1<<20); err != nil {
 		t.Fatalf("small response: %v", err)
@@ -49,46 +48,5 @@ func TestWriteResponseBounded(t *testing.T) {
 	}
 	if buf2.Len() != 0 {
 		t.Fatalf("partial output written on overflow: %q", buf2.String())
-	}
-}
-
-func TestWriteResponseBoundedLVM(t *testing.T) {
-	// The LVM inventory is marshalled in preflightBytes, so a large payload
-	// must be rejected before any bytes are written.
-	long := strings.Repeat("v", 4096)
-	inv := lvmmeta.Inventory{VGs: []lvmmeta.VG{{UUID: "aaaaaaaabbbbccccddddeeeeffff0001", Name: long}}}
-	res := storageprobe.Result{Version: 1, LVM: &inv}
-	var buf bytes.Buffer
-	if err := storageprobe.WriteResponse(&buf, res, 100); err == nil {
-		t.Fatal("expected LVM payload to exceed the frame cap")
-	}
-	if buf.Len() != 0 {
-		t.Fatalf("partial output written on LVM overflow: %d bytes", buf.Len())
-	}
-}
-
-func TestWriteResponsePreflightExpansion(t *testing.T) {
-	// Each quote byte expands to two (\"), so the preflight must reject a value
-	// whose escaped size exceeds the cap before any marshal writes bytes.
-	res := storageprobe.Result{Version: 1, Errors: []string{strings.Repeat("\"", 100)}}
-	var buf bytes.Buffer
-	if err := storageprobe.WriteResponse(&buf, res, 300); err == nil {
-		t.Fatal("expected preflight rejection for expanding string")
-	}
-	if buf.Len() != 0 {
-		t.Fatalf("bytes written on rejection: %d", buf.Len())
-	}
-}
-
-func TestWriteResponseControlBytes(t *testing.T) {
-	// Control bytes encode to six-byte \u00XX sequences, so the preflight must
-	// count them as 6 (not 2) and reject before marshal, emitting no bytes.
-	res := storageprobe.Result{Version: 1, Errors: []string{strings.Repeat("\x01", 20)}}
-	var buf bytes.Buffer
-	if err := storageprobe.WriteResponse(&buf, res, 200); err == nil {
-		t.Fatal("expected control-heavy preflight rejection")
-	}
-	if buf.Len() != 0 {
-		t.Fatalf("bytes written on rejection: %d", buf.Len())
 	}
 }

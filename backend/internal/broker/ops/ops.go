@@ -301,7 +301,7 @@ func Registry() map[string]Op {
 		// it never opens a device or runs blkid itself. The helper's native LVM
 		// reader is the default LVM path (no lvs/pvs execution).
 		{Name: "storage.probe", Scope: "storage.probe", Privilege: PrivRootRead, Timeout: 35 * time.Second, Admission: AdmissionProbe,
-			Description: "On-demand native storage probe (blkid signatures on enumerated devices); wakes disks", Handle: storageProbe},
+			Description: "On-demand read-only storage tools through hc-storage-probe: lsblk, smartctl (never wakes a disk in standby), pvs/lvs --readonly", Handle: storageProbe},
 		// M11 (ADR 0008 Amendment 9, Proposed): read-only networking. In-process
 		// root reads of fixed /proc and config paths; the firewall op also runs
 		// one fixed unprivileged systemctl show. No live ruleset, no writes.

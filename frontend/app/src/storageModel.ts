@@ -43,8 +43,36 @@ export interface StorageNode {
   mount_root?: string;
   mount_view?: 'service' | 'host';
   md?: MDState;
+  /** smartctl reading of a whole disk (probe only). */
+  smart?: StorageSMART;
+  smart_health?: 'ok' | 'warning' | 'failing' | 'standby' | 'unavailable' | 'unknown';
   evidence: StorageEvidence[];
   notes?: string[];
+}
+/** Subset of `smartctl --json` (smartmontools), read with --nocheck=standby. */
+export interface StorageSMART {
+  protocol?: string;
+  model?: string;
+  serial?: string;
+  firmware?: string;
+  standby?: boolean;
+  available?: boolean;
+  enabled?: boolean;
+  passed?: boolean;
+  temperature_c?: number;
+  power_on_hours?: number;
+  reallocated_sectors?: number;
+  pending_sectors?: number;
+  offline_uncorrectable?: number;
+  udma_crc_errors?: number;
+  nvme_critical_warning?: number;
+  nvme_percentage_used?: number;
+  nvme_media_errors?: number;
+  nvme_available_spare?: number;
+  exit_status: number;
+  /** Health not readable by design. */
+  unavailable?: 'nvme-needs-cap-sys-admin';
+  messages?: string[];
 }
 export interface StorageEdge {
   from: string;
