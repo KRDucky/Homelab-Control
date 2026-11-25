@@ -52,7 +52,7 @@ func (s *Server) handleLVM(w http.ResponseWriter, r *http.Request, sess *auth.Se
 	}
 	resp := lvmResponse{Snapshot: snap, Status: lvmView(toolReport[storagetools.LVMReport](r.Context(), s, sess, "lvm.status",
 		snap.Tooling.RequiredInstalled("lvm"), "lvm2 is not installed, so there are no LVM reports.", "LVM status"))}
-	detail := "vgs=0 lvs=0 pvs=0"
+	detail := "status=unavailable"
 	if rep := resp.Status.Report; rep != nil {
 		detail = "vgs=" + strconv.Itoa(len(rep.VolumeGroups)) + " lvs=" + strconv.Itoa(len(rep.Volumes)) + " pvs=" + strconv.Itoa(len(rep.PhysicalVolumes))
 	}
