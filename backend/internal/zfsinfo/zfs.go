@@ -11,12 +11,10 @@
 package zfsinfo
 
 import (
-	"bufio"
 	"context"
-	"fmt"
+	"homelab-control/backend/internal/mountinfo"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 )
 
@@ -45,125 +43,10 @@ type Snapshot struct {
 // file cannot grow memory unbounded. zfsMaxMounts caps returned rows; overflow
 // sets mountsTruncated instead of failing the inventory.
 const (
-	mountinfoMaxBytes   = 4 * 1024 * 1024
-	mountinfoMaxMounts  = 8192
-	mountinfoMaxLine    = 64 << 10
 	zfsMaxMounts        = 256
 	datasetMaxBytes     = 256
 	reasonTooManyMounts = "too many mounts to list"
 )
-
-// ParseMountInfo parses bounded kernel mountinfo and retains fstype zfs
-// mounts only. Dataset names are the mount source (not opened). Every other
-// filesystem is dropped. Byte and record limits count every mountinfo line;
-// zfs rows above zfsMaxMounts set truncated and keep the first N. A line that
-// is not zfs is skipped even when the rest of the record is malformed. A line
-// over mountinfoMaxLine is skipped and marks the inventory truncated. An
-// unclassifiable line, or a zfs line with a bad mountpoint or source, still
-// fails the parse.
-func ParseMountInfo(r io.Reader) ([]Mount, bool, error) {
-	br := bufio.NewReader(io.LimitReader(r, mountinfoMaxBytes+1))
-	mounts := []Mount{}
-	size := 0
-	records := 0
-	truncated := false
-	for {
-		line, n, tooLong, err := nextMountLine(br)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, false, fmt.Errorf("cannot read bounded mount inventory: %w", err)
-		}
-		size += n
-		if size > mountinfoMaxBytes {
-			truncated = true
-			break
-		}
-		if records >= mountinfoMaxMounts {
-			truncated = true
-			break
-		}
-		records++
-		if tooLong {
-			truncated = true
-			continue
-		}
-		fields := strings.Fields(line)
-		sep := -1
-		for i, f := range fields {
-			if f == "-" {
-				sep = i
-				break
-			}
-		}
-		fstype := ""
-		if sep >= 0 && len(fields) > sep+1 {
-			fstype = fields[sep+1]
-		}
-		if fstype != "zfs" {
-			if fstype == "" {
-				return nil, false, fmt.Errorf("invalid mountinfo record")
-			}
-			continue
-		}
-		if sep < 6 || len(fields) < sep+3 {
-			return nil, false, fmt.Errorf("invalid mountinfo record")
-		}
-		if _, e := strconv.ParseUint(fields[0], 10, 64); e != nil {
-			return nil, false, fmt.Errorf("invalid mount identifier")
-		}
-		point, err := unescape(fields[4])
-		if err != nil || !strings.HasPrefix(point, "/") {
-			return nil, false, fmt.Errorf("invalid zfs mountpoint")
-		}
-		source, err := unescape(fields[sep+2])
-		if err != nil {
-			return nil, false, fmt.Errorf("invalid zfs source")
-		}
-		if !validDataset(source) {
-			continue
-		}
-		if len(mounts) >= zfsMaxMounts {
-			truncated = true
-			continue
-		}
-		mounts = append(mounts, Mount{Mountpoint: point, Dataset: source})
-	}
-	return mounts, truncated, nil
-}
-
-// nextMountLine reads one mountinfo line. n includes the newline when present.
-// tooLong is set when the line exceeds mountinfoMaxLine; the returned line is
-// then empty and the rest of that line is discarded.
-func nextMountLine(r *bufio.Reader) (line string, n int, tooLong bool, err error) {
-	var b strings.Builder
-	for {
-		frag, readErr := r.ReadSlice('\n')
-		n += len(frag)
-		if !tooLong && len(frag) > 0 {
-			if b.Len()+len(frag) > mountinfoMaxLine {
-				tooLong = true
-				b.Reset()
-			} else {
-				b.Write(frag)
-			}
-		}
-		if readErr == bufio.ErrBufferFull {
-			continue
-		}
-		if readErr == io.EOF {
-			if n == 0 {
-				return "", 0, false, io.EOF
-			}
-			return strings.TrimRight(b.String(), "\n"), n, tooLong, nil
-		}
-		if readErr != nil {
-			return "", n, tooLong, readErr
-		}
-		return strings.TrimRight(b.String(), "\n"), n, tooLong, nil
-	}
-}
 
 func validDataset(name string) bool {
 	if name == "" || len(name) > datasetMaxBytes || strings.HasPrefix(name, "/") {
@@ -225,29 +108,26 @@ func Collect(ctx context.Context, osRoot, family string) (Snapshot, error) {
 	return snap, nil
 }
 
-func unescape(s string) (string, error) {
-	var b strings.Builder
-	for i := 0; i < len(s); i++ {
-		if s[i] != '\\' {
-			b.WriteByte(s[i])
+// ParseMountInfo returns the zfs mounts (dataset → mountpoint) in bounded
+// kernel mountinfo (shared parser: internal/mountinfo). Records whose source is
+// not a valid dataset name are omitted. Skipped lines and more than
+// zfsMaxMounts rows mark the list truncated.
+func ParseMountInfo(r io.Reader) ([]Mount, bool, error) {
+	recs, info, err := mountinfo.Parse(r)
+	if err != nil {
+		return nil, false, err
+	}
+	mounts := []Mount{}
+	truncated := info.Truncated
+	for _, rec := range recs {
+		if rec.FSType != "zfs" || !validDataset(rec.Source) {
 			continue
 		}
-		if i+3 >= len(s) {
-			return "", fmt.Errorf("invalid mount escape")
+		if len(mounts) >= zfsMaxMounts {
+			truncated = true
+			continue
 		}
-		switch esc := s[i+1 : i+4]; esc {
-		case "040":
-			b.WriteByte(' ')
-		case "011":
-			b.WriteByte('\t')
-		case "012":
-			b.WriteByte('\n')
-		case "134":
-			b.WriteByte('\\')
-		default:
-			return "", fmt.Errorf("invalid mount escape")
-		}
-		i += 3
+		mounts = append(mounts, Mount{Mountpoint: rec.Mountpoint, Dataset: rec.Source})
 	}
-	return b.String(), nil
+	return mounts, truncated, nil
 }

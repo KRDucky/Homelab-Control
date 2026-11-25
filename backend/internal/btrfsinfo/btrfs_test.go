@@ -62,14 +62,6 @@ func TestParseMountInfoFlagsInvalidSubvolumeAsTruncated(t *testing.T) {
 	}
 }
 
-func TestParseMountInfoMissingOptionsDoesNotPanic(t *testing.T) {
-	in := "40 1 0:36 / /mnt/data rw - btrfs /dev/sda1\n"
-	_, _, err := ParseMountInfo(strings.NewReader(in))
-	if err == nil {
-		t.Fatal("expected error")
-	}
-}
-
 func TestParseMountInfoKeepsDottedNames(t *testing.T) {
 	in := "44 1 0:36 / /mnt/foo..bar rw - btrfs /dev/disk..1 rw,subvol=/snap..1,subvolid=7\n" + btrfsLine(45)
 	mounts, _, err := ParseMountInfo(strings.NewReader(in))
@@ -78,12 +70,6 @@ func TestParseMountInfoKeepsDottedNames(t *testing.T) {
 	}
 	if mounts[0].Mountpoint != "/mnt/foo..bar" || mounts[0].Device != "/dev/disk..1" || mounts[0].Subvol != "/snap..1" || mounts[0].SubvolID != "7" {
 		t.Fatalf("%+v", mounts[0])
-	}
-}
-
-func TestParseMountInfoRejectsTypelessLine(t *testing.T) {
-	if _, _, err := ParseMountInfo(strings.NewReader("not-a-mountinfo-line\n")); err == nil {
-		t.Fatal("expected error")
 	}
 }
 
@@ -173,5 +159,15 @@ func TestCollectReturnsCancellation(t *testing.T) {
 	cancel()
 	if _, err := Collect(ctx, t.TempDir(), "debian"); err == nil {
 		t.Fatal("expected cancellation")
+	}
+}
+
+// Malformed lines are skipped and mark the list incomplete (shared
+// internal/mountinfo rule); valid btrfs mounts are still listed.
+func TestParseMountInfoSkipsMalformedLines(t *testing.T) {
+	in := "40 1 0:36 / /mnt/data rw - btrfs /dev/sda1\n" + "not-a-mountinfo-line\n" + btrfsLine(45)
+	mounts, truncated, err := ParseMountInfo(strings.NewReader(in))
+	if err != nil || !truncated || len(mounts) != 1 {
+		t.Fatalf("mounts=%v truncated=%v err=%v", mounts, truncated, err)
 	}
 }

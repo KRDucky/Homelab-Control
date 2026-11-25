@@ -51,38 +51,6 @@ func TestParseMountInfoSkipsUnsafeDevice(t *testing.T) {
 	}
 }
 
-func TestParseMountInfoMissingOptionsDoesNotPanic(t *testing.T) {
-	in := "40 1 0:36 / /mnt/data rw - ext4 /dev/sda1\n"
-	_, _, err := ParseMountInfo(strings.NewReader(in))
-	if err == nil {
-		t.Fatal("expected error")
-	}
-}
-
-func TestParseMountInfoKeepsDottedNamesAndRejectsDotDot(t *testing.T) {
-	in := "44 1 0:36 / /mnt/foo..bar rw - ext4 /dev/disk..1 rw\n" +
-		"45 1 0:36 / /../bad rw - ext4 /dev/sdb1 rw\n" +
-		ext4Line(46)
-	_, _, err := ParseMountInfo(strings.NewReader(in))
-	if err == nil {
-		t.Fatal("expected error for a dotdot mountpoint")
-	}
-	in = "44 1 0:36 / /mnt/foo..bar rw - ext4 /dev/disk..1 rw\n" + ext4Line(45)
-	mounts, _, err := ParseMountInfo(strings.NewReader(in))
-	if err != nil || len(mounts) != 2 {
-		t.Fatalf("mounts=%v err=%v", mounts, err)
-	}
-	if mounts[0].Mountpoint != "/mnt/foo..bar" || mounts[0].Device != "/dev/disk..1" {
-		t.Fatalf("%+v", mounts[0])
-	}
-}
-
-func TestParseMountInfoRejectsTypelessLine(t *testing.T) {
-	if _, _, err := ParseMountInfo(strings.NewReader("not-a-mountinfo-line\n")); err == nil {
-		t.Fatal("expected error")
-	}
-}
-
 func TestParseKernelExt4(t *testing.T) {
 	if !parseKernelExt4("nodev\text4\n\text4\n") {
 		t.Fatal("missing ext4")
@@ -152,5 +120,27 @@ func TestCollectFixture(t *testing.T) {
 	}
 	if snap.Ext4.Mounts[0].Mountpoint != "/mnt/data" {
 		t.Fatalf("%+v", snap.Ext4.Mounts[0])
+	}
+}
+
+// Malformed lines and unsafe ext4 records are skipped and mark the list
+// incomplete (shared internal/mountinfo rule); valid mounts are still listed.
+func TestParseMountInfoSkipsMalformedAndUnsafeRecords(t *testing.T) {
+	in := "40 1 0:36 / /mnt/data rw - ext4 /dev/sda1\n" + // no super-options
+		"41 1 0:36 / /mnt/bad rw ext4 /dev/sdb1 rw\n" + // no separator
+		"not-a-mountinfo-line\n" +
+		"45 1 0:36 / /../bad rw - ext4 /dev/sdb1 rw\n" + // ".." mountpoint
+		"44 1 0:36 / /mnt/foo..bar rw - ext4 /dev/disk..1 rw\n" + // dots inside a name are fine
+		ext4Line(46)
+	mounts, truncated, err := ParseMountInfo(strings.NewReader(in))
+	if err != nil || !truncated || len(mounts) != 2 {
+		t.Fatalf("mounts=%v truncated=%v err=%v", mounts, truncated, err)
+	}
+	if mounts[0].Mountpoint != "/mnt/foo..bar" || mounts[0].Device != "/dev/disk..1" {
+		t.Fatalf("%+v", mounts[0])
+	}
+	// A clean inventory is not marked truncated.
+	if mounts, truncated, err := ParseMountInfo(strings.NewReader(ext4Line(46))); err != nil || truncated || len(mounts) != 1 {
+		t.Fatalf("clean: mounts=%v truncated=%v err=%v", mounts, truncated, err)
 	}
 }

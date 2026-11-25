@@ -6,6 +6,7 @@ package mergerfsinfo
 
 import (
 	"context"
+	"homelab-control/backend/internal/mountinfo"
 	"io"
 	"os"
 	"sort"
@@ -121,15 +122,15 @@ func parseFstabLine(line string) (ConfiguredMount, bool) {
 	if len(fields) < 3 {
 		return ConfiguredMount{}, false
 	}
-	typ, err := unescape(fields[2])
+	typ, err := mountinfo.Unescape(fields[2])
 	if err != nil || !isMergerFSType(typ) {
 		return ConfiguredMount{}, false
 	}
-	spec, err := unescape(fields[0])
+	spec, err := mountinfo.Unescape(fields[0])
 	if err != nil {
 		return ConfiguredMount{}, false
 	}
-	file, err := unescape(fields[1])
+	file, err := mountinfo.Unescape(fields[1])
 	if err != nil {
 		return ConfiguredMount{}, false
 	}
