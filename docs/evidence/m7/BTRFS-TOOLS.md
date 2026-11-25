@@ -17,6 +17,10 @@ storage helper. This is a checkpoint, **not M7 acceptance**. ADR 0008 Amendment 
   reported filesystem's device is listed under it instead.
 - Removed the page's unused optional smartctl offer (SMART is on the Storage page).
 
+**Deadlines.** `btrfs.status` follows the storage-helper deadline chain fixed on the ZFS branch: helper budget
+`storagetools.BtrfsBudget` (45 s), broker op budget + 5 s, client budget + 15 s, and no shorter deadline in
+hc-api (previously broker 45 s, equal to the budget, and hc-api 55 s, below the client).
+
 ## Verification
 - Parsers tested on real btrfs-progs 6.17.1 output (single/DUP, RAID1 on two devices, scrub finished and never
   run, subvolumes) plus error counters and the 1024-subvolume limit. Helper test: the scope runs exactly the
