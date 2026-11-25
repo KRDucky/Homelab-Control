@@ -27,6 +27,12 @@ broker op allows budget + 5 s, the client budget + 15 s, and hc-api adds no shor
 `TestUnitOutlastsHelperBudgets` (unit `TimeoutStartSec` above every budget) pin the order; the first two
 failed before the fix.
 
+**Block-class self-check (review fix, 2026-11-25).** The helper refused every request before choosing its
+scope when no reviewed block-device class (sd, blkext, virtblk, md) was registered, so the ZFS scope, which
+only uses `/dev/zfs`, returned no report and the broker answered "unavailable". The ZFS scope now runs before
+that check, which still guards the block-device probe. `TestRunZFSScopeDoesNotNeedBlockDeviceClasses` failed
+before the fix.
+
 ## Verification
 - Parsers tested on real OpenZFS 2.4.1 output (degraded raidz1 with log and cache, healthy mirror) and on
   synthetic resilver/spare/error-count rows. Helper test: the zfs scope runs exactly the three templates

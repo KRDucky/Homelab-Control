@@ -245,20 +245,25 @@ func Run(ctx context.Context, req Request) Result {
 	}
 	defer release()
 
-	// Startup self-check: refuse before any device access when no reviewed
-	// block-device class is registered; note classes that are absent.
+	ctx, cancel := context.WithTimeout(ctx, budget(req.Scope))
+	defer cancel()
+	// The ZFS scope talks only to /dev/zfs (its own DeviceAllow entry) and
+	// opens no block device, so the block-class self-check below does not
+	// apply to it.
+	if req.Scope == storagetools.ScopeZFS {
+		runZFS(ctx, &res, fail)
+		return res
+	}
+
+	// Startup self-check for the block-device probe: refuse before any block
+	// device is read when no reviewed class is registered; note classes that
+	// are absent.
 	if missing, err := checkDeviceGroups(); err != nil {
 		res.Code = CodeDevicePolicyUnresolved
 		fail("probe refused: " + err.Error())
 		return res
 	} else if len(missing) > 0 {
 		res.Errors = append(res.Errors, "block device classes not registered on this host (their devices are not read): "+strings.Join(missing, ", "))
-	}
-	ctx, cancel := context.WithTimeout(ctx, budget(req.Scope))
-	defer cancel()
-	if req.Scope == storagetools.ScopeZFS {
-		runZFS(ctx, &res, fail)
-		return res
 	}
 
 	out, _, err := run(ctx, lsblkTimeout, storagetools.MaxLsblkBytes, "lsblk", storagetools.LsblkArgs())

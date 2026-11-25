@@ -360,3 +360,15 @@ func TestRunZFSScopeWithoutTools(t *testing.T) {
 		t.Fatalf("%+v", res)
 	}
 }
+
+// The device-class self-check guards block-device reads (lsblk, smartctl,
+// LVM). The ZFS scope only talks to /dev/zfs, so a host without the reviewed
+// block classes still gets its pool report, and no block-class note.
+func TestRunZFSScopeDoesNotNeedBlockDeviceClasses(t *testing.T) {
+	fixture(t)
+	procDevicesPath = fakeProcDevices(t, t.TempDir(), "Block devices:\n  7 loop\n  253 device-mapper\n")
+	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion, Scope: storagetools.ScopeZFS})
+	if res.Code != "" || res.Partial || res.ZFS == nil || len(res.ZFS.Pools) != 1 || len(res.Errors) != 0 {
+		t.Fatalf("code=%q partial=%v errors=%v zfs=%+v", res.Code, res.Partial, res.Errors, res.ZFS)
+	}
+}
