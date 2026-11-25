@@ -691,8 +691,9 @@ function SmartFacts({ smart, health }: { smart: StorageSMART; health?: StorageNo
       </ul>
       {smart.unavailable === 'nvme-needs-cap-sys-admin' && (
         <p className="muted">
-          NVMe health is not shown: the kernel releases the NVMe SMART log only to a process with
-          CAP_SYS_ADMIN, which the read-only storage helper does not hold.
+          NVMe health is not shown: the kernel refused the NVMe SMART log, which it releases only to a process
+          with CAP_SYS_ADMIN. The storage helper unit grants it; check that the installed
+          homelab-control-storage-probe@.service and its AppArmor profile are current.
         </p>
       )}
       {(smart.messages ?? []).map((message) => (

@@ -134,9 +134,18 @@ def main():
                 page.get_by_text(re.compile("Probe complete")).wait_for(timeout=90000)
                 settle(page)
                 # Show the drive table (identity, size, use, SMART health), not just the notes.
+                # HC_SCREENSHOT_STORAGE_FILTER uses the page's own "Find a resource" box (the
+                # test VM's disks share a serial prefix); the caption must say it is filtered.
+                if os.environ.get("HC_SCREENSHOT_STORAGE_FILTER"):
+                    page.get_by_label("Find a resource").fill(os.environ["HC_SCREENSHOT_STORAGE_FILTER"])
+                    page.wait_for_timeout(400)
                 page.get_by_role("table", name="Observed storage resources").scroll_into_view_if_needed()
                 page.evaluate("window.scrollBy(0, -140)")
                 page.wait_for_timeout(300)
+            if stem == "software":
+                # The installed-package list shows real data; the default Search tab starts empty.
+                page.get_by_role("tab", name="Installed").click()
+                settle(page)
             text = check_page(page, stem)
             report["pages"][stem] = {"url": path, "title": page.title(), "chars": len(text)}
             shot(page, f"{stem}-desktop")

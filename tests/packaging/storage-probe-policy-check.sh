@@ -23,7 +23,8 @@
 #   - the service has no [Install] section; the socket's only install rule is
 #     WantedBy=sockets.target; no packaging script enables, starts or presets it;
 #   - the service runs as root (no User=, DynamicUser=, SupplementaryGroups=)
-#     with exactly CAP_SYS_RAWIO in the bounding and ambient sets;
+#     with exactly CAP_SYS_RAWIO and CAP_SYS_ADMIN (smartctl: SATA pass-through
+#     and NVMe admin commands) in the bounding and ambient sets;
 #   - the SELinux and AppArmor sources contain no unconfined/permissive/write
 #     shortcut, and the names used by the units match the policy sources.
 #
@@ -92,10 +93,10 @@ check_keys() {
     n=$(count "$sec" "$key")
     if [ "$n" -gt 1 ] && ! in_list "$key" "$multi"; then bad "$sec $key is assigned $n times"; fi
   done < <(printf '%s\n' "$P" | sort -u)
-  # The only capability anywhere is CAP_SYS_RAWIO, and only in the two
-  # capability keys (checked by value in check_service).
-  if grep -vE '^[[:space:]]*[#;]' "$f" | grep 'CAP_' | grep -vqxE '(CapabilityBoundingSet|AmbientCapabilities)=CAP_SYS_RAWIO'; then
-    bad "a capability other than CAP_SYS_RAWIO, or in another key, appears in an assignment"
+  # The only capabilities are CAP_SYS_RAWIO and CAP_SYS_ADMIN, and only in the
+  # two capability keys (checked by value in check_service).
+  if grep -vE '^[[:space:]]*[#;]' "$f" | grep 'CAP_' | grep -vqxE '(CapabilityBoundingSet|AmbientCapabilities)=CAP_SYS_RAWIO CAP_SYS_ADMIN'; then
+    bad "a capability set other than 'CAP_SYS_RAWIO CAP_SYS_ADMIN', or in another key, appears in an assignment"
   fi
 }
 
@@ -122,9 +123,9 @@ check_service() {
   single "[Service]" StandardError journal
   single "[Service]" PrivateDevices no
   single "[Service]" DevicePolicy closed
-  # Root (LVM refuses to scan as any other user) with one capability.
-  single "[Service]" CapabilityBoundingSet CAP_SYS_RAWIO
-  single "[Service]" AmbientCapabilities CAP_SYS_RAWIO
+  # Root (LVM refuses to scan as any other user) with smartctl's two capabilities.
+  single "[Service]" CapabilityBoundingSet "CAP_SYS_RAWIO CAP_SYS_ADMIN"
+  single "[Service]" AmbientCapabilities "CAP_SYS_RAWIO CAP_SYS_ADMIN"
   single "[Service]" NoNewPrivileges yes
   single "[Service]" ProtectSystem strict
   single "[Service]" ProtectHome yes
@@ -234,7 +235,7 @@ check_apparmor() { # profile
   [ -r "$f" ] || { bad "AppArmor profile is missing"; return 1; }
   body=$(strip_policy "$f")
   printf '%s\n' "$body" | grep -qxF "profile ${AA_PROFILE} ${EXEC} flags=(enforce) {" || bad "profile header must be: profile ${AA_PROFILE} ${EXEC} flags=(enforce) {"
-  for need in "capability sys_rawio," "deny mount," "deny ptrace," "deny network inet," "deny network inet6," \
+  for need in "capability sys_rawio," "capability sys_admin," "deny mount," "deny ptrace," "deny network inet," "deny network inet6," \
               "deny network netlink," "deny network packet," "deny network bluetooth," "deny network vsock," \
               "unix (receive, send, getattr, shutdown) type=stream," '@{PROC}/@{pid}/cgroup r,'; do
     printf '%s\n' "$body" | grep -qxF "  $need" || printf '%s\n' "$body" | grep -qxF "$need" || bad "AppArmor profile lacks: $need"
@@ -245,15 +246,15 @@ check_apparmor() { # profile
   if printf '%s\n' "$body" | grep -qE '^[[:space:]]*(deny[[:space:]]+)?(audit[[:space:]]+)?network[[:space:]]*,'; then
     bad "blanket 'network,' rule (allow or deny) breaks AF_UNIX: use per-family denies"
   fi
-  # Exactly one capability rule, and only reviewed tools may be executed (ix).
-  [ "$(printf '%s\n' "$body" | grep -cE '^[[:space:]]*capability[[:space:]]')" = 1 ] || bad "AppArmor profile must allow exactly one capability (sys_rawio)"
+  # Exactly two capability rules, and only reviewed tools may be executed (ix).
+  [ "$(printf '%s\n' "$body" | grep -cE '^[[:space:]]*capability[[:space:]]')" = 2 ] || bad "AppArmor profile must allow exactly sys_rawio and sys_admin"
   printf '%s\n' "$body" | grep -E '[[:space:]]ix,' | grep -vxF -e '  /{usr/,}{s,}bin/lsblk ix,' -e '  /{usr/,}{s,}bin/smartctl ix,' -e '  /{usr/,}{s,}bin/{lvm,pvs,lvs} ix,' \
     | grep -q . && bad "AppArmor profile executes an unreviewed program"
   while IFS= read -r line; do
     line=${line#"${line%%[![:space:]]*}"}
     case "$line" in
       deny\ *) continue ;;
-      "capability sys_rawio,") ;;
+      "capability sys_rawio,"|"capability sys_admin,") ;;
       capability*|network*|mount*|umount*|pivot_root*|ptrace*) bad "AppArmor rule must be a deny: $line" ;;
       owner\ /dev/*|/dev/*)
         perms=${line##* }; perms=${perms%,}
@@ -343,10 +344,12 @@ self_test() {
   mutate service "RootImage"                      '/^LimitCORE=0$/a RootImage=/var/lib/x.img'
   mutate service "MountImages"                    '/^LimitCORE=0$/a MountImages=/var/lib/x.img:/mnt'
   mutate service "ExtensionImages"                '/^LimitCORE=0$/a ExtensionImages=/var/lib/x.raw'
-  mutate service "CAP_SYS_ADMIN bounding"         's/^CapabilityBoundingSet=CAP_SYS_RAWIO$/CapabilityBoundingSet=CAP_SYS_RAWIO CAP_SYS_ADMIN/'
-  mutate service "CAP_SYS_ADMIN ambient"          's/^AmbientCapabilities=CAP_SYS_RAWIO$/AmbientCapabilities=CAP_SYS_ADMIN/'
+  mutate service "extra bounding capability"      's/^CapabilityBoundingSet=CAP_SYS_RAWIO CAP_SYS_ADMIN$/CapabilityBoundingSet=CAP_SYS_RAWIO CAP_SYS_ADMIN CAP_DAC_OVERRIDE/'
+  mutate service "extra ambient capability"       's/^AmbientCapabilities=CAP_SYS_RAWIO CAP_SYS_ADMIN$/AmbientCapabilities=CAP_SYS_RAWIO CAP_SYS_ADMIN CAP_NET_ADMIN/'
   mutate service "no capability line"             '/^CapabilityBoundingSet=/d'
-  mutate service "inverted bounding set"          's/^CapabilityBoundingSet=CAP_SYS_RAWIO$/CapabilityBoundingSet=~CAP_SYS_ADMIN/'
+  mutate service "inverted bounding set"          's/^CapabilityBoundingSet=CAP_SYS_RAWIO CAP_SYS_ADMIN$/CapabilityBoundingSet=~CAP_SYS_MODULE/'
+  mutate service "mount syscalls allowed"         's/ @mount//'
+  mutate service "module syscalls allowed"        's/ @module//'
   mutate service "install section"                "\$a [Install]\nWantedBy=multi-user.target"
   mutate service "WantedBy only"                  '/^LimitCORE=0$/a WantedBy=multi-user.target'
   mutate service "User set"                       '/^LimitCORE=0$/a User=nobody'
@@ -387,8 +390,9 @@ self_test() {
   mutate fc      "libexec context"                's#/usr/lib/homelab-control#/usr/libexec/homelab-control#'
   mutate fc      "wrong type"                     's/hc_storage_probe_exec_t/bin_t/'
   mutate aa      "device write"                   's#^  /dev/sd\[a-z\]\* r,#  /dev/sd[a-z]* rw,#'
-  mutate aa      "capability widened"             's/^  capability sys_rawio,/  capability sys_admin,/'
-  mutate aa      "second capability"              's/^  capability sys_rawio,/  capability sys_rawio,\n  capability dac_override,/'
+  mutate aa      "capability widened"             's/^  capability sys_rawio,/  capability sys_module,/'
+  mutate aa      "third capability"               's/^  capability sys_admin,/  capability sys_admin,\n  capability dac_override,/'
+  mutate aa      "mount deny removed"             '/^  deny mount,/d'
   mutate aa      "blanket network allow"          's/^  deny network inet,/  network,/'
   mutate aa      "blanket deny network (AF_UNIX)" 's/^  deny network inet,/  deny network,/'
   mutate aa      "inet deny removed"              '/^  deny network inet,/d'

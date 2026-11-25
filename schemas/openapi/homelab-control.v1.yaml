@@ -155,7 +155,7 @@ components:
         nvme_media_errors: { type: integer, minimum: 0 }
         nvme_available_spare: { type: integer, minimum: 0 }
         exit_status: { type: integer, description: "smartctl exit bitmask (smartctl(8) RETURN VALUES)" }
-        unavailable: { type: string, enum: [nvme-needs-cap-sys-admin], description: "Health not readable by design: the kernel allows the NVMe SMART/Health log only with CAP_SYS_ADMIN, which the helper does not hold" }
+        unavailable: { type: string, enum: [nvme-needs-cap-sys-admin], description: "The kernel refused the NVMe SMART/Health log, which it allows only with CAP_SYS_ADMIN (granted by the helper unit; seen when the installed unit or AppArmor profile is older)" }
         messages: { type: array, maxItems: 8, items: { type: string } }
     PartitionPlanRequest:
       type: object

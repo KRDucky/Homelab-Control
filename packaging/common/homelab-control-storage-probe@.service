@@ -59,12 +59,17 @@ DeviceAllow=block-md r
 # 8:0 has no path names" under DynamicUser). Root owns the block nodes (root:disk
 # 0660), so no CAP_DAC_* is needed; AppArmor and InaccessiblePaths= confine files,
 # and the cgroup device policy below keeps every device read-only.
-# One capability: CAP_SYS_RAWIO, which smartctl needs to send SMART pass-through
-# commands (SG_IO) to SATA/SAS disks on a read-only descriptor. No CAP_SYS_ADMIN
-# (NVMe SMART uses the kernel's unprivileged Get Log Page path where the kernel
-# allows it), no CAP_MKNOD, no CAP_DAC_*. @raw-io (iopl/ioperm) stays denied.
-CapabilityBoundingSet=CAP_SYS_RAWIO
-AmbientCapabilities=CAP_SYS_RAWIO
+# Two capabilities, both for smartctl:
+#   CAP_SYS_RAWIO  SMART pass-through (SG_IO) to SATA/SAS disks on a read-only descriptor.
+#   CAP_SYS_ADMIN  the NVMe SMART/Health log and Identify are NVMe admin commands, which the
+#                  kernel allows only with CAP_SYS_ADMIN (owner 2026-11-25: "SMART health for
+#                  NVMe is important"). Its broad uses stay blocked here: SystemCallFilter denies
+#                  @mount @module @swap @reboot @raw-io @clock @debug @cpu-emulation @resources,
+#                  RestrictNamespaces/ProtectKernel*/ProtectControlGroups apply, there is no
+#                  network, devices are read-only, and AppArmor denies mount and ptrace.
+# No CAP_MKNOD, no CAP_DAC_*.
+CapabilityBoundingSet=CAP_SYS_RAWIO CAP_SYS_ADMIN
+AmbientCapabilities=CAP_SYS_RAWIO CAP_SYS_ADMIN
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes

@@ -434,3 +434,8 @@ arguments, broker rate limit, root-only socket. What changes is the helper behin
 - **Optional tools.** smartmontools and lvm2 are not dependencies. When missing, the result says so and is
   partial; lsblk (util-linux) is required.
 
+**Amendment 12 update (owner, 2026-11-25):** the helper also holds `CAP_SYS_ADMIN`, for NVMe admin commands
+(SMART/Health log, Identify), which the kernel allows only with it. The system-call filter, namespace and
+kernel protections, read-only device policy and AppArmor `deny mount` stay; the profile allows exactly
+`sys_rawio` and `sys_admin`.
+
