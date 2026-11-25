@@ -439,3 +439,24 @@ arguments, broker rate limit, root-only socket. What changes is the helper behin
 kernel protections, read-only device policy and AppArmor `deny mount` stay; the profile allows exactly
 `sys_rawio` and `sys_admin`.
 
+## Amendment 13 (2026-11-25, M7, owner-authorized): OpenZFS through the storage helper
+
+Part of the owner's activation of the read-only helper ("Activate read-only helper", which named
+`/dev/zfs`). The helper request gains `scope`: empty is the storage probe of Amendment 12; `zfs` runs
+only three fixed templates (`internal/storagetools/zfs.go`): `zpool list -H -p -o
+name,size,alloc,free,frag,cap,health`, `zpool status -p`, and `zfs list -H -p -o
+name,used,avail,refer,mountpoint,compression,type -t filesystem,volume`. Any other scope is refused.
+
+- **Broker op** `zfs.status`: scope `zfs.read`, no arguments, `root-read`, admission `system-read`, a
+  3-second answer cache so page refreshes cannot drive the helper. The `zfs` module gates it by the
+  `zfs.` prefix.
+- **Unit.** One explicit node, `DeviceAllow=/dev/zfs rw`: libzfs opens the control device read-write for
+  every ioctl, including the ones `zpool list`/`status` and `zfs list` use. Block classes stay `r`. The
+  policy guard accepts exactly this line and rejects `rwm`, another node, or its removal.
+- **AppArmor.** `ix` for `zpool`/`zfs`, `/dev/zfs rw`, `/etc/zfs/** r`, `/etc/hostid r` and
+  `@{PROC}/sys/kernel/spl/hostid r` (VM finding: zpool reads the SPL hostid).
+- **Parsing.** Script mode output and the `zpool status` text report, bounded (512 KiB per command, 64
+  pools, 512 vdevs per pool, 2048 datasets, 1 KiB per text field). `zpool status -j` is not used because
+  Ubuntu 22.04/24.04 ship OpenZFS 2.1/2.2 without it.
+- **No writes.** No scrub, import, export, online/offline, clear or property change exists.
+

@@ -166,6 +166,16 @@ create, import, export, destroy, or `zpool`/`zfs`/`smartctl`/`nvme` execution ex
 tools do not degrade capability and no disk is opened. This is a checkpoint, not M7
 acceptance, not a merge, not production. Never touch production pool `tank`.
 
+**Update 2026-11-25 (M5–M9 review, "use the standard tools"):** the page now shows pools from the tools
+themselves. The read-only storage helper runs `zpool list -H -p`, `zpool status -p` and `zfs list -H -p`
+(fixed templates, request scope `zfs`) with `/dev/zfs` as its one explicit device node; the broker op
+`zfs.status` (scope `zfs.read`) returns pools (health, capacity, fragmentation, status/action/scan/errors
+text, vdev tree with read/write/checksum counters) and datasets/volumes, and `GET /zfs` adds them as
+`status`. The text report is parsed rather than `zpool status -j`, which needs OpenZFS 2.3. Without kernel
+ZFS or with the helper stopped the page keeps the inventory and states why pools are missing. Still no
+pool create, import, export, scrub or property write. ADR 0008 Amendment 13; evidence
+`docs/evidence/m7/ZFS-TOOLS.md`.
+
 ## M7 first checkpoint: LVM2 (read-only; not M7 acceptance)
 
 One read-only page at `/storage/lvm` (module id `lvm`, scope `lvm.read`, never default and implied
