@@ -19,6 +19,35 @@ more, each as an independent module behind the same typed, audited privilege bou
 Homelab Control is an independent project. It is not a fork of Webmin, contains no Webmin code, and is
 not affiliated with or endorsed by the Webmin project.
 
+## Web UI screenshots
+
+The screenshots below are **real browser captures from repository test evidence**, not mockups. They document tested interface states; the current `main` branch may have changed since each capture.
+
+### Overview
+
+![Homelab Control overview — desktop](docs/evidence/screenshots/03-overview-desktop.png)
+
+<details>
+<summary>Mobile overview and light theme</summary>
+
+| Mobile | Light theme |
+|---|---|
+| ![Overview on mobile](docs/evidence/screenshots/04-overview-mobile.png) | ![Overview in light theme](docs/evidence/screenshots/05-overview-light.png) |
+
+</details>
+
+### Services
+
+![Systemd services page — desktop](docs/evidence/m2/m2-3/browser/ubuntu-26.04/screens/01-services-laptop.png)
+
+### Storage and files
+
+| Storage | File browser |
+|---|---|
+| ![Storage page — desktop](docs/m2/evidence/browser-2026-11-18/storage/desktop.png) | ![Files page — desktop](docs/m2/evidence/browser-2026-11-18/files-ui/desktop.png) |
+
+Additional captures, including mobile layouts and service-operation dialogs, are available in [browser test evidence](docs/evidence/m2/m2-3/browser/ubuntu-26.04/screens/) and the [November 18 browser evidence](docs/m2/evidence/browser-2026-11-18/).
+
 ## Current status
 
 Homelab Control is early-stage software. **Its privileged broker writes are typed systemctl
