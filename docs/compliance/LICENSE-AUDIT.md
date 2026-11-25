@@ -1,5 +1,7 @@
 # Release license audit
 
+> **Amended 2026-11-25 (ADR 0016):** `compat/webmin` was removed. Rows about the Webmin subtree are history.
+
 **Date:** 2026-10-16 · **Branch:** `compliance-audit` (from `main` at `b6d1d4d3`) · **Auditor:** Claude (AI), for owner review
 **Scope:** owner directive "Product Independence, UI Architecture, Theme Engine, and License Compliance", §6.
 

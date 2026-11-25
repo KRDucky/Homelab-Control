@@ -59,7 +59,6 @@ components:
         scopes: { type: [array, "null"], items: { type: string, enum: [system.read, services.read, hardware.read, services.logs, audit.read, services.operate, services.configure, services.files, services.systemctl, storage.read, storage.probe, storage.partition, host.settings.preview, host.settings.apply, layout.manage, files.read, files.write, files.destroy, packages.read, packages.configure, networking.proxy.read, networking.proxy.apply, docker.compose.read, platforms.read, podman.read, kubernetes.read, mergerfs.read, mergerfs.configure, mergerfs.maintain, zfs.read, lvm.read, btrfs.read, ext4.read, ext4.format, mdadm.read, f2fs.read, xfs.read, networking.ports.read, networking.bonds.read, networking.firewall.read] } }
         csrf_token: { type: string }
         version: { type: string }
-        legacy_url: { type: string }
         step_up_until: { type: string, format: date-time, description: 'When the password re-entry of this session (D-3) lapses; absent when there is none' }
     Meta:
       type: object
@@ -494,7 +493,7 @@ components:
         graph: { $ref: '#/components/schemas/StorageGraph' }
     Overview:
       type: object
-      required: [collected_at, system, cpu, memory, filesystems, network, legacy_webmin]
+      required: [collected_at, system, cpu, memory, filesystems, network]
       properties:
         collected_at: { type: string, format: date-time }
         system:
@@ -579,21 +578,11 @@ components:
                       rx_bytes: { type: integer }
                       tx_bytes: { type: integer }
                       addresses: { type: array, items: { type: string } }
-        legacy_webmin:
-          allOf:
-            - $ref: '#/components/schemas/Meta'
-            - type: object
-              properties:
-                installed: { type: boolean }
-                version: { type: string }
-                config_readable: { type: boolean }
-                configured_url: { type: string }
-                privilege_needed: { type: string }
     Capability:
       type: object
       required: [id, label, path, scope, status]
       properties:
-        id: { type: string, enum: [overview, services, hardware, legacy, audit, service_logs, unit_files, storage, host_settings, files, mergerfs, zfs, lvm] }
+        id: { type: string, enum: [overview, services, hardware, audit, service_logs, unit_files, storage, host_settings, files, packages, mergerfs, traefik, zfs, lvm, btrfs, ext4, mdadm, f2fs, xfs, ports, firewall, bonds] }
         label: { type: string }
         path: { type: string }
         scope: { type: string }
@@ -1038,34 +1027,6 @@ components:
             status: { type: string, enum: [ok, unavailable] }
             reason: { type: string }
             data: { type: object }
-    LegacyWebmin:
-      type: object
-      required: [source]
-      properties:
-        source: { type: string, enum: [broker, unprivileged] }
-        reason: { type: string }
-        status:
-          type: object
-          description: Allow-listed fields only; never hashes, keys or session data.
-          properties:
-            installed: { type: boolean }
-            version: { type: string }
-            port: { type: integer }
-            tls: { type: boolean }
-            bind: { type: string }
-            listens_on_all_interfaces: { type: boolean }
-            running: { type: boolean }
-            user_count: { type: integer }
-            rpc_capable_users: { type: array, items: { type: string } }
-            checks:
-              type: array
-              items:
-                type: object
-                properties:
-                  id: { type: string }
-                  level: { type: string, enum: [ok, warn, info] }
-                  message: { type: string }
-        fallback: { type: object }
     PackageList:
       type: object
       required: [packages, truncated, source]
@@ -3903,12 +3864,4 @@ paths:
       x-required-scope: hardware.read
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Hardware' } } } }
-        '403': { description: Missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-  /legacy/webmin:
-    get:
-      summary: Upstream Webmin status and security review (broker), or unprivileged fallback
-      security: [{ session: [] }]
-      x-required-scope: system.read
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/LegacyWebmin' } } } }
         '403': { description: Missing scope, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }

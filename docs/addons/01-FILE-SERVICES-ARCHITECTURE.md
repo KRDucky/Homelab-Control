@@ -6,7 +6,7 @@ A cohesive **Shares & Services** center supporting Samba/SMB, NFS, WebDAV, iSCSI
 ## Recommended backends
 | Service | Default native implementation | Alternatives / notes |
 |---|---|---|
-| SMB | Samba (`smbd`, `testparm`, `pdbedit`) | Existing Webmin Samba config may be imported carefully |
+| SMB | Samba (`smbd`, `testparm`, `pdbedit`) | Existing Samba config is read first, never rewritten unmanaged |
 | NFS | Linux kernel NFS server (`nfs-utils` / `nfs-kernel-server`, `exportfs`) | NFS-Ganesha optional advanced adapter |
 | WebDAV | Apache HTTP Server `mod_dav` + `mod_dav_fs` | Caddy WebDAV plugin only when verified; proxy TLS separate |
 | iSCSI target | LIO via `targetcli-fb` / `rtslib-fb` | Fileio/block backstores; no raw destructive defaults |

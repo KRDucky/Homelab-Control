@@ -27,7 +27,7 @@ LDFLAGS := -s -w -buildid= -X homelab-control/backend/internal/version.Version=$
 OUT := build
 
 .PHONY: all deps frontend backend build test test-go test-rust test-retention-xcheck test-frontend test-release lint fmt check security \
-        verify-upstream verify-extensions repro-check deb rpm systemd-smoke e2e clean
+        verify-extensions repro-check deb rpm systemd-smoke e2e clean
 
 all: build
 
@@ -105,9 +105,6 @@ fmt:
 security:
 	scripts/security-check.sh
 
-verify-upstream:
-	scripts/verify-upstream.sh
-
 verify-extensions:
 	scripts/verify-extensions.sh
 
@@ -129,7 +126,7 @@ REL ?= noble
 systemd-smoke: deb
 	dev/disposable/systemd-container.sh $(REL) $$(ls -t build/*.deb | head -1) \
 	  HC_SMOKE_EXTRA_UNITS=homelab-control-broker.socket HC_SMOKE_EXTRA_CHECKS=/opt/hc/tests/m1-checks.sh \
-	  HC_WEBMIN_SRC=/opt/hc/webmin HC_SMOKE_SCOPES=system.read,services.read,hardware.read
+	  HC_SMOKE_SCOPES=system.read,services.read,hardware.read
 
 e2e: build
 	tests/integration/run-hc-e2e.sh

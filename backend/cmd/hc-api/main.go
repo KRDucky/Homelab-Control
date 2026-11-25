@@ -16,7 +16,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -64,7 +63,9 @@ func main() {
 	identityConfig := flag.String("container-identity-config", "", "optional private JSON with per-platform container identity defaults, ID maps, group tables and roles")
 	devHTTP := flag.Bool("dev-insecure-http", false, "allow plain HTTP; only permitted on loopback addresses")
 	origins := flag.String("allowed-origins", "", "comma-separated extra origins allowed for unsafe requests")
-	legacyURL := flag.String("legacy-url", "", "URL of the legacy Webmin UI to link to (optional)")
+	// The Legacy Webmin link was removed. The flag is still accepted, so an
+	// existing /etc/default/hc-api that sets it does not stop hc-api starting.
+	legacyURL := flag.String("legacy-url", "", "ignored; the Legacy Webmin link was removed")
 	rateLimitBurst := flag.Int("rate-limit-burst", 30, "authenticated per-user token-bucket burst (requests allowed in a burst)")
 	rateLimitRefill := flag.Duration("rate-limit-refill", 5*time.Second, "authenticated per-user token-bucket refill interval (one token per interval)")
 	brokerSocket := flag.String("broker-socket", proto.DefaultSocket, "privileged broker socket (empty disables broker features)")
@@ -106,8 +107,8 @@ func main() {
 		log.Fatal("-behind-tls-proxy requires a loopback listen address so the proxy is the only client")
 	}
 
-	if err := validateLegacyURL(*legacyURL); err != nil {
-		log.Fatalf("-legacy-url: %v", err)
+	if *legacyURL != "" {
+		log.Print("-legacy-url is ignored: the Legacy Webmin link was removed; delete it from HC_API_ARGS")
 	}
 	if *rateLimitBurst < 1 {
 		log.Fatal("-rate-limit-burst must be at least 1")
@@ -165,9 +166,9 @@ func main() {
 		}
 	}
 	users := auth.NewStore(uf)
-	srv := api.New(api.Config{SecureCookies: useTLS || *behindTLSProxy, AllowedOrigins: extra, LegacyURL: *legacyURL,
+	srv := api.New(api.Config{SecureCookies: useTLS || *behindTLSProxy, AllowedOrigins: extra,
 		RateLimitBurst: *rateLimitBurst, RateLimitRefill: *rateLimitRefill},
-		users, al, hostinfo.NewCollector(*legacyURL), webui.FS()).
+		users, al, hostinfo.NewCollector(), webui.FS()).
 		WithHardware(hwinfo.New())
 	if db != nil {
 		srv.WithSessionStore(db.Sessions()).WithAuditPager(db.Audit()).WithStorageSnapshots(db.StorageSnapshots()).WithLayouts(db.Layouts())
@@ -369,25 +370,6 @@ func isLoopback(addr string) bool {
 	}
 	ip := net.ParseIP(host)
 	return ip != nil && ip.IsLoopback()
-}
-
-// validateLegacyURL accepts only absolute http(s) URLs without credentials, so
-// the value can be rendered as a link without enabling script URLs.
-func validateLegacyURL(raw string) error {
-	if raw == "" {
-		return nil
-	}
-	u, err := url.Parse(raw)
-	if err != nil {
-		return err
-	}
-	if (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		return fmt.Errorf("must be an absolute http(s) URL, got %q", raw)
-	}
-	if u.User != nil {
-		return errors.New("must not contain credentials")
-	}
-	return nil
 }
 
 func composePlatform(id, name, ref string, p composediscovery.Provider, o composeadapter.Options) platform.Registration {

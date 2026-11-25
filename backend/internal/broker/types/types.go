@@ -42,29 +42,6 @@ type OpInfo struct {
 	Description string    `json:"description"`
 }
 
-// Check is one posture finding.
-type Check struct {
-	ID      string `json:"id"`
-	Level   string `json:"level"` // ok | warn | info
-	Message string `json:"message"`
-}
-
-// WebminStatus is the allow-listed view of an installed upstream Webmin.
-type WebminStatus struct {
-	Installed  bool     `json:"installed"`
-	ConfigDir  string   `json:"config_dir"`
-	Version    string   `json:"version,omitempty"`
-	Port       int      `json:"port,omitempty"`
-	TLS        *bool    `json:"tls,omitempty"`
-	Bind       string   `json:"bind,omitempty"`
-	AllIfaces  bool     `json:"listens_on_all_interfaces"`
-	Running    *bool    `json:"running,omitempty"`
-	Users      int      `json:"user_count"`
-	RPCCapable []string `json:"rpc_capable_users"`
-	Checks     []Check  `json:"checks"`
-	Notes      []string `json:"notes,omitempty"`
-}
-
 // DMIField is one SMBIOS identifier with provenance.
 type DMIField struct {
 	Value  string `json:"value,omitempty"`

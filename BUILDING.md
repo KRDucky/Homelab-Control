@@ -17,9 +17,7 @@ of the binaries and packages in that release. It contains:
 - `RELEASE-BUILDINFO`: version, commit, `SOURCE_DATE_EPOCH` and the exact Go, Node.js, npm and Rust
   versions used for the published binaries.
 
-It omits only `compat/webmin/`, the upstream Webmin reference tree, which no binary or package uses
-(owner decision, ADR 0009). It is available in the Git repository at the tagged commit and from
-<https://github.com/webmin/webmin>.
+It contains the complete committed tree; nothing is omitted.
 
 ## Requirements
 - Go, Node.js/npm and Rust at the versions in `RELEASE-BUILDINFO` (other versions build, but produce

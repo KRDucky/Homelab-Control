@@ -21,7 +21,6 @@ function caps(logs: { status: string; reason?: string }) {
       { id: 'overview', label: 'Overview', path: '/', scope: 'system.read', status: 'available' },
       { id: 'services', label: 'Services', path: '/services', scope: 'services.read', status: 'available' },
       { id: 'hardware', label: 'Hardware', path: '/hardware', scope: 'hardware.read', status: 'available' },
-      { id: 'legacy', label: 'Legacy Webmin', path: '/legacy', scope: 'system.read', status: 'available' },
       { id: 'service_logs', label: 'Service logs', path: '/services', scope: 'services.logs', ...logs },
     ],
   };

@@ -1,5 +1,8 @@
 # Initial Claude Code Project Prompt
 
+> **Historical.** This is the original M0 prompt. Homelab Control is no longer a Webmin fork and contains no
+> Webmin code (ADR 0016, 2026-11-25); the fork instructions below no longer apply.
+
 You are implementing **Homelab Control**, a homelab-first Linux administration platform forked from Webmin.
 
 Read `CLAUDE.md` and every referenced project specification in full. Treat them as the source of truth, and identify contradictions before writing code.

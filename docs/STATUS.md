@@ -1,3 +1,10 @@
+# Independent project; Webmin removed (2026-11-25)
+
+Owner: Homelab Control is not a fork of Webmin (ADR 0016). `compat/webmin`, the upstream sync, verify and
+licence-inventory scripts, the `upstream-perl-tests` CI job and the Legacy Webmin feature are removed. The
+Git history is rewritten so no commit contains `compat/`. Commit hashes cited below are from before the
+rewrite and are kept as text.
+
 # Production service management (2026-11-21)
 
 Owner: M2 service management is production. `main` before this branch is `08f0e4aa` (PR #136). New accounts get `services.read`, `services.operate`, `services.configure`, `services.logs`, `services.files` and `services.systemctl`. Existing `users.json` is not rewritten. `audit.read` stays off. `services.systemctl` is the closed systemctl set (mask, unmask, drop-in edit, daemon-reload, host power, socket and timer verbs, and the other templates in that operation). It is not a shell. Issue #90 and GitHub milestone 3 were closed on 2026-11-21. E2 was not run and is not a gate. M3 and M4 are not started. The notes below are history.

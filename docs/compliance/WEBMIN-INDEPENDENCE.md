@@ -1,5 +1,8 @@
 # Webmin independence — dependency and migration assessment
 
+> **Historical (2026-11-25).** Homelab Control is not a Webmin fork and contains no Webmin code (ADR 0016).
+> `compat/webmin` and its scripts were removed; this document is kept as a dated record.
+
 **Date:** 2026-10-16 · **Directive:** §2 (Webmin is a historical reference, not the application framework).
 **Nothing in this document has been removed or changed in packaging.** Removal steps need owner approval.
 

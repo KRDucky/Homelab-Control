@@ -43,7 +43,6 @@ func TestRegistryIsClosed(t *testing.T) {
 	}
 	snapshot := map[string]want{
 		"broker.info":             {PrivNone, "", ""},
-		"legacy.webmin.status":    {PrivRootRead, "system.read", ""},
 		"hardware.dmi.identity":   {PrivRootRead, "hardware.read", ""},
 		"services.systemd.list":   {PrivUnprivilegedExec, "services.read", ""},
 		"services.unit.logs":      {PrivUnprivilegedExec, "services.logs", ""},
@@ -196,104 +195,6 @@ func TestAllOpsRejectArguments(t *testing.T) {
 	}
 }
 
-func webminFixture(t *testing.T) string {
-	root := t.TempDir()
-	write(t, root, "etc/webmin/miniserv.conf", "port=10000\nssl=0\nkeyfile=/etc/webmin/miniserv.pem\npidfile=/var/webmin/miniserv.pid\nsession=1\n", 0o600)
-	write(t, root, "etc/webmin/version", "2.105\n", 0o644)
-	write(t, root, "etc/webmin/config", "referers_none=1\n", 0o600)
-	write(t, root, "etc/webmin/miniserv.users", "root:$6$secret-hash:0\nalice:$y$another-hash:0\nbob:x:0\n../evil:x:0\n", 0o600)
-	write(t, root, "etc/webmin/alice.acl", "rpc=1\n", 0o600)
-	write(t, root, "etc/webmin/bob.acl", "rpc=0\n", 0o600)
-	// Fake key file; the PEM marker is assembled so the repository secret scan stays strict.
-	write(t, root, "etc/webmin/miniserv.pem", "-----BEGIN "+"PRIVATE KEY-----\nSECRET\n", 0o600)
-	write(t, root, "var/webmin/miniserv.pid", "4242\n", 0o644)
-	write(t, root, "proc/4242/cmdline", "/usr/bin/perl\x00/usr/share/webmin/miniserv.pl\x00/etc/webmin/miniserv.conf\x00", 0o644)
-	return root
-}
-
-func TestWebminStatus(t *testing.T) {
-	root := webminFixture(t)
-	res, err := webminStatus(context.Background(), &Env{Roots: Roots{Root: root}}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	st := res.(WebminStatus)
-	if !st.Installed || st.Version != "2.105" || st.Port != 10000 || st.TLS == nil || *st.TLS || !st.AllIfaces {
-		t.Fatalf("%+v", st)
-	}
-	if st.Running == nil || !*st.Running {
-		t.Fatal("running miniserv not detected from pidfile + cmdline")
-	}
-	if st.Users != 3 {
-		t.Errorf("user count %d (invalid names must be skipped)", st.Users)
-	}
-	if strings.Join(st.RPCCapable, ",") != "alice,root" {
-		t.Errorf("rpc capable %v (root implicit, alice explicit, bob disabled)", st.RPCCapable)
-	}
-	levels := map[string]string{}
-	for _, c := range st.Checks {
-		levels[c.ID] = c.Level
-	}
-	want := map[string]string{"version": "warn", "tls": "warn", "bind": "warn", "referer": "ok", "rpc": "warn"}
-	for k, v := range want {
-		if levels[k] != v {
-			t.Errorf("check %s: got %q want %q", k, levels[k], v)
-		}
-	}
-	b, _ := json.Marshal(st)
-	for _, secret := range []string{"secret-hash", "another-hash", "SECRET", "PRIVATE KEY", "miniserv.pem", "evil"} {
-		if strings.Contains(string(b), secret) {
-			t.Errorf("result leaks %q: %s", secret, b)
-		}
-	}
-}
-
-func TestWebminNotInstalledAndSymlinkRefused(t *testing.T) {
-	root := t.TempDir()
-	res, _ := webminStatus(context.Background(), &Env{Roots: Roots{Root: root}}, nil)
-	if res.(WebminStatus).Installed {
-		t.Fatal("phantom install")
-	}
-	// A symlinked miniserv.conf (e.g. pointing at /etc/shadow) must not be followed.
-	write(t, root, "target", "port=1\n", 0o600)
-	if err := os.MkdirAll(filepath.Join(root, "etc/webmin"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Symlink(filepath.Join(root, "target"), filepath.Join(root, "etc/webmin/miniserv.conf")); err != nil {
-		t.Fatal(err)
-	}
-	res, _ = webminStatus(context.Background(), &Env{Roots: Roots{Root: root}}, nil)
-	st := res.(WebminStatus)
-	if st.Installed || st.Port != 0 || len(st.Notes) == 0 {
-		t.Fatalf("symlink followed: %+v", st)
-	}
-}
-
-func TestWebminPidfileConfined(t *testing.T) {
-	root := webminFixture(t)
-	write(t, root, "etc/webmin/miniserv.conf", "port=10000\nssl=1\nbind=127.0.0.1\npidfile=/etc/shadow\n", 0o600)
-	res, _ := webminStatus(context.Background(), &Env{Roots: Roots{Root: root}}, nil)
-	st := res.(WebminStatus)
-	if st.Running != nil {
-		t.Fatal("pidfile outside /var and /run must be ignored")
-	}
-	if st.AllIfaces || *st.TLS != true {
-		t.Fatalf("%+v", st)
-	}
-}
-
-func TestVersionLess(t *testing.T) {
-	cases := []struct {
-		a, b string
-		less bool
-	}{{"2.105", "2.670", true}, {"2.670", "2.670", false}, {"2.680", "2.670", false}, {"2.5", "2.105", false}, {"1.999", "2.0", true}}
-	for _, c := range cases {
-		if versionLess(c.a, c.b) != c.less {
-			t.Errorf("%s < %s should be %v", c.a, c.b, c.less)
-		}
-	}
-}
-
 func TestDMIIdentity(t *testing.T) {
 	root := t.TempDir()
 	res, _ := dmiIdentity(context.Background(), &Env{Roots: Roots{Root: root}}, nil)
@@ -426,7 +327,6 @@ func TestShowPropertiesMatchRunner(t *testing.T) {
 func TestAdmissionClasses(t *testing.T) {
 	want := map[string]AdmissionClass{
 		"broker.info":                AdmissionInfo,
-		"legacy.webmin.status":       AdmissionSystemRead,
 		"hardware.dmi.identity":      AdmissionSystemRead,
 		"services.systemd.list":      AdmissionServicesRead,
 		"services.unit.logs":         AdmissionServicesRead,

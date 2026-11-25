@@ -59,8 +59,6 @@ docker exec "$name" touch /etc/hc-disposable
 docker exec "$name" mkdir -p /opt/hc
 docker cp "$pkg" "$name":/opt/hc/pkg.deb
 docker cp "$root/tests/systemd" "$name":/opt/hc/tests
-# Upstream Webmin source for the legacy-detection checks (installed only inside this container).
-docker cp "$root/compat/webmin" "$name":/opt/hc/webmin
 env_args=()
 for kv in "$@"; do env_args+=(-e "$kv"); done
 docker exec "${env_args[@]}" "$name" /opt/hc/tests/systemd-smoke.sh /opt/hc/pkg.deb

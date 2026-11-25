@@ -1,6 +1,7 @@
 # ADR-0009: Release pipeline, corresponding source and signing
 
 **Status:** **Accepted, revised 2026-10-19 (owner).** Releases are phased. **Phase 1** (unsigned GitHub
+> **Amended 2026-11-25 by [ADR 0016](0016-independent-project-webmin-removed.md):** `compat/webmin/` was removed, so the source archive is the complete repository at the tag (R1).
 development/prereleases) is the current target. **Phase 2** (keyless attestations) and **Phase 3**
 (maintainer signing) are optional and deferred. The revision supersedes the 2026-10-16 decision that
 made hardware-backed OpenPGP signatures mandatory. The Phase 1 workflow (`.github/workflows/release.yml`,
@@ -49,7 +50,7 @@ Full design: `docs/compliance/RELEASE-PIPELINE.md`. Owner runbook: `docs/release
 ### Phase 2: keyless attestations (optional, deferred)
 GitHub artifact attestations (Sigstore build provenance through OIDC; no long-lived key) may be added
 later as an enhancement. They need `id-token: write` and `attestations: write` in the build job only.
-Users verify with `gh attestation verify <file> --repo KRDucky/Homelab-Control---Webmin-Fork`. No
+Users verify with `gh attestation verify <file> --repo KRDucky/Homelab-Control`. No
 hardware key or manually generated secret is involved. They are **not required** for Phase 1.
 
 ### Phase 3: maintainer signing (optional, deferred to a future owner decision)
@@ -82,7 +83,7 @@ repositories, should not happen before the owner revisits Phase 3.
   `.asc` files.
 
 ## 5. LA-13 checklist
-**LA-13 is resolved for Phase 1 (2026-10-21).** The first unsigned development prerelease, v0.1.0-dev.1 (https://github.com/KRDucky/Homelab-Control---Webmin-Fork/releases/tag/v0.1.0-dev.1), tag → `ec34b21e`, release run 39562079197, was produced by the workflow, published by the owner and verified after publication against every mandatory item below. Phase 2 and Phase 3 items (§5.3) remain deferred and are not part of this closure.
+**LA-13 is resolved for Phase 1 (2026-10-21).** The first unsigned development prerelease, v0.1.0-dev.1 (https://github.com/KRDucky/Homelab-Control/releases/tag/v0.1.0-dev.1), tag → `ec34b21e`, release run 39562079197, was produced by the workflow, published by the owner and verified after publication against every mandatory item below. Phase 2 and Phase 3 items (§5.3) remain deferred and are not part of this closure.
 
 ### 5.1 Mandatory for a Phase 1 unsigned development prerelease
 | # | Requirement | State (2026-10-20) |

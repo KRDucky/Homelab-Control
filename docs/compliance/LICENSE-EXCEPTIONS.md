@@ -1,5 +1,7 @@
 # License exceptions register
 
+> **Amended 2026-11-25 (ADR 0016):** `compat/webmin` was removed. Rows about the Webmin subtree are history.
+
 Items that deviate from the default "original code under the project license, permissive third-party
 dependencies with notices" and are knowingly accepted, each with its condition. An entry with
 **Owner approval: pending** is proposed, not accepted. Owner decision 2026-10-16: EX-02…EX-06 accepted

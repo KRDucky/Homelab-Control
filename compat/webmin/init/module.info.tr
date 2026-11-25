@@ -1,2 +1,0 @@
-desc_tr=Açılış ve Kapanış
-longdesc_tr=Önyükleme sırasında /etc/init.d veya /etc/rc.local üzerinden çalıştırılacak betikleri ayarlayın.

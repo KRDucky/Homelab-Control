@@ -12,10 +12,3 @@ indent_size = 2
 
 [{*.go,Makefile}]
 indent_style = tab
-
-# Upstream code keeps upstream style; never reformat it.
-[compat/webmin/**]
-indent_style = unset
-indent_size = unset
-trim_trailing_whitespace = unset
-insert_final_newline = unset

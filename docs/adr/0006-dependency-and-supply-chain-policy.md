@@ -1,6 +1,7 @@
 # ADR-0006: Dependency and supply-chain policy
 
 **Status:** Accepted for M0
+> **Amended 2026-11-25 by [ADR 0016](0016-independent-project-webmin-removed.md):** the Upstream Webmin import rule no longer applies: `compat/webmin`, `webmin.lock` and `verify-upstream.sh` were removed.
 **Date:** 2026-10-15
 **Deciders:** Project owner
 

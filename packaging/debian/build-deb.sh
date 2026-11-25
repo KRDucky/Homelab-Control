@@ -64,11 +64,10 @@ Section: admin
 Priority: optional
 Depends: adduser | systemd
 Recommends: systemd
-Homepage: https://github.com/KRDucky/Homelab-Control---Webmin-Fork
+Homepage: https://github.com/KRDucky/Homelab-Control
 Description: Homelab Control API, web UI and privileged broker (development build, M1)
  Unprivileged API with authenticated sessions and a root broker that exposes
- only typed, read-only operations. Coexists with upstream Webmin; does not
- modify /etc/webmin.
+ only typed, read-only operations.
 CTRL
 cat > "$stage/DEBIAN/postinst" <<'POST'
 #!/bin/sh

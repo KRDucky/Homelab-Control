@@ -7,7 +7,7 @@
 """Generate the SPDX 2.3 JSON SBOM at docs/compliance/sbom/homelab-control.spdx.json.
 
 Deterministic: content comes only from committed inputs (package-lock.json, go.mod,
-compat/webmin.lock, the CI toolchain pins), so the same tree yields the same SBOM.
+Cargo.lock, the CI toolchain pins), so the same tree yields the same SBOM.
 creationInfo.created is SOURCE_DATE_EPOCH when set; otherwise it is carried over
 from the committed SBOM while the content is unchanged, and set to the current UTC
 time when the content changes. --check compares everything except `created`:
@@ -30,10 +30,9 @@ GENERATOR = "homelab-control-gen-sbom-1.0"
 ROOT = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, check=True).stdout.strip()
 OUT = os.path.join(ROOT, "docs", "compliance", "sbom", "homelab-control.spdx.json")
 LOCK = os.path.join(ROOT, "frontend", "app", "package-lock.json")
-REPO = "https://github.com/KRDucky/Homelab-Control---Webmin-Fork"
+REPO = "https://github.com/KRDucky/Homelab-Control"
 INPUTS = ["frontend/app/package-lock.json", "backend/go.mod", "backend/go.sum", "backend/go-deps-allowlist.json",
-          "backend/audit-retention/Cargo.lock", "backend/audit-retention/rust-deps-allowlist.json",
-          "compat/webmin.lock", "scripts/gen-sbom.py"]
+          "backend/audit-retention/Cargo.lock", "backend/audit-retention/rust-deps-allowlist.json", "scripts/gen-sbom.py"]
 
 
 def read(rel):
@@ -59,7 +58,6 @@ def main():
     ci = read(".github/workflows/ci.yml")
     go_ci = re.search(r"go-version: '([^']+)'", ci).group(1)
     node_ci = re.search(r"node-version: '([^']+)'", ci).group(1)
-    pin = dict(l.split("=", 1) for l in read("compat/webmin.lock").splitlines() if "=" in l and not l.startswith("#"))
     # Only the CI toolchain pins (not the whole workflow) feed the digest.
     digest = hashlib.sha256(("".join(read(p) for p in INPUTS) + go_ci + node_ci).encode()).hexdigest()
     root_pkg = lock["packages"][""]
@@ -169,21 +167,6 @@ def main():
             p["comment"] = "Compiled into the web UI bundle embedded in hc-api; notice in THIRD-PARTY-NOTICES.md."
             rels.append({"spdxElementId": product, "relationshipType": "CONTAINS", "relatedSpdxElement": pid})
         pkgs.append(p)
-
-    wm = "SPDXRef-Package-webmin-reference"
-    pkgs.append({
-        "SPDXID": wm, "name": "webmin", "versionInfo": pin.get("upstream_tag", "NOASSERTION"),
-        "downloadLocation": "git+" + pin.get("upstream_url", "NOASSERTION") + "@" + pin.get("upstream_commit", ""),
-        "filesAnalyzed": False, "licenseConcluded": "NOASSERTION",
-        "licenseDeclared": "BSD-3-Clause",
-        "copyrightText": "Copyright (c) Jamie Cameron and contributors (see compat/webmin/LICENCE and per-file headers)",
-        "comment": "Development reference subtree at compat/webmin (tree " + pin.get("upstream_tree", "?") + "). NOT included in "
-                   "any release package or release source archive (verified by scripts/package-inventory.sh). "
-                   "licenseDeclared is Webmin's top-level licence; many files differ (GPL-2.0-or-later, GPL without "
-                   "version, MIT, Apache-2.0, Artistic, Perl terms, some unstated): per-file inventory in "
-                   "docs/compliance/WEBMIN-LICENSE-INVENTORY.md and REUSE.toml.",
-    })
-    rels.append({"spdxElementId": wm, "relationshipType": "TEST_DEPENDENCY_OF", "relatedSpdxElement": product})
 
     def strip_created(d):
         d = json.loads(json.dumps(d))

@@ -15,7 +15,7 @@ The owner authorized remaining frontend implementation and the TDK on 2026-10-25
 | **U8 — Plugin widgets** | Manifest-declared widgets from reviewed plugin bundles | Plugin SDK and signing in place | M3 |
 
 ## Migration rules
-- Existing M1 pages (Overview, Services, Hardware, Webmin status) are ported one at a time onto the new
+- Existing M1 pages (Overview, Services, Hardware) are ported one at a time onto the new
   shell and data layer; each port must keep its e2e and axe checks green.
 - Token aliases from M1 names stay for one minor release after U1, then are removed with a migrator.
 - No new runtime npm dependency without a licence check against `docs/compliance/DEPENDENCY-LICENSES.md`

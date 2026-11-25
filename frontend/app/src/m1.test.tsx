@@ -14,7 +14,6 @@ function caps(overrides: Record<string, { status: string; reason?: string }> = {
     { id: 'overview', label: 'Overview', path: '/', scope: 'system.read', status: 'available' },
     { id: 'services', label: 'Services', path: '/services', scope: 'services.read', status: 'available' },
     { id: 'hardware', label: 'Hardware', path: '/hardware', scope: 'hardware.read', status: 'available' },
-    { id: 'legacy', label: 'Legacy Webmin', path: '/legacy', scope: 'system.read', status: 'available' },
   ];
   return {
     broker:
@@ -159,7 +158,6 @@ describe('capability-aware navigation', () => {
               status: 'forbidden',
               reason: 'Your account does not have the hardware.read permission.',
             },
-            legacy: { status: 'degraded', reason: 'Only presence can be checked.' },
           },
           'unavailable',
         ),
@@ -249,8 +247,8 @@ describe('Hardware page', () => {
   });
 });
 
-describe('retired legacy surface', () => {
-  it('omits legacy capabilities from navigation even when advertised by the API', async () => {
+describe('removed Legacy Webmin page', () => {
+  it('has no Legacy Webmin navigation entry or link', async () => {
     mock({
       'GET /api/v1/auth/session': { status: 200, body: session },
       'GET /api/v1/capabilities': { status: 200, body: caps() },
@@ -263,7 +261,7 @@ describe('retired legacy surface', () => {
     expect(screen.queryByRole('link', { name: 'Open the legacy Webmin interface' })).toBeNull();
   });
 
-  it('does not render the retired page on direct legacy URLs', async () => {
+  it('falls back to the dashboard on the old /legacy URL', async () => {
     window.history.pushState(null, '', '/legacy');
     mock({
       'GET /api/v1/auth/session': { status: 200, body: session },
