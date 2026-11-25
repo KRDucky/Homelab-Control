@@ -205,6 +205,13 @@ A missing `lvm2` package offers Software Center search (`/software?q=lvm2`) when
 is enabled and the session has `packages.read`. This is a checkpoint, not M7 acceptance, not a merge,
 not production. Never touch production pool `tank`.
 
+**Update 2026-11-25 (M5–M9 review, "use the standard tools"):** the page now shows what LVM reports instead of
+reconstructing LVs from sysfs `dm-*` names (that walk is removed). The read-only storage helper runs `pvs`,
+`lvs` and `vgs --readonly --nolocking` (request scope `lvm`); broker op `lvm.status` (scope `lvm.read`);
+`GET /lvm` adds `status` with volume groups (size, free, counts, missing PVs), logical volumes (segment type,
+health, sync) and physical volumes, decoded by the Storage page's parsers. Still no create, change or remove.
+ADR 0008 Amendment 16; evidence `docs/evidence/m7/LVM-TOOLS.md`.
+
 ## M7 first checkpoint: Btrfs (read-only; not M7 acceptance)
 
 One read-only page at `/storage/btrfs` (module id `btrfs`, scope `btrfs.read`, never default and

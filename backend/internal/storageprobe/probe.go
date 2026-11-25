@@ -70,6 +70,7 @@ var binaries = map[string]string{
 	"smartctl": "/usr/sbin/smartctl",
 	"pvs":      "/usr/sbin/pvs",
 	"lvs":      "/usr/sbin/lvs",
+	"vgs":      "/usr/sbin/vgs",
 	"zpool":    "/usr/sbin/zpool",
 	"zfs":      "/usr/sbin/zfs",
 	"btrfs":    "/usr/bin/btrfs",
@@ -87,6 +88,7 @@ var toolCandidates = map[string][]string{
 	"smartctl": {"/usr/sbin/smartctl", "/sbin/smartctl"},
 	"pvs":      {"/usr/sbin/pvs", "/sbin/pvs"},
 	"lvs":      {"/usr/sbin/lvs", "/sbin/lvs"},
+	"vgs":      {"/usr/sbin/vgs", "/sbin/vgs"},
 	"zpool":    {"/usr/sbin/zpool", "/sbin/zpool", "/usr/bin/zpool"},
 	"zfs":      {"/usr/sbin/zfs", "/sbin/zfs", "/usr/bin/zfs"},
 	"btrfs":    {"/usr/bin/btrfs", "/bin/btrfs", "/usr/sbin/btrfs", "/sbin/btrfs"},
@@ -282,6 +284,11 @@ func Run(ctx context.Context, req Request) Result {
 		runMd(ctx, &res, fail)
 		return res
 	}
+	// LVM scans block devices for PV labels, so it also runs after the check.
+	if req.Scope == storagetools.ScopeLVM {
+		runLVM(ctx, &res, fail, true)
+		return res
+	}
 
 	out, _, err := run(ctx, lsblkTimeout, storagetools.MaxLsblkBytes, "lsblk", storagetools.LsblkArgs())
 	if err != nil {
@@ -321,29 +328,45 @@ func Run(ctx context.Context, req Request) Result {
 		}
 	}
 
-	if !res.Tools["pvs"] || !res.Tools["lvs"] {
-		res.Errors = append(res.Errors, "LVM tools are not installed (package lvm2); no LVM data")
-	} else {
-		for _, r := range []struct {
-			tool string
-			args []string
-			dst  *json.RawMessage
-		}{{"pvs", storagetools.PVSArgs(), &res.PVS}, {"lvs", storagetools.LVSArgs(), &res.LVS}} {
-			out, code, err := run(ctx, lvmTimeout, storagetools.MaxLVMBytes, r.tool, r.args)
-			if err == nil && code != 0 {
-				err = fmt.Errorf("exit status %d", code)
-			}
-			if err == nil {
-				err = storagetools.CheckJSONReport(out)
-			}
-			if err != nil {
-				fail(r.tool + ": " + err.Error())
-				continue
-			}
-			*r.dst = json.RawMessage(out)
-		}
-	}
+	runLVM(ctx, &res, fail, false)
 	return res
+}
+
+// runLVM runs the fixed read-only pvs and lvs templates, and vgs when
+// withVGS (the LVM page). Missing LVM tools are noted, not a failure.
+func runLVM(ctx context.Context, res *Result, fail func(string), withVGS bool) {
+	if !res.Tools["pvs"] || !res.Tools["lvs"] || (withVGS && !res.Tools["vgs"]) {
+		note := "LVM tools are not installed (package lvm2); no LVM data"
+		if withVGS {
+			fail(note)
+			return
+		}
+		res.Errors = append(res.Errors, note)
+		return
+	}
+	type report struct {
+		tool string
+		args []string
+		dst  *json.RawMessage
+	}
+	reports := []report{{"pvs", storagetools.PVSArgs(), &res.PVS}, {"lvs", storagetools.LVSArgs(), &res.LVS}}
+	if withVGS {
+		reports = append(reports, report{"vgs", storagetools.VGSArgs(), &res.VGS})
+	}
+	for _, r := range reports {
+		out, code, err := run(ctx, lvmTimeout, storagetools.MaxLVMBytes, r.tool, r.args)
+		if err == nil && code != 0 {
+			err = fmt.Errorf("exit status %d", code)
+		}
+		if err == nil {
+			err = storagetools.CheckJSONReport(out)
+		}
+		if err != nil {
+			fail(r.tool + ": " + err.Error())
+			continue
+		}
+		*r.dst = json.RawMessage(out)
+	}
 }
 
 // runZFS runs the fixed read-only OpenZFS templates (zpool list, zpool status,
@@ -665,7 +688,7 @@ func UnmarshalRequest(b []byte) (Request, error) {
 		return req, fmt.Errorf("unsupported protocol version %d", req.Version)
 	}
 	switch req.Scope {
-	case "", storagetools.ScopeZFS, storagetools.ScopeBtrfs, storagetools.ScopeMd:
+	case "", storagetools.ScopeZFS, storagetools.ScopeBtrfs, storagetools.ScopeMd, storagetools.ScopeLVM:
 	default:
 		return req, fmt.Errorf("unsupported scope %q", req.Scope)
 	}

@@ -202,7 +202,7 @@ func TestUnitOutlastsHelperBudgets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("TimeoutStartSec=%q: %v", v[0], err)
 	}
-	for _, scope := range []string{"", storagetools.ScopeZFS, storagetools.ScopeBtrfs, storagetools.ScopeMd} {
+	for _, scope := range []string{"", storagetools.ScopeZFS, storagetools.ScopeBtrfs, storagetools.ScopeMd, storagetools.ScopeLVM} {
 		if b := storagetools.HelperBudget(scope); time.Duration(secs)*time.Second <= b {
 			t.Errorf("TimeoutStartSec=%ds does not exceed the %q budget %v", secs, scope, b)
 		}
