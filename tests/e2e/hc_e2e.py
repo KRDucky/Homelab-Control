@@ -8,8 +8,7 @@
 responsive shell and appearance preferences.
 
 Driven by tests/integration/run-hc-e2e.sh, which starts a throwaway hc-api.
-Env: HC_E2E_URL, HC_E2E_PASSWORD, HC_E2E_ARTIFACTS (screenshot dir, optional),
-     HC_LEGACY_URL (optional; screenshots the legacy Webmin login page).
+Env: HC_E2E_URL, HC_E2E_PASSWORD, HC_E2E_ARTIFACTS (screenshot dir, optional).
 """
 import os
 import re
@@ -20,7 +19,6 @@ from playwright.sync_api import expect, sync_playwright
 URL = os.environ["HC_E2E_URL"]
 PASSWORD = os.environ["HC_E2E_PASSWORD"]
 ART = os.environ.get("HC_E2E_ARTIFACTS", "tests/e2e/artifacts")
-LEGACY = os.environ.get("HC_LEGACY_URL")
 os.makedirs(ART, exist_ok=True)
 
 results = []
@@ -176,11 +174,6 @@ with sync_playwright() as p:
     for e in csp:
         print("   CSP:", e)
 
-    if LEGACY:
-        lg = browser.new_context(viewport={"width": 1280, "height": 800}).new_page()
-        lg.goto(LEGACY)
-        lg.screenshot(path=f"{ART}/06-legacy-webmin-login.png")
-        check("legacy Webmin login page reachable", "session_login.cgi" in lg.content())
     browser.close()
 
 failed = [n for n, ok in results if not ok]

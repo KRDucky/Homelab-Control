@@ -1,5 +1,8 @@
 # Upstream Webmin audit — baseline 2.670
 
+> **Historical (2026-11-25).** Homelab Control is not a Webmin fork and contains no Webmin code (ADR 0016).
+> `compat/webmin` and its scripts were removed; this document is kept as a dated record.
+
 **Audited:** 2026-10-15, from the actual upstream source (`git clone https://github.com/webmin/webmin`,
 master at `dda9b972b`, 2026-10-14) and tag `2.670` (`3a2b2b8671c0669c129f5275b3dd1853106ae02b`,
 2026-09-21). Authentic theme audited from `https://github.com/webmin/authentic-theme` at

@@ -23,7 +23,7 @@ Version:        $base
 Release:        $rel
 Summary:        Homelab Control API, web UI and privileged broker (development build)
 License:        GPL-3.0-or-later AND MIT AND OFL-1.1 AND BSD-3-Clause AND Apache-2.0 AND Unicode-3.0 AND Zlib
-URL:            https://github.com/KRDucky/Homelab-Control---Webmin-Fork
+URL:            https://github.com/KRDucky/Homelab-Control
 BuildArch:      x86_64
 Requires(pre):  /usr/sbin/useradd, /usr/sbin/groupadd
 %global debug_package %{nil}
@@ -32,7 +32,7 @@ Requires(pre):  /usr/sbin/useradd, /usr/sbin/groupadd
 
 %description
 Unprivileged API with authenticated sessions and a root broker that exposes
-only typed, read-only operations. Coexists with upstream Webmin.
+only typed, read-only operations.
 
 %install
 install -Dm0755 $root/build/hc-api %{buildroot}/usr/bin/hc-api

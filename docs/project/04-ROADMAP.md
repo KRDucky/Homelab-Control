@@ -8,7 +8,7 @@ Times are rough effort bands for a small team with AI assistance, not delivery g
 
 | Milestone | Focus | Acceptance gate |
 |---|---|---|
-| M0 | Fork/audit Webmin; source provenance, license audit, CI, dev VM | Reproducible baseline build, documented upstream sync and threat model |
+| M0 | (historical) Fork/audit Webmin — superseded by ADR 0016; source provenance, license audit, CI, dev VM | Reproducible baseline build, documented upstream sync and threat model |
 | M1 | Authenticated modern UI shell + compatibility bridge | Log in, navigate, view real read-only host info, fallback to legacy |
 | M2 | Core API, RBAC, resource graph, jobs/audit | Versioned schemas, security tests, operation state persistence |
 | M3 | Theme SDK + plugin SDK | Install/preview/switch/remove theme; load/unload read-only sample plugin |

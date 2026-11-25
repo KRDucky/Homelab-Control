@@ -49,7 +49,7 @@ class Fixture:
             f.write(PINS)
         n = rt.expected_names(version)
         bi = (f"version={version}\ncommit={C}\nsource_date_epoch=1760000000\ngo=go1.26.9\nnode=v22.23.3\n"
-              f"npm=10.9.9\nrust=1.100.0\nexcluded=compat/webmin/ (reference tree)\n").encode()
+              f"npm=10.9.9\nrust=1.100.0\n").encode()
         notices = {k: f"{k} text\n".encode() for k in rt.NOTICES}
         p = f"homelab-control-{version}/"
         with tarfile.open(os.path.join(self.d, n["source"]), "w:gz") as t:
@@ -191,12 +191,6 @@ class Verify(unittest.TestCase):
         shutil.copy(os.path.join(ROOT, "docs", "compliance", "sbom", "homelab-control.spdx.json"), os.path.join(self.f.d, n))
         self.f.resum()
         self.assertOnlyFails("sbom")
-
-    def test_webmin_in_source_archive(self):
-        shutil.rmtree(self.tmp)
-        self.tmp = tempfile.mkdtemp()
-        self.f = Fixture(self.tmp, extra_source=["compat/webmin/miniserv.pl"])
-        self.assertOnlyFails("source")
 
     def test_git_dir_in_source_archive(self):
         shutil.rmtree(self.tmp)

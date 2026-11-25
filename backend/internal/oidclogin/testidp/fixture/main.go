@@ -50,7 +50,7 @@ func main() {
 	if err := cfg.Validate(); err != nil {
 		log.Fatal(err)
 	}
-	srv := api.New(api.Config{}, users, audit.New(os.Stderr), hostinfo.NewCollector(""), webui.FS()).
+	srv := api.New(api.Config{}, users, audit.New(os.Stderr), hostinfo.NewCollector(), webui.FS()).
 		WithOIDC(oidclogin.New(cfg, pool))
 	go func() { log.Fatal(http.Serve(ln, srv)) }()
 	_ = json.NewEncoder(os.Stdout).Encode(map[string]string{"url": base, "idp": idp.URL})

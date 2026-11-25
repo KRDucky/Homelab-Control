@@ -48,10 +48,9 @@ func (f *fakeBroker) Call(_ context.Context, op string, actor proto.Actor, out a
 func newFake() *fakeBroker {
 	return &fakeBroker{errs: map[string]error{}, results: map[string]any{
 		"broker.info": map[string]any{"version": "t", "systemd_booted": true, "exec_available": []string{"systemctl"}, "ops": []map[string]string{
-			{"name": "broker.info"}, {"name": "services.systemd.list"}, {"name": "hardware.dmi.identity"}, {"name": "legacy.webmin.status"}}},
+			{"name": "broker.info"}, {"name": "services.systemd.list"}, {"name": "hardware.dmi.identity"}}},
 		"services.systemd.list": map[string]any{"units": []map[string]string{{"name": "ssh.service", "type": "service", "load": "loaded", "active": "active", "sub": "running"}}, "counts": map[string]int{"active": 1}},
 		"hardware.dmi.identity": map[string]any{"available": true, "fields": map[string]any{"product_serial": map[string]string{"value": "S1", "status": "present"}}},
-		"legacy.webmin.status":  map[string]any{"installed": true, "version": "2.670", "checks": []any{}, "rpc_capable_users": []string{}},
 	}}
 }
 
@@ -90,7 +89,7 @@ func caps(t *testing.T, h *harness) map[string]Capability {
 func TestCapabilitiesWithBroker(t *testing.T) {
 	h := harnessWith(t, newFake(), allScopes)
 	c := caps(t, h)
-	for _, id := range []string{"overview", "services", "hardware", "legacy"} {
+	for _, id := range []string{"overview", "services", "hardware"} {
 		if c[id].Status != CapAvailable {
 			t.Errorf("%s: %+v", id, c[id])
 		}
@@ -105,7 +104,7 @@ func TestCapabilitiesBrokerDown(t *testing.T) {
 	if c["services"].Status != CapUnavailable || !strings.Contains(c["services"].Reason, "homelab-control-broker") {
 		t.Errorf("services: %+v", c["services"])
 	}
-	if c["hardware"].Status != CapDegraded || c["legacy"].Status != CapDegraded || c["overview"].Status != CapAvailable {
+	if c["hardware"].Status != CapDegraded || c["overview"].Status != CapAvailable {
 		t.Errorf("degradation wrong: %+v", c)
 	}
 }
@@ -190,20 +189,6 @@ func TestHardwareEndpoint(t *testing.T) {
 	_ = json.Unmarshal(rr.Body.Bytes(), &resp)
 	if rr.Code != 200 || resp.Identity.Status != "unavailable" || len(resp.Inventory.Disks.Devices) == 0 {
 		t.Fatalf("hardware must degrade, not fail: %d %+v", rr.Code, resp.Identity)
-	}
-}
-
-func TestLegacyEndpointFallsBack(t *testing.T) {
-	fb := newFake()
-	h := harnessWith(t, fb, allScopes)
-	rr := h.do("GET", "/api/v1/legacy/webmin", "", nil)
-	if rr.Code != 200 || !strings.Contains(rr.Body.String(), `"source":"broker"`) {
-		t.Fatalf("%s", rr.Body)
-	}
-	fb.down = true
-	rr = h.do("GET", "/api/v1/legacy/webmin", "", nil)
-	if rr.Code != 200 || !strings.Contains(rr.Body.String(), `"source":"unprivileged"`) || !strings.Contains(rr.Body.String(), `"fallback"`) {
-		t.Fatalf("%s", rr.Body)
 	}
 }
 

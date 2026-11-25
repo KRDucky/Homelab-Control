@@ -17,9 +17,6 @@ bad() {
   if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::error title=Security gate::failed step: ${cur}${1:+ - $1}"; fi
 }
 
-step "Upstream provenance"
-scripts/verify-upstream.sh || bad
-
 step "Extensions import (pinned subtree, no edits, no package or module manifests)"
 scripts/verify-extensions.sh || bad
 node scripts/build-extensions.mjs --check || bad
@@ -63,9 +60,6 @@ python3 -I scripts/gen-sbom.py --check || bad
 if command -v pyspdxtools >/dev/null 2>&1; then pyspdxtools -i docs/compliance/sbom/homelab-control.spdx.json || bad "pyspdxtools validation"
 else echo "SKIPPED: pyspdxtools not installed (CI installs spdx-tools)"; fi
 
-step "Webmin reference tree licence inventory (per-file upstream statements reviewed)"
-python3 -I scripts/gen-webmin-license-inventory.py --check || bad
-
 step "Rust dependency policy (ADR 0006 amendment 4: reviewed crate allow-list only)"
 if python3 -I scripts/check-rust-deps.py; then :; else bad; fi
 
@@ -86,9 +80,9 @@ if command -v reuse >/dev/null 2>&1; then
 else echo "SKIPPED: reuse not installed (CI installs it)"; fi
 
 step "Committed secrets / private keys"
-if git grep -nE -- '-----BEGIN ([A-Z]+ )?PRIVATE KEY-----' -- ':!compat/webmin' ':!**/testdata/**'; then
+if git grep -nE -- '-----BEGIN ([A-Z]+ )?PRIVATE KEY-----' -- ':!**/testdata/**'; then
   echo "private key material committed"; bad
-else echo "OK: no private keys outside compat/webmin"; fi
+else echo "OK: no private keys outside test fixtures"; fi
 
 step "Shell scripts"
 if command -v shellcheck >/dev/null 2>&1; then shellcheck -x scripts/*.sh packaging/*/*.sh tests/integration/*.sh tests/systemd/*.sh tests/packaging/*.sh tests/e2e/*.sh tests/retention/*.sh dev/disposable/*.sh || bad

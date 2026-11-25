@@ -19,7 +19,7 @@ slot. No page-level horizontal scroll at any width (already an M1 e2e check).
 Overview · Storage (pools, disks, shares) · Applications (containers, Compose) · Services · Network
 (interfaces, firewall, reverse proxy) · Users & access · Updates · Hardware · Logs & audit · Settings.
 Sections appear only when their capability exists on this host, as in M1; unavailable ones explain why
-in-place. Legacy Webmin is a link under Settings → Integrations, not a primary section.
+in-place.
 
 ## 6.3 Command palette
 `Ctrl/Cmd+K`: searches navigation targets, resources (by stable id and name) and `Action`s the

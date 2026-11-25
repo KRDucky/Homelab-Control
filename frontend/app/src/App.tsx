@@ -114,8 +114,7 @@ export function App() {
   const capList = caps?.capabilities ?? [];
   // Several capabilities can share a page (service logs live on /services);
   // the navigation shows one entry per page.
-  // Retired Webmin compatibility capability is not part of the HomeControl UI.
-  const visible = capList.filter((c) => c.status !== 'forbidden' && c.id !== 'legacy');
+  const visible = capList.filter((c) => c.status !== 'forbidden');
   const pages = visible.filter((c, i) => visible.findIndex((x) => x.path === c.path) === i);
   const logsCap = capList.find((c) => c.id === 'service_logs');
   const filesCap = capList.find((c) => c.id === 'unit_files');
@@ -134,7 +133,7 @@ export function App() {
   const route =
     path === ACCOUNT_PATH || path === '/appearance/themes'
       ? undefined
-      : (capList.find((c) => c.path === path && c.id !== 'legacy') ?? capList.find((c) => c.path === '/'));
+      : (capList.find((c) => c.path === path) ?? capList.find((c) => c.path === '/'));
   const routeUsable = route && (route.status === 'available' || route.status === 'degraded');
 
   let page = <p className="muted">Loading…</p>;

@@ -66,7 +66,6 @@ type Config struct {
 	// AllowedOrigins are additional exact origins (scheme://host[:port]) that
 	// may perform unsafe requests, e.g. when served behind a reverse proxy.
 	AllowedOrigins []string
-	LegacyURL      string
 	// RateLimitBurst is the authenticated per-user token-bucket burst. Zero
 	// or negative selects the production default (30).
 	RateLimitBurst int
@@ -368,7 +367,6 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/ports", auth.ScopeNetworkingPortsRead, s.handlePorts)
 	s.handle("GET /api/v1/bonds", auth.ScopeNetworkingBondsRead, s.handleBonds)
 	s.handle("GET /api/v1/firewall", auth.ScopeNetworkingFirewallRead, s.handleFirewall)
-	s.handle("GET /api/v1/legacy/webmin", auth.ScopeSystemRead, s.handleLegacy)
 	s.mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "unknown API route")
 	})
@@ -619,13 +617,12 @@ type sessionResponse struct {
 	Scopes    []string `json:"scopes"`
 	CSRFToken string   `json:"csrf_token"`
 	Version   string   `json:"version"`
-	LegacyURL string   `json:"legacy_url,omitempty"`
 	// StepUpUntil is when the session's password re-entry (D-3) lapses.
 	StepUpUntil *time.Time `json:"step_up_until,omitempty"`
 }
 
 func (s *Server) sessionBody(sess *auth.Session) sessionResponse {
-	r := sessionResponse{Username: sess.Username, Scopes: sess.Scopes, CSRFToken: sess.CSRFToken, Version: Version, LegacyURL: s.cfg.LegacyURL}
+	r := sessionResponse{Username: sess.Username, Scopes: sess.Scopes, CSRFToken: sess.CSRFToken, Version: Version}
 	if at, ok := s.stepups.At(sess.Key, sess.Username); ok {
 		u := at.Add(auth.StepUpWindow).UTC()
 		r.StepUpUntil = &u

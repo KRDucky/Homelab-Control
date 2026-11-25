@@ -33,7 +33,7 @@ import sys
 import tarfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-REPO_URL = "https://github.com/KRDucky/Homelab-Control---Webmin-Fork"
+REPO_URL = "https://github.com/KRDucky/Homelab-Control"
 NUM = r"(0|[1-9][0-9]*)"
 # All patterns below are used with fullmatch() ('$' would also accept a trailing newline).
 # Release workflow: SemVer prerelease tags only (RELEASE-PIPELINE.md §3: vX.Y.Z-dev.N / vX.Y.Z-rc.N).
@@ -154,7 +154,7 @@ def stamp_sbom(src, dst, version, commit, go):
     product["versionInfo"] = version
     product["downloadLocation"] = f"git+{REPO_URL}.git@{commit}"
     product["sourceInfo"] = (f"Built from commit {commit}; complete corresponding source in "
-                             f"homelab-control-{version}-source.tar.gz (compat/webmin/ excluded).")
+                             f"homelab-control-{version}-source.tar.gz.")
     gv = go[2:]
     std["versionInfo"] = gv
     std["externalRefs"] = [{"referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl",
@@ -248,8 +248,6 @@ def check_buildinfo(d, version, commit, pins):
     diff = [f"{k}={bi.get(k)!r} (expected {v!r})" for k, v in want.items() if bi.get(k) != v]
     if not re.fullmatch(r"[0-9]+", bi.get("source_date_epoch", "")):
         diff.append("source_date_epoch missing")
-    if "compat/webmin/" not in bi.get("excluded", ""):
-        diff.append("excluded= does not record compat/webmin/")
     if diff:
         raise Fail("; ".join(diff))
 
@@ -296,9 +294,6 @@ def check_source_archive(d, version):
     outside = [p for p in paths if not (p + "/").startswith(prefix) or ".." in p.split("/") or p.startswith("/")]
     if outside:
         errs.append(f"members outside {prefix}: {outside[:5]}")
-    webmin = [p for p in paths if p.startswith(prefix + "compat/webmin/") or p.rstrip("/") == prefix + "compat/webmin"]
-    if webmin:
-        errs.append(f"contains compat/webmin/ ({len(webmin)} entries, e.g. {webmin[0]})")
     if any(p.split("/")[1:2] == [".git"] for p in paths):
         errs.append("contains .git")
     def escapes(m):  # a link whose target resolves outside the archive's top directory
@@ -409,7 +404,7 @@ def verify(d, version, commit, toolchain, mode, require_tools):
         c.run("SBOM: SPDX 2.3, stamped with version/commit/toolchain (R4), validated",
               lambda: check_sbom(d, version, commit, pins, require_tools))
     if n["source"] in present:
-        c.run("source archive: complete, no compat/webmin, notices identical", lambda: check_source_archive(d, version))
+        c.run("source archive: complete, notices identical", lambda: check_source_archive(d, version))
     if n["binaries"] in present:
         c.run("binaries tarball: exact contents", lambda: check_binaries_tarball(d, version))
     if files_ok:

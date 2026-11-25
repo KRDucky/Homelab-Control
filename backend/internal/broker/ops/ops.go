@@ -171,8 +171,6 @@ func Registry() map[string]Op {
 	ops := []Op{
 		{Name: "broker.info", Scope: "", Privilege: PrivNone, Timeout: time.Second, Admission: AdmissionInfo,
 			Description: "Broker version and the list of registered operations", Handle: brokerInfo},
-		{Name: "legacy.webmin.status", Scope: "system.read", Privilege: PrivRootRead, Timeout: 3 * time.Second, Admission: AdmissionSystemRead,
-			Description: "Installed upstream Webmin: version, listener, TLS and security posture (no secrets)", Handle: webminStatus},
 		{Name: "hardware.dmi.identity", Scope: "hardware.read", Privilege: PrivRootRead, Timeout: 2 * time.Second, Admission: AdmissionSystemRead,
 			Description: "Root-only SMBIOS identifiers (system/board/chassis serials, product UUID)", Handle: dmiIdentity},
 		{Name: "services.systemd.list", Scope: "services.read", Privilege: PrivUnprivilegedExec, Timeout: 10 * time.Second, Admission: AdmissionServicesRead,
@@ -422,23 +420,6 @@ func readFixed(path string, limit int64) ([]byte, error) {
 		return nil, fmt.Errorf("%s: larger than %d bytes", path, limit)
 	}
 	return b, nil
-}
-
-// parseKV parses Webmin-style key=value files. Later keys win.
-func parseKV(b []byte) map[string]string {
-	m := map[string]string{}
-	for _, line := range strings.Split(string(b), "\n") {
-		line = strings.TrimRight(line, "\r")
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		k, v, ok := strings.Cut(line, "=")
-		if !ok {
-			continue
-		}
-		m[k] = v
-	}
-	return m
 }
 
 func isNotExist(err error) bool { return errors.Is(err, os.ErrNotExist) }

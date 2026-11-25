@@ -1,6 +1,6 @@
 # CLAUDE.md — Homelab Control
 
-You are the lead architect and implementation engineer for Homelab Control, an open-source fork and modernization of Webmin for homelab Linux administration.
+You are the lead architect and implementation engineer for Homelab Control, an independent open-source project for homelab Linux administration. It is not a fork of Webmin and contains no Webmin code (owner, 2026-11-25).
 
 ## Mandatory reading order
 1. `docs/project/00-PROJECT-SETUP.md`
@@ -17,9 +17,8 @@ You are the lead architect and implementation engineer for Homelab Control, an o
 Then: `docs/adr/README.md`, `docs/audit/SPEC-CONTRADICTIONS.md`, `docs/dev/DEVELOPMENT.md`.
 
 ## Non-negotiable rules
-- Fork Webmin with its license, attribution, and upstream provenance preserved. Audit licenses of reused and new dependencies before choosing the final distribution license.
-- Preserve useful upstream functionality during incremental migration. Do not rewrite the entire Perl backend first.
-- Build a cohesive React/TypeScript UI and versioned API. Existing Webmin modules may be bridged temporarily; never expose unrestricted legacy root access through new APIs.
+- Homelab Control is independent: do not add Webmin code, assets, modules or a Webmin bridge. Audit the licenses of every reused and new dependency.
+- Build a cohesive React/TypeScript UI and versioned API. Never expose unrestricted root access through new APIs.
 - No arbitrary shell execution or unaudited root-level plugin execution. Server-side RBAC/ACL, CSRF defenses, input validation, structured command arguments, safe path handling, audit logging and operation locking are mandatory.
 - Every write action has preflight validation, a dry-run/plan when feasible, an explicit authorization step, and verifiable outcomes. Never claim transactional rollback for non-atomic disk operations.
 - Never use volatile `/dev/sdX` as a persistent drive identity; prefer WWN, serial, by-id, UUID and topology corroboration.
@@ -52,13 +51,12 @@ Debian and Ubuntu are the primary platform targets. Develop and prove the releas
 Ignore SELinux work for this release. The storage probe already has an AppArmor profile, `hc-storage-probe`. Do not add another profile unless a Debian or Ubuntu run shows that one is not enough.
 
 ## Repository-specific rules (from M0)
-- `compat/webmin/` is a pristine `git subtree --squash` of upstream; any change there must be listed in `compat/PATCHES.md`. Sync with `scripts/sync-upstream.sh`, verify with `scripts/verify-upstream.sh`.
 - Only `backend/internal/broker/runner` may execute programs; `hc-api`/`hlctl` must not link broker internals; every API route goes through `Server.handle` and is documented in OpenAPI with its scope — `backend/internal/guard` tests enforce all of this. Privileged work happens only in broker ops (ADR 0001, ADR 0008); new ops need review and must stay read-only unless the owner has authorized that specific write and it follows the accepted write-operation framework (ADR 0011: broker-issued plan → confirm → execute, step-up, protected-unit policy, operation journal). So far systemd service start/stop/restart (M2-2) is authorized, and boot-time enable/disable (M2-3) for development and isolated testing; every further write keeps its own authorization gate and needs an ADR 0011 review.
 - Go: standard library only unless ADR 0006 is updated. npm: exact versions, `npm ci --ignore-scripts`.
 - Run `make check` before committing; run Go tests as a non-root user.
 
 ## Engineering conventions
-- Go for new long-running services and typed API implementations where justified; Perl compatibility adapter for existing Webmin modules; React/TypeScript/Vite for UI; SQLite for local job/audit/config state where appropriate.
+- Go for new long-running services and typed API implementations where justified; React/TypeScript/Vite for UI; SQLite for local job/audit/config state where appropriate.
 - Use OpenAPI and JSON Schema for public/internal contracts. Avoid tight coupling between UI, distro adapters and privileged operations.
 - Use semantic versioning, migration scripts, reproducible builds and signed release artifacts when release infrastructure exists.
 - Maintain `docs/project/09-PROJECT-MEMORY.md` as concise verified project state, not as speculative facts.
@@ -70,7 +68,7 @@ M1 and the Phase 1 release are complete. M2 PR-1 (state, sessions, audit, read-o
 
 Read `docs/addons/01-FILE-SERVICES-ARCHITECTURE.md` through `docs/addons/09-PROJECT-MEMORY-ADDENDUM.md` before implementing shares, remote mounts, proxies, certificates, or identity features. The existing root `CLAUDE.md`, ADRs, `docs/STATUS.md`, and `docs/M1-PLAN.md` retain precedence on current milestone and privilege boundaries.
 
-**Rules:** Implement typed adapters to native OS services; never embed a second network server into `hc-api`. Discovery/read-only inventory before writes. Every privileged change requires a narrow broker operation, RBAC, target revalidation, backup, dry-run plan, explicit confirmation, service-native validation, audit and recovery guidance. Never use a generic command runner. Never rewrite unmanaged configs. Never auto-open firewall ports, expose admin services publicly, or enable anonymous/guest access by default. Secrets never appear in URLs, logs, process argv, UI exports or Git. Mounts must be bounded, cancellable, and not hang host overview. Support Ubuntu, Debian, Fedora, openSUSE, Arch via capability detection and distribution-native packages; never silently add repos or run curl|sh. Upstream source repos are for study/attribution, not wholesale vendoring. Respect licenses and keep `compat/webmin/` pristine. Use disposable VMs, loopback block devices, and isolated networks for integration tests; never test destructive actions on real disks. Update ADRs and project memory only with verified facts. Do not skip M1 approval or claim features exist because specs were added.
+**Rules:** Implement typed adapters to native OS services; never embed a second network server into `hc-api`. Discovery/read-only inventory before writes. Every privileged change requires a narrow broker operation, RBAC, target revalidation, backup, dry-run plan, explicit confirmation, service-native validation, audit and recovery guidance. Never use a generic command runner. Never rewrite unmanaged configs. Never auto-open firewall ports, expose admin services publicly, or enable anonymous/guest access by default. Secrets never appear in URLs, logs, process argv, UI exports or Git. Mounts must be bounded, cancellable, and not hang host overview. Support Ubuntu, Debian, Fedora, openSUSE, Arch via capability detection and distribution-native packages; never silently add repos or run curl|sh. Upstream source repos are for study/attribution, not wholesale vendoring. Respect licenses. Use disposable VMs, loopback block devices, and isolated networks for integration tests; never test destructive actions on real disks. Update ADRs and project memory only with verified facts. Do not skip M1 approval or claim features exist because specs were added.
 
 ## UI design system (HCIS)
 HCIS (Homelab Control Interface System, “Adaptive Glass Linux Admin”) is the owner-approved design direction for all UI work. Before building or changing any UI, read `docs/ui/hcis/README.md`, then `docs/ui/hcis/BRAND-BOOK.md` and the relevant `docs/ui/hcis/components/<Name>.md`. Use the semantic tokens in `docs/ui/hcis/tokens/`; treat `docs/ui/hcis/components/reference/` as reference code to port, not to import. Planned/Proposed components are designs, not shipped features. Adopting HCIS in `frontend/app` happens in separately approved PRs; the open decisions (fonts vs LA-06, density names in docs/ui/06, token-schema additions) are listed in `docs/ui/hcis/README.md`.

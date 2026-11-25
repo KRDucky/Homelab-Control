@@ -9,9 +9,9 @@
 #
 #   scripts/release-bundle.sh <version> [out-dir]      (default out-dir: dist/release)
 #
-# 1. Writes the corresponding-source archive from the committed tree (git archive, minus the
-#    compat/webmin/ reference tree, which no binary uses) plus the published npm sources of
-#    every package compiled into the binaries, and RELEASE-BUILDINFO (exact toolchain).
+# 1. Writes the corresponding-source archive from the committed tree (git archive) plus the
+#    published npm sources of every package compiled into the binaries, and RELEASE-BUILDINFO
+#    (exact toolchain).
 # 2. Extracts that archive in an empty directory and builds the binaries and packages ONLY
 #    from it. A missing file fails here.
 # 3. Builds the same commit from a git worktree and requires byte-identical binaries and
@@ -64,11 +64,10 @@ npm=$(npm --version)
 rust=$(cd backend/audit-retention && rustc --version | cut -d' ' -f2)
 build_command=make build VERSION=$ver SOURCE_DATE_EPOCH=$sde
 packages_command=packaging/debian/build-deb.sh $ver (first release is Debian/Ubuntu; Fedora and Arch scripts stay in the tree and are not built here)
-excluded=compat/webmin/ (upstream Webmin reference tree; not used to build any binary; available at the tagged commit)
 INFO
 )
 git archive --format=tar --prefix="$name/" --add-virtual-file="$name/RELEASE-BUILDINFO:$buildinfo
-" -o "$work/src.tar" HEAD -- . ':(exclude)compat/webmin'
+" -o "$work/src.tar" HEAD
 tar --append -f "$work/src.tar" --sort=name --owner=0 --group=0 --numeric-owner --mtime="@$sde" \
   --mode='u+rw,go+r-w' --transform="s#^vendor-sources#$name/vendor-sources#" -C "$work/vendor" vendor-sources
 gzip -n -9 -c "$work/src.tar" > "$out/$name-source.tar.gz"

@@ -17,7 +17,7 @@ results as history.
 ## 1. What a Phase 1 prerelease publishes (GitHub Releases, marked prerelease, unsigned)
 | File | Content |
 |---|---|
-| `homelab-control-<v>-source.tar.gz` | Complete corresponding source: repository at the tag (minus `compat/webmin/`, which no binary uses), `vendor-sources/npm/` (published sources of everything compiled into the UI bundle, integrity-checked), `RELEASE-BUILDINFO`, `BUILDING.md` |
+| `homelab-control-<v>-source.tar.gz` | Complete corresponding source: repository at the tag, `vendor-sources/npm/` (published sources of everything compiled into the UI bundle, integrity-checked), `RELEASE-BUILDINFO`, `BUILDING.md` |
 | `homelab-control-<v>-linux-<arch>.tar.gz` | `hc-api`, `hlctl`, `hc-broker` + `LICENSE.md`, `NOTICE.md`, `THIRD-PARTY-NOTICES.md` |
 | `homelab-control_<v>_<arch>.deb` | Debian/Ubuntu package (licence and notice files, plus the DEP-5 `copyright`). No `.rpm` and no Arch package |
 | `LICENSE.md`, `NOTICE.md`, `THIRD-PARTY-NOTICES.md` | Licence texts and notices, also as separate assets |
@@ -98,7 +98,7 @@ draft's source archive and matches `SHA256SUMS` (ADR 0009 R11). Requirements: AD
    build provenance through OIDC, recorded in a public transparency log) for each release file. They
    show which workflow run on which commit produced each file. Needs `id-token: write` and
    `attestations: write` in the build job only. Verification:
-   `gh attestation verify <file> --repo KRDucky/Homelab-Control---Webmin-Fork`. No hardware key or
+   `gh attestation verify <file> --repo KRDucky/Homelab-Control`. No hardware key or
    manually generated secret is involved.
 3. **Phase 3, maintainer signing (deferred to a future owner decision).** An OpenPGP signature over
    `SHA256SUMS`, signed tags, and package-repository signing (APT `InRelease`, `rpmsign`, Arch `.sig`).

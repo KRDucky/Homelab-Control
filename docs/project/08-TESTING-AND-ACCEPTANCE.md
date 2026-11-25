@@ -3,7 +3,7 @@
 ## Test levels
 - Unit: TypeScript components/hooks, Perl bridge, Go services, schema validation, parsers.
 - Contract: OpenAPI schema, RBAC permissions, plugin/theme compatibility, distro package resolution.
-- Integration: real Webmin fork sessions, systemd, package managers, Docker/libvirt adapters and storage tools on disposable VMs.
+- Integration: real sessions, systemd, package managers, Docker/libvirt adapters and storage tools on disposable VMs.
 - Storage: loop devices, sparse files, virtual disks, simulated disk loss, ZFS/mdraid/Btrfs/mergerfs/SnapRAID fixtures; power-interruption and restart behavior.
 - Hardware: SMART fixtures, SES mocks, unknown bay locations, missing GPU interfaces, fan watchdog/failsafe simulations.
 - Browser: Playwright keyboard/accessibility, theme switching, CSRF/auth failure, error states, mobile and desktop layouts.

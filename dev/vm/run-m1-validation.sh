@@ -29,7 +29,6 @@ cp "$pkg" "$tmp/hc/pkg.deb"; cp "$axe" "$tmp/hc/axe.min.js"
 cp -r "$root/tests/systemd" "$root/tests/e2e" "$tmp/hc/tests/"
 rm -rf "$tmp/hc/tests/e2e/artifacts"
 cp "$root/dev/vm/guest-validate.sh" "$tmp/hc/"
-cp -r "$root/compat/webmin" "$tmp/hc/webmin"
 "$vm" ssh "$name" 'sudo rm -rf /opt/hc && sudo install -d /opt/hc'
 tar -C "$tmp/hc" -cf - . | "$vm" ssh "$name" 'sudo tar -C /opt/hc --no-same-owner -xf - && sudo chown -R root:root /opt/hc'
 

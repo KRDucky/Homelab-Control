@@ -20,8 +20,7 @@ is enough, and a change should stay simple.
   // SPDX-License-Identifier: GPL-3.0-or-later
   ```
   `reuse lint` (in `make security`) fails on files without licence information.
-- `compat/webmin/` is upstream Webmin. Do not edit it except through the documented patch process
-  (`compat/PATCHES.md`); changes there are contributed under Webmin's BSD-3-Clause licence.
+- Homelab Control is not a fork of Webmin. Do not add Webmin code, modules or assets.
 - Do not copy code, icons, fonts, screenshots or text from other projects (including Webmin's Authentic
   theme, Unraid, TrueNAS or Cockpit) unless its licence is compatible **and** you record its origin in
   the pull request; new runtime dependencies need an ADR 0006 review and regenerated notices/SBOM.

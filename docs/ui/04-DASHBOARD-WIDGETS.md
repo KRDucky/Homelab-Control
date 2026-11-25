@@ -52,4 +52,4 @@ available.
 
 ## 4.4 Core widgets (initial set, read-only)
 Host summary, CPU, memory, filesystems usage, network throughput, services (failed / all), hardware
-identity, legacy Webmin status, recent audit events (M2), background operations (M2).
+identity, recent audit events (M2), background operations (M2).

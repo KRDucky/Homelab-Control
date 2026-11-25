@@ -12,7 +12,6 @@ export interface SessionInfo {
   scopes: string[] | null;
   csrf_token: string;
   version: string;
-  legacy_url?: string;
   /** When this session's password re-entry (D-3) lapses. */
   step_up_until?: string;
 }
@@ -67,13 +66,6 @@ export interface Overview {
   };
   filesystems: Meta & { view: 'host' | 'service'; note?: string; items: Filesystem[] };
   network: Meta & { interfaces: NetInterface[] };
-  legacy_webmin: Meta & {
-    installed: boolean;
-    version?: string;
-    config_readable: boolean;
-    configured_url?: string;
-    privilege_needed?: string;
-  };
 }
 
 export class ApiError extends Error {
@@ -156,7 +148,7 @@ export function getOverview(): Promise<Overview> {
   return request<Overview>('/api/v1/host/overview');
 }
 
-// ---- M1: capabilities, services, hardware, legacy -------------------------
+// ---- M1: capabilities, services, hardware -----------------------------------
 
 export type CapabilityStatus = 'available' | 'degraded' | 'unavailable' | 'unsupported' | 'forbidden';
 
@@ -167,7 +159,6 @@ export interface Capability {
     | 'service_logs'
     | 'unit_files'
     | 'hardware'
-    | 'legacy'
     | 'audit'
     | 'storage'
     | 'host_settings'

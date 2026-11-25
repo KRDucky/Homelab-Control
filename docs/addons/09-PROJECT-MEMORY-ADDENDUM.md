@@ -12,4 +12,4 @@ Native daemon integration, no custom protocol reimplementation; typed broker ope
 WebDAV default Apache vs alternative, preferred FTPS backend, SFTP FUSE availability per distro, iSCSI multipath scope, LDAP/AD phase, config ownership/import semantics, ACME ownership across proxy providers, shared identity policy. Resolve via ADR before implementation.
 
 ## Verified repo baseline at planning time
-Webmin fork repository `KRDucky/Homelab-Control---Webmin-Fork` had M0 merged; root `CLAUDE.md` and `docs/M1-PLAN.md` required owner approval before M1. These addenda do not assert new features have been implemented.
+Webmin fork repository `KRDucky/Homelab-Control` had M0 merged; root `CLAUDE.md` and `docs/M1-PLAN.md` required owner approval before M1. These addenda do not assert new features have been implemented.

@@ -43,7 +43,7 @@ const (
 	// wakes disks to read blkid/LVM signatures. Never granted by default; it is
 	// a separate, explicit action scope.
 	ScopeStorageProbe = "storage.probe"
-	ScopeSystemRead   = "system.read"   // overview, legacy Webmin status
+	ScopeSystemRead   = "system.read"   // overview and host settings
 	ScopeServicesRead = "services.read" // systemd unit list (M1)
 	ScopeHardwareRead = "hardware.read" // hardware inventory incl. DMI serials (M1)
 	// ScopeServicesLogs allows reading service journal entries, which can
@@ -248,7 +248,7 @@ const DefaultScopes = ScopeSystemRead + "," + ScopeServicesRead + "," + ScopeHar
 var usernameRE = regexp.MustCompile(`^[a-z_][a-z0-9_-]{0,31}$`)
 
 // User is a local Homelab Control account. It is deliberately separate from
-// Unix and Webmin accounts in M0 (see ADR 0002).
+// Unix accounts in M0 (see ADR 0002).
 type User struct {
 	Username     string   `json:"username"`
 	PasswordHash string   `json:"password_hash"`

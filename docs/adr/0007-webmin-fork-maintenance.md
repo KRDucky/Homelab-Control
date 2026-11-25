@@ -1,6 +1,6 @@
 # ADR-0007: Webmin fork maintenance and upstream sync
 
-**Status:** Accepted for M0
+**Status:** Superseded by [ADR 0016](0016-independent-project-webmin-removed.md) (owner, 2026-11-25). Kept for history (previous status: Accepted for M0).
 **Date:** 2026-10-15
 **Deciders:** Project owner
 

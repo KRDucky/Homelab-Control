@@ -164,12 +164,11 @@ jobs:
         with:
           name: build
           path: build
-      - name: Package + hardened units under systemd (incl. real upstream Webmin)
+      - name: Package + hardened units under systemd
         run: |
           sudo touch /etc/hc-disposable
           sudo env HC_SMOKE_EXTRA_UNITS=homelab-control-broker.socket \
             HC_SMOKE_EXTRA_CHECKS="$PWD/tests/systemd/m1-checks.sh $PWD/tests/systemd/m2-service-ops.sh $PWD/tests/systemd/m2-3-checks.sh" \
-            HC_WEBMIN_SRC="$PWD/compat/webmin" \
             HC_SMOKE_SCOPES=system.read,services.read,services.logs,hardware.read \
             HC_SMOKE_RATE_LIMIT_BURST=100000 \
             tests/systemd/systemd-smoke.sh "$(ls build/*.deb)"
@@ -193,7 +192,7 @@ jobs:
           set -o pipefail
           if ! sudo dev/disposable/systemd-container.sh resolute "$(ls build/*.deb)" \
             HC_SMOKE_EXTRA_UNITS=homelab-control-broker.socket "HC_SMOKE_EXTRA_CHECKS=/opt/hc/tests/m1-checks.sh /opt/hc/tests/m2-service-ops.sh /opt/hc/tests/m2-3-checks.sh" \
-            HC_WEBMIN_SRC=/opt/hc/webmin HC_SMOKE_SCOPES=system.read,services.read,services.logs,hardware.read \
+            HC_SMOKE_SCOPES=system.read,services.read,services.logs,hardware.read \
             HC_SMOKE_RATE_LIMIT_BURST=100000 2>&1 | tee /tmp/sd.log; then
             echo "::error title=systemd-ubuntu-2604::$(grep -E 'FAIL|rror|E: |unsupported|denied|systemd|cgroup|Failed' /tmp/sd.log | tail -n 25 | sed ':a;N;$!ba;s/\n/%0A/g')%0A--- tail ---%0A$(tail -n 15 /tmp/sd.log | sed ':a;N;$!ba;s/\n/%0A/g')"
             exit 1
@@ -214,7 +213,7 @@ jobs:
       - name: Upgrade v0.1.0-dev.1 -> this build under systemd
         run: |
           curl -fsSL -o /tmp/old.deb \
-            https://github.com/KRDucky/Homelab-Control---Webmin-Fork/releases/download/v0.1.0-dev.1/homelab-control_0.1.0-dev.1_amd64.deb
+            https://github.com/KRDucky/Homelab-Control/releases/download/v0.1.0-dev.1/homelab-control_0.1.0-dev.1_amd64.deb
           sudo touch /etc/hc-disposable
           sudo tests/packaging/upgrade-test.sh /tmp/old.deb "$(ls build/*.deb)"
 
@@ -248,15 +247,3 @@ jobs:
         run: |
           chmod +x build/hc-api build/hlctl
           tests/integration/run-hc-e2e.sh
-
-  upstream-perl-tests:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Upstream Webmin test suite (pinned baseline)
-        working-directory: compat/webmin
-        run: |
-          sudo apt-get update && sudo apt-get install -y libperl-critic-perl
-          prove -lr t

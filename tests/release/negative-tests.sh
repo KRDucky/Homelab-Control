@@ -68,11 +68,6 @@ resum
 expect_fail "invalid SBOM"
 
 fresh; mkdir -p "$work/x"; tar -xzf "$work/c/homelab-control-$ver-source.tar.gz" -C "$work/x"
-mkdir -p "$work/x/homelab-control-$ver/compat/webmin" && echo 'print "x";' > "$work/x/homelab-control-$ver/compat/webmin/miniserv.pl"
-tar -C "$work/x" -czf "$work/c/homelab-control-$ver-source.tar.gz" "homelab-control-$ver"; rm -rf "$work/x"; resum
-expect_fail "Webmin file in the source archive"
-
-fresh; mkdir -p "$work/x"; tar -xzf "$work/c/homelab-control-$ver-source.tar.gz" -C "$work/x"
 rm -rf "$work/x/homelab-control-$ver/vendor-sources"
 tar -C "$work/x" -czf "$work/c/homelab-control-$ver-source.tar.gz" "homelab-control-$ver"; rm -rf "$work/x"; resum
 expect_fail "source archive without the npm sources (incomplete corresponding source)"
@@ -81,7 +76,7 @@ fresh; sed -i 's/^commit=.*/commit=0000000000000000000000000000000000000000/' "$
 expect_fail "RELEASE-BUILDINFO commit differs (and differs from the archive copy)"
 
 fresh; mkdir -p "$work/x"; tar -xzf "$work/c/homelab-control-$ver-linux-amd64.tar.gz" -C "$work/x"
-echo '#!/bin/sh' > "$work/x/homelab-control-$ver-linux-amd64/webmin-helper.pl"
+echo '#!/bin/sh' > "$work/x/homelab-control-$ver-linux-amd64/extra-helper.pl"
 tar -C "$work/x" -czf "$work/c/homelab-control-$ver-linux-amd64.tar.gz" "homelab-control-$ver-linux-amd64"; rm -rf "$work/x"; resum
 expect_fail "extra file in the binaries tarball"
 

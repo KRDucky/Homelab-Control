@@ -70,7 +70,7 @@ with sync_playwright() as p:
     expect(nav.get_by_role("link", name="Services")).to_be_visible(timeout=15000)
     check("nav: Services, Hardware and Audit are links", all(
         nav.get_by_role("link", name=n).count() == 1 for n in ["Overview", "Services", "Hardware", "Audit"]))
-    check("nav: retired Webmin page is absent", nav.get_by_text("Legacy Webmin").count() == 0)
+    check("nav: no Legacy Webmin page", nav.get_by_text("Legacy Webmin").count() == 0)
 
     nav.get_by_role("link", name="Services").click()
     expect(page.get_by_role("heading", name="Services", level=1)).to_be_visible()
@@ -150,7 +150,7 @@ with sync_playwright() as p:
     page.screenshot(path=f"{ART}/m1-02-hardware.png", full_page=True)
     axe(page, "hardware")
 
-    # The retired Webmin UI is no longer exposed, even when the API advertises it.
+    # The removed Legacy Webmin page's old URL falls back to the dashboard.
     page.goto(URL + "/legacy")
     expect(page.get_by_role("tab", name="Dashboard")).to_be_visible(timeout=15000)
     check("retired route displays the HomeControl dashboard", True)

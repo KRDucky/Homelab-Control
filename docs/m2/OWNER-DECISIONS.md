@@ -499,3 +499,12 @@ Recorded here:
   official archive entries changes, with a backup and a diff in the plan; keys and `Signed-By` stay.
 - This does not authorize package installs, removals, upgrades, metadata refresh, new repositories or keys.
   `apt` (rather than `apt-get`) was considered and kept out: apt(8) directs scripts to `apt-get`.
+
+## Independent project; Webmin removed (owner, 2026-11-25)
+
+- The owner stated: "the webmin/compat is supposed to be removed from the codebase since we are not a fork of
+  webmin", and then: "i want to completely remove it from the repo".
+- Asked what happens to the Legacy Webmin detection page, the owner chose **"Remove the feature too"**.
+- Asked how to handle the fork framing in rules and docs, the owner chose **"Rewrite as independent"**.
+- Recorded in ADR 0016, which supersedes ADR 0003 and ADR 0007. The Git history is rewritten so no commit
+  contains `compat/`.

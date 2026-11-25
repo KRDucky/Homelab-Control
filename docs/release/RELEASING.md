@@ -12,7 +12,7 @@ workflow**, branch **main**). It takes one input, the version.
 | Job | Permissions | What it does | Fails when |
 |---|---|---|---|
 | `preflight` | `contents: read`, `actions: read` | Must run on `main`; validates the version; the tag and any published release for it must not exist; the `ci` workflow must have **succeeded on `main` for exactly this commit** | Not on `main`, invalid version, tag or release exists, no green `ci` run for the commit yet |
-| `gate` | `contents: read` | `make check` with the exact release toolchain (lint, Go and frontend tests, release tooling tests, security gate incl. `govulncheck`, REUSE, SBOM, notices, Webmin inventory) | Any check fails, toolchain differs from the pins |
+| `gate` | `contents: read` | `make check` with the exact release toolchain (lint, Go and frontend tests, release tooling tests, security gate incl. `govulncheck`, REUSE, SBOM, notices) | Any check fails, toolchain differs from the pins |
 | `build` (`release-build.yml`) | `contents: read` | Two independent builds (a, b) with `scripts/release-bundle.sh` (Debian/Ubuntu `.deb` only), byte-for-byte comparison of a and b, assembly of the candidate, **fail-closed verification** of every mandatory deliverable, negative tests, version-ordering tests, release notes. Fedora and Arch scripts stay in the tree and are not built | Any build, reproducibility, verification or test step fails |
 | `draft` | `contents: write` (only job) | Re-checks the candidate; checks again (now able to see drafts) that **no release, draft or tag** exists for the version; creates the **draft prerelease** titled `[INCOMPLETE - do not publish] …`; downloads **every uploaded asset back** and checks it against `SHA256SUMS`; then retitles it `UNSIGNED DEVELOPMENT BUILD vX.Y.Z-…`. It stays a draft | Duplicate version, upload error, downloaded assets differ, the release is not a draft prerelease |
 
@@ -54,15 +54,15 @@ No `.rpm` and no Arch package. openSUSE installed the Fedora `.rpm`, so it is ou
 - `RELEASE-BUILDINFO`: the version, the commit, and Go/Node.js/npm equal to `packaging/release/toolchain.env` (R6);
 - SBOM: SPDX 2.3, stamped with the version, commit and exact Go version (R4), accepted by `pyspdxtools`;
 - source archive: complete (npm sources, `RELEASE-BUILDINFO`, `BUILDING.md`, notices, lockfile,
-  toolchain pins), **no `compat/webmin/`**, no `.git`, no paths or links outside the tree; its notices
+  toolchain pins), no `.git`, no paths or links outside the tree; its notices
   and `RELEASE-BUILDINFO` identical to the separate assets;
 - binaries tarball: exactly the three binaries plus the three notice files;
 - package: `scripts/package-inventory.sh` on the `.deb` (no Webmin/Perl/CGI paths, allow-listed paths only, notice
   files present, DEP-5 `copyright`); `.deb` version as above.
 
-`tests/release/negative-tests.sh` then mutates copies of the real candidate (15 cases: missing or
-extra files, corrupted `.deb`, wrong version/commit/toolchain, unstamped or invalid SBOM, Webmin file or
-missing npm sources in the source archive, extra file in the binaries tarball, `.deb` that is not a package) and
+`tests/release/negative-tests.sh` then mutates copies of the real candidate (13 cases: missing or
+extra files, corrupted `.deb`, wrong version/commit/toolchain, unstamped or invalid SBOM, missing npm
+sources in the source archive, extra file in the binaries tarball, `.deb` that is not a package) and
 requires each to fail verification.
 
 ## 4. Owner procedure
