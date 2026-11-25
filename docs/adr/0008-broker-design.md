@@ -481,3 +481,18 @@ cancels, resets or changes anything.
   its saved state, which AppArmor counts as write; `ProtectSystem=strict` keeps `/var/lib` read-only in the
   helper. The policy guard allows write only for `/dev/zfs` and this file, and rejects a file-wide read.
 
+## Amendment 15 (2026-11-25, M7, owner-authorized): Software RAID through the storage helper
+
+Same activation as Amendments 13 and 14. Request scope `md` reads `/proc/mdstat` (opened directly, bounded,
+the `mdadminfo` parser) and runs one fixed template per listed array: `mdadm --detail /dev/<kernel name>`
+(`internal/storagetools/md.go`). Names are the kernel's own (`md0`, `md127`, `md_<name>`); no caller names a
+device. Limits: 64 arrays, 256 members each, 128 KiB per report; budget 30 s.
+
+- `mdadm --detail` opens the md block device (`block-md r`, already granted), so this scope stays behind the
+  block-class self-check; the ZFS and Btrfs scopes, which open no block device, run before it.
+- **Broker op** `mdadm.status`: scope `mdadm.read`, no arguments, `root-read`, admission `system-read`,
+  deadlines from the shared helper budget.
+- **AppArmor.** `ix` for `mdadm`; `/etc/mdadm/**`, `/etc/mdadm.conf`, `/run/mdadm/**` and `@{PROC}/mdstat`
+  read-only. No new device or write rule.
+- **No writes.** No create, assemble, add, remove, fail, grow or stop exists.
+
