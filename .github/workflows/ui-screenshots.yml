@@ -67,22 +67,22 @@ jobs:
           start = s.index(before)
           end = s.index(after, start)
           gallery = """### Screenshots (current UI, disposable CI environment)
-
-These are actual Playwright screenshots of the frontend built from this repository, running against a temporary unprivileged API on an Ubuntu CI runner. No privileged broker or real homelab is connected, so unavailable modules are shown honestly; they are not evidence of production-ready operations.
-
-![Current overview and module navigation](docs/screenshots/overview-desktop.png)
-
-| Services | Storage |
-|---|---|
-| ![Services](docs/screenshots/services-desktop.png) | ![Storage](docs/screenshots/storage-desktop.png) |
-
-| Software | Network ports |
-|---|---|
-| ![Software Center](docs/screenshots/software-desktop.png) | ![Network ports](docs/screenshots/network-ports-desktop.png) |
-
-![Responsive mobile navigation](docs/screenshots/navigation-mobile.png)
-
-"""
+          
+          These are actual Playwright screenshots of the frontend built from this repository, running against a temporary unprivileged API on an Ubuntu CI runner. No privileged broker or real homelab is connected, so unavailable modules are shown honestly; they are not evidence of production-ready operations.
+          
+          ![Current overview and module navigation](docs/screenshots/overview-desktop.png)
+          
+          | Services | Storage |
+          |---|---|
+          | ![Services](docs/screenshots/services-desktop.png) | ![Storage](docs/screenshots/storage-desktop.png) |
+          
+          | Software | Network ports |
+          |---|---|
+          | ![Software Center](docs/screenshots/software-desktop.png) | ![Network ports](docs/screenshots/network-ports-desktop.png) |
+          
+          ![Responsive mobile navigation](docs/screenshots/navigation-mobile.png)
+          
+          """
           readme.write_text(s[:start] + gallery + s[end:])
           PY
           git config user.name "github-actions[bot]"
