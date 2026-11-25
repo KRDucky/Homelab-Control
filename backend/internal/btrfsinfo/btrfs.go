@@ -11,12 +11,10 @@
 package btrfsinfo
 
 import (
-	"bufio"
 	"context"
-	"fmt"
+	"homelab-control/backend/internal/mountinfo"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 )
 
@@ -45,150 +43,10 @@ type Snapshot struct {
 }
 
 const (
-	mountinfoMaxBytes   = 4 * 1024 * 1024
-	mountinfoMaxMounts  = 8192
-	mountinfoMaxLine    = 64 << 10
 	btrfsMaxMounts      = 256
-	deviceMaxBytes      = 256
 	subvolMaxBytes      = 256
 	reasonTooManyMounts = "too many mounts to list"
 )
-
-// ParseMountInfo parses bounded kernel mountinfo and retains fstype btrfs
-// mounts only. Every other filesystem is dropped. A non-btrfs line is skipped
-// even when the rest of the record is malformed. A line over mountinfoMaxLine
-// is skipped and marks the inventory truncated. A line with no filesystem
-// type, or a btrfs line with a bad mountpoint, still fails the parse. A btrfs
-// source that is not a /dev path, or a subvolume option that is not a safe
-// absolute path, is skipped.
-func ParseMountInfo(r io.Reader) ([]Mount, bool, error) {
-	br := bufio.NewReader(io.LimitReader(r, mountinfoMaxBytes+1))
-	mounts := []Mount{}
-	size := 0
-	records := 0
-	truncated := false
-	for {
-		line, n, tooLong, err := nextMountLine(br)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, false, fmt.Errorf("cannot read bounded mount inventory: %w", err)
-		}
-		size += n
-		if size > mountinfoMaxBytes {
-			truncated = true
-			break
-		}
-		if records >= mountinfoMaxMounts {
-			truncated = true
-			break
-		}
-		records++
-		if tooLong {
-			truncated = true
-			continue
-		}
-		fields := strings.Fields(line)
-		sep := -1
-		for i, f := range fields {
-			if f == "-" {
-				sep = i
-				break
-			}
-		}
-		fstype := ""
-		if sep >= 0 && len(fields) > sep+1 {
-			fstype = fields[sep+1]
-		}
-		if fstype != "btrfs" {
-			if fstype == "" {
-				return nil, false, fmt.Errorf("invalid mountinfo record")
-			}
-			continue
-		}
-		// super-options is fields[sep+3]. A shorter btrfs record is malformed.
-		// Returning an error avoids indexing off the end.
-		if sep < 6 || len(fields) < sep+4 {
-			return nil, false, fmt.Errorf("invalid mountinfo record")
-		}
-		if _, e := strconv.ParseUint(fields[0], 10, 64); e != nil {
-			return nil, false, fmt.Errorf("invalid mount identifier")
-		}
-		point, err := unescape(fields[4])
-		if err != nil || !strings.HasPrefix(point, "/") || hasDotDot(point) {
-			return nil, false, fmt.Errorf("invalid btrfs mountpoint")
-		}
-		source, err := unescape(fields[sep+2])
-		if err != nil {
-			return nil, false, fmt.Errorf("invalid btrfs source")
-		}
-		if !validDevice(source) {
-			continue
-		}
-		subvol, subvolID, ok := parseSubvol(fields[sep+3])
-		if !ok {
-			truncated = true // A btrfs record was omitted because its options were unsafe or invalid.
-			continue
-		}
-		if len(mounts) >= btrfsMaxMounts {
-			truncated = true
-			continue
-		}
-		mounts = append(mounts, Mount{Mountpoint: point, Device: source, Subvol: subvol, SubvolID: subvolID})
-	}
-	return mounts, truncated, nil
-}
-
-func nextMountLine(r *bufio.Reader) (line string, n int, tooLong bool, err error) {
-	var b strings.Builder
-	for {
-		frag, readErr := r.ReadSlice('\n')
-		n += len(frag)
-		if !tooLong && len(frag) > 0 {
-			if b.Len()+len(frag) > mountinfoMaxLine {
-				tooLong = true
-				b.Reset()
-			} else {
-				b.Write(frag)
-			}
-		}
-		if readErr == bufio.ErrBufferFull {
-			continue
-		}
-		if readErr == io.EOF {
-			if n == 0 {
-				return "", 0, false, io.EOF
-			}
-			return strings.TrimRight(b.String(), "\n"), n, tooLong, nil
-		}
-		if readErr != nil {
-			return "", n, tooLong, readErr
-		}
-		return strings.TrimRight(b.String(), "\n"), n, tooLong, nil
-	}
-}
-
-func validDevice(name string) bool {
-	if len(name) < len("/dev/x") || len(name) > deviceMaxBytes || !strings.HasPrefix(name, "/dev/") {
-		return false
-	}
-	if hasDotDot(name) || strings.Contains(name, "//") {
-		return false
-	}
-	return true
-}
-
-// hasDotDot reports a path component that is exactly "..". A name such as
-// foo..bar is kept. A component ".." is not.
-func hasDotDot(path string) bool {
-	for _, c := range strings.Split(path, "/") {
-		if c == ".." {
-			return true
-		}
-	}
-	return false
-}
 
 // parseSubvol reads subvol= and subvolid= from a mount-options field.
 // A missing key is empty. An unsafe subvol path returns ok=false.
@@ -201,7 +59,7 @@ func parseSubvol(options string) (subvol, id string, ok bool) {
 		}
 		switch key {
 		case "subvol":
-			if len(val) == 0 || len(val) > subvolMaxBytes || !strings.HasPrefix(val, "/") || hasDotDot(val) {
+			if len(val) == 0 || len(val) > subvolMaxBytes || !strings.HasPrefix(val, "/") || mountinfo.HasDotDot(val) {
 				return "", "", false
 			}
 			subvol = val
@@ -218,33 +76,6 @@ func parseSubvol(options string) (subvol, id string, ok bool) {
 		}
 	}
 	return subvol, id, ok
-}
-
-func unescape(s string) (string, error) {
-	var b strings.Builder
-	for i := 0; i < len(s); i++ {
-		if s[i] != '\\' {
-			b.WriteByte(s[i])
-			continue
-		}
-		if i+3 >= len(s) {
-			return "", fmt.Errorf("invalid mount escape")
-		}
-		switch esc := s[i+1 : i+4]; esc {
-		case "040":
-			b.WriteByte(' ')
-		case "011":
-			b.WriteByte('\t')
-		case "012":
-			b.WriteByte('\n')
-		case "134":
-			b.WriteByte('\\')
-		default:
-			return "", fmt.Errorf("invalid mount escape")
-		}
-		i += 3
-	}
-	return b.String(), nil
 }
 
 func collectMounts(osRoot string) ([]Mount, bool, error) {
@@ -299,4 +130,33 @@ func Collect(ctx context.Context, osRoot, family string) (Snapshot, error) {
 		snap.Btrfs = base
 	}
 	return snap, nil
+}
+
+// ParseMountInfo returns the btrfs mounts in bounded kernel mountinfo (shared
+// parser: internal/mountinfo), with the subvolume from the super options.
+// Mounts with an unsafe device, mountpoint or subvolume option are omitted and
+// mark the list truncated; so do skipped lines and rows beyond btrfsMaxMounts.
+func ParseMountInfo(r io.Reader) ([]Mount, bool, error) {
+	recs, info, err := mountinfo.Parse(r)
+	if err != nil {
+		return nil, false, err
+	}
+	mounts := []Mount{}
+	truncated := info.Truncated
+	for _, rec := range recs {
+		if rec.FSType != "btrfs" {
+			continue
+		}
+		subvol, subvolID, ok := parseSubvol(rec.SuperOptions)
+		if !ok || !mountinfo.ValidDevice(rec.Source) || mountinfo.HasDotDot(rec.Mountpoint) {
+			truncated = true
+			continue
+		}
+		if len(mounts) >= btrfsMaxMounts {
+			truncated = true
+			continue
+		}
+		mounts = append(mounts, Mount{Mountpoint: rec.Mountpoint, Device: rec.Source, Subvol: subvol, SubvolID: subvolID})
+	}
+	return mounts, truncated, nil
 }

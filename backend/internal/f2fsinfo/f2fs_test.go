@@ -60,46 +60,6 @@ func TestParseMountInfoIgnoresInvalidNonDeviceSource(t *testing.T) {
 	}
 }
 
-func TestParseMountInfoMissingOptionsDoesNotPanic(t *testing.T) {
-	in := "40 1 0:36 / /mnt/data rw - f2fs /dev/sda1\n"
-	_, _, err := ParseMountInfo(strings.NewReader(in))
-	if err == nil {
-		t.Fatal("expected error")
-	}
-}
-
-func TestParseMountInfoKeepsDottedNamesAndRejectsDotDot(t *testing.T) {
-	in := "44 1 0:36 / /mnt/foo..bar rw - f2fs /dev/disk..1 rw\n" +
-		"45 1 0:36 / /../bad rw - f2fs /dev/sdb1 rw\n" +
-		f2fsLine(46)
-	_, _, err := ParseMountInfo(strings.NewReader(in))
-	if err == nil {
-		t.Fatal("expected error for a dotdot mountpoint")
-	}
-	in = "44 1 0:36 / /mnt/foo..bar rw - f2fs /dev/disk..1 rw\n" + f2fsLine(45)
-	mounts, _, err := ParseMountInfo(strings.NewReader(in))
-	if err != nil || len(mounts) != 2 {
-		t.Fatalf("mounts=%v err=%v", mounts, err)
-	}
-	if mounts[0].Mountpoint != "/mnt/foo..bar" || mounts[0].Device != "/dev/disk..1" {
-		t.Fatalf("%+v", mounts[0])
-	}
-}
-
-func TestParseMountInfoFailsClosedOnMissingSeparator(t *testing.T) {
-	in := f2fsLine(40) + "41 1 0:36 / /mnt/bad rw f2fs /dev/sdb1 rw\n"
-	mounts, truncated, err := ParseMountInfo(strings.NewReader(in))
-	if err == nil || mounts != nil || truncated {
-		t.Fatalf("malformed mountinfo must fail closed: mounts=%v truncated=%v err=%v", mounts, truncated, err)
-	}
-}
-
-func TestParseMountInfoRejectsTypelessLine(t *testing.T) {
-	if _, _, err := ParseMountInfo(strings.NewReader("not-a-mountinfo-line\n")); err == nil {
-		t.Fatal("expected error")
-	}
-}
-
 func TestParseKernelF2fs(t *testing.T) {
 	if !parseKernelF2fs("nodev\tf2fs\n\text4\n") {
 		t.Fatal("missing f2fs")
@@ -186,5 +146,27 @@ func TestCollectReturnsCancellation(t *testing.T) {
 	cancel()
 	if _, err := Collect(ctx, t.TempDir(), "debian"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+}
+
+// Malformed lines and unsafe f2fs records are skipped and mark the list
+// incomplete (shared internal/mountinfo rule); valid mounts are still listed.
+func TestParseMountInfoSkipsMalformedAndUnsafeRecords(t *testing.T) {
+	in := "40 1 0:36 / /mnt/data rw - f2fs /dev/sda1\n" + // no super-options
+		"41 1 0:36 / /mnt/bad rw f2fs /dev/sdb1 rw\n" + // no separator
+		"not-a-mountinfo-line\n" +
+		"45 1 0:36 / /../bad rw - f2fs /dev/sdb1 rw\n" + // ".." mountpoint
+		"44 1 0:36 / /mnt/foo..bar rw - f2fs /dev/disk..1 rw\n" + // dots inside a name are fine
+		f2fsLine(46)
+	mounts, truncated, err := ParseMountInfo(strings.NewReader(in))
+	if err != nil || !truncated || len(mounts) != 2 {
+		t.Fatalf("mounts=%v truncated=%v err=%v", mounts, truncated, err)
+	}
+	if mounts[0].Mountpoint != "/mnt/foo..bar" || mounts[0].Device != "/dev/disk..1" {
+		t.Fatalf("%+v", mounts[0])
+	}
+	// A clean inventory is not marked truncated.
+	if mounts, truncated, err := ParseMountInfo(strings.NewReader(f2fsLine(46))); err != nil || truncated || len(mounts) != 1 {
+		t.Fatalf("clean: mounts=%v truncated=%v err=%v", mounts, truncated, err)
 	}
 }

@@ -13,12 +13,11 @@
 package mergerfsinfo
 
 import (
-	"bufio"
 	"context"
 	"fmt"
+	"homelab-control/backend/internal/mountinfo"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 )
 
@@ -58,57 +57,29 @@ type Snapshot struct {
 
 // mountinfoReadLimits match storageinfo.ParseMountInfo so a hostile or
 // oversized kernel file cannot grow memory unbounded.
-const (
-	mountinfoMaxBytes  = 4 * 1024 * 1024
-	mountinfoMaxMounts = 8192
-)
+const ()
 
-// ParseMountInfo parses bounded kernel mountinfo and retains source and
-// options only for fuse.mergerfs mounts (and fuseblk whose source clearly
-// looks like colon-separated mergerfs branches). Every other filesystem's
-// source and options are dropped; unlike storageinfo, only mergerfs pools are
-// returned.
+// ParseMountInfo parses bounded kernel mountinfo (shared parser:
+// internal/mountinfo) and retains source and options only for fuse.mergerfs
+// mounts (and fuseblk whose source clearly looks like colon-separated mergerfs
+// branches). Every other filesystem's source and options are dropped; unlike
+// storageinfo, only mergerfs pools are returned. A skipped line or a reached
+// bound fails the parse, so a broken inventory never reads as "no pools".
 func ParseMountInfo(r io.Reader) ([]Pool, error) {
-	s := bufio.NewScanner(io.LimitReader(r, mountinfoMaxBytes+1))
-	s.Buffer(make([]byte, 4096), 65536)
+	recs, info, err := mountinfo.Parse(r)
+	if err != nil {
+		return nil, err
+	}
+	if info.Truncated {
+		return nil, fmt.Errorf("mount inventory is malformed or exceeds its limits")
+	}
 	pools := []Pool{}
-	size := 0
-	for s.Scan() {
-		size += len(s.Bytes()) + 1
-		if size > mountinfoMaxBytes {
-			return nil, fmt.Errorf("mount inventory exceeds byte limit")
-		}
-		if len(pools) >= mountinfoMaxMounts {
-			return nil, fmt.Errorf("mount inventory exceeds entry limit")
-		}
-		fields := strings.Fields(s.Text())
-		sep := -1
-		for i, f := range fields {
-			if f == "-" {
-				sep = i
-				break
-			}
-		}
-		if sep < 6 || len(fields) < sep+4 {
-			return nil, fmt.Errorf("invalid mountinfo record")
-		}
-		if _, e := strconv.ParseUint(fields[0], 10, 64); e != nil {
-			return nil, fmt.Errorf("invalid mount identifier")
-		}
-		fstype := fields[sep+1]
-		if fstype != "fuse.mergerfs" && fstype != "fuseblk" {
+	for _, rec := range recs {
+		if rec.FSType != "fuse.mergerfs" && rec.FSType != "fuseblk" {
 			continue
 		}
-		point, err := unescape(fields[4])
-		if err != nil || !strings.HasPrefix(point, "/") {
-			return nil, fmt.Errorf("invalid mergerfs mountpoint")
-		}
-		source, err := unescape(fields[sep+2])
-		if err != nil {
-			return nil, fmt.Errorf("invalid mergerfs source")
-		}
-		branches, ok := parseBranches(source)
-		if fstype == "fuseblk" && (!ok || len(branches) < 2) {
+		branches, ok := parseBranches(rec.Source)
+		if rec.FSType == "fuseblk" && (!ok || len(branches) < 2) {
 			// fuseblk is only accepted when the source clearly looks like
 			// multiple colon-separated absolute mergerfs branches.
 			continue
@@ -120,11 +91,7 @@ func ParseMountInfo(r io.Reader) ([]Pool, error) {
 			// still real; Collect fills its branches from the configured mount.
 			branches, from = []string{}, ""
 		}
-		options := parseOptions(fields[sep+3])
-		pools = append(pools, Pool{Mountpoint: point, Branches: branches, BranchesFrom: from, Options: options})
-	}
-	if err := s.Err(); err != nil {
-		return nil, fmt.Errorf("cannot read bounded mount inventory: %w", err)
+		pools = append(pools, Pool{Mountpoint: rec.Mountpoint, Branches: branches, BranchesFrom: from, Options: parseOptions(rec.SuperOptions)})
 	}
 	return pools, nil
 }
@@ -156,7 +123,7 @@ func parseBranches(source string) ([]string, bool) {
 func parseOptions(super string) []string {
 	out := []string{}
 	for _, raw := range strings.Split(super, ",") {
-		tok, err := unescape(raw)
+		tok, err := mountinfo.Unescape(raw)
 		if err != nil || tok == "" {
 			continue
 		}
@@ -248,35 +215,6 @@ func Collect(ctx context.Context, osRoot, snapraidPath, family string) (Snapshot
 		collectMeasure(osRoot, snap.MergerFS.Pools)
 	}
 	return snap, nil
-}
-
-// unescape decodes the mountinfo escape sequences (\040 space, \011 tab,
-// \012 newline, \134 backslash); anything else is refused.
-func unescape(s string) (string, error) {
-	var b strings.Builder
-	for i := 0; i < len(s); i++ {
-		if s[i] != '\\' {
-			b.WriteByte(s[i])
-			continue
-		}
-		if i+3 >= len(s) {
-			return "", fmt.Errorf("invalid mount escape")
-		}
-		switch esc := s[i+1 : i+4]; esc {
-		case "040":
-			b.WriteByte(' ')
-		case "011":
-			b.WriteByte('\t')
-		case "012":
-			b.WriteByte('\n')
-		case "134":
-			b.WriteByte('\\')
-		default:
-			return "", fmt.Errorf("invalid mount escape")
-		}
-		i += 3
-	}
-	return b.String(), nil
 }
 
 // fillBranchesFromConfigured gives a live pool whose mount source did not list

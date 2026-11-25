@@ -7,6 +7,7 @@ package zfsinfo
 import (
 	"context"
 	"fmt"
+	"homelab-control/backend/internal/mountinfo"
 	"os"
 	"path/filepath"
 	"strings"
@@ -110,26 +111,9 @@ func TestParseMountInfoTruncatesZFSRows(t *testing.T) {
 	}
 }
 
-func TestParseMountInfoInvalidRecordStillErrors(t *testing.T) {
-	if _, _, err := ParseMountInfo(strings.NewReader("not-a-mountinfo-line\n")); err == nil {
-		t.Fatal("invalid record must fail parse")
-	}
-}
-
-func TestParseMountInfoSkipsMalformedNonZFS(t *testing.T) {
-	in := "nope 29 0:1 / /mnt rw - ext4 /dev/sda1 rw\n" + zfsMountLine(0) + "short - btrfs\n"
-	mounts, truncated, err := ParseMountInfo(strings.NewReader(in))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if truncated || len(mounts) != 1 || mounts[0].Dataset != "tank/ds0" {
-		t.Fatalf("n=%d truncated=%v mounts=%+v", len(mounts), truncated, mounts)
-	}
-}
-
 func TestParseMountInfoSkipsOversizedLine(t *testing.T) {
 	var b strings.Builder
-	b.WriteString(strings.Repeat("x", mountinfoMaxLine+8))
+	b.WriteString(strings.Repeat("x", mountinfo.MaxLine+8))
 	b.WriteByte('\n')
 	b.WriteString(zfsMountLine(3))
 	mounts, truncated, err := ParseMountInfo(strings.NewReader(b.String()))
@@ -318,5 +302,18 @@ func TestCollectCancelled(t *testing.T) {
 	cancel()
 	if _, err := Collect(ctx, t.TempDir(), "debian"); err == nil {
 		t.Fatal("cancelled collect must error")
+	}
+}
+
+// Malformed lines are skipped and mark the list incomplete (shared
+// internal/mountinfo rule); valid zfs mounts are still listed.
+func TestParseMountInfoSkipsMalformedLines(t *testing.T) {
+	in := "not-a-mountinfo-line\n" + "nope 29 0:1 / /mnt rw - ext4 /dev/sda1 rw\n" + zfsMountLine(0) + "short - btrfs\n"
+	mounts, truncated, err := ParseMountInfo(strings.NewReader(in))
+	if err != nil || !truncated || len(mounts) != 1 || mounts[0].Dataset != "tank/ds0" {
+		t.Fatalf("n=%d truncated=%v err=%v mounts=%+v", len(mounts), truncated, err, mounts)
+	}
+	if mounts, truncated, err := ParseMountInfo(strings.NewReader(zfsMountLine(0))); err != nil || truncated || len(mounts) != 1 {
+		t.Fatalf("clean: mounts=%v truncated=%v err=%v", mounts, truncated, err)
 	}
 }

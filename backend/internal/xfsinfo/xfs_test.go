@@ -6,6 +6,7 @@ package xfsinfo
 
 import (
 	"context"
+	"homelab-control/backend/internal/mountinfo"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -64,7 +65,7 @@ func TestParseMountInfoKeepsDottedNamesAndRejectsDotDot(t *testing.T) {
 		t.Fatalf("dotdot mountpoint must be skipped, not listed: mounts=%v truncated=%v err=%v", mounts, truncated, err)
 	}
 	for _, m := range mounts {
-		if hasDotDot(m.Mountpoint) {
+		if mountinfo.HasDotDot(m.Mountpoint) {
 			t.Fatalf("listed a dotdot mountpoint: %+v", m)
 		}
 	}
@@ -184,15 +185,15 @@ func TestCollectReturnsCancellation(t *testing.T) {
 // The OpenAPI contract caps mountpoint at 256 bytes; a longer one is skipped
 // and marks the list incomplete instead of breaking the response schema.
 func TestParseMountInfoSkipsOverlongMountpoint(t *testing.T) {
-	long := "/mnt/" + strings.Repeat("a", mountpointMaxBytes)
+	long := "/mnt/" + strings.Repeat("a", mountinfo.MountpointMaxBytes)
 	in := "40 1 0:36 / " + long + " rw - xfs /dev/sdb1 rw\n" + xfsLine(41)
 	mounts, truncated, err := ParseMountInfo(strings.NewReader(in))
 	if err != nil || !truncated || len(mounts) != 1 || mounts[0].Mountpoint != "/mnt/data" {
 		t.Fatalf("mounts=%v truncated=%v err=%v", mounts, truncated, err)
 	}
-	exact := "/" + strings.Repeat("b", mountpointMaxBytes-1)
+	exact := "/" + strings.Repeat("b", mountinfo.MountpointMaxBytes-1)
 	mounts, truncated, err = ParseMountInfo(strings.NewReader("40 1 0:36 / " + exact + " rw - xfs /dev/sdb1 rw\n"))
 	if err != nil || truncated || len(mounts) != 1 {
-		t.Fatalf("a %d-byte mountpoint must be kept: mounts=%v truncated=%v err=%v", mountpointMaxBytes, mounts, truncated, err)
+		t.Fatalf("a %d-byte mountpoint must be kept: mounts=%v truncated=%v err=%v", mountinfo.MountpointMaxBytes, mounts, truncated, err)
 	}
 }
