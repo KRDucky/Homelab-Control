@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -121,4 +122,37 @@ func callProbeHelper(ctx context.Context, req storageProbeRequest) (storageProbe
 		return zero, err
 	}
 	return res, nil
+}
+
+// zfsMinInterval bounds how often the broker asks the helper for the ZFS
+// report; a page refresh inside it gets the previous answer.
+var (
+	zfsMu          sync.Mutex
+	zfsLastRun     time.Time
+	zfsLast        *storagetools.ZFSReport
+	zfsLastErr     error
+	zfsMinInterval = 3 * time.Second
+)
+
+// zfsStatus asks the helper for the OpenZFS report (scope zfs).
+func zfsStatus(ctx context.Context, _ *Env, raw json.RawMessage) (any, error) {
+	if err := requireNoArgs(raw); err != nil {
+		return nil, err
+	}
+	zfsMu.Lock()
+	defer zfsMu.Unlock()
+	if time.Since(zfsLastRun) < zfsMinInterval {
+		return zfsLast, zfsLastErr
+	}
+	zfsLastRun = time.Now()
+	res, err := callProbeHelper(ctx, storageProbeRequest{Version: storagetools.ProtocolVersion, Scope: storagetools.ScopeZFS})
+	switch {
+	case err != nil:
+		zfsLast, zfsLastErr = nil, &proto.Error{Code: proto.CodeUnavailable, Message: err.Error()}
+	case res.ZFS == nil:
+		zfsLast, zfsLastErr = nil, &proto.Error{Code: proto.CodeUnavailable, Message: strings.Join(res.Errors, "; ")}
+	default:
+		zfsLast, zfsLastErr = res.ZFS, nil
+	}
+	return zfsLast, zfsLastErr
 }

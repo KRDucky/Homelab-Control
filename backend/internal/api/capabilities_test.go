@@ -26,6 +26,7 @@ type fakeBroker struct {
 	down    bool
 	actors  []proto.Actor
 	args    []any
+	ops     []string
 }
 
 func (f *fakeBroker) CallWithArgs(ctx context.Context, op string, args any, actor proto.Actor, out any) error {
@@ -35,6 +36,7 @@ func (f *fakeBroker) CallWithArgs(ctx context.Context, op string, args any, acto
 
 func (f *fakeBroker) Call(_ context.Context, op string, actor proto.Actor, out any) error {
 	f.actors = append(f.actors, actor)
+	f.ops = append(f.ops, op)
 	if f.down {
 		return brokerclient.ErrUnavailable
 	}

@@ -65,6 +65,7 @@ var opTimeouts = map[string]time.Duration{
 	// socket overhead); the client waits longer so a Partial/refusal answer is
 	// received rather than cut off.
 	"storage.probe": 45 * time.Second,
+	"zfs.status":    30 * time.Second,
 	// services.systemctl.apply uses the same 55s broker budget as the other
 	// disruptive applies. The client must outlive it.
 	"services.systemctl.plan":  20 * time.Second,

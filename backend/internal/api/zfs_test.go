@@ -6,6 +6,7 @@ package api
 
 import (
 	"context"
+	"homelab-control/backend/internal/broker/proto"
 	"net/http"
 	"strings"
 	"testing"
@@ -85,5 +86,59 @@ func TestZFSDisabledModule404(t *testing.T) {
 	rr := h.do("GET", "/api/v1/zfs", "", nil)
 	if rr.Code != http.StatusNotFound || rr.Body.String() != unknown.Body.String() {
 		t.Fatalf("disabled module: %d %s", rr.Code, rr.Body)
+	}
+}
+
+func TestZFSPoolReportFromBroker(t *testing.T) {
+	fb := newFake()
+	fb.results["zfs.status"] = map[string]any{
+		"pools": []map[string]any{{"name": "tank", "health": "DEGRADED", "state": "DEGRADED", "scan": "scrub repaired 0B",
+			"vdevs": []map[string]any{{"name": "tank", "depth": 0, "state": "DEGRADED"}, {"name": "vdb", "depth": 1, "state": "OFFLINE"}}}},
+		"datasets": []map[string]any{{"name": "tank/media", "type": "filesystem"}},
+	}
+	h := harnessWith(t, fb, []string{auth.ScopeZFSRead})
+	h.srv.zfsCollect = zfsFake()
+	rr := h.do("GET", "/api/v1/zfs", "", packagesHeaders(h))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("code %d %s", rr.Code, rr.Body)
+	}
+	body := rr.Body.String()
+	for _, want := range []string{`"status":{"available":true`, `"health":"DEGRADED"`, `"name":"vdb"`, `"tooling"`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("missing %s: %s", want, body)
+		}
+	}
+	if !strings.Contains(h.audit.String(), "pools=1") {
+		t.Fatalf("audit: %s", h.audit)
+	}
+}
+
+func TestZFSPoolReportUnavailableIsAReason(t *testing.T) {
+	fb := newFake()
+	fb.errs["zfs.status"] = &proto.Error{Code: proto.CodeUnavailable, Message: "storage probe helper unavailable"}
+	h := harnessWith(t, fb, []string{auth.ScopeZFSRead})
+	h.srv.zfsCollect = zfsFake()
+	rr := h.do("GET", "/api/v1/zfs", "", packagesHeaders(h))
+	if rr.Code != http.StatusOK || !strings.Contains(rr.Body.String(), `"available":false,"reason":"Pool status is unavailable: storage probe helper unavailable"`) {
+		t.Fatalf("code %d %s", rr.Code, rr.Body)
+	}
+}
+
+func TestZFSNoKernelZFSSkipsBroker(t *testing.T) {
+	fb := newFake()
+	h := harnessWith(t, fb, []string{auth.ScopeZFSRead})
+	h.srv.zfsCollect = func(ctx context.Context) (zfsinfo.Snapshot, error) {
+		s, _ := zfsFake()(ctx)
+		s.KernelZfs.Present = false
+		return s, nil
+	}
+	rr := h.do("GET", "/api/v1/zfs", "", packagesHeaders(h))
+	if rr.Code != http.StatusOK || !strings.Contains(rr.Body.String(), "no ZFS loaded") {
+		t.Fatalf("code %d %s", rr.Code, rr.Body)
+	}
+	for _, op := range fb.ops {
+		if op == "zfs.status" {
+			t.Fatal("broker asked for pools although the kernel has no ZFS")
+		}
 	}
 }

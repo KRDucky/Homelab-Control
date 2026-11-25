@@ -1558,10 +1558,56 @@ export interface ZFSKernel {
   reason: string;
 }
 
+/** One row of the zpool status config tree. Depth 0 is the pool or a group heading. */
+export interface ZFSVdev {
+  name: string;
+  depth: number;
+  group?: boolean;
+  state?: string;
+  read_errors?: number;
+  write_errors?: number;
+  checksum_errors?: number;
+  note?: string;
+}
+
+export interface ZFSPool {
+  name: string;
+  health: string;
+  size?: number;
+  alloc?: number;
+  free?: number;
+  frag_pct?: number;
+  cap_pct?: number;
+  state?: string;
+  status?: string;
+  action?: string;
+  scan?: string;
+  errors?: string;
+  vdevs: ZFSVdev[];
+}
+
+export interface ZFSDataset {
+  name: string;
+  type: string;
+  used?: number;
+  avail?: number;
+  refer?: number;
+  mountpoint?: string;
+  compression?: string;
+}
+
+/** Pools and datasets from zpool list/status and zfs list (broker op zfs.status). */
+export interface ZFSStatus {
+  available: boolean;
+  reason?: string;
+  report?: { pools: ZFSPool[]; datasets: ZFSDataset[]; truncated?: boolean };
+}
+
 export interface ZFSInventory {
   tooling: ZFSTooling;
   zfs: ZFSInfo;
   kernelZfs: ZFSKernel;
+  status: ZFSStatus;
 }
 
 export function getZFS(csrf: string): Promise<ZFSInventory> {

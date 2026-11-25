@@ -47,6 +47,7 @@ const (
 	lsblkTimeout   = 10 * time.Second
 	smartTimeout   = 8 * time.Second
 	lvmTimeout     = 10 * time.Second
+	zfsTimeout     = 10 * time.Second
 )
 
 // runSem caps concurrent Runs in-process (defence in depth; the socket unit
@@ -68,6 +69,8 @@ var binaries = map[string]string{
 	"smartctl": "/usr/sbin/smartctl",
 	"pvs":      "/usr/sbin/pvs",
 	"lvs":      "/usr/sbin/lvs",
+	"zpool":    "/usr/sbin/zpool",
+	"zfs":      "/usr/sbin/zfs",
 }
 
 // requiredTools must resolve; the others are optional (not installed means
@@ -81,6 +84,8 @@ var toolCandidates = map[string][]string{
 	"smartctl": {"/usr/sbin/smartctl", "/sbin/smartctl"},
 	"pvs":      {"/usr/sbin/pvs", "/sbin/pvs"},
 	"lvs":      {"/usr/sbin/lvs", "/sbin/lvs"},
+	"zpool":    {"/usr/sbin/zpool", "/sbin/zpool", "/usr/bin/zpool"},
+	"zfs":      {"/usr/sbin/zfs", "/sbin/zfs", "/usr/bin/zfs"},
 }
 
 // resolved records which tools passed ResolveToolPaths.
@@ -229,7 +234,7 @@ const CodeDevicePolicyUnresolved = storagetools.CodeDevicePolicyUnresolved
 // Run executes the fixed templates: lsblk, then smartctl on each SMART-capable
 // whole disk, then pvs and lvs. A failing or missing optional tool makes the
 // result Partial; it never fails the whole Run.
-func Run(ctx context.Context, _ Request) Result {
+func Run(ctx context.Context, req Request) Result {
 	res := Result{Version: storagetools.ProtocolVersion, Blocks: []storagetools.BlockDevice{}, SMART: map[string]storagetools.SMART{}, Tools: map[string]bool{}}
 	for tool := range binaries {
 		res.Tools[tool] = resolved[tool]
@@ -252,6 +257,10 @@ func Run(ctx context.Context, _ Request) Result {
 	}
 	ctx, cancel := context.WithTimeout(ctx, totalTimeout)
 	defer cancel()
+	if req.Scope == storagetools.ScopeZFS {
+		runZFS(ctx, &res, fail)
+		return res
+	}
 
 	out, _, err := run(ctx, lsblkTimeout, storagetools.MaxLsblkBytes, "lsblk", storagetools.LsblkArgs())
 	if err != nil {
@@ -314,6 +323,41 @@ func Run(ctx context.Context, _ Request) Result {
 		}
 	}
 	return res
+}
+
+// runZFS runs the fixed read-only OpenZFS templates (zpool list, zpool status,
+// zfs list). It needs /dev/zfs (the unit's DeviceAllow). Missing tools are a
+// partial result with the package name.
+func runZFS(ctx context.Context, res *Result, fail func(string)) {
+	if !res.Tools["zpool"] || !res.Tools["zfs"] {
+		fail("zpool/zfs are not installed (package zfsutils-linux); no ZFS data")
+		return
+	}
+	var out [3][]byte
+	for i, c := range []struct {
+		tool string
+		args []string
+	}{{"zpool", storagetools.ZpoolListArgs()}, {"zpool", storagetools.ZpoolStatusArgs()}, {"zfs", storagetools.ZfsListArgs()}} {
+		b, code, err := run(ctx, zfsTimeout, storagetools.MaxZFSBytes, c.tool, c.args)
+		if err == nil && code != 0 {
+			err = fmt.Errorf("exit status %d", code)
+		}
+		if err != nil {
+			fail(c.tool + " " + c.args[0] + ": " + err.Error())
+			return
+		}
+		out[i] = b
+	}
+	rep, err := storagetools.ParseZFS(out[0], out[1], out[2])
+	if err != nil {
+		fail(err.Error())
+		return
+	}
+	res.ZFS = &rep
+	if rep.Truncated {
+		res.Partial = true
+		res.Errors = append(res.Errors, "the ZFS report exceeded its limits; some pools, vdevs or datasets are not listed")
+	}
 }
 
 // admit rate-limits and caps concurrent Runs.
@@ -429,6 +473,9 @@ func UnmarshalRequest(b []byte) (Request, error) {
 	}
 	if req.Version != storagetools.ProtocolVersion {
 		return req, fmt.Errorf("unsupported protocol version %d", req.Version)
+	}
+	if req.Scope != "" && req.Scope != storagetools.ScopeZFS {
+		return req, fmt.Errorf("unsupported scope %q", req.Scope)
 	}
 	return req, nil
 }

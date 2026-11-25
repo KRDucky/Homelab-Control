@@ -42,7 +42,7 @@ func TestRegistryIsClosed(t *testing.T) {
 	if all[4].ID != "mergerfs" || all[4].APIPrefix != "/api/v1/mergerfs" || all[4].OpPrefix != "mergerfs." || all[4].Path != "/storage/mergerfs" || len(all[4].Scopes) != 3 || all[4].Scopes[0] != "mergerfs.read" || all[4].Scopes[1] != "mergerfs.configure" || all[4].Scopes[2] != "mergerfs.maintain" {
 		t.Fatalf("mergerfs module: %+v (new modules need review)", all[4])
 	}
-	if all[5].ID != "zfs" || all[5].APIPrefix != "/api/v1/zfs" || all[5].OpPrefix != "" || all[5].Path != "/storage/zfs" || len(all[5].Scopes) != 1 || all[5].Scopes[0] != "zfs.read" {
+	if all[5].ID != "zfs" || all[5].APIPrefix != "/api/v1/zfs" || all[5].OpPrefix != "zfs." || all[5].Path != "/storage/zfs" || len(all[5].Scopes) != 1 || all[5].Scopes[0] != "zfs.read" {
 		t.Fatalf("zfs module: %+v (new modules need review)", all[5])
 	}
 	if all[6].ID != "lvm" || all[6].APIPrefix != "/api/v1/lvm" || all[6].OpPrefix != "" || all[6].Path != "/storage/lvm" || len(all[6].Scopes) != 1 || all[6].Scopes[0] != "lvm.read" {

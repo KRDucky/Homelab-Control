@@ -302,6 +302,10 @@ func Registry() map[string]Op {
 		// reader is the default LVM path (no lvs/pvs execution).
 		{Name: "storage.probe", Scope: "storage.probe", Privilege: PrivRootRead, Timeout: 35 * time.Second, Admission: AdmissionProbe,
 			Description: "On-demand read-only storage tools through hc-storage-probe: lsblk, smartctl (never wakes a disk in standby), pvs/lvs --readonly", Handle: storageProbe},
+		// M7 ZFS: zpool list/status and zfs list through the read-only helper
+		// (owner 2026-11-25). Module "zfs" gates it by the zfs. prefix.
+		{Name: "zfs.status", Scope: "zfs.read", Privilege: PrivRootRead, Timeout: 20 * time.Second, Admission: AdmissionSystemRead,
+			Description: "OpenZFS pools (health, capacity, scrub, vdev tree with error counters) and datasets: zpool list/status and zfs list through hc-storage-probe", Handle: zfsStatus},
 		// M11 (ADR 0008 Amendment 9, Proposed): read-only networking. In-process
 		// root reads of fixed /proc and config paths; the firewall op also runs
 		// one fixed unprivileged systemctl show. No live ruleset, no writes.

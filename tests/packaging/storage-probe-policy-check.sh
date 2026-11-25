@@ -165,12 +165,15 @@ check_service() {
     [ -n "$v" ] || { bad "empty DeviceAllow assignment (resets the list)"; continue; }
     ok=0
     for c in $REVIEWED_CLASSES; do [ "$v" = "block-$c r" ] && ok=1; done
-    [ "$ok" = 1 ] || bad "DeviceAllow='$v' is not a reviewed read-only block group (allowed: $REVIEWED_CLASSES, mode 'r')"
+    # The OpenZFS control node: libzfs opens it read-write even for zpool list.
+    [ "$v" = "/dev/zfs rw" ] && ok=1
+    [ "$ok" = 1 ] || bad "DeviceAllow='$v' is not a reviewed read-only block group (allowed: $REVIEWED_CLASSES, mode 'r') or /dev/zfs rw"
   done <<< "$d"
   [ -z "$(printf '%s\n' "$d" | sort | uniq -d)" ] || bad "duplicate DeviceAllow entries"
   missing=""
   for c in $REVIEWED_CLASSES; do printf '%s\n' "$d" | grep -qx "block-$c r" || missing="$missing $c"; done
   [ -z "$missing" ] || bad "reviewed block group(s) missing from DeviceAllow:$missing"
+  printf '%s\n' "$d" | grep -qx "/dev/zfs rw" || bad "DeviceAllow lacks the OpenZFS control node /dev/zfs rw"
   return $((FAILS > 0))
 }
 
@@ -248,7 +251,7 @@ check_apparmor() { # profile
   fi
   # Exactly two capability rules, and only reviewed tools may be executed (ix).
   [ "$(printf '%s\n' "$body" | grep -cE '^[[:space:]]*capability[[:space:]]')" = 2 ] || bad "AppArmor profile must allow exactly sys_rawio and sys_admin"
-  printf '%s\n' "$body" | grep -E '[[:space:]]ix,' | grep -vxF -e '  /{usr/,}{s,}bin/lsblk ix,' -e '  /{usr/,}{s,}bin/smartctl ix,' -e '  /{usr/,}{s,}bin/{lvm,pvs,lvs} ix,' \
+  printf '%s\n' "$body" | grep -E '[[:space:]]ix,' | grep -vxF -e '  /{usr/,}{s,}bin/lsblk ix,' -e '  /{usr/,}{s,}bin/smartctl ix,' -e '  /{usr/,}{s,}bin/{lvm,pvs,lvs} ix,' -e '  /{usr/,}{s,}bin/{zpool,zfs} ix,' \
     | grep -q . && bad "AppArmor profile executes an unreviewed program"
   while IFS= read -r line; do
     line=${line#"${line%%[![:space:]]*}"}
@@ -258,7 +261,7 @@ check_apparmor() { # profile
       capability*|network*|mount*|umount*|pivot_root*|ptrace*) bad "AppArmor rule must be a deny: $line" ;;
       owner\ /dev/*|/dev/*)
         perms=${line##* }; perms=${perms%,}
-        [ "$perms" = r ] || bad "device rule must be read-only: $line" ;;
+        [ "$perms" = r ] || [ "$line" = "/dev/zfs rw," ] || bad "device rule must be read-only: $line" ;;
     esac
     case "$line" in
       *\ [uUpPcC]x,*|*\ [uUpPcC]x|*\ pux,*|*\ Pux,*|*\ PUx,*|*\ cux,*|*\ Cux,*) bad "AppArmor exec transition other than ix: $line" ;;
@@ -331,6 +334,9 @@ self_test() {
   mutate service "wildcard group"                 's/^DeviceAllow=block-sd r$/DeviceAllow=block-* r/'
   mutate service "loop group"                     's/^DeviceAllow=block-sd r$/DeviceAllow=block-loop r/'
   mutate service "char device group"              's/^DeviceAllow=block-sd r$/DeviceAllow=char-pts rw/'
+  mutate service "zfs node with mknod"            's#^DeviceAllow=/dev/zfs rw$#DeviceAllow=/dev/zfs rwm#'
+  mutate service "zfs node replaced"              's#^DeviceAllow=/dev/zfs rw$#DeviceAllow=/dev/mem rw#'
+  mutate service "zfs node removed"               '\#^DeviceAllow=/dev/zfs rw$#d'
   mutate service "explicit device path"           's#^DeviceAllow=block-sd r$#DeviceAllow=/dev/sda r#'
   mutate service "extra char group appended"      '/^DeviceAllow=block-md r$/a DeviceAllow=char-misc r'
   mutate service "empty allow-list"               '/^DeviceAllow=/d'
@@ -390,6 +396,7 @@ self_test() {
   mutate fc      "libexec context"                's#/usr/lib/homelab-control#/usr/libexec/homelab-control#'
   mutate fc      "wrong type"                     's/hc_storage_probe_exec_t/bin_t/'
   mutate aa      "device write"                   's#^  /dev/sd\[a-z\]\* r,#  /dev/sd[a-z]* rw,#'
+  mutate aa      "other device write"             's#^  /dev/zfs rw,#  /dev/zfs rw,\n  /dev/mem rw,#'
   mutate aa      "capability widened"             's/^  capability sys_rawio,/  capability sys_module,/'
   mutate aa      "third capability"               's/^  capability sys_admin,/  capability sys_admin,\n  capability dac_override,/'
   mutate aa      "mount deny removed"             '/^  deny mount,/d'

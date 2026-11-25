@@ -48,6 +48,12 @@ profile hc-storage-probe /usr/lib/homelab-control/hc-storage-probe flags=(enforc
   /{usr/,}{s,}bin/lsblk ix,
   /{usr/,}{s,}bin/smartctl ix,
   /{usr/,}{s,}bin/{lvm,pvs,lvs} ix,
+  /{usr/,}{s,}bin/{zpool,zfs} ix,
+  # OpenZFS: libzfs opens the control node read-write for its ioctls; the
+  # helper runs only zpool list/status and zfs list.
+  /dev/zfs rw,
+  /etc/zfs/** r,
+  /etc/hostid r,
   /etc/blkid.conf r,
   /etc/lvm/** r,
   /usr/share/smartmontools/** r,

@@ -3,7 +3,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useCallback, useState } from 'react';
-import { getZFS, type ZFSInventory, type ZFSToolItem } from '../api';
+import {
+  getZFS,
+  type ZFSDataset,
+  type ZFSInventory,
+  type ZFSPool,
+  type ZFSToolItem,
+  type ZFSVdev,
+} from '../api';
+import { DataTable } from '../DataTable';
+import { formatBytes } from '../format';
+import { Meter } from '../Meter';
 import { InstallPlanDialog } from '../InstallPlanDialog';
 import { explain, useData } from '../useData';
 
@@ -52,10 +62,7 @@ export function ZFSView({
   const { tooling, zfs } = data;
   const kernelZfs = data.kernelZfs;
   const missingRequired = tooling.required.filter((t) => !t.installed);
-  const zfsPoolObserved = zfs.mounts.length > 0;
-  const diskToolsMissing = zfsPoolObserved
-    ? tooling.optional.filter((t) => (t.id === 'smartctl' || t.id === 'nvme') && !t.installed && t.package)
-    : [];
+  const report = data.status?.available ? data.status.report : undefined;
   const canInstall = packagesEnabled && (scopes ?? []).includes('packages.read');
 
   return (
@@ -63,9 +70,9 @@ export function ZFSView({
       <header className="page-head">
         <h1 className="page-title">ZFS</h1>
         <p className="page-sub">
-          Read-only observations. zfs and zpool are probed, not run. Optional smartctl and nvme are probed,
-          not run, and no disk is opened. This page does not import, export, create, or destroy pools, and it
-          does not load kernel modules. Mounts come from /proc/self/mountinfo, not zpool list.
+          Read-only. Pools, health, scrub status and the vdev tree come from <code>zpool list</code>,{' '}
+          <code>zpool status</code> and <code>zfs list</code>, run by the read-only storage helper. This page
+          does not import, export, create, scrub or destroy pools, and it does not load kernel modules.
         </p>
       </header>
       {error && (
@@ -100,50 +107,69 @@ export function ZFSView({
         </section>
       )}
 
-      {diskToolsMissing.length > 0 && (
-        <section className="panel" aria-labelledby="zfs-disktools-heading">
-          <header className="panel-head">
-            <h2 id="zfs-disktools-heading">Disk inspect tools</h2>
-          </header>
-          <p>
-            smartctl and nvme are optional. This page does not run them or open disks. An installed binary
-            does not mean Homelab Control can access raw devices; future use requires a reviewed closed broker
-            operation.
-          </p>
-          <RequiredOffers items={diskToolsMissing} canInstall={canInstall} />
-        </section>
-      )}
-
-      <section className="panel" aria-labelledby="zfs-mounts-heading">
+      <section className="panel" aria-labelledby="zfs-pools-heading">
         <header className="panel-head">
-          <h2 id="zfs-mounts-heading">Mounted datasets</h2>
-          {zfs.mounts.length > 0 && <span className="tag">observed</span>}
+          <h2 id="zfs-pools-heading">Pools</h2>
+          {report && <span className="tag">observed</span>}
         </header>
-        {zfs.mountsTruncated ? (
+        {!data.status?.available ? (
           <p className="banner" role="status">
-            too many mounts to list
+            {data.status?.reason || 'Pool status is unavailable.'}
           </p>
-        ) : null}
-        {zfs.mounts.length > 0 ? (
-          <ul className="pool-list">
-            {zfs.mounts.map((m) => (
-              <li key={`${m.mountpoint}:${m.dataset}`}>
-                <code>{m.mountpoint}</code>
-                <dl>
-                  <dt>Dataset</dt>
-                  <dd>
-                    <code>{m.dataset}</code>
-                  </dd>
-                </dl>
-              </li>
-            ))}
-          </ul>
+        ) : report && report.pools.length > 0 ? (
+          report.pools.map((pool) => <Pool key={pool.name} pool={pool} />)
         ) : (
-          <p className="empty">
-            {zfs.present ? 'No zfs mounts found.' : zfs.reason || 'No zfs mounts found.'}
+          <p className="empty">No pools are imported.</p>
+        )}
+        {report?.truncated && (
+          <p className="banner" role="status">
+            The ZFS report exceeded its limits; some pools, devices or datasets are not listed.
           </p>
         )}
       </section>
+
+      {report && report.datasets.length > 0 && (
+        <section className="panel" aria-labelledby="zfs-datasets-heading">
+          <header className="panel-head">
+            <h2 id="zfs-datasets-heading">Datasets</h2>
+            <span className="tag">observed</span>
+          </header>
+          <Datasets datasets={report.datasets} />
+        </section>
+      )}
+
+      {!report && (
+        <section className="panel" aria-labelledby="zfs-mounts-heading">
+          <header className="panel-head">
+            <h2 id="zfs-mounts-heading">Mounted datasets</h2>
+            {zfs.mounts.length > 0 && <span className="tag">observed</span>}
+          </header>
+          {zfs.mountsTruncated ? (
+            <p className="banner" role="status">
+              too many mounts to list
+            </p>
+          ) : null}
+          {zfs.mounts.length > 0 ? (
+            <ul className="pool-list">
+              {zfs.mounts.map((m) => (
+                <li key={`${m.mountpoint}:${m.dataset}`}>
+                  <code>{m.mountpoint}</code>
+                  <dl>
+                    <dt>Dataset</dt>
+                    <dd>
+                      <code>{m.dataset}</code>
+                    </dd>
+                  </dl>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="empty">
+              {zfs.present ? 'No zfs mounts found.' : zfs.reason || 'No zfs mounts found.'}
+            </p>
+          )}
+        </section>
+      )}
     </div>
   );
 }
@@ -204,5 +230,96 @@ function InstallOffer({
       </button>
       {open && <InstallPlanDialog title={label} pkg={pkg} onClose={() => setOpen(false)} />}
     </>
+  );
+}
+
+const healthTone: Record<string, string> = {
+  ONLINE: 'ok',
+  DEGRADED: 'warn',
+  FAULTED: 'crit',
+  UNAVAIL: 'crit',
+  SUSPENDED: 'crit',
+};
+
+/** One pool: capacity, the zpool status report lines and the vdev tree, as zpool reports them. */
+function Pool({ pool }: { pool: ZFSPool }) {
+  return (
+    <article className="zfs-pool" aria-label={`Pool ${pool.name}`}>
+      <h3 className="subhead">
+        <code>{pool.name}</code>{' '}
+        <span className={`status status-${healthTone[pool.health] ?? 'warn'}`}>{pool.health}</span>
+      </h3>
+      {pool.size !== undefined && pool.alloc !== undefined && (
+        <Meter
+          label="Allocated"
+          used={pool.alloc}
+          total={pool.size}
+          detail={`${formatBytes(pool.free ?? 0)} free of ${formatBytes(pool.size)}${pool.frag_pct !== undefined ? ` · ${pool.frag_pct}% fragmented` : ''}`}
+        />
+      )}
+      <dl className="facts">
+        {pool.status && (
+          <div>
+            <dt>Status</dt>
+            <dd>{pool.status}</dd>
+          </div>
+        )}
+        {pool.action && (
+          <div>
+            <dt>Action</dt>
+            <dd>{pool.action}</dd>
+          </div>
+        )}
+        <div>
+          <dt>Last scrub or resilver</dt>
+          <dd>{pool.scan || 'None recorded'}</dd>
+        </div>
+        <div>
+          <dt>Errors</dt>
+          <dd>{pool.errors || 'Not reported'}</dd>
+        </div>
+      </dl>
+      <DataTable<ZFSVdev & { key: string }>
+        caption={`Devices of ${pool.name}`}
+        rows={pool.vdevs.map((v, i) => ({ ...v, key: `${i}:${v.name}` }))}
+        rowKey={(v) => v.key}
+        columns={[
+          {
+            id: 'name',
+            label: 'Device',
+            render: (v) => (
+              <span className={`vdev-depth-${Math.min(v.depth, 4)}`}>
+                {v.group ? <strong>{v.name}</strong> : <code>{v.name}</code>}
+              </span>
+            ),
+          },
+          { id: 'state', label: 'State', render: (v) => v.state ?? '' },
+          { id: 'read', label: 'Read errors', render: (v) => v.read_errors ?? '' },
+          { id: 'write', label: 'Write errors', render: (v) => v.write_errors ?? '' },
+          { id: 'cksum', label: 'Checksum errors', render: (v) => v.checksum_errors ?? '' },
+          { id: 'note', label: 'Note', render: (v) => v.note ?? '' },
+        ]}
+      />
+    </article>
+  );
+}
+
+function Datasets({ datasets }: { datasets: ZFSDataset[] }) {
+  const size = (v?: number) => (v === undefined ? 'Not reported' : formatBytes(v));
+  return (
+    <DataTable
+      caption="Datasets and volumes"
+      rows={datasets}
+      rowKey={(d) => d.name}
+      columns={[
+        { id: 'name', label: 'Name', render: (d) => <code>{d.name}</code>, sortValue: (d) => d.name },
+        { id: 'type', label: 'Type', render: (d) => d.type },
+        { id: 'used', label: 'Used', render: (d) => size(d.used), sortValue: (d) => d.used ?? -1 },
+        { id: 'avail', label: 'Available', render: (d) => size(d.avail), sortValue: (d) => d.avail ?? -1 },
+        { id: 'refer', label: 'Referenced', render: (d) => size(d.refer) },
+        { id: 'mountpoint', label: 'Mountpoint', render: (d) => <code>{d.mountpoint ?? ''}</code> },
+        { id: 'compression', label: 'Compression', render: (d) => d.compression ?? '' },
+      ]}
+    />
   );
 }

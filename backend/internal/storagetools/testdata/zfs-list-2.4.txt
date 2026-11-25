@@ -1,0 +1,3 @@
+tank	737280	1878310912	98304	/tank	on	filesystem
+tank/documents	98304	1878310912	98304	/tank/documents	zstd	filesystem
+tank/photos	98304	1878310912	98304	/tank/photos	on	filesystem

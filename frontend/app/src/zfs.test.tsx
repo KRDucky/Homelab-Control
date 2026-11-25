@@ -58,6 +58,7 @@ function inventory(opts: {
           reason:
             'The kernel ZFS filesystem is not currently listed in /proc/filesystems (this page does not load modules).',
         },
+    status: { available: false, reason: 'Pool status is unavailable: helper stopped' },
   };
 }
 
@@ -80,34 +81,96 @@ describe('ZFS read-only page', () => {
     );
     expect(await screen.findByText('/tank/media')).toBeTruthy();
     expect(screen.getByText('tank/media')).toBeTruthy();
-    expect(screen.getByText(/zfs and zpool are probed, not run/)).toBeTruthy();
+    expect(screen.getByText('Pool status is unavailable: helper stopped')).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'OpenZFS tools' })).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Disk inspect tools' })).toBeNull();
   });
 
-  it('offers smartctl and nvme only when missing and a package is named', async () => {
+  it('shows pools, the vdev tree with error counters, and datasets from zpool and zfs', async () => {
     const data = inventory({ zfsInstalled: true });
-    data.tooling.optional = [item('smartctl', 'smartmontools', false), item('nvme', '', false)];
+    data.status = {
+      available: true,
+      report: {
+        pools: [
+          {
+            name: 'lab',
+            health: 'DEGRADED',
+            size: 1476395008,
+            alloc: 262144,
+            free: 1476132864,
+            frag_pct: 1,
+            status: 'One or more devices has been taken offline by the administrator.',
+            scan: 'scrub repaired 0B in 00:00:01 with 0 errors',
+            errors: 'No known data errors',
+            vdevs: [
+              {
+                name: 'lab',
+                depth: 0,
+                state: 'DEGRADED',
+                read_errors: 0,
+                write_errors: 0,
+                checksum_errors: 0,
+              },
+              {
+                name: 'raidz1-0',
+                depth: 1,
+                state: 'DEGRADED',
+                read_errors: 0,
+                write_errors: 0,
+                checksum_errors: 0,
+              },
+              {
+                name: 'vdb',
+                depth: 2,
+                state: 'OFFLINE',
+                read_errors: 3,
+                write_errors: 0,
+                checksum_errors: 12,
+              },
+              { name: 'logs', depth: 0, group: true },
+            ],
+          },
+        ],
+        datasets: [
+          {
+            name: 'lab/media',
+            type: 'filesystem',
+            used: 98304,
+            mountpoint: '/lab/media',
+            compression: 'zstd',
+          },
+        ],
+      },
+    };
     vi.mocked(getZFS).mockResolvedValue(data);
     render(
       <ZFS csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
     );
-    expect(await screen.findByRole('heading', { name: 'Disk inspect tools' })).toBeTruthy();
-    expect(screen.getByText(/does not run them or open disks/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Install smartmontools' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /nvme/ })).toBeNull();
+    const pool = await screen.findByRole('article', { name: 'Pool lab' });
+    expect(within(pool).getByText('DEGRADED', { selector: '.status' })).toBeTruthy();
+    expect(within(pool).getByText(/taken offline by the administrator/)).toBeTruthy();
+    expect(within(pool).getByText(/scrub repaired 0B/)).toBeTruthy();
+    const devices = within(pool).getByRole('table', { name: 'Devices of lab' });
+    const vdb = within(devices).getByText('vdb').closest('tr');
+    if (!vdb) throw new Error('vdb row missing');
+    expect(within(vdb).getByText('OFFLINE')).toBeTruthy();
+    expect(within(vdb).getByText('12')).toBeTruthy();
+    expect(within(devices).getByText('logs').tagName).toBe('STRONG');
+    const datasets = screen.getByRole('table', { name: 'Datasets and volumes' });
+    expect(within(datasets).getByText('lab/media')).toBeTruthy();
+    expect(within(datasets).getByText('zstd')).toBeTruthy();
+    // The pool report replaces the mountinfo list.
+    expect(screen.queryByRole('heading', { name: 'Mounted datasets' })).toBeNull();
   });
 
-  it('offers nvme when the package is named and the tool is missing', async () => {
-    const data = inventory({ zfsInstalled: true });
-    data.tooling.optional = [item('smartctl', 'smartmontools', true), item('nvme', 'nvme-cli', false)];
+  it('says no pools are imported when zpool lists none', async () => {
+    const data = inventory({ zfsInstalled: true, mounts: false });
+    data.status = { available: true, report: { pools: [], datasets: [] } };
     vi.mocked(getZFS).mockResolvedValue(data);
     render(
       <ZFS csrf={csrf} scopes={['packages.read']} packagesEnabled={true} onUnauthorized={onUnauthorized} />,
     );
-    expect(await screen.findByRole('heading', { name: 'Disk inspect tools' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Install nvme-cli' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Install smartmontools' })).toBeNull();
+    expect(await screen.findByText('No pools are imported.')).toBeTruthy();
   });
 
   it('does not offer disk tools when no zfs mount is observed', async () => {
