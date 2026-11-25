@@ -53,3 +53,9 @@ box so the table shows the test disks; the README caption says so.
   and Software RAID are not pictured.
 - The Storage table lists nodes in snapshot-ID order, so disks are not first without a filter.
 - One distribution (Ubuntu 26.04). The VM was left running for review; it is shut down afterwards.
+
+## Graphify
+Indexed at `6f8017a` (656 code files, 6976 nodes, 24168 edges): no missing endpoints, no import cycles, no
+symbol left with only its definition; `Collect` calls the new `fillBranchesFromConfigured`. Finding for
+the M7 storage PRs, not changed here: seven packages (`storageinfo`, `mergerfsinfo`, `zfsinfo`,
+`btrfsinfo`, `ext4info`, `xfsinfo`, `f2fsinfo`) each carry their own `ParseMountInfo`.
