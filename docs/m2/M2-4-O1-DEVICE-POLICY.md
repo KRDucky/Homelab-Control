@@ -13,6 +13,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
 > `DeviceAllow=` classes below. The package ships `storage-probe.enabled`; the socket is enabled by
 > an administrator. Current record: `docs/evidence/m5/STORAGE-TOOLS.md`. The device-class policy
 > below still applies; the blkid fd-pinning and native LVM sections are history.
+> The startup self-check now refuses only when **no** reviewed class is registered; a missing class
+> (for example `md` on a host without software RAID) is noted, since systemd leaves its devices unreadable.
 
 Status: **Accepted for isolated read-only inventory validation; still disabled
 by default and not authorized for host or production activation.** The owner

@@ -55,7 +55,10 @@ profile hc-storage-probe /usr/lib/homelab-control/hc-storage-probe flags=(enforc
   # udev database: lsblk reads FSTYPE/UUID/serials from here, not the disk.
   /run/udev/data/* r,
   /run/udev/control r,
-  # LVM may try to refresh its hint and lock files; --readonly needs neither.
+  # LVM reads its device hints cache; it may try to refresh hint and lock files,
+  # which --readonly --nolocking needs neither of.
+  /run/lvm/ r,
+  /run/lvm/** r,
   deny /run/lvm/** wk,
   deny /run/lock/lvm/** wk,
 
@@ -78,14 +81,11 @@ profile hc-storage-probe /usr/lib/homelab-control/hc-storage-probe flags=(enforc
   /dev/bsg/ r,
   /dev/bsg/* r,
 
-  # Topology and kernel state, read-only.
-  /sys/block/ r,
-  /sys/block/** r,
-  /sys/class/block/ r,
-  /sys/class/block/** r,
-  /sys/dev/block/ r,
-  /sys/dev/block/** r,
-  /sys/devices/** r,
+  # Topology and kernel state, read-only. LVM 2.03.11 (Ubuntu 22.04) lists
+  # /sys/class and /sys/bus to build its device cache; the Go runtime reads
+  # transparent_hugepage settings.
+  /sys/ r,
+  /sys/** r,
   @{PROC}/devices r,
   @{PROC}/partitions r,
   @{PROC}/filesystems r,
@@ -96,6 +96,7 @@ profile hc-storage-probe /usr/lib/homelab-control/hc-storage-probe flags=(enforc
   @{PROC}/@{pid}/cgroup r,
   @{PROC}/@{pid}/stat r,
   @{PROC}/@{pid}/fd/ r,
+  @{PROC}/@{pid}/cmdline r,
 
   # The connection from systemd is an inherited descriptor.
   unix (receive, send, getattr, shutdown) type=stream,

@@ -118,7 +118,7 @@ func TestRunOptionalToolsMissing(t *testing.T) {
 
 func TestRunRefusesWithoutDeviceClasses(t *testing.T) {
 	argLog := fixture(t)
-	procDevicesPath = fakeProcDevices(t, t.TempDir(), "Block devices:\n  8 sd\n  252 virtblk\n  259 blkext\n")
+	procDevicesPath = fakeProcDevices(t, t.TempDir(), "Block devices:\n  7 loop\n  253 device-mapper\n")
 	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion})
 	if res.Code != CodeDevicePolicyUnresolved || !res.Partial {
 		t.Fatalf("result: %+v", res)
@@ -129,6 +129,15 @@ func TestRunRefusesWithoutDeviceClasses(t *testing.T) {
 	var buf strings.Builder
 	if err := WriteResponse(&buf, res, 1<<20); err != nil || !strings.Contains(buf.String(), `"code":"device_policy_unresolved"`) {
 		t.Fatalf("wire result: %v %s", err, buf.String())
+	}
+}
+
+func TestRunNotesMissingDeviceClass(t *testing.T) {
+	fixture(t)
+	procDevicesPath = fakeProcDevices(t, t.TempDir(), "Block devices:\n  8 sd\n  252 virtblk\n  259 blkext\n")
+	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion})
+	if res.Code != "" || len(res.Blocks) == 0 || !strings.Contains(strings.Join(res.Errors, "|"), "md") {
+		t.Fatalf("a host without md must still be probed, with a note: %+v", res)
 	}
 }
 
@@ -221,17 +230,16 @@ func TestCheckDeviceGroups(t *testing.T) {
 	t.Cleanup(func() { procDevicesPath = old })
 
 	procDevicesPath = fakeProcDevices(t, base, allGroupsProcDevices)
-	if err := checkDeviceGroups(); err != nil {
-		t.Fatalf("all groups should pass: %v", err)
+	if missing, err := checkDeviceGroups(); err != nil || len(missing) != 0 {
+		t.Fatalf("all groups should pass: %v %v", missing, err)
 	}
-
+	// A host without software RAID has no md group: not a refusal (Debian 13 VM finding).
 	procDevicesPath = fakeProcDevices(t, base, "Block devices:\n  8 sd\n  252 virtblk\n  259 blkext\n")
-	if err := checkDeviceGroups(); err == nil || !strings.Contains(err.Error(), "md") {
-		t.Fatalf("missing md should fail: %v", err)
+	if missing, err := checkDeviceGroups(); err != nil || len(missing) != 1 || missing[0] != "md" {
+		t.Fatalf("missing md: %v %v", missing, err)
 	}
-
 	procDevicesPath = fakeProcDevices(t, base, "Character devices:\n  1 mem\n")
-	if err := checkDeviceGroups(); err == nil {
+	if _, err := checkDeviceGroups(); err == nil {
 		t.Fatal("no block groups should fail")
 	}
 }

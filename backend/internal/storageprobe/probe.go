@@ -177,18 +177,19 @@ var env = []string{"LANG=C", "LC_ALL=C", "PATH=/usr/sbin:/usr/bin:/sbin:/bin", "
 // synthetic tests can point it at a fixture.
 var procDevicesPath = "/proc/devices"
 
-// requiredBlockGroups are the reviewed block-device classes the helper is
-// authorised to probe (owner-approved O-1 class-level DeviceAllow). The helper
-// refuses to probe unless every one is present in /proc/devices.
-var requiredBlockGroups = []string{"sd", "blkext", "virtblk", "md"}
+// reviewedBlockGroups are the block-device classes the unit's DeviceAllow=
+// grants read access to. systemd adds a group's rule only when the group is
+// registered in /proc/devices at unit start, so a missing group simply stays
+// unreadable (fail closed). A host without software RAID has no "md" group.
+var reviewedBlockGroups = []string{"sd", "blkext", "virtblk", "md"}
 
-// checkDeviceGroups reads /proc/devices and verifies every required block group
-// is registered. It returns an error naming any missing group, so the helper
-// can refuse (fail closed) before any probe.
-func checkDeviceGroups() error {
+// checkDeviceGroups reads /proc/devices and returns the reviewed groups that
+// are not registered. It is an error only when none of them is registered,
+// because then the helper cannot read any disk.
+func checkDeviceGroups() (missing []string, err error) {
 	b, err := os.ReadFile(procDevicesPath)
 	if err != nil {
-		return fmt.Errorf("reading %s: %w", procDevicesPath, err)
+		return nil, fmt.Errorf("reading %s: %w", procDevicesPath, err)
 	}
 	present := map[string]bool{}
 	inBlock := false
@@ -205,16 +206,15 @@ func checkDeviceGroups() error {
 			present[fields[1]] = true
 		}
 	}
-	var missing []string
-	for _, g := range requiredBlockGroups {
+	for _, g := range reviewedBlockGroups {
 		if !present[g] {
 			missing = append(missing, g)
 		}
 	}
-	if len(missing) > 0 {
-		return fmt.Errorf("block device classes not available: %s", strings.Join(missing, ", "))
+	if len(missing) == len(reviewedBlockGroups) {
+		return missing, fmt.Errorf("no reviewed block device class is available (%s)", strings.Join(reviewedBlockGroups, ", "))
 	}
-	return nil
+	return missing, nil
 }
 
 // Request and Result are the closed protocol (storagetools).
@@ -241,12 +241,14 @@ func Run(ctx context.Context, _ Request) Result {
 	}
 	defer release()
 
-	// Startup self-check: refuse before any device access unless every
-	// reviewed block-device class is present in /proc/devices.
-	if err := checkDeviceGroups(); err != nil {
+	// Startup self-check: refuse before any device access when no reviewed
+	// block-device class is registered; note classes that are absent.
+	if missing, err := checkDeviceGroups(); err != nil {
 		res.Code = CodeDevicePolicyUnresolved
 		fail("probe refused: " + err.Error())
 		return res
+	} else if len(missing) > 0 {
+		res.Errors = append(res.Errors, "block device classes not registered on this host (their devices are not read): "+strings.Join(missing, ", "))
 	}
 	ctx, cancel := context.WithTimeout(ctx, totalTimeout)
 	defer cancel()
