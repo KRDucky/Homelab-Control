@@ -317,6 +317,10 @@ func Registry() map[string]Op {
 		// gates it by the mdadm. prefix.
 		{Name: "mdadm.status", Scope: "mdadm.read", Privilege: PrivRootRead, Timeout: helperOpTimeout(storagetools.ScopeMd), Admission: AdmissionSystemRead,
 			Description: "Software RAID arrays (state, active/failed/spare counts, rebuild progress, member roles): mdadm --detail through hc-storage-probe", Handle: mdadmStatus},
+		// M7 LVM: pvs, lvs and vgs through the read-only helper (owner
+		// 2026-11-25). Module "lvm" gates it by the lvm. prefix.
+		{Name: "lvm.status", Scope: "lvm.read", Privilege: PrivRootRead, Timeout: helperOpTimeout(storagetools.ScopeLVM), Admission: AdmissionSystemRead,
+			Description: "LVM volume groups, logical volumes and physical volumes: pvs, lvs and vgs --readonly --nolocking through hc-storage-probe", Handle: lvmStatus},
 		// M11 (ADR 0008 Amendment 9, Proposed): read-only networking. In-process
 		// root reads of fixed /proc and config paths; the firewall op also runs
 		// one fixed unprivileged systemctl show. No live ruleset, no writes.

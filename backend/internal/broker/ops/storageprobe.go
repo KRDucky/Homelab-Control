@@ -147,7 +147,7 @@ type scopeCache struct {
 	err  error
 }
 
-var zfsCache, btrfsCache, mdCache scopeCache
+var zfsCache, btrfsCache, mdCache, lvmCache scopeCache
 
 // get returns the helper's answer for scope, at most once per
 // scopeMinInterval. pick extracts the scope's report; a missing report becomes
@@ -191,4 +191,18 @@ func mdadmStatus(ctx context.Context, _ *Env, raw json.RawMessage) (any, error) 
 		return nil, err
 	}
 	return mdCache.get(ctx, storagetools.ScopeMd, func(r storageProbeResult) (any, bool) { return r.Md, r.Md != nil })
+}
+
+// lvmStatus asks the helper for the pvs, lvs and vgs reports (scope lvm).
+// All three are needed; a missing one makes the answer unavailable.
+func lvmStatus(ctx context.Context, _ *Env, raw json.RawMessage) (any, error) {
+	if err := requireNoArgs(raw); err != nil {
+		return nil, err
+	}
+	return lvmCache.get(ctx, storagetools.ScopeLVM, func(r storageProbeResult) (any, bool) {
+		if r.PVS == nil || r.LVS == nil || r.VGS == nil {
+			return nil, false
+		}
+		return storagetools.LVMReport{PVS: r.PVS, LVS: r.LVS, VGS: r.VGS}, true
+	})
 }

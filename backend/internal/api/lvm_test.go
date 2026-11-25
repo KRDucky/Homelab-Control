@@ -6,6 +6,8 @@ package api
 
 import (
 	"context"
+	"encoding/json"
+	"homelab-control/backend/internal/brokerclient"
 	"net/http"
 	"strings"
 	"testing"
@@ -27,9 +29,6 @@ func lvmFake() func(context.Context) (lvminfo.Snapshot, error) {
 					{ID: "thin_check", Package: "thin-provisioning-tools", Installed: false},
 				},
 			},
-			Lvm: lvminfo.Inventory{Present: true, Devices: []lvminfo.Device{
-				{Name: "dm-0", Mapper: "vg-lv"},
-			}},
 			KernelDM: lvminfo.KernelDM{Present: true},
 		}, nil
 	}
@@ -56,22 +55,67 @@ func TestLVMRequiresCSRFAndOrigin(t *testing.T) {
 	}
 }
 
-func TestLVMReadsAndAuditsCountsOnly(t *testing.T) {
-	h := harnessWith(t, nil, []string{auth.ScopeLVMRead})
+const lvmTestVGS = `{"report":[{"vg":[{"vg_uuid":"` + probeVG + `","vg_name":"vg1","vg_size":"1073741824","vg_free":"536870912","vg_attr":"wz--n-","pv_count":"1","lv_count":"1","vg_missing_pv_count":"0"}]}]}`
+
+func lvmBroker() *fakeBroker {
+	fb := newFake()
+	fb.results["lvm.status"] = map[string]any{"pvs": json.RawMessage(probePVS), "lvs": json.RawMessage(probeLVS), "vgs": json.RawMessage(lvmTestVGS)}
+	return fb
+}
+
+func TestLVMReportsFromBrokerAndAuditsCountsOnly(t *testing.T) {
+	fb := lvmBroker()
+	h := harnessWith(t, fb, []string{auth.ScopeLVMRead})
 	h.srv.lvmCollect = lvmFake()
 	rr := h.do("GET", "/api/v1/lvm", "", packagesHeaders(h))
 	if rr.Code != http.StatusOK {
 		t.Fatalf("code %d %s", rr.Code, rr.Body)
 	}
-	if !strings.Contains(rr.Body.String(), `"lvm2"`) || !strings.Contains(rr.Body.String(), `"vg-lv"`) {
-		t.Fatalf("body: %s", rr.Body)
+	body := rr.Body.String()
+	for _, want := range []string{`"lvm2"`, `"status":{"available":true`, `"volume_groups":[{"uuid":"` + probeVG + `","name":"vg1"`, `"free_bytes":536870912`, `"name":"lv1"`, `"physical_volumes":[{`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("missing %s: %s", want, body)
+		}
 	}
 	auditLine := h.audit.String()
-	if !strings.Contains(auditLine, "lvm.inventory.read") || !strings.Contains(auditLine, "devices=1") {
+	if !strings.Contains(auditLine, "lvm.inventory.read") || !strings.Contains(auditLine, "vgs=1 lvs=1 pvs=1") {
 		t.Fatalf("audit must record counts only: %s", auditLine)
 	}
-	if strings.Contains(auditLine, "vg-lv") || strings.Contains(auditLine, "dm-0") || strings.Contains(auditLine, "LVM-") {
+	if strings.Contains(auditLine, "vg1") || strings.Contains(auditLine, "lv1") || strings.Contains(auditLine, "/dev/") {
 		t.Fatalf("audit leaked a name: %s", auditLine)
+	}
+	if left, ok := fb.deadlines["lvm.status"]; ok && left < brokerclient.DefaultDeadline("lvm.status") {
+		t.Fatalf("hc-api gave lvm.status %v, shorter than the broker client", left)
+	}
+}
+
+func TestLVMUnparsableReportIsAReason(t *testing.T) {
+	fb := lvmBroker()
+	fb.results["lvm.status"] = map[string]any{"pvs": json.RawMessage(probePVS), "lvs": json.RawMessage(probeLVS), "vgs": json.RawMessage(`{"report":[{"vg":[{"vg_uuid":"` + probeVG + `","vg_size":"lots"}]}]}`)}
+	h := harnessWith(t, fb, []string{auth.ScopeLVMRead})
+	h.srv.lvmCollect = lvmFake()
+	rr := h.do("GET", "/api/v1/lvm", "", packagesHeaders(h))
+	if rr.Code != http.StatusOK || !strings.Contains(rr.Body.String(), `"available":false,"reason":"LVM status is unavailable: the LVM report could not be read`) {
+		t.Fatalf("code %d %s", rr.Code, rr.Body)
+	}
+}
+
+func TestLVMWithoutLvm2SkipsBroker(t *testing.T) {
+	fb := lvmBroker()
+	h := harnessWith(t, fb, []string{auth.ScopeLVMRead})
+	h.srv.lvmCollect = func(ctx context.Context) (lvminfo.Snapshot, error) {
+		s, _ := lvmFake()(ctx)
+		s.Tooling.Required[0].Installed = false
+		return s, nil
+	}
+	rr := h.do("GET", "/api/v1/lvm", "", packagesHeaders(h))
+	if rr.Code != http.StatusOK || !strings.Contains(rr.Body.String(), "lvm2 is not installed") {
+		t.Fatalf("code %d %s", rr.Code, rr.Body)
+	}
+	for _, op := range fb.ops {
+		if op == "lvm.status" {
+			t.Fatal("broker asked although lvm2 is not installed")
+		}
 	}
 }
 

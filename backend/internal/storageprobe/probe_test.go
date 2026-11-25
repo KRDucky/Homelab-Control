@@ -50,6 +50,7 @@ func fixture(t *testing.T) (argLog string) {
 	report := `{"report":[{"pv":[]}]}`
 	writeScript(t, filepath.Join(bin, "pvs"), "#!/bin/sh\n"+logArgs+"echo '"+report+"'\n")
 	writeScript(t, filepath.Join(bin, "lvs"), "#!/bin/sh\n"+logArgs+"echo '"+strings.Replace(report, "pv", "lv", 1)+"'\n")
+	writeScript(t, filepath.Join(bin, "vgs"), "#!/bin/sh\n"+logArgs+"echo '"+strings.Replace(report, "pv", "vg", 1)+"'\n")
 
 	oldBin, oldRes, oldMin, oldLast, oldProc, oldMI, oldMd := binaries, resolved, minRunInterval, lastRun, procDevicesPath, mountinfoPath, mdstatPath
 	binaries = map[string]string{}
@@ -71,7 +72,7 @@ func fixture(t *testing.T) (argLog string) {
 	if err := os.WriteFile(mdstatPath, []byte(fakeMdstat), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	for _, tool := range []string{"lsblk", "smartctl", "pvs", "lvs", "zpool", "zfs", "btrfs", "mdadm"} {
+	for _, tool := range []string{"lsblk", "smartctl", "pvs", "lvs", "vgs", "zpool", "zfs", "btrfs", "mdadm"} {
 		binaries[tool] = filepath.Join(bin, tool)
 		resolved[tool] = true
 	}
@@ -525,5 +526,38 @@ func TestRunMdScopeNeedsBlockDeviceClasses(t *testing.T) {
 	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion, Scope: storagetools.ScopeMd})
 	if res.Code != CodeDevicePolicyUnresolved || res.Md != nil {
 		t.Fatalf("%+v", res)
+	}
+}
+
+func TestRunLVMScopeRunsOnlyTheLVMReports(t *testing.T) {
+	argLog := fixture(t)
+	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion, Scope: storagetools.ScopeLVM})
+	if res.Partial || res.PVS == nil || res.LVS == nil || res.VGS == nil || len(res.Blocks) != 0 || len(res.SMART) != 0 {
+		t.Fatalf("%+v", res)
+	}
+	got, _ := os.ReadFile(argLog)
+	want := "pvs " + strings.Join(storagetools.PVSArgs(), " ") + "\n" + "lvs " + strings.Join(storagetools.LVSArgs(), " ") + "\n" +
+		"vgs " + strings.Join(storagetools.VGSArgs(), " ") + "\n"
+	if string(got) != want {
+		t.Fatalf("invocations:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestRunLVMScopeWithoutTools(t *testing.T) {
+	fixture(t)
+	resolved["vgs"] = false
+	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion, Scope: storagetools.ScopeLVM})
+	if !res.Partial || res.VGS != nil || !strings.Contains(strings.Join(res.Errors, "|"), "lvm2") {
+		t.Fatalf("%+v", res)
+	}
+}
+
+// The full probe keeps its two LVM reports; vgs belongs to the LVM page.
+func TestFullProbeDoesNotRunVGS(t *testing.T) {
+	argLog := fixture(t)
+	Run(context.Background(), Request{Version: storagetools.ProtocolVersion})
+	got, _ := os.ReadFile(argLog)
+	if strings.Contains(string(got), "vgs ") {
+		t.Fatalf("full probe ran vgs:\n%s", got)
 	}
 }

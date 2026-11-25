@@ -56,6 +56,8 @@ const (
 	ScopeBtrfs = "btrfs"
 	// ScopeMd asks for `mdadm --detail` of each array in /proc/mdstat.
 	ScopeMd = "md"
+	// ScopeLVM asks only for the LVM reports (pvs, lvs, vgs).
+	ScopeLVM = "lvm"
 )
 
 // Result is the closed helper output.
@@ -68,6 +70,7 @@ type Result struct {
 	// and syntax-checked here, decoded by storageinfo.ParsePVS/ParseLVM.
 	PVS     json.RawMessage `json:"pvs,omitempty"`
 	LVS     json.RawMessage `json:"lvs,omitempty"`
+	VGS     json.RawMessage `json:"vgs,omitempty"`
 	ZFS     *ZFSReport      `json:"zfs,omitempty"`
 	Btrfs   *BtrfsReport    `json:"btrfs,omitempty"`
 	Md      *MdReport       `json:"md,omitempty"`
@@ -94,6 +97,8 @@ func SmartctlArgs(kname string) []string {
 // The pvs/lvs field lists are exactly what storageinfo.ParsePVS/ParseLVM read.
 const (
 	PVSFields = "pv_uuid,pv_name,vg_uuid,vg_name,pv_size,dev_size,pv_major,pv_minor,pv_attr,pv_missing,pvseg_start,pvseg_size,lv_uuid"
+	// VGSFields are what storageinfo.ParseVGS reads.
+	VGSFields = "vg_uuid,vg_name,vg_size,vg_free,vg_attr,pv_count,lv_count,vg_missing_pv_count"
 	LVSFields = "lv_uuid,lv_name,vg_uuid,vg_name,lv_parent,lv_size,lv_attr,lv_health_status,raid_sync_action,sync_percent," +
 		"cache_total_blocks,cache_used_blocks,cache_dirty_blocks,origin_uuid,pool_lv_uuid,data_lv_uuid,metadata_lv_uuid," +
 		"segtype,seg_start,seg_size,cache_mode,cache_policy,devices,metadata_devices"
@@ -105,6 +110,11 @@ const (
 // filesystem ("File locking initialisation failed" otherwise, VM finding).
 func PVSArgs() []string {
 	return []string{"--readonly", "--nolocking", "--reportformat", "json", "--units", "b", "--nosuffix", "--segments", "-o", PVSFields}
+}
+
+// VGSArgs is the volume-group report: sizes, free space and counts.
+func VGSArgs() []string {
+	return []string{"--readonly", "--nolocking", "--reportformat", "json", "--units", "b", "--nosuffix", "-o", VGSFields}
 }
 
 func LVSArgs() []string {
@@ -403,4 +413,12 @@ func CheckJSONReport(b []byte) error {
 		return fmt.Errorf("report has no \"report\" member")
 	}
 	return nil
+}
+
+// LVMReport is what the broker returns for scope lvm: the three raw LVM JSON
+// reports, each checked by CheckJSONReport, decoded by storageinfo.
+type LVMReport struct {
+	PVS json.RawMessage `json:"pvs"`
+	LVS json.RawMessage `json:"lvs"`
+	VGS json.RawMessage `json:"vgs"`
 }
