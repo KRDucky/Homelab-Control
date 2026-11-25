@@ -54,6 +54,7 @@ profile hc-storage-probe /usr/lib/homelab-control/hc-storage-probe flags=(enforc
   /dev/zfs rw,
   /etc/zfs/** r,
   /etc/hostid r,
+  @{PROC}/sys/kernel/spl/hostid r,
   /etc/blkid.conf r,
   /etc/lvm/** r,
   /usr/share/smartmontools/** r,
