@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"homelab-control/backend/internal/auth"
 	"homelab-control/backend/internal/broker/proto"
@@ -27,6 +28,8 @@ type fakeBroker struct {
 	actors  []proto.Actor
 	args    []any
 	ops     []string
+	// deadlines records, per op, how long the caller's context allowed.
+	deadlines map[string]time.Duration
 }
 
 func (f *fakeBroker) CallWithArgs(ctx context.Context, op string, args any, actor proto.Actor, out any) error {
@@ -34,8 +37,14 @@ func (f *fakeBroker) CallWithArgs(ctx context.Context, op string, args any, acto
 	return f.Call(ctx, op, actor, out)
 }
 
-func (f *fakeBroker) Call(_ context.Context, op string, actor proto.Actor, out any) error {
+func (f *fakeBroker) Call(ctx context.Context, op string, actor proto.Actor, out any) error {
 	f.actors = append(f.actors, actor)
+	if d, ok := ctx.Deadline(); ok {
+		if f.deadlines == nil {
+			f.deadlines = map[string]time.Duration{}
+		}
+		f.deadlines[op] = time.Until(d)
+	}
 	f.ops = append(f.ops, op)
 	if f.down {
 		return brokerclient.ErrUnavailable

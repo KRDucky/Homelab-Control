@@ -60,6 +60,17 @@ func validateProbeResult(res storageProbeResult) error {
 // for up to 64 disks and two LVM reports, under proto.MaxResponse (4 MiB).
 const storageProbeMaxResponse = 3 << 20
 
+// helperRelayMargin is the time the broker adds to the helper's budget for
+// the socket round trip, so the helper's own answer (including a deadline
+// report) arrives before the broker gives up.
+const helperRelayMargin = 5 * time.Second
+
+// helperOpTimeout is the broker timeout of an op that waits on the storage
+// helper for scope. The broker client and hc-api wait longer still.
+func helperOpTimeout(scope string) time.Duration {
+	return storagetools.HelperBudget(scope) + helperRelayMargin
+}
+
 type (
 	storageProbeRequest = storagetools.Request
 	storageProbeResult  = storagetools.Result

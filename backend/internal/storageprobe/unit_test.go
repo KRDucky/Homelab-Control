@@ -5,9 +5,12 @@
 package storageprobe
 
 import (
+	"homelab-control/backend/internal/storagetools"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // unitDir locates the packaging units relative to this package directory
@@ -185,5 +188,23 @@ func TestStorageProbeSocketAccept(t *testing.T) {
 	}
 	if unitHasKey(sock, "RequiredBy") {
 		t.Error("socket must not be required by another unit")
+	}
+}
+
+// The unit must let the helper run its longest budget and answer: systemd
+// kills a connection's service after TimeoutStartSec.
+func TestUnitOutlastsHelperBudgets(t *testing.T) {
+	v := unitAssignments(readUnit(t, "homelab-control-storage-probe@.service"), "TimeoutStartSec")
+	if len(v) != 1 {
+		t.Fatalf("TimeoutStartSec=%q, want exactly one", v)
+	}
+	secs, err := strconv.Atoi(v[0])
+	if err != nil {
+		t.Fatalf("TimeoutStartSec=%q: %v", v[0], err)
+	}
+	for _, scope := range []string{"", storagetools.ScopeZFS} {
+		if b := storagetools.HelperBudget(scope); time.Duration(secs)*time.Second <= b {
+			t.Errorf("TimeoutStartSec=%ds does not exceed the %q budget %v", secs, scope, b)
+		}
 	}
 }

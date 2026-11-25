@@ -18,6 +18,15 @@ read-only storage helper. This is a checkpoint, **not M7 acceptance**. ADR 0008 
 - The page's unused optional `smartctl`/`nvme` probes were removed (Graphify finding); SMART is on the
   Storage page.
 
+**Deadline chain (review fix, 2026-11-25).** `zfs.status` was registered with a 20 s broker timeout while
+the helper may take 30 s (three 10 s commands in sequence), and hc-api cut the call at 25 s, so a slow pool
+report was cancelled before the helper finished. `storage.probe` had the same gap (35 s against the helper's
+50 s). The helper's per-scope budget now lives in `storagetools.HelperBudget`; the helper enforces it, the
+broker op allows budget + 5 s, the client budget + 15 s, and hc-api adds no shorter deadline. Guard
+`TestStorageHelperOpsOutlastTheHelper`, `TestZFSPoolReportWaitsForTheBrokerClient` and
+`TestUnitOutlastsHelperBudgets` (unit `TimeoutStartSec` above every budget) pin the order; the first two
+failed before the fix.
+
 ## Verification
 - Parsers tested on real OpenZFS 2.4.1 output (degraded raidz1 with log and cache, healthy mirror) and on
   synthetic resilver/spare/error-count rows. Helper test: the zfs scope runs exactly the three templates

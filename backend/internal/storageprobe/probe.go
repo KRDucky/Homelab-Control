@@ -47,7 +47,6 @@ const (
 	lsblkTimeout   = 10 * time.Second
 	smartTimeout   = 8 * time.Second
 	lvmTimeout     = 10 * time.Second
-	zfsTimeout     = 10 * time.Second
 )
 
 // runSem caps concurrent Runs in-process (defence in depth; the socket unit
@@ -57,9 +56,9 @@ var (
 	runMu          sync.Mutex
 	lastRun        time.Time
 	minRunInterval = time.Second
-	// totalTimeout bounds a whole Run. It must stay below the unit's
-	// TimeoutStartSec (60s) so the helper reports a deadline cleanly.
-	totalTimeout = 50 * time.Second
+	// budget bounds a whole Run per request scope (storagetools.HelperBudget,
+	// which the broker's op timeouts derive from); a var only as a test seam.
+	budget = storagetools.HelperBudget
 )
 
 // binaries maps a fixed tool to its absolute path. It is a var so tests can
@@ -255,7 +254,7 @@ func Run(ctx context.Context, req Request) Result {
 	} else if len(missing) > 0 {
 		res.Errors = append(res.Errors, "block device classes not registered on this host (their devices are not read): "+strings.Join(missing, ", "))
 	}
-	ctx, cancel := context.WithTimeout(ctx, totalTimeout)
+	ctx, cancel := context.WithTimeout(ctx, budget(req.Scope))
 	defer cancel()
 	if req.Scope == storagetools.ScopeZFS {
 		runZFS(ctx, &res, fail)
@@ -338,7 +337,7 @@ func runZFS(ctx context.Context, res *Result, fail func(string)) {
 		tool string
 		args []string
 	}{{"zpool", storagetools.ZpoolListArgs()}, {"zpool", storagetools.ZpoolStatusArgs()}, {"zfs", storagetools.ZfsListArgs()}} {
-		b, code, err := run(ctx, zfsTimeout, storagetools.MaxZFSBytes, c.tool, c.args)
+		b, code, err := run(ctx, storagetools.HelperCommandTimeout, storagetools.MaxZFSBytes, c.tool, c.args)
 		if err == nil && code != 0 {
 			err = fmt.Errorf("exit status %d", code)
 		}

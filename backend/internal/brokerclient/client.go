@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"homelab-control/backend/internal/storagetools"
 	"net"
 	"time"
 
@@ -61,11 +62,11 @@ var opTimeouts = map[string]time.Duration{
 	"packages.mirrors.inventory": 20 * time.Second,
 	"packages.mirror.plan":       20 * time.Second,
 	"packages.mirror.apply":      50 * time.Second,
-	// M2-4 O-1: probe has a 35 s broker timeout (helper's own 25 s budget plus
-	// socket overhead); the client waits longer so a Partial/refusal answer is
-	// received rather than cut off.
-	"storage.probe": 45 * time.Second,
-	"zfs.status":    30 * time.Second,
+	// Storage helper ops: the broker allows the helper's budget plus a relay
+	// margin; the client waits longer so the broker's answer (a Partial
+	// report or a deadline) is received rather than cut off.
+	"storage.probe": storagetools.HelperBudget("") + helperClientMargin,
+	"zfs.status":    storagetools.HelperBudget(storagetools.ScopeZFS) + helperClientMargin,
 	// services.systemctl.apply uses the same 55s broker budget as the other
 	// disruptive applies. The client must outlive it.
 	"services.systemctl.plan":  20 * time.Second,
@@ -78,6 +79,10 @@ var opTimeouts = map[string]time.Duration{
 	"storage.partition.plan":  20 * time.Second,
 	"storage.partition.apply": 4 * time.Minute,
 }
+
+// helperClientMargin covers the broker's relay margin and the socket round
+// trip on top of the storage helper's budget.
+const helperClientMargin = 15 * time.Second
 
 // deadline is the client deadline for op.
 func (c *Client) deadline(op string) time.Duration {

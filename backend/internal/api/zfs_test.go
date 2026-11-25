@@ -7,9 +7,11 @@ package api
 import (
 	"context"
 	"homelab-control/backend/internal/broker/proto"
+	"homelab-control/backend/internal/brokerclient"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"homelab-control/backend/internal/auth"
 	"homelab-control/backend/internal/modules"
@@ -140,5 +142,21 @@ func TestZFSNoKernelZFSSkipsBroker(t *testing.T) {
 		if op == "zfs.status" {
 			t.Fatal("broker asked for pools although the kernel has no ZFS")
 		}
+	}
+}
+
+// The API must not give the broker call a shorter deadline than the broker
+// client's own for zfs.status, or a slow pool report is cut off in hc-api.
+func TestZFSPoolReportWaitsForTheBrokerClient(t *testing.T) {
+	fb := newFake()
+	fb.results["zfs.status"] = map[string]any{"pools": []any{}, "datasets": []any{}}
+	h := harnessWith(t, fb, []string{auth.ScopeZFSRead})
+	h.srv.zfsCollect = zfsFake()
+	if rr := h.do("GET", "/api/v1/zfs", "", packagesHeaders(h)); rr.Code != http.StatusOK {
+		t.Fatalf("code %d %s", rr.Code, rr.Body)
+	}
+	left, ok := fb.deadlines["zfs.status"]
+	if want := brokerclient.DefaultDeadline("zfs.status"); ok && left < want {
+		t.Fatalf("hc-api gave zfs.status %v, the broker client allows %v", left.Round(time.Second), want)
 	}
 }

@@ -86,8 +86,9 @@ func (s *Server) zfsPools(ctx context.Context, sess *auth.Session, snap zfsinfo.
 	if s.broker == nil {
 		return zfsStatusView{Reason: brokerDownReason}
 	}
-	ctx, cancel := context.WithTimeout(ctx, 25*time.Second)
-	defer cancel()
+	// No deadline of its own: the broker client's per-op deadline (derived
+	// from the helper's budget) governs, and the request context still
+	// cancels when the browser goes away.
 	var rep storagetools.ZFSReport
 	if err := s.broker.Call(ctx, "zfs.status", actorFor(sess), &rep); err != nil {
 		reason := "Pool status is unavailable: the read-only storage helper (homelab-control-storage-probe.socket) did not answer."

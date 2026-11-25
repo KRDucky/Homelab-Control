@@ -162,9 +162,9 @@ func TestRunBadToolOutputIsPartial(t *testing.T) {
 func TestRunTimesOut(t *testing.T) {
 	fixture(t)
 	writeScript(t, binaries["lsblk"], "#!/bin/sh\nsleep 30\n")
-	old := totalTimeout
-	totalTimeout = 300 * time.Millisecond
-	t.Cleanup(func() { totalTimeout = old })
+	old := budget
+	budget = func(string) time.Duration { return 300 * time.Millisecond }
+	t.Cleanup(func() { budget = old })
 	start := time.Now()
 	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion})
 	if !res.Partial || time.Since(start) > 5*time.Second {
