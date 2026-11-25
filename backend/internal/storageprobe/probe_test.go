@@ -51,7 +51,7 @@ func fixture(t *testing.T) (argLog string) {
 	writeScript(t, filepath.Join(bin, "pvs"), "#!/bin/sh\n"+logArgs+"echo '"+report+"'\n")
 	writeScript(t, filepath.Join(bin, "lvs"), "#!/bin/sh\n"+logArgs+"echo '"+strings.Replace(report, "pv", "lv", 1)+"'\n")
 
-	oldBin, oldRes, oldMin, oldLast, oldProc, oldMI := binaries, resolved, minRunInterval, lastRun, procDevicesPath, mountinfoPath
+	oldBin, oldRes, oldMin, oldLast, oldProc, oldMI, oldMd := binaries, resolved, minRunInterval, lastRun, procDevicesPath, mountinfoPath, mdOSRoot
 	binaries = map[string]string{}
 	resolved = map[string]bool{}
 	writeScript(t, filepath.Join(bin, "zpool"), "#!/bin/sh\n"+logArgs+
@@ -64,7 +64,17 @@ func fixture(t *testing.T) (argLog string) {
 		"'scrub status') printf 'UUID:             u-1\\nStatus:           finished\\nError summary:    no errors found\\n';;\n"+
 		"'subvolume list') printf 'ID 256 gen 9 top level 5 path @data\\n'; if [ \"$3\" = /srv/b ]; then exit 1; fi;;\n"+
 		"esac\n")
-	for _, tool := range []string{"lsblk", "smartctl", "pvs", "lvs", "zpool", "zfs", "btrfs"} {
+	writeScript(t, filepath.Join(bin, "mdadm"), "#!/bin/sh\n"+logArgs+
+		"case $2 in /dev/md127) printf '/dev/md127:\\n        Raid Level : raid1\\n             State : clean, degraded\\n    Failed Devices : 1\\n\\n    Number   Major   Minor   RaidDevice State\\n       0       8       17        0      active sync   /dev/sdb1\\n       1       8       33        1      faulty   /dev/sdc1\\n';;\n"+
+		"*) echo 'mdadm: cannot open' >&2; exit 1;; esac\n")
+	mdOSRoot = filepath.Join(base, "root")
+	if err := os.MkdirAll(filepath.Join(mdOSRoot, "proc"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(mdOSRoot, "proc", "mdstat"), []byte(fakeMdstat), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, tool := range []string{"lsblk", "smartctl", "pvs", "lvs", "zpool", "zfs", "btrfs", "mdadm"} {
 		binaries[tool] = filepath.Join(bin, tool)
 		resolved[tool] = true
 	}
@@ -76,6 +86,7 @@ func fixture(t *testing.T) (argLog string) {
 	}
 	t.Cleanup(func() {
 		mountinfoPath = oldMI
+		mdOSRoot = oldMd
 		binaries, resolved, minRunInterval, lastRun, procDevicesPath = oldBin, oldRes, oldMin, oldLast, oldProc
 	})
 	return argLog
@@ -205,6 +216,7 @@ func TestUnmarshalRequestStrict(t *testing.T) {
 		`{"version":2} {"version":2}`,
 		`{"version":1}`,
 		`{"version":2,"scope":"all-the-things"}`, // unknown scope
+		`{"version":2,"scope":"md/../zfs"}`,      // unknown scope
 		`[1,2]`,
 	} {
 		if _, err := UnmarshalRequest([]byte(bad)); err == nil {
@@ -464,5 +476,57 @@ func TestRunBtrfsScopeDoesNotNeedBlockDeviceClasses(t *testing.T) {
 		if strings.Contains(e, "block device") {
 			t.Fatalf("block-class note on a Btrfs report: %v", res.Errors)
 		}
+	}
+}
+
+const fakeMdstat = `Personalities : [raid1]
+md127 : active raid1 sdc1[1](F) sdb1[0]
+      1046528 blocks super 1.2 [2/1] [U_]
+
+md126 : active raid1 sdd1[1] sde1[0]
+      1046528 blocks super 1.2 [2/2] [UU]
+
+unused devices: <none>
+`
+
+func TestRunMdScopeDescribesEachArray(t *testing.T) {
+	argLog := fixture(t)
+	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion, Scope: storagetools.ScopeMd})
+	rep := res.Md
+	if rep == nil || len(rep.Arrays) != 2 || len(res.Blocks) != 0 {
+		t.Fatalf("%+v %+v", res, rep)
+	}
+	a, b := rep.Arrays[0], rep.Arrays[1]
+	if a.Device != "/dev/md127" || a.State != "clean, degraded" || *a.Failed != 1 || a.Members[1].State != "faulty" || a.Error != "" {
+		t.Fatalf("md127: %+v", a)
+	}
+	// mdadm failed for md126: it keeps its name and mdstat state, with the error.
+	if b.Device != "/dev/md126" || b.State != "active" || b.Level != "raid1" || !strings.HasPrefix(b.Error, "mdadm --detail:") || !res.Partial {
+		t.Fatalf("md126: %+v partial=%v", b, res.Partial)
+	}
+	got, _ := os.ReadFile(argLog)
+	want := "mdadm " + strings.Join(storagetools.MdDetailArgs("md127"), " ") + "\n" + "mdadm " + strings.Join(storagetools.MdDetailArgs("md126"), " ") + "\n"
+	if string(got) != want {
+		t.Fatalf("invocations:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestRunMdScopeWithoutTool(t *testing.T) {
+	fixture(t)
+	resolved["mdadm"] = false
+	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion, Scope: storagetools.ScopeMd})
+	if !res.Partial || res.Md != nil || !strings.Contains(strings.Join(res.Errors, "|"), "package mdadm") {
+		t.Fatalf("%+v", res)
+	}
+}
+
+// mdadm --detail opens /dev/mdN, a block device, so the md scope stays
+// behind the block-class self-check (unlike the ZFS and Btrfs scopes).
+func TestRunMdScopeNeedsBlockDeviceClasses(t *testing.T) {
+	fixture(t)
+	procDevicesPath = fakeProcDevices(t, t.TempDir(), "Block devices:\n  7 loop\n  253 device-mapper\n")
+	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion, Scope: storagetools.ScopeMd})
+	if res.Code != CodeDevicePolicyUnresolved || res.Md != nil {
+		t.Fatalf("%+v", res)
 	}
 }

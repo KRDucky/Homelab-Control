@@ -18,6 +18,9 @@ const (
 	// BtrfsBudget bounds the four btrfs-progs commands over all mounted
 	// filesystems; a filesystem reached after it reports its commands failed.
 	BtrfsBudget = 45 * time.Second
+	// MdBudget bounds mdadm --detail over all arrays; an array reached after
+	// it reports an error.
+	MdBudget = 30 * time.Second
 	// ProbeBudget bounds a full storage probe (lsblk, smartctl per disk,
 	// pvs/lvs). It stays below the unit's TimeoutStartSec (60 s).
 	ProbeBudget = 50 * time.Second
@@ -30,6 +33,8 @@ func HelperBudget(scope string) time.Duration {
 		return ZFSBudget
 	case ScopeBtrfs:
 		return BtrfsBudget
+	case ScopeMd:
+		return MdBudget
 	}
 	return ProbeBudget
 }

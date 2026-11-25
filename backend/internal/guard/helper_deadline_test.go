@@ -17,7 +17,7 @@ import (
 // (zfs.status had 20 s against the helper's 3 × 10 s command sequence).
 func TestStorageHelperOpsOutlastTheHelper(t *testing.T) {
 	reg := ops.Registry()
-	for name, scope := range map[string]string{"storage.probe": "", "zfs.status": storagetools.ScopeZFS, "btrfs.status": storagetools.ScopeBtrfs} {
+	for name, scope := range map[string]string{"storage.probe": "", "zfs.status": storagetools.ScopeZFS, "btrfs.status": storagetools.ScopeBtrfs, "mdadm.status": storagetools.ScopeMd} {
 		op, ok := reg[name]
 		if !ok {
 			t.Fatalf("%s is not registered", name)

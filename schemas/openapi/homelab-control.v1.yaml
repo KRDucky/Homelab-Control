@@ -1696,13 +1696,12 @@ components:
         finished_at: { type: string, format: date-time }
     MdadmInventory:
       type: object
-      required: [tooling, md]
+      required: [tooling, md, status]
       description: >
-        Read-only Linux software RAID checkpoint. The mdadm binary is Stat'd,
-        never executed. No create, assemble, add, remove, grow, or reshape.
-        Inventory is bounded /proc/mdstat only: no component device or array
-        device is opened and no superblock is parsed. Audit records the array
-        count only. Debian, Fedora, SUSE, and Arch name package mdadm; an
+        Read-only Linux software RAID view. md is bounded /proc/mdstat read by
+        hc-api; status carries mdadm --detail of each array from the broker op
+        mdadm.status (run by the read-only storage helper). No create, assemble,
+        add, remove, fail, grow, or reshape. Audit records the array count only. Debian, Fedora, SUSE, and Arch name package mdadm; an
         unknown family names no package.
       properties:
         tooling:
@@ -1759,7 +1758,51 @@ components:
                   level: { type: string, maxLength: 32, description: RAID level as printed (e.g. raid1); empty when the line prints none, e.g. an inactive array }
                   state: { type: string, description: "State as printed: active or inactive, optionally followed by (read-only) or (auto-read-only)" }
                   memberCount: { type: [integer, "null"], description: Number of component entries listed on the array line; null when the line lists none. Not a health verdict. }
-
+        status:
+          type: object
+          required: [available]
+          description: "mdadm --detail /dev/<kernel name> for each array in /proc/mdstat, from the broker op mdadm.status. Without /proc/mdstat or with the helper stopped, available is false with a reason."
+          properties:
+            available: { type: boolean }
+            reason: { type: string }
+            report:
+              type: object
+              required: [arrays]
+              properties:
+                truncated: { type: boolean }
+                arrays:
+                  type: array
+                  maxItems: 64
+                  items:
+                    type: object
+                    required: [device, members]
+                    properties:
+                      device: { type: string, description: "/dev/<kernel name>" }
+                      name: { type: string, description: "mdadm array name, e.g. host:data" }
+                      uuid: { type: string }
+                      level: { type: string }
+                      state: { type: string, description: "mdadm's wording, e.g. clean, degraded, recovering" }
+                      metadata: { type: string }
+                      array_size_kib: { type: integer, minimum: 0 }
+                      raid_devices: { type: integer, minimum: 0 }
+                      active_devices: { type: integer, minimum: 0 }
+                      working_devices: { type: integer, minimum: 0 }
+                      failed_devices: { type: integer, minimum: 0 }
+                      spare_devices: { type: integer, minimum: 0 }
+                      layout: { type: string }
+                      chunk_size: { type: string }
+                      progress: { type: string, description: "Running rebuild, resync, reshape or check, e.g. Rebuild 1% complete" }
+                      error: { type: string, description: "Set when mdadm could not describe this array" }
+                      members:
+                        type: array
+                        maxItems: 256
+                        items:
+                          type: object
+                          required: [state]
+                          properties:
+                            slot: { type: integer, minimum: 0, description: "RaidDevice; absent for a spare" }
+                            state: { type: string, description: "e.g. active sync, faulty, spare rebuilding, removed" }
+                            device: { type: string }
     F2fsInventory:
       type: object
       required: [tooling, f2fs, kernelF2fs]
@@ -3680,10 +3723,12 @@ paths:
         the array line. No degraded verdict is derived beyond what
         /proc/mdstat prints. Required tooling is the mdadm binary (Stat of
         /usr/sbin/mdadm then /usr/bin/mdadm; package mdadm on Debian, Fedora,
-        SUSE, and Arch; an unknown family names no package). mdadm is never
-        executed; no create, assemble, add, remove, grow, device open, or
-        module load exists. Origin and X-CSRF-Token are required; audit
+        SUSE, and Arch; an unknown family names no package). hc-api never runs
+        mdadm; no create, assemble, add, remove, grow, or module load exists. Origin and X-CSRF-Token are required; audit
         records counts only.
+        When /proc/mdstat exists, status carries mdadm --detail of each array
+        (state, counts, rebuild progress, member roles) from the broker op
+        mdadm.status through the read-only storage helper.
       security: [{ session: [] }]
       x-required-scope: mdadm.read
       parameters:

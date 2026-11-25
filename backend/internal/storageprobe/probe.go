@@ -38,6 +38,7 @@ import (
 	"syscall"
 	"time"
 
+	"homelab-control/backend/internal/mdadminfo"
 	"homelab-control/backend/internal/mountinfo"
 	"homelab-control/backend/internal/storagetools"
 )
@@ -72,6 +73,7 @@ var binaries = map[string]string{
 	"zpool":    "/usr/sbin/zpool",
 	"zfs":      "/usr/sbin/zfs",
 	"btrfs":    "/usr/bin/btrfs",
+	"mdadm":    "/usr/sbin/mdadm",
 }
 
 // requiredTools must resolve; the others are optional (not installed means
@@ -88,6 +90,7 @@ var toolCandidates = map[string][]string{
 	"zpool":    {"/usr/sbin/zpool", "/sbin/zpool", "/usr/bin/zpool"},
 	"zfs":      {"/usr/sbin/zfs", "/sbin/zfs", "/usr/bin/zfs"},
 	"btrfs":    {"/usr/bin/btrfs", "/bin/btrfs", "/usr/sbin/btrfs", "/sbin/btrfs"},
+	"mdadm":    {"/usr/sbin/mdadm", "/sbin/mdadm", "/usr/bin/mdadm"},
 }
 
 // resolved records which tools passed ResolveToolPaths.
@@ -271,6 +274,13 @@ func Run(ctx context.Context, req Request) Result {
 		return res
 	} else if len(missing) > 0 {
 		res.Errors = append(res.Errors, "block device classes not registered on this host (their devices are not read): "+strings.Join(missing, ", "))
+	}
+
+	// mdadm --detail opens each md block device, so it runs after the
+	// block-class self-check.
+	if req.Scope == storagetools.ScopeMd {
+		runMd(ctx, &res, fail)
+		return res
 	}
 
 	out, _, err := run(ctx, lsblkTimeout, storagetools.MaxLsblkBytes, "lsblk", storagetools.LsblkArgs())
@@ -497,6 +507,49 @@ func runBtrfs(ctx context.Context, res *Result, fail func(string)) {
 	res.Btrfs = &rep
 }
 
+// mdOSRoot is where the helper reads proc/mdstat (a test seam).
+var mdOSRoot = "/"
+
+// runMd runs the fixed `mdadm --detail /dev/<name>` template for each array
+// /proc/mdstat lists. An array mdadm cannot describe keeps its name and the
+// error; the others are still reported.
+func runMd(ctx context.Context, res *Result, fail func(string)) {
+	if !res.Tools["mdadm"] {
+		fail("mdadm is not installed (package mdadm); no array details")
+		return
+	}
+	inv := mdadminfo.ProbeMdstat(mdOSRoot)
+	if !inv.Present {
+		fail(inv.Reason)
+		return
+	}
+	rep := storagetools.MdReport{Arrays: []storagetools.MdArray{}, Truncated: inv.ArraysTruncated}
+	for _, arr := range inv.Arrays {
+		if !storagetools.ValidMdName(arr.Name) {
+			continue
+		}
+		if len(rep.Arrays) >= storagetools.MaxMdArrays {
+			rep.Truncated = true
+			break
+		}
+		dev := "/dev/" + arr.Name
+		b, code, err := run(ctx, storagetools.HelperCommandTimeout, storagetools.MaxMdBytes, "mdadm", storagetools.MdDetailArgs(arr.Name))
+		if err == nil && code != 0 {
+			err = fmt.Errorf("exit status %d", code)
+		}
+		var a storagetools.MdArray
+		if err == nil {
+			a, err = storagetools.ParseMdDetail(dev, b)
+		}
+		if err != nil {
+			a = storagetools.MdArray{Device: dev, Level: arr.Level, State: arr.State, Members: []storagetools.MdMember{}, Error: "mdadm --detail: " + err.Error()}
+			res.Partial = true
+		}
+		rep.Arrays = append(rep.Arrays, a)
+	}
+	res.Md = &rep
+}
+
 // admit rate-limits and caps concurrent Runs.
 func admit() bool {
 	select {
@@ -611,7 +664,9 @@ func UnmarshalRequest(b []byte) (Request, error) {
 	if req.Version != storagetools.ProtocolVersion {
 		return req, fmt.Errorf("unsupported protocol version %d", req.Version)
 	}
-	if req.Scope != "" && req.Scope != storagetools.ScopeZFS && req.Scope != storagetools.ScopeBtrfs {
+	switch req.Scope {
+	case "", storagetools.ScopeZFS, storagetools.ScopeBtrfs, storagetools.ScopeMd:
+	default:
 		return req, fmt.Errorf("unsupported scope %q", req.Scope)
 	}
 	return req, nil

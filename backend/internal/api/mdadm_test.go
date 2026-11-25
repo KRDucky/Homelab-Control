@@ -7,6 +7,8 @@ package api
 import (
 	"context"
 	"errors"
+	"homelab-control/backend/internal/broker/proto"
+	"homelab-control/backend/internal/brokerclient"
 	"net/http"
 	"strings"
 	"testing"
@@ -105,5 +107,58 @@ func TestMdadmDisabledModule404(t *testing.T) {
 	rr := h.do("GET", "/api/v1/mdadm", "", nil)
 	if rr.Code != http.StatusNotFound || rr.Body.String() != unknown.Body.String() {
 		t.Fatalf("disabled module: %d %s", rr.Code, rr.Body)
+	}
+}
+
+func TestMdadmReportFromBroker(t *testing.T) {
+	fb := newFake()
+	fb.results["mdadm.status"] = map[string]any{"arrays": []map[string]any{{"device": "/dev/md0", "level": "raid1", "state": "clean, degraded",
+		"failed_devices": 1, "members": []map[string]any{{"slot": 1, "state": "faulty", "device": "/dev/sdc1"}}}}}
+	h := harnessWith(t, fb, []string{auth.ScopeMdadmRead})
+	h.srv.mdadmCollect = mdadmFake()
+	rr := h.do("GET", "/api/v1/mdadm", "", packagesHeaders(h))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("code %d %s", rr.Code, rr.Body)
+	}
+	for _, want := range []string{`"status":{"available":true`, `"state":"clean, degraded"`, `"faulty"`, `"tooling"`} {
+		if !strings.Contains(rr.Body.String(), want) {
+			t.Fatalf("missing %s: %s", want, rr.Body)
+		}
+	}
+	if a := h.audit.String(); strings.Contains(a, "/dev/") {
+		t.Fatalf("audit leaked a device path: %s", a)
+	}
+	if left, ok := fb.deadlines["mdadm.status"]; ok && left < brokerclient.DefaultDeadline("mdadm.status") {
+		t.Fatalf("hc-api gave mdadm.status %v, shorter than the broker client", left)
+	}
+}
+
+func TestMdadmReportUnavailableIsAReason(t *testing.T) {
+	fb := newFake()
+	fb.errs["mdadm.status"] = &proto.Error{Code: proto.CodeUnavailable, Message: "mdadm is not installed (package mdadm); no array details"}
+	h := harnessWith(t, fb, []string{auth.ScopeMdadmRead})
+	h.srv.mdadmCollect = mdadmFake()
+	rr := h.do("GET", "/api/v1/mdadm", "", packagesHeaders(h))
+	if rr.Code != http.StatusOK || !strings.Contains(rr.Body.String(), `"available":false,"reason":"Array detail is unavailable: mdadm is not installed`) {
+		t.Fatalf("code %d %s", rr.Code, rr.Body)
+	}
+}
+
+func TestMdadmNoArraysSkipsBroker(t *testing.T) {
+	fb := newFake()
+	h := harnessWith(t, fb, []string{auth.ScopeMdadmRead})
+	h.srv.mdadmCollect = func(ctx context.Context) (mdadminfo.Snapshot, error) {
+		s, _ := mdadmFake()(ctx)
+		s.MD = mdadminfo.Inventory{Present: false, Reason: "absent", Personalities: []string{}, Arrays: []mdadminfo.Array{}}
+		return s, nil
+	}
+	rr := h.do("GET", "/api/v1/mdadm", "", packagesHeaders(h))
+	if rr.Code != http.StatusOK || !strings.Contains(rr.Body.String(), "/proc/mdstat is absent") {
+		t.Fatalf("code %d %s", rr.Code, rr.Body)
+	}
+	for _, op := range fb.ops {
+		if op == "mdadm.status" {
+			t.Fatal("broker asked although the kernel has no md arrays")
+		}
 	}
 }

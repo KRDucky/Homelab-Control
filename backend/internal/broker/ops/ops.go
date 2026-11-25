@@ -312,6 +312,11 @@ func Registry() map[string]Op {
 		// 2026-11-25). Module "btrfs" gates it by the btrfs. prefix.
 		{Name: "btrfs.status", Scope: "btrfs.read", Privilege: PrivRootRead, Timeout: helperOpTimeout(storagetools.ScopeBtrfs), Admission: AdmissionSystemRead,
 			Description: "Btrfs filesystems (allocation by profile and device, device error counters, scrub status, subvolumes): btrfs-progs through hc-storage-probe", Handle: btrfsStatus},
+		// M7 Software RAID: mdadm --detail for each array in /proc/mdstat
+		// through the read-only helper (owner 2026-11-25). Module "mdadm"
+		// gates it by the mdadm. prefix.
+		{Name: "mdadm.status", Scope: "mdadm.read", Privilege: PrivRootRead, Timeout: helperOpTimeout(storagetools.ScopeMd), Admission: AdmissionSystemRead,
+			Description: "Software RAID arrays (state, active/failed/spare counts, rebuild progress, member roles): mdadm --detail through hc-storage-probe", Handle: mdadmStatus},
 		// M11 (ADR 0008 Amendment 9, Proposed): read-only networking. In-process
 		// root reads of fixed /proc and config paths; the firewall op also runs
 		// one fixed unprivileged systemctl show. No live ruleset, no writes.

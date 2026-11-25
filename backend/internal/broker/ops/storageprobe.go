@@ -147,7 +147,7 @@ type scopeCache struct {
 	err  error
 }
 
-var zfsCache, btrfsCache scopeCache
+var zfsCache, btrfsCache, mdCache scopeCache
 
 // get returns the helper's answer for scope, at most once per
 // scopeMinInterval. pick extracts the scope's report; a missing report becomes
@@ -183,4 +183,12 @@ func btrfsStatus(ctx context.Context, _ *Env, raw json.RawMessage) (any, error) 
 		return nil, err
 	}
 	return btrfsCache.get(ctx, storagetools.ScopeBtrfs, func(r storageProbeResult) (any, bool) { return r.Btrfs, r.Btrfs != nil })
+}
+
+// mdadmStatus asks the helper for mdadm --detail of each array (scope md).
+func mdadmStatus(ctx context.Context, _ *Env, raw json.RawMessage) (any, error) {
+	if err := requireNoArgs(raw); err != nil {
+		return nil, err
+	}
+	return mdCache.get(ctx, storagetools.ScopeMd, func(r storageProbeResult) (any, bool) { return r.Md, r.Md != nil })
 }

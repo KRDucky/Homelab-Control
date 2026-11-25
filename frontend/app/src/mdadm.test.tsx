@@ -73,8 +73,11 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('Software RAID read-only page', () => {
-  it('lists arrays as printed and says mdadm is probed, not run', async () => {
-    vi.mocked(getMdadm).mockResolvedValue(inventory({ installed: true }));
+  it('lists arrays as printed when the mdadm report is unavailable, with the reason', async () => {
+    vi.mocked(getMdadm).mockResolvedValue({
+      ...inventory({ installed: true }),
+      status: { available: false, reason: 'Array detail is unavailable: helper stopped' },
+    });
     renderPage();
     const table = await screen.findByRole('table', { name: 'Arrays as printed in /proc/mdstat' });
     const md0 = within(table).getByRole('rowheader', { name: 'md0' }).closest('tr') as HTMLElement;
@@ -85,10 +88,65 @@ describe('Software RAID read-only page', () => {
     expect(within(md1).getAllByText('Not printed')).toHaveLength(2);
     expect(within(md1).getByText('inactive')).toBeTruthy();
     expect(screen.getByText('raid1, raid5')).toBeTruthy();
-    expect(screen.getByText(/The mdadm binary is probed, not run/)).toBeTruthy();
-    expect(screen.getByText(/does not create, assemble, or reshape an array/)).toBeTruthy();
+    expect(screen.getByText('Array detail is unavailable: helper stopped')).toBeTruthy();
+    expect(screen.getByText(/does not create, assemble, reshape or fail an array/)).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'mdadm tools' })).toBeNull();
     expect(screen.queryByRole('button', { name: /create|assemble|grow|add|remove|stop/i })).toBeNull();
+  });
+
+  it('shows each array as mdadm --detail describes it: state, counts, rebuild and members', async () => {
+    vi.mocked(getMdadm).mockResolvedValue({
+      ...inventory({ installed: true }),
+      status: {
+        available: true,
+        report: {
+          arrays: [
+            {
+              device: '/dev/md126',
+              name: 'homelab-demo:lab5',
+              uuid: '4ff124e4:f30e54b6:fa1eb145:3ae20412',
+              level: 'raid5',
+              state: 'clean, degraded, recovering',
+              array_size_kib: 405504,
+              raid_devices: 3,
+              active_devices: 2,
+              failed_devices: 0,
+              spare_devices: 1,
+              layout: 'left-symmetric',
+              chunk_size: '512K',
+              progress: 'Rebuild 1% complete',
+              members: [
+                { slot: 0, state: 'active sync', device: '/dev/loop2' },
+                { slot: 1, state: 'spare rebuilding', device: '/dev/loop3' },
+                { slot: 2, state: 'active sync', device: '/dev/loop4' },
+              ],
+            },
+            {
+              device: '/dev/md127',
+              state: 'active',
+              level: 'raid1',
+              members: [],
+              error: 'mdadm --detail: exit status 1',
+            },
+          ],
+        },
+      },
+    });
+    renderPage();
+    const arr = await screen.findByRole('article', { name: 'Array /dev/md126' });
+    expect(within(arr).getByText('clean, degraded, recovering').className).toContain('status-crit');
+    expect(within(arr).getByText('3 in array · 2 active · 0 failed · 1 spare')).toBeTruthy();
+    expect(within(arr).getByText('Rebuild 1% complete')).toBeTruthy();
+    expect(within(arr).getByText('left-symmetric, 512K chunk')).toBeTruthy();
+    const members = within(arr).getByRole('table', { name: 'Members of /dev/md126' });
+    const loop3 = within(members).getByText('/dev/loop3').closest('tr');
+    if (!loop3) throw new Error('row missing');
+    expect(within(loop3).getByText('spare rebuilding')).toBeTruthy();
+    const failed = screen.getByRole('article', { name: 'Array /dev/md127' });
+    expect(within(failed).getByText('Not described: mdadm --detail: exit status 1')).toBeTruthy();
+    // The mdadm report replaces the raw /proc/mdstat table.
+    expect(screen.queryByRole('table', { name: 'Arrays as printed in /proc/mdstat' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /create|assemble|grow|add|remove|stop|fail/i })).toBeNull();
   });
 
   it('offers a Software Center search only when mdadm is missing and the package is known', async () => {

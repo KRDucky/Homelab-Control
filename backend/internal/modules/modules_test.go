@@ -54,7 +54,7 @@ func TestRegistryIsClosed(t *testing.T) {
 	if all[8].ID != "ext4" || all[8].APIPrefix != "/api/v1/ext4" || all[8].OpPrefix != "ext4." || all[8].Path != "/storage/ext4" || len(all[8].Scopes) != 2 || all[8].Scopes[0] != "ext4.read" || all[8].Scopes[1] != "ext4.format" {
 		t.Fatalf("ext4 module: %+v (new modules need review)", all[8])
 	}
-	if all[9].ID != "mdadm" || all[9].APIPrefix != "/api/v1/mdadm" || all[9].OpPrefix != "" || all[9].Path != "/storage/mdadm" || len(all[9].Scopes) != 1 || all[9].Scopes[0] != "mdadm.read" {
+	if all[9].ID != "mdadm" || all[9].APIPrefix != "/api/v1/mdadm" || all[9].OpPrefix != "mdadm." || all[9].Path != "/storage/mdadm" || len(all[9].Scopes) != 1 || all[9].Scopes[0] != "mdadm.read" {
 		t.Fatalf("mdadm module: %+v (new modules need review)", all[9])
 	}
 	if all[10].ID != "f2fs" || all[10].APIPrefix != "/api/v1/f2fs" || all[10].OpPrefix != "" || all[10].Path != "/storage/f2fs" || len(all[10].Scopes) != 1 || all[10].Scopes[0] != "f2fs.read" {
