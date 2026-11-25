@@ -82,6 +82,7 @@ func TestRegistryIsClosed(t *testing.T) {
 		"storage.probe": {PrivRootRead, "storage.probe", ""},
 		"zfs.status":    {PrivRootRead, "zfs.read", ""},
 		"btrfs.status":  {PrivRootRead, "btrfs.read", ""},
+		"mdadm.status":  {PrivRootRead, "mdadm.read", ""},
 		// M11 (ADR 0008 Amendment 9, Proposed): read-only networking.
 		"network.ports.list":      {PrivRootRead, "networking.ports.read", ""},
 		"network.firewall.config": {PrivRootRead, "networking.firewall.read", ""},
@@ -358,6 +359,7 @@ func TestAdmissionClasses(t *testing.T) {
 		"storage.probe":              AdmissionProbe,
 		"zfs.status":                 AdmissionSystemRead,
 		"btrfs.status":               AdmissionSystemRead,
+		"mdadm.status":               AdmissionSystemRead,
 		"ext4.format.plan":           AdmissionControlPlan,
 		"ext4.format.apply":          AdmissionControlApply,
 		"storage.partition.plan":     AdmissionControlPlan,

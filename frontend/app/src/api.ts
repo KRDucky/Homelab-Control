@@ -1831,9 +1831,38 @@ export interface MdadmMD {
   arraysTruncated: boolean;
 }
 
+/** One `mdadm --detail` report; state and member states are mdadm's own words. */
+export interface MdadmDetail {
+  device: string;
+  name?: string;
+  uuid?: string;
+  level?: string;
+  state?: string;
+  metadata?: string;
+  array_size_kib?: number;
+  raid_devices?: number;
+  active_devices?: number;
+  working_devices?: number;
+  failed_devices?: number;
+  spare_devices?: number;
+  layout?: string;
+  chunk_size?: string;
+  progress?: string;
+  error?: string;
+  members: { slot?: number; state: string; device?: string }[];
+}
+
+/** mdadm --detail of each array (broker op mdadm.status). */
+export interface MdadmStatus {
+  available: boolean;
+  reason?: string;
+  report?: { arrays: MdadmDetail[]; truncated?: boolean };
+}
+
 export interface MdadmInventory {
   tooling: MdadmTooling;
   md: MdadmMD;
+  status?: MdadmStatus;
 }
 
 export function getMdadm(csrf: string): Promise<MdadmInventory> {

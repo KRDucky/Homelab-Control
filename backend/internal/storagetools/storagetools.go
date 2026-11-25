@@ -54,6 +54,8 @@ type Request struct {
 const (
 	ScopeZFS   = "zfs"
 	ScopeBtrfs = "btrfs"
+	// ScopeMd asks for `mdadm --detail` of each array in /proc/mdstat.
+	ScopeMd = "md"
 )
 
 // Result is the closed helper output.
@@ -68,6 +70,7 @@ type Result struct {
 	LVS     json.RawMessage `json:"lvs,omitempty"`
 	ZFS     *ZFSReport      `json:"zfs,omitempty"`
 	Btrfs   *BtrfsReport    `json:"btrfs,omitempty"`
+	Md      *MdReport       `json:"md,omitempty"`
 	Tools   map[string]bool `json:"tools"`
 	Errors  []string        `json:"errors,omitempty"`
 	Partial bool            `json:"partial"`

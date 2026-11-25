@@ -183,11 +183,36 @@ func readMdstat(osRoot string) (string, string) {
 	return string(b), ""
 }
 
+// ReadMdstatFile parses the mdstat file at path, opened directly (the
+// storage helper reads /proc/mdstat this way; its AppArmor profile does not
+// let it open the root directory). Same bounds and fail-closed result as
+// ProbeMdstat.
+func ReadMdstatFile(path string) Inventory {
+	f, err := os.Open(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return parsedInventory("", reasonMissing)
+	}
+	if err != nil {
+		return parsedInventory("", reasonUnread)
+	}
+	defer f.Close()
+	b, err := io.ReadAll(io.LimitReader(f, mdstatMaxBytes+1))
+	if err != nil || len(b) > mdstatMaxBytes {
+		return parsedInventory("", reasonUnread)
+	}
+	return parsedInventory(string(b), "")
+}
+
 // ProbeMdstat reads and parses /proc/mdstat under osRoot (tests pass a
 // fixture tree). It fails closed: missing, unreadable, oversized or
 // malformed input is present=false with fixed text and no arrays.
 func ProbeMdstat(osRoot string) Inventory {
-	text, reason := readMdstat(osRoot)
+	return parsedInventory(readMdstat(osRoot))
+}
+
+// parsedInventory turns mdstat text (or the reason it is unusable) into an
+// Inventory.
+func parsedInventory(text, reason string) Inventory {
 	if reason != "" {
 		return Inventory{Present: false, Reason: reason, Personalities: []string{}, Arrays: []Array{}}
 	}

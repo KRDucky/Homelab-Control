@@ -1,0 +1,30 @@
+/dev/md/lab5:
+           Version : 1.2
+     Creation Time : Wed Nov 25 15:47:32 2026
+        Raid Level : raid5
+        Array Size : 405504 (396.00 MiB 415.24 MB)
+     Used Dev Size : 202752 (198.00 MiB 207.62 MB)
+      Raid Devices : 3
+     Total Devices : 3
+       Persistence : Superblock is persistent
+
+       Update Time : Wed Nov 25 15:47:44 2026
+             State : clean, degraded 
+    Active Devices : 2
+   Working Devices : 2
+    Failed Devices : 1
+     Spare Devices : 0
+
+            Layout : left-symmetric
+        Chunk Size : 512K
+
+Consistency Policy : resync
+
+              Name : homelab-demo:lab5  (local to host homelab-demo)
+              UUID : 4ff124e4:f30e54b6:fa1eb145:3ae20412
+            Events : 18
+
+    Number   Major   Minor   RaidDevice State
+       0       7        2        0      active sync   /dev/loop2
+       1       7        3        1      faulty   /dev/loop3
+       3       7        4        2      active sync   /dev/loop4

@@ -266,6 +266,12 @@ add, remove, grow, or reshape. A missing `mdadm` offers Software Center search w
 is known, the packages module is enabled and the session has `packages.read` (no POST install). This
 is a checkpoint, not acceptance, not a merge, not production.
 
+**Update 2026-11-25 (M5–M9 review, "use the standard tools"):** the page now shows each array as
+`mdadm --detail` describes it: mdadm's state wording (clean, degraded, recovering), active, failed and spare
+counts, rebuild/resync progress, layout, UUID and member roles. The read-only storage helper runs it (request
+scope `md`) for each array in `/proc/mdstat`; broker op `mdadm.status` (scope `mdadm.read`); `GET /mdadm`
+adds it as `status`. The raw `/proc/mdstat` table remains for when the report is unavailable. Still no create,
+assemble, add, remove, fail or grow. ADR 0008 Amendment 15; evidence `docs/evidence/m7/MDADM-TOOLS.md`.
 
 ## M7 first checkpoint: f2fs (read-only; not M7 acceptance)
 

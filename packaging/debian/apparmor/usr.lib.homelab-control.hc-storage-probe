@@ -50,6 +50,13 @@ profile hc-storage-probe /usr/lib/homelab-control/hc-storage-probe flags=(enforc
   /{usr/,}{s,}bin/{lvm,pvs,lvs} ix,
   /{usr/,}{s,}bin/{zpool,zfs} ix,
   /{usr/,}{s,}bin/btrfs ix,
+  /{usr/,}{s,}bin/mdadm ix,
+  # mdadm --detail: its configuration and the array map it keeps under /run.
+  /etc/mdadm/ r,
+  /etc/mdadm/** r,
+  /etc/mdadm.conf r,
+  /run/mdadm/ r,
+  /run/mdadm/** r,
   # btrfs-progs opens a mounted filesystem's mountpoint (a directory chosen by
   # the helper from its own mountinfo) for its read-only ioctls: directories
   # only, never file contents.
@@ -108,6 +115,7 @@ profile hc-storage-probe /usr/lib/homelab-control/hc-storage-probe flags=(enforc
   @{PROC}/devices r,
   @{PROC}/partitions r,
   @{PROC}/filesystems r,
+  @{PROC}/mdstat r,
   @{PROC}/swaps r,
   @{PROC}/cmdline r,
   @{PROC}/@{pid}/mountinfo r,

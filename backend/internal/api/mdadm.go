@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"homelab-control/backend/internal/auth"
+	"homelab-control/backend/internal/mdadminfo"
+	"homelab-control/backend/internal/storagetools"
 )
 
 // mdadmProtectedGET is the read-only software RAID bar on an
@@ -20,9 +22,17 @@ func (s *Server) mdadmProtectedGET(w http.ResponseWriter, r *http.Request, sess 
 	return s.auditedGET(w, r, sess, "Software RAID inventory requires an access audit logger.")
 }
 
-// handleMdadm serves the read-only software RAID inventory. No create,
-// assemble, add, remove, grow, or mdadm execution exists: this endpoint Stats
-// a well-known binary and reads bounded /proc/mdstat.
+// mdadmResponse is the unprivileged /proc/mdstat inventory plus the broker's
+// mdadm.status report (mdadm --detail per array, run by the read-only helper).
+type mdadmResponse struct {
+	mdadminfo.Snapshot
+	Status toolStatus[storagetools.MdReport] `json:"status"`
+}
+
+// handleMdadm serves the read-only software RAID view: tooling and
+// /proc/mdstat (unprivileged), and, when md arrays exist and the broker is
+// reachable, mdadm --detail of each array. No create, assemble, add, remove,
+// fail or grow exists.
 func (s *Server) handleMdadm(w http.ResponseWriter, r *http.Request, sess *auth.Session, _ string) {
 	if !s.mdadmProtectedGET(w, r, sess) {
 		return
@@ -46,10 +56,12 @@ func (s *Server) handleMdadm(w http.ResponseWriter, r *http.Request, sess *auth.
 		writeError(w, http.StatusServiceUnavailable, "mdadm_unavailable", "Software RAID inventory could not be collected safely.")
 		return
 	}
+	resp := mdadmResponse{Snapshot: snap, Status: toolReport[storagetools.MdReport](r.Context(), s, sess, "mdadm.status",
+		snap.MD.Present, "The kernel has no md arrays (/proc/mdstat is absent), so there is nothing for mdadm to describe.", "Array detail")}
 	detail := "arrays=" + strconv.Itoa(len(snap.MD.Arrays))
 	if err := s.auditLog("mdadm.inventory.read", sess.Username, r, "returned", detail); err != nil {
 		writeError(w, http.StatusServiceUnavailable, "audit_unavailable", "Software RAID inventory cannot be returned because its access could not be audited.")
 		return
 	}
-	writeJSON(w, http.StatusOK, snap)
+	writeJSON(w, http.StatusOK, resp)
 }
