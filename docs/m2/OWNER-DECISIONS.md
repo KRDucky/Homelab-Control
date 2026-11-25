@@ -508,3 +508,15 @@ Recorded here:
 - Asked how to handle the fork framing in rules and docs, the owner chose **"Rewrite as independent"**.
 - Recorded in ADR 0016, which supersedes ADR 0003 and ADR 0007. The Git history is rewritten so no commit
   contains `compat/`.
+
+## Use the standard storage tools; activate the read-only helper (owner, 2026-11-25)
+
+- The owner directed: "We are not reinventing the wheel, if OSS/FLOSS/FOSS code already exists to do the
+  thing, it should use that ... We only want new, custom code where needed." The custom part named is the
+  physical disk location (bay) map.
+- Asked how the standard tools should reach the disks, the owner chose **"Activate read-only helper"**:
+  `hc-storage-probe` is the one place that runs a closed list of read-only tool commands, with read-only
+  block-device access and `CAP_SYS_RAWIO` for smartctl. The main broker stays sandboxed.
+- Asked how to deliver, the owner chose **"One PR per module"** across M5–M9.
+- First PR (M5): lsblk, smartctl and pvs/lvs replace the native LVM reader (`lvmmeta`) and blkid.
+

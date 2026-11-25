@@ -5,35 +5,28 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"homelab-control/backend/internal/auth"
-	"homelab-control/backend/internal/lvmmeta"
 	"homelab-control/backend/internal/storageinfo"
+	"homelab-control/backend/internal/storagetools"
 )
 
-// storageProbeResult mirrors the broker op's closed helper Result. It is
-// decoded from the broker call and never exposed as the endpoint response.
-type storageProbeResult struct {
-	Version int                `json:"version"`
-	Code    string             `json:"code,omitempty"`
-	LVM     *lvmmeta.Inventory `json:"lvm,omitempty"`
-	Blkid   map[string]string  `json:"blkid,omitempty"`
-	Errors  []string           `json:"errors,omitempty"`
-	Partial bool               `json:"partial"`
-}
+// storageProbeResult is the broker op's closed helper Result.
+type storageProbeResult = storagetools.Result
 
 // handleStorageProbe triggers the on-demand native probe (O-1). It is an
 // explicit CSRF-protected POST under the non-default storage.probe scope; it
 // is never attached to a polling GET. The body must be empty: devices are
-// enumerated server-side. The result is the same snake_case storageResponse
+// enumerated by the helper. The result is the same snake_case storageResponse
 // as GET /storage, with the probe's partial/refusal state folded into
-// graph.status and graph.notes and blkid signatures merged onto nodes.
+// graph.status and graph.notes, lsblk signatures merged onto nodes, SMART
+// readings on disks, and the pvs/lvs inventory.
 func (s *Server) handleStorageProbe(w http.ResponseWriter, r *http.Request, sess *auth.Session, _ string) {
 	if !auth.CheckCSRF(sess, r.Header.Get("X-CSRF-Token")) {
 		writeError(w, http.StatusForbidden, "csrf_rejected", "missing or invalid CSRF token")
@@ -98,15 +91,9 @@ func (s *Server) handleStorageProbe(w http.ResponseWriter, r *http.Request, sess
 		writeError(w, http.StatusServiceUnavailable, "storage_unavailable", "Storage metadata could not be collected safely.")
 		return
 	}
-	mergeProbeSignatures(&g, probe.Blkid)
-	if probe.LVM != nil {
-		// Fold the native on-disk LVM inventory into the graph. No same-boot
-		// revalidation observation is available here, so PV-to-disk links are at
-		// best provisional (never verified) — addPhysicalVolumes/linkPV decides.
-		lvmInv, lvmNotes := storageinfo.FromNative(*probe.LVM)
-		storageinfo.AddLVM(&g, lvmInv)
-		g.Notes = append(g.Notes, lvmNotes...)
-	}
+	mergeProbeSignatures(&g, probe.Blocks)
+	storageinfo.AttachSMART(&g, probe.SMART)
+	addProbeLVM(&g, probe)
 	applyProbeOutcome(&g, probe)
 
 	if err = s.auditLog("storage.probe", sess.Username, r, "collected", "nodes="+strconv.Itoa(len(g.Nodes))); err != nil {
@@ -116,19 +103,38 @@ func (s *Server) handleStorageProbe(w http.ResponseWriter, r *http.Request, sess
 	writeJSON(w, http.StatusOK, storageResponse{CollectedAt: collectedAt, ReadOnly: true, Graph: g})
 }
 
-// mergeProbeSignatures folds blkid TYPE/UUID into the graph as signature nodes,
-// claims and has-signature edges (consistent with storageinfo.Build), never as
-// bare fields on block nodes.
-func mergeProbeSignatures(g *storageinfo.Graph, blkid map[string]string) {
-	if len(blkid) == 0 {
+// mergeProbeSignatures folds lsblk FSTYPE/UUID into the graph as signature
+// nodes, claims and has-signature edges (consistent with storageinfo.Build).
+func mergeProbeSignatures(g *storageinfo.Graph, blocks []storagetools.BlockDevice) {
+	sigs := make(map[string]storageinfo.Signature, len(blocks))
+	for _, b := range blocks {
+		if b.FSType != "" && b.UUID != "" {
+			sigs[b.KName] = storageinfo.Signature{FSType: b.FSType, UUID: b.UUID}
+		}
+	}
+	storageinfo.MergeSignatures(g, sigs, "lsblk")
+}
+
+// addProbeLVM decodes the helper's pvs/lvs --readonly reports. They are
+// metadata-only: --readonly does not query device-mapper, so live RAID sync,
+// cache and health state are not shown. PV-to-disk links are decided by
+// storageinfo from device numbers.
+func addProbeLVM(g *storageinfo.Graph, probe storageProbeResult) {
+	if len(probe.LVS) == 0 || len(probe.PVS) == 0 {
 		return
 	}
-	sigs := make(map[string]storageinfo.BlkidSignature, len(blkid))
-	for name, export := range blkid {
-		fsType, uuid := parseBlkidExport(export)
-		sigs[name] = storageinfo.BlkidSignature{FSType: fsType, UUID: uuid}
+	inv, err := storageinfo.ParseLVM(bytes.NewReader(probe.LVS), storageinfo.ModeMetadataOnly)
+	if err == nil {
+		inv.PhysicalVolumes, err = storageinfo.ParsePVS(bytes.NewReader(probe.PVS), storageinfo.ModeMetadataOnly)
 	}
-	storageinfo.MergeBlkidSignatures(g, sigs)
+	if err != nil {
+		g.Notes = append(g.Notes, "LVM report could not be read: "+err.Error())
+		if statusRank("partial") > statusRank(g.Status) {
+			g.Status = "partial"
+		}
+		return
+	}
+	storageinfo.AddLVM(g, inv)
 }
 
 // applyProbeOutcome sets graph.status/notes from the typed helper result
@@ -138,7 +144,7 @@ func mergeProbeSignatures(g *storageinfo.Graph, blkid map[string]string) {
 func applyProbeOutcome(g *storageinfo.Graph, probe storageProbeResult) {
 	probeStatus := "ok"
 	switch probe.Code {
-	case "device_policy_unresolved":
+	case storagetools.CodeDevicePolicyUnresolved:
 		probeStatus = "unavailable"
 	default:
 		if probe.Partial {
@@ -160,22 +166,4 @@ func statusRank(s string) int {
 	default:
 		return 0 // "ok" and empty
 	}
-}
-
-// parseBlkidExport reads the allow-listed TYPE and UUID from a blkid -o export
-// value (one KEY=VALUE per line). Other keys are ignored.
-func parseBlkidExport(export string) (fsType, uuid string) {
-	for _, line := range strings.Split(export, "\n") {
-		k, v, ok := strings.Cut(line, "=")
-		if !ok {
-			continue
-		}
-		switch k {
-		case "TYPE":
-			fsType = v
-		case "UUID":
-			uuid = v
-		}
-	}
-	return fsType, uuid
 }

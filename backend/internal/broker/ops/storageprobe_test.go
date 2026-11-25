@@ -27,12 +27,12 @@ func TestProbeRateLimit(t *testing.T) {
 }
 
 func TestValidateProbeResult(t *testing.T) {
-	for _, ok := range []storageProbeResult{{Version: 1, Code: ""}, {Version: 1, Code: "device_policy_unresolved"}} {
+	for _, ok := range []storageProbeResult{{Version: 2, Code: ""}, {Version: 2, Code: "device_policy_unresolved"}} {
 		if err := validateProbeResult(ok); err != nil {
 			t.Fatalf("valid result rejected: %v", err)
 		}
 	}
-	for _, bad := range []storageProbeResult{{Version: 2, Code: ""}, {Version: 1, Code: "bogus"}} {
+	for _, bad := range []storageProbeResult{{Version: 1, Code: ""}, {Version: 2, Code: "bogus"}} {
 		if err := validateProbeResult(bad); err == nil {
 			t.Fatalf("invalid result accepted: %+v", bad)
 		}

@@ -3,10 +3,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // Command hc-storage-probe is the M2-4 native read-only storage probe helper.
-// It reads one closed typed Request from stdin, runs the fixed non-mutating
-// LVM/blkid templates on enumerated, revalidated devices, and writes one
-// closed typed Result to stdout. It is disabled by default (its unit has no
-// [Install] enablement) and is not run by hc-api or hc-broker.
+// It reads one closed typed Request from stdin, runs the fixed read-only
+// lsblk, smartctl and pvs/lvs templates, and writes one closed typed Result
+// to stdout. It is socket-activated for the broker's storage.probe op.
 package main
 
 import (
@@ -16,16 +15,15 @@ import (
 	"os"
 
 	"homelab-control/backend/internal/storageprobe"
+	"homelab-control/backend/internal/storagetools"
 )
 
 // maxRequestBytes is the closed-protocol input cap. Reading one byte more than
 // this proves the request is oversized, so a truncated request is rejected.
 const maxRequestBytes = 1 << 20
 
-// maxResponseBytes is the closed-protocol output frame cap. It is a provable
-// bound: 64 devices × 16 KiB blkid = 1 MiB raw (LVM is gated off), which
-// worst-case JSON-escapes to ~2 MiB, plus errors/framing — comfortably under
-// 3 MiB and the broker's 4 MiB proto.MaxResponse.
+// maxResponseBytes is the closed-protocol output frame cap, under the
+// broker's 4 MiB proto.MaxResponse.
 const maxResponseBytes = 3 << 20
 
 func main() {
@@ -59,7 +57,7 @@ func run() error {
 	if err := storageprobe.ResolveToolPaths(); err != nil {
 		// Missing/insecure tools must surface as a typed Partial result through
 		// the closed protocol, not only a nonzero exit.
-		res := storageprobe.Result{Version: 1, Partial: true, Errors: []string{"tool unavailable: " + err.Error()}}
+		res := storageprobe.Result{Version: storagetools.ProtocolVersion, Partial: true, Errors: []string{"tool unavailable: " + err.Error()}}
 		return writeResult(res)
 	}
 	res := storageprobe.Run(context.Background(), req)

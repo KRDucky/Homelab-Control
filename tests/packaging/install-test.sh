@@ -48,7 +48,7 @@ esac
 check "service user created" homelab-control "$(getent passwd homelab-control | cut -d: -f1)"
 check "config dir mode/group" "750 homelab-control" "$(stat -c '%a %G' /etc/homelab-control)"
 check "broker binary installed" 1 "$([ -x /usr/lib/homelab-control/hc-broker ] && echo 1 || echo 0)"
-check "storage probe helper installed, not enabled" "1 0" "$([ -x /usr/lib/homelab-control/hc-storage-probe ] && echo 1 || echo 0) $([ -e /etc/homelab-control/storage-probe.enabled ] && echo 1 || echo 0)"
+check "storage probe helper installed, marker packaged" "1 1" "$([ -x /usr/lib/homelab-control/hc-storage-probe ] && echo 1 || echo 0) $([ -e /etc/homelab-control/storage-probe.enabled ] && echo 1 || echo 0)"
 check "mergerfs apply helper installed, marker packaged" "1 1" "$([ -x /usr/lib/homelab-control/hc-mergerfs-apply ] && echo 1 || echo 0) $([ -e /etc/homelab-control/mergerfs-apply.enabled ] && echo 1 || echo 0)"
 check "mergerfs marker owner/mode" "640 root:homelab-control" "$(stat -c '%a %U:%G' /etc/homelab-control/mergerfs-apply.enabled)"
 units=10

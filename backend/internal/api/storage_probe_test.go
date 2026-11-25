@@ -6,6 +6,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -14,8 +15,8 @@ import (
 	"homelab-control/backend/internal/audit"
 	"homelab-control/backend/internal/auth"
 	"homelab-control/backend/internal/broker/proto"
-	"homelab-control/backend/internal/lvmmeta"
 	"homelab-control/backend/internal/storageinfo"
+	"homelab-control/backend/internal/storagetools"
 )
 
 // probeHarness wires a fake broker and a fake sysfs collector so the probe
@@ -131,31 +132,35 @@ func TestStorageGETDoesNotProbe(t *testing.T) {
 
 func TestStorageProbeSuccess(t *testing.T) {
 	h, fb := probeHarness(t, auth.ScopeStorageProbe)
+	passed := true
 	fb.results["storage.probe"] = storageProbeResult{
-		Version: 1,
-		Blkid:   map[string]string{"sda": "TYPE=ext4\nUUID=abc123"},
+		Version: 2,
+		Blocks:  []storagetools.BlockDevice{{Name: "sda", KName: "sda", Type: "disk", FSType: "ext4", UUID: "abc123"}},
+		SMART:   map[string]storagetools.SMART{"sda": {Protocol: "ATA", Passed: &passed}},
 	}
 	rr := h.do("POST", "/api/v1/storage/probe", "", map[string]string{"X-CSRF-Token": h.csrf, "Origin": testOrigin})
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %d %s", rr.Code, rr.Body)
 	}
 	body := rr.Body.String()
-	if !strings.Contains(body, `"graph"`) || !strings.Contains(body, `"signature"`) {
-		t.Fatalf("probe response did not include the graph/signature: %s", body)
+	for _, want := range []string{`"graph"`, `"signature"`, `"source":"lsblk"`, `"smart_health":"ok"`, `"protocol":"ATA"`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("probe response missing %s: %s", want, body)
+		}
 	}
 }
 
 func TestApplyProbeOutcomePreservesWorseStatus(t *testing.T) {
 	// A successful probe must not erase a pre-existing partial base graph.
 	g := storageinfo.Graph{Status: "partial", Notes: []string{}}
-	applyProbeOutcome(&g, storageProbeResult{Version: 1, Code: "", Partial: false})
+	applyProbeOutcome(&g, storageProbeResult{Version: 2, Code: "", Partial: false})
 	if g.Status != "partial" {
 		t.Fatalf("ok probe erased partial base status: %q", g.Status)
 	}
 
 	// A partial probe on an ok base becomes partial and appends notes.
 	g2 := storageinfo.Graph{Status: "ok"}
-	applyProbeOutcome(&g2, storageProbeResult{Version: 1, Code: "", Partial: true, Errors: []string{"e1"}})
+	applyProbeOutcome(&g2, storageProbeResult{Version: 2, Code: "", Partial: true, Errors: []string{"e1"}})
 	if g2.Status != "partial" {
 		t.Fatalf("partial probe did not set partial: %q", g2.Status)
 	}
@@ -165,7 +170,7 @@ func TestApplyProbeOutcomePreservesWorseStatus(t *testing.T) {
 
 	// device_policy_unresolved is unavailable regardless of the base.
 	g3 := storageinfo.Graph{Status: "ok"}
-	applyProbeOutcome(&g3, storageProbeResult{Version: 1, Code: "device_policy_unresolved", Partial: true})
+	applyProbeOutcome(&g3, storageProbeResult{Version: 2, Code: "device_policy_unresolved", Partial: true})
 	if g3.Status != "unavailable" {
 		t.Fatalf("refusal did not set unavailable: %q", g3.Status)
 	}
@@ -173,7 +178,7 @@ func TestApplyProbeOutcomePreservesWorseStatus(t *testing.T) {
 
 func TestStorageProbeRefusalIsUnavailable(t *testing.T) {
 	h, fb := probeHarness(t, auth.ScopeStorageProbe)
-	fb.results["storage.probe"] = storageProbeResult{Version: 1, Code: "device_policy_unresolved", Partial: true, Errors: []string{"probe refused: block device classes not available: md"}}
+	fb.results["storage.probe"] = storageProbeResult{Version: 2, Code: "device_policy_unresolved", Partial: true, Errors: []string{"probe refused: block device classes not available: md"}}
 	rr := h.do("POST", "/api/v1/storage/probe", "", map[string]string{"X-CSRF-Token": h.csrf, "Origin": testOrigin})
 	if rr.Code != http.StatusServiceUnavailable {
 		t.Fatalf("got %d %s", rr.Code, rr.Body)
@@ -195,66 +200,40 @@ func TestStorageProbeRateLimited(t *testing.T) {
 	}
 }
 
+const (
+	probeVG = "aaaaaa-bbbb-cccc-dddd-eeee-ffff-000001"
+	probePV = "abcdef-1234-5678-90ab-cdef-1234-567890"
+	probeLV = "999999-9988-8877-7766-6655-5544-444444"
+)
+
+const probeLVS = `{"report":[{"seg":[{"lv_uuid":"` + probeLV + `","lv_name":"lv1","vg_uuid":"` + probeVG + `","vg_name":"vg1","segtype":"linear","seg_start":"0","seg_size":"536870912","devices":"/dev/sda(0)"}]}]}`
+
+const probePVS = `{"report":[{"pvseg":[{"pv_uuid":"` + probePV + `","pv_name":"/dev/sda","vg_uuid":"` + probeVG + `","vg_name":"vg1","pv_size":"1073741824","dev_size":"1073741824","pv_major":"8","pv_minor":"0","pv_attr":"a--","pv_missing":"","pvseg_start":"0","pvseg_size":"128","lv_uuid":"` + probeLV + `"}]}]}`
+
 func TestStorageProbeLVMGraph(t *testing.T) {
 	h, fb := probeHarness(t, auth.ScopeStorageProbe)
-	fb.results["storage.probe"] = storageProbeResult{
-		Version: 1,
-		LVM: &lvmmeta.Inventory{VGs: []lvmmeta.VG{{
-			UUID:       "aaaaaaaabbbbccccddddeeeeffff0001",
-			Name:       "vg1",
-			Seqno:      1,
-			ExtentSize: 8192,
-			State:      lvmmeta.StateComplete,
-			PVs: []lvmmeta.VGPV{{
-				UUID: "abcdef1234567890abcdef1234567890", DevSize: 536870912, DeviceNumber: "8:0", Presence: lvmmeta.PresencePresent,
-			}},
-			LVs: []lvmmeta.LV{{
-				UUID: "99999999888877776666555544444444", Name: "lv1",
-				Segments: []lvmmeta.Segment{{Type: "striped", Parsed: true, StartExtent: 0, ExtentCount: 128}},
-			}},
-		}}},
-	}
+	fb.results["storage.probe"] = storageProbeResult{Version: 2, PVS: json.RawMessage(probePVS), LVS: json.RawMessage(probeLVS)}
 	rr := h.do("POST", "/api/v1/storage/probe", "", map[string]string{"X-CSRF-Token": h.csrf, "Origin": testOrigin})
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %d %s", rr.Code, rr.Body)
 	}
 	body := rr.Body.String()
-	for _, want := range []string{"lvm-vg", "lvm-lv", "lvm-pv"} {
+	for _, want := range []string{"lvm-vg", "lvm-lv", "lvm-pv", `"mode":"metadata-only"`} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("LVM graph missing %q: %s", want, body)
 		}
 	}
 }
 
-func TestStorageProbeUnsupportedPartial(t *testing.T) {
+func TestStorageProbeBadLVMReportIsPartial(t *testing.T) {
 	h, fb := probeHarness(t, auth.ScopeStorageProbe)
-	fb.results["storage.probe"] = storageProbeResult{
-		Version: 1,
-		Partial: true,
-		Errors:  []string{"vg vg1: partial (unsupported segment type)"},
-		LVM: &lvmmeta.Inventory{VGs: []lvmmeta.VG{{
-			UUID:  "aaaaaaaabbbbccccddddeeeeffff0001",
-			Name:  "vg1",
-			State: lvmmeta.StateUnsupported,
-			Notes: []string{"vg vg1: partial (unsupported segment type)"},
-			PVs: []lvmmeta.VGPV{{
-				UUID: "abcdef1234567890abcdef1234567890", DevSize: 536870912, Presence: lvmmeta.PresencePresent,
-			}},
-			LVs: []lvmmeta.LV{{
-				UUID: "99999999888877776666555544444444", Name: "lv1",
-				Segments: []lvmmeta.Segment{{Type: "writecache", Parsed: false}},
-			}},
-		}}},
-	}
+	fb.results["storage.probe"] = storageProbeResult{Version: 2, PVS: json.RawMessage(probePVS), LVS: json.RawMessage(`{"report":[{"seg":[{"lv_name":"no-uuid"}]}]}`)}
 	rr := h.do("POST", "/api/v1/storage/probe", "", map[string]string{"X-CSRF-Token": h.csrf, "Origin": testOrigin})
 	if rr.Code != http.StatusOK {
 		t.Fatalf("got %d %s", rr.Code, rr.Body)
 	}
 	body := rr.Body.String()
-	if !strings.Contains(body, `"status":"partial"`) {
-		t.Fatalf("partial status missing: %s", body)
-	}
-	if !strings.Contains(body, "unsupported-segment-type") {
-		t.Fatalf("unsupported-segment note missing: %s", body)
+	if !strings.Contains(body, `"status":"partial"`) || !strings.Contains(body, "LVM report could not be read") {
+		t.Fatalf("bad LVM report not reported: %s", body)
 	}
 }

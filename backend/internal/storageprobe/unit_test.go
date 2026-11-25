@@ -72,8 +72,8 @@ func TestStorageProbeServiceFailClosed(t *testing.T) {
 		"SupplementaryGroups":     "disk",
 		"PrivateDevices":          "no",
 		"DevicePolicy":            "closed",
-		"CapabilityBoundingSet":   "",
-		"AmbientCapabilities":     "",
+		"CapabilityBoundingSet":   "CAP_SYS_RAWIO",
+		"AmbientCapabilities":     "CAP_SYS_RAWIO",
 		"NoNewPrivileges":         "yes",
 		"StandardInput":           "socket",
 		"StandardOutput":          "socket",
@@ -86,10 +86,10 @@ func TestStorageProbeServiceFailClosed(t *testing.T) {
 		"SystemCallErrorNumber":   "EPERM",
 		"SELinuxContext":          "system_u:system_r:hc_storage_probe_t:s0",
 		"AppArmorProfile":         "hc-storage-probe",
-		"MemoryMax":               "64M",
+		"MemoryMax":               "128M",
 		"TasksMax":                "16",
 		"LimitCORE":               "0",
-		"TimeoutStartSec":         "30",
+		"TimeoutStartSec":         "60",
 		"Type":                    "oneshot",
 		"ExecStart":               "/usr/lib/homelab-control/hc-storage-probe",
 	} {
@@ -176,12 +176,12 @@ func TestStorageProbeSocketAccept(t *testing.T) {
 	if got, ok := unitSetting(t, sock, "ConditionPathExists"); !ok || got != "/etc/homelab-control/storage-probe.enabled" {
 		t.Errorf("socket ConditionPathExists=%q (present=%v), want the opt-in marker", got, ok)
 	}
-	if unitHasKey(sock, "WantedBy") || unitHasKey(sock, "RequiredBy") {
-		t.Error("socket must not be enabled at boot")
+	// Owner 2026-11-25: an administrator may enable the socket like the other
+	// helpers; the package itself never enables it (tests/packaging).
+	if got, ok := unitSetting(t, sock, "WantedBy"); !ok || got != "sockets.target" {
+		t.Errorf("socket WantedBy=%q (present=%v), want sockets.target", got, ok)
 	}
-	for _, line := range strings.Split(sock, "\n") {
-		if strings.TrimSpace(line) == "[Install]" {
-			t.Error("socket must not have an [Install] section")
-		}
+	if unitHasKey(sock, "RequiredBy") {
+		t.Error("socket must not be required by another unit")
 	}
 }

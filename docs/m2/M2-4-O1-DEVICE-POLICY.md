@@ -6,6 +6,14 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 # M2-4 O-1 read-only storage probe: device access and MAC policy
 
+> **Superseded in part (owner, 2026-11-25).** The helper is activated and now runs the standard
+> tools instead of a native LVM reader and fd-pinned blkid: `lsblk --json`, `smartctl --json
+> --nocheck=standby` on SATA/SAS/NVMe whole disks, and `pvs`/`lvs --readonly`. It takes no device
+> names from its caller. It gains `CAP_SYS_RAWIO` (SMART pass-through) and keeps the read-only
+> `DeviceAllow=` classes below. The package ships `storage-probe.enabled`; the socket is enabled by
+> an administrator. Current record: `docs/evidence/m5/STORAGE-TOOLS.md`. The device-class policy
+> below still applies; the blkid fd-pinning and native LVM sections are history.
+
 Status: **Accepted for isolated read-only inventory validation; still disabled
 by default and not authorized for host or production activation.** The owner
 approved O-1 implementation and disposable-VM testing. The exact helper and
