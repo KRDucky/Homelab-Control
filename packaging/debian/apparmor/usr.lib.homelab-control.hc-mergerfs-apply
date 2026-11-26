@@ -69,6 +69,8 @@ profile hc-mergerfs-apply /usr/lib/homelab-control/hc-mergerfs-apply flags=(enfo
   /dev/disk/by-uuid/ r,
   /dev/disk/by-uuid/* r,
 
+  # The Go runtime reads the huge page size at start-up (seen on Ubuntu 22.04, kernel 5.15).
+  /sys/kernel/mm/transparent_hugepage/hpage_pmd_size r,
   @{PROC}/filesystems r,
   @{PROC}/@{pid}/mountinfo r,
   @{PROC}/@{pid}/mounts r,
