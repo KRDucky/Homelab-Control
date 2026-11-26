@@ -11,9 +11,11 @@ import { InstallPlanDialog } from '../InstallPlanDialog';
 import { explain, useData } from '../useData';
 
 /**
- * ext4 (M7 first checkpoint, read-only). Probe the dumpe2fs binary, show a
- * Software Center search link when the package name is known and missing, and
- * list observed ext4 mounts. No format, grow, or repair exists in the DOM.
+ * ext4 (read-only view). Each mounted filesystem's superblock as `tune2fs -l`
+ * reports it (run by the read-only storage helper): state, recorded errors,
+ * mount counts and check times. Also the observed mounts and a Software
+ * Center link when e2fsprogs is missing. No format, grow, or repair action
+ * exists on this page.
  */
 export function Ext4({
   csrf,

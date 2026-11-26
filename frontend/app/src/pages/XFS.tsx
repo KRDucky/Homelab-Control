@@ -10,10 +10,10 @@ import { InstallPlanDialog } from '../InstallPlanDialog';
 import { explain, useData } from '../useData';
 
 /**
- * XFS (M7 first checkpoint, read-only). Probe the xfs_info binary and, when it
- * is missing and the package name is known, offer an Install button that opens
- * a dialog linking to a Software Center search (it installs nothing itself).
- * List observed xfs mounts. No format, grow, or repair exists in the DOM.
+ * XFS (read-only). Each mounted filesystem's geometry and on-disk features as
+ * xfs_info reports them (run by the read-only storage helper), the observed
+ * mounts, and a Software Center link when xfsprogs is missing. No format,
+ * grow, or repair exists in the DOM.
  */
 export function XFS({
   csrf,

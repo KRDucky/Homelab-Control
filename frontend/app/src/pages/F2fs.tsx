@@ -10,10 +10,9 @@ import { InstallPlanDialog } from '../InstallPlanDialog';
 import { explain, useData } from '../useData';
 
 /**
- * f2fs (M7 first checkpoint, read-only). Probe the dump.f2fs binary, show a
- * Software Center package-search planning dialog when a required tool is
- * missing, and list observed f2fs mounts. No format, grow, or repair action
- * exists in this page.
+ * f2fs (read-only). Each mounted filesystem's live counters from the kernel's
+ * /sys/fs/f2fs files, the observed mounts, and a Software Center link when
+ * f2fs-tools is missing. No format, grow, or repair action exists.
  */
 export function F2fs({
   csrf,
