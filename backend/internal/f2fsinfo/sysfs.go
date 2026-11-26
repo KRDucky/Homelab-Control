@@ -34,10 +34,14 @@ type Filesystem struct {
 	LifetimeWriteKB *uint64  `json:"lifetimeWriteKiB,omitempty"`
 }
 
-// Status is the per-filesystem part of the f2fs response. Every f2fs mount is
-// either in Filesystems, in Skipped with the reason, or counted by Truncated
-// (a mount record that could not be used), so an empty list never hides one.
+// Status is the per-filesystem part of the f2fs response. Available is false,
+// with Reason, when the mount table itself could not be read. Otherwise every
+// f2fs mount is either in Filesystems, in Skipped with the reason, or counted
+// by Truncated (a mount record that could not be used), so an empty list never
+// hides one.
 type Status struct {
+	Available   bool         `json:"available"`
+	Reason      string       `json:"reason,omitempty"`
 	Filesystems []Filesystem `json:"filesystems"`
 	Skipped     []Skipped    `json:"skipped,omitempty"`
 	Truncated   bool         `json:"truncated,omitempty"`
@@ -50,8 +54,9 @@ type Skipped struct {
 }
 
 const (
-	reasonNoDevName = "the kernel did not name this device in /sys/dev/block, so its counters could not be read"
-	reasonNoSysfs   = "the kernel publishes no /sys/fs/f2fs entry for this device"
+	reasonStatusUnread = "the mount table (/proc/self/mountinfo) could not be read, so mounted f2fs filesystems are unknown"
+	reasonNoDevName    = "the kernel did not name this device in /sys/dev/block, so its counters could not be read"
+	reasonNoSysfs      = "the kernel publishes no /sys/fs/f2fs entry for this device"
 )
 
 const (
@@ -89,7 +94,7 @@ func attrNum(root *os.Root, path string) *uint64 {
 // collectStatus groups the f2fs mounts by device number and reads each
 // device's /sys/fs/f2fs/<disk>/ directory, found through /sys/dev/block.
 func collectStatus(root *os.Root, recs []mountinfo.Record) Status {
-	st := Status{Filesystems: []Filesystem{}}
+	st := Status{Available: true, Filesystems: []Filesystem{}}
 	index := map[string]int{}
 	skipped := map[string]bool{}
 	for _, r := range recs {

@@ -138,6 +138,7 @@ describe('filesystem reports from the standard tools', () => {
       f2fs: { present: true, reason: '', mounts: [], mountsTruncated: false },
       kernelF2fs: kernel,
       status: {
+        available: true,
         filesystems: [
           {
             name: 'vdb',
@@ -212,6 +213,7 @@ describe('mounted filesystems that could not be inspected', () => {
       },
       kernelF2fs: kernel,
       status: {
+        available: true,
         filesystems: [],
         skipped: [
           { mountpoint: '/srv/card', reason: 'the kernel publishes no /sys/fs/f2fs entry for this device' },
@@ -228,7 +230,7 @@ describe('mounted filesystems that could not be inspected', () => {
       tooling,
       f2fs: { present: true, reason: '', mounts: [], mountsTruncated: true },
       kernelF2fs: kernel,
-      status: { filesystems: [], truncated: true },
+      status: { available: true, filesystems: [], truncated: true },
     };
     render(<F2fsView data={data} error={null} packagesEnabled={false} />);
     expect(screen.getByText('Not every filesystem could be inspected.')).toBeTruthy();
@@ -240,9 +242,31 @@ describe('mounted filesystems that could not be inspected', () => {
       tooling,
       f2fs: { present: true, reason: '', mounts: [], mountsTruncated: false },
       kernelF2fs: kernel,
-      status: { filesystems: [] },
+      status: { available: true, filesystems: [] },
     };
     render(<F2fsView data={data} error={null} packagesEnabled={false} />);
     expect(screen.getByText('No f2fs filesystem is mounted.')).toBeTruthy();
+  });
+  // Review finding on #178: an unread mount table is not "nothing mounted".
+  it('f2fs: an unreadable mount table shows the reason, not that nothing is mounted', () => {
+    const data: F2fsInventory = {
+      tooling,
+      f2fs: {
+        present: false,
+        reason: 'mount inventory could not be read',
+        mounts: [],
+        mountsTruncated: false,
+      },
+      kernelF2fs: kernel,
+      status: {
+        available: false,
+        reason:
+          'the mount table (/proc/self/mountinfo) could not be read, so mounted f2fs filesystems are unknown',
+        filesystems: [],
+      },
+    };
+    render(<F2fsView data={data} error={null} packagesEnabled={false} />);
+    expect(screen.getByText(/mounted f2fs filesystems are unknown/)).toBeTruthy();
+    expect(screen.queryByText('No f2fs filesystem is mounted.')).toBeNull();
   });
 });

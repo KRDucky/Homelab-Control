@@ -104,7 +104,8 @@ export function F2fsView({
       {data.status && (
         <FilesystemReport
           id="f2fs"
-          available
+          available={data.status.available}
+          reason={data.status.reason}
           filesystems={data.status.filesystems}
           skipped={data.status.skipped}
           truncated={data.status.truncated}

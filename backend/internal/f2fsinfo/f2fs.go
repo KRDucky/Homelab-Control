@@ -68,7 +68,8 @@ func collectMounts(osRoot string) ([]Mount, bool, Status, error) {
 // Collect reads observed f2fs mounts, each mounted filesystem's sysfs
 // counters, and probes the dump.f2fs binary plus kernel f2fs from
 // /proc/filesystems. dump.f2fs is never executed. Missing or
-// unreadable mountinfo becomes present=false with a reason. Only context
+// unreadable mountinfo becomes present=false with a reason, and a status with
+// available=false, so it is never shown as no mounted filesystem. Only context
 // cancellation returns an error.
 func Collect(ctx context.Context, osRoot, family string) (Snapshot, error) {
 	if err := ctx.Err(); err != nil {
@@ -79,6 +80,10 @@ func Collect(ctx context.Context, osRoot, family string) (Snapshot, error) {
 	snap.KernelF2fs = ProbeKernelF2fs(osRoot)
 	mounts, truncated, status, err := collectMounts(osRoot)
 	snap.Status = status
+	if err != nil {
+		// An unread mount table is not "nothing mounted".
+		snap.Status = Status{Reason: reasonStatusUnread}
+	}
 	if snap.Status.Filesystems == nil {
 		snap.Status.Filesystems = []Filesystem{}
 	}

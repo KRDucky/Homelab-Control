@@ -28,6 +28,14 @@ line only when nothing was skipped, hidden or cut off (ext4 and XFS too). `TestC
 Rerun of `fs-check.py` on the installed `0.1.0+dev.1+189+g61762e3` on all three guests below: 18/18 each (new
 check: nothing skipped or truncated on a healthy host). Evidence `/mnt/tank/claude-vms/artifacts/m7-fs-61762e3/`.
 
+**Second review fix (2026-11-26, #178).** When `/proc/self/mountinfo` could not be read, `Collect` still
+returned an empty, complete f2fs status, so the panel said "No f2fs filesystem is mounted". The status now
+carries `available` and `reason`: an unread mount table gives `available: false` with the reason, and the panel
+shows that reason instead. `TestCollectMarksStatusUnavailableWhenMountinfoUnread` and the panel test
+"an unreadable mount table shows the reason" fail without the fix. No VM rerun: the helper and the installed
+mount paths are unchanged, and an unreadable mountinfo cannot be produced on a normal guest without
+breaking it; the change is covered by the Go and panel tests.
+
 ## Verification
 - Parsers tested on real `tune2fs` 1.47.4 output (clean, and with an error record set by `debugfs`) and real
   `xfs_info` 6.19.0 output, including a mountpoint shaped like a feature pair. Helper tests: exact
