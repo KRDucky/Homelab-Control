@@ -53,6 +53,9 @@ type MdArray struct {
 	// it ("Rebuild Status : 1% complete").
 	Progress string     `json:"progress,omitempty"`
 	Members  []MdMember `json:"members"`
+	// MembersTruncated is set when the device table had more than
+	// MaxMdMembers rows; Members holds the first MaxMdMembers.
+	MembersTruncated bool `json:"members_truncated,omitempty"`
 	// Error is set when mdadm could not describe this array.
 	Error string `json:"error,omitempty"`
 }
@@ -86,6 +89,7 @@ func ParseMdDetail(device string, b []byte) (MdArray, error) {
 				continue
 			}
 			if len(a.Members) >= MaxMdMembers {
+				a.MembersTruncated = true
 				continue
 			}
 			m := MdMember{Slot: num(f[3])}
