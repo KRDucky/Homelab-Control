@@ -12,6 +12,8 @@ import (
 	"syscall"
 	"time"
 	"unicode/utf8"
+
+	"homelab-control/backend/internal/mountinfo"
 )
 
 // mergerfs publishes its live configuration as extended attributes of the
@@ -184,7 +186,7 @@ func ParseRuntimeBranches(v string) ([]RuntimeBranch, bool) {
 		if opts != "" {
 			b.Mode, b.MinFree, _ = strings.Cut(opts, ",")
 		}
-		if !strings.HasPrefix(path, "/") || hasDotDot(path) || strings.ContainsAny(path, "\x00\n") {
+		if !strings.HasPrefix(path, "/") || mountinfo.HasDotDot(path) || strings.ContainsAny(path, "\x00\n") {
 			return nil, false
 		}
 		switch b.Mode {
@@ -195,15 +197,6 @@ func ParseRuntimeBranches(v string) ([]RuntimeBranch, bool) {
 		out = append(out, b)
 	}
 	return out, true
-}
-
-func hasDotDot(p string) bool {
-	for _, c := range strings.Split(p, "/") {
-		if c == ".." {
-			return true
-		}
-	}
-	return false
 }
 
 // knownVersion drops the "unknown" that distribution builds without git
