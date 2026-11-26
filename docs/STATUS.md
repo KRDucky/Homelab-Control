@@ -256,6 +256,14 @@ device open. A missing package offers Software Center search when the packages m
 and the session has `packages.read`. This is a checkpoint, not M7 acceptance, not a merge, not
 production. Never touch production pool `tank`.
 
+**Update 2026-11-26 (M5–M9 review, "use the standard tools"):** the page now shows each mounted ext4
+superblock as `tune2fs -l` reports it: state, recorded errors (count, first and last error), mount counts and
+check times, block and inode counts, features. The read-only storage helper runs `tune2fs -l
+/dev/block/<major>:<minor>` per mounted device (request scope `ext4`); broker op `ext4.status` (scope
+`ext4.read`). The helper unit now reads `block-device-mapper` so ext4 on LVM (the Ubuntu default) is covered;
+loop devices are skipped with a reason. Mounts only under /home, /root or /run/user are named as not
+inspected. ADR 0008 Amendment 17; evidence `docs/evidence/m7/FS-TOOLS.md`.
+
 ## Software RAID (mdadm) first checkpoint (read-only; not acceptance)
 
 One read-only page at `/storage/mdadm` (module id `mdadm`, scope `mdadm.read`, never default and
@@ -296,6 +304,11 @@ device open. A missing package offers Software Center search when the packages m
 and the session has `packages.read`. This is a checkpoint, not M7 acceptance, not a merge, not
 production. Never touch production pool `tank`.
 
+**Update 2026-11-26 (M5–M9 review):** f2fs-tools has no read-only report for a mounted filesystem, so hc-api
+now reads the kernel's documented counters from `/sys/fs/f2fs/<disk>/` unprivileged (free, dirty and
+overprovision segments, reserved blocks, lifetime writes, encoding, features), matched to mounts by device
+number. No broker op. Evidence `docs/evidence/m7/FS-TOOLS.md`.
+
 
 ## M7 first checkpoint: XFS (read-only; not M7 acceptance)
 
@@ -315,6 +328,12 @@ btrfs, ext4, mdadm and f2fs are gated the same way). No `xfs_info` execution, no
 device open. A missing package offers Software Center search when the packages module is enabled
 and the session has `packages.read`. This is a checkpoint, not M7 acceptance, not a merge, not
 production. Never touch production pool `tank`.
+
+**Update 2026-11-26 (M5–M9 review):** the page now shows each mounted filesystem's `xfs_info` geometry
+(size, block size, allocation groups, inode and sector size, stripe, log, realtime, on-disk features). The
+helper runs xfs_info's own command, `xfs_spaceman -p xfs_info -c info <mountpoint>` (request scope `xfs`);
+broker op `xfs.status` (scope `xfs.read`). Free space stays on the Overview page. ADR 0008 Amendment 17;
+evidence `docs/evidence/m7/FS-TOOLS.md`.
 
 ## M8 first checkpoint: MergerFS + optional SnapRAID (not M8 acceptance)
 
