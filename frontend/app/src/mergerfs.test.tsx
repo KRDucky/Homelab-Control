@@ -718,7 +718,8 @@ describe('MergerFS read-only page', () => {
         branchesFrom: 'fstab',
         options: [],
         usage: [],
-        runtimeReason: "mergerfs's control file could not be read (the mount may lack allow_other)",
+        runtimeReason:
+          "mergerfs's control file could not be read by the service user (a mount without allow_other, or a directory it cannot enter)",
       },
     ];
     vi.mocked(getMergerFS).mockResolvedValue(inv);

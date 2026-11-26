@@ -46,7 +46,7 @@ const (
 	runtimeMaxBranches = 64
 	runtimeParkedMax   = 4
 
-	reasonRuntimeUnread  = "mergerfs's control file could not be read (the mount may lack allow_other)"
+	reasonRuntimeUnread  = "mergerfs's control file could not be read by the service user (a mount without allow_other, or a directory it cannot enter)"
 	reasonRuntimeTimeout = "mergerfs did not answer in time"
 	reasonRuntimeInvalid = "mergerfs's branch list could not be parsed"
 	reasonRuntimeSkipped = "too many pools; live configuration not read"
