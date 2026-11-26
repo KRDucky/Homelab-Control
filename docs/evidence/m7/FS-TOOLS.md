@@ -25,6 +25,8 @@ report, in `skipped` with the reason (device not named in /sys/dev/block, or no 
 counted by `truncated` (an unusable mount record). The shared Filesystems panel shows its "nothing mounted"
 line only when nothing was skipped, hidden or cut off (ext4 and XFS too). `TestCollectReportsMountsItCannotRead`,
 `TestCollectMarksUnusableMountRecords` and the panel tests failed without the fix.
+Rerun of `fs-check.py` on the installed `0.1.0+dev.1+189+g61762e3` on all three guests below: 18/18 each (new
+check: nothing skipped or truncated on a healthy host). Evidence `/mnt/tank/claude-vms/artifacts/m7-fs-61762e3/`.
 
 ## Verification
 - Parsers tested on real `tune2fs` 1.47.4 output (clean, and with an error record set by `debugfs`) and real
