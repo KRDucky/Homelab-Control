@@ -53,6 +53,37 @@ faults:
 - 30,000 files need about 7 GB of parity, and SnapRAID said so;
 - a oneshot that is still running is `activating`, not `active`.
 
+## VM validation of findings 9 and 10 (installed `.deb` of `5af69a5`)
+
+Package `homelab-control_0.1.0+dev.1+192+g5af69a5_amd64.deb`. Evidence and harness:
+`/mnt/tank/claude-vms/artifacts/m8-snapraid-slowdiff-710714d/` (`harness/slowdiff-check.py`,
+`harness/run-guest.sh`, logs `*-slowdiff.log`, `*-longrun.log`, `*-status-regress.log`; the first run on
+`710714d` is in `run-710714d/`).
+
+The slow-diff check holds `snapraid diff` with SIGSTOP as soon as it starts. The harness does this as an
+observer, to stand in for a diff over a very large array. Then:
+- the apply answers within the broker's deadline (60.5–60.6 s), saying the check is still running, with no
+  exit code;
+- no sync starts while the check is held;
+- after SIGCONT the check passes, sync runs, and "snapraid sync exited with status 0" is in the journal;
+- the array is then in sync;
+- a second held check is killed with SIGKILL: the journal has "snapraid sync was not started:
+  diff-unreadable", no sync ran, and the new file is still unsynced;
+- no helper instance is left running, and there is no AppArmor denial.
+
+| Guest | SnapRAID | Slow diff | Long-run regression | Status regression |
+|---|---|---|---|---|
+| Ubuntu 26.04.1, kernel 7.0.0-43 | 13.0-1 | 10/10 | 12/12 | 13/13 |
+| Debian 13, kernel 6.12.118 | 12.4-1 | 10/10 | 12/12 | 13/13 |
+| Ubuntu 22.04.5, kernel 5.15.0-204 | 12.1-1 | 10/10 | 12/12 | 13/13 |
+
+The run on `710714d` found finding 10 (Ubuntu 22.04: status regression 12/13). It also found a harness
+fault: the second journal window began in the same second as the first sync's exit line.
+
+Graphify on `5af69a5`: no definition-only symbols and the 7 baseline self-loops. The callers of
+`execute`, `startSnapraid`, `startGated`, `startLong`, `mergerfsApply` and `dialMergerFSAt` are covered by
+the tests above. `Checking` is read only by the broker. The frontend shows the broker's message only.
+
 ## Graphify
 
 Indexed at `5e381f9`: no definition-only symbols and the 7 baseline self-loops. Every caller of
@@ -65,6 +96,6 @@ Indexed at `5e381f9`: no definition-only symbols and the 7 baseline self-loops. 
   operation journal says the check was still running.
 - The broker does not follow a background run. The journal, the status page (`locked`, then the new
   state) and the operation journal's "Started" message are the record.
-- `run()`'s "reply, then wait" path has no unit test. The VM run covers it.
+- `run()`'s "reply, then wait" path has no unit test. The VM runs cover it.
 - Not covered: Ubuntu 24.04, Debian 12, the page in a browser, scrub and fix on a long run (they share
   the code path with sync), and a real multi-terabyte array.
