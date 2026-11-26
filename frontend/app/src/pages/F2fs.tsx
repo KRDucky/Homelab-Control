@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useCallback, useState } from 'react';
-import { getF2fs, type F2fsInventory, type F2fsToolItem } from '../api';
+import { getF2fs, type F2fsFilesystem, type F2fsInventory, type F2fsToolItem } from '../api';
+import { Fact, FilesystemReport } from '../FilesystemReport';
+import { formatBytes } from '../format';
 import { InstallPlanDialog } from '../InstallPlanDialog';
 import { explain, useData } from '../useData';
 
@@ -60,9 +62,9 @@ export function F2fsView({
       <header className="page-head">
         <h1 className="page-title">f2fs</h1>
         <p className="page-sub">
-          Read-only observations. The dump.f2fs binary is probed, not run. This page does not create or repair
-          a filesystem, and it does not load kernel modules. Mounts come from /proc/self/mountinfo, not from
-          running dump.f2fs.
+          Read-only. Each mounted filesystem's segment and write counters come from the kernel&apos;s{' '}
+          <code>/sys/fs/f2fs</code> files. The dump.f2fs binary is probed, not run. This page does not create
+          or repair a filesystem, and it does not load kernel modules. Mounts come from /proc/self/mountinfo.
         </p>
       </header>
       {error && (
@@ -100,6 +102,18 @@ export function F2fsView({
         </section>
       )}
 
+      {data.status && (
+        <FilesystemReport
+          id="f2fs"
+          available
+          filesystems={data.status.filesystems}
+          truncated={data.status.truncated}
+          empty="No f2fs filesystem is mounted."
+        >
+          {(fs) => <F2fsCard key={fs.name} fs={fs} />}
+        </FilesystemReport>
+      )}
+
       <section className="panel" aria-labelledby="f2fs-mounts-heading">
         <header className="panel-head">
           <h2 id="f2fs-mounts-heading">f2fs mounts</h2>
@@ -131,6 +145,31 @@ export function F2fsView({
         )}
       </section>
     </div>
+  );
+}
+
+/** One filesystem's live counters as the kernel publishes them. */
+function F2fsCard({ fs }: { fs: F2fsFilesystem }) {
+  return (
+    <article className="zfs-pool" aria-label={`Filesystem ${fs.mounts[0] ?? fs.name}`}>
+      <h3 className="subhead">
+        <code>{fs.mounts[0] ?? fs.name}</code>
+      </h3>
+      <dl className="facts">
+        <Fact label="Free segments" value={fs.freeSegments} />
+        <Fact label="Dirty segments" value={fs.dirtySegments} />
+        <Fact label="Overprovision segments" value={fs.overprovisionSegments} />
+        <Fact label="Reserved blocks" value={fs.reservedBlocks} />
+        <Fact
+          label="Lifetime writes"
+          value={fs.lifetimeWriteKiB !== undefined ? formatBytes(fs.lifetimeWriteKiB * 1024) : undefined}
+        />
+        <Fact label="Encoding" value={fs.encoding} />
+        <Fact label="Kernel device" value={<code>{fs.name}</code>} />
+        <Fact label="Also mounted at" value={fs.mounts.slice(1).join(', ')} />
+        <Fact label="Features" value={fs.features.join(', ')} />
+      </dl>
+    </article>
   );
 }
 

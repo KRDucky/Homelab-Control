@@ -36,7 +36,7 @@ selftest=1
 if [ "${1:-}" = "--no-self-test" ]; then selftest=0; shift; fi
 root=${1:-$(cd "$(dirname "$0")/../.." && pwd)}
 
-REVIEWED_CLASSES="sd blkext virtblk md"
+REVIEWED_CLASSES="sd blkext virtblk md device-mapper"
 MARKER=/etc/homelab-control/storage-probe.enabled
 EXEC=/usr/lib/homelab-control/hc-storage-probe
 SEL_TYPE=hc_storage_probe_t
@@ -251,7 +251,7 @@ check_apparmor() { # profile
   fi
   # Exactly two capability rules, and only reviewed tools may be executed (ix).
   [ "$(printf '%s\n' "$body" | grep -cE '^[[:space:]]*capability[[:space:]]')" = 2 ] || bad "AppArmor profile must allow exactly sys_rawio and sys_admin"
-  printf '%s\n' "$body" | grep -E '[[:space:]]ix,' | grep -vxF -e '  /{usr/,}{s,}bin/lsblk ix,' -e '  /{usr/,}{s,}bin/smartctl ix,' -e '  /{usr/,}{s,}bin/{lvm,pvs,lvs,vgs} ix,' -e '  /{usr/,}{s,}bin/{zpool,zfs} ix,' -e '  /{usr/,}{s,}bin/btrfs ix,' -e '  /{usr/,}{s,}bin/mdadm ix,' \
+  printf '%s\n' "$body" | grep -E '[[:space:]]ix,' | grep -vxF -e '  /{usr/,}{s,}bin/lsblk ix,' -e '  /{usr/,}{s,}bin/smartctl ix,' -e '  /{usr/,}{s,}bin/{lvm,pvs,lvs,vgs} ix,' -e '  /{usr/,}{s,}bin/{zpool,zfs} ix,' -e '  /{usr/,}{s,}bin/btrfs ix,' -e '  /{usr/,}{s,}bin/mdadm ix,' -e '  /{usr/,}sbin/tune2fs ix,' -e '  /{usr/,}sbin/xfs_spaceman ix,' \
     | grep -q . && bad "AppArmor profile executes an unreviewed program"
   while IFS= read -r line; do
     line=${line#"${line%%[![:space:]]*}"}

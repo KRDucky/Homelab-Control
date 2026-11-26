@@ -51,6 +51,10 @@ profile hc-storage-probe /usr/lib/homelab-control/hc-storage-probe flags=(enforc
   /{usr/,}{s,}bin/{zpool,zfs} ix,
   /{usr/,}{s,}bin/btrfs ix,
   /{usr/,}{s,}bin/mdadm ix,
+  # tune2fs -l reads one ext4 superblock through /dev/block/<maj>:<min>;
+  # xfs_spaceman -c info (xfs_info's own command) opens an XFS mountpoint.
+  /{usr/,}sbin/tune2fs ix,
+  /{usr/,}sbin/xfs_spaceman ix,
   # mdadm --detail: its configuration and the array map it keeps under /run.
   /etc/mdadm/ r,
   /etc/mdadm/** r,
@@ -95,6 +99,7 @@ profile hc-storage-probe /usr/lib/homelab-control/hc-storage-probe flags=(enforc
   /dev/vd[a-z]* r,
   /dev/md[0-9]* r,
   /dev/md/* r,
+  /dev/dm-[0-9]* r,
   /dev/block/ r,
   /dev/block/[0-9]*:[0-9]* r,
   /dev/disk/ r,

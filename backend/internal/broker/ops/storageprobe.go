@@ -147,7 +147,7 @@ type scopeCache struct {
 	err  error
 }
 
-var zfsCache, btrfsCache, mdCache, lvmCache scopeCache
+var zfsCache, btrfsCache, mdCache, lvmCache, ext4Cache, xfsCache scopeCache
 
 // get returns the helper's answer for scope, at most once per
 // scopeMinInterval. pick extracts the scope's report; a missing report becomes
@@ -191,6 +191,24 @@ func mdadmStatus(ctx context.Context, _ *Env, raw json.RawMessage) (any, error) 
 		return nil, err
 	}
 	return mdCache.get(ctx, storagetools.ScopeMd, func(r storageProbeResult) (any, bool) { return r.Md, r.Md != nil })
+}
+
+// ext4Status asks the helper for tune2fs -l of each mounted ext4 filesystem
+// (scope ext4).
+func ext4Status(ctx context.Context, _ *Env, raw json.RawMessage) (any, error) {
+	if err := requireNoArgs(raw); err != nil {
+		return nil, err
+	}
+	return ext4Cache.get(ctx, storagetools.ScopeExt4, func(r storageProbeResult) (any, bool) { return r.Ext4, r.Ext4 != nil })
+}
+
+// xfsStatus asks the helper for the xfs_info geometry of each mounted XFS
+// filesystem (scope xfs).
+func xfsStatus(ctx context.Context, _ *Env, raw json.RawMessage) (any, error) {
+	if err := requireNoArgs(raw); err != nil {
+		return nil, err
+	}
+	return xfsCache.get(ctx, storagetools.ScopeXFS, func(r storageProbeResult) (any, bool) { return r.XFS, r.XFS != nil })
 }
 
 // lvmStatus asks the helper for the pvs, lvs and vgs reports (scope lvm).

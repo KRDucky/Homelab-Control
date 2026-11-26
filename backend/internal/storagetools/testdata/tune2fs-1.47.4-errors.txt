@@ -1,0 +1,57 @@
+tune2fs 1.47.4 (6-Mar-2025)
+Filesystem volume name:   data
+Last mounted on:          /srv/data
+Filesystem UUID:          b678277d-db47-48ef-b3c4-c53e78aea603
+Filesystem magic number:  0xEF53
+Filesystem revision #:    1 (dynamic)
+Filesystem features:      has_journal ext_attr resize_inode dir_index orphan_file filetype extent 64bit flex_bg metadata_csum_seed sparse_super large_file huge_file dir_nlink extra_isize metadata_csum
+Filesystem flags:         signed_directory_hash 
+Default mount options:    user_xattr acl
+Filesystem state:         not clean with errors
+Errors behavior:          Continue
+Filesystem OS type:       Linux
+Inode count:              16384
+Block count:              65536
+Reserved block count:     3276
+Overhead clusters:        9499
+Free blocks:              55991
+Free inodes:              16372
+First block:              1
+Block size:               1024
+Fragment size:            1024
+Group descriptor size:    64
+Reserved GDT blocks:      256
+Blocks per group:         8192
+Fragments per group:      8192
+Inodes per group:         2048
+Inode blocks per group:   512
+Flex block group size:    16
+Filesystem created:       Wed Nov 25 23:59:30 2026
+Last mount time:          n/a
+Last write time:          Thu Nov 26 00:00:23 2026
+Mount count:              21
+Maximum mount count:      20
+Last checked:             Wed Nov 25 23:59:30 2026
+Check interval:           0 (<none>)
+Lifetime writes:          315 kB
+Reserved blocks uid:      0 (user root)
+Reserved blocks gid:      0 (group root)
+First inode:              11
+Inode size:               256
+Required extra isize:     32
+Desired extra isize:      32
+Journal inode:            8
+Default directory hash:   half_md4
+Directory Hash Seed:      90dd2ad2-5df3-471f-a853-6cd485481e71
+Journal backup:           inode blocks
+FS Error count:           3
+First error time:         Fri Nov 20 12:00:00 2026
+First error function:     ext4_lookup
+First error line #:       0
+Last error time:          Tue Nov 24 08:00:00 2026
+Last error function:      ext4_iget
+Last error line #:        0
+Checksum type:            crc32c
+Checksum:                 0x89210557
+Checksum seed:            0xd80a933a
+Orphan file inode:        12

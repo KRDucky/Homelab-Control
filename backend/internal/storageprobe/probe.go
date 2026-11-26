@@ -33,6 +33,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"syscall"
@@ -66,15 +67,17 @@ var (
 // binaries maps a fixed tool to its absolute path. It is a var so tests can
 // point at fake scripts; production resolves secure paths via ResolveToolPaths.
 var binaries = map[string]string{
-	"lsblk":    "/usr/bin/lsblk",
-	"smartctl": "/usr/sbin/smartctl",
-	"pvs":      "/usr/sbin/pvs",
-	"lvs":      "/usr/sbin/lvs",
-	"vgs":      "/usr/sbin/vgs",
-	"zpool":    "/usr/sbin/zpool",
-	"zfs":      "/usr/sbin/zfs",
-	"btrfs":    "/usr/bin/btrfs",
-	"mdadm":    "/usr/sbin/mdadm",
+	"lsblk":        "/usr/bin/lsblk",
+	"smartctl":     "/usr/sbin/smartctl",
+	"pvs":          "/usr/sbin/pvs",
+	"lvs":          "/usr/sbin/lvs",
+	"vgs":          "/usr/sbin/vgs",
+	"zpool":        "/usr/sbin/zpool",
+	"zfs":          "/usr/sbin/zfs",
+	"btrfs":        "/usr/bin/btrfs",
+	"mdadm":        "/usr/sbin/mdadm",
+	"tune2fs":      "/usr/sbin/tune2fs",
+	"xfs_spaceman": "/usr/sbin/xfs_spaceman",
 }
 
 // requiredTools must resolve; the others are optional (not installed means
@@ -84,15 +87,17 @@ var requiredTools = map[string]bool{"lsblk": true}
 // toolCandidates lists reviewed absolute paths per tool across distros, in
 // preference order. Only these exact paths are ever accepted.
 var toolCandidates = map[string][]string{
-	"lsblk":    {"/usr/bin/lsblk", "/bin/lsblk"},
-	"smartctl": {"/usr/sbin/smartctl", "/sbin/smartctl"},
-	"pvs":      {"/usr/sbin/pvs", "/sbin/pvs"},
-	"lvs":      {"/usr/sbin/lvs", "/sbin/lvs"},
-	"vgs":      {"/usr/sbin/vgs", "/sbin/vgs"},
-	"zpool":    {"/usr/sbin/zpool", "/sbin/zpool", "/usr/bin/zpool"},
-	"zfs":      {"/usr/sbin/zfs", "/sbin/zfs", "/usr/bin/zfs"},
-	"btrfs":    {"/usr/bin/btrfs", "/bin/btrfs", "/usr/sbin/btrfs", "/sbin/btrfs"},
-	"mdadm":    {"/usr/sbin/mdadm", "/sbin/mdadm", "/usr/bin/mdadm"},
+	"lsblk":        {"/usr/bin/lsblk", "/bin/lsblk"},
+	"smartctl":     {"/usr/sbin/smartctl", "/sbin/smartctl"},
+	"pvs":          {"/usr/sbin/pvs", "/sbin/pvs"},
+	"lvs":          {"/usr/sbin/lvs", "/sbin/lvs"},
+	"vgs":          {"/usr/sbin/vgs", "/sbin/vgs"},
+	"zpool":        {"/usr/sbin/zpool", "/sbin/zpool", "/usr/bin/zpool"},
+	"zfs":          {"/usr/sbin/zfs", "/sbin/zfs", "/usr/bin/zfs"},
+	"btrfs":        {"/usr/bin/btrfs", "/bin/btrfs", "/usr/sbin/btrfs", "/sbin/btrfs"},
+	"mdadm":        {"/usr/sbin/mdadm", "/sbin/mdadm", "/usr/bin/mdadm"},
+	"tune2fs":      {"/usr/sbin/tune2fs", "/sbin/tune2fs"},
+	"xfs_spaceman": {"/usr/sbin/xfs_spaceman", "/sbin/xfs_spaceman"},
 }
 
 // resolved records which tools passed ResolveToolPaths.
@@ -192,18 +197,17 @@ var procDevicesPath = "/proc/devices"
 // reviewedBlockGroups are the block-device classes the unit's DeviceAllow=
 // grants read access to. systemd adds a group's rule only when the group is
 // registered in /proc/devices at unit start, so a missing group simply stays
-// unreadable (fail closed). A host without software RAID has no "md" group.
-var reviewedBlockGroups = []string{"sd", "blkext", "virtblk", "md"}
+// unreadable (fail closed). A host without software RAID has no "md" group;
+// "device-mapper" (LVM, LUKS) is read only for an ext4 superblock.
+var reviewedBlockGroups = []string{"sd", "blkext", "virtblk", "md", "device-mapper"}
 
-// checkDeviceGroups reads /proc/devices and returns the reviewed groups that
-// are not registered. It is an error only when none of them is registered,
-// because then the helper cannot read any disk.
-func checkDeviceGroups() (missing []string, err error) {
+// blockMajors reads the block section of /proc/devices: major → class name.
+func blockMajors() (map[string]string, error) {
 	b, err := os.ReadFile(procDevicesPath)
 	if err != nil {
 		return nil, fmt.Errorf("reading %s: %w", procDevicesPath, err)
 	}
-	present := map[string]bool{}
+	majors := map[string]string{}
 	inBlock := false
 	for _, line := range strings.Split(string(b), "\n") {
 		line = strings.TrimSpace(line)
@@ -215,8 +219,23 @@ func checkDeviceGroups() (missing []string, err error) {
 			continue
 		}
 		if fields := strings.Fields(line); len(fields) >= 2 {
-			present[fields[1]] = true
+			majors[fields[0]] = fields[1]
 		}
+	}
+	return majors, nil
+}
+
+// checkDeviceGroups reads /proc/devices and returns the reviewed groups that
+// are not registered. It is an error only when none of them is registered,
+// because then the helper cannot read any disk.
+func checkDeviceGroups() (missing []string, err error) {
+	majors, err := blockMajors()
+	if err != nil {
+		return nil, err
+	}
+	present := map[string]bool{}
+	for _, name := range majors {
+		present[name] = true
 	}
 	for _, g := range reviewedBlockGroups {
 		if !present[g] {
@@ -256,14 +275,17 @@ func Run(ctx context.Context, req Request) Result {
 	ctx, cancel := context.WithTimeout(ctx, budget(req.Scope))
 	defer cancel()
 	// The tool scopes open no block device: ZFS talks only to /dev/zfs (its
-	// own DeviceAllow entry) and btrfs-progs uses ioctls on a mountpoint. The
-	// block-class self-check below does not apply to them.
+	// own DeviceAllow entry), btrfs-progs and xfs_spaceman use ioctls on a
+	// mountpoint. The block-class self-check below does not apply to them.
 	switch req.Scope {
 	case storagetools.ScopeZFS:
 		runZFS(ctx, &res, fail)
 		return res
 	case storagetools.ScopeBtrfs:
 		runBtrfs(ctx, &res, fail)
+		return res
+	case storagetools.ScopeXFS:
+		runXFS(ctx, &res, fail)
 		return res
 	}
 
@@ -287,6 +309,11 @@ func Run(ctx context.Context, req Request) Result {
 	// LVM scans block devices for PV labels, so it also runs after the check.
 	if req.Scope == storagetools.ScopeLVM {
 		runLVM(ctx, &res, fail, true)
+		return res
+	}
+	// tune2fs reads each ext4 superblock from its block device.
+	if req.Scope == storagetools.ScopeExt4 {
+		runExt4(ctx, &res, fail)
 		return res
 	}
 
@@ -408,7 +435,7 @@ func runZFS(ctx context.Context, res *Result, fail func(string)) {
 var mountinfoPath = "/proc/self/mountinfo"
 
 // hiddenPrefixes are paths the unit's ProtectHome=yes replaces with empty
-// mounts, so a Btrfs mount there cannot be opened from the helper.
+// mounts, so a mount there cannot be opened from the helper.
 var hiddenPrefixes = []string{"/home", "/root", "/run/user"}
 
 func hiddenPath(p string) bool {
@@ -420,34 +447,49 @@ func hiddenPath(p string) bool {
 	return false
 }
 
-// btrfsTarget is one Btrfs filesystem: the mountpoint the reports are taken
-// from, and every mount of it.
-type btrfsTarget struct {
+// mountGroup is one mounted filesystem: its device number and every
+// mountpoint of it, in mount-table order.
+type mountGroup struct {
+	device string
+	mounts []string
+}
+
+// mountGroups groups the mounts of one filesystem type by device number (one
+// superblock, any number of bind or subvolume mounts). The helper names the
+// paths itself from its mount table; no caller supplies one.
+func mountGroups(recs []mountinfo.Record, fstype string) []mountGroup {
+	var out []mountGroup
+	index := map[string]int{}
+	for _, r := range recs {
+		if r.FSType != fstype || mountinfo.HasDotDot(r.Mountpoint) || len(r.Mountpoint) > mountinfo.MountpointMaxBytes {
+			continue
+		}
+		i, ok := index[r.DeviceNumber]
+		if !ok {
+			i = len(out)
+			index[r.DeviceNumber] = i
+			out = append(out, mountGroup{device: r.DeviceNumber})
+		}
+		if len(out[i].mounts) < 32 {
+			out[i].mounts = append(out[i].mounts, r.Mountpoint)
+		}
+	}
+	return out
+}
+
+// mountTarget is a filesystem inspected through a mountpoint: the one the
+// reports are taken from, and every mount of it.
+type mountTarget struct {
 	mountpoint string
 	mounts     []string
 }
 
-// btrfsTargets groups btrfs mounts by device number (one filesystem, any
-// number of subvolume mounts) and picks the first mountpoint the helper can
-// open. The helper names the paths itself; no caller supplies one.
-func btrfsTargets(recs []mountinfo.Record) (targets []btrfsTarget, skipped []storagetools.BtrfsSkipped, truncated bool) {
-	order := []string{}
-	groups := map[string][]string{}
-	for _, r := range recs {
-		if r.FSType != "btrfs" || mountinfo.HasDotDot(r.Mountpoint) || len(r.Mountpoint) > mountinfo.MountpointMaxBytes {
-			continue
-		}
-		if _, ok := groups[r.DeviceNumber]; !ok {
-			order = append(order, r.DeviceNumber)
-		}
-		if len(groups[r.DeviceNumber]) < 32 {
-			groups[r.DeviceNumber] = append(groups[r.DeviceNumber], r.Mountpoint)
-		}
-	}
-	for _, dev := range order {
-		mounts := groups[dev]
+// mountpointTargets picks, per filesystem of fstype, the first mountpoint the
+// helper can open (btrfs-progs and xfs_spaceman work on a mounted path).
+func mountpointTargets(recs []mountinfo.Record, fstype string, max int) (targets []mountTarget, skipped []storagetools.SkippedMount, truncated bool) {
+	for _, g := range mountGroups(recs, fstype) {
 		pick := ""
-		for _, m := range mounts {
+		for _, m := range g.mounts {
 			if !hiddenPath(m) {
 				pick = m
 				break
@@ -455,21 +497,18 @@ func btrfsTargets(recs []mountinfo.Record) (targets []btrfsTarget, skipped []sto
 		}
 		switch {
 		case pick == "":
-			skipped = append(skipped, storagetools.BtrfsSkipped{Mountpoint: mounts[0],
+			skipped = append(skipped, storagetools.SkippedMount{Mountpoint: g.mounts[0],
 				Reason: "mounted only under /home, /root or /run/user, which the read-only helper cannot open"})
-		case len(targets) >= storagetools.MaxBtrfsFilesystems:
+		case len(targets) >= max:
 			truncated = true
-			skipped = append(skipped, storagetools.BtrfsSkipped{Mountpoint: pick, Reason: "over the limit of filesystems inspected at once"})
+			skipped = append(skipped, storagetools.SkippedMount{Mountpoint: pick, Reason: "over the limit of filesystems inspected at once"})
 		default:
-			targets = append(targets, btrfsTarget{mountpoint: pick, mounts: mounts})
+			targets = append(targets, mountTarget{mountpoint: pick, mounts: g.mounts})
 		}
 	}
 	return targets, skipped, truncated
 }
 
-// runBtrfs runs the fixed read-only btrfs-progs templates for each mounted
-// Btrfs filesystem. A failing command is recorded on its filesystem; the
-// others are still reported.
 func runBtrfs(ctx context.Context, res *Result, fail func(string)) {
 	if !res.Tools["btrfs"] {
 		fail("btrfs is not installed (package btrfs-progs); no Btrfs data")
@@ -480,19 +519,13 @@ func runBtrfs(ctx context.Context, res *Result, fail func(string)) {
 		fail("cannot read the mount table: " + err.Error())
 		return
 	}
-	targets, skipped, truncated := btrfsTargets(recs)
+	targets, skipped, truncated := mountpointTargets(recs, "btrfs", storagetools.MaxBtrfsFilesystems)
 	rep := storagetools.BtrfsReport{Filesystems: []storagetools.BtrfsFilesystem{}, Skipped: skipped, Truncated: truncated || info.Truncated}
 	for _, t := range targets {
 		fs := storagetools.BtrfsFilesystem{Mountpoint: t.mountpoint, Mounts: t.mounts, Profiles: []storagetools.BtrfsProfile{},
 			Devices: []storagetools.BtrfsDevice{}, Subvolumes: []storagetools.BtrfsSubvol{}}
 		bad := func(what string, err error) { fs.Errors = append(fs.Errors, what+": "+err.Error()) }
-		get := func(max int, args []string) ([]byte, error) {
-			b, code, err := run(ctx, storagetools.HelperCommandTimeout, max, "btrfs", args)
-			if err == nil && code != 0 {
-				err = fmt.Errorf("exit status %d", code)
-			}
-			return b, err
-		}
+		get := func(max int, args []string) ([]byte, error) { return toolOutput(ctx, max, "btrfs", args) }
 		if b, err := get(storagetools.MaxBtrfsBytes, storagetools.BtrfsUsageArgs(t.mountpoint)); err != nil {
 			bad("filesystem usage", err)
 		} else if fs.Overall, fs.Profiles, err = storagetools.ParseBtrfsUsage(b); err != nil {
@@ -533,6 +566,102 @@ func runBtrfs(ctx context.Context, res *Result, fail func(string)) {
 // mdstatPath is the kernel's md status file (a test seam).
 var mdstatPath = "/proc/mdstat"
 
+// toolOutput runs one fixed template; a non-zero exit is an error.
+func toolOutput(ctx context.Context, max int, tool string, args []string) ([]byte, error) {
+	b, code, err := run(ctx, storagetools.HelperCommandTimeout, max, tool, args)
+	if err == nil && code != 0 {
+		err = fmt.Errorf("exit status %d", code)
+	}
+	return b, err
+}
+
+// runXFS runs xfs_info's own command, `xfs_spaceman -p xfs_info -c info`,
+// on one mountpoint of each mounted XFS filesystem.
+func runXFS(ctx context.Context, res *Result, fail func(string)) {
+	if !res.Tools["xfs_spaceman"] {
+		fail("xfs_spaceman is not installed (package xfsprogs); no XFS geometry")
+		return
+	}
+	recs, info, err := mountinfo.ReadFile(mountinfoPath)
+	if err != nil {
+		fail("cannot read the mount table: " + err.Error())
+		return
+	}
+	targets, skipped, truncated := mountpointTargets(recs, "xfs", storagetools.MaxXFSFilesystems)
+	rep := storagetools.XFSReport{Filesystems: []storagetools.XFSFilesystem{}, Skipped: skipped, Truncated: truncated || info.Truncated}
+	for _, t := range targets {
+		fs := storagetools.XFSFilesystem{Mountpoint: t.mountpoint, Mounts: t.mounts}
+		b, err := toolOutput(ctx, storagetools.MaxXFSBytes, "xfs_spaceman", storagetools.XFSInfoArgs(t.mountpoint))
+		if err == nil {
+			err = storagetools.ParseXFSInfo(&fs, b)
+		}
+		if err != nil {
+			fs = storagetools.XFSFilesystem{Mountpoint: t.mountpoint, Mounts: t.mounts, Features: []string{}, Error: "xfs_info: " + err.Error()}
+			res.Partial = true
+		}
+		rep.Filesystems = append(rep.Filesystems, fs)
+	}
+	res.XFS = &rep
+}
+
+// validDeviceNumber accepts the kernel's "major:minor".
+var validDeviceNumber = regexp.MustCompile(`^[0-9]{1,10}:[0-9]{1,10}$`)
+
+// runExt4 runs `tune2fs -l /dev/block/<major>:<minor>` for each mounted ext4
+// filesystem whose device class the unit lets the helper read. The device
+// number comes from the kernel's mount table and /dev/block is udev's own
+// link to the node, so no mount source string is ever opened.
+func runExt4(ctx context.Context, res *Result, fail func(string)) {
+	if !res.Tools["tune2fs"] {
+		fail("tune2fs is not installed (package e2fsprogs); no ext4 superblock data")
+		return
+	}
+	recs, info, err := mountinfo.ReadFile(mountinfoPath)
+	if err != nil {
+		fail("cannot read the mount table: " + err.Error())
+		return
+	}
+	majors, err := blockMajors()
+	if err != nil {
+		fail(err.Error())
+		return
+	}
+	readable := map[string]bool{}
+	for _, g := range reviewedBlockGroups {
+		readable[g] = true
+	}
+	rep := storagetools.Ext4Report{Filesystems: []storagetools.Ext4Filesystem{}, Truncated: info.Truncated}
+	for _, g := range mountGroups(recs, "ext4") {
+		major, _, _ := strings.Cut(g.device, ":")
+		switch class := majors[major]; {
+		case !validDeviceNumber.MatchString(g.device):
+			continue
+		case !readable[class]:
+			if class == "" {
+				class = "unregistered"
+			}
+			rep.Skipped = append(rep.Skipped, storagetools.SkippedMount{Mountpoint: g.mounts[0],
+				Reason: "on a " + class + " device, which the read-only helper does not read"})
+			continue
+		case len(rep.Filesystems) >= storagetools.MaxExt4Filesystems:
+			rep.Truncated = true
+			rep.Skipped = append(rep.Skipped, storagetools.SkippedMount{Mountpoint: g.mounts[0], Reason: "over the limit of filesystems inspected at once"})
+			continue
+		}
+		fs := storagetools.Ext4Filesystem{Device: g.device, Mounts: g.mounts}
+		b, err := toolOutput(ctx, storagetools.MaxTune2fsBytes, "tune2fs", storagetools.Tune2fsArgs("/dev/block/"+g.device))
+		if err == nil {
+			err = storagetools.ParseTune2fs(&fs, b)
+		}
+		if err != nil {
+			fs = storagetools.Ext4Filesystem{Device: g.device, Mounts: g.mounts, Features: []string{}, Error: "tune2fs -l: " + err.Error()}
+			res.Partial = true
+		}
+		rep.Filesystems = append(rep.Filesystems, fs)
+	}
+	res.Ext4 = &rep
+}
+
 // runMd runs the fixed `mdadm --detail /dev/<name>` template for each array
 // /proc/mdstat lists. An array mdadm cannot describe keeps its name and the
 // error; the others are still reported.
@@ -556,10 +685,7 @@ func runMd(ctx context.Context, res *Result, fail func(string)) {
 			break
 		}
 		dev := "/dev/" + arr.Name
-		b, code, err := run(ctx, storagetools.HelperCommandTimeout, storagetools.MaxMdBytes, "mdadm", storagetools.MdDetailArgs(arr.Name))
-		if err == nil && code != 0 {
-			err = fmt.Errorf("exit status %d", code)
-		}
+		b, err := toolOutput(ctx, storagetools.MaxMdBytes, "mdadm", storagetools.MdDetailArgs(arr.Name))
 		var a storagetools.MdArray
 		if err == nil {
 			a, err = storagetools.ParseMdDetail(dev, b)
@@ -688,7 +814,7 @@ func UnmarshalRequest(b []byte) (Request, error) {
 		return req, fmt.Errorf("unsupported protocol version %d", req.Version)
 	}
 	switch req.Scope {
-	case "", storagetools.ScopeZFS, storagetools.ScopeBtrfs, storagetools.ScopeMd, storagetools.ScopeLVM:
+	case "", storagetools.ScopeZFS, storagetools.ScopeBtrfs, storagetools.ScopeMd, storagetools.ScopeLVM, storagetools.ScopeExt4, storagetools.ScopeXFS:
 	default:
 		return req, fmt.Errorf("unsupported scope %q", req.Scope)
 	}

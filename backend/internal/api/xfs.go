@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"homelab-control/backend/internal/auth"
+	"homelab-control/backend/internal/storagetools"
+	"homelab-control/backend/internal/xfsinfo"
 )
 
 // xfsProtectedGET is the read-only XFS bar on an identifier-bearing GET.
@@ -19,9 +21,17 @@ func (s *Server) xfsProtectedGET(w http.ResponseWriter, r *http.Request, sess *a
 	return s.auditedGET(w, r, sess, "XFS inventory requires an access audit logger.")
 }
 
-// handleXFS serves the read-only XFS inventory. No mkfs.xfs, xfs_repair, or xfs_growfs exists. xfs_info is
-// never executed: this endpoint Stats a well-known binary, reads
-// /proc/filesystems, and parses bounded mountinfo.
+// xfsResponse is the unprivileged inventory plus the per-filesystem report
+// of the broker's xfs.status op (xfs_info run by the read-only helper).
+type xfsResponse struct {
+	xfsinfo.Snapshot
+	Status toolStatus[storagetools.XFSReport] `json:"status"`
+}
+
+// handleXFS serves the read-only XFS view: tooling, the kernel module and
+// mounts (unprivileged), and, when the kernel has XFS and the broker is
+// reachable, each mounted filesystem's xfs_info geometry. No mkfs.xfs,
+// xfs_repair, or xfs_growfs exists.
 func (s *Server) handleXFS(w http.ResponseWriter, r *http.Request, sess *auth.Session, _ string) {
 	if !s.xfsProtectedGET(w, r, sess) {
 		return
@@ -45,10 +55,15 @@ func (s *Server) handleXFS(w http.ResponseWriter, r *http.Request, sess *auth.Se
 		writeError(w, http.StatusServiceUnavailable, "xfs_unavailable", "XFS inventory could not be collected safely.")
 		return
 	}
+	resp := xfsResponse{Snapshot: snap, Status: toolReport[storagetools.XFSReport](r.Context(), s, sess, "xfs.status", snap.KernelXfs.Present,
+		"The kernel has no XFS loaded, so there are no filesystems to report.", "Filesystem geometry")}
 	detail := "mounts=" + strconv.Itoa(len(snap.Xfs.Mounts))
+	if resp.Status.Report != nil {
+		detail += " filesystems=" + strconv.Itoa(len(resp.Status.Report.Filesystems))
+	}
 	if err := s.auditLog("xfs.inventory.read", sess.Username, r, "returned", detail); err != nil {
 		writeError(w, http.StatusServiceUnavailable, "audit_unavailable", "XFS inventory cannot be returned because its access could not be audited.")
 		return
 	}
-	writeJSON(w, http.StatusOK, snap)
+	writeJSON(w, http.StatusOK, resp)
 }

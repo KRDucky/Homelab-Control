@@ -104,7 +104,7 @@ func TestStorageProbeServiceFailClosed(t *testing.T) {
 
 	// DeviceAllow is the only grant of raw block access: exactly the reviewed
 	// groups, each read-only, with no duplicates and no empty reset.
-	want := []string{"block-sd r", "block-blkext r", "block-virtblk r", "block-md r", "/dev/zfs rw"}
+	want := []string{"block-sd r", "block-blkext r", "block-virtblk r", "block-md r", "block-device-mapper r", "/dev/zfs rw"}
 	got := unitAssignments(svc, "DeviceAllow")
 	if len(got) != len(want) {
 		t.Errorf("DeviceAllow=%q, want exactly %q", got, want)
@@ -202,7 +202,7 @@ func TestUnitOutlastsHelperBudgets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("TimeoutStartSec=%q: %v", v[0], err)
 	}
-	for _, scope := range []string{"", storagetools.ScopeZFS, storagetools.ScopeBtrfs, storagetools.ScopeMd, storagetools.ScopeLVM} {
+	for _, scope := range []string{"", storagetools.ScopeZFS, storagetools.ScopeBtrfs, storagetools.ScopeMd, storagetools.ScopeLVM, storagetools.ScopeExt4, storagetools.ScopeXFS} {
 		if b := storagetools.HelperBudget(scope); time.Duration(secs)*time.Second <= b {
 			t.Errorf("TimeoutStartSec=%ds does not exceed the %q budget %v", secs, scope, b)
 		}

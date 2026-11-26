@@ -79,7 +79,7 @@ var registry = []Module{
 	{ID: "ext4", Title: "ext4", Description: "ext4 inventory from the local host, plus a destructive ext4 format plan/apply", Scopes: []string{"ext4.read", "ext4.format"}, APIPrefix: "/api/v1/ext4", OpPrefix: "ext4.", Path: "/storage/ext4"},
 	{ID: "mdadm", Title: "Software RAID (mdadm)", Description: "read-only Linux software RAID inventory from /proc/mdstat on the local host", Scopes: []string{"mdadm.read"}, APIPrefix: "/api/v1/mdadm", OpPrefix: "mdadm.", Path: "/storage/mdadm"},
 	{ID: "f2fs", Title: "f2fs", Description: "read-only f2fs inventory from the local host", Scopes: []string{"f2fs.read"}, APIPrefix: "/api/v1/f2fs", Path: "/storage/f2fs"},
-	{ID: "xfs", Title: "XFS", Description: "read-only XFS inventory from the local host", Scopes: []string{"xfs.read"}, APIPrefix: "/api/v1/xfs", Path: "/storage/xfs"},
+	{ID: "xfs", Title: "XFS", Description: "read-only XFS inventory from the local host", Scopes: []string{"xfs.read"}, APIPrefix: "/api/v1/xfs", OpPrefix: "xfs.", Path: "/storage/xfs"},
 	// M11 read-only networking. Op prefixes tie each broker op to its module
 	// so disabling the module also refuses the op.
 	{ID: "ports", Title: "Port use", Description: "read-only host-wide map of listening ports and the process, unit or container that owns them", Scopes: []string{"networking.ports.read"}, APIPrefix: "/api/v1/ports", OpPrefix: "network.ports.", Path: "/network/ports"},

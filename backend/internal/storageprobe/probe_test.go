@@ -68,11 +68,16 @@ func fixture(t *testing.T) (argLog string) {
 	writeScript(t, filepath.Join(bin, "mdadm"), "#!/bin/sh\n"+logArgs+
 		"case $2 in /dev/md127) printf '/dev/md127:\\n        Raid Level : raid1\\n             State : clean, degraded\\n    Failed Devices : 1\\n\\n    Number   Major   Minor   RaidDevice State\\n       0       8       17        0      active sync   /dev/sdb1\\n       1       8       33        1      faulty   /dev/sdc1\\n';;\n"+
 		"*) echo 'mdadm: cannot open' >&2; exit 1;; esac\n")
+	td, _ := filepath.Abs("../storagetools/testdata")
+	writeScript(t, filepath.Join(bin, "tune2fs"), "#!/bin/sh\n"+logArgs+
+		"case $2 in /dev/block/8:17) echo 'tune2fs: Bad magic number' >&2; exit 1;; *) cat '"+td+"/tune2fs-1.47.4.txt';; esac\n")
+	writeScript(t, filepath.Join(bin, "xfs_spaceman"), "#!/bin/sh\n"+logArgs+
+		"case $5 in /srv/x3) exit 1;; *) cat '"+td+"/xfs_info-6.19.0.txt';; esac\n")
 	mdstatPath = filepath.Join(base, "mdstat")
 	if err := os.WriteFile(mdstatPath, []byte(fakeMdstat), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	for _, tool := range []string{"lsblk", "smartctl", "pvs", "lvs", "vgs", "zpool", "zfs", "btrfs", "mdadm"} {
+	for _, tool := range []string{"lsblk", "smartctl", "pvs", "lvs", "vgs", "zpool", "zfs", "btrfs", "mdadm", "tune2fs", "xfs_spaceman"} {
 		binaries[tool] = filepath.Join(bin, tool)
 		resolved[tool] = true
 	}
@@ -144,7 +149,7 @@ func TestRunOptionalToolsMissing(t *testing.T) {
 
 func TestRunRefusesWithoutDeviceClasses(t *testing.T) {
 	argLog := fixture(t)
-	procDevicesPath = fakeProcDevices(t, t.TempDir(), "Block devices:\n  7 loop\n  253 device-mapper\n")
+	procDevicesPath = fakeProcDevices(t, t.TempDir(), "Block devices:\n  7 loop\n  2 fd\n")
 	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion})
 	if res.Code != CodeDevicePolicyUnresolved || !res.Partial {
 		t.Fatalf("result: %+v", res)
@@ -160,7 +165,7 @@ func TestRunRefusesWithoutDeviceClasses(t *testing.T) {
 
 func TestRunNotesMissingDeviceClass(t *testing.T) {
 	fixture(t)
-	procDevicesPath = fakeProcDevices(t, t.TempDir(), "Block devices:\n  8 sd\n  252 virtblk\n  259 blkext\n")
+	procDevicesPath = fakeProcDevices(t, t.TempDir(), "Block devices:\n  8 sd\n  252 virtblk\n  253 device-mapper\n  259 blkext\n")
 	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion})
 	if res.Code != "" || len(res.Blocks) == 0 || !strings.Contains(strings.Join(res.Errors, "|"), "md") {
 		t.Fatalf("a host without md must still be probed, with a note: %+v", res)
@@ -262,7 +267,7 @@ func TestCheckDeviceGroups(t *testing.T) {
 		t.Fatalf("all groups should pass: %v %v", missing, err)
 	}
 	// A host without software RAID has no md group: not a refusal (Debian 13 VM finding).
-	procDevicesPath = fakeProcDevices(t, base, "Block devices:\n  8 sd\n  252 virtblk\n  259 blkext\n")
+	procDevicesPath = fakeProcDevices(t, base, "Block devices:\n  8 sd\n  252 virtblk\n  253 device-mapper\n  259 blkext\n")
 	if missing, err := checkDeviceGroups(); err != nil || len(missing) != 1 || missing[0] != "md" {
 		t.Fatalf("missing md: %v %v", missing, err)
 	}
@@ -390,7 +395,7 @@ func TestRunZFSScopeWithoutTools(t *testing.T) {
 // block classes still gets its pool report, and no block-class note.
 func TestRunZFSScopeDoesNotNeedBlockDeviceClasses(t *testing.T) {
 	fixture(t)
-	procDevicesPath = fakeProcDevices(t, t.TempDir(), "Block devices:\n  7 loop\n  253 device-mapper\n")
+	procDevicesPath = fakeProcDevices(t, t.TempDir(), "Block devices:\n  7 loop\n  2 fd\n")
 	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion, Scope: storagetools.ScopeZFS})
 	if res.Code != "" || res.Partial || res.ZFS == nil || len(res.ZFS.Pools) != 1 || len(res.Errors) != 0 {
 		t.Fatalf("code=%q partial=%v errors=%v zfs=%+v", res.Code, res.Partial, res.Errors, res.ZFS)
@@ -405,6 +410,13 @@ const fakeMountinfo = `24 1 252:1 / / rw - ext4 /dev/vda1 rw
 42 24 0:51 /@home /home rw - btrfs /dev/vde rw,subvol=/@home
 43 24 0:52 / /srv/b rw - btrfs /dev/vdf rw
 44 24 0:53 / /srv/../x rw - btrfs /dev/vdg rw
+50 24 253:0 / /srv/lv rw - ext4 /dev/mapper/vg-lv rw
+51 24 253:0 / /srv/lv-bind rw - ext4 /dev/mapper/vg-lv rw
+52 24 7:0 / /srv/img rw - ext4 /dev/loop0 rw
+53 24 8:17 / /home/data rw - ext4 /dev/sdb1 rw
+60 24 8:33 / /srv/x1 rw - xfs /dev/sdc1 rw
+61 24 8:34 / /home/x2 rw - xfs /dev/sdc2 rw
+62 24 8:35 / /srv/x3 rw - xfs /dev/sdc3 rw
 `
 
 func TestRunBtrfsScopeNamesItsOwnMountpoints(t *testing.T) {
@@ -446,7 +458,7 @@ func TestBtrfsTargetLimit(t *testing.T) {
 	for i := 0; i < storagetools.MaxBtrfsFilesystems+2; i++ {
 		recs = append(recs, mountinfo.Record{FSType: "btrfs", DeviceNumber: fmt.Sprintf("0:%d", 60+i), Mountpoint: fmt.Sprintf("/m%d", i)})
 	}
-	targets, skipped, truncated := btrfsTargets(recs)
+	targets, skipped, truncated := mountpointTargets(recs, "btrfs", storagetools.MaxBtrfsFilesystems)
 	if len(targets) != storagetools.MaxBtrfsFilesystems || len(skipped) != 2 || !truncated {
 		t.Fatalf("targets=%d skipped=%d truncated=%v", len(targets), len(skipped), truncated)
 	}
@@ -465,7 +477,7 @@ func TestRunBtrfsScopeWithoutTool(t *testing.T) {
 // device, so the block-class self-check must not stop the Btrfs scope.
 func TestRunBtrfsScopeDoesNotNeedBlockDeviceClasses(t *testing.T) {
 	fixture(t)
-	procDevicesPath = fakeProcDevices(t, t.TempDir(), "Block devices:\n  7 loop\n  253 device-mapper\n")
+	procDevicesPath = fakeProcDevices(t, t.TempDir(), "Block devices:\n  7 loop\n  2 fd\n")
 	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion, Scope: storagetools.ScopeBtrfs})
 	if res.Code != "" || res.Btrfs == nil || len(res.Btrfs.Filesystems) != 2 {
 		t.Fatalf("code=%q errors=%v btrfs=%+v", res.Code, res.Errors, res.Btrfs)
@@ -522,7 +534,7 @@ func TestRunMdScopeWithoutTool(t *testing.T) {
 // behind the block-class self-check (unlike the ZFS and Btrfs scopes).
 func TestRunMdScopeNeedsBlockDeviceClasses(t *testing.T) {
 	fixture(t)
-	procDevicesPath = fakeProcDevices(t, t.TempDir(), "Block devices:\n  7 loop\n  253 device-mapper\n")
+	procDevicesPath = fakeProcDevices(t, t.TempDir(), "Block devices:\n  7 loop\n  2 fd\n")
 	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion, Scope: storagetools.ScopeMd})
 	if res.Code != CodeDevicePolicyUnresolved || res.Md != nil {
 		t.Fatalf("%+v", res)
@@ -559,5 +571,84 @@ func TestFullProbeDoesNotRunVGS(t *testing.T) {
 	got, _ := os.ReadFile(argLog)
 	if strings.Contains(string(got), "vgs ") {
 		t.Fatalf("full probe ran vgs:\n%s", got)
+	}
+}
+
+// tune2fs reads each ext4 superblock once per device, by the kernel's device
+// number; a device class the unit does not grant is skipped with its reason.
+func TestRunExt4ScopeReadsEachSuperblockByDeviceNumber(t *testing.T) {
+	argLog := fixture(t)
+	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion, Scope: storagetools.ScopeExt4})
+	rep := res.Ext4
+	if rep == nil || len(rep.Filesystems) != 3 || len(rep.Skipped) != 1 || rep.Truncated || !res.Partial {
+		t.Fatalf("%+v %+v", res, rep)
+	}
+	root, lv, bad := rep.Filesystems[0], rep.Filesystems[1], rep.Filesystems[2]
+	if root.Device != "252:1" || root.State != "clean" || root.Error != "" || lv.Device != "253:0" || strings.Join(lv.Mounts, ",") != "/srv/lv,/srv/lv-bind" {
+		t.Fatalf("filesystems: %+v", rep.Filesystems)
+	}
+	if bad.Device != "8:17" || !strings.HasPrefix(bad.Error, "tune2fs -l:") || bad.Features == nil || bad.Mounts[0] != "/home/data" {
+		t.Fatalf("failed device: %+v", bad)
+	}
+	if rep.Skipped[0].Mountpoint != "/srv/img" || !strings.Contains(rep.Skipped[0].Reason, "loop device") {
+		t.Fatalf("skipped: %+v", rep.Skipped)
+	}
+	got, _ := os.ReadFile(argLog)
+	if want := "tune2fs -l /dev/block/252:1\ntune2fs -l /dev/block/253:0\ntune2fs -l /dev/block/8:17\n"; string(got) != want {
+		t.Fatalf("invocations:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+// tune2fs opens block devices, so the ext4 scope keeps the self-check.
+func TestRunExt4ScopeNeedsBlockDeviceClasses(t *testing.T) {
+	argLog := fixture(t)
+	procDevicesPath = fakeProcDevices(t, t.TempDir(), "Block devices:\n  7 loop\n  2 fd\n")
+	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion, Scope: storagetools.ScopeExt4})
+	if res.Code != CodeDevicePolicyUnresolved || res.Ext4 != nil {
+		t.Fatalf("%+v", res)
+	}
+	if got, _ := os.ReadFile(argLog); len(got) != 0 {
+		t.Fatalf("ran: %s", got)
+	}
+}
+
+func TestRunXFSScopeUsesMountpoints(t *testing.T) {
+	argLog := fixture(t)
+	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion, Scope: storagetools.ScopeXFS})
+	rep := res.XFS
+	if rep == nil || len(rep.Filesystems) != 2 || len(rep.Skipped) != 1 || !res.Partial {
+		t.Fatalf("%+v %+v", res, rep)
+	}
+	ok, bad := rep.Filesystems[0], rep.Filesystems[1]
+	if ok.Mountpoint != "/srv/x1" || *ok.Blocks != 81920 || ok.Error != "" || bad.Mountpoint != "/srv/x3" || !strings.HasPrefix(bad.Error, "xfs_info:") {
+		t.Fatalf("filesystems: %+v", rep.Filesystems)
+	}
+	if rep.Skipped[0].Mountpoint != "/home/x2" {
+		t.Fatalf("skipped: %+v", rep.Skipped)
+	}
+	got, _ := os.ReadFile(argLog)
+	if want := "xfs_spaceman -p xfs_info -c info /srv/x1\nxfs_spaceman -p xfs_info -c info /srv/x3\n"; string(got) != want {
+		t.Fatalf("invocations:\n%s", got)
+	}
+}
+
+// xfs_spaceman works through mountpoint ioctls and opens no block device.
+func TestRunXFSScopeDoesNotNeedBlockDeviceClasses(t *testing.T) {
+	fixture(t)
+	procDevicesPath = fakeProcDevices(t, t.TempDir(), "Block devices:\n  7 loop\n")
+	res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion, Scope: storagetools.ScopeXFS})
+	if res.Code != "" || res.XFS == nil || len(res.XFS.Filesystems) != 2 {
+		t.Fatalf("%+v", res)
+	}
+}
+
+func TestRunExt4AndXFSScopesWithoutTools(t *testing.T) {
+	for scope, tool := range map[string]string{storagetools.ScopeExt4: "tune2fs", storagetools.ScopeXFS: "xfs_spaceman"} {
+		fixture(t)
+		resolved[tool] = false
+		res := Run(context.Background(), Request{Version: storagetools.ProtocolVersion, Scope: scope})
+		if !res.Partial || res.Ext4 != nil || res.XFS != nil || !strings.Contains(strings.Join(res.Errors, "|"), tool+" is not installed") {
+			t.Fatalf("%s: %+v", scope, res)
+		}
 	}
 }

@@ -2,10 +2,11 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Package f2fsinfo is the unprivileged, read-only f2fs inventory (M7 first
-// checkpoint). It Stats the well-known dump.f2fs path, reads bounded
-// /proc/filesystems for the f2fs type, and lists fstype=f2fs mounts from
-// bounded /proc/self/mountinfo. It never executes dump.f2fs, never formats,
+// Package f2fsinfo is the unprivileged, read-only f2fs view. It Stats the
+// well-known dump.f2fs path, reads bounded /proc/filesystems for the f2fs
+// type, lists fstype=f2fs mounts from bounded /proc/self/mountinfo, and reads
+// each mounted filesystem's kernel counters from /sys/fs/f2fs (sysfs.go). It
+// never executes dump.f2fs, never formats,
 // grows, or repairs a filesystem, never loads a kernel module, and never
 // opens a device node.
 package f2fsinfo
@@ -33,6 +34,8 @@ type Snapshot struct {
 	Tooling    Tooling    `json:"tooling"`
 	F2fs       Inventory  `json:"f2fs"`
 	KernelF2fs KernelF2fs `json:"kernelF2fs"`
+	// Status is each mounted filesystem's live kernel counters (sysfs).
+	Status Status `json:"status"`
 }
 
 // mountinfoReadLimits match the other inventory pages so a hostile or
@@ -43,22 +46,28 @@ const (
 	reasonTooManyMounts = "too many mounts to list"
 )
 
-func collectMounts(osRoot string) ([]Mount, bool, error) {
+func collectMounts(osRoot string) ([]Mount, bool, Status, error) {
 	root, err := os.OpenRoot(osRoot)
 	if err != nil {
-		return nil, false, err
+		return nil, false, Status{}, err
 	}
 	defer root.Close()
 	f, err := root.Open("proc/self/mountinfo")
 	if err != nil {
-		return nil, false, err
+		return nil, false, Status{}, err
 	}
 	defer f.Close()
-	return ParseMountInfo(f)
+	recs, info, err := mountinfo.Parse(f)
+	if err != nil {
+		return nil, false, Status{}, err
+	}
+	mounts, truncated := mountinfo.DeviceMounts(recs, info, "f2fs", f2fsMaxMounts)
+	return mounts, truncated, collectStatus(root, recs), nil
 }
 
-// Collect reads observed f2fs mounts and probes the dump.f2fs binary plus kernel
-// f2fs from /proc/filesystems. dump.f2fs is never executed. Missing or
+// Collect reads observed f2fs mounts, each mounted filesystem's sysfs
+// counters, and probes the dump.f2fs binary plus kernel f2fs from
+// /proc/filesystems. dump.f2fs is never executed. Missing or
 // unreadable mountinfo becomes present=false with a reason. Only context
 // cancellation returns an error.
 func Collect(ctx context.Context, osRoot, family string) (Snapshot, error) {
@@ -68,7 +77,11 @@ func Collect(ctx context.Context, osRoot, family string) (Snapshot, error) {
 	var snap Snapshot
 	snap.Tooling = ProbeTooling(family)
 	snap.KernelF2fs = ProbeKernelF2fs(osRoot)
-	mounts, truncated, err := collectMounts(osRoot)
+	mounts, truncated, status, err := collectMounts(osRoot)
+	snap.Status = status
+	if snap.Status.Filesystems == nil {
+		snap.Status.Filesystems = []Filesystem{}
+	}
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return Snapshot{}, ctxErr
 	}
