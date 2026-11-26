@@ -74,7 +74,7 @@ type Env struct {
 	Systemctl systemctlExec
 	// SnapraidStatus overrides `snapraid status` in tests. Production leaves
 	// it nil. The production path runs Runner with argv exactly "status".
-	SnapraidStatus func(ctx context.Context) (stdout []byte, stderr string, exitCode int, err error)
+	SnapraidStatus func(ctx context.Context) (stdout []byte, exitCode int, err error)
 	// PortsSystemctl overrides the two unprivileged systemctl reads of
 	// network.ports.list (list-sockets, then show Id,Listen) in tests; it
 	// receives the argv. Production leaves it nil and runs the runner.
@@ -273,10 +273,11 @@ func Registry() map[string]Op {
 			Write: &WriteSpec{Phase: "apply", Risks: []string{RiskReversible}, LockDomain: aptFilesLock}},
 		{Name: "packages.simulation", Scope: "packages.read", Privilege: PrivUnprivilegedExec, Timeout: 30 * time.Second, Admission: AdmissionPackages,
 			Description: "Simulate one Debian/Ubuntu APT action without root, downloads or package writes", Handle: packagesSimulation, AuditArgs: packagesSimulationAuditArgs},
-		// MergerFS: read-only snapraid status. No client path, no --conf, no
+		// MergerFS: read-only snapraid status through the root helper socket
+		// (SnapRAID locks the array for status). No client path, no --conf, no
 		// sync/diff/fix/scrub/smart. Shares the services-read admission bucket.
-		{Name: "mergerfs.snapraid.status", Scope: "mergerfs.read", Privilege: PrivUnprivilegedExec, Timeout: 15 * time.Second, Admission: AdmissionServicesRead,
-			Description: "Read snapraid status (argv exactly status; default configuration). Parsed summary only; the scrub graph is omitted", Handle: snapraidStatus},
+		{Name: "mergerfs.snapraid.status", Scope: "mergerfs.read", Privilege: PrivRootRead, Timeout: 60 * time.Second, Admission: AdmissionServicesRead,
+			Description: "Read snapraid status through the helper socket (argv exactly status; default configuration). Per-disk table and summary; the scrub graph and paths are omitted", Handle: snapraidStatus},
 		// MergerFS writes go to the opt-in helper socket. The broker does not
 		// mount and does not run snapraid sync/scrub/fix. mergerfs.read does
 		// not grant these. configure and maintain do not grant each other.
@@ -411,7 +412,7 @@ func brokerInfo(_ context.Context, env *Env, raw json.RawMessage) (any, error) {
 	}
 	sort.Slice(res.Ops, func(i, j int) bool { return res.Ops[i].Name < res.Ops[j].Name })
 	res.WritesAvailable = env.Writes != nil
-	for _, b := range []string{"systemctl", "journalctl", "hostnamectl", "timedatectl", "dpkg-query", "apt-cache", "apt", "rpm", "dnf", "zypper", "pacman", "snapraid"} {
+	for _, b := range []string{"systemctl", "journalctl", "hostnamectl", "timedatectl", "dpkg-query", "apt-cache", "apt", "rpm", "dnf", "zypper", "pacman"} {
 		if env.Runner != nil && env.Runner.Available(b) {
 			res.Exec = append(res.Exec, b)
 		}

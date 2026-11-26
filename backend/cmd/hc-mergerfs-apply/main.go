@@ -26,7 +26,7 @@ import (
 
 const (
 	maxRequestBytes  = 1 << 20
-	maxResponseBytes = 64 << 10
+	maxResponseBytes = 256 << 10
 	maxDiffBytes     = 1 << 20
 	maxFileBytes     = 256 << 10
 	systemdRun       = "/usr/bin/systemd-run"
@@ -78,6 +78,9 @@ func execute(ctx context.Context, req mergerfsapply.Request, root string) merger
 		return mount(ctx, spec)
 	case mergerfsapply.ActionPersist:
 		if err := persist(root, spec); err != nil {
+			if errors.Is(err, errUnmanagedSnapraid) {
+				return done(false, 0, "array definition was not written: the existing snapraid.conf was not written by Homelab Control, so it was not replaced", "")
+			}
 			return done(false, 0, "array definition was not written", "")
 		}
 		return done(true, 0, "array definition written", "")
@@ -98,6 +101,12 @@ func execute(ctx context.Context, req mergerfsapply.Request, root string) merger
 			return done(true, 0, "sync finished", "")
 		}
 		return done(true, 0, "scrub finished", "")
+	case mergerfsapply.ActionStatus:
+		argv, err := spec.Argv()
+		if err != nil {
+			return done(false, 0, "request refused", "")
+		}
+		return statusResult(runCmd(ctx, argv, mergerfsapply.MaxStatusOutput))
 	case mergerfsapply.ActionFix:
 		argv, err := spec.Argv()
 		if err != nil || len(argv) < 5 {
@@ -111,6 +120,17 @@ func execute(ctx context.Context, req mergerfsapply.Request, root string) merger
 	default:
 		return done(false, 0, "request refused", "")
 	}
+}
+
+// statusResult carries snapraid's status text to the broker and marks text
+// that was cut at the output cap.
+func statusResult(code int, out []byte, truncated bool) mergerfsapply.Result {
+	res := done(code == 0, code, "status read", "")
+	res.Output = string(out)
+	if truncated {
+		res.OK, res.Summary, res.OutputTruncated = false, "status output exceeded the size limit", true
+	}
+	return res
 }
 
 func mount(ctx context.Context, spec mergerfsapply.Spec) mergerfsapply.Result {
@@ -235,6 +255,14 @@ func persist(root string, spec mergerfsapply.Spec) error {
 	if err != nil {
 		return err
 	}
+	snap := under(root, mergerfsapply.SnapraidPath)
+	existing, err := readNoFollow(snap)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if !mergerfsapply.SnapraidReplaceable(existing) {
+		return errUnmanagedSnapraid
+	}
 	fstab := under(root, mergerfsapply.FstabPath)
 	old, err := readNoFollow(fstab)
 	if err != nil && !os.IsNotExist(err) {
@@ -247,7 +275,6 @@ func persist(root string, spec mergerfsapply.Spec) error {
 	if err := backupAndWrite(fstab, under(root, mergerfsapply.FstabBackup), []byte(merged)); err != nil {
 		return err
 	}
-	snap := under(root, mergerfsapply.SnapraidPath)
 	if err := backupAndWrite(snap, under(root, mergerfsapply.SnapraidBak), []byte(conf)); err != nil {
 		if old == nil {
 			_ = os.Remove(fstab)
@@ -258,6 +285,10 @@ func persist(root string, spec mergerfsapply.Spec) error {
 	}
 	return nil
 }
+
+// errUnmanagedSnapraid: an existing snapraid.conf was not written by this
+// helper, so the array definition is not saved over it.
+var errUnmanagedSnapraid = errors.New("snapraid.conf was not written by Homelab Control")
 
 func readNoFollow(path string) ([]byte, error) {
 	b, err := safefile.Read(path, maxFileBytes)

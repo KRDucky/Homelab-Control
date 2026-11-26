@@ -1462,16 +1462,35 @@ export function getMergerFS(csrf: string): Promise<MergerFSInventory> {
   return request<MergerFSInventory>('/api/v1/mergerfs', { headers: { 'X-CSRF-Token': csrf } });
 }
 
-// Parsed `snapraid status`. The scrub graph and file paths are omitted.
-// This call does not run sync, diff, fix, scrub, or smart.
+// Parsed `snapraid status`, run by the root MergerFS helper (SnapRAID locks the
+// array for status). The scrub graph and file paths are omitted. This call does
+// not run sync, diff, fix, scrub, or smart.
 export interface SnapraidStatus {
   exitCode: number;
   syncInProgress: boolean;
+  /** Another SnapRAID command held the array lock, so nothing was read. */
+  locked?: boolean;
+  /** One row per data disk; sizes in GB as SnapRAID prints them. */
+  disks: SnapraidDisk[];
   summary: string[];
   scrubAge?: string;
+  /** The report was cut off, or had more lines or disks than are returned. */
   truncated?: boolean;
   note: string;
   source: string;
+}
+
+export interface SnapraidDisk {
+  name: string;
+  files: number;
+  fragmentedFiles: number;
+  excessFragments: number;
+  /** Absent when SnapRAID prints "-". */
+  wastedGB?: number;
+  usedGB: number;
+  /** Absent before the first sync. */
+  freeGB?: number;
+  usePercent?: number;
 }
 
 export function getSnapraidStatus(csrf: string): Promise<SnapraidStatus> {

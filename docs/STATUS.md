@@ -368,7 +368,7 @@ as is fewer than two content files. A root-owned pool (`user_id=0`) whose parsed
 findings. Nil options and non-root mounts stay silent. `user_allow_other` in `/etc/fuse.conf` only
 matters when a non-root user mounts with `allow_other`. This page does not remount. Content files are not
 read, and a missing mount is not inferred.
-Writes between SnapRAID syncs are not protected. A separate read, `GET /api/v1/mergerfs/snapraid/status`, runs only `snapraid status` (no client path and no `--conf`) and shows recognised summary lines, including whether a sync is in progress and how old the oldest scrubbed block is. It does not return the scrub graph, does not open content files, and does not run sync, diff, fix, scrub, or smart. The summary refers to the latest sync; later writes are not counted.
+Writes between SnapRAID syncs are not protected. A separate read, `GET /api/v1/mergerfs/snapraid/status`, asks the opt-in root helper to run only `snapraid status` (no client path and no `--conf`; SnapRAID locks the array and reads its root-only content file for status, so the read-only broker cannot run it, ADR 0008 Amendment 18). It shows the per-disk table and SnapRAID's summary sentences, including whether a sync is in progress, how old the oldest scrubbed block is, and when another SnapRAID command holds the array lock. It does not return the scrub graph or file paths, and does not run sync, diff, fix, scrub, or smart. The report describes the latest sync; later writes are not counted.
 The warning list is capped (64 total, 8 per pool) with `warningsTruncated` when the cap or
 collect deadline hits. Each root-owned live pool branch (`user_id=0` in mount super-options)
 is measured with `fstatfs` of the directory under the collect root (`os.OpenRoot`, directory,
@@ -378,6 +378,11 @@ paths are not opened as such; a data disk that is also a branch is measured as a
 A last-component symlink is unread. Capacity timeout degrades usage and does not 503 the
 inventory. `availBytes` is unprivileged free (`bavail`). A missing measurement is not zero
 capacity. Zero-byte measured filesystems still include the numbers.
+The `snapraid.conf` reader follows SnapRAID's own grammar (cmdline/state.c): a path is the rest of the
+line (spaces allowed), the deprecated `disk` keyword is a data disk, and `1-parity`, `q-parity`,
+`r-parity` and `z-parity` are parity levels.
+Saving the array definition refuses a `snapraid.conf` that Homelab Control did not write (no managed
+first line), so a hand-written array's disk names, excludes and settings are never replaced.
 Pool mount, array definition (fstab plus snapraid.conf), sync, scrub, and filtered recovery
 (`snapraid fix -m -f` only) are plan/apply broker ops. `mergerfs.configure` and `mergerfs.maintain`
 are not default grants and do not imply `mergerfs.read` or each other. The broker dials an opt-in

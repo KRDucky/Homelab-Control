@@ -59,9 +59,6 @@ var allowlist = map[string][]string{
 	"mkfs.ext4": {"/usr/sbin/mkfs.ext4", "/sbin/mkfs.ext4"},
 	// storage.partition.apply is the only caller. GPT script on stdin.
 	"sfdisk": {"/usr/sbin/sfdisk", "/usr/bin/sfdisk", "/sbin/sfdisk"},
-	// MergerFS SnapRAID status (ADR 0008): only mergerfs.snapraid.status calls
-	// this binary, and only with argv "status". No sync, scrub, fix, diff, or smart.
-	"snapraid": {"/usr/bin/snapraid", "/usr/sbin/snapraid"},
 }
 
 // argRE limits fixed arguments to a conservative character set; arguments

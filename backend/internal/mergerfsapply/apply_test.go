@@ -222,3 +222,24 @@ func TestMergeFstab(t *testing.T) {
 		t.Fatal("replaced a non-mergerfs mount")
 	}
 }
+
+func TestStatusIsClosed(t *testing.T) {
+	spec, err := Validate(Request{Action: ActionStatus})
+	if err != nil {
+		t.Fatal(err)
+	}
+	argv, err := spec.Argv()
+	if err != nil || len(argv) != 2 || argv[0] != SnapRAIDBin || argv[1] != "status" {
+		t.Fatalf("argv %v %v", argv, err)
+	}
+	for _, bad := range []Request{
+		{Action: ActionStatus, Files: []string{"a"}},
+		{Action: ActionStatus, ScrubPercent: 5},
+		{Action: ActionStatus, Mountpoint: "/mnt/pool"},
+		{Action: ActionStatus, Content: []string{"/var/snapraid/c"}},
+	} {
+		if _, err := Validate(bad); err == nil {
+			t.Fatalf("accepted %+v", bad)
+		}
+	}
+}

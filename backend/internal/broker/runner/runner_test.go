@@ -150,7 +150,6 @@ func TestAllowListedBinariesAreClosed(t *testing.T) {
 		// M4-1b (ADR 0008 Amendment 5, Proposed): read-only package managers.
 		"dpkg-query": true, "apt-cache": true, "apt": true, "apt-get": true, "apt-config": true, "rpm": true, "dnf": true, "zypper": true, "pacman": true,
 		"mkfs.ext4": true, "sfdisk": true,
-		"snapraid": true,
 	}
 	if len(allowlist) != len(want) {
 		t.Fatalf("allow-list changed (%d entries); new binaries need security review", len(allowlist))

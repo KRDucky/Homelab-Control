@@ -91,3 +91,12 @@ func TestMergerFSFixPreviewHasNoUndeleteFlag(t *testing.T) {
 		t.Fatalf("audit %s", mergerfsAuditArgs(raw))
 	}
 }
+
+// status is the helper's read action; the write ops must not accept it.
+func TestMergerFSWriteOpsRefuseStatus(t *testing.T) {
+	for _, op := range []string{mergerfsPoolPlan, mergerfsPoolOp, mergerfsKeepPlan, mergerfsMaintainOp} {
+		if err := mergerfsFamily(op, mergerfsapply.Spec{Action: mergerfsapply.ActionStatus}); err == nil {
+			t.Fatalf("%s accepted status", op)
+		}
+	}
+}
