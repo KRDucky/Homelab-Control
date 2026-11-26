@@ -288,6 +288,12 @@ func dialMergerFSAt(ctx context.Context, sock string, req mergerfsapply.Request)
 		return zero, err
 	}
 	if _, err := conn.Write(append(body, '\n')); err != nil {
+		// systemd accepts, then closes the connection when the helper unit
+		// does not run (its marker is absent). A write after that close fails;
+		// the request was not delivered, so nothing ran.
+		if errors.Is(err, syscall.EPIPE) || errors.Is(err, syscall.ECONNRESET) {
+			return zero, errHelperNoReply
+		}
 		return zero, err
 	}
 	if uc, ok := conn.(*net.UnixConn); ok {

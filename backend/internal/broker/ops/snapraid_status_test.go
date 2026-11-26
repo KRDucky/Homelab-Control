@@ -105,6 +105,34 @@ func TestSnapraidStatusHelperClosedWithoutReply(t *testing.T) {
 	}
 }
 
+// Found on an Ubuntu 22.04 VM: when that close comes before the broker has
+// written the request, the write fails (EPIPE). Nothing was delivered, so it
+// is the same "helper not enabled" case, not a 502.
+func TestSnapraidStatusHelperClosedBeforeTheRequest(t *testing.T) {
+	dir := t.TempDir()
+	ln, err := net.Listen("unix", dir+"/s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go func() {
+		c, err := ln.Accept()
+		if err == nil {
+			c.Close()
+		}
+	}()
+	// Larger than the socket buffer, so the write is still going when the
+	// helper side closes.
+	files := make([]string, 40000)
+	for i := range files {
+		files[i] = "some/long/relative/path/to/a/file/that/is/not/sent"
+	}
+	_, err = dialMergerFSAt(context.Background(), dir+"/s", mergerfsapply.Request{Version: 1, Action: mergerfsapply.ActionFix, Files: files})
+	if !errors.Is(err, errHelperNoReply) {
+		t.Fatalf("got %v", err)
+	}
+}
+
 func TestParseSnapraidStatusReal(t *testing.T) {
 	st := ParseSnapraidStatus(readSnapraidFixture(t, "snapraid-13.0-status.txt"), 0)
 	if len(st.Disks) != 2 || st.Disks[0].Name != "d1" || st.Disks[1].Name != "d2" {
