@@ -4,7 +4,11 @@
 
 package storagetools
 
-import "testing"
+import (
+	"fmt"
+	"strings"
+	"testing"
+)
 
 // Real mdadm 4.5 output (Ubuntu 26.04 guest).
 func TestParseMdDetailReal(t *testing.T) {
@@ -55,5 +59,23 @@ func TestValidMdName(t *testing.T) {
 	}
 	if a := MdDetailArgs("md127"); len(a) != 2 || a[0] != "--detail" || a[1] != "/dev/md127" {
 		t.Fatalf("%v", a)
+	}
+}
+
+// A device table longer than MaxMdMembers keeps the first rows and says it
+// was cut, so the page can say its member list is incomplete.
+func TestParseMdDetailMarksTruncatedMembers(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("/dev/md0:\n        Raid Level : raid10\n             State : clean\n\n    Number   Major   Minor   RaidDevice State\n")
+	for i := 0; i < MaxMdMembers+3; i++ {
+		fmt.Fprintf(&b, "    %d       8       %d        %d      active sync   /dev/sd%d\n", i, i, i, i)
+	}
+	a, err := ParseMdDetail("/dev/md0", []byte(b.String()))
+	if err != nil || len(a.Members) != MaxMdMembers || !a.MembersTruncated {
+		t.Fatalf("members=%d truncated=%v err=%v", len(a.Members), a.MembersTruncated, err)
+	}
+	a, _ = ParseMdDetail("/dev/md0", []byte("/dev/md0:\n        Raid Level : raid1\n\n    Number   Major   Minor   RaidDevice State\n       0       8       1        0      active sync   /dev/sda1\n"))
+	if a.MembersTruncated {
+		t.Fatal("a short table is not truncated")
 	}
 }

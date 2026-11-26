@@ -1800,6 +1800,7 @@ components:
                       chunk_size: { type: string }
                       progress: { type: string, description: "Running rebuild, resync, reshape or check, e.g. Rebuild 1% complete" }
                       error: { type: string, description: "Set when mdadm could not describe this array" }
+                      members_truncated: { type: boolean, description: "The device table had more than 256 rows; members holds the first 256" }
                       members:
                         type: array
                         maxItems: 256

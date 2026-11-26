@@ -1883,6 +1883,8 @@ export interface MdadmDetail {
   progress?: string;
   error?: string;
   members: { slot?: number; state: string; device?: string }[];
+  /** The device table had more rows than the helper returns; members holds the first 256. */
+  members_truncated?: boolean;
 }
 
 /** mdadm --detail of each array (broker op mdadm.status). */

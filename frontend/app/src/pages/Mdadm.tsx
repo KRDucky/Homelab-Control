@@ -267,6 +267,12 @@ function ArrayDetail({ a }: { a: MdadmDetail }) {
           ]}
         />
       )}
+      {a.members_truncated && (
+        <p className="banner" role="status">
+          The member list is incomplete: only the first {a.members.length} rows of the mdadm device table are
+          shown.
+        </p>
+      )}
     </article>
   );
 }

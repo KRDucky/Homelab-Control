@@ -149,6 +149,31 @@ describe('Software RAID read-only page', () => {
     expect(screen.queryByRole('button', { name: /create|assemble|grow|add|remove|stop|fail/i })).toBeNull();
   });
 
+  it('says the member list is incomplete when the helper cut the device table', async () => {
+    const members = Array.from({ length: 256 }, (_, i) => ({
+      slot: i,
+      state: 'active sync',
+      device: `/dev/sd${i}`,
+    }));
+    vi.mocked(getMdadm).mockResolvedValue({
+      ...inventory({ installed: true }),
+      status: {
+        available: true,
+        report: {
+          arrays: [
+            { device: '/dev/md0', level: 'raid10', state: 'clean', members, members_truncated: true },
+            { device: '/dev/md1', level: 'raid1', state: 'clean', members: members.slice(0, 2) },
+          ],
+        },
+      },
+    });
+    renderPage();
+    const big = await screen.findByRole('article', { name: 'Array /dev/md0' });
+    expect(within(big).getByText(/member list is incomplete: only the first 256 rows/)).toBeTruthy();
+    const small = screen.getByRole('article', { name: 'Array /dev/md1' });
+    expect(within(small).queryByText(/member list is incomplete/)).toBeNull();
+  });
+
   it('offers a Software Center search only when mdadm is missing and the package is known', async () => {
     vi.mocked(getMdadm).mockResolvedValue(inventory({ installed: false }));
     renderPage();
