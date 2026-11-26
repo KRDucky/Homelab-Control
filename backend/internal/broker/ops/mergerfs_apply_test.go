@@ -119,7 +119,7 @@ func TestMergerFSApplyReportsARunningSync(t *testing.T) {
 		t.Fatal(err)
 	}
 	o := out.(MergerFSOutcome)
-	if o.Outcome != OutcomeSucceeded || o.ExitCode != nil || !strings.HasPrefix(o.Message, "Started. Sync continues in the background.") || !strings.Contains(o.Message, "journal") {
+	if o.Outcome != OutcomeSucceeded || o.ExitCode != nil || o.Message != "Sync started and continues in the background. Follow it under SnapRAID status." {
 		t.Fatalf("%+v", o)
 	}
 }
@@ -142,8 +142,8 @@ func TestMergerFSApplyReportsAStillRunningCheck(t *testing.T) {
 		t.Fatal(err)
 	}
 	o := out.(MergerFSOutcome)
-	if o.Outcome != OutcomeSucceeded || o.ExitCode != nil || !strings.Contains(o.Message, "still checking") ||
-		!strings.Contains(o.Message, "Sync starts only if") || !strings.Contains(o.Message, "journal") {
+	if o.Outcome != OutcomeSucceeded || o.ExitCode != nil || !strings.HasPrefix(o.Message, "Checking the array before sync") ||
+		!strings.Contains(o.Message, "Sync starts only if") || !strings.Contains(o.Message, "SnapRAID status") {
 		t.Fatalf("%+v", o)
 	}
 }

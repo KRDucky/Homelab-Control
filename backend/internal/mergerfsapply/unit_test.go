@@ -30,6 +30,9 @@ func TestApplyUnitIsOptIn(t *testing.T) {
 		"PrivateNetwork=no",
 		// A sync runs for hours and needs about 1 GiB per 16 TB.
 		"TimeoutStartSec=infinity",
+		// The run record that SnapRAID status shows.
+		"StateDirectory=homelab-control-mergerfs-apply",
+		"StateDirectoryMode=0700",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("unit missing %s", want)
@@ -76,6 +79,7 @@ func TestApplyUnitIsOptIn(t *testing.T) {
 		"/var/snapraid/** rwlk,",
 		"/mnt/** rwlk,",
 		"/run/homelab-control/mergerfs-apply.sock rw,",
+		"/var/lib/homelab-control-mergerfs-apply/** rwk,",
 	} {
 		if !hasLine(p, want) {
 			t.Errorf("profile missing rule %s", want)

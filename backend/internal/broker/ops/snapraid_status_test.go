@@ -248,3 +248,28 @@ func TestParseSnapraidStatusCapsLines(t *testing.T) {
 		t.Fatalf("disks %d truncated %v", len(got.Disks), got.Truncated)
 	}
 }
+
+// The page shows the latest sync, scrub or fix from the helper's record,
+// including while SnapRAID holds the lock. Unknown values are dropped.
+func TestSnapraidStatusCarriesTheLastRun(t *testing.T) {
+	env := mergerfsEnv(t)
+	code := 0
+	rec := &mergerfsapply.RunRecord{Action: "sync", State: "finished", StartedAt: "2026-11-26T22:40:00Z",
+		RunningAt: "2026-11-26T22:41:00Z", EndedAt: "2026-11-26T22:43:05Z", ExitCode: &code}
+	env.MergerFSApply = func(context.Context, mergerfsapply.Request) (mergerfsapply.Result, error) {
+		return mergerfsapply.Result{Version: 1, OK: true, Output: string(readSnapraidFixture(t, "snapraid-13.0-status.txt")), LastRun: rec}, nil
+	}
+	got, err := snapraidStatus(context.Background(), env, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lr := got.(types.SnapraidStatus).LastRun
+	if lr == nil || lr.State != "finished" || lr.EndedAt != rec.EndedAt || lr.ExitCode == nil || *lr.ExitCode != 0 {
+		t.Fatalf("%+v", lr)
+	}
+	rec.State = "exploded"
+	got, _ = snapraidStatus(context.Background(), env, nil)
+	if got.(types.SnapraidStatus).LastRun != nil {
+		t.Fatal("unknown state passed on")
+	}
+}

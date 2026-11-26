@@ -3623,6 +3623,26 @@ paths:
                   truncated: { type: boolean, description: The helper cut snapraid's text at its output cap, or there were more than 16 summary lines or 64 disks. }
                   note: { type: string }
                   source: { type: string }
+                  lastRun:
+                    type: object
+                    description: >
+                      The latest sync, scrub or fix started through Homelab Control, as the MergerFS helper
+                      recorded it. Present also while SnapRAID holds the array lock. Absent before the first one.
+                    required: [action, state, startedAt]
+                    properties:
+                      action: { type: string, enum: [sync, scrub, fix] }
+                      state:
+                        type: string
+                        enum: [checking, running, finished, failed, refused, interrupted]
+                        description: >
+                          checking is snapraid diff before sync or scrub; refused means that check blocked the
+                          run (see blocked); interrupted means the helper and SnapRAID stopped before the run
+                          ended, for example at a reboot.
+                      startedAt: { type: string, format: date-time }
+                      runningAt: { type: string, format: date-time, description: When SnapRAID itself started, after the check. }
+                      endedAt: { type: string, format: date-time }
+                      exitCode: { type: integer, description: SnapRAID's exit status, for finished and failed. }
+                      blocked: { type: string, enum: [missing-disk, removed-files, diff-unreadable, locked] }
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: Missing mergerfs.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: Broker down, MergerFS helper not enabled, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }

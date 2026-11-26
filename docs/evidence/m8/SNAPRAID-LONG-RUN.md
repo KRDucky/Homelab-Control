@@ -16,6 +16,7 @@ Part of the M5–M9 review. Design: ADR 0008 Amendment 19. Not M8 acceptance.
 | 8 | VM (Ubuntu 22.04, 26.04): AppArmor denied that shutdown | Those kernels mediate `socket_shutdown` on a path-bound socket as a write to the path; Debian 13's 6.12 does not | `/run/homelab-control/mergerfs-apply.sock rw` (the helper's own socket only) | `TestApplyUnitIsOptIn`; VM: no denial |
 | 9 | A slow `snapraid diff` still stopped sync and scrub | diff ran under the 80 s request deadline, before the 5 s start grace: a large array was refused as "diff unreadable", or the broker's 80 s deadline expired and it reported `uncertain` while sync went on | diff runs with no deadline; the reply comes within 60 s (`running` + `checking` if diff is still going), and the block or the run's exit status is logged | `TestSlowDiffDoesNotHoldTheReply`, `TestGateBlockAfterTheReplyIsLogged`, `TestGatePassAfterTheReplyStartsTheRun`, `TestGateBlockWithinBudgetIsTheReply`, `TestMergerFSApplyReportsAStillRunningCheck` |
 | 10 | VM (Ubuntu 22.04, status regression): helper disabled answered 502, not 503 | With the marker absent systemd accepts and closes the connection. When that close comes before the broker's write, the write fails with EPIPE, which was returned as an internal error; only the read side mapped a reset to "no reply" | A write that fails with EPIPE or ECONNRESET is "no reply" (the request was not delivered) | `TestSnapraidStatusHelperClosedBeforeTheRequest` |
+| 11 | Owner: no clear status, and no way to see how a background run ended on the page | The page only showed `locked`. The end was only in the journal | A run record in the helper's `StateDirectory`, with a run lock that SnapRAID inherits. Status returns it as `lastRun`. The page shows "Latest sync: running / finished / failed / refused / interrupted", reads status after confirm and every 10 s while it runs, and the apply messages point there | `TestRunRecordFollowsARun`, `TestRunRecordSaysRefusedAndFailed`, `TestRunRecordInterrupted`, `TestSecondRunIsRefusedWhileOneIsActive`, `TestDamagedRunRecordIsIgnored`, `TestSnapraidStatusCarriesTheLastRun`, `TestApplyUnitIsOptIn`, frontend "latest SnapRAID run" (2 tests) |
 
 ## VM validation (installed `.deb` of `5e381f9`)
 
@@ -92,10 +93,9 @@ Indexed at `5e381f9`: no definition-only symbols and the 7 baseline self-loops. 
 
 ## Limits
 
-- A block that `snapraid diff` finds after the 60 s reply (finding 9) is only in the journal; the
-  operation journal says the check was still running.
-- The broker does not follow a background run. The journal, the status page (`locked`, then the new
-  state) and the operation journal's "Started" message are the record.
+- The operation journal keeps "started" and is not updated when a run ends. The run record (finding 11)
+  and the journal hold the end.
+- Only the latest run is kept. SnapRAID's own output stays in the journal.
 - `run()`'s "reply, then wait" path has no unit test. The VM runs cover it.
 - Not covered: Ubuntu 24.04, Debian 12, the page in a browser, scrub and fix on a long run (they share
   the code path with sync), and a real multi-terabyte array.

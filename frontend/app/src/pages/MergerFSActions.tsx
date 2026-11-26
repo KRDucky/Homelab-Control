@@ -19,7 +19,16 @@ function lines(value: string): string[] {
  * Plan-then-confirm controls. Buttons review an operation. They do not apply
  * it. mergerfs.read does not show them. configure and maintain are separate.
  */
-export function MergerFSActions({ csrf, scopes }: { csrf: string; scopes: string[] }) {
+export function MergerFSActions({
+  csrf,
+  scopes,
+  onRunStarted,
+}: {
+  csrf: string;
+  scopes: string[];
+  /** Called after a sync, scrub or fix was confirmed and the helper replied. */
+  onRunStarted?: () => void;
+}) {
   const configure = scopes.includes('mergerfs.configure');
   const maintain = scopes.includes('mergerfs.maintain');
   const [mountpoint, setMountpoint] = useState('/mnt/pool');
@@ -73,6 +82,7 @@ export function MergerFSActions({ csrf, scopes }: { csrf: string; scopes: string
       const out = await applyMergerFS(kind, { ...body, token: plan.token }, csrf);
       setMessage(out.message);
       setPlan(null);
+      if (kind === 'maintain') onRunStarted?.();
       setPassword('');
     } catch (e) {
       setError(explain(e instanceof Error ? e : new Error(String(e))));
@@ -199,6 +209,11 @@ export function MergerFSActions({ csrf, scopes }: { csrf: string; scopes: string
         </p>
       )}
       {message && <p role="status">{message}</p>}
+      {message && kind === 'maintain' && (
+        <p>
+          <a href="#snapraid-heading">Go to SnapRAID status</a>
+        </p>
+      )}
       {plan && (
         <div>
           <p className="preview-bar">Preview · nothing has been changed yet</p>

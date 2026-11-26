@@ -108,15 +108,17 @@ func execute(ctx context.Context, req mergerfsapply.Request, root string) (merge
 		}
 		return done(true, 0, "array definition written", ""), nil
 	case mergerfsapply.ActionSync, mergerfsapply.ActionScrub:
-		return startSnapraid(spec, diffCheck)
+		return startSnapraid(root, spec, diffCheck)
 	case mergerfsapply.ActionStatus:
 		argv, err := spec.Argv()
 		if err != nil {
 			return done(false, 0, "request refused", ""), nil
 		}
-		return statusResult(runCmd(ctx, argv, mergerfsapply.MaxStatusOutput)), nil
+		res := statusResult(runCmd(ctx, argv, mergerfsapply.MaxStatusOutput))
+		res.LastRun = readRun(root)
+		return res, nil
 	case mergerfsapply.ActionFix:
-		return startSnapraid(spec, nil)
+		return startSnapraid(root, spec, nil)
 	default:
 		return done(false, 0, "request refused", ""), nil
 	}
@@ -142,21 +144,30 @@ var diffCheck = func() string { return diffBlock(context.Background()) }
 // startSnapraid runs gate (if any) and then SnapRAID. gate is snapraid diff,
 // which reads every file of the array, so it has no deadline: on a large
 // array it can take longer than the broker waits.
-func startSnapraid(spec mergerfsapply.Spec, gate func() string) (mergerfsapply.Result, func()) {
+func startSnapraid(root string, spec mergerfsapply.Spec, gate func() string) (mergerfsapply.Result, func()) {
 	argv, err := spec.Argv()
 	if err != nil || !argvAllowed(argv) || argv[0] != mergerfsapply.SnapRAIDBin || (spec.Action == mergerfsapply.ActionFix && len(argv) < 5) {
 		return done(false, 0, "request refused", ""), nil
 	}
-	if gate == nil {
-		return startLong(argv, spec.Action)
+	t, err := beginRun(root, spec.Action, gate != nil)
+	switch {
+	case errors.Is(err, errRunActive):
+		return done(false, 0, "operation refused before it started", mergerfsapply.BlockLocked), nil
+	case err != nil:
+		// The record is for the page; SnapRAID's own lock still guards the array.
+		fmt.Fprintln(snapraidLog, "hc-mergerfs-apply: the run record is not available")
+		t = nil
 	}
-	return startGated(argv, spec.Action, gate)
+	if gate == nil {
+		return startLong(argv, spec.Action, t)
+	}
+	return startGated(argv, spec.Action, gate, t)
 }
 
 // startGated replies with the gate's block or startLong's reply if they come
 // within replyBudget. Otherwise it replies that the check is running, and the
 // returned func waits for it and logs the block or the run's exit status.
-func startGated(argv []string, action string, gate func() string) (mergerfsapply.Result, func()) {
+func startGated(argv []string, action string, gate func() string, t *tracker) (mergerfsapply.Result, func()) {
 	type reply struct {
 		res  mergerfsapply.Result
 		rest func()
@@ -164,10 +175,12 @@ func startGated(argv []string, action string, gate func() string) (mergerfsapply
 	first := make(chan reply, 1)
 	go func() {
 		if reason := gate(); reason != "" {
+			t.refuse(reason)
 			first <- reply{done(false, 0, "operation refused before it started", reason), nil}
 			return
 		}
-		res, rest := startLong(argv, action)
+		t.running()
+		res, rest := startLong(argv, action, t)
 		first <- reply{res, rest}
 	}()
 	timer := time.NewTimer(replyBudget)
@@ -195,16 +208,24 @@ func startGated(argv []string, action string, gate func() string) (mergerfsapply
 // startLong starts argv without a deadline. If it exits within startGrace the
 // reply carries its exit status; otherwise the reply says it is running and
 // the returned func waits for it and logs the exit status.
-func startLong(argv []string, action string) (mergerfsapply.Result, func()) {
+func startLong(argv []string, action string, t *tracker) (mergerfsapply.Result, func()) {
 	cmd := exec.Command(argv[0], argv[1:]...)
 	cmd.Env = []string{"PATH=/usr/bin:/bin", "LANG=C", "LC_ALL=C"}
 	cmd.Dir = "/"
 	cmd.Stdout, cmd.Stderr = snapraidLog, snapraidLog
+	if f := t.lockFile(); f != nil {
+		cmd.ExtraFiles = []*os.File{f}
+	}
 	if err := cmd.Start(); err != nil {
+		t.finish(-1)
 		return done(false, -1, "snapraid did not start", ""), nil
 	}
 	exit := make(chan int, 1)
-	go func() { exit <- exitStatus(cmd.Wait()) }()
+	go func() {
+		code := exitStatus(cmd.Wait())
+		t.finish(code)
+		exit <- code
+	}()
 	timer := time.NewTimer(startGrace)
 	defer timer.Stop()
 	select {

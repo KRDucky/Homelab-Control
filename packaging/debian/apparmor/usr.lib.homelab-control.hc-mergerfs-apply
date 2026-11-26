@@ -64,6 +64,11 @@ profile hc-mergerfs-apply /usr/lib/homelab-control/hc-mergerfs-apply flags=(enfo
   # .tmp) at /var/snapraid.content; sync and status lock it.
   /var/snapraid.content* rwlk,
 
+  # The unit's StateDirectory: the record of the latest sync, scrub or fix
+  # and its run lock, which SnapRAID inherits.
+  /var/lib/homelab-control-mergerfs-apply/ rw,
+  /var/lib/homelab-control-mergerfs-apply/** rwk,
+
   # SnapRAID matches a data disk to its filesystem UUID by reading this
   # directory. The links stay read-only.
   /dev/disk/by-uuid/ r,

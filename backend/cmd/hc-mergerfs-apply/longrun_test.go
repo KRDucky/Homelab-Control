@@ -42,7 +42,7 @@ func withGrace(t *testing.T, d time.Duration) *bytes.Buffer {
 func TestLongRunRepliesWhileItContinues(t *testing.T) {
 	log := withGrace(t, 50*time.Millisecond)
 	start := time.Now()
-	res, rest := startLong([]string{lookPath(t, "sleep"), "0.6"}, mergerfsapply.ActionSync)
+	res, rest := startLong([]string{lookPath(t, "sleep"), "0.6"}, mergerfsapply.ActionSync, nil)
 	if took := time.Since(start); took > 400*time.Millisecond {
 		t.Fatalf("reply waited %v for the run", took)
 	}
@@ -62,11 +62,11 @@ func TestLongRunRepliesWhileItContinues(t *testing.T) {
 // status is the reply.
 func TestLongRunReportsAnEarlyExit(t *testing.T) {
 	withGrace(t, 2*time.Second)
-	res, rest := startLong([]string{lookPath(t, "false")}, mergerfsapply.ActionScrub)
+	res, rest := startLong([]string{lookPath(t, "false")}, mergerfsapply.ActionScrub, nil)
 	if res.OK || res.Running || rest != nil || res.ExitCode != 1 {
 		t.Fatalf("%+v", res)
 	}
-	res, rest = startLong([]string{lookPath(t, "true")}, mergerfsapply.ActionScrub)
+	res, rest = startLong([]string{lookPath(t, "true")}, mergerfsapply.ActionScrub, nil)
 	if !res.OK || res.Running || rest != nil || res.Summary != "scrub finished" {
 		t.Fatalf("%+v", res)
 	}
@@ -141,7 +141,7 @@ func TestSlowDiffDoesNotHoldTheReply(t *testing.T) {
 func TestGateBlockWithinBudgetIsTheReply(t *testing.T) {
 	withBudget(t, time.Second)
 	res, rest := startGated([]string{lookPath(t, "true")}, mergerfsapply.ActionScrub,
-		func() string { return mergerfsapply.BlockMissingDisk })
+		func() string { return mergerfsapply.BlockMissingDisk }, nil)
 	if res.OK || res.Running || rest != nil || res.Blocked != mergerfsapply.BlockMissingDisk {
 		t.Fatalf("%+v", res)
 	}
@@ -153,7 +153,7 @@ func TestGateBlockAfterTheReplyIsLogged(t *testing.T) {
 	withBudget(t, 20*time.Millisecond)
 	marker := t.TempDir() + "/ran"
 	res, rest := startGated([]string{lookPath(t, "touch"), marker}, mergerfsapply.ActionSync,
-		func() string { time.Sleep(150 * time.Millisecond); return mergerfsapply.BlockRemovedFiles })
+		func() string { time.Sleep(150 * time.Millisecond); return mergerfsapply.BlockRemovedFiles }, nil)
 	if !res.Running || !res.Checking || rest == nil {
 		t.Fatalf("%+v", res)
 	}
@@ -172,7 +172,7 @@ func TestGatePassAfterTheReplyStartsTheRun(t *testing.T) {
 	log := withGrace(t, 20*time.Millisecond)
 	withBudget(t, 20*time.Millisecond)
 	res, rest := startGated([]string{lookPath(t, "sleep"), "0.2"}, mergerfsapply.ActionSync,
-		func() string { time.Sleep(100 * time.Millisecond); return "" })
+		func() string { time.Sleep(100 * time.Millisecond); return "" }, nil)
 	if !res.Running || !res.Checking || rest == nil {
 		t.Fatalf("%+v", res)
 	}

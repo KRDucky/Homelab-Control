@@ -78,6 +78,8 @@ type Result struct {
 	// had not finished when the helper replied. It continues, and sync or
 	// scrub starts only if it passes; either result goes to the journal.
 	Checking bool `json:"checking,omitempty"`
+	// LastRun is set only for ActionStatus: the latest sync, scrub or fix.
+	LastRun *RunRecord `json:"lastRun,omitempty"`
 }
 
 // Spec is a request that passed Validate.

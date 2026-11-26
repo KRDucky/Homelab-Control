@@ -589,5 +589,17 @@ real arrays:
   that the reply is `running` with `checking` set ("snapraid diff is still checking the array"), and the
   helper logs either `snapraid <action> was not started: <block>` or the run's exit status. A block is never
   passed over: sync or scrub starts only after the gate passes.
-- **Not changed:** the broker does not follow the background run. The journal, the SnapRAID status page and the operation journal's "started" message are
+- **Run record (owner request, 2026-11-26):** the end of a background run was only in the journal, and the
+  page only said `locked`. The helper now keeps the latest sync, scrub or fix in the unit's
+  `StateDirectory=homelab-control-mergerfs-apply` (`last-run.json`, 0600, root): action, state (`checking`,
+  `running`, `finished`, `failed`, `refused`), start, SnapRAID start, end, exit status and block. The helper
+  holds an `flock` on `last-run.lock` for the run and SnapRAID inherits it, so the lock is held while
+  SnapRAID runs. A record that says checking or running while the lock is free is reported as
+  `interrupted`, for example after a reboot. A second sync, scrub or fix while the lock is held is refused
+  as `locked` before diff runs. The status action returns the record with SnapRAID's text, also while
+  SnapRAID holds the array lock. The broker passes on known values only, as `lastRun` on
+  `GET /mergerfs/snapraid/status`. The page shows it, reads status after a sync, scrub or fix is
+  confirmed, and reads it every 10 s while the run is checking or running. Nothing else is written.
+- **Not changed:** the broker's operation journal keeps the "started" outcome. It is not rewritten when the
+  run ends, and the run record is the record of the end. The journal, the SnapRAID status page and the operation journal's "started" message are
   the record.

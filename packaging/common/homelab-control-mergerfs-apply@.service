@@ -48,6 +48,9 @@ UMask=0077
 # snapraid sync, scrub and fix run for minutes to many hours. The helper
 # replies once one is running, and this oneshot stays active until it ends.
 TimeoutStartSec=infinity
+# The record of the latest sync, scrub or fix, which SnapRAID status shows.
+StateDirectory=homelab-control-mergerfs-apply
+StateDirectoryMode=0700
 # No MemoryMax: SnapRAID needs about 1 GiB of RAM per 16 TB of array (SnapRAID
 # manual, "hashsize"), so any fixed cap here would stop large arrays.
 TasksMax=128
