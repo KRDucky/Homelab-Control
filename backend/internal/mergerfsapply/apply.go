@@ -74,6 +74,10 @@ type Result struct {
 	// Running: sync, scrub or fix was still running when the helper replied.
 	// It continues; its exit status goes to the journal, not to this reply.
 	Running bool `json:"running,omitempty"`
+	// Checking: with Running, snapraid diff (the check before sync or scrub)
+	// had not finished when the helper replied. It continues, and sync or
+	// scrub starts only if it passes; either result goes to the journal.
+	Checking bool `json:"checking,omitempty"`
 }
 
 // Spec is a request that passed Validate.
@@ -363,6 +367,7 @@ func (s Spec) Consequences() []string {
 		return append(common,
 			"A missing disk or a removed file blocks this operation. Nothing is synced or scrubbed.",
 			"There is no way to continue past that block. Restore the disk or the files first.",
+			"On a large array that check can outlast the reply. It then continues in the background, and the block or the run's result is recorded in the system journal.",
 			"A run longer than a few seconds continues in the background. SnapRAID status shows the array as locked until it ends.",
 		)
 	case ActionFix:

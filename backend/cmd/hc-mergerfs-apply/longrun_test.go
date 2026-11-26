@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
 	"os/exec"
@@ -98,5 +99,85 @@ func TestEndReplyEndsTheConnectionWhileAnotherCopyIsOpen(t *testing.T) {
 	b, err := io.ReadAll(broker)
 	if err != nil || string(b) != "{}\n" {
 		t.Fatalf("broker read %q, %v; want the reply then end of file", b, err)
+	}
+}
+
+func withBudget(t *testing.T, d time.Duration) {
+	t.Helper()
+	old := replyBudget
+	replyBudget = d
+	t.Cleanup(func() { replyBudget = old })
+}
+
+// snapraid diff reads every file of the array, so on a large array it runs
+// longer than the broker waits. It used to run under the helper's 80-second
+// deadline before the reply, so a big array was refused as "diff unreadable"
+// or the broker gave up and reported "uncertain" while sync went on. The
+// reply now comes within replyBudget and the check continues.
+func TestSlowDiffDoesNotHoldTheReply(t *testing.T) {
+	log := withGrace(t, 20*time.Millisecond)
+	withBudget(t, 50*time.Millisecond)
+	old := diffCheck
+	diffCheck = func() string { time.Sleep(400 * time.Millisecond); return "" }
+	t.Cleanup(func() { diffCheck = old })
+	start := time.Now()
+	res, rest := execute(context.Background(), mergerfsapply.Request{Version: mergerfsapply.ProtocolVersion, Action: mergerfsapply.ActionSync}, t.TempDir())
+	if took := time.Since(start); took > 300*time.Millisecond {
+		t.Fatalf("reply waited %v for snapraid diff", took)
+	}
+	if !res.OK || !res.Running || !res.Checking || rest == nil {
+		t.Fatalf("%+v rest=%v", res, rest != nil)
+	}
+	rest()
+	if time.Since(start) < 400*time.Millisecond {
+		t.Fatal("rest returned before the check ended")
+	}
+	if !strings.Contains(log.String(), "snapraid sync") {
+		t.Fatalf("log: %q", log.String())
+	}
+}
+
+// A block found within the budget is the reply; nothing is started.
+func TestGateBlockWithinBudgetIsTheReply(t *testing.T) {
+	withBudget(t, time.Second)
+	res, rest := startGated([]string{lookPath(t, "true")}, mergerfsapply.ActionScrub,
+		func() string { return mergerfsapply.BlockMissingDisk })
+	if res.OK || res.Running || rest != nil || res.Blocked != mergerfsapply.BlockMissingDisk {
+		t.Fatalf("%+v", res)
+	}
+}
+
+// A block found after the reply starts nothing and is logged.
+func TestGateBlockAfterTheReplyIsLogged(t *testing.T) {
+	log := withGrace(t, 20*time.Millisecond)
+	withBudget(t, 20*time.Millisecond)
+	marker := t.TempDir() + "/ran"
+	res, rest := startGated([]string{lookPath(t, "touch"), marker}, mergerfsapply.ActionSync,
+		func() string { time.Sleep(150 * time.Millisecond); return mergerfsapply.BlockRemovedFiles })
+	if !res.Running || !res.Checking || rest == nil {
+		t.Fatalf("%+v", res)
+	}
+	rest()
+	if _, err := os.Stat(marker); err == nil {
+		t.Fatal("the run started after a block")
+	}
+	if !strings.Contains(log.String(), "snapraid sync was not started: "+mergerfsapply.BlockRemovedFiles) {
+		t.Fatalf("log: %q", log.String())
+	}
+}
+
+// A gate that passes after the reply still starts the run, and its exit
+// status is logged.
+func TestGatePassAfterTheReplyStartsTheRun(t *testing.T) {
+	log := withGrace(t, 20*time.Millisecond)
+	withBudget(t, 20*time.Millisecond)
+	res, rest := startGated([]string{lookPath(t, "sleep"), "0.2"}, mergerfsapply.ActionSync,
+		func() string { time.Sleep(100 * time.Millisecond); return "" })
+	if !res.Running || !res.Checking || rest == nil {
+		t.Fatalf("%+v", res)
+	}
+	rest()
+	if !strings.Contains(log.String(), "snapraid sync exited with status 0") {
+		t.Fatalf("log: %q", log.String())
 	}
 }

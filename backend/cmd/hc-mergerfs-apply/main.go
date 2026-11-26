@@ -108,10 +108,7 @@ func execute(ctx context.Context, req mergerfsapply.Request, root string) (merge
 		}
 		return done(true, 0, "array definition written", ""), nil
 	case mergerfsapply.ActionSync, mergerfsapply.ActionScrub:
-		if reason := diffBlock(ctx); reason != "" {
-			return done(false, 0, "operation refused before it started", reason), nil
-		}
-		return startSnapraid(spec)
+		return startSnapraid(spec, diffCheck)
 	case mergerfsapply.ActionStatus:
 		argv, err := spec.Argv()
 		if err != nil {
@@ -119,7 +116,7 @@ func execute(ctx context.Context, req mergerfsapply.Request, root string) (merge
 		}
 		return statusResult(runCmd(ctx, argv, mergerfsapply.MaxStatusOutput)), nil
 	case mergerfsapply.ActionFix:
-		return startSnapraid(spec)
+		return startSnapraid(spec, nil)
 	default:
 		return done(false, 0, "request refused", ""), nil
 	}
@@ -135,12 +132,64 @@ var startGrace = 5 * time.Second
 // by a full pipe or an output cap.
 var snapraidLog io.Writer = os.Stderr
 
-func startSnapraid(spec mergerfsapply.Spec) (mergerfsapply.Result, func()) {
+// replyBudget bounds the wait for a reply. The broker waits 80 seconds for
+// the helper; this leaves a margin.
+var replyBudget = 60 * time.Second
+
+// diffCheck is the check before sync and scrub (a test seam).
+var diffCheck = func() string { return diffBlock(context.Background()) }
+
+// startSnapraid runs gate (if any) and then SnapRAID. gate is snapraid diff,
+// which reads every file of the array, so it has no deadline: on a large
+// array it can take longer than the broker waits.
+func startSnapraid(spec mergerfsapply.Spec, gate func() string) (mergerfsapply.Result, func()) {
 	argv, err := spec.Argv()
 	if err != nil || !argvAllowed(argv) || argv[0] != mergerfsapply.SnapRAIDBin || (spec.Action == mergerfsapply.ActionFix && len(argv) < 5) {
 		return done(false, 0, "request refused", ""), nil
 	}
-	return startLong(argv, spec.Action)
+	if gate == nil {
+		return startLong(argv, spec.Action)
+	}
+	return startGated(argv, spec.Action, gate)
+}
+
+// startGated replies with the gate's block or startLong's reply if they come
+// within replyBudget. Otherwise it replies that the check is running, and the
+// returned func waits for it and logs the block or the run's exit status.
+func startGated(argv []string, action string, gate func() string) (mergerfsapply.Result, func()) {
+	type reply struct {
+		res  mergerfsapply.Result
+		rest func()
+	}
+	first := make(chan reply, 1)
+	go func() {
+		if reason := gate(); reason != "" {
+			first <- reply{done(false, 0, "operation refused before it started", reason), nil}
+			return
+		}
+		res, rest := startLong(argv, action)
+		first <- reply{res, rest}
+	}()
+	timer := time.NewTimer(replyBudget)
+	defer timer.Stop()
+	select {
+	case r := <-first:
+		return r.res, r.rest
+	case <-timer.C:
+		res := done(true, 0, "the check before "+action+" continues in the background", "")
+		res.Running, res.Checking = true, true
+		return res, func() {
+			r := <-first
+			switch {
+			case r.res.Blocked != "":
+				fmt.Fprintf(snapraidLog, "hc-mergerfs-apply: snapraid %s was not started: %s\n", action, r.res.Blocked)
+			case r.rest != nil:
+				r.rest()
+			default:
+				fmt.Fprintf(snapraidLog, "hc-mergerfs-apply: snapraid %s exited with status %d\n", action, r.res.ExitCode)
+			}
+		}
+	}
 }
 
 // startLong starts argv without a deadline. If it exits within startGrace the

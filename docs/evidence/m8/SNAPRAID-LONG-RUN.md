@@ -14,6 +14,7 @@ Part of the M5–M9 review. Design: ADR 0008 Amendment 19. Not M8 acceptance.
 | 6 | A held lock read as "diff unreadable" | No lock case | Block `locked`, with its own message | `TestDiffGateSaysArrayIsLocked`, `TestMergerFSApplyNamesTheHeldLock` |
 | 7 | VM: the reply still waited 80 s ("uncertain") | With `Accept=yes` systemd keeps its own copy of the connection until the instance stops, so closing the helper's descriptors did not end it | `shutdown(2)` on the connection | `TestEndReplyEndsTheConnectionWhileAnotherCopyIsOpen` (holds a second copy) |
 | 8 | VM (Ubuntu 22.04, 26.04): AppArmor denied that shutdown | Those kernels mediate `socket_shutdown` on a path-bound socket as a write to the path; Debian 13's 6.12 does not | `/run/homelab-control/mergerfs-apply.sock rw` (the helper's own socket only) | `TestApplyUnitIsOptIn`; VM: no denial |
+| 9 | A slow `snapraid diff` still stopped sync and scrub | diff ran under the 80 s request deadline, before the 5 s start grace: a large array was refused as "diff unreadable", or the broker's 80 s deadline expired and it reported `uncertain` while sync went on | diff runs with no deadline; the reply comes within 60 s (`running` + `checking` if diff is still going), and the block or the run's exit status is logged | `TestSlowDiffDoesNotHoldTheReply`, `TestGateBlockAfterTheReplyIsLogged`, `TestGatePassAfterTheReplyStartsTheRun`, `TestGateBlockWithinBudgetIsTheReply`, `TestMergerFSApplyReportsAStillRunningCheck` |
 
 ## VM validation (installed `.deb` of `5e381f9`)
 
@@ -59,8 +60,8 @@ Indexed at `5e381f9`: no definition-only symbols and the 7 baseline self-loops. 
 
 ## Limits
 
-- The diff gate still runs within the 80 s request. A diff that takes longer (very many files on slow
-  disks) is reported "unreadable", and nothing starts.
+- A block that `snapraid diff` finds after the 60 s reply (finding 9) is only in the journal; the
+  operation journal says the check was still running.
 - The broker does not follow a background run. The journal, the status page (`locked`, then the new
   state) and the operation journal's "Started" message are the record.
 - `run()`'s "reply, then wait" path has no unit test. The VM run covers it.

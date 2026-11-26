@@ -582,6 +582,12 @@ real arrays:
 - **Diff gate:** keeps the first and the last 64 KiB of diff's output, the disk checks and the summary,
   instead of refusing at a cap. The `diff-truncated` block is gone. A new block `locked` is used when diff
   reports SnapRAID's lock message.
-- **Not changed:** the diff gate itself still runs within the 80 s request. The broker does not follow the
-  background run. The journal, the SnapRAID status page and the operation journal's "started" message are
+- **Diff gate without a deadline:** `snapraid diff` reads every file of the array, so on a large array it can
+  outlast the 80 s request. It used to run under that deadline, before a 5 s start grace, so a big array was
+  refused as "diff unreadable", or the broker hit its own 80 s deadline and reported `uncertain` while sync
+  went on. diff now runs with no deadline. A block or SnapRAID's early exit within 60 s is the reply. After
+  that the reply is `running` with `checking` set ("snapraid diff is still checking the array"), and the
+  helper logs either `snapraid <action> was not started: <block>` or the run's exit status. A block is never
+  passed over: sync or scrub starts only after the gate passes.
+- **Not changed:** the broker does not follow the background run. The journal, the SnapRAID status page and the operation journal's "started" message are
   the record.

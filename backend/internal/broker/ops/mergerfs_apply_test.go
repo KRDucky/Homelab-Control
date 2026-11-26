@@ -124,6 +124,30 @@ func TestMergerFSApplyReportsARunningSync(t *testing.T) {
 	}
 }
 
+// A reply sent while snapraid diff is still checking must not say the run
+// started without saying it can still be refused.
+func TestMergerFSApplyReportsAStillRunningCheck(t *testing.T) {
+	env := mergerfsEnv(t)
+	env.MergerFSApply = func(context.Context, mergerfsapply.Request) (mergerfsapply.Result, error) {
+		return mergerfsapply.Result{Version: 1, OK: true, Running: true, Checking: true, Summary: "the check before sync continues in the background"}, nil
+	}
+	got, err := mergerfsPlan(mergerfsKeepPlan)(context.Background(), env, json.RawMessage(`{"action":"sync"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	env.Actor.StepUpAt = time.Now().Unix()
+	out, err := mergerfsApply(mergerfsMaintainOp)(context.Background(), env,
+		json.RawMessage(`{"action":"sync","token":"`+got.(MergerFSPlan).Token+`"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	o := out.(MergerFSOutcome)
+	if o.Outcome != OutcomeSucceeded || o.ExitCode != nil || !strings.Contains(o.Message, "still checking") ||
+		!strings.Contains(o.Message, "Sync starts only if") || !strings.Contains(o.Message, "journal") {
+		t.Fatalf("%+v", o)
+	}
+}
+
 func TestMergerFSApplyNamesTheHeldLock(t *testing.T) {
 	if m := blockedMessage(mergerfsapply.BlockLocked); !strings.Contains(m, "lock") || !strings.Contains(m, "Nothing was started") {
 		t.Fatal(m)

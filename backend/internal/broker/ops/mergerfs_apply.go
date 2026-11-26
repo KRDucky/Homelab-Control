@@ -201,6 +201,12 @@ func mergerfsApply(op string) func(context.Context, *Env, json.RawMessage) (any,
 		case res.Blocked != "":
 			out.Outcome = OutcomeFailed
 			out.Message = blockedMessage(res.Blocked)
+		case res.OK && res.Running && res.Checking:
+			// snapraid diff is still checking the array; the run may yet be refused.
+			out.Outcome = OutcomeSucceeded
+			out.Message = "Started. snapraid diff is still checking the array, which takes a while on a large array. " +
+				strings.ToUpper(spec.Action[:1]) + spec.Action[1:] + " starts only if no disk is missing and no file was removed. " +
+				"Whether it was refused or how it ended is in the system journal of the MergerFS helper."
 		case res.OK && res.Running:
 			// The helper started SnapRAID and replied; the run continues.
 			out.Outcome = OutcomeSucceeded
