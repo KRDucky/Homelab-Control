@@ -17,6 +17,15 @@ Part of the M5–M9 review ("use the standard tools"). Not M8 acceptance.
 | 9 | VM: lock notice shown twice | SnapRAID prints two "already in use" lines | Shown once | `TestParseSnapraidStatusLocked` |
 | 10 | VM (Ubuntu 22.04): AppArmor denial for the Go runtime's huge page size read | Profile lacked the read (the APT helper has it) | `/sys/kernel/mm/transparent_hugepage/hpage_pmd_size r` | VM: no denial |
 
+**Review fixes (2026-11-26, #181).**
+- **Decimal sizes:** a status row whose used or free size had a decimal was rejected by an integer-only
+  pattern and vanished. Every size column now accepts a decimal, and `usedGB`/`freeGB` are numbers.
+  `TestParseSnapraidStatusDecimalSizes` fails with the old pattern.
+- **Cut-off output:** when the helper cut snapraid's text at its 48 KiB cap, the broker returned the
+  prefix as a complete report. The helper now sets `outputTruncated`, the broker sets `truncated`,
+  and the page says the report is incomplete. `TestSnapraidStatusMarksHelperCutOutput`,
+  `TestStatusResultMarksCutOutput` and the panel test fail without the fix.
+
 ## VM validation
 
 Installed `.deb` of `9655dcb` (`homelab-control_0.1.0+dev.1+188+g9655dcb_amd64.deb`), check

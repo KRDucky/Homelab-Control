@@ -642,6 +642,32 @@ describe('MergerFS read-only page', () => {
     ).toBeTruthy();
   });
 
+  // Review finding on #181: a report the helper cut off must not look complete.
+  it('says when the SnapRAID status report is incomplete', async () => {
+    vi.mocked(getMergerFS).mockResolvedValue(
+      inventory({
+        mergerfsInstalled: true,
+        snapraidInstalled: true,
+        mergerfsPresent: true,
+        snapraidPresent: true,
+      }),
+    );
+    vi.mocked(getSnapraidStatus).mockResolvedValue({
+      exitCode: -1,
+      syncInProgress: false,
+      truncated: true,
+      disks: [{ name: 'd1', files: 1, fragmentedFiles: 0, excessFragments: 0, usedGB: 10.5 }],
+      summary: [],
+      note: 'n',
+      source: 'snapraid status',
+    });
+    render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
+    await screen.findByText('/mnt/media');
+    fireEvent.click(screen.getByRole('button', { name: 'Read SnapRAID status' }));
+    expect(await screen.findByText(/The status report is incomplete/)).toBeTruthy();
+    expect(screen.getByRole('cell', { name: '10.5' })).toBeTruthy();
+  });
+
   it('hides SnapRAID status when no config is present', async () => {
     vi.mocked(getMergerFS).mockResolvedValue(
       inventory({

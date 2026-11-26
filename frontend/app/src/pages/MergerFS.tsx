@@ -377,7 +377,11 @@ function SnapraidStatusPanel({ csrf }: { csrf: string }) {
               ))}
             </ul>
           )}
-          {status.truncated && <p>Further status lines were omitted.</p>}
+          {status.truncated && (
+            <p className="banner" role="status">
+              The status report is incomplete: it was cut off or had more lines or disks than are shown.
+            </p>
+          )}
           {status.exitCode !== 0 && <p>snapraid status exited {status.exitCode}.</p>}
         </div>
       )}

@@ -139,16 +139,16 @@ type SnapraidStatus struct {
 	Source    string         `json:"source"`
 }
 
-// SnapraidDisk is one data disk row of `snapraid status`. Sizes are whole GB
-// as SnapRAID prints them; a nil value is "-" (unknown before the first sync).
+// SnapraidDisk is one data disk row of `snapraid status`. Sizes are GB as
+// SnapRAID prints them; a nil value is "-" (unknown before the first sync).
 type SnapraidDisk struct {
 	Name            string   `json:"name"`
 	Files           uint64   `json:"files"`
 	Fragmented      uint64   `json:"fragmentedFiles"`
 	ExcessFragments uint64   `json:"excessFragments"`
 	WastedGB        *float64 `json:"wastedGB,omitempty"`
-	UsedGB          uint64   `json:"usedGB"`
-	FreeGB          *uint64  `json:"freeGB,omitempty"`
+	UsedGB          float64  `json:"usedGB"`
+	FreeGB          *float64 `json:"freeGB,omitempty"`
 	UsePercent      *uint64  `json:"usePercent,omitempty"`
 }
 

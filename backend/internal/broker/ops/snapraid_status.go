@@ -43,33 +43,41 @@ func snapraidStatus(ctx context.Context, env *Env, raw json.RawMessage) (any, er
 	if err := requireNoArgs(raw); err != nil {
 		return nil, err
 	}
-	stdout, exitCode, err := snapraidStatusRun(ctx, env)
+	stdout, exitCode, cut, err := snapraidStatusRun(ctx, env)
 	if err != nil {
 		return nil, err
 	}
-	return ParseSnapraidStatus(stdout, exitCode), nil
+	out := ParseSnapraidStatus(stdout, exitCode)
+	if cut {
+		// The helper stopped reading at its output cap: what was parsed is a
+		// prefix of the report, not all of it.
+		out.Truncated = true
+	}
+	return out, nil
 }
 
-func snapraidStatusRun(ctx context.Context, env *Env) ([]byte, int, error) {
+// snapraidStatusRun returns snapraid's text, its exit code, and whether the
+// helper cut the text at its output cap.
+func snapraidStatusRun(ctx context.Context, env *Env) ([]byte, int, bool, error) {
 	if env.SnapraidStatus != nil {
 		stdout, exitCode, err := env.SnapraidStatus(ctx)
 		if err != nil {
 			var pe *proto.Error
 			if errors.As(err, &pe) {
-				return nil, 0, err
+				return nil, 0, false, err
 			}
-			return nil, 0, snapraidRunErr(err)
+			return nil, 0, false, snapraidRunErr(err)
 		}
-		return stdout, exitCode, nil
+		return stdout, exitCode, false, nil
 	}
 	res, err := env.callMergerFS(ctx, mergerfsapply.Request{Version: mergerfsapply.ProtocolVersion, Action: mergerfsapply.ActionStatus})
 	if err != nil {
-		return nil, 0, snapraidRunErr(err)
+		return nil, 0, false, snapraidRunErr(err)
 	}
 	if res.Output == "" && !res.OK {
-		return nil, 0, &proto.Error{Code: proto.CodeInternal, Message: "snapraid status could not be run by the helper"}
+		return nil, 0, false, &proto.Error{Code: proto.CodeInternal, Message: "snapraid status could not be run by the helper"}
 	}
-	return []byte(res.Output), res.ExitCode, nil
+	return []byte(res.Output), res.ExitCode, res.OutputTruncated, nil
 }
 
 func snapraidRunErr(err error) error {
@@ -85,9 +93,10 @@ func snapraidRunErr(err error) error {
 
 // snapraidDiskRow is one row of the status table (cmdline/status.c): files,
 // fragmented files, excess fragments, wasted GB ("-" when unknown), used GB,
-// free GB and use% ("-" before the first sync), and the disk name. The totals
-// row has no name and does not match.
-var snapraidDiskRow = regexp.MustCompile(`^\s*(\d+)\s+(\d+)\s+(\d+)\s+(-|-?\d+\.\d)\s+(\d+)\s+(-|\d+)\s+(-|\d+%)\s+([^\s/\\:]+)$`)
+// free GB and use% ("-" before the first sync), and the disk name. Sizes are
+// whole GB in current SnapRAID but may carry a decimal (as wasted does), so
+// every size column accepts one. The totals row has no name and does not match.
+var snapraidDiskRow = regexp.MustCompile(`^\s*(\d+)\s+(\d+)\s+(\d+)\s+(-|-?\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s+(-|\d+(?:\.\d+)?)\s+(-|\d+%)\s+([^\s/\\:]+)$`)
 
 // ParseSnapraidStatus keeps the per-disk table and SnapRAID's summary
 // sentences (cmdline/status.c) from `snapraid status`. The bar graph and any
@@ -155,14 +164,15 @@ func ParseSnapraidStatus(stdout []byte, exitCode int) SnapraidStatus {
 
 func snapraidDisk(m []string) SnapraidDisk {
 	u := func(s string) uint64 { n, _ := strconv.ParseUint(s, 10, 64); return n }
-	d := SnapraidDisk{Name: m[8], Files: u(m[1]), Fragmented: u(m[2]), ExcessFragments: u(m[3]), UsedGB: u(m[5])}
+	f := func(s string) float64 { n, _ := strconv.ParseFloat(s, 64); return n }
+	d := SnapraidDisk{Name: m[8], Files: u(m[1]), Fragmented: u(m[2]), ExcessFragments: u(m[3]), UsedGB: f(m[5])}
 	if m[4] != "-" {
 		if f, err := strconv.ParseFloat(m[4], 64); err == nil {
 			d.WastedGB = &f
 		}
 	}
 	if m[6] != "-" {
-		n := u(m[6])
+		n := f(m[6])
 		d.FreeGB = &n
 	}
 	if m[7] != "-" {

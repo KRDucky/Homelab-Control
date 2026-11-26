@@ -3608,19 +3608,19 @@ paths:
                     items:
                       type: object
                       required: [name, files, fragmentedFiles, excessFragments, usedGB]
-                      description: One data disk row of snapraid status. Sizes are whole GB as SnapRAID prints them; an absent value is "-" (unknown before the first sync).
+                      description: One data disk row of snapraid status. Sizes are GB as SnapRAID prints them; an absent value is "-" (unknown before the first sync).
                       properties:
                         name: { type: string }
                         files: { type: integer, minimum: 0 }
                         fragmentedFiles: { type: integer, minimum: 0 }
                         excessFragments: { type: integer, minimum: 0 }
                         wastedGB: { type: number }
-                        usedGB: { type: integer, minimum: 0 }
-                        freeGB: { type: integer, minimum: 0 }
+                        usedGB: { type: number, minimum: 0 }
+                        freeGB: { type: number, minimum: 0 }
                         usePercent: { type: integer, minimum: 0 }
                   summary: { type: array, maxItems: 16, items: { type: string } }
                   scrubAge: { type: string }
-                  truncated: { type: boolean }
+                  truncated: { type: boolean, description: The helper cut snapraid's text at its output cap, or there were more than 16 summary lines or 64 disks. }
                   note: { type: string }
                   source: { type: string }
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }

@@ -144,6 +144,43 @@ func TestParseSnapraidStatusSyncInProgress(t *testing.T) {
 	}
 }
 
+// Review finding on #181: a row whose used or free size carries a decimal was
+// rejected by an integer-only pattern and vanished from the table.
+func TestParseSnapraidStatusDecimalSizes(t *testing.T) {
+	in := "   Files Fragmented Excess  Wasted  Used    Free  Use Name\n" +
+		"     100       0       0     0.0    10.5    90.25  10% d1\n" +
+		"      50       1       2       -     3       -     -  d2\n"
+	st := ParseSnapraidStatus([]byte(in), 0)
+	if len(st.Disks) != 2 {
+		t.Fatalf("disks %+v", st.Disks)
+	}
+	d := st.Disks[0]
+	if d.Name != "d1" || d.UsedGB != 10.5 || d.FreeGB == nil || *d.FreeGB != 90.25 || d.WastedGB == nil || *d.WastedGB != 0 {
+		t.Fatalf("d1 %+v", d)
+	}
+	if e := st.Disks[1]; e.Name != "d2" || e.UsedGB != 3 || e.FreeGB != nil || e.WastedGB != nil || e.UsePercent != nil {
+		t.Fatalf("d2 %+v", e)
+	}
+}
+
+// Review finding on #181: when the helper cut snapraid's text at its output
+// cap, the broker parsed the prefix and returned it as a complete report.
+func TestSnapraidStatusMarksHelperCutOutput(t *testing.T) {
+	full := string(readSnapraidFixture(t, "snapraid-13.0-status.txt"))
+	prefix := full[:strings.Index(full, "d2")]
+	env := &Env{MergerFSApply: func(context.Context, mergerfsapply.Request) (mergerfsapply.Result, error) {
+		return mergerfsapply.Result{Version: mergerfsapply.ProtocolVersion, OK: false, ExitCode: -1,
+			Summary: "status output exceeded the size limit", Output: prefix, OutputTruncated: true}, nil
+	}}
+	out, err := snapraidStatus(context.Background(), env, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st := out.(types.SnapraidStatus); !st.Truncated {
+		t.Fatalf("a cut report must say so: %+v", st)
+	}
+}
+
 func TestParseSnapraidStatusLocked(t *testing.T) {
 	st := ParseSnapraidStatus(readSnapraidFixture(t, "snapraid-13.0-status-locked.txt"), 1)
 	if !st.Locked || st.ExitCode != 1 || len(st.Summary) != 1 || strings.Contains(strings.Join(st.Summary, "\n"), "/") {

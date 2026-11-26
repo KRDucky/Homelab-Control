@@ -69,6 +69,8 @@ type Result struct {
 	// Output is set only for ActionStatus: snapraid's own text, which can name
 	// paths. The broker keeps recognised lines and redacts paths.
 	Output string `json:"output,omitempty"`
+	// OutputTruncated: Output is a prefix cut at MaxStatusOutput.
+	OutputTruncated bool `json:"outputTruncated,omitempty"`
 }
 
 // Spec is a request that passed Validate.

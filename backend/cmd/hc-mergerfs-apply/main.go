@@ -106,13 +106,7 @@ func execute(ctx context.Context, req mergerfsapply.Request, root string) merger
 		if err != nil {
 			return done(false, 0, "request refused", "")
 		}
-		code, out, truncated := runCmd(ctx, argv, mergerfsapply.MaxStatusOutput)
-		res := done(code == 0, code, "status read", "")
-		res.Output = string(out)
-		if truncated {
-			res.OK, res.Summary = false, "status output exceeded the size limit"
-		}
-		return res
+		return statusResult(runCmd(ctx, argv, mergerfsapply.MaxStatusOutput))
 	case mergerfsapply.ActionFix:
 		argv, err := spec.Argv()
 		if err != nil || len(argv) < 5 {
@@ -126,6 +120,17 @@ func execute(ctx context.Context, req mergerfsapply.Request, root string) merger
 	default:
 		return done(false, 0, "request refused", "")
 	}
+}
+
+// statusResult carries snapraid's status text to the broker and marks text
+// that was cut at the output cap.
+func statusResult(code int, out []byte, truncated bool) mergerfsapply.Result {
+	res := done(code == 0, code, "status read", "")
+	res.Output = string(out)
+	if truncated {
+		res.OK, res.Summary, res.OutputTruncated = false, "status output exceeded the size limit", true
+	}
+	return res
 }
 
 func mount(ctx context.Context, spec mergerfsapply.Spec) mergerfsapply.Result {

@@ -111,3 +111,16 @@ func TestSummaryOmitsPaths(t *testing.T) {
 		t.Fatalf("%+v", res)
 	}
 }
+
+// Review finding on #181: status text cut at MaxStatusOutput must be marked,
+// so the broker does not present the prefix as a complete report.
+func TestStatusResultMarksCutOutput(t *testing.T) {
+	res := statusResult(-1, []byte("SnapRAID status report:\n"), true)
+	if res.OK || !res.OutputTruncated || res.Output == "" {
+		t.Fatalf("%+v", res)
+	}
+	res = statusResult(0, []byte("No error detected.\n"), false)
+	if !res.OK || res.OutputTruncated || res.Output != "No error detected.\n" {
+		t.Fatalf("%+v", res)
+	}
+}

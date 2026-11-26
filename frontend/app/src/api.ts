@@ -1470,10 +1470,11 @@ export interface SnapraidStatus {
   syncInProgress: boolean;
   /** Another SnapRAID command held the array lock, so nothing was read. */
   locked?: boolean;
-  /** One row per data disk; sizes in whole GB as SnapRAID prints them. */
+  /** One row per data disk; sizes in GB as SnapRAID prints them. */
   disks: SnapraidDisk[];
   summary: string[];
   scrubAge?: string;
+  /** The report was cut off, or had more lines or disks than are returned. */
   truncated?: boolean;
   note: string;
   source: string;
