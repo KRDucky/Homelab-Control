@@ -1387,7 +1387,7 @@ components:
                       compression: { type: string }
     LVMInventory:
       type: object
-      required: [tooling, lvm, kernelDm]
+      required: [tooling, kernelDm, status]
       properties:
         tooling:
           type: object
@@ -1415,26 +1415,6 @@ components:
                   package: { type: string }
                   installed: { type: boolean }
                   binary: { type: string }
-        lvm:
-          type: object
-          required: [present, reason, devices, devicesTruncated]
-          properties:
-            present: { type: boolean }
-            reason: { type: string }
-            devicesTruncated:
-              type: boolean
-              description: True when the 256-device cap, the 8192-entry sysfs directory read cap, or a done request context (checked about every 64 devices) was hit. Names are sorted numerically by dm-N before the keep cap. The page shows the fixed text "too many devices to list".
-            devices:
-              type: array
-              maxItems: 256
-              description: dm-N devices with an LVM- uuid, lowest numbers first. Omitted mappers end with _tmeta, _tdata, _cmeta, _cdata, _corig, _mlog, _pmspare, or _vorigin, or with _mimage_N, _rimage_N, or _rmeta_N, or are device-mapper snapshot components whose final unescaped component is real or cow. A user LV named real or foo-cow stays listed. The uuid is not returned. Clients match tooling.optional by id; an empty thin_check package leaves the item in place.
-              items:
-                type: object
-                required: [name, mapper]
-                additionalProperties: false
-                properties:
-                  name: { type: string, maxLength: 32, description: dm-N sysfs name, including leading zeros. The LVM uuid is not returned. }
-                  mapper: { type: string, maxLength: 128, description: dm/name when it is a safe mapper label; otherwise empty. }
         kernelDm:
           type: object
           required: [present, reason]
@@ -1443,6 +1423,33 @@ components:
           properties:
             present: { type: boolean }
             reason: { type: string }
+        status:
+          type: object
+          required: [available]
+          description: "pvs, lvs and vgs --readonly --nolocking from the broker op lvm.status (read-only storage helper), decoded like the Storage page's LVM data. Without lvm2 or with the helper stopped, available is false with a reason."
+          properties:
+            available: { type: boolean }
+            reason: { type: string }
+            report:
+              type: object
+              required: [volume_groups, volumes, physical_volumes]
+              properties:
+                volume_groups:
+                  type: array
+                  items:
+                    type: object
+                    required: [uuid, name]
+                    properties:
+                      uuid: { type: string }
+                      name: { type: string }
+                      size_bytes: { type: integer, minimum: 0 }
+                      free_bytes: { type: integer, minimum: 0 }
+                      attributes: { type: string, description: "vg_attr, see vgs(8)" }
+                      pv_count: { type: integer, minimum: 0 }
+                      lv_count: { type: integer, minimum: 0 }
+                      missing_pv_count: { type: integer, minimum: 0 }
+                volumes: { type: array, items: { $ref: '#/components/schemas/StorageLVMVolume' } }
+                physical_volumes: { type: array, items: { $ref: '#/components/schemas/StorageLVMPhysicalVolume' } }
     BtrfsInventory:
       type: object
       required: [tooling, btrfs, kernelBtrfs, status]
@@ -3563,24 +3570,14 @@ paths:
     get:
       summary: Read-only LVM inventory (scope lvm.read).
       description: >
-        Lists bounded sysfs dm-N devices whose dm/uuid starts with LVM- (the uuid
-        itself is not returned). Mapper is dm/name when that label is safe. Required
-        tooling is the lvm binary (package lvm2 on Debian, Fedora, SUSE, and Arch).
-        Optional thin_check names a package only where this checkpoint is sure (SUSE
-        names none) and only when a thin-pool component (_tmeta or _tdata) was
-        observed; otherwise the package is empty. Never executed. dm-N names are
-        sorted numerically before the 256-device cap. Directory reads stop at 8192
-        names. Omitted mappers end with _tmeta, _tdata, _cmeta, _cdata, _corig, _mlog, _pmspare,
-        or _vorigin, or with _mimage_N, _rimage_N, or _rmeta_N, or are snapshot components whose
-        final unescaped component is real or cow. A raw dm/name ending in _tmeta or _tdata still
-        counts as thin when the public label is unsafe. An empty or unreadable name does not.
-        Clients match optional tools by id. A done context stops the walk about every 64 devices
-        and sets devicesTruncated.
+        Required tooling is the lvm binary (package lvm2 on Debian, Fedora, SUSE, and Arch);
+        optional thin_check names a package only where it is known (SUSE names none).
         kernelDm is a read-only /proc/devices probe (last field exactly device-mapper;
-        "not currently listed" covers an unloaded dm_mod; listed is not proof a PV
-        can be created).
-        No pvcreate, vgcreate, lvcreate, or module load exists. Origin and
-        X-CSRF-Token are required; audit records counts only, never mapper names.
+        "not currently listed" covers an unloaded dm_mod). When lvm2 is installed, status
+        carries volume groups, logical volumes and physical volumes from pvs, lvs and vgs
+        --readonly --nolocking (broker op lvm.status, read-only storage helper). No
+        pvcreate, vgcreate, lvcreate, change, remove, or module load exists. Origin and
+        X-CSRF-Token are required; audit records counts only, never names.
       security: [{ session: [] }]
       x-required-scope: lvm.read
       parameters:

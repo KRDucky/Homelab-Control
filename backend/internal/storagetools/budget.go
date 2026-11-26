@@ -21,6 +21,9 @@ const (
 	// MdBudget bounds mdadm --detail over all arrays; an array reached after
 	// it reports an error.
 	MdBudget = 30 * time.Second
+	// LVMBudget: pvs, lvs and vgs in sequence (LVM's own per-command limit is
+	// lvmTimeout in the helper, 10 s).
+	LVMBudget = 3 * HelperCommandTimeout
 	// ProbeBudget bounds a full storage probe (lsblk, smartctl per disk,
 	// pvs/lvs). It stays below the unit's TimeoutStartSec (60 s).
 	ProbeBudget = 50 * time.Second
@@ -35,6 +38,8 @@ func HelperBudget(scope string) time.Duration {
 		return BtrfsBudget
 	case ScopeMd:
 		return MdBudget
+	case ScopeLVM:
+		return LVMBudget
 	}
 	return ProbeBudget
 }
