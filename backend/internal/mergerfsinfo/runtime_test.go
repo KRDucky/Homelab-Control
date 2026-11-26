@@ -98,6 +98,21 @@ func TestCollectUsesMergerfsRuntimeConfig(t *testing.T) {
 	}
 }
 
+// Ubuntu's mergerfs 2.40.2 reports version "unknown"; that is not a version.
+func TestRuntimeDropsUnknownVersion(t *testing.T) {
+	vals := map[string]string{}
+	for k, v := range vmRuntime {
+		vals[k] = v
+	}
+	vals["user.mergerfs.version"] = "unknown"
+	fakeXattrs(t, map[string]map[string]string{"/mnt/s/.mergerfs": vals})
+	pools := []Pool{{Mountpoint: "/mnt/s"}}
+	readRuntimes("/", pools)
+	if pools[0].Runtime == nil || pools[0].Runtime.Version != "" {
+		t.Fatalf("%+v", pools[0].Runtime)
+	}
+}
+
 func TestReadRuntimesUnreadableKeepsMountinfoBranches(t *testing.T) {
 	fakeXattrs(t, nil)
 	pools := []Pool{{Mountpoint: "/mnt/media", Branches: []string{"/mnt/a", "/mnt/b"}, BranchesFrom: "mountinfo"}}

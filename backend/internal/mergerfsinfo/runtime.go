@@ -151,7 +151,7 @@ func readRuntime(ctx context.Context, control string) (*Runtime, string) {
 			return nil, reasonRuntimeInvalid
 		}
 		return &Runtime{
-			Version: clean(r.vals["user.mergerfs.version"]), Branches: branches,
+			Version: knownVersion(r.vals["user.mergerfs.version"]), Branches: branches,
 			CreatePolicy: clean(r.vals["user.mergerfs.category.create"]),
 			ActionPolicy: clean(r.vals["user.mergerfs.category.action"]),
 			SearchPolicy: clean(r.vals["user.mergerfs.category.search"]),
@@ -204,6 +204,15 @@ func hasDotDot(p string) bool {
 		}
 	}
 	return false
+}
+
+// knownVersion drops the "unknown" that distribution builds without git
+// metadata report (Ubuntu's mergerfs 2.40.2 does).
+func knownVersion(v string) string {
+	if v = clean(v); v == "unknown" {
+		return ""
+	}
+	return v
 }
 
 // clean keeps a short printable attribute value.
