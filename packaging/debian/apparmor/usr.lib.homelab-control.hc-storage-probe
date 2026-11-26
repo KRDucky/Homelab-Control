@@ -58,6 +58,11 @@ profile hc-storage-probe /usr/lib/homelab-control/hc-storage-probe flags=(enforc
   # tune2fs resolves devices through libblkid, which reads its cache (VM
   # finding 2026-11-26: denied on Ubuntu 22.04/26.04 and Debian 13). Read only.
   /run/blkid/blkid.tab r,
+  # tune2fs -l names the reserved-blocks uid and gid ("0 (user root)") via
+  # NSS (VM finding 2026-11-26). Local account files only, read only.
+  /etc/nsswitch.conf r,
+  /etc/passwd r,
+  /etc/group r,
   # mdadm --detail: its configuration and the array map it keeps under /run.
   /etc/mdadm/ r,
   /etc/mdadm/** r,
