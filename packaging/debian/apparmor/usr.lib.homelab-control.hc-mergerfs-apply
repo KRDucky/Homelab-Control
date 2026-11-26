@@ -79,6 +79,10 @@ profile hc-mergerfs-apply /usr/lib/homelab-control/hc-mergerfs-apply flags=(enfo
   /sys/fs/cgroup/** rw,
 
   /run/systemd/private rw,
+  # The accepted connection on the helper's own socket. Ubuntu's kernels
+  # mediate shutdown(2) on a path-bound socket as a write to that path; the
+  # helper shuts the connection down to end its reply during a long run.
+  /run/homelab-control/mergerfs-apply.sock rw,
   /run/systemd/journal/socket w,
   /usr/lib/systemd/system/ r,
   /usr/lib/systemd/system/** r,

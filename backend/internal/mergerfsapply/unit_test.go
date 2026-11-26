@@ -75,6 +75,7 @@ func TestApplyUnitIsOptIn(t *testing.T) {
 		"/dev/disk/by-uuid/* r,",
 		"/var/snapraid/** rwlk,",
 		"/mnt/** rwlk,",
+		"/run/homelab-control/mergerfs-apply.sock rw,",
 	} {
 		if !hasLine(p, want) {
 			t.Errorf("profile missing rule %s", want)
