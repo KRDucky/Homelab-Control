@@ -10,93 +10,94 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"regexp"
+	"strconv"
 	"strings"
+	"syscall"
 	"unicode/utf8"
 
 	"homelab-control/backend/internal/broker/proto"
-	"homelab-control/backend/internal/broker/runner"
 	. "homelab-control/backend/internal/broker/types"
+	"homelab-control/backend/internal/mergerfsapply"
 )
 
-// mergerfs.snapraid.status runs argv exactly "status". snapraid then reads
-// its compiled default configuration (/etc/snapraid.conf). Callers cannot
-// pass a path, --conf, or any other flag. The op does not run sync, diff,
-// fix, scrub, or smart, and it does not return content-file paths or the
-// scrub graph.
+// mergerfs.snapraid.status asks the opt-in root helper (hc-mergerfs-apply)
+// for `snapraid status`, argv exactly "status", so snapraid reads its
+// default configuration (/etc/snapraid.conf). It runs in the helper, not here,
+// because SnapRAID takes its lock file next to the first content file for
+// status as well (cmdline/snapraid.c: only devices, smart and probe skip the
+// lock) and content files are root-only; this broker is read-only and runs
+// programs as the service user. Callers cannot pass a path, --conf, or any
+// other flag. The op does not run sync, diff, fix, scrub, or smart, and it
+// returns no content-file path and no scrub graph.
 
 const (
-	snapraidStatusMaxLines = 12
+	snapraidStatusMaxLines = 16
+	snapraidStatusMaxDisks = 64
 	snapraidStatusMaxRunes = 200
-	snapraidStatusNote     = "This summary refers to the latest sync. Later modifications are not counted. The scrub graph is omitted. Content files are not read."
+	snapraidStatusNote     = "This report is read from SnapRAID's content file and refers to the latest sync. Changes since then are not counted. The scrub graph and file paths are omitted."
+	snapraidLockedLine     = "Another SnapRAID command (sync, scrub or fix) holds the array lock, so status could not be read now."
 )
-
-// snapraidStatusArgv is the only argument list this op may pass.
-// TestSnapraidStatusArgvIsClosed pins it.
-var snapraidStatusArgv = []string{"status"}
 
 func snapraidStatus(ctx context.Context, env *Env, raw json.RawMessage) (any, error) {
 	if err := requireNoArgs(raw); err != nil {
 		return nil, err
 	}
-	stdout, stderr, exitCode, err := snapraidStatusRun(ctx, env)
+	stdout, exitCode, err := snapraidStatusRun(ctx, env)
 	if err != nil {
 		return nil, err
 	}
-	out := ParseSnapraidStatus(stdout, exitCode)
-	if exitCode != 0 && len(out.Summary) == 0 {
-		msg := clipSnapraidLine(stderr)
-		if msg != "" && !strings.Contains(msg, "/") && !strings.Contains(msg, "\\") {
-			out.Summary = []string{msg}
-		}
-	}
-	return out, nil
+	return ParseSnapraidStatus(stdout, exitCode), nil
 }
 
-func snapraidStatusRun(ctx context.Context, env *Env) ([]byte, string, int, error) {
+func snapraidStatusRun(ctx context.Context, env *Env) ([]byte, int, error) {
 	if env.SnapraidStatus != nil {
-		stdout, stderr, exitCode, err := env.SnapraidStatus(ctx)
+		stdout, exitCode, err := env.SnapraidStatus(ctx)
 		if err != nil {
 			var pe *proto.Error
 			if errors.As(err, &pe) {
-				return nil, "", 0, err
+				return nil, 0, err
 			}
-			return nil, "", 0, snapraidRunErr(err)
+			return nil, 0, snapraidRunErr(err)
 		}
-		return stdout, stderr, exitCode, nil
+		return stdout, exitCode, nil
 	}
-	if env.Runner == nil || !env.Runner.Available("snapraid") {
-		return nil, "", 0, &proto.Error{Code: proto.CodeUnavailable, Message: "snapraid is not installed"}
-	}
-	res, err := env.Runner.Run(ctx, "snapraid", snapraidStatusArgv...)
+	res, err := env.callMergerFS(ctx, mergerfsapply.Request{Version: mergerfsapply.ProtocolVersion, Action: mergerfsapply.ActionStatus})
 	if err != nil {
-		return nil, "", 0, snapraidRunErr(err)
+		return nil, 0, snapraidRunErr(err)
 	}
-	return res.Stdout, res.Stderr, res.ExitCode, nil
+	if res.Output == "" && !res.OK {
+		return nil, 0, &proto.Error{Code: proto.CodeInternal, Message: "snapraid status could not be run by the helper"}
+	}
+	return []byte(res.Output), res.ExitCode, nil
 }
 
 func snapraidRunErr(err error) error {
 	switch {
-	case errors.Is(err, runner.ErrTimeout):
-		return &proto.Error{Code: proto.CodeTimeout, Message: "snapraid did not answer in time"}
-	case errors.Is(err, runner.ErrTooLarge):
-		return &proto.Error{Code: proto.CodeInternal, Message: "snapraid output exceeded the size limit"}
+	case errors.Is(err, context.DeadlineExceeded):
+		return &proto.Error{Code: proto.CodeTimeout, Message: "snapraid status did not answer in time"}
+	case errors.Is(err, syscall.ENOENT), errors.Is(err, syscall.ECONNREFUSED):
+		return &proto.Error{Code: proto.CodeUnavailable, Message: "the MergerFS helper is not enabled, so SnapRAID status cannot be read"}
 	default:
-		msg := "snapraid could not be run"
-		var ex *runner.ExecError
-		if errors.As(err, &ex) && ex.Class != "" {
-			msg += " (" + ex.Class + ")"
-		}
-		return &proto.Error{Code: proto.CodeInternal, Message: msg}
+		return &proto.Error{Code: proto.CodeInternal, Message: "the MergerFS helper did not return SnapRAID status"}
 	}
 }
 
-// ParseSnapraidStatus keeps recognised prose lines from `snapraid status`.
-// The per-disk table, the bar graph, and any other line (including file
-// paths) are dropped. At most 12 lines are returned, each at most 200 runes.
+// snapraidDiskRow is one row of the status table (cmdline/status.c): files,
+// fragmented files, excess fragments, wasted GB ("-" when unknown), used GB,
+// free GB and use% ("-" before the first sync), and the disk name. The totals
+// row has no name and does not match.
+var snapraidDiskRow = regexp.MustCompile(`^\s*(\d+)\s+(\d+)\s+(\d+)\s+(-|-?\d+\.\d)\s+(\d+)\s+(-|\d+)\s+(-|\d+%)\s+([^\s/\\:]+)$`)
+
+// ParseSnapraidStatus keeps the per-disk table and SnapRAID's summary
+// sentences (cmdline/status.c) from `snapraid status`. The bar graph and any
+// other line (including file paths) are dropped. At most 16 summary lines and
+// 64 disks are returned, each line at most 200 runes.
 func ParseSnapraidStatus(stdout []byte, exitCode int) SnapraidStatus {
 	out := SnapraidStatus{
 		ExitCode: exitCode,
 		Summary:  []string{},
+		Disks:    []SnapraidDisk{},
 		Note:     snapraidStatusNote,
 		Source:   "snapraid status (default configuration; no --conf)",
 	}
@@ -104,10 +105,25 @@ func ParseSnapraidStatus(stdout []byte, exitCode int) SnapraidStatus {
 	sc.Buffer(make([]byte, 64<<10), 1<<20)
 	for sc.Scan() {
 		line := strings.TrimSpace(sc.Text())
-		if line == "" || snapraidGraph(line) {
+		if line == "" {
+			continue
+		}
+		if m := snapraidDiskRow.FindStringSubmatch(line); m != nil {
+			if len(out.Disks) >= snapraidStatusMaxDisks {
+				out.Truncated = true
+				continue
+			}
+			out.Disks = append(out.Disks, snapraidDisk(m))
+			continue
+		}
+		if snapraidGraph(line) {
 			continue
 		}
 		keep, syncing, scrub := snapraidStatusPhrase(line)
+		if strings.Contains(line, "is already in use") {
+			out.Locked = true
+			line, keep = snapraidLockedLine, true
+		}
 		if !keep {
 			continue
 		}
@@ -133,21 +149,41 @@ func ParseSnapraidStatus(stdout []byte, exitCode int) SnapraidStatus {
 	return out
 }
 
+func snapraidDisk(m []string) SnapraidDisk {
+	u := func(s string) uint64 { n, _ := strconv.ParseUint(s, 10, 64); return n }
+	d := SnapraidDisk{Name: m[8], Files: u(m[1]), Fragmented: u(m[2]), ExcessFragments: u(m[3]), UsedGB: u(m[5])}
+	if m[4] != "-" {
+		if f, err := strconv.ParseFloat(m[4], 64); err == nil {
+			d.WastedGB = &f
+		}
+	}
+	if m[6] != "-" {
+		n := u(m[6])
+		d.FreeGB = &n
+	}
+	if m[7] != "-" {
+		n := u(strings.TrimSuffix(m[7], "%"))
+		d.UsePercent = &n
+	}
+	return d
+}
+
+// snapraidStatusPhrase recognises the sentences cmdline/status.c prints.
 func snapraidStatusPhrase(line string) (keep, syncing, scrub bool) {
 	switch {
-	case strings.Contains(line, "No sync is in progress"):
-		return true, false, false
-	case strings.Contains(line, "sync is in progress") || strings.HasPrefix(line, "Syncing"):
+	case strings.HasPrefix(line, "You have a sync in progress"):
 		return true, true, false
-	case strings.Contains(line, "No error"):
-		return true, false, false
-	case strings.HasPrefix(line, "WARNING") || strings.HasPrefix(line, "DANGER") || strings.HasPrefix(line, "FATAL"):
-		return true, false, false
-	case strings.Contains(line, "oldest block was scrubbed"):
+	case strings.HasPrefix(line, "The oldest block was scrubbed"):
 		return true, false, true
-	case strings.Contains(line, "silent error"):
-		return true, false, false
-	case strings.Contains(line, "Nothing to do"):
+	case strings.HasPrefix(line, "WARNING!"), strings.HasPrefix(line, "DANGER!"),
+		strings.HasPrefix(line, "No sync is in progress"),
+		strings.HasPrefix(line, "The array is empty"),
+		strings.HasSuffix(line, "of the array is not scrubbed."),
+		strings.HasPrefix(line, "The full array was scrubbed"),
+		strings.HasPrefix(line, "No error detected"),
+		strings.HasPrefix(line, "You have a rehash in progress"),
+		strings.HasPrefix(line, "No rehash is in progress"),
+		strings.HasPrefix(line, "To fix them use the command"):
 		return true, false, false
 	default:
 		return false, false, false

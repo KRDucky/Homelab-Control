@@ -539,3 +539,22 @@ table (no caller argument):
   reads the kernel ABI files `/sys/fs/f2fs/<disk>/` (sysfs-fs-f2fs) unprivileged.
 - **Known limit:** ProtectHome=yes removes /home, /root and /run/user sub-mounts from the helper's namespace.
   An ext4 or XFS mounted only there is not inspected, and the page names it.
+
+## Amendment 18 (2026-11-26, M8): SnapRAID status through the MergerFS helper
+
+`mergerfs.snapraid.status` ran `snapraid status` in the broker as the service user. On a real array that
+never works: SnapRAID takes its array lock (`<first content file>.lock`) for status too (cmdline/snapraid.c:
+only `devices`, `smart` and `probe` skip it), the broker's `ProtectSystem=strict` makes that a read-only
+file system, and content files are root `0600`. A disposable Ubuntu 26.04 guest (snapraid 13.0) showed
+"Failed to create the lock file ... Read-only file system".
+
+- **Change:** the op sends the closed request `{"action":"status"}` to the opt-in root helper
+  `hc-mergerfs-apply`, which runs exactly `snapraid status` and returns its text (48 KiB cap). The broker
+  keeps the per-disk table and SnapRAID's summary sentences and redacts paths. Privilege `root-read`,
+  timeout 60 s (client 75 s). Without the helper the op answers "unavailable".
+- **Allow-list:** `snapraid` leaves the broker runner's allow-list; only the helper runs it.
+- **Helper:** `status` takes no field. The plan/apply ops refuse it. The lock is SnapRAID's own, so a
+  status read during a sync, scrub or fix reports `locked` instead of waiting.
+- **AppArmor:** `/var/snapraid.content* rwlk` for SnapRAID's example content path.
+- **Persist:** the array definition is no longer saved over a `snapraid.conf` that the helper did not
+  write (first line is the managed header); nothing, including fstab, is written then.

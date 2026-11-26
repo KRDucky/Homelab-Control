@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"regexp"
-	"strconv"
 	"strings"
 	"syscall"
 )
@@ -20,9 +18,6 @@ const DefaultSnapRAIDPath = "/etc/snapraid.conf"
 
 // snapraidMaxBytes caps a single snapraid.conf (it is parsed whole).
 const snapraidMaxBytes = 256 << 10
-
-// snapraidNameRE is the SnapRAID data-disk name grammar.
-var snapraidNameRE = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,32}$`)
 
 // SnapRAID is the optional SnapRAID half of the response. Absence of a
 // config is normal (SnapRAID is optional), not an error.
@@ -67,11 +62,15 @@ func ReadSnapRAID(path string) SnapRAID {
 	return out
 }
 
-// ParseSnapRAIDConfig parses the recognised subset of snapraid.conf: data
-// (`data NAME PATH` with NAME [A-Za-z0-9_.-]{1,32}), parity/2-parity/…
-// (comma-separated absolute paths), and content (one absolute path). Comments
-// and blank lines are skipped; unknown keys are ignored. Trailing garbage, a
-// missing value, a non-absolute path, or a bad name is an error.
+// ParseSnapRAIDConfig parses the part of snapraid.conf this page shows, with
+// SnapRAID's own grammar (cmdline/state.c, state_config): the keyword is the
+// first token and the value is the rest of the line, so paths may contain
+// spaces. "data NAME DIR" (and its deprecated alias "disk") names a data disk;
+// a parity level ("parity", "1-parity" … "6-parity", and the aliases
+// "q-parity", "r-parity", "z-parity") lists comma-separated split parity
+// files; "content" is one file. Comments and blank lines are skipped; other
+// keywords are ignored. A missing value, a non-absolute path, or a disk name
+// SnapRAID would refuse is an error.
 func ParseSnapRAIDConfig(text string) (SnapRAID, error) {
 	out := SnapRAID{Data: []string{}, Parity: []string{}, Content: []string{}}
 	for i, line := range strings.Split(text, "\n") {
@@ -79,57 +78,50 @@ func ParseSnapRAIDConfig(text string) (SnapRAID, error) {
 		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
 			continue
 		}
-		fields := strings.Fields(line)
-		if len(fields) == 0 {
-			continue
+		key, value, _ := strings.Cut(line, " ")
+		if k, v, ok := strings.Cut(line, "\t"); ok && len(k) < len(key) {
+			key, value = k, v
 		}
-		key := fields[0]
+		value = strings.TrimSpace(value)
 		switch {
-		case key == "data":
-			if len(fields) != 3 {
-				return SnapRAID{}, fmt.Errorf("line %d: data requires a name and one absolute path", i+1)
+		case key == "data" || key == "disk":
+			name, dir, _ := strings.Cut(value, " ")
+			if n, d, ok := strings.Cut(value, "\t"); ok && len(n) < len(name) {
+				name, dir = n, d
 			}
-			if !snapraidNameRE.MatchString(fields[1]) {
+			dir = strings.TrimSpace(dir)
+			if name == "" || strings.ContainsAny(name, "/\\:") || isParityKey(name) {
 				return SnapRAID{}, fmt.Errorf("line %d: invalid data name", i+1)
 			}
-			if !strings.HasPrefix(fields[2], "/") {
+			if !strings.HasPrefix(dir, "/") {
 				return SnapRAID{}, fmt.Errorf("line %d: data path must be absolute", i+1)
 			}
-			out.Data = append(out.Data, fields[2])
+			out.Data = append(out.Data, dir)
 		case key == "content":
-			if len(fields) != 2 {
-				return SnapRAID{}, fmt.Errorf("line %d: content requires one absolute path", i+1)
-			}
-			if !strings.HasPrefix(fields[1], "/") {
+			if !strings.HasPrefix(value, "/") {
 				return SnapRAID{}, fmt.Errorf("line %d: content path must be absolute", i+1)
 			}
-			out.Content = append(out.Content, fields[1])
-		case key == "parity" || isParityKey(key):
-			if len(fields) != 2 {
-				return SnapRAID{}, fmt.Errorf("line %d: %s requires an absolute path list", i+1, key)
-			}
-			for _, part := range strings.Split(fields[1], ",") {
+			out.Content = append(out.Content, value)
+		case isParityKey(key):
+			for _, part := range strings.Split(value, ",") {
+				part = strings.Trim(part, " \t\r\n")
 				if !strings.HasPrefix(part, "/") {
 					return SnapRAID{}, fmt.Errorf("line %d: %s path must be absolute", i+1, key)
 				}
 				out.Parity = append(out.Parity, part)
 			}
 		}
-		// Unknown keys are ignored; includes are never followed.
+		// Other keywords are ignored; includes are never followed.
 	}
 	return out, nil
 }
 
-// isParityKey reports whether key is parity or N-parity (2-parity, 3-parity,
-// ...). It never accepts a bare numeric prefix without "-parity".
+// isParityKey reports whether key names a SnapRAID parity level
+// (cmdline/state.c, lev_config_scan).
 func isParityKey(key string) bool {
-	if key == "parity" {
+	switch key {
+	case "parity", "1-parity", "q-parity", "2-parity", "r-parity", "3-parity", "z-parity", "4-parity", "5-parity", "6-parity":
 		return true
 	}
-	before, after, ok := strings.Cut(key, "-")
-	if !ok || after != "parity" {
-		return false
-	}
-	n, err := strconv.Atoi(before)
-	return err == nil && n >= 2
+	return false
 }

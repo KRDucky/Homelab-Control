@@ -255,14 +255,40 @@ func TestParseSnapRAIDConfigRejectsGarbage(t *testing.T) {
 	for _, bad := range []string{
 		"data d1\n",                  // missing path
 		"data d1 relative/path\n",    // non-absolute path
-		"data d1 /mnt/disk1 extra\n", // trailing garbage
-		"data bad/name /mnt/disk1\n", // invalid name charset
+		"data bad/name /mnt/disk1\n", // SnapRAID refuses / in a name
+		"data parity /mnt/disk1\n",   // a parity keyword is not a name
 		"parity relative\n",          // non-absolute
-		"parity /mnt/p1 extra\n",     // trailing garbage
+		"parity /mnt/p1, rel\n",      // non-absolute split part
+		"content\n",                  // missing path
 	} {
 		if _, err := ParseSnapRAIDConfig(bad); err == nil {
 			t.Fatalf("accepted %q", bad)
 		}
+	}
+}
+
+// SnapRAID reads a disk, parity or content path as the rest of the line
+// (sgetlasttok), still accepts the deprecated "disk" keyword, and has parity
+// aliases q-, r- and z-parity. A config using any of these is valid SnapRAID
+// and must not be shown as invalid or lose disks.
+func TestParseSnapRAIDConfigFollowsSnapRAIDGrammar(t *testing.T) {
+	cfg := "disk d1 /mnt/disk one\n" +
+		"data\td2\t/mnt/disk2\n" +
+		"parity /mnt/parity1/snapraid.parity\n" +
+		"q-parity /mnt/p2/a.parity, /mnt/p3/b.parity\n" +
+		"z-parity /mnt/p4/z.parity\n" +
+		"1-parity /mnt/p5/one.parity\n" +
+		"content /var/snapraid/my content\n"
+	out, err := ParseSnapRAIDConfig(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantData := []string{"/mnt/disk one", "/mnt/disk2"}
+	wantParity := []string{"/mnt/parity1/snapraid.parity", "/mnt/p2/a.parity", "/mnt/p3/b.parity", "/mnt/p4/z.parity", "/mnt/p5/one.parity"}
+	if strings.Join(out.Data, "|") != strings.Join(wantData, "|") ||
+		strings.Join(out.Parity, "|") != strings.Join(wantParity, "|") ||
+		len(out.Content) != 1 || out.Content[0] != "/var/snapraid/my content" {
+		t.Fatalf("%+v", out)
 	}
 }
 

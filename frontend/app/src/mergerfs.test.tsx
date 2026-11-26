@@ -586,9 +586,21 @@ describe('MergerFS read-only page', () => {
     vi.mocked(getSnapraidStatus).mockResolvedValue({
       exitCode: 0,
       syncInProgress: false,
+      disks: [
+        {
+          name: 'd1',
+          files: 1,
+          fragmentedFiles: 0,
+          excessFragments: 0,
+          wastedGB: -24.7,
+          usedGB: 0,
+          freeGB: 2,
+          usePercent: 0,
+        },
+      ],
       summary: ['No sync is in progress.', 'No error detected.'],
       scrubAge: 'The oldest block was scrubbed 3 days ago, the median 1, the newest 0.',
-      note: 'This summary refers to the latest sync. Later modifications are not counted.',
+      note: "This report is read from SnapRAID's content file and refers to the latest sync. Later modifications are not counted.",
       source: 'snapraid status',
     });
     render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
@@ -597,9 +609,37 @@ describe('MergerFS read-only page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Read SnapRAID status' }));
     expect(await screen.findByText('No sync is in progress.')).toBeTruthy();
     expect(screen.getByText(/Later modifications are not counted/)).toBeTruthy();
+    expect(screen.getByRole('rowheader', { name: 'd1' })).toBeTruthy();
+    expect(screen.getByRole('cell', { name: '2' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Sync' })).toBeNull();
     expect(vi.mocked(getSnapraidStatus)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(getSnapraidStatus)).toHaveBeenCalledWith(csrf);
+  });
+
+  it('says when another SnapRAID command holds the array lock', async () => {
+    vi.mocked(getMergerFS).mockResolvedValue(
+      inventory({
+        mergerfsInstalled: true,
+        snapraidInstalled: true,
+        mergerfsPresent: true,
+        snapraidPresent: true,
+      }),
+    );
+    vi.mocked(getSnapraidStatus).mockResolvedValue({
+      exitCode: 1,
+      syncInProgress: false,
+      locked: true,
+      disks: [],
+      summary: [],
+      note: 'n',
+      source: 'snapraid status',
+    });
+    render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
+    await screen.findByText('/mnt/media');
+    fireEvent.click(screen.getByRole('button', { name: 'Read SnapRAID status' }));
+    expect(
+      await screen.findByText(/Another SnapRAID command \(sync, scrub or fix\) is running/),
+    ).toBeTruthy();
   });
 
   it('hides SnapRAID status when no config is present', async () => {

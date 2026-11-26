@@ -127,13 +127,29 @@ type SourceList struct {
 // The per-disk table and the scrub/sync graph are omitted. Content files
 // are not returned. The summary refers to the latest sync.
 type SnapraidStatus struct {
-	ExitCode       int      `json:"exitCode"`
-	SyncInProgress bool     `json:"syncInProgress"`
-	Summary        []string `json:"summary"`
-	ScrubAge       string   `json:"scrubAge,omitempty"`
-	Truncated      bool     `json:"truncated,omitempty"`
-	Note           string   `json:"note"`
-	Source         string   `json:"source"`
+	ExitCode       int  `json:"exitCode"`
+	SyncInProgress bool `json:"syncInProgress"`
+	// Locked: another SnapRAID command held the array lock, so nothing was read.
+	Locked    bool           `json:"locked,omitempty"`
+	Disks     []SnapraidDisk `json:"disks"`
+	Summary   []string       `json:"summary"`
+	ScrubAge  string         `json:"scrubAge,omitempty"`
+	Truncated bool           `json:"truncated,omitempty"`
+	Note      string         `json:"note"`
+	Source    string         `json:"source"`
+}
+
+// SnapraidDisk is one data disk row of `snapraid status`. Sizes are whole GB
+// as SnapRAID prints them; a nil value is "-" (unknown before the first sync).
+type SnapraidDisk struct {
+	Name            string   `json:"name"`
+	Files           uint64   `json:"files"`
+	Fragmented      uint64   `json:"fragmentedFiles"`
+	ExcessFragments uint64   `json:"excessFragments"`
+	WastedGB        *float64 `json:"wastedGB,omitempty"`
+	UsedGB          uint64   `json:"usedGB"`
+	FreeGB          *uint64  `json:"freeGB,omitempty"`
+	UsePercent      *uint64  `json:"usePercent,omitempty"`
 }
 
 // LogsUnitRE is the unit-name grammar accepted by services.unit.logs: no

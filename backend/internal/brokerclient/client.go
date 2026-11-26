@@ -40,10 +40,11 @@ var opTimeouts = map[string]time.Duration{
 	"host.settings.apply": 75 * time.Second,
 	// Read-only ops with a 15 s broker timeout (equal deadlines could cut off
 	// the broker's own timeout answer).
-	"services.timers.list":     20 * time.Second,
-	"services.sockets.list":    20 * time.Second,
-	"services.unit.logs":       20 * time.Second,
-	"mergerfs.snapraid.status": 20 * time.Second,
+	"services.timers.list":  20 * time.Second,
+	"services.sockets.list": 20 * time.Second,
+	"services.unit.logs":    20 * time.Second,
+	// SnapRAID status loads the content file in the helper (broker budget 60s).
+	"mergerfs.snapraid.status": 75 * time.Second,
 	// Pool and maintain applies wait on the helper (broker budget 90s).
 	"mergerfs.pool.apply":     110 * time.Second,
 	"mergerfs.maintain.apply": 110 * time.Second,

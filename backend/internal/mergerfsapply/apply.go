@@ -24,6 +24,10 @@ const (
 	ActionSync    = "sync"
 	ActionScrub   = "scrub"
 	ActionFix     = "fix"
+	// ActionStatus is read-only: snapraid status. It is here, in the root
+	// helper, because SnapRAID takes its lock file (next to the first content
+	// file) for status too, and content files are root-only.
+	ActionStatus = "status"
 
 	MergerFSBin = "/usr/bin/mergerfs"
 	SnapRAIDBin = "/usr/bin/snapraid"
@@ -34,6 +38,9 @@ const (
 	maxParity   = 6
 	maxContent  = 6
 	maxFiles    = 8
+
+	// MaxStatusOutput caps the status text the helper returns.
+	MaxStatusOutput = 48 << 10
 )
 
 // Request is the closed helper request. Clients do not choose the binary,
@@ -59,6 +66,9 @@ type Result struct {
 	ExitCode int    `json:"exitCode"`
 	Summary  string `json:"summary"`
 	Blocked  string `json:"blocked,omitempty"`
+	// Output is set only for ActionStatus: snapraid's own text, which can name
+	// paths. The broker keeps recognised lines and redacts paths.
+	Output string `json:"output,omitempty"`
 }
 
 // Spec is a request that passed Validate.
@@ -107,6 +117,11 @@ func Validate(req Request) (Spec, error) {
 			return Spec{}, errors.New("scrub percent must be from 1 to 100")
 		}
 		return Spec{Action: ActionScrub, ScrubPercent: req.ScrubPercent}, nil
+	case ActionStatus:
+		if extra(req, false) || len(req.Files) != 0 || req.ScrubPercent != 0 {
+			return Spec{}, errors.New("status takes no argument")
+		}
+		return Spec{Action: ActionStatus}, nil
 	case ActionFix:
 		if req.Mountpoint != "" || len(req.Branches) != 0 || req.Policy != "" || req.MinFree != "" || len(req.Parity) != 0 || len(req.Content) != 0 || req.ScrubPercent != 0 {
 			return Spec{}, errors.New("recovery takes only relative file paths")
@@ -277,6 +292,8 @@ func (s Spec) Argv() ([]string, error) {
 		return []string{MergerFSBin, "-o", opt, strings.Join(s.Branches, ":"), s.Mountpoint}, nil
 	case ActionSync:
 		return []string{SnapRAIDBin, "sync"}, nil
+	case ActionStatus:
+		return []string{SnapRAIDBin, "status"}, nil
 	case ActionScrub:
 		if s.ScrubPercent == 0 {
 			return []string{SnapRAIDBin, "scrub"}, nil
@@ -333,6 +350,7 @@ func (s Spec) Consequences() []string {
 	case ActionPersist:
 		return append(common,
 			"The previous fstab and snapraid.conf are copied to fixed backup names first.",
+			"An existing snapraid.conf that Homelab Control did not write is not replaced, and nothing is saved.",
 			"An fstab line for this mountpoint that is not fuse.mergerfs is refused.",
 			"Parity is not placed on a branch. Content files are not placed on the pool or on parity.",
 		)

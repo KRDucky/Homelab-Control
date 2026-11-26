@@ -321,8 +321,9 @@ function SnapraidStatusPanel({ csrf }: { csrf: string }) {
         </button>
       </p>
       <p>
-        This reads <code>snapraid status</code> only, after you press the button. The summary refers to the
-        latest sync. Later writes are not counted. The scrub graph is not shown.
+        This runs <code>snapraid status</code> only, after you press the button. SnapRAID reads its content
+        file, so the report describes the latest sync; later writes are not counted. The scrub graph is not
+        shown.
       </p>
       {error && (
         <p className="banner" role="alert">
@@ -332,7 +333,43 @@ function SnapraidStatusPanel({ csrf }: { csrf: string }) {
       {status && (
         <div>
           <p>{status.note}</p>
+          {status.locked && (
+            <p className="banner" role="status">
+              Another SnapRAID command (sync, scrub or fix) is running, so status could not be read now.
+            </p>
+          )}
           {status.syncInProgress && <p role="status">A sync is in progress.</p>}
+          {status.disks.length > 0 && (
+            <table>
+              <caption>Data disks, as printed by snapraid status</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Disk</th>
+                  <th scope="col">Files</th>
+                  <th scope="col">Fragmented files</th>
+                  <th scope="col">Excess fragments</th>
+                  <th scope="col">Used (GB)</th>
+                  <th scope="col">Free (GB)</th>
+                  <th scope="col">Use</th>
+                </tr>
+              </thead>
+              <tbody>
+                {status.disks.map((d) => (
+                  <tr key={d.name}>
+                    <th scope="row">
+                      <code>{d.name}</code>
+                    </th>
+                    <td>{d.files}</td>
+                    <td>{d.fragmentedFiles}</td>
+                    <td>{d.excessFragments}</td>
+                    <td>{d.usedGB}</td>
+                    <td>{d.freeGB ?? 'After the first sync'}</td>
+                    <td>{d.usePercent === undefined ? '–' : `${d.usePercent}%`}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
           {status.summary.length > 0 && (
             <ul>
               {status.summary.map((line, i) => (

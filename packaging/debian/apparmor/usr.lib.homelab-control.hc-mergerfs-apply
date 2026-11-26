@@ -60,6 +60,9 @@ profile hc-mergerfs-apply /usr/lib/homelab-control/hc-mergerfs-apply flags=(enfo
   /mnt/** rwlk,
   /var/snapraid/ rwl,
   /var/snapraid/** rwlk,
+  # SnapRAID's example configuration keeps a content file (and its .lock and
+  # .tmp) at /var/snapraid.content; sync and status lock it.
+  /var/snapraid.content* rwlk,
 
   # SnapRAID matches a data disk to its filesystem UUID by reading this
   # directory. The links stay read-only.

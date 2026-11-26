@@ -73,7 +73,7 @@ func TestRegistryIsClosed(t *testing.T) {
 		"packages.mirrors.inventory": {PrivNone, "packages.read", ""},
 		"packages.mirror.plan":       {PrivNone, "packages.configure", "plan"},
 		"packages.mirror.apply":      {PrivNone, "packages.configure", "apply"},
-		"mergerfs.snapraid.status":   {PrivUnprivilegedExec, "mergerfs.read", ""},
+		"mergerfs.snapraid.status":   {PrivRootRead, "mergerfs.read", ""},
 		"mergerfs.pool.plan":         {PrivNone, "mergerfs.configure", "plan"},
 		"mergerfs.pool.apply":        {PrivRootRead, "mergerfs.configure", "apply"},
 		"mergerfs.maintain.plan":     {PrivNone, "mergerfs.maintain", "plan"},

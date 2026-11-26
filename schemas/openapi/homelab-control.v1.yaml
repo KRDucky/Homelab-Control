@@ -3572,16 +3572,19 @@ paths:
     get:
       summary: Read snapraid status (scope mergerfs.read).
       description: >
-        Calls the closed broker operation mergerfs.snapraid.status. The argv is
-        exactly "status", so snapraid uses its default configuration. The client
-        cannot pass a path, --conf, or any other argument. The response keeps
-        recognised summary lines (sync in progress, no error, warning, danger,
-        scrub age) and drops the per-disk table, the scrub graph, and file paths.
-        A non-zero exit is returned with the parsed summary. This does not run
-        sync, diff, fix, scrub, or smart, and it does not open content files.
-        The summary refers to the latest sync; later modifications are not counted.
-        Origin and X-CSRF-Token are required. Audit records the exit code and
-        line count, never the summary text.
+        Calls the closed broker operation mergerfs.snapraid.status, which asks the
+        opt-in root helper hc-mergerfs-apply for "snapraid status" (SnapRAID takes
+        its array lock for status and content files are root-only, so the
+        read-only broker cannot run it). The argv is exactly "status", so snapraid
+        uses its default configuration. The client cannot pass a path, --conf, or
+        any other argument. The response has the per-disk table and SnapRAID's
+        summary sentences (sync in progress, scrub age, errors, warnings); the
+        scrub graph and file paths are dropped. SnapRAID reads its content file
+        for this report, so it describes the latest sync; later modifications
+        are not counted. locked is true when another SnapRAID command held the
+        array lock. A non-zero exit is returned with the parsed report. This does
+        not run sync, diff, fix, scrub, or smart. Origin and X-CSRF-Token are
+        required. Audit records the exit code and line count, never the text.
       security: [{ session: [] }]
       x-required-scope: mergerfs.read
       parameters:
@@ -3589,23 +3592,40 @@ paths:
         - { name: X-CSRF-Token, in: header, required: true, schema: { type: string }, description: Session CSRF token from /auth/session }
       responses:
         '200':
-          description: Parsed snapraid status summary.
+          description: Parsed snapraid status.
           content:
             application/json:
               schema:
                 type: object
-                required: [exitCode, syncInProgress, summary, note, source]
+                required: [exitCode, syncInProgress, disks, summary, note, source]
                 properties:
                   exitCode: { type: integer }
                   syncInProgress: { type: boolean }
-                  summary: { type: array, maxItems: 12, items: { type: string } }
+                  locked: { type: boolean, description: Another SnapRAID command held the array lock; nothing was read. }
+                  disks:
+                    type: array
+                    maxItems: 64
+                    items:
+                      type: object
+                      required: [name, files, fragmentedFiles, excessFragments, usedGB]
+                      description: One data disk row of snapraid status. Sizes are whole GB as SnapRAID prints them; an absent value is "-" (unknown before the first sync).
+                      properties:
+                        name: { type: string }
+                        files: { type: integer, minimum: 0 }
+                        fragmentedFiles: { type: integer, minimum: 0 }
+                        excessFragments: { type: integer, minimum: 0 }
+                        wastedGB: { type: number }
+                        usedGB: { type: integer, minimum: 0 }
+                        freeGB: { type: integer, minimum: 0 }
+                        usePercent: { type: integer, minimum: 0 }
+                  summary: { type: array, maxItems: 16, items: { type: string } }
                   scrubAge: { type: string }
                   truncated: { type: boolean }
                   note: { type: string }
                   source: { type: string }
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: Missing mergerfs.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
-        '503': { description: Broker down, snapraid missing, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Broker down, MergerFS helper not enabled, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '504': { description: snapraid status timed out, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /mergerfs/pool/plan:
     post:

@@ -71,6 +71,22 @@ func MergeFstab(existing, line, mountpoint string) (string, error) {
 	return out, nil
 }
 
+// SnapraidManagedHeader is the first line of every snapraid.conf this helper
+// writes. A file without it was written by someone else and is not replaced.
+const SnapraidManagedHeader = "# Written by Homelab Control (MergerFS array definition). Saving the array definition again replaces this file."
+
+// SnapraidReplaceable reports whether persist may replace the existing
+// snapraid.conf: it is absent or empty, or this helper wrote it. A hand-written
+// file can carry other disks, disk names SnapRAID's content file is keyed on,
+// exclude rules and settings, so it is never rewritten.
+func SnapraidReplaceable(existing []byte) bool {
+	if strings.TrimSpace(string(existing)) == "" {
+		return true
+	}
+	first, _, _ := strings.Cut(string(existing), "\n")
+	return strings.TrimRight(first, "\r") == SnapraidManagedHeader
+}
+
 // SnapraidConf is a complete snapraid.conf. Data names are d1, d2, ...
 // Includes are not written and not followed.
 func (s Spec) SnapraidConf() (string, error) {
@@ -78,6 +94,7 @@ func (s Spec) SnapraidConf() (string, error) {
 		return "", fmt.Errorf("snapraid.conf requires parity and two content files")
 	}
 	var b strings.Builder
+	b.WriteString(SnapraidManagedHeader + "\n")
 	for i, p := range s.Parity {
 		if i == 0 {
 			fmt.Fprintf(&b, "parity %s\n", p)
