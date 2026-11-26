@@ -6,8 +6,11 @@ package main
 
 import (
 	"bytes"
+	"io"
+	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -65,5 +68,35 @@ func TestLongRunReportsAnEarlyExit(t *testing.T) {
 	res, rest = startLong([]string{lookPath(t, "true")}, mergerfsapply.ActionScrub)
 	if !res.OK || res.Running || rest != nil || res.Summary != "scrub finished" {
 		t.Fatalf("%+v", res)
+	}
+}
+
+// With Accept=yes systemd holds its own copy of the connection until the
+// helper instance stops. Closing the helper's descriptors then leaves the
+// broker waiting until its deadline; endReply must end the connection anyway.
+func TestEndReplyEndsTheConnectionWhileAnotherCopyIsOpen(t *testing.T) {
+	fds, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Non-blocking, so the read deadline below applies.
+	if err := syscall.SetNonblock(fds[1], true); err != nil {
+		t.Fatal(err)
+	}
+	helper, broker := os.NewFile(uintptr(fds[0]), "helper"), os.NewFile(uintptr(fds[1]), "broker")
+	defer broker.Close()
+	held, err := syscall.Dup(fds[0]) // systemd's copy
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer syscall.Close(held)
+	if _, err := helper.Write([]byte("{}\n")); err != nil {
+		t.Fatal(err)
+	}
+	endReply(helper)
+	_ = broker.SetReadDeadline(time.Now().Add(2 * time.Second))
+	b, err := io.ReadAll(broker)
+	if err != nil || string(b) != "{}\n" {
+		t.Fatalf("broker read %q, %v; want the reply then end of file", b, err)
 	}
 }

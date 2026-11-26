@@ -18,6 +18,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"syscall"
 	"time"
 
 	"homelab-control/backend/internal/mergerfsapply"
@@ -33,9 +34,7 @@ const (
 )
 
 func main() {
-	// stdin and stdout are the same accepted socket. Closing both ends the
-	// reply, so the broker returns while a long SnapRAID run continues.
-	detach := func() { _ = os.Stdout.Close(); _ = os.Stdin.Close() }
+	detach := func() { endReply(os.Stdout, os.Stdin) }
 	if err := run(os.Stdin, os.Stdout, "", detach); err != nil {
 		fmt.Fprintln(os.Stderr, "hc-mergerfs-apply:", err.Error())
 		os.Exit(1)
@@ -73,6 +72,19 @@ func run(in io.Reader, out io.Writer, root string, detach func()) error {
 	}
 	rest()
 	return nil
+}
+
+// endReply ends the connection so the broker returns while a long SnapRAID
+// run continues. stdin and stdout are the accepted socket, and with
+// Accept=yes systemd keeps its own copy of it until this instance stops, so
+// closing ours is not enough: shutdown ends the connection for every holder.
+func endReply(files ...*os.File) {
+	for _, f := range files {
+		if sc, err := f.SyscallConn(); err == nil {
+			_ = sc.Control(func(fd uintptr) { _ = syscall.Shutdown(int(fd), syscall.SHUT_RDWR) })
+		}
+		_ = f.Close()
+	}
 }
 
 // execute runs one request. A non-nil second result is the rest of a long

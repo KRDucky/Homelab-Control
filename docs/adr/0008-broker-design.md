@@ -573,7 +573,9 @@ real arrays:
 - **Change:** after the diff gate (sync, scrub), the helper starts SnapRAID with its output on the helper's
   stderr (the journal) and no deadline. An exit within 5 s is the reply, with SnapRAID's exit status. A run
   still going after that is replied to as `running` ("started and continues in the background"). The
-  helper closes the socket, waits for SnapRAID, and logs `snapraid <action> exited with status N`. The
+  helper shuts the connection down (`shutdown(2)`: with `Accept=yes` systemd holds its own copy of the
+  connection until the instance stops, so closing the helper's descriptors alone leaves the broker
+  waiting for its 80 s deadline, as a VM run showed), waits for SnapRAID, and logs `snapraid <action> exited with status N`. The
   process keeps the helper's unit, capabilities, syscall filter and AppArmor profile. There is no new unit.
 - **Unit:** `TimeoutStartSec=infinity`, no `MemoryMax`, socket `MaxConnections=4`. SnapRAID's own array lock
   refuses a second sync, scrub or fix. A status read during a run reports `locked`.
