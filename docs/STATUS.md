@@ -389,7 +389,7 @@ are not default grants and do not imply `mergerfs.read` or each other. The broke
 helper socket. The package ships `/etc/homelab-control/mergerfs-apply.enabled`. The socket has no
 `[Install]` section and the package does not enable it at boot. Sync and scrub refuse a missing disk,
 removed files, or an array lock that another SnapRAID command holds. Sync, scrub and fix run to completion
-(ADR 0008 Amendment 19). A run that lasts more than 5 s is reported as started and continues in the
+(ADR 0008 Amendment 19; evidence `docs/evidence/m8/SNAPRAID-LONG-RUN.md`). A run that lasts more than 5 s is reported as started and continues in the
 helper's unit, with SnapRAID's output and exit status in the journal. The diff gate reads the start and
 end of `snapraid diff`, so a long list of changed files does not block sync. There is no `--force`, no `-e`, and no unfiltered fix. Disks are not formatted.
 `storagecap.Advance` enters `execute` after a passing confirm, then `progress` and `postcheck`.
