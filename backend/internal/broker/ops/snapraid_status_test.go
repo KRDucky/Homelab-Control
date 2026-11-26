@@ -7,6 +7,7 @@ package ops
 import (
 	"context"
 	"errors"
+	"net"
 	"os"
 	"strings"
 	"syscall"
@@ -78,6 +79,32 @@ func TestSnapraidStatusUnavailableWithoutHelper(t *testing.T) {
 	}
 }
 
+// Found on a VM: with the enable marker removed the socket still accepts, the
+// unit's condition fails, and the connection closes with no reply. That is
+// "helper not enabled" (503), not an internal error (502).
+func TestSnapraidStatusHelperClosedWithoutReply(t *testing.T) {
+	dir := t.TempDir()
+	ln, err := net.Listen("unix", dir+"/s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go func() {
+		c, err := ln.Accept()
+		if err == nil {
+			c.Close()
+		}
+	}()
+	_, err = dialMergerFSAt(context.Background(), dir+"/s", mergerfsapply.Request{Version: 1, Action: mergerfsapply.ActionStatus})
+	if !errors.Is(err, errHelperNoReply) {
+		t.Fatalf("got %v", err)
+	}
+	var pe *proto.Error
+	if !errors.As(snapraidRunErr(err), &pe) || pe.Code != proto.CodeUnavailable {
+		t.Fatalf("%v", snapraidRunErr(err))
+	}
+}
+
 func TestParseSnapraidStatusReal(t *testing.T) {
 	st := ParseSnapraidStatus(readSnapraidFixture(t, "snapraid-13.0-status.txt"), 0)
 	if len(st.Disks) != 2 || st.Disks[0].Name != "d1" || st.Disks[1].Name != "d2" {
@@ -119,7 +146,7 @@ func TestParseSnapraidStatusSyncInProgress(t *testing.T) {
 
 func TestParseSnapraidStatusLocked(t *testing.T) {
 	st := ParseSnapraidStatus(readSnapraidFixture(t, "snapraid-13.0-status-locked.txt"), 1)
-	if !st.Locked || st.ExitCode != 1 || len(st.Summary) == 0 || strings.Contains(strings.Join(st.Summary, "\n"), "/") {
+	if !st.Locked || st.ExitCode != 1 || len(st.Summary) != 1 || strings.Contains(strings.Join(st.Summary, "\n"), "/") {
 		t.Fatalf("%+v", st)
 	}
 }

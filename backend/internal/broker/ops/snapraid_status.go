@@ -76,7 +76,7 @@ func snapraidRunErr(err error) error {
 	switch {
 	case errors.Is(err, context.DeadlineExceeded):
 		return &proto.Error{Code: proto.CodeTimeout, Message: "snapraid status did not answer in time"}
-	case errors.Is(err, syscall.ENOENT), errors.Is(err, syscall.ECONNREFUSED):
+	case errors.Is(err, syscall.ENOENT), errors.Is(err, syscall.ECONNREFUSED), errors.Is(err, errHelperNoReply):
 		return &proto.Error{Code: proto.CodeUnavailable, Message: "the MergerFS helper is not enabled, so SnapRAID status cannot be read"}
 	default:
 		return &proto.Error{Code: proto.CodeInternal, Message: "the MergerFS helper did not return SnapRAID status"}
@@ -121,6 +121,10 @@ func ParseSnapraidStatus(stdout []byte, exitCode int) SnapraidStatus {
 		}
 		keep, syncing, scrub := snapraidStatusPhrase(line)
 		if strings.Contains(line, "is already in use") {
+			// SnapRAID prints two such lines (the lock file, then itself).
+			if out.Locked {
+				continue
+			}
 			out.Locked = true
 			line, keep = snapraidLockedLine, true
 		}

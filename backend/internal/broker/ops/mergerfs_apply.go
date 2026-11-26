@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"strings"
+	"syscall"
 	"time"
 
 	"homelab-control/backend/internal/broker/proto"
@@ -251,10 +252,17 @@ func (env *Env) callMergerFS(ctx context.Context, req mergerfsapply.Request) (me
 	return dialMergerFS(ctx, req)
 }
 
+// errHelperNoReply: the helper socket closed without a reply.
+var errHelperNoReply = errors.New("the MergerFS helper closed the connection without a reply")
+
 func dialMergerFS(ctx context.Context, req mergerfsapply.Request) (mergerfsapply.Result, error) {
+	return dialMergerFSAt(ctx, mergerfsApplySock, req)
+}
+
+func dialMergerFSAt(ctx context.Context, sock string, req mergerfsapply.Request) (mergerfsapply.Result, error) {
 	var zero mergerfsapply.Result
 	var d net.Dialer
-	conn, err := d.DialContext(ctx, "unix", mergerfsApplySock)
+	conn, err := d.DialContext(ctx, "unix", sock)
 	if err != nil {
 		return zero, err
 	}
@@ -273,8 +281,13 @@ func dialMergerFS(ctx context.Context, req mergerfsapply.Request) (mergerfsapply
 		_ = uc.CloseWrite()
 	}
 	b, err := io.ReadAll(io.LimitReader(conn, 1<<20))
-	if err != nil {
+	if err != nil && !(len(b) == 0 && errors.Is(err, syscall.ECONNRESET)) {
 		return zero, err
+	}
+	if len(b) == 0 {
+		// The socket accepted, but the helper unit did not run (its
+		// ConditionPathExists marker is absent) or wrote nothing.
+		return zero, errHelperNoReply
 	}
 	var res mergerfsapply.Result
 	if err := json.Unmarshal(b, &res); err != nil {
