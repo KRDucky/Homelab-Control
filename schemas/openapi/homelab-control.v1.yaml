@@ -1925,9 +1925,10 @@ components:
         status:
           type: object
           required: [filesystems]
-          description: "Each mounted f2fs's live counters from /sys/fs/f2fs/<disk>/ (kernel ABI sysfs-fs-f2fs), read unprivileged in hc-api; the disk is found through /sys/dev/block/<major:minor>. A counter the kernel does not publish is absent. Segments are f2fs segments (normally 2 MiB)."
+          description: "Each mounted f2fs's live counters from /sys/fs/f2fs/<disk>/ (kernel ABI sysfs-fs-f2fs), read unprivileged in hc-api; the disk is found through /sys/dev/block/<major:minor>. A counter the kernel does not publish is absent. Segments are f2fs segments (normally 2 MiB). Every f2fs mount is in filesystems, in skipped with the reason (device not named in /sys/dev/block, or no /sys/fs/f2fs entry), or counted by truncated (an unusable mount record)."
           properties:
-            truncated: { type: boolean }
+            truncated: { type: boolean, description: An f2fs mount record could not be used, or more than 32 filesystems were mounted. }
+            skipped: { type: array, items: { $ref: '#/components/schemas/StorageSkippedMount' } }
             filesystems:
               type: array
               maxItems: 32

@@ -44,7 +44,8 @@ export function FilesystemReport<T>({
         </p>
       ) : filesystems.length > 0 ? (
         filesystems.map(children)
-      ) : (
+      ) : truncated || (skipped?.length ?? 0) > 0 || (hidden?.length ?? 0) > 0 ? null : (
+        // "Nothing mounted" only when no mount was skipped, hidden or cut off.
         <p className="empty">{empty}</p>
       )}
       {truncated && (

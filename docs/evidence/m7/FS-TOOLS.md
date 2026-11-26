@@ -19,6 +19,13 @@ Amendment 17.
   filesystem: no broker call. Audit records counts only (`mounts=N filesystems=N`).
 - Mounts under /home, /root or /run/user are hidden from the helper (ProtectHome); the pages name them.
 
+**Review fix (2026-11-26, #178).** `collectStatus` dropped an f2fs mount whose device it could not name, so
+the page said "No f2fs filesystem is mounted" while the mount list showed it. Every f2fs mount is now in the
+report, in `skipped` with the reason (device not named in /sys/dev/block, or no /sys/fs/f2fs entry), or
+counted by `truncated` (an unusable mount record). The shared Filesystems panel shows its "nothing mounted"
+line only when nothing was skipped, hidden or cut off (ext4 and XFS too). `TestCollectReportsMountsItCannotRead`,
+`TestCollectMarksUnusableMountRecords` and the panel tests failed without the fix.
+
 ## Verification
 - Parsers tested on real `tune2fs` 1.47.4 output (clean, and with an error record set by `debugfs`) and real
   `xfs_info` 6.19.0 output, including a mountpoint shaped like a feature pair. Helper tests: exact

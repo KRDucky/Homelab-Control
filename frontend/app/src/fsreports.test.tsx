@@ -197,3 +197,52 @@ describe('mounts hidden from the helper', () => {
     expect(screen.queryByText(/Not inspected/)).toBeNull();
   });
 });
+
+// Review finding on #178: a mounted f2fs whose counters could not be read
+// must not be presented as "No f2fs filesystem is mounted".
+describe('mounted filesystems that could not be inspected', () => {
+  it('f2fs: names the skipped mount and does not claim nothing is mounted', () => {
+    const data: F2fsInventory = {
+      tooling,
+      f2fs: {
+        present: true,
+        reason: '',
+        mounts: [{ mountpoint: '/srv/card', device: '/dev/vdc' }],
+        mountsTruncated: false,
+      },
+      kernelF2fs: kernel,
+      status: {
+        filesystems: [],
+        skipped: [
+          { mountpoint: '/srv/card', reason: 'the kernel publishes no /sys/fs/f2fs entry for this device' },
+        ],
+      },
+    };
+    render(<F2fsView data={data} error={null} packagesEnabled={false} />);
+    expect(screen.getByText(/publishes no \/sys\/fs\/f2fs entry/)).toBeTruthy();
+    expect(screen.queryByText('No f2fs filesystem is mounted.')).toBeNull();
+  });
+
+  it('f2fs: an incomplete status does not claim nothing is mounted', () => {
+    const data: F2fsInventory = {
+      tooling,
+      f2fs: { present: true, reason: '', mounts: [], mountsTruncated: true },
+      kernelF2fs: kernel,
+      status: { filesystems: [], truncated: true },
+    };
+    render(<F2fsView data={data} error={null} packagesEnabled={false} />);
+    expect(screen.getByText('Not every filesystem could be inspected.')).toBeTruthy();
+    expect(screen.queryByText('No f2fs filesystem is mounted.')).toBeNull();
+  });
+
+  it('f2fs: an empty, complete status still says nothing is mounted', () => {
+    const data: F2fsInventory = {
+      tooling,
+      f2fs: { present: true, reason: '', mounts: [], mountsTruncated: false },
+      kernelF2fs: kernel,
+      status: { filesystems: [] },
+    };
+    render(<F2fsView data={data} error={null} packagesEnabled={false} />);
+    expect(screen.getByText('No f2fs filesystem is mounted.')).toBeTruthy();
+  });
+});

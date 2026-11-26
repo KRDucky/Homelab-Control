@@ -2002,7 +2002,8 @@ export interface F2fsInventory {
   tooling: F2fsTooling;
   f2fs: F2fsInfo;
   kernelF2fs?: F2fsKernel;
-  status?: { filesystems: F2fsFilesystem[]; truncated?: boolean };
+  /** Every f2fs mount is in filesystems, in skipped with the reason, or counted by truncated. */
+  status?: { filesystems: F2fsFilesystem[]; skipped?: SkippedMount[]; truncated?: boolean };
 }
 
 export function getF2fs(csrf: string): Promise<F2fsInventory> {

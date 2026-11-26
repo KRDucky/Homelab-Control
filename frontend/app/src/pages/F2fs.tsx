@@ -106,6 +106,7 @@ export function F2fsView({
           id="f2fs"
           available
           filesystems={data.status.filesystems}
+          skipped={data.status.skipped}
           truncated={data.status.truncated}
           empty="No f2fs filesystem is mounted."
         >

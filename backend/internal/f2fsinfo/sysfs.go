@@ -34,11 +34,25 @@ type Filesystem struct {
 	LifetimeWriteKB *uint64  `json:"lifetimeWriteKiB,omitempty"`
 }
 
-// Status is the per-filesystem part of the f2fs response.
+// Status is the per-filesystem part of the f2fs response. Every f2fs mount is
+// either in Filesystems, in Skipped with the reason, or counted by Truncated
+// (a mount record that could not be used), so an empty list never hides one.
 type Status struct {
 	Filesystems []Filesystem `json:"filesystems"`
+	Skipped     []Skipped    `json:"skipped,omitempty"`
 	Truncated   bool         `json:"truncated,omitempty"`
 }
+
+// Skipped is a mounted f2fs whose counters could not be read, and why.
+type Skipped struct {
+	Mountpoint string `json:"mountpoint"`
+	Reason     string `json:"reason"`
+}
+
+const (
+	reasonNoDevName = "the kernel did not name this device in /sys/dev/block, so its counters could not be read"
+	reasonNoSysfs   = "the kernel publishes no /sys/fs/f2fs entry for this device"
+)
 
 const (
 	maxSysfsFilesystems = 32
@@ -77,8 +91,16 @@ func attrNum(root *os.Root, path string) *uint64 {
 func collectStatus(root *os.Root, recs []mountinfo.Record) Status {
 	st := Status{Filesystems: []Filesystem{}}
 	index := map[string]int{}
+	skipped := map[string]bool{}
 	for _, r := range recs {
-		if r.FSType != "f2fs" || !devNumber.MatchString(r.DeviceNumber) || mountinfo.HasDotDot(r.Mountpoint) {
+		if r.FSType != "f2fs" {
+			continue
+		}
+		if !devNumber.MatchString(r.DeviceNumber) || mountinfo.HasDotDot(r.Mountpoint) {
+			st.Truncated = true
+			continue
+		}
+		if skipped[r.DeviceNumber] {
 			continue
 		}
 		if i, ok := index[r.DeviceNumber]; ok {
@@ -98,10 +120,18 @@ func collectStatus(root *os.Root, recs []mountinfo.Record) Status {
 				disk = v
 			}
 		}
+		base := "sys/fs/f2fs/" + disk + "/"
+		reason := ""
 		if !diskName.MatchString(disk) {
+			reason = reasonNoDevName
+		} else if fi, err := root.Stat(strings.TrimSuffix(base, "/")); err != nil || !fi.IsDir() {
+			reason = reasonNoSysfs
+		}
+		if reason != "" {
+			skipped[r.DeviceNumber] = true
+			st.Skipped = append(st.Skipped, Skipped{Mountpoint: r.Mountpoint, Reason: reason})
 			continue
 		}
-		base := "sys/fs/f2fs/" + disk + "/"
 		fs := Filesystem{Name: disk, Mounts: []string{r.Mountpoint}, Features: []string{},
 			Encoding:        readAttr(root, base+"encoding"),
 			FreeSegments:    attrNum(root, base+"free_segments"),

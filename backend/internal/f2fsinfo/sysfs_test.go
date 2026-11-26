@@ -64,16 +64,43 @@ func TestCollectReadsSysfsCountersPerDevice(t *testing.T) {
 	}
 }
 
-// A device whose uevent names no safe disk is not read.
-func TestCollectSkipsUnsafeDiskName(t *testing.T) {
+// A mounted f2fs whose counters cannot be read is never dropped silently: it
+// is listed as skipped with the reason (review finding on #178: the page said
+// "No f2fs filesystem is mounted" while the mount list showed it).
+func TestCollectReportsMountsItCannotRead(t *testing.T) {
 	root := t.TempDir()
 	writeTree(t, root, map[string]string{
-		"proc/filesystems":            "\tf2fs\n",
-		"proc/self/mountinfo":         "30 1 252:16 / /srv/flash rw - f2fs /dev/vdb rw\n",
-		"sys/dev/block/252:16/uevent": "DEVNAME=../../etc\n",
+		"proc/filesystems": "\tf2fs\n",
+		"proc/self/mountinfo": "30 1 252:16 / /srv/flash rw - f2fs /dev/vdb rw\n" +
+			"31 1 252:16 / /srv/flash-bind rw - f2fs /dev/vdb rw\n" +
+			"32 1 252:32 / /srv/card rw - f2fs /dev/vdc rw\n" +
+			"33 1 252:48 / /srv/gone rw - f2fs /dev/vdd rw\n",
+		"sys/dev/block/252:16/uevent": "DEVNAME=../../etc\n", // unsafe name: not read
+		"sys/dev/block/252:32/uevent": "DEVNAME=vdc\n",       // no /sys/fs/f2fs/vdc
+		// 252:48: no /sys/dev/block entry at all
 	})
 	snap, _ := Collect(context.Background(), root, "debian")
-	if len(snap.Status.Filesystems) != 0 {
+	st := snap.Status
+	if len(st.Filesystems) != 0 || len(st.Skipped) != 3 {
+		t.Fatalf("%+v", st)
+	}
+	want := map[string]string{"/srv/flash": reasonNoDevName, "/srv/card": reasonNoSysfs, "/srv/gone": reasonNoDevName}
+	for _, sk := range st.Skipped {
+		if want[sk.Mountpoint] != sk.Reason {
+			t.Fatalf("skipped %+v, want %v", st.Skipped, want)
+		}
+	}
+}
+
+// A mount record that cannot be used marks the status incomplete.
+func TestCollectMarksUnusableMountRecords(t *testing.T) {
+	root := t.TempDir()
+	writeTree(t, root, map[string]string{
+		"proc/filesystems":    "\tf2fs\n",
+		"proc/self/mountinfo": "30 1 252:16 / /srv/../flash rw - f2fs /dev/vdb rw\n",
+	})
+	snap, _ := Collect(context.Background(), root, "debian")
+	if !snap.Status.Truncated || len(snap.Status.Filesystems) != 0 {
 		t.Fatalf("%+v", snap.Status)
 	}
 }
