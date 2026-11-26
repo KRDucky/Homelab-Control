@@ -42,12 +42,13 @@ type BtrfsReport struct {
 	Filesystems []BtrfsFilesystem `json:"filesystems"`
 	// Skipped names filesystems the helper cannot open (only mounted under a
 	// path its sandbox hides) and filesystems over the limit.
-	Skipped   []BtrfsSkipped `json:"skipped,omitempty"`
+	Skipped   []SkippedMount `json:"skipped,omitempty"`
 	Truncated bool           `json:"truncated,omitempty"`
 }
 
-// BtrfsSkipped is a filesystem that was not inspected, and why.
-type BtrfsSkipped struct {
+// SkippedMount is a mounted filesystem the helper did not inspect, and why
+// (Btrfs, ext4 and XFS reports).
+type SkippedMount struct {
 	Mountpoint string `json:"mountpoint"`
 	Reason     string `json:"reason"`
 }

@@ -60,7 +60,7 @@ func TestRegistryIsClosed(t *testing.T) {
 	if all[10].ID != "f2fs" || all[10].APIPrefix != "/api/v1/f2fs" || all[10].OpPrefix != "" || all[10].Path != "/storage/f2fs" || len(all[10].Scopes) != 1 || all[10].Scopes[0] != "f2fs.read" {
 		t.Fatalf("f2fs module: %+v (new modules need review)", all[10])
 	}
-	if all[11].ID != "xfs" || all[11].APIPrefix != "/api/v1/xfs" || all[11].OpPrefix != "" || all[11].Path != "/storage/xfs" || len(all[11].Scopes) != 1 || all[11].Scopes[0] != "xfs.read" {
+	if all[11].ID != "xfs" || all[11].APIPrefix != "/api/v1/xfs" || all[11].OpPrefix != "xfs." || all[11].Path != "/storage/xfs" || len(all[11].Scopes) != 1 || all[11].Scopes[0] != "xfs.read" {
 		t.Fatalf("xfs module: %+v (new modules need review)", all[11])
 	}
 	for path, want := range map[string]string{"/api/v1/services": "services", "/api/v1/services/units/{unit}/plan": "services",

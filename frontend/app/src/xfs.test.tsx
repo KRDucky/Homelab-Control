@@ -71,7 +71,7 @@ describe('XFS read-only page', () => {
     );
     expect(await screen.findByText('/mnt/data')).toBeTruthy();
     expect(screen.getByText('/dev/sda1')).toBeTruthy();
-    expect(screen.getByText(/The xfs_info binary is probed, not run/)).toBeTruthy();
+    expect(screen.getByText(/run by\s+the read-only storage helper/)).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'XFS tools' })).toBeNull();
   });
 

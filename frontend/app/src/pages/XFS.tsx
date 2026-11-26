@@ -3,15 +3,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import { useCallback, useState } from 'react';
-import { getXFS, type XFSInventory, type XFSToolItem } from '../api';
+import { getXFS, type XFSFilesystem, type XFSInventory, type XFSToolItem } from '../api';
+import { Fact, FilesystemReport, hiddenMounts } from '../FilesystemReport';
+import { formatBytes } from '../format';
 import { InstallPlanDialog } from '../InstallPlanDialog';
 import { explain, useData } from '../useData';
 
 /**
- * XFS (M7 first checkpoint, read-only). Probe the xfs_info binary and, when it
- * is missing and the package name is known, offer an Install button that opens
- * a dialog linking to a Software Center search (it installs nothing itself).
- * List observed xfs mounts. No format, grow, or repair exists in the DOM.
+ * XFS (read-only). Each mounted filesystem's geometry and on-disk features as
+ * xfs_info reports them (run by the read-only storage helper), the observed
+ * mounts, and a Software Center link when xfsprogs is missing. No format,
+ * grow, or repair exists in the DOM.
  */
 export function XFS({
   csrf,
@@ -60,9 +62,9 @@ export function XFSView({
       <header className="page-head">
         <h1 className="page-title">XFS</h1>
         <p className="page-sub">
-          Read-only observations. The xfs_info binary is probed, not run. This page does not create or repair
-          a filesystem, and it does not load kernel modules. Mounts come from /proc/self/mountinfo, not from
-          running xfs_info.
+          Read-only. Each mounted filesystem's geometry and features come from <code>xfs_info</code>, run by
+          the read-only storage helper. Free space is on the Overview page. This page does not create, grow or
+          repair a filesystem, and it does not load kernel modules. Mounts come from /proc/self/mountinfo.
         </p>
       </header>
       {error && (
@@ -99,6 +101,26 @@ export function XFSView({
         </section>
       )}
 
+      <FilesystemReport
+        id="xfs"
+        available={data.status?.available ?? false}
+        reason={data.status?.reason}
+        filesystems={data.status?.report?.filesystems ?? []}
+        skipped={data.status?.report?.skipped}
+        truncated={data.status?.report?.truncated}
+        hidden={
+          data.status?.available
+            ? hiddenMounts(
+                xfs.mounts.map((m) => m.mountpoint),
+                (data.status.report?.filesystems ?? []).flatMap((fs) => fs.mounts),
+              )
+            : undefined
+        }
+        empty="No XFS filesystem is mounted."
+      >
+        {(fs) => <XFSCard key={fs.mountpoint} fs={fs} />}
+      </FilesystemReport>
+
       <section className="panel" aria-labelledby="xfs-mounts-heading">
         <header className="panel-head">
           <h2 id="xfs-mounts-heading">XFS mounts</h2>
@@ -134,6 +156,52 @@ export function XFSView({
         )}
       </section>
     </div>
+  );
+}
+
+/** One filesystem's geometry as xfs_info reports it. */
+function XFSCard({ fs }: { fs: XFSFilesystem }) {
+  const bs = fs.block_size;
+  const blocks = (n: number | undefined) =>
+    n === undefined ? undefined : bs !== undefined ? `${n} blocks (${formatBytes(n * bs)})` : `${n} blocks`;
+  return (
+    <article className="zfs-pool" aria-label={`Filesystem ${fs.mountpoint}`}>
+      <h3 className="subhead">
+        <code>{fs.mountpoint}</code>
+      </h3>
+      {fs.error ? (
+        <p className="banner" role="status">
+          {fs.error}
+        </p>
+      ) : (
+        <dl className="facts">
+          <Fact
+            label="Size"
+            value={bs !== undefined && fs.blocks !== undefined ? formatBytes(fs.blocks * bs) : undefined}
+          />
+          <Fact label="Block size" value={bs !== undefined ? formatBytes(bs) : undefined} />
+          <Fact
+            label="Allocation groups"
+            value={
+              fs.ag_count !== undefined ? `${fs.ag_count} × ${blocks(fs.ag_size_blocks) ?? '?'}` : undefined
+            }
+          />
+          <Fact label="Inode size" value={fs.inode_size !== undefined ? `${fs.inode_size} B` : undefined} />
+          <Fact
+            label="Sector size"
+            value={fs.sector_size !== undefined ? `${fs.sector_size} B` : undefined}
+          />
+          <Fact
+            label="Stripe unit / width"
+            value={fs.sunit_blocks ? `${fs.sunit_blocks} / ${fs.swidth_blocks ?? '?'} blocks` : undefined}
+          />
+          <Fact label="Log" value={fs.log && [fs.log, blocks(fs.log_blocks)].filter(Boolean).join(', ')} />
+          <Fact label="Realtime" value={fs.realtime} />
+          <Fact label="Also mounted at" value={fs.mounts.filter((m) => m !== fs.mountpoint).join(', ')} />
+          <Fact label="Features" value={fs.features.join(' ')} />
+        </dl>
+      )}
+    </article>
   );
 }
 

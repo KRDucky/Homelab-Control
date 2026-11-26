@@ -70,6 +70,8 @@ var opTimeouts = map[string]time.Duration{
 	"btrfs.status":  storagetools.HelperBudget(storagetools.ScopeBtrfs) + helperClientMargin,
 	"mdadm.status":  storagetools.HelperBudget(storagetools.ScopeMd) + helperClientMargin,
 	"lvm.status":    storagetools.HelperBudget(storagetools.ScopeLVM) + helperClientMargin,
+	"ext4.status":   storagetools.HelperBudget(storagetools.ScopeExt4) + helperClientMargin,
+	"xfs.status":    storagetools.HelperBudget(storagetools.ScopeXFS) + helperClientMargin,
 	// services.systemctl.apply uses the same 55s broker budget as the other
 	// disruptive applies. The client must outlive it.
 	"services.systemctl.plan":  20 * time.Second,

@@ -321,6 +321,12 @@ func Registry() map[string]Op {
 		// 2026-11-25). Module "lvm" gates it by the lvm. prefix.
 		{Name: "lvm.status", Scope: "lvm.read", Privilege: PrivRootRead, Timeout: helperOpTimeout(storagetools.ScopeLVM), Admission: AdmissionSystemRead,
 			Description: "LVM volume groups, logical volumes and physical volumes: pvs, lvs and vgs --readonly --nolocking through hc-storage-probe", Handle: lvmStatus},
+		// M7 ext4 and XFS: tune2fs -l and xfs_info through the read-only
+		// helper. Modules "ext4" and "xfs" gate them by prefix.
+		{Name: "ext4.status", Scope: "ext4.read", Privilege: PrivRootRead, Timeout: helperOpTimeout(storagetools.ScopeExt4), Admission: AdmissionSystemRead,
+			Description: "Mounted ext4 superblocks (state, error record, mount counts, features, block and inode counts): tune2fs -l through hc-storage-probe", Handle: ext4Status},
+		{Name: "xfs.status", Scope: "xfs.read", Privilege: PrivRootRead, Timeout: helperOpTimeout(storagetools.ScopeXFS), Admission: AdmissionSystemRead,
+			Description: "Mounted XFS geometry and features: xfs_info (xfs_spaceman -c info) through hc-storage-probe", Handle: xfsStatus},
 		// M11 (ADR 0008 Amendment 9, Proposed): read-only networking. In-process
 		// root reads of fixed /proc and config paths; the firewall op also runs
 		// one fixed unprivileged systemctl show. No live ruleset, no writes.

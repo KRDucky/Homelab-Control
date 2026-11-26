@@ -71,7 +71,7 @@ describe('ext4 read-only page', () => {
     );
     expect(await screen.findByText('/mnt/data')).toBeTruthy();
     expect(screen.getByText('/dev/sda1')).toBeTruthy();
-    expect(screen.getByText(/The dumpe2fs binary is probed, not run/)).toBeTruthy();
+    expect(screen.getByText(/run by the read-only storage helper/)).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'ext4 tools' })).toBeNull();
   });
 

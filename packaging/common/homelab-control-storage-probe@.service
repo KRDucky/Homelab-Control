@@ -36,8 +36,13 @@ StandardError=journal
 #   blkext   NVMe namespaces and extended-minor partitions
 #   virtblk  virtio-blk disks (virtual machines)
 #   md       Linux software RAID arrays
+#   device-mapper  LVM logical volumes and opened LUKS volumes, read only for
+#            the ext4 superblock (`tune2fs -l`); ext4 on LVM is the Ubuntu
+#            default install. A raw read of an opened LUKS volume is a read of
+#            plaintext, the same privilege the helper already has on every
+#            unencrypted sd/blkext/virtblk disk (M7 review, 2026-11-26).
 # No "w" and no "m" on any block device, no char-* groups, no
-# loop/nbd/zram/ram/sr/fd/rbd, no device-mapper. One explicit node:
+# loop/nbd/zram/ram/sr/fd/rbd. One explicit node:
 #   /dev/zfs rw  the OpenZFS control device. libzfs opens it read-write for
 #                every ioctl, including the read-only ones zpool list/status
 #                and zfs list use; the helper runs only those (owner
@@ -59,6 +64,7 @@ DeviceAllow=block-sd r
 DeviceAllow=block-blkext r
 DeviceAllow=block-virtblk r
 DeviceAllow=block-md r
+DeviceAllow=block-device-mapper r
 DeviceAllow=/dev/zfs rw
 # Runs as root without capabilities other than CAP_SYS_RAWIO below. LVM's pvs/lvs
 # refuse to scan devices as any other user (VM finding 2026-11-25: "Device open

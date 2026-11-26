@@ -1776,9 +1776,22 @@ export interface BtrfsStatus {
   reason?: string;
   report?: {
     filesystems: BtrfsFilesystem[];
-    skipped?: { mountpoint: string; reason: string }[];
+    skipped?: SkippedMount[];
     truncated?: boolean;
   };
+}
+
+/** A mounted filesystem the read-only storage helper did not inspect, and why. */
+export interface SkippedMount {
+  mountpoint: string;
+  reason: string;
+}
+
+/** A per-filesystem report the read-only storage helper produced, relayed by a broker op. */
+export interface FilesystemToolStatus<T> {
+  available: boolean;
+  reason?: string;
+  report?: { filesystems: T[]; skipped?: SkippedMount[]; truncated?: boolean };
 }
 
 export interface BtrfsInventory {
@@ -1824,10 +1837,48 @@ export interface Ext4Kernel {
   reason: string;
 }
 
+/**
+ * One mounted ext4 superblock from `tune2fs -l` (broker op ext4.status). Device
+ * is the kernel's major:minor. Times are tune2fs's own text. A counter is
+ * absent when tune2fs did not print it; the error fields exist only after the
+ * kernel recorded a filesystem error.
+ */
+export interface Ext4Filesystem {
+  device: string;
+  mounts: string[];
+  volume_name?: string;
+  uuid?: string;
+  state?: string;
+  errors_behavior?: string;
+  features: string[];
+  block_size?: number;
+  block_count?: number;
+  free_blocks?: number;
+  reserved_blocks?: number;
+  inode_count?: number;
+  free_inodes?: number;
+  mount_count?: number;
+  /** -1 when the mount-count check is off. */
+  max_mount_count?: number;
+  check_interval?: string;
+  last_checked?: string;
+  created?: string;
+  last_mount_time?: string;
+  last_write_time?: string;
+  lifetime_writes?: string;
+  error_count?: number;
+  first_error_time?: string;
+  first_error_function?: string;
+  last_error_time?: string;
+  last_error_function?: string;
+  error?: string;
+}
+
 export interface Ext4Inventory {
   tooling: Ext4Tooling;
   ext4: Ext4Info;
   kernelExt4?: Ext4Kernel;
+  status?: FilesystemToolStatus<Ext4Filesystem>;
 }
 
 export function getExt4(csrf: string): Promise<Ext4Inventory> {
@@ -1934,10 +1985,34 @@ export interface F2fsKernel {
   reason: string;
 }
 
+/** One mounted f2fs's live kernel counters from /sys/fs/f2fs/<disk>/. */
+export interface F2fsFilesystem {
+  name: string;
+  mounts: string[];
+  features: string[];
+  encoding?: string;
+  freeSegments?: number;
+  dirtySegments?: number;
+  overprovisionSegments?: number;
+  reservedBlocks?: number;
+  lifetimeWriteKiB?: number;
+}
+
 export interface F2fsInventory {
   tooling: F2fsTooling;
   f2fs: F2fsInfo;
   kernelF2fs?: F2fsKernel;
+  /**
+   * available is false (with reason) when the mount table could not be read.
+   * Otherwise every f2fs mount is in filesystems, in skipped with the reason, or counted by truncated.
+   */
+  status?: {
+    available: boolean;
+    reason?: string;
+    filesystems: F2fsFilesystem[];
+    skipped?: SkippedMount[];
+    truncated?: boolean;
+  };
 }
 
 export function getF2fs(csrf: string): Promise<F2fsInventory> {
@@ -1975,10 +2050,31 @@ export interface XFSKernel {
   reason: string;
 }
 
+/** One mounted XFS's geometry from xfs_info (broker op xfs.status). */
+export interface XFSFilesystem {
+  mountpoint: string;
+  mounts: string[];
+  block_size?: number;
+  blocks?: number;
+  ag_count?: number;
+  ag_size_blocks?: number;
+  inode_size?: number;
+  sector_size?: number;
+  sunit_blocks?: number;
+  swidth_blocks?: number;
+  /** On-disk features xfs_info reports as enabled (crc, reflink, ...). */
+  features: string[];
+  log?: string;
+  log_blocks?: number;
+  realtime?: string;
+  error?: string;
+}
+
 export interface XFSInventory {
   tooling: XFSTooling;
   xfs: XFSInfo;
   kernelXfs?: XFSKernel;
+  status?: FilesystemToolStatus<XFSFilesystem>;
 }
 
 export function getXFS(csrf: string): Promise<XFSInventory> {

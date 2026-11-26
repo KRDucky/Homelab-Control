@@ -51,6 +51,18 @@ profile hc-storage-probe /usr/lib/homelab-control/hc-storage-probe flags=(enforc
   /{usr/,}{s,}bin/{zpool,zfs} ix,
   /{usr/,}{s,}bin/btrfs ix,
   /{usr/,}{s,}bin/mdadm ix,
+  # tune2fs -l reads one ext4 superblock through /dev/block/<maj>:<min>;
+  # xfs_spaceman -c info (xfs_info's own command) opens an XFS mountpoint.
+  /{usr/,}sbin/tune2fs ix,
+  /{usr/,}sbin/xfs_spaceman ix,
+  # tune2fs resolves devices through libblkid, which reads its cache (VM
+  # finding 2026-11-26: denied on Ubuntu 22.04/26.04 and Debian 13). Read only.
+  /run/blkid/blkid.tab r,
+  # tune2fs -l names the reserved-blocks uid and gid ("0 (user root)") via
+  # NSS (VM finding 2026-11-26). Local account files only, read only.
+  /etc/nsswitch.conf r,
+  /etc/passwd r,
+  /etc/group r,
   # mdadm --detail: its configuration and the array map it keeps under /run.
   /etc/mdadm/ r,
   /etc/mdadm/** r,
@@ -95,6 +107,7 @@ profile hc-storage-probe /usr/lib/homelab-control/hc-storage-probe flags=(enforc
   /dev/vd[a-z]* r,
   /dev/md[0-9]* r,
   /dev/md/* r,
+  /dev/dm-[0-9]* r,
   /dev/block/ r,
   /dev/block/[0-9]*:[0-9]* r,
   /dev/disk/ r,

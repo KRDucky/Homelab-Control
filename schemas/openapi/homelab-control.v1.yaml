@@ -1529,14 +1529,7 @@ components:
               required: [filesystems]
               properties:
                 truncated: { type: boolean }
-                skipped:
-                  type: array
-                  items:
-                    type: object
-                    required: [mountpoint, reason]
-                    properties:
-                      mountpoint: { type: string }
-                      reason: { type: string }
+                skipped: { type: array, items: { $ref: '#/components/schemas/StorageSkippedMount' } }
                 filesystems:
                   type: array
                   maxItems: 16
@@ -1609,12 +1602,20 @@ components:
                             path: { type: string }
                       subvolumes_truncated: { type: boolean }
                       errors: { type: array, items: { type: string }, description: "Commands that failed for this filesystem" }
+    StorageSkippedMount:
+      type: object
+      required: [mountpoint, reason]
+      description: A mounted filesystem the read-only storage helper did not inspect, and why.
+      properties:
+        mountpoint: { type: string }
+        reason: { type: string }
     Ext4Inventory:
       type: object
-      required: [tooling, ext4, kernelExt4]
+      required: [tooling, ext4, kernelExt4, status]
       description: >
-        Read-only ext4 checkpoint. The dumpe2fs binary is Stat'd, never
-        executed. This inventory does not format, grow, or repair. Format is
+        ext4 view. Tooling and mounts are unprivileged (the dumpe2fs binary
+        is Stat'd); status carries tune2fs -l superblocks from the read-only
+        helper. This inventory does not format, grow, or repair. Format is
         Ext4FormatPlan / Ext4FormatOutcome. Audit records mount
         counts only. A mount source is a /dev path from bounded
         /proc/self/mountinfo. Package names are named only where verified; an
@@ -1673,6 +1674,53 @@ components:
           properties:
             present: { type: boolean }
             reason: { type: string }
+        status:
+          type: object
+          required: [available]
+          description: "Per-filesystem superblocks from the broker op ext4.status: tune2fs -l on /dev/block/<major>:<minor> of each mounted ext4 device, run by the read-only storage helper. Devices in classes the helper may not read (loop and others) are listed in skipped. Superblock counters of a mounted filesystem are what the kernel last wrote. Without kernel ext4 or with the helper stopped, available is false with a reason."
+          properties:
+            available: { type: boolean }
+            reason: { type: string }
+            report:
+              type: object
+              required: [filesystems]
+              properties:
+                truncated: { type: boolean }
+                skipped: { type: array, items: { $ref: '#/components/schemas/StorageSkippedMount' } }
+                filesystems:
+                  type: array
+                  maxItems: 32
+                  items:
+                    type: object
+                    required: [device, mounts, features]
+                    properties:
+                      device: { type: string, description: "major:minor" }
+                      mounts: { type: array, items: { type: string } }
+                      volume_name: { type: string }
+                      uuid: { type: string }
+                      state: { type: string, description: "tune2fs wording: clean, not clean, not clean with errors" }
+                      errors_behavior: { type: string }
+                      features: { type: array, items: { type: string } }
+                      block_size: { type: integer }
+                      block_count: { type: integer }
+                      free_blocks: { type: integer }
+                      reserved_blocks: { type: integer }
+                      inode_count: { type: integer }
+                      free_inodes: { type: integer }
+                      mount_count: { type: integer }
+                      max_mount_count: { type: integer, description: "-1 when the mount-count check is off" }
+                      check_interval: { type: string }
+                      last_checked: { type: string }
+                      created: { type: string }
+                      last_mount_time: { type: string }
+                      last_write_time: { type: string }
+                      lifetime_writes: { type: string }
+                      error_count: { type: integer, description: Set only after the kernel recorded a filesystem error. }
+                      first_error_time: { type: string }
+                      first_error_function: { type: string }
+                      last_error_time: { type: string }
+                      last_error_function: { type: string }
+                      error: { type: string, description: tune2fs could not describe this device. }
     Ext4FormatPlan:
       type: object
       required: [action, risk, step_up_required, confirmation_required, token, expires_at, identity_kind, rdev, effect, consequences, warnings]
@@ -1812,10 +1860,11 @@ components:
                             device: { type: string }
     F2fsInventory:
       type: object
-      required: [tooling, f2fs, kernelF2fs]
+      required: [tooling, f2fs, kernelF2fs, status]
       description: >
-        Read-only f2fs checkpoint. The dump.f2fs binary is Stat'd, never
-        executed. No format, grow, or repair exists. Audit records mount
+        Read-only f2fs view. The dump.f2fs binary is Stat'd, never
+        executed; status carries the kernel's sysfs counters. No format,
+        grow, or repair exists. Audit records mount
         counts only. A mount source is a /dev path from bounded
         /proc/self/mountinfo. Package names are named only where verified; an
         unknown family names no package.
@@ -1873,6 +1922,31 @@ components:
           properties:
             present: { type: boolean }
             reason: { type: string }
+        status:
+          type: object
+          required: [available, filesystems]
+          description: "Each mounted f2fs's live counters from /sys/fs/f2fs/<disk>/ (kernel ABI sysfs-fs-f2fs), read unprivileged in hc-api; the disk is found through /sys/dev/block/<major:minor>. A counter the kernel does not publish is absent. Segments are f2fs segments (normally 2 MiB). Every f2fs mount is in filesystems, in skipped with the reason (device not named in /sys/dev/block, or no /sys/fs/f2fs entry), or counted by truncated (an unusable mount record)."
+          properties:
+            available: { type: boolean, description: "False when the mount table (/proc/self/mountinfo) could not be read; filesystems is then empty and reason says why." }
+            reason: { type: string }
+            truncated: { type: boolean, description: An f2fs mount record could not be used, or more than 32 filesystems were mounted. }
+            skipped: { type: array, items: { $ref: '#/components/schemas/StorageSkippedMount' } }
+            filesystems:
+              type: array
+              maxItems: 32
+              items:
+                type: object
+                required: [name, mounts, features]
+                properties:
+                  name: { type: string, description: Kernel disk name (vdb, dm-0) }
+                  mounts: { type: array, items: { type: string } }
+                  features: { type: array, items: { type: string } }
+                  encoding: { type: string }
+                  freeSegments: { type: integer }
+                  dirtySegments: { type: integer }
+                  overprovisionSegments: { type: integer }
+                  reservedBlocks: { type: integer }
+                  lifetimeWriteKiB: { type: integer }
 
     PortMap:
       type: object
@@ -1987,10 +2061,11 @@ components:
         iptables: { type: object, description: Saved iptables-save files (rules.v4/v6 or /etc/sysconfig). }
     XFSInventory:
       type: object
-      required: [tooling, xfs, kernelXfs]
+      required: [tooling, xfs, kernelXfs, status]
       description: >
-        Read-only XFS checkpoint. The xfs_info binary is Stat'd, never
-        executed. No format, grow, or repair exists. Audit records mount
+        Read-only XFS view. Tooling and mounts are unprivileged (the xfs_info
+        binary is Stat'd); status carries xfs_info geometry from the read-only
+        helper. No format, grow, or repair exists. Audit records mount
         counts only. A mount source is a /dev path from bounded
         /proc/self/mountinfo. Package names are named only where verified; an
         unknown family names no package.
@@ -2048,6 +2123,41 @@ components:
           properties:
             present: { type: boolean }
             reason: { type: string }
+        status:
+          type: object
+          required: [available]
+          description: "Per-filesystem geometry from the broker op xfs.status: xfs_info's own command, xfs_spaceman -p xfs_info -c info, run by the read-only storage helper on a mountpoint it picks from its own mount table (paths under /home, /root and /run/user are hidden from it and listed in skipped). Free space is on the host overview. Without kernel XFS or with the helper stopped, available is false with a reason."
+          properties:
+            available: { type: boolean }
+            reason: { type: string }
+            report:
+              type: object
+              required: [filesystems]
+              properties:
+                truncated: { type: boolean }
+                skipped: { type: array, items: { $ref: '#/components/schemas/StorageSkippedMount' } }
+                filesystems:
+                  type: array
+                  maxItems: 32
+                  items:
+                    type: object
+                    required: [mountpoint, mounts, features]
+                    properties:
+                      mountpoint: { type: string }
+                      mounts: { type: array, items: { type: string } }
+                      block_size: { type: integer }
+                      blocks: { type: integer }
+                      ag_count: { type: integer }
+                      ag_size_blocks: { type: integer }
+                      inode_size: { type: integer }
+                      sector_size: { type: integer }
+                      sunit_blocks: { type: integer }
+                      swidth_blocks: { type: integer }
+                      features: { type: array, items: { type: string }, description: "On-disk features xfs_info reports as 1 (crc, reflink, bigtime, ...)" }
+                      log: { type: string, description: "internal log, or the external log device" }
+                      log_blocks: { type: integer }
+                      realtime: { type: string, description: "none, or the realtime device" }
+                      error: { type: string }
     TraefikResource:
       type: object
       additionalProperties: false

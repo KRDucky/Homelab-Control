@@ -6,6 +6,7 @@ package f2fsinfo
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -168,5 +169,44 @@ func TestParseMountInfoSkipsMalformedAndUnsafeRecords(t *testing.T) {
 	// A clean inventory is not marked truncated.
 	if mounts, truncated, err := ParseMountInfo(strings.NewReader(f2fsLine(46))); err != nil || truncated || len(mounts) != 1 {
 		t.Fatalf("clean: mounts=%v truncated=%v err=%v", mounts, truncated, err)
+	}
+}
+
+// Review finding on #178: when mountinfo cannot be read, the status must say
+// it is unavailable, not report an empty (complete) list of filesystems.
+func TestCollectMarksStatusUnavailableWhenMountinfoUnread(t *testing.T) {
+	snap, err := Collect(context.Background(), t.TempDir(), "debian")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snap.Status.Available || snap.Status.Reason != reasonStatusUnread {
+		t.Fatalf("status = %+v, want unavailable with reason", snap.Status)
+	}
+	if snap.Status.Filesystems == nil || len(snap.Status.Filesystems) != 0 {
+		t.Fatalf("filesystems = %#v, want empty non-nil", snap.Status.Filesystems)
+	}
+	b, err := json.Marshal(snap.Status)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), `"available":false`) {
+		t.Fatalf("json = %s", b)
+	}
+}
+
+func TestCollectMarksStatusAvailableWhenMountinfoRead(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "proc", "self"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "proc", "self", "mountinfo"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	snap, err := Collect(context.Background(), dir, "debian")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !snap.Status.Available || snap.Status.Reason != "" {
+		t.Fatalf("status = %+v, want available", snap.Status)
 	}
 }

@@ -58,6 +58,10 @@ const (
 	ScopeMd = "md"
 	// ScopeLVM asks only for the LVM reports (pvs, lvs, vgs).
 	ScopeLVM = "lvm"
+	// ScopeExt4 asks for `tune2fs -l` of each mounted ext4 filesystem.
+	ScopeExt4 = "ext4"
+	// ScopeXFS asks for the xfs_info geometry of each mounted XFS filesystem.
+	ScopeXFS = "xfs"
 )
 
 // Result is the closed helper output.
@@ -74,6 +78,8 @@ type Result struct {
 	ZFS     *ZFSReport      `json:"zfs,omitempty"`
 	Btrfs   *BtrfsReport    `json:"btrfs,omitempty"`
 	Md      *MdReport       `json:"md,omitempty"`
+	Ext4    *Ext4Report     `json:"ext4,omitempty"`
+	XFS     *XFSReport      `json:"xfs,omitempty"`
 	Tools   map[string]bool `json:"tools"`
 	Errors  []string        `json:"errors,omitempty"`
 	Partial bool            `json:"partial"`

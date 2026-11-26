@@ -24,6 +24,10 @@ const (
 	// LVMBudget: pvs, lvs and vgs in sequence (LVM's own per-command limit is
 	// lvmTimeout in the helper, 10 s).
 	LVMBudget = 3 * HelperCommandTimeout
+	// Ext4Budget and XFSBudget bound one tune2fs or xfs_spaceman per mounted
+	// filesystem; a filesystem reached after it reports an error.
+	Ext4Budget = 30 * time.Second
+	XFSBudget  = 30 * time.Second
 	// ProbeBudget bounds a full storage probe (lsblk, smartctl per disk,
 	// pvs/lvs). It stays below the unit's TimeoutStartSec (60 s).
 	ProbeBudget = 50 * time.Second
@@ -40,6 +44,10 @@ func HelperBudget(scope string) time.Duration {
 		return MdBudget
 	case ScopeLVM:
 		return LVMBudget
+	case ScopeExt4:
+		return Ext4Budget
+	case ScopeXFS:
+		return XFSBudget
 	}
 	return ProbeBudget
 }

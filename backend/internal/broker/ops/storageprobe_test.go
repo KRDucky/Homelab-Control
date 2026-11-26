@@ -105,3 +105,24 @@ func TestZFSStatusWithoutReportIsUnavailable(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 }
+
+func TestExt4AndXFSStatusAskForTheirScopes(t *testing.T) {
+	ext4Cache, xfsCache = scopeCache{}, scopeCache{}
+	scopes, _ := fakeHelper(t, storagetools.Result{Version: storagetools.ProtocolVersion, Tools: map[string]bool{},
+		Ext4: &storagetools.Ext4Report{Filesystems: []storagetools.Ext4Filesystem{{Device: "253:0"}}},
+		XFS:  &storagetools.XFSReport{Filesystems: []storagetools.XFSFilesystem{{Mountpoint: "/srv/x"}}}})
+	out, err := ext4Status(context.Background(), nil, nil)
+	if rep, ok := out.(*storagetools.Ext4Report); err != nil || !ok || rep.Filesystems[0].Device != "253:0" {
+		t.Fatalf("ext4: %v %#v", err, out)
+	}
+	out, err = xfsStatus(context.Background(), nil, nil)
+	if rep, ok := out.(*storagetools.XFSReport); err != nil || !ok || rep.Filesystems[0].Mountpoint != "/srv/x" {
+		t.Fatalf("xfs: %v %#v", err, out)
+	}
+	if len(*scopes) != 2 || (*scopes)[0] != storagetools.ScopeExt4 || (*scopes)[1] != storagetools.ScopeXFS {
+		t.Fatalf("scopes=%v", *scopes)
+	}
+	if _, err := ext4Status(context.Background(), nil, json.RawMessage(`{"device":"/dev/sda"}`)); err == nil {
+		t.Fatal("ext4.status accepted arguments")
+	}
+}

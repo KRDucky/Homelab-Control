@@ -45,7 +45,7 @@ func (s *Server) handleF2fs(w http.ResponseWriter, r *http.Request, sess *auth.S
 		writeError(w, http.StatusServiceUnavailable, "f2fs_unavailable", "f2fs inventory could not be collected safely.")
 		return
 	}
-	detail := "mounts=" + strconv.Itoa(len(snap.F2fs.Mounts))
+	detail := "mounts=" + strconv.Itoa(len(snap.F2fs.Mounts)) + " filesystems=" + strconv.Itoa(len(snap.Status.Filesystems))
 	if err := s.auditLog("f2fs.inventory.read", sess.Username, r, "returned", detail); err != nil {
 		writeError(w, http.StatusServiceUnavailable, "audit_unavailable", "f2fs inventory cannot be returned because its access could not be audited.")
 		return

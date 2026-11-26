@@ -512,3 +512,30 @@ the full probe. It scans block devices for PV labels, so it runs behind the bloc
   `lvm` field (device list) is gone from `GET /lvm`; `thin_check` is offered when `lvs` reports a thin pool.
 - **AppArmor:** `vgs` joins `{lvm,pvs,lvs}` under `ix`. No new device or write rule.
 
+
+## Amendment 17 (2026-11-26, M7, owner-authorized): ext4 and XFS through the storage helper
+
+Two request scopes, each one fixed template per mounted filesystem, names taken from the helper's own mount
+table (no caller argument):
+
+- `ext4`: `tune2fs -l /dev/block/<major>:<minor>`. The device number comes from mountinfo and
+  `/dev/block` is udev's link to the node, so no mount source string is opened. Devices whose class the
+  unit does not grant (loop and others, by `/proc/devices`) are skipped with a reason. It opens block
+  devices, so it runs behind the block-class self-check. Budget 30 s.
+- `xfs`: `xfs_spaceman -p xfs_info -c info <mountpoint>`, which is what the `xfs_info` shell script runs for a
+  mounted filesystem; the helper runs it without a shell. Mountpoint ioctls only, so it runs before the
+  self-check, as Btrfs does. Budget 30 s.
+
+- **Broker ops** `ext4.status` (scope `ext4.read`) and `xfs.status` (scope `xfs.read`): no arguments,
+  `root-read`, admission `system-read`, timeouts derived from `HelperBudget`. Module `xfs` gains op prefix
+  `xfs.`.
+- **Unit:** `DeviceAllow=block-device-mapper r` joins the reviewed read-only classes. ext4 on LVM is the
+  Ubuntu default install. Reading an opened LUKS volume reads plaintext, the same privilege the helper already
+  has on every unencrypted disk in the other classes. Still no `w` or `m` on any block device.
+- **AppArmor:** `tune2fs` and `xfs_spaceman` `ix`; `/dev/dm-[0-9]* r`; `/run/blkid/blkid.tab r` (libblkid
+  cache); `/etc/nsswitch.conf`, `/etc/passwd`, `/etc/group` `r` (tune2fs names the reserved-blocks uid and
+  gid). No new write rule.
+- **f2fs** needs no helper. f2fs-tools reads the device and has no report for a mounted filesystem, so hc-api
+  reads the kernel ABI files `/sys/fs/f2fs/<disk>/` (sysfs-fs-f2fs) unprivileged.
+- **Known limit:** ProtectHome=yes removes /home, /root and /run/user sub-mounts from the helper's namespace.
+  An ext4 or XFS mounted only there is not inspected, and the page names it.
