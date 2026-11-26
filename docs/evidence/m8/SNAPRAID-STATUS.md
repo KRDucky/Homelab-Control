@@ -26,6 +26,10 @@ Part of the M5–M9 review ("use the standard tools"). Not M8 acceptance.
   and the page says the report is incomplete. `TestSnapraidStatusMarksHelperCutOutput`,
   `TestStatusResultMarksCutOutput` and the panel test fail without the fix.
 
+  Regression rerun of `snapraid-check.py` on the installed `0.1.0+dev.1+190+g2130257` on Ubuntu 26.04:
+  13/13. Decimal rows and a cut report cannot be produced by snapraid on a small test array, so those two
+  are covered by the Go and panel tests. Graphify on `2130257`: no definition-only symbols, 7 self-loops.
+
 ## VM validation
 
 Installed `.deb` of `9655dcb` (`homelab-control_0.1.0+dev.1+188+g9655dcb_amd64.deb`), check
