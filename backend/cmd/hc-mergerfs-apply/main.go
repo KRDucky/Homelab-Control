@@ -27,19 +27,22 @@ import (
 const (
 	maxRequestBytes  = 1 << 20
 	maxResponseBytes = 256 << 10
-	maxDiffBytes     = 1 << 20
+	diffKeepBytes    = 64 << 10
 	maxFileBytes     = 256 << 10
 	systemdRun       = "/usr/bin/systemd-run"
 )
 
 func main() {
-	if err := run(os.Stdin, os.Stdout, ""); err != nil {
+	// stdin and stdout are the same accepted socket. Closing both ends the
+	// reply, so the broker returns while a long SnapRAID run continues.
+	detach := func() { _ = os.Stdout.Close(); _ = os.Stdin.Close() }
+	if err := run(os.Stdin, os.Stdout, "", detach); err != nil {
 		fmt.Fprintln(os.Stderr, "hc-mergerfs-apply:", err.Error())
 		os.Exit(1)
 	}
 }
 
-func run(in io.Reader, out io.Writer, root string) error {
+func run(in io.Reader, out io.Writer, root string, detach func()) error {
 	b, err := io.ReadAll(io.LimitReader(in, maxRequestBytes+1))
 	if err != nil {
 		return err
@@ -53,7 +56,7 @@ func run(in io.Reader, out io.Writer, root string) error {
 	if err := dec.Decode(&req); err != nil {
 		return err
 	}
-	res := execute(context.Background(), req, root)
+	res, rest := execute(context.Background(), req, root)
 	body, err := json.Marshal(res)
 	if err != nil {
 		return err
@@ -62,64 +65,122 @@ func run(in io.Reader, out io.Writer, root string) error {
 	if len(body) > maxResponseBytes {
 		return errors.New("response too large")
 	}
-	_, err = out.Write(body)
-	return err
+	if _, err = out.Write(body); err != nil || rest == nil {
+		return err
+	}
+	if detach != nil {
+		detach()
+	}
+	rest()
+	return nil
 }
 
-func execute(ctx context.Context, req mergerfsapply.Request, root string) mergerfsapply.Result {
+// execute runs one request. A non-nil second result is the rest of a long
+// SnapRAID run: the caller sends the reply first, then waits for it.
+func execute(ctx context.Context, req mergerfsapply.Request, root string) (mergerfsapply.Result, func()) {
 	spec, err := mergerfsapply.Validate(req)
 	if err != nil {
-		return done(false, 0, "request refused", "")
+		return done(false, 0, "request refused", ""), nil
 	}
 	ctx, cancel := context.WithTimeout(ctx, 80*time.Second)
 	defer cancel()
 	switch spec.Action {
 	case mergerfsapply.ActionMount:
-		return mount(ctx, spec)
+		return mount(ctx, spec), nil
 	case mergerfsapply.ActionPersist:
 		if err := persist(root, spec); err != nil {
 			if errors.Is(err, errUnmanagedSnapraid) {
-				return done(false, 0, "array definition was not written: the existing snapraid.conf was not written by Homelab Control, so it was not replaced", "")
+				return done(false, 0, "array definition was not written: the existing snapraid.conf was not written by Homelab Control, so it was not replaced", ""), nil
 			}
-			return done(false, 0, "array definition was not written", "")
+			return done(false, 0, "array definition was not written", ""), nil
 		}
-		return done(true, 0, "array definition written", "")
+		return done(true, 0, "array definition written", ""), nil
 	case mergerfsapply.ActionSync, mergerfsapply.ActionScrub:
-		reason := diffBlock(ctx)
-		if reason != "" {
-			return done(false, 0, "operation refused before it started", reason)
+		if reason := diffBlock(ctx); reason != "" {
+			return done(false, 0, "operation refused before it started", reason), nil
 		}
-		argv, err := spec.Argv()
-		if err != nil {
-			return done(false, 0, "request refused", "")
-		}
-		code, _, _ := runCmd(ctx, argv, 4<<10)
-		if code != 0 {
-			return done(false, code, "snapraid exited", "")
-		}
-		if spec.Action == mergerfsapply.ActionSync {
-			return done(true, 0, "sync finished", "")
-		}
-		return done(true, 0, "scrub finished", "")
+		return startSnapraid(spec)
 	case mergerfsapply.ActionStatus:
 		argv, err := spec.Argv()
 		if err != nil {
-			return done(false, 0, "request refused", "")
+			return done(false, 0, "request refused", ""), nil
 		}
-		return statusResult(runCmd(ctx, argv, mergerfsapply.MaxStatusOutput))
+		return statusResult(runCmd(ctx, argv, mergerfsapply.MaxStatusOutput)), nil
 	case mergerfsapply.ActionFix:
-		argv, err := spec.Argv()
-		if err != nil || len(argv) < 5 {
-			return done(false, 0, "request refused", "")
-		}
-		code, _, _ := runCmd(ctx, argv, 4<<10)
-		if code != 0 {
-			return done(false, code, "snapraid exited", "")
-		}
-		return done(true, 0, "recovery finished", "")
+		return startSnapraid(spec)
 	default:
-		return done(false, 0, "request refused", "")
+		return done(false, 0, "request refused", ""), nil
 	}
+}
+
+// startGrace: SnapRAID stops within moments on a held array lock, a bad
+// configuration or a missing disk. A run still going after this is reported
+// as started; sync, scrub and fix take minutes to many hours on a real array.
+var startGrace = 5 * time.Second
+
+// snapraidLog receives SnapRAID's own output: the helper's stderr, which the
+// unit sends to the journal. It is not piped, so a long run is never stopped
+// by a full pipe or an output cap.
+var snapraidLog io.Writer = os.Stderr
+
+func startSnapraid(spec mergerfsapply.Spec) (mergerfsapply.Result, func()) {
+	argv, err := spec.Argv()
+	if err != nil || !argvAllowed(argv) || argv[0] != mergerfsapply.SnapRAIDBin || (spec.Action == mergerfsapply.ActionFix && len(argv) < 5) {
+		return done(false, 0, "request refused", ""), nil
+	}
+	return startLong(argv, spec.Action)
+}
+
+// startLong starts argv without a deadline. If it exits within startGrace the
+// reply carries its exit status; otherwise the reply says it is running and
+// the returned func waits for it and logs the exit status.
+func startLong(argv []string, action string) (mergerfsapply.Result, func()) {
+	cmd := exec.Command(argv[0], argv[1:]...)
+	cmd.Env = []string{"PATH=/usr/bin:/bin", "LANG=C", "LC_ALL=C"}
+	cmd.Dir = "/"
+	cmd.Stdout, cmd.Stderr = snapraidLog, snapraidLog
+	if err := cmd.Start(); err != nil {
+		return done(false, -1, "snapraid did not start", ""), nil
+	}
+	exit := make(chan int, 1)
+	go func() { exit <- exitStatus(cmd.Wait()) }()
+	timer := time.NewTimer(startGrace)
+	defer timer.Stop()
+	select {
+	case code := <-exit:
+		if code != 0 {
+			return done(false, code, "snapraid exited", ""), nil
+		}
+		return done(true, 0, finishedSummary(action), ""), nil
+	case <-timer.C:
+		res := done(true, 0, action+" started and continues in the background", "")
+		res.Running = true
+		return res, func() {
+			fmt.Fprintf(snapraidLog, "hc-mergerfs-apply: snapraid %s exited with status %d\n", action, <-exit)
+		}
+	}
+}
+
+func finishedSummary(action string) string {
+	switch action {
+	case mergerfsapply.ActionSync:
+		return "sync finished"
+	case mergerfsapply.ActionScrub:
+		return "scrub finished"
+	default:
+		return "recovery finished"
+	}
+}
+
+func exitStatus(err error) int {
+	if err == nil {
+		return 0
+	}
+	var ee *exec.ExitError
+	if errors.As(err, &ee) {
+		return ee.ExitCode()
+	}
+	return -1
 }
 
 // statusResult carries snapraid's status text to the broker and marks text
@@ -159,9 +220,13 @@ func mount(ctx context.Context, spec mergerfsapply.Spec) mergerfsapply.Result {
 	return done(true, 0, "mounted", "")
 }
 
+// diffBlock runs snapraid diff and keeps the start and end of its output.
+// diff lists every changed file between its disk checks and its summary, so
+// a capped prefix would lose the summary after a busy day of new files.
 func diffBlock(ctx context.Context) string {
-	code, out, truncated := runCmd(ctx, []string{mergerfsapply.SnapRAIDBin, "diff"}, maxDiffBytes)
-	return mergerfsapply.DiffGate(code, string(out), truncated)
+	out := &mergerfsapply.HeadTail{Keep: diffKeepBytes}
+	code := runTo(ctx, []string{mergerfsapply.SnapRAIDBin, "diff"}, out)
+	return mergerfsapply.DiffGate(code, out.String())
 }
 
 func done(ok bool, code int, summary, blocked string) mergerfsapply.Result {
@@ -221,27 +286,25 @@ func argvAllowed(argv []string) bool {
 }
 
 func runCmd(ctx context.Context, argv []string, limit int) (int, []byte, bool) {
+	buf := &capBuf{max: limit}
+	code := runTo(ctx, argv, buf)
+	if buf.truncated {
+		return -1, buf.buf.Bytes(), true
+	}
+	return code, buf.buf.Bytes(), false
+}
+
+// runTo runs one allowed argv with its output to w and returns the exit status.
+func runTo(ctx context.Context, argv []string, w io.Writer) int {
 	if !argvAllowed(argv) {
-		return -1, nil, false
+		return -1
 	}
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	cmd.Env = []string{"PATH=/usr/bin:/bin", "LANG=C", "LC_ALL=C"}
 	cmd.Dir = "/"
-	buf := &capBuf{max: limit}
-	cmd.Stdout = buf
-	cmd.Stderr = buf
-	err := cmd.Run()
-	if buf.truncated {
-		return -1, buf.buf.Bytes(), true
-	}
-	if err == nil {
-		return 0, buf.buf.Bytes(), false
-	}
-	var ee *exec.ExitError
-	if errors.As(err, &ee) {
-		return ee.ExitCode(), buf.buf.Bytes(), false
-	}
-	return -1, buf.buf.Bytes(), false
+	cmd.Stdout = w
+	cmd.Stderr = w
+	return exitStatus(cmd.Run())
 }
 
 func under(root, abs string) string { return root + abs }

@@ -201,6 +201,11 @@ func mergerfsApply(op string) func(context.Context, *Env, json.RawMessage) (any,
 		case res.Blocked != "":
 			out.Outcome = OutcomeFailed
 			out.Message = blockedMessage(res.Blocked)
+		case res.OK && res.Running:
+			// The helper started SnapRAID and replied; the run continues.
+			out.Outcome = OutcomeSucceeded
+			out.Message = "Started. " + strings.ToUpper(spec.Action[:1]) + spec.Action[1:] +
+				" continues in the background. SnapRAID status shows the array as locked until it ends; its output and exit status are in the system journal of the MergerFS helper."
 		case res.OK:
 			out.Outcome = OutcomeSucceeded
 			out.Message = safeSummary(res.Summary)
@@ -228,8 +233,10 @@ func blockedMessage(reason string) string {
 		return "A disk is missing. Sync and scrub were not started."
 	case mergerfsapply.BlockRemovedFiles:
 		return "Files were removed since the last sync. Sync and scrub were not started."
-	case mergerfsapply.BlockDiffTruncated, mergerfsapply.BlockDiffUnreadable:
+	case mergerfsapply.BlockDiffUnreadable:
 		return "snapraid diff could not be read, so sync and scrub were not started."
+	case mergerfsapply.BlockLocked:
+		return "Another SnapRAID command holds the array lock, for example a sync or scrub that is still running. Nothing was started."
 	default:
 		return "The operation was refused before it started."
 	}

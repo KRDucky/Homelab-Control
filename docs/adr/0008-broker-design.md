@@ -558,3 +558,28 @@ file system, and content files are root `0600`. A disposable Ubuntu 26.04 guest 
 - **AppArmor:** `/var/snapraid.content* rwlk` for SnapRAID's example content path.
 - **Persist:** the array definition is no longer saved over a `snapraid.conf` that the helper did not
   write (first line is the managed header); nothing, including fstab, is written then.
+
+## Amendment 19 (2026-11-26, M8): SnapRAID sync, scrub and fix run to completion
+
+The helper ran `snapraid sync`, `scrub` and `fix` inside its request: an 80 s context, `TimeoutStartSec=85`,
+the broker's 80 s call and a 4 KiB output pipe. Each kills SnapRAID, so these actions only finished on
+arrays small enough to sync in about a minute. On a real array a sync takes hours. Three more limits stopped
+real arrays:
+- `MemoryMax=512M`. SnapRAID needs about 1 GiB of RAM per 16 TB (SnapRAID manual, "hashsize").
+- `MaxConnections=1`. A status read was refused during any helper run.
+- A 1 MiB cap on `snapraid diff`. diff lists every changed file before its summary, so a day of new files
+  blocked sync permanently as "diff unreadable".
+
+- **Change:** after the diff gate (sync, scrub), the helper starts SnapRAID with its output on the helper's
+  stderr (the journal) and no deadline. An exit within 5 s is the reply, with SnapRAID's exit status. A run
+  still going after that is replied to as `running` ("started and continues in the background"). The
+  helper closes the socket, waits for SnapRAID, and logs `snapraid <action> exited with status N`. The
+  process keeps the helper's unit, capabilities, syscall filter and AppArmor profile. There is no new unit.
+- **Unit:** `TimeoutStartSec=infinity`, no `MemoryMax`, socket `MaxConnections=4`. SnapRAID's own array lock
+  refuses a second sync, scrub or fix. A status read during a run reports `locked`.
+- **Diff gate:** keeps the first and the last 64 KiB of diff's output, the disk checks and the summary,
+  instead of refusing at a cap. The `diff-truncated` block is gone. A new block `locked` is used when diff
+  reports SnapRAID's lock message.
+- **Not changed:** the diff gate itself still runs within the 80 s request. The broker does not follow the
+  background run. The journal, the SnapRAID status page and the operation journal's "started" message are
+  the record.

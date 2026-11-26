@@ -5,6 +5,7 @@
 package mergerfsapply
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -150,50 +151,88 @@ func TestFixIsFilteredRecoveryOnly(t *testing.T) {
 	}
 }
 
+// snapraid diff prints one line per changed file before its summary. After
+// a day of new files that list is larger than any fixed cap; the gate must
+// still read the summary, so sync is not blocked for good.
+func TestDiffGateReadsSummaryAfterLongFileList(t *testing.T) {
+	for _, tc := range []struct{ summary, want string }{
+		{"   40000 added\n       0 removed\nThere are differences!\n", ""},
+		{"   40000 added\n       3 removed\nThere are differences!\n", BlockRemovedFiles},
+	} {
+		var b strings.Builder
+		b.WriteString("Loading state from /var/snapraid/content...\nComparing...\n")
+		for i := range 40000 {
+			fmt.Fprintf(&b, "add photos/2026/11/IMG_%06d.jpg\n", i)
+		}
+		b.WriteString(tc.summary)
+		if b.Len() < 1<<20 {
+			t.Fatalf("fixture is only %d bytes", b.Len())
+		}
+		out := &HeadTail{Keep: 64 << 10}
+		text := b.String()
+		for len(text) > 0 {
+			k := min(32<<10, len(text))
+			if _, err := out.Write([]byte(text[:k])); err != nil {
+				t.Fatal(err)
+			}
+			text = text[k:]
+		}
+		if got := DiffGate(2, out.String()); got != tc.want {
+			t.Fatalf("summary %q: got %q, want %q", tc.summary, got, tc.want)
+		}
+	}
+}
+
+// A sync that is still running holds SnapRAID's lock; diff then stops with
+// SnapRAID's lock message (cmdline/state.c), which is its own block.
+func TestDiffGateSaysArrayIsLocked(t *testing.T) {
+	text := "Self test...\nThe lock file '/var/snapraid/content.lock' is already in use!\nSnapRAID is already in use!\n"
+	if got := DiffGate(1, text); got != BlockLocked {
+		t.Fatalf("got %q", got)
+	}
+}
+
 func TestBlockFromDiff(t *testing.T) {
-	if got := BlockFromDiff("1 removed\n3 added\n", false); got != BlockRemovedFiles {
+	if got := BlockFromDiff("1 removed\n3 added\n"); got != BlockRemovedFiles {
 		t.Fatalf("1 removed: %s", got)
 	}
-	if got := BlockFromDiff("removed 2\n", false); got != BlockRemovedFiles {
+	if got := BlockFromDiff("removed 2\n"); got != BlockRemovedFiles {
 		t.Fatalf("removed 2: %s", got)
 	}
-	if got := BlockFromDiff("0 removed\n2 added\n", false); got != "" {
+	if got := BlockFromDiff("0 removed\n2 added\n"); got != "" {
 		t.Fatalf("0 removed blocked: %s", got)
 	}
-	if got := BlockFromDiff("Disk 'd1' not present\n", false); got != BlockMissingDisk {
+	if got := BlockFromDiff("Disk 'd1' not present\n"); got != BlockMissingDisk {
 		t.Fatalf("not present: %s", got)
 	}
-	if got := BlockFromDiff("missing disk d2\n", false); got != BlockMissingDisk {
+	if got := BlockFromDiff("missing disk d2\n"); got != BlockMissingDisk {
 		t.Fatalf("missing disk: %s", got)
 	}
-	if got := BlockFromDiff("WARNING! Content file 'content' not found, attempting with another copy...\nNo content file found. Assuming empty.\n2 added\n0 removed\n", false); got != "" {
+	if got := BlockFromDiff("WARNING! Content file 'content' not found, attempting with another copy...\nNo content file found. Assuming empty.\n2 added\n0 removed\n"); got != "" {
 		t.Fatalf("new array blocked: %s", got)
 	}
-	if got := BlockFromDiff("Error opening directory. No such file or directory.\n", false); got != BlockMissingDisk {
+	if got := BlockFromDiff("Error opening directory. No such file or directory.\n"); got != BlockMissingDisk {
 		t.Fatalf("opening directory: %s", got)
 	}
-	if got := BlockFromDiff("This could occur when some disks are not mounted\n", false); got != BlockMissingDisk {
+	if got := BlockFromDiff("This could occur when some disks are not mounted\n"); got != BlockMissingDisk {
 		t.Fatalf("not mounted: %s", got)
 	}
-	if got := DiffGate(2, "2 added\n0 removed\n", false); got != "" {
+	if got := DiffGate(2, "2 added\n0 removed\n"); got != "" {
 		t.Fatalf("diff exit 2 blocked: %s", got)
 	}
-	if got := DiffGate(2, "1 removed\n", false); got != BlockRemovedFiles {
+	if got := DiffGate(2, "1 removed\n"); got != BlockRemovedFiles {
 		t.Fatalf("diff exit 2 removed: %s", got)
 	}
-	if got := DiffGate(1, "Error opening directory. No such file or directory.\n", false); got != BlockMissingDisk {
+	if got := DiffGate(1, "Error opening directory. No such file or directory.\n"); got != BlockMissingDisk {
 		t.Fatalf("fatal missing dir: %s", got)
 	}
-	if got := DiffGate(1, "unexpected failure\n", false); got != BlockDiffUnreadable {
+	if got := DiffGate(1, "unexpected failure\n"); got != BlockDiffUnreadable {
 		t.Fatalf("fatal diff: %s", got)
 	}
-	if got := BlockFromDiff("WARNING! All the files in a disk are removed\n", false); got != BlockRemovedFiles {
+	if got := BlockFromDiff("WARNING! All the files in a disk are removed\n"); got != BlockRemovedFiles {
 		t.Fatalf("all files: %s", got)
 	}
-	if got := BlockFromDiff("No error detected.\n", true); got != BlockDiffTruncated {
-		t.Fatalf("truncated: %s", got)
-	}
-	if got := BlockFromDiff("No sync is in progress.\n", false); got != "" {
+	if got := BlockFromDiff("No sync is in progress.\n"); got != "" {
 		t.Fatalf("clean diff blocked: %s", got)
 	}
 }

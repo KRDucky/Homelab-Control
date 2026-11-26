@@ -100,3 +100,32 @@ func TestMergerFSWriteOpsRefuseStatus(t *testing.T) {
 		}
 	}
 }
+
+// A sync that is still running when the helper replies is reported as
+// started, with no exit status, and says where its end is recorded.
+func TestMergerFSApplyReportsARunningSync(t *testing.T) {
+	env := mergerfsEnv(t)
+	env.MergerFSApply = func(context.Context, mergerfsapply.Request) (mergerfsapply.Result, error) {
+		return mergerfsapply.Result{Version: 1, OK: true, Running: true, Summary: "sync started and continues in the background"}, nil
+	}
+	got, err := mergerfsPlan(mergerfsKeepPlan)(context.Background(), env, json.RawMessage(`{"action":"sync"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	env.Actor.StepUpAt = time.Now().Unix()
+	out, err := mergerfsApply(mergerfsMaintainOp)(context.Background(), env,
+		json.RawMessage(`{"action":"sync","token":"`+got.(MergerFSPlan).Token+`"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	o := out.(MergerFSOutcome)
+	if o.Outcome != OutcomeSucceeded || o.ExitCode != nil || !strings.HasPrefix(o.Message, "Started. Sync continues in the background.") || !strings.Contains(o.Message, "journal") {
+		t.Fatalf("%+v", o)
+	}
+}
+
+func TestMergerFSApplyNamesTheHeldLock(t *testing.T) {
+	if m := blockedMessage(mergerfsapply.BlockLocked); !strings.Contains(m, "lock") || !strings.Contains(m, "Nothing was started") {
+		t.Fatal(m)
+	}
+}
