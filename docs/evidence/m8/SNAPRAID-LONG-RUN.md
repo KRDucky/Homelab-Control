@@ -85,6 +85,47 @@ Graphify on `5af69a5`: no definition-only symbols and the 7 baseline self-loops.
 `execute`, `startSnapraid`, `startGated`, `startLong`, `mergerfsApply` and `dialMergerFSAt` are covered by
 the tests above. `Checking` is read only by the broker. The frontend shows the broker's message only.
 
+## VM validation of finding 11 (installed `.deb` of `93464ae`)
+
+Package `homelab-control_0.1.0+dev.1+194+g93464ae_amd64.deb`. Evidence and harness:
+`/mnt/tank/claude-vms/artifacts/m8-snapraid-lastrun-93464ae/` (`harness/lastrun-check.py`, logs
+`*-lastrun.log`, `*-slowdiff.log`, `*-status-regress.log`, `last-run-after-slowdiff.txt`; the first run is in
+`run1/`).
+
+The run-record check goes through the API on the throttled array from the long-run setup:
+- no `lastRun` before the first run;
+- the apply says "Sync started and continues in the background. Follow it under SnapRAID status.";
+- during the sync, `lastRun` is `running` with its start times, while status is `locked`;
+- the state directory is 0700 and the record is 0600, both owned by root;
+- a scrub during the sync is refused on the lock, and the record is unchanged;
+- after the sync (165–169 s), the record is `finished` with exit status 0 and an end time;
+- with the helper killed mid-sync, the record stays `running` while SnapRAID, which holds the inherited
+  lock, still runs. Once SnapRAID is killed too (standing in for a reboot), it reads `interrupted`;
+- a removed file gives a refused apply and the record `refused` with `removed-files`;
+- once the file is restored, sync finishes and the record is `finished`;
+- 403 without `mergerfs.read`;
+- no AppArmor denial.
+
+| Guest | Run record | Slow diff | Status regression |
+|---|---|---|---|
+| Ubuntu 26.04.1, kernel 7.0.0-43 (SnapRAID 13.0-1) | 12/12 | 10/10 | 13/13 |
+| Debian 13, kernel 6.12.118 (SnapRAID 12.4-1) | 12/12 | 10/10 | 13/13 |
+| Ubuntu 22.04.5, kernel 5.15.0-204 (SnapRAID 12.1-1) | 12/12 | 10/10 | 13/13 |
+
+After the slow-diff check's killed diff, each guest's record is `refused` with `diff-unreadable`. A block
+found after the 60 s reply is therefore shown on the page, not only in the journal.
+
+The first run hit a harness fault: `pgrep -f` matched its own shell, so the script stopped after killing
+the helper. The sync it left running held the array lock for the next scripts. That same stranded record
+then read `interrupted` through the API once SnapRAID had ended. The slow-diff script now creates 2,000
+files, because without the 2,000 the long-run script used to leave behind, diff finished before the
+observer could hold it.
+
+Graphify on `93464ae`: no definition-only symbols and the 7 baseline self-loops. Every new symbol has
+callers and tests. `types.SnapraidRun` deliberately mirrors `mergerfsapply.RunRecord`: one is the API
+contract, the other the helper protocol, as `SnapraidStatus` is to the helper `Result`. The broker
+converts between them and drops unknown values.
+
 ## Graphify
 
 Indexed at `5e381f9`: no definition-only symbols and the 7 baseline self-loops. Every caller of
