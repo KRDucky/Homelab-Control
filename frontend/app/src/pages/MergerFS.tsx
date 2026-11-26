@@ -482,11 +482,14 @@ function Pools({ pools }: { pools: MergerFSInventory['mergerfs']['pools'] }) {
             <dt>Branches</dt>
             <dd>
               <BranchCapacity pool={pool} />
-              {pool.branchesFrom === 'fstab' || pool.branchesFrom === 'systemd' ? (
+              {pool.branchesFrom === 'runtime' ? (
+                <p className="muted">As mergerfs reports them now (its control file).</p>
+              ) : pool.branchesFrom === 'fstab' || pool.branchesFrom === 'systemd' ? (
                 <p className="muted">
                   From the configured{' '}
-                  {pool.branchesFrom === 'fstab' ? '/etc/fstab line' : 'systemd mount unit'}: this mount's
-                  fsname= hides its branches from the kernel mount table.
+                  {pool.branchesFrom === 'fstab' ? '/etc/fstab line' : 'systemd mount unit'}: mergerfs did not
+                  report them and this mount's fsname= hides them from the kernel mount table. A change made
+                  while mounted is not shown.
                 </p>
               ) : (
                 !pool.branchesFrom && (
@@ -496,7 +499,41 @@ function Pools({ pools }: { pools: MergerFSInventory['mergerfs']['pools'] }) {
                 )
               )}
             </dd>
-            <dt>Options</dt>
+            {pool.runtime ? (
+              <>
+                <dt>Branch modes</dt>
+                <dd>
+                  {pool.runtime.branches
+                    .map((b) => `${b.path} ${b.mode ?? 'RW'}${b.minFree ? `, keeps ${b.minFree} free` : ''}`)
+                    .join('; ')}
+                </dd>
+                <dt>Policies</dt>
+                <dd>
+                  create {pool.runtime.createPolicy ?? '—'}, action {pool.runtime.actionPolicy ?? '—'}, search{' '}
+                  {pool.runtime.searchPolicy ?? '—'}
+                </dd>
+                {pool.runtime.minFreeSpace && (
+                  <>
+                    <dt>Minimum free space</dt>
+                    <dd>{formatBytes(Number(pool.runtime.minFreeSpace))}</dd>
+                  </>
+                )}
+                {pool.runtime.version && (
+                  <>
+                    <dt>mergerfs</dt>
+                    <dd>{pool.runtime.version}</dd>
+                  </>
+                )}
+              </>
+            ) : (
+              pool.runtimeReason && (
+                <>
+                  <dt>Live configuration</dt>
+                  <dd className="muted">Not read: {pool.runtimeReason}.</dd>
+                </>
+              )
+            )}
+            <dt>Mount options</dt>
             <dd>{pool.options.length > 0 ? pool.options.join(', ') : '—'}</dd>
           </dl>
         </li>

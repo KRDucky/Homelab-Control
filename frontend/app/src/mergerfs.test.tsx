@@ -668,6 +668,65 @@ describe('MergerFS read-only page', () => {
     expect(screen.getByRole('cell', { name: '10.5' })).toBeTruthy();
   });
 
+  it("shows mergerfs's live branches and policies from its control file", async () => {
+    const inv = inventory({
+      mergerfsInstalled: true,
+      snapraidInstalled: false,
+      mergerfsPresent: true,
+      snapraidPresent: false,
+    });
+    inv.mergerfs.pools = [
+      {
+        mountpoint: '/mnt/storage',
+        branches: ['/mnt/disk1', '/mnt/disk2'],
+        branchesFrom: 'runtime',
+        options: ['allow_other', 'user_id=0'],
+        usage: [],
+        runtime: {
+          version: '2.40.2',
+          branches: [
+            { path: '/mnt/disk1', mode: 'RW' },
+            { path: '/mnt/disk2', mode: 'NC', minFree: '10G' },
+          ],
+          createPolicy: 'mfs',
+          actionPolicy: 'epall',
+          searchPolicy: 'ff',
+          minFreeSpace: '1073741824',
+        },
+      },
+    ];
+    vi.mocked(getMergerFS).mockResolvedValue(inv);
+    render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
+    expect(await screen.findByText(/As mergerfs reports them now/)).toBeTruthy();
+    expect(screen.getByText('/mnt/disk1 RW; /mnt/disk2 NC, keeps 10G free')).toBeTruthy();
+    expect(screen.getByText(/create mfs, action epall, search/)).toBeTruthy();
+    expect(screen.getByText('1.0 GiB')).toBeTruthy();
+    expect(screen.getByText('2.40.2')).toBeTruthy();
+  });
+
+  it('says why the live configuration was not read', async () => {
+    const inv = inventory({
+      mergerfsInstalled: true,
+      snapraidInstalled: false,
+      mergerfsPresent: true,
+      snapraidPresent: false,
+    });
+    inv.mergerfs.pools = [
+      {
+        mountpoint: '/mnt/storage',
+        branches: ['/mnt/disk1'],
+        branchesFrom: 'fstab',
+        options: [],
+        usage: [],
+        runtimeReason: "mergerfs's control file could not be read (the mount may lack allow_other)",
+      },
+    ];
+    vi.mocked(getMergerFS).mockResolvedValue(inv);
+    render(<MergerFS csrf={csrf} packagesEnabled={false} onUnauthorized={onUnauthorized} />);
+    expect(await screen.findByText(/Not read: mergerfs's control file could not be read/)).toBeTruthy();
+    expect(screen.getByText(/A change made while mounted is not shown/)).toBeTruthy();
+  });
+
   it('hides SnapRAID status when no config is present', async () => {
     vi.mocked(getMergerFS).mockResolvedValue(
       inventory({

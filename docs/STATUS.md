@@ -350,6 +350,12 @@ file is not edited). FUSE3 (`fusermount3`, package `fuse3`) is the
 supported baseline; FUSE2 `fusermount` is
 not probed. A missing `fuse` line is “not currently listed” (the module may load on first mount),
 not proof that mounts cannot work, and a listed line is not proof that a mount will succeed.
+Each observed pool's live configuration comes from mergerfs itself: the extended attributes of its
+control file `<mountpoint>/.mergerfs` (branches with their RW/RO/NC mode, version, create/action/search
+policies, minfreespace, moveonenospc), read with `getxattr` and nothing set, 500 ms per pool and 1.5 s in
+all, with at most 4 goroutines parked on a hung mount. The kernel mount table shows only the generic FUSE
+options and fstab only what the mount started with, so those are fallbacks (named on the page) when the
+control file cannot be read, for example on a mount without `allow_other`.
 It then shows observed `fuse.mergerfs` pools parsed from bounded `/proc/self/mountinfo`, plus a
 read-only import of `/etc/fstab` and `/etc/systemd/system/*.mount` (O_NOFOLLOW, size and entry
 caps, 64 branches per entry; includes, drop-ins, generator units and symlinks never followed;
@@ -373,7 +379,7 @@ The warning list is capped (64 total, 8 per pool) with `warningsTruncated` when 
 collect deadline hits. Each root-owned live pool branch (`user_id=0` in mount super-options)
 is measured with `fstatfs` of the directory under the collect root (`os.OpenRoot`, directory,
 1.5s budget, 8 workers, 8 parked goroutines, 64 per pool / 64 total). `/proc`, `/sys`, `/dev`,
-the fused mount (any observed pool mountpoint), fstab/systemd paths, and listed SnapRAID
+the fused mount (any observed pool mountpoint; only its control file's attributes are read), fstab/systemd paths, and listed SnapRAID
 paths are not opened as such; a data disk that is also a branch is measured as a branch.
 A last-component symlink is unread. Capacity timeout degrades usage and does not 503 the
 inventory. `availBytes` is unprivileged free (`bavail`). A missing measurement is not zero
