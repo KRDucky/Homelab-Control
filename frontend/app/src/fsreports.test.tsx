@@ -156,3 +156,44 @@ describe('filesystem reports from the standard tools', () => {
     expect(within(fs).getByText('extra_attr, sb_checksum')).toBeTruthy();
   });
 });
+
+// VM finding (2026-11-26): ProtectHome removes /home sub-mounts from the
+// helper's namespace, so they are neither reported nor skipped. The page must
+// name them instead of implying every mount was inspected.
+describe('mounts hidden from the helper', () => {
+  it('xfs: names a mount under /home that the helper could not see', () => {
+    const data: XFSInventory = {
+      tooling,
+      xfs: {
+        present: true,
+        reason: '',
+        mounts: [
+          { mountpoint: '/srv/x', device: '/dev/vdb' },
+          { mountpoint: '/home/media', device: '/dev/vdc' },
+        ],
+        mountsTruncated: false,
+      },
+      kernelXfs: kernel,
+      status: {
+        available: true,
+        report: { filesystems: [{ mountpoint: '/srv/x', mounts: ['/srv/x'], features: [] }] },
+      },
+    };
+    render(<XFSView data={data} error={null} packagesEnabled={false} />);
+    expect(screen.getByText(/Not inspected: \/home\/media\./)).toBeTruthy();
+  });
+
+  it('ext4: no note when every mount is covered', () => {
+    render(
+      <Ext4View
+        data={ext4({
+          available: true,
+          report: { filesystems: [{ device: '252:16', mounts: ['/srv/data'], features: [] }] },
+        })}
+        error={null}
+        packagesEnabled={false}
+      />,
+    );
+    expect(screen.queryByText(/Not inspected/)).toBeNull();
+  });
+});

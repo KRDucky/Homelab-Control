@@ -4,7 +4,7 @@
 
 import { useCallback, useState } from 'react';
 import { getExt4, type Ext4Filesystem, type Ext4Inventory, type Ext4ToolItem } from '../api';
-import { Fact, FilesystemReport } from '../FilesystemReport';
+import { Fact, FilesystemReport, hiddenMounts } from '../FilesystemReport';
 import { formatBytes } from '../format';
 import { Meter } from '../Meter';
 import { InstallPlanDialog } from '../InstallPlanDialog';
@@ -110,6 +110,14 @@ export function Ext4View({
         filesystems={data.status?.report?.filesystems ?? []}
         skipped={data.status?.report?.skipped}
         truncated={data.status?.report?.truncated}
+        hidden={
+          data.status?.available
+            ? hiddenMounts(
+                ext4.mounts.map((m) => m.mountpoint),
+                (data.status.report?.filesystems ?? []).flatMap((fs) => fs.mounts),
+              )
+            : undefined
+        }
         empty="No ext4 filesystem is mounted."
       >
         {(fs) => <Ext4Card key={fs.device} fs={fs} />}

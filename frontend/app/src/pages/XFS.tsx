@@ -4,7 +4,7 @@
 
 import { useCallback, useState } from 'react';
 import { getXFS, type XFSFilesystem, type XFSInventory, type XFSToolItem } from '../api';
-import { Fact, FilesystemReport } from '../FilesystemReport';
+import { Fact, FilesystemReport, hiddenMounts } from '../FilesystemReport';
 import { formatBytes } from '../format';
 import { InstallPlanDialog } from '../InstallPlanDialog';
 import { explain, useData } from '../useData';
@@ -108,6 +108,14 @@ export function XFSView({
         filesystems={data.status?.report?.filesystems ?? []}
         skipped={data.status?.report?.skipped}
         truncated={data.status?.report?.truncated}
+        hidden={
+          data.status?.available
+            ? hiddenMounts(
+                xfs.mounts.map((m) => m.mountpoint),
+                (data.status.report?.filesystems ?? []).flatMap((fs) => fs.mounts),
+              )
+            : undefined
+        }
         empty="No XFS filesystem is mounted."
       >
         {(fs) => <XFSCard key={fs.mountpoint} fs={fs} />}

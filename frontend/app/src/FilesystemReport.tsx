@@ -17,6 +17,7 @@ export function FilesystemReport<T>({
   filesystems,
   skipped,
   truncated,
+  hidden,
   empty,
   children,
 }: {
@@ -26,6 +27,8 @@ export function FilesystemReport<T>({
   filesystems: T[];
   skipped?: SkippedMount[] | undefined;
   truncated?: boolean | undefined;
+  /** Mounts the helper cannot see (hiddenMounts). */
+  hidden?: string[] | undefined;
   empty: string;
   children: (fs: T) => ReactNode;
 }) {
@@ -49,6 +52,12 @@ export function FilesystemReport<T>({
           Not every filesystem could be inspected.
         </p>
       )}
+      {hidden && hidden.length > 0 && (
+        <p className="banner" role="status">
+          Not inspected: {hidden.join(', ')}. The read-only storage helper cannot see mounts under /home,
+          /root or /run/user.
+        </p>
+      )}
       {skipped?.map((s) => (
         <p key={s.mountpoint} className="banner" role="status">
           <code>{s.mountpoint}</code>: {s.reason}
@@ -56,6 +65,23 @@ export function FilesystemReport<T>({
       ))}
     </section>
   );
+}
+
+const hiddenPrefixes = ['/home', '/root', '/run/user'];
+
+/**
+ * Mountpoints this page lists that no reported filesystem covers and that lie
+ * where the helper's ProtectHome=yes hides them (its namespace has no mounts
+ * there, so it cannot even list them as skipped).
+ */
+export function hiddenMounts(mountpoints: string[], covered: string[]): string[] {
+  return [
+    ...new Set(
+      mountpoints.filter(
+        (m) => !covered.includes(m) && hiddenPrefixes.some((h) => m === h || m.startsWith(`${h}/`)),
+      ),
+    ),
+  ];
 }
 
 /** One fact row; omitted when the tool did not report the value. */
