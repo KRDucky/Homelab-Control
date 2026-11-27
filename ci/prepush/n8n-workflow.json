@@ -368,7 +368,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const found = $('Find build').first().json;\nlet result = null;\ntry {\n  const r = $('ci-result.json').first().json;\n  if (r && r.statusCode === 200) result = typeof r.body === 'string' ? JSON.parse(r.body) : r.body;\n} catch (e) { /* not fetched: the build is not finished */ }\n// A finished build is only a pass for this commit when its summary names it and Graphify indexed what was tested.\nlet pass = false;\nif (found.finished && result) {\n  pass = found.state === 'SUCCESS' && result.commit === found.sha && result.mode === 'prepush'\n    && result.graphify && ['complete', 'not-applicable'].includes(result.graphify.status);\n}\nreturn [{ json: { ...found, pass, result } }];\n"
+        "jsCode": "const found = $('Find build').first().json;\nlet result = null;\ntry {\n  const r = $('ci-result.json').first().json;\n  // With fullResponse and responseFormat \"text\", n8n puts the body under \"data\", not \"body\".\n  const raw = r && r.data !== undefined ? r.data : r && r.body;\n  if (r && r.statusCode === 200) result = typeof raw === 'string' ? JSON.parse(raw) : raw;\n} catch (e) { /* not fetched: the build is not finished */ }\n// A finished build is only a pass for this commit when its summary names it and Graphify indexed what was tested.\nlet pass = false;\nif (found.finished && result) {\n  pass = found.state === 'SUCCESS' && result.commit === found.sha && result.mode === 'prepush'\n    && result.graphify && ['complete', 'not-applicable'].includes(result.graphify.status);\n}\nreturn [{ json: { ...found, pass, result } }];\n"
       },
       "name": "Status reply",
       "type": "n8n-nodes-base.code",

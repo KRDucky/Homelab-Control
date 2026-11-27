@@ -137,9 +137,16 @@ case $cmd in
     done ;;
   install-hook)
     hookfile="$(git rev-parse --git-path hooks)/pre-push"
-    [ -e "$hookfile" ] && ! grep -q 'prepush-ci.sh hook' "$hookfile" && die "$hookfile exists; add: exec scripts/prepush-ci.sh hook \"\$@\""
+    [ -e "$hookfile" ] && ! grep -q 'Installed by scripts/prepush-ci.sh install-hook' "$hookfile" &&
+      die "$hookfile exists; add: exec scripts/prepush-ci.sh hook \"\$@\""
+    # The hook is shared by every worktree. A branch made before pre-push testing has no script; its
+    # pushes go through unchecked, with a note (GitHub Actions still judges the pull request).
     # shellcheck disable=SC2016 # expanded when the hook runs
-    printf '#!/bin/sh\n# Installed by scripts/prepush-ci.sh install-hook (ci/README.md).\nexec "$(git rev-parse --show-toplevel)/scripts/prepush-ci.sh" hook "$@"\n' > "$hookfile"
+    printf '%s\n' '#!/bin/sh' \
+      '# Installed by scripts/prepush-ci.sh install-hook (ci/README.md).' \
+      's="$(git rev-parse --show-toplevel)/scripts/prepush-ci.sh"' \
+      'if [ ! -x "$s" ]; then echo "prepush-ci: this branch has no scripts/prepush-ci.sh; not checking" >&2; exit 0; fi' \
+      'exec "$s" hook "$@"' > "$hookfile"
     chmod +x "$hookfile"
     echo "prepush-ci: installed $hookfile" >&2 ;;
   hook) hook "$@" ;;
