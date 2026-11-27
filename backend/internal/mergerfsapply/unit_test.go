@@ -28,6 +28,11 @@ func TestApplyUnitIsOptIn(t *testing.T) {
 		"KillMode=process",
 		"PrivateMounts=no",
 		"PrivateNetwork=no",
+		// A sync runs for hours and needs about 1 GiB per 16 TB.
+		"TimeoutStartSec=infinity",
+		// The run record that SnapRAID status shows.
+		"StateDirectory=homelab-control-mergerfs-apply",
+		"StateDirectoryMode=0700",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("unit missing %s", want)
@@ -44,7 +49,7 @@ func TestApplyUnitIsOptIn(t *testing.T) {
 	if len(profiles) != 1 || profiles[0] != "hc-mergerfs-apply" {
 		t.Errorf("AppArmorProfile assignments %q, want one hc-mergerfs-apply", profiles)
 	}
-	for _, banned := range []string{"[Install]", "SELinuxContext=", "AppArmorProfile=hc-storage-probe", "homelab-control-storage-helper", "~@mount", "ProtectSystem=", "ProtectHome=", "PrivateTmp=", "PrivateNetwork=yes", "ExecStart=/bin/false"} {
+	for _, banned := range []string{"[Install]", "SELinuxContext=", "AppArmorProfile=hc-storage-probe", "homelab-control-storage-helper", "~@mount", "ProtectSystem=", "ProtectHome=", "PrivateTmp=", "PrivateNetwork=yes", "ExecStart=/bin/false", "MemoryMax=", "TimeoutStartSec=85"} {
 		if strings.Contains(text, banned) {
 			t.Errorf("unit contains %s", banned)
 		}
@@ -54,7 +59,7 @@ func TestApplyUnitIsOptIn(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(sock)
-	if strings.Contains(s, "[Install]") || !strings.Contains(s, "SocketMode=0600") || !strings.Contains(s, "mergerfs-apply.enabled") {
+	if strings.Contains(s, "[Install]") || !strings.Contains(s, "SocketMode=0600") || !strings.Contains(s, "mergerfs-apply.enabled") || !strings.Contains(s, "MaxConnections=4") {
 		t.Fatalf("socket:\n%s", s)
 	}
 	profile, err := os.ReadFile("../../../packaging/debian/apparmor/usr.lib.homelab-control.hc-mergerfs-apply")
@@ -73,6 +78,8 @@ func TestApplyUnitIsOptIn(t *testing.T) {
 		"/dev/disk/by-uuid/* r,",
 		"/var/snapraid/** rwlk,",
 		"/mnt/** rwlk,",
+		"/run/homelab-control/mergerfs-apply.sock rw,",
+		"/var/lib/homelab-control-mergerfs-apply/** rwk,",
 	} {
 		if !hasLine(p, want) {
 			t.Errorf("profile missing rule %s", want)

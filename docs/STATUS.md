@@ -350,6 +350,12 @@ file is not edited). FUSE3 (`fusermount3`, package `fuse3`) is the
 supported baseline; FUSE2 `fusermount` is
 not probed. A missing `fuse` line is “not currently listed” (the module may load on first mount),
 not proof that mounts cannot work, and a listed line is not proof that a mount will succeed.
+Each observed pool's live configuration comes from mergerfs itself: the extended attributes of its
+control file `<mountpoint>/.mergerfs` (branches with their RW/RO/NC mode, version, create/action/search
+policies, minfreespace, moveonenospc), read with `getxattr` and nothing set, 500 ms per pool and 1.5 s in
+all, with at most 4 goroutines parked on a hung mount. The kernel mount table shows only the generic FUSE
+options and fstab only what the mount started with, so those are fallbacks (named on the page) when the
+control file cannot be read, for example on a mount without `allow_other`.
 It then shows observed `fuse.mergerfs` pools parsed from bounded `/proc/self/mountinfo`, plus a
 read-only import of `/etc/fstab` and `/etc/systemd/system/*.mount` (O_NOFOLLOW, size and entry
 caps, 64 branches per entry; includes, drop-ins, generator units and symlinks never followed;
@@ -373,7 +379,7 @@ The warning list is capped (64 total, 8 per pool) with `warningsTruncated` when 
 collect deadline hits. Each root-owned live pool branch (`user_id=0` in mount super-options)
 is measured with `fstatfs` of the directory under the collect root (`os.OpenRoot`, directory,
 1.5s budget, 8 workers, 8 parked goroutines, 64 per pool / 64 total). `/proc`, `/sys`, `/dev`,
-the fused mount (any observed pool mountpoint), fstab/systemd paths, and listed SnapRAID
+the fused mount (any observed pool mountpoint; only its control file's attributes are read), fstab/systemd paths, and listed SnapRAID
 paths are not opened as such; a data disk that is also a branch is measured as a branch.
 A last-component symlink is unread. Capacity timeout degrades usage and does not 503 the
 inventory. `availBytes` is unprivileged free (`bavail`). A missing measurement is not zero
@@ -387,8 +393,11 @@ Pool mount, array definition (fstab plus snapraid.conf), sync, scrub, and filter
 (`snapraid fix -m -f` only) are plan/apply broker ops. `mergerfs.configure` and `mergerfs.maintain`
 are not default grants and do not imply `mergerfs.read` or each other. The broker dials an opt-in
 helper socket. The package ships `/etc/homelab-control/mergerfs-apply.enabled`. The socket has no
-`[Install]` section and the package does not enable it at boot. Sync and scrub refuse a missing disk
-or removed files. There is no `--force`, no `-e`, and no unfiltered fix. Disks are not formatted.
+`[Install]` section and the package does not enable it at boot. Sync and scrub refuse a missing disk,
+removed files, or an array lock that another SnapRAID command holds. Sync, scrub and fix run to completion
+(ADR 0008 Amendment 19; evidence `docs/evidence/m8/SNAPRAID-LONG-RUN.md`). A run that lasts more than 5 s is reported as started and continues in the
+helper's unit, with SnapRAID's output and exit status in the journal. The diff gate reads the start and
+end of `snapraid diff`, so a long list of changed files does not block sync. `snapraid diff` has no deadline; if it is still checking after 60 s the apply says so, and sync or scrub starts only if the check passes. SnapRAID status shows the latest sync, scrub or fix (checking, running, finished, failed, refused or interrupted) from the helper's run record, and the page reads it again while the run is active. There is no `--force`, no `-e`, and no unfiltered fix. Disks are not formatted.
 `storagecap.Advance` enters `execute` after a passing confirm, then `progress` and `postcheck`.
 It still does not format a device itself. `ext4.format.plan` / `ext4.format.apply` (scope
 `ext4.format`, not implied by `ext4.read`) call `mkfs.ext4 -q --` on one by-id path after that

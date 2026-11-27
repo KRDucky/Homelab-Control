@@ -5,6 +5,7 @@
 package mergerfsapply
 
 import (
+	"bytes"
 	"regexp"
 	"strconv"
 	"strings"
@@ -14,8 +15,10 @@ import (
 const (
 	BlockMissingDisk    = "missing-disk"
 	BlockRemovedFiles   = "removed-files"
-	BlockDiffTruncated  = "diff-truncated"
 	BlockDiffUnreadable = "diff-unreadable"
+	// BlockLocked: another SnapRAID command holds the array lock, for
+	// example a sync that is still running.
+	BlockLocked = "locked"
 )
 
 var (
@@ -31,11 +34,11 @@ var (
 // found" and then assumes an empty array. That sentence is not a missing
 // data disk, so it is not a block. A missing data disk is "not present",
 // "not mounted", or "error opening directory" (the mountpoint is gone).
-func BlockFromDiff(text string, truncated bool) string {
-	if truncated {
-		return BlockDiffTruncated
-	}
+func BlockFromDiff(text string) string {
 	low := strings.ToLower(text)
+	if strings.Contains(low, "is already in use") {
+		return BlockLocked
+	}
 	if strings.Contains(low, "not present") || strings.Contains(low, "missing disk") || strings.Contains(low, "not mounted") || strings.Contains(low, "error opening directory") {
 		return BlockMissingDisk
 	}
@@ -51,14 +54,11 @@ func BlockFromDiff(text string, truncated bool) string {
 // DiffGate is the sync and scrub pre-check. snapraid diff exits 0 when
 // nothing changed and 2 when files were added or removed. Any other status
 // means the array was not read, so sync and scrub do not start.
-func DiffGate(code int, text string, truncated bool) string {
-	if truncated {
-		return BlockDiffTruncated
-	}
+func DiffGate(code int, text string) string {
 	if code < 0 {
 		return BlockDiffUnreadable
 	}
-	if reason := BlockFromDiff(text, false); reason != "" {
+	if reason := BlockFromDiff(text); reason != "" {
 		return reason
 	}
 	if code != 0 && code != 2 {
@@ -76,4 +76,45 @@ func removedCount(re *regexp.Regexp, text string) int {
 		}
 	}
 	return n
+}
+
+// HeadTail keeps the first and the last Keep bytes written to it. snapraid
+// diff prints its disk checks first and its summary last; the lines between
+// are one per changed file, which the gate does not read.
+type HeadTail struct {
+	Keep       int
+	head, tail []byte
+	cut        bool
+}
+
+func (h *HeadTail) Write(p []byte) (int, error) {
+	n := len(p)
+	if room := h.Keep - len(h.head); room > 0 {
+		k := min(room, len(p))
+		h.head = append(h.head, p[:k]...)
+		p = p[k:]
+	}
+	if len(p) == 0 {
+		return n, nil
+	}
+	h.tail = append(h.tail, p...)
+	if over := len(h.tail) - h.Keep; over > 0 {
+		h.cut = true
+		copy(h.tail, h.tail[over:])
+		h.tail = h.tail[:h.Keep]
+	}
+	return n, nil
+}
+
+// String is the head and the tail. When bytes between them were dropped, the
+// tail starts at its first whole line.
+func (h *HeadTail) String() string {
+	tail := h.tail
+	if h.cut {
+		if i := bytes.IndexByte(tail, '\n'); i >= 0 {
+			tail = tail[i+1:]
+		}
+		return string(h.head) + "\n" + string(tail)
+	}
+	return string(h.head) + string(tail)
 }

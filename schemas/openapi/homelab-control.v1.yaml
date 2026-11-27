@@ -1156,6 +1156,36 @@ components:
                 properties:
                   mountpoint: { type: string }
                   branches: { type: array, items: { type: string } }
+                  branchesFrom:
+                    type: string
+                    enum: [runtime, mountinfo, fstab, systemd]
+                    description: "runtime is mergerfs's own live list (control file); mountinfo the mount source; fstab/systemd the configured mount when neither names them. Absent when unknown."
+                  runtime:
+                    type: object
+                    required: [branches]
+                    description: >
+                      mergerfs's live configuration: extended attributes of the control file
+                      <mountpoint>/.mergerfs (user.mergerfs.branches, version, category.create,
+                      category.action, category.search, minfreespace, moveonenospc), read
+                      unprivileged with getxattr, 500 ms per pool and 1.5 s in all. Nothing is set.
+                    properties:
+                      version: { type: string }
+                      branches:
+                        type: array
+                        maxItems: 64
+                        items:
+                          type: object
+                          required: [path]
+                          properties:
+                            path: { type: string }
+                            mode: { type: string, enum: [RW, RO, NC] }
+                            minFree: { type: string }
+                      createPolicy: { type: string }
+                      actionPolicy: { type: string }
+                      searchPolicy: { type: string }
+                      minFreeSpace: { type: string, description: Bytes, as mergerfs reports it }
+                      moveOnENOSPC: { type: string }
+                  runtimeReason: { type: string, description: Why runtime is absent (control file unreadable, for example without allow_other; timeout; unparsable). }
                   options: { type: array, items: { type: string } }
                   usage:
                     type: array
@@ -3623,6 +3653,26 @@ paths:
                   truncated: { type: boolean, description: The helper cut snapraid's text at its output cap, or there were more than 16 summary lines or 64 disks. }
                   note: { type: string }
                   source: { type: string }
+                  lastRun:
+                    type: object
+                    description: >
+                      The latest sync, scrub or fix started through Homelab Control, as the MergerFS helper
+                      recorded it. Present also while SnapRAID holds the array lock. Absent before the first one.
+                    required: [action, state, startedAt]
+                    properties:
+                      action: { type: string, enum: [sync, scrub, fix] }
+                      state:
+                        type: string
+                        enum: [checking, running, finished, failed, refused, interrupted]
+                        description: >
+                          checking is snapraid diff before sync or scrub; refused means that check blocked the
+                          run (see blocked); interrupted means the helper and SnapRAID stopped before the run
+                          ended, for example at a reboot.
+                      startedAt: { type: string, format: date-time }
+                      runningAt: { type: string, format: date-time, description: When SnapRAID itself started, after the check. }
+                      endedAt: { type: string, format: date-time }
+                      exitCode: { type: integer, description: SnapRAID's exit status, for finished and failed. }
+                      blocked: { type: string, enum: [missing-disk, removed-files, diff-unreadable, locked] }
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: Missing mergerfs.read, or Origin/CSRF rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '503': { description: Broker down, MergerFS helper not enabled, or audit unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }

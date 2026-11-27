@@ -201,6 +201,17 @@ func mergerfsApply(op string) func(context.Context, *Env, json.RawMessage) (any,
 		case res.Blocked != "":
 			out.Outcome = OutcomeFailed
 			out.Message = blockedMessage(res.Blocked)
+		case res.OK && res.Running && res.Checking:
+			// snapraid diff is still checking the array; the run may yet be refused.
+			out.Outcome = OutcomeSucceeded
+			out.Message = "Checking the array before " + spec.Action + " (snapraid diff). " +
+				strings.ToUpper(spec.Action[:1]) + spec.Action[1:] + " starts only if no disk is missing and no file was removed. " +
+				"Follow it under SnapRAID status."
+		case res.OK && res.Running:
+			// The helper started SnapRAID and replied; the run continues.
+			out.Outcome = OutcomeSucceeded
+			out.Message = strings.ToUpper(spec.Action[:1]) + spec.Action[1:] +
+				" started and continues in the background. Follow it under SnapRAID status."
 		case res.OK:
 			out.Outcome = OutcomeSucceeded
 			out.Message = safeSummary(res.Summary)
@@ -228,8 +239,10 @@ func blockedMessage(reason string) string {
 		return "A disk is missing. Sync and scrub were not started."
 	case mergerfsapply.BlockRemovedFiles:
 		return "Files were removed since the last sync. Sync and scrub were not started."
-	case mergerfsapply.BlockDiffTruncated, mergerfsapply.BlockDiffUnreadable:
+	case mergerfsapply.BlockDiffUnreadable:
 		return "snapraid diff could not be read, so sync and scrub were not started."
+	case mergerfsapply.BlockLocked:
+		return "Another SnapRAID command holds the array lock, for example a sync or scrub that is still running. Nothing was started."
 	default:
 		return "The operation was refused before it started."
 	}
@@ -275,6 +288,12 @@ func dialMergerFSAt(ctx context.Context, sock string, req mergerfsapply.Request)
 		return zero, err
 	}
 	if _, err := conn.Write(append(body, '\n')); err != nil {
+		// systemd accepts, then closes the connection when the helper unit
+		// does not run (its marker is absent). A write after that close fails;
+		// the request was not delivered, so nothing ran.
+		if errors.Is(err, syscall.EPIPE) || errors.Is(err, syscall.ECONNRESET) {
+			return zero, errHelperNoReply
+		}
 		return zero, err
 	}
 	if uc, ok := conn.(*net.UnixConn); ok {
