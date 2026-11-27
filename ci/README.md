@@ -37,9 +37,12 @@ Nothing in the pipeline publishes, tags, signs, deploys or uses a credential. Ch
     `release-tool.py check-toolchain`.
 - **No dependency caches:** as on GitHub, dependencies come from the lockfiles on every run.
   Only the toolchain image is reused.
-- **CI mode:** `HC_CI=1` turns on CI mode in `scripts/security-check.sh`, as `GITHUB_ACTIONS`
-  does. Every scanner must be installed and the RustSec database is fetched. Before this, a
-  run outside GitHub Actions skipped the RustSec check without failing.
+- **CI mode:** `HC_CI=1` turns on CI mode, as `GITHUB_ACTIONS` does:
+  - in `scripts/security-check.sh`, every scanner must be installed and the RustSec database is
+    fetched. Before this, a run outside GitHub Actions skipped the RustSec check without failing;
+  - in `tests/integration/run-hc-e2e.sh`, the browser tests must run. Before this, they were
+    skipped with a passing result when Playwright could not be imported, which the first Jenkins
+    build showed.
 
 ## Stages
 

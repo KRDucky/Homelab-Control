@@ -22,6 +22,17 @@ def checkoutFull() {
     ]])
 }
 
+// Runs body; when body itself fails, names the stage in failedStages and fails it. A stage's
+// post { failure } also fires after another stage has failed the build, so it cannot be used.
+def tracked(List failedStages, String stage, Closure body) {
+  try {
+    body()
+  } catch (e) {
+    failedStages << stage
+    throw e
+  }
+}
+
 pipeline {
   agent none
   options {
@@ -43,13 +54,15 @@ pipeline {
       options { timeout(time: 90, unit: 'MINUTES') }
       steps {
         script {
-          // Pull requests from forks are untrusted code; they never run on these persistent agents.
-          if (env.CHANGE_FORK) {
-            error("Pull request ${env.CHANGE_ID} comes from the fork ${env.CHANGE_FORK}; it is not built here.")
+          tracked(failedStages, env.STAGE_NAME) {
+            // Pull requests from forks are untrusted code; they never run on these persistent agents.
+            if (env.CHANGE_FORK) {
+              error("Pull request ${env.CHANGE_ID} comes from the fork ${env.CHANGE_FORK}; it is not built here.")
+            }
+            gitCommit = checkoutFull().GIT_COMMIT
+            sh 'ci/run.sh --out build --out reports --env HC_CI -- ci/check.sh'
           }
         }
-        script { gitCommit = checkoutFull().GIT_COMMIT }
-        sh 'ci/run.sh --out build --out reports --env HC_CI -- ci/check.sh'
       }
       post {
         always {
@@ -60,7 +73,6 @@ pipeline {
             name: 'Go coverage', sourceCodeRetention: 'NEVER', enabledForFailure: true, skipPublishingChecks: true)
         }
         success { stash name: 'build', includes: 'build/**' }
-        failure { script { failedStages << env.STAGE_NAME } }
       }
     }
     // The docker agent has one executor, so these run one after another; each is independent.
@@ -70,23 +82,26 @@ pipeline {
           agent { label 'docker' }
           options { timeout(time: 90, unit: 'MINUTES') }
           steps {
-            checkoutFull()
-            sh 'ci/release-dry-run.sh'
+            script {
+              tracked(failedStages, env.STAGE_NAME) {
+                checkoutFull()
+                sh 'ci/release-dry-run.sh'
+              }
+            }
           }
           post {
             always {
               archiveArtifacts artifacts: 'dist/candidate/**,dist/notes/**', allowEmptyArchive: true, fingerprint: true
             }
-            failure { script { failedStages << env.STAGE_NAME } }
           }
         }
         stage('install matrix') {
           agent { label 'docker' }
           options { timeout(time: 45, unit: 'MINUTES') }
           steps {
-            checkoutFull()
-            unstash 'build'
-            script {
+            script { tracked(failedStages, env.STAGE_NAME) {
+              checkoutFull()
+              unstash 'build'
               // The images and their preparation come from ci.yml's install-matrix, as written there.
               def rows = sh(returnStdout: true, script: '''
                 sed -n "s/.*{ image: '\\([^']*\\)', prep: '\\([^']*\\)' }.*/\\1|\\2/p" .github/workflows/ci.yml
@@ -110,25 +125,25 @@ pipeline {
                 }
               }
               parallel runs
-            }
+            } }
           }
-          post { failure { script { failedStages << env.STAGE_NAME } } }
         }
         stage('browser e2e') {
           agent { label 'docker' }
           options { timeout(time: 45, unit: 'MINUTES') }
           environment { HC_CSP_BROWSERS = 'chromium,firefox,webkit' }
           steps {
-            checkoutFull()
-            unstash 'build'
-            sh '''
+            script { tracked(failedStages, env.STAGE_NAME) {
+              checkoutFull()
+              unstash 'build'
+              sh '''
               ci/run.sh --image e2e --env HC_CI --env HC_CSP_BROWSERS -- sh -ec '
                 (cd frontend/app && npm ci --ignore-scripts --no-fund)
                 chmod +x build/hc-api build/hlctl
                 tests/integration/run-hc-e2e.sh'
-            '''
+              '''
+            } }
           }
-          post { failure { script { failedStages << env.STAGE_NAME } } }
         }
       }
     }
