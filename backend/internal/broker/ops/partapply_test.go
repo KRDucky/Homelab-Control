@@ -43,6 +43,84 @@ func newPartEnv(t *testing.T) *Env {
 		PartSfdisk: func(context.Context, []string, []byte) (runner.Result, error) {
 			return runner.Result{ExitCode: 0}, nil
 		},
+		PartReadback: func(context.Context, []string) (runner.Result, error) {
+			return runner.Result{ExitCode: 0, Stdout: sfdiskJSON(t, partSlice())}, nil
+		},
+	}
+}
+
+// sfdiskJSON is `sfdisk --json` output for the table GPTScript writes for parts.
+func sfdiskJSON(t *testing.T, parts []partplan.Slice) []byte {
+	t.Helper()
+	rows, err := partplan.GPTRows(partplan.Request{DiskBytes: 8 << 20, Parts: parts}, 512)
+	if err != nil {
+		t.Fatal(err)
+	}
+	type entry struct {
+		Start uint64 `json:"start"`
+		Size  uint64 `json:"size"`
+		Type  string `json:"type"`
+	}
+	tbl := struct {
+		Label      string  `json:"label"`
+		Partitions []entry `json:"partitions"`
+	}{Label: "gpt"}
+	for _, r := range rows {
+		tbl.Partitions = append(tbl.Partitions, entry{r.Start, r.Size, r.Type})
+	}
+	b, _ := json.Marshal(map[string]any{"partitiontable": tbl})
+	return b
+}
+
+// partApplyOnce plans and applies partSlice() on env and returns the outcome.
+func partApplyOnce(t *testing.T, env *Env) PartitionWriteOutcome {
+	t.Helper()
+	plan, err := partApplyPlan(context.Background(), env, partRaw(partSlice()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := json.Marshal(partApplyApplyArgs{
+		ByID: ext4TestByID, IdentityKind: "wwn", IdentityValue: ext4TestWWN,
+		Confirm: []string{"partition"}, DiskBytes: 8 << 20, Parts: partSlice(), Token: plan.(PartitionWritePlan).Token,
+	})
+	got, err := partApplyApply(context.Background(), env, raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return got.(PartitionWriteOutcome)
+}
+
+func TestPartitionReadBackConfirmsTheTable(t *testing.T) {
+	env := newPartEnv(t)
+	var gotArgv []string
+	env.PartReadback = func(_ context.Context, argv []string) (runner.Result, error) {
+		gotArgv = append([]string{}, argv...)
+		return runner.Result{ExitCode: 0, Stdout: sfdiskJSON(t, partSlice())}, nil
+	}
+	out := partApplyOnce(t, env)
+	if out.Outcome != OutcomeSucceeded || !strings.Contains(out.Message, "reads back the planned table (1 partitions)") {
+		t.Fatalf("%+v", out)
+	}
+	if strings.Join(gotArgv, " ") != "--json -- "+ext4TestByID {
+		t.Fatalf("read-back argv %v", gotArgv)
+	}
+}
+
+func TestPartitionReadBackMismatchOrFailureIsUncertain(t *testing.T) {
+	other := []partplan.Slice{{StartBytes: 1 << 20, SizeBytes: 1 << 20, FSType: "ext4"}}
+	for name, rb := range map[string]func(context.Context, []string) (runner.Result, error){
+		"different table": func(context.Context, []string) (runner.Result, error) {
+			return runner.Result{ExitCode: 0, Stdout: sfdiskJSON(t, other)}, nil
+		},
+		"non-zero": func(context.Context, []string) (runner.Result, error) { return runner.Result{ExitCode: 1}, nil },
+		"no run":   func(context.Context, []string) (runner.Result, error) { return runner.Result{}, runner.ErrTimeout },
+	} {
+		env := newPartEnv(t)
+		env.PartReadback = rb
+		out := partApplyOnce(t, env)
+		if out.Outcome != OutcomeUncertain || !strings.Contains(out.Message, "could not be confirmed") || len(out.Recovery) == 0 {
+			t.Errorf("%s: %+v", name, out)
+		}
 	}
 }
 

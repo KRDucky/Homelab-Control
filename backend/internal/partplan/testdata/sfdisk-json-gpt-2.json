@@ -1,0 +1,26 @@
+{
+   "partitiontable": {
+      "label": "gpt",
+      "id": "A9F64C41-6DB6-44CE-831A-8DEA8D9A72B0",
+      "device": "/dev/disk/by-id/wwn-0x5000000000000001",
+      "unit": "sectors",
+      "firstlba": 2048,
+      "lastlba": 16350,
+      "sectorsize": 512,
+      "partitions": [
+         {
+            "node": "/dev/disk/by-id/wwn-0x50000000000000011",
+            "start": 2048,
+            "size": 4096,
+            "type": "0FC63DAF-8483-4772-8E79-3D69D8477DE4",
+            "uuid": "129C2CCD-F118-4035-B294-6DD7805DC1D3"
+         },{
+            "node": "/dev/disk/by-id/wwn-0x50000000000000012",
+            "start": 6144,
+            "size": 2048,
+            "type": "0657FD6D-A4AB-43C4-84E5-0933C84B4F4F",
+            "uuid": "0B61B7E3-5064-4E4A-AA8E-582974A2857C"
+         }
+      ]
+   }
+}

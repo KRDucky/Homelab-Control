@@ -36,6 +36,8 @@ import (
 //   - the disk is a block device, unmounted, and without holders;
 //   - logical block size and disk size are read again immediately before exec;
 //   - a killed, timed-out, or non-zero sfdisk is uncertain and is not retried;
+//   - after exit 0 the table is read back with sfdisk --json and must equal
+//     the plan, or the outcome is uncertain;
 //   - nothing in this op formats a filesystem.
 // The main broker unit stays PrivateDevices=yes.
 
@@ -302,6 +304,31 @@ func (env *Env) runPartApply(ctx context.Context, byID, script string) (runner.R
 	return env.RootExec.RunStdin(ctx, runner.RootSfdiskGPT, stdin, byID)
 }
 
+// readPartTable runs the closed read-only sfdisk --json template on the disk
+// just written and compares the table with the planned rows.
+func (env *Env) readPartTable(ctx context.Context, byID string, want []partplan.Row) error {
+	argv, err := runner.RootArgv(runner.RootSfdiskJSON, byID)
+	if err != nil {
+		return err
+	}
+	var res runner.Result
+	switch {
+	case env.PartReadback != nil:
+		res, err = env.PartReadback(ctx, argv)
+	case env.RootExec != nil:
+		res, err = env.RootExec.Run(ctx, runner.RootSfdiskJSON, byID)
+	default:
+		return errors.New("root execution is not available for the read-back")
+	}
+	if err != nil {
+		return fmt.Errorf("sfdisk --json could not run (%s)", execClass(err))
+	}
+	if res.ExitCode != 0 {
+		return fmt.Errorf("sfdisk --json exited with status %d", res.ExitCode)
+	}
+	return partplan.CheckSfdiskJSON(res.Stdout, want)
+}
+
 const partRecovery = "Do not retry blindly. The partition table may be partial. Inspect the disk, then review a new plan."
 
 func partApplyApply(ctx context.Context, env *Env, raw json.RawMessage) (any, error) {
@@ -409,6 +436,20 @@ func partApplyApply(ctx context.Context, env *Env, raw json.RawMessage) (any, er
 	acancel()
 	after, afterErr := env.partView().Inspect(context.Background(), env, a.ByID)
 	outcome, msg := classifyPartApply(res, runErr, after, afterErr, fact.Rdev)
+	if outcome == OutcomeSucceeded {
+		rows, rowsErr := partplan.GPTRows(partplan.Request{DiskBytes: diskBytes, Parts: a.Parts}, sector)
+		if rowsErr == nil {
+			rctx, rcancel := context.WithTimeout(context.Background(), 30*time.Second)
+			rowsErr = env.readPartTable(rctx, a.ByID, rows)
+			rcancel()
+		}
+		if rowsErr != nil {
+			outcome = OutcomeUncertain
+			msg = "sfdisk exited 0, but the new partition table could not be confirmed: " + rowsErr.Error() + ". No filesystem was formatted. Nothing further was run."
+		} else {
+			msg = fmt.Sprintf("sfdisk exited 0, the device identity still matches the plan, and sfdisk --json reads back the planned table (%d partitions). No filesystem was formatted.", len(rows))
+		}
+	}
 	out := PartitionWriteOutcome{OperationID: opID, Action: partApplyAction, Outcome: outcome, Message: msg,
 		StartedAt: started, FinishedAt: time.Now().UTC()}
 	if outcome != OutcomeSucceeded {
@@ -450,6 +491,6 @@ func classifyPartApply(res runner.Result, runErr error, after Ext4DeviceFact, af
 	case res.ExitCode != 0:
 		return OutcomeUncertain, fmt.Sprintf("sfdisk exited with status %d. The disk may already have been written. Nothing further was run.", res.ExitCode)
 	default:
-		return OutcomeSucceeded, "sfdisk exited 0 and the device identity still matches the plan. The new partition table was not read back, and no filesystem was formatted."
+		return OutcomeSucceeded, "sfdisk exited 0 and the device identity still matches the plan."
 	}
 }

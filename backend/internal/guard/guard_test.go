@@ -386,6 +386,9 @@ var sfdiskTemplateFiles = map[string]bool{
 	"internal/broker/runner/runner.go": true,
 	"internal/broker/ops/ops.go":       true,
 	"internal/broker/ops/partapply.go": true,
+	// Parses `sfdisk --json` output for the read-back; it cannot execute
+	// anything (only the runner can, see the exec guards above).
+	"internal/partplan/readback.go": true,
 }
 
 func TestSfdiskTemplateConfined(t *testing.T) {

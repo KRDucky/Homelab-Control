@@ -382,6 +382,11 @@ Amendment 9 is the M11 read-only networking checkpoint and is unchanged.
   A slice must start at or after 1 MiB and end at least 1 MiB before the disk.
 - **G3 is not met.** The main broker unit stays `PrivateDevices=yes`. A broker that cannot see
   the disk fails closed before exec. A live partition belongs on a disposable VM disk.
+- **Read-back template (2026-11-27, owner-authorized).** `sfdisk.json` = `sfdisk --json -- <by-id>`,
+  read-only, the same one whole by-id disk, no stdin. `storage.partition.apply` runs it after
+  `sfdisk.gpt` exits 0 and compares label, start, size and type GUID of every entry with the plan.
+  The outcome is `succeeded` only when they match; a mismatch, a non-zero exit or a failed run is
+  `uncertain`, and nothing further is run.
 
 ## Amendment 11 (2026-11-24, M4, owner-authorized writes): APT settings file and archive mirror
 
