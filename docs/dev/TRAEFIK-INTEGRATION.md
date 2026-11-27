@@ -26,7 +26,7 @@ CORE routes beneath `/api/v1/networking/reverse-proxy/traefik`:
 | `/labels` | POST | validated string-label preview mapping (optional PathPrefix) |
 | `/compose-preview` | POST | labels plus file-provider YAML (`fileYAML`); `applyAvailable` when `-traefik-dynamic-dir` is set |
 | `/file-apply` | POST | writes CORE-generated `<name>.yml` into that directory; requires `networking.proxy.apply` |
-| `/compose-apply` | POST | patches Safe Traefik labels into an allowlisted Compose file; requires `networking.proxy.apply`; does not recreate containers |
+| `/compose-apply` | POST | writes Safe Traefik labels into the project's Compose override file (the Compose file is only read); requires `networking.proxy.apply`; does not recreate containers |
 | `/setup` | POST | writes official Traefik compose + static config when no Traefik container is present; 409 when one is already detected; `started` is false until a detected Arcane/Dockhand API or HomeControl's compose fallback can start the project; does not require the Traefik helper |
 
 Every route requires the session and dedicated scope. GET/HEAD additionally requires
@@ -51,8 +51,14 @@ redirect, entrypoint creation, certificate provisioning or verification bypass. 
 explicit resolver reference can trigger issuance if the owner later applies labels.
 Router TLS may replace entrypoint defaults: review options separately. File apply
 writes CORE-generated YAML into `-traefik-dynamic-dir` only. Compose-label apply
-(`-compose-apply-dir`) patches Safe Traefik keys on `services.<name>.labels` in an
-allowlisted compose.yaml. Easy-setup (`-traefik-setup-dir`) writes official Traefik
+(`-compose-apply-dir`) writes Safe Traefik keys on `services.<name>.labels` into the
+project's Compose override file, next to an allowlisted compose.yaml, and leaves the Compose
+file unchanged (owner 2026-11-27). Docker Compose merges the first of `compose.override.yml`,
+`compose.override.yaml`, `docker-compose.override.yml`, `docker-compose.override.yaml` when it
+runs without `-f`. The file is generated from one JSON state line and marked as managed; an
+override that Homelab Control did not write is never changed and blocks the apply (409). A
+label the Compose file already sets to another value is still a 409. Checked with
+`docker compose config` (Compose v5.8.0). Easy-setup (`-traefik-setup-dir`) writes official Traefik
 compose (host HTTP 8880, 80/443 left free) only when discovery finds no official
 Traefik container or Compose service named `traefik`. If Traefik is already present
 the plugin configures that instance (labels and file YAML). This slice writes
@@ -184,7 +190,8 @@ for the proposed test, then verify its actual presence/metadata before any appro
 
 `POST /networking/reverse-proxy/traefik/compose-apply` writes the patched Compose
 content through Arcane's REST API (`via:"arcane"`) instead of the local
-`-compose-apply-dir` file patch.
+`-compose-apply-dir` override-file write. Arcane holds the Compose content behind its API, so
+this path still patches that content (`PatchLabelsText`).
 
 - **Config (source of truth):** `ARCANE_API_KEY` (env) enables the path; `-arcane-url` is
   an optional base-URL override (empty derives `http://127.0.0.1:<published 3552>` from a
@@ -201,7 +208,7 @@ content through Arcane's REST API (`via:"arcane"`) instead of the local
 - **Patch:** the same stdlib-only `SafeLabels` rules as the file apply (`PatchLabelsText`).
   Only `composeContent` is PUT; `envContent` is never sent.
 - **Fallback:** no matching project, a missing key, or an Arcane API error falls back to
-  the `-compose-apply-dir` file patch. A conflicting existing label is still a 409.
+  the `-compose-apply-dir` override-file write. A conflicting existing label is still a 409.
 - No Arcane code is vendored; the client is stdlib HTTP with redirects disabled and
   8 s GET / 15 s PUT timeouts. Response bodies are never logged (they may contain env).
 - Dockhand is not implemented and no `DOCKHAND_API_KEY` is required; Dockhand

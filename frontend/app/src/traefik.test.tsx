@@ -298,7 +298,7 @@ it('applies compose labels when labelApplyAvailable', async () => {
   p.applyAvailable = false;
   vi.mocked(previewCompose).mockResolvedValue(p);
   vi.mocked(applyComposeLabels).mockResolvedValue({
-    wrote: 'compose.yaml',
+    wrote: 'compose.override.yaml',
     added: 5,
     labelApplyAvailable: true,
     recreated: false,
@@ -307,7 +307,7 @@ it('applies compose labels when labelApplyAvailable', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Preview configuration' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Apply labels' }));
   await waitFor(() => expect(applyComposeLabels).toHaveBeenCalled());
-  expect(await screen.findByText(/Wrote Traefik labels into compose.yaml/)).toBeTruthy();
+  expect(await screen.findByText(/Wrote Traefik labels into compose.override.yaml/)).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Write file YAML' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Deploy' })).toBeNull();
 });

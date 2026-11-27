@@ -135,6 +135,16 @@ text, because Go is standard library only (ADR 0006) and has no YAML parser. The
 to write the labels into a Compose override file and leave the user's file unchanged. That changes an
 owner-authorized write path, so it is recorded as a recommendation and not changed here.
 
+**Update 2026-11-27 (owner-authorized):** the local Compose-label apply now writes the labels into the
+project's Compose override file and only reads the Compose file. Docker Compose merges the first of
+`compose.override.yml`, `compose.override.yaml`, `docker-compose.override.yml` and
+`docker-compose.override.yaml` when run without `-f`. The file is generated from one JSON state line and
+marked as managed, so reading it back needs no YAML parser. An override that Homelab Control did not
+write is never changed and blocks the apply. A label the Compose file already sets to another value is
+still refused. `docker compose config` (Compose v5.8.0) merges the generated file. The Arcane path still
+patches the Compose content behind Arcane's API, because Arcane has no override file to write. Not VM-tested
+with a running Traefik; not M10 acceptance.
+
 ## M3 plugin SDK — first checkpoint on main (development note; not M3 acceptance, not M2 close)
 
 The plugin half of the M3 Theme/Plugin SDK landed on `main` as PR #54 (squash `20ddc2b7`, on PR #53

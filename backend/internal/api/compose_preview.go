@@ -13,7 +13,6 @@ import (
 	"io"
 	"mime"
 	"net/http"
-	"path/filepath"
 )
 
 func (s *Server) WithComposeDiscovery(p composediscovery.Provider) *Server { s.discovery = p; return s }
@@ -114,12 +113,17 @@ func (s *Server) WithTraefikSetupDir(dir string) *Server {
 
 func (s *Server) markFileApply(out *composediscovery.Proposal, inventory traefikclient.Inventory, snapshot composediscovery.Snapshot, name string) {
 	out.ApplyAvailable = s.traefikDynamicDir != "" && out.FileYAML != "" && composediscovery.FileApplyReady(out.Blockers, name, out.Summary.Hostname, inventory)
+	overrideOK := false
 	if s.composeApplyDir != "" && out.Project != "" && out.Service != "" {
-		if _, err := composediscovery.FindComposeFile(s.composeApplyDir, out.Project, out.Service); err == nil {
+		if path, err := composediscovery.FindComposeFile(s.composeApplyDir, out.Project, out.Service); err == nil {
 			out.SourceFileVerified = true
+			// Labels go to the Compose override file; one that Homelab Control
+			// did not write blocks the file apply.
+			_, _, oerr := composediscovery.LabelsOverridePath(path)
+			overrideOK = oerr == nil
 		}
 	}
-	out.LabelApplyAvailable = s.composeApplyDir != "" && out.SourceFileVerified && composediscovery.LabelApplyReady(out.Blockers, name, out.Summary.Hostname, inventory, snapshot.Traefik.DockerProvider)
+	out.LabelApplyAvailable = s.composeApplyDir != "" && out.SourceFileVerified && overrideOK && composediscovery.LabelApplyReady(out.Blockers, name, out.Summary.Hostname, inventory, snapshot.Traefik.DockerProvider)
 }
 
 func (s *Server) decodeComposeRequest(w http.ResponseWriter, r *http.Request) (composediscovery.Request, bool) {
@@ -291,9 +295,13 @@ func (s *Server) handleTraefikComposeApply(w http.ResponseWriter, r *http.Reques
 		writeError(w, 409, "compose_apply_blocked", "Compose source file for the selected application was not found.")
 		return
 	}
-	added, err := composediscovery.PatchServiceLabels(path, out.Service, out.Proposed.Labels)
+	wrote, added, err := composediscovery.WriteLabelsOverride(path, out.Service, out.Proposed.Labels)
 	if err != nil {
-		s.auditLog("networking.compose.labels.apply", sess.Username, r, "failed", "compose label patch failed")
+		s.auditLog("networking.compose.labels.apply", sess.Username, r, "failed", "compose override write failed")
+		if err == composediscovery.ErrComposeOverrideUnmanaged {
+			writeError(w, 409, "compose_apply_blocked", "A Compose override file that Homelab Control did not write is present; it is not changed. Add the labels there yourself.")
+			return
+		}
 		if err == composediscovery.ErrComposeLabelConflict {
 			writeError(w, 409, "compose_apply_blocked", "Existing Compose labels differ from the proposal.")
 			return
@@ -305,12 +313,12 @@ func (s *Server) handleTraefikComposeApply(w http.ResponseWriter, r *http.Reques
 		writeError(w, 503, "compose_apply_unavailable", "Compose labels could not be written.")
 		return
 	}
-	if err = s.auditLog("networking.compose.labels.apply", sess.Username, r, "applied", "compose labels wrote"); err != nil {
+	if err = s.auditLog("networking.compose.labels.apply", sess.Username, r, "applied", "compose override labels wrote"); err != nil {
 		writeError(w, 503, "audit_unavailable", "Traefik access could not be audited.")
 		return
 	}
 	writeJSON(w, 200, map[string]any{
-		"wrote":               filepath.Base(path),
+		"wrote":               wrote,
 		"added":               added,
 		"labelApplyAvailable": true,
 		"recreated":           false,

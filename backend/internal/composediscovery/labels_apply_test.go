@@ -38,13 +38,8 @@ func TestFindComposeFileMatchesProjectAndService(t *testing.T) {
 	}
 }
 
-func TestPatchServiceLabelsMergesAndRejectsConflict(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "compose.yaml")
-	if err := os.WriteFile(path, []byte(sampleCompose), 0644); err != nil {
-		t.Fatal(err)
-	}
-	labels := map[string]string{
+func notesLabels() map[string]string {
+	return map[string]string{
 		"traefik.enable":                                             "true",
 		"traefik.docker.network":                                     "hc-traefik-test",
 		"traefik.http.routers.notes-gui.rule":                        "Host(`notes-gui.isolated.test`)",
@@ -53,49 +48,39 @@ func TestPatchServiceLabelsMergesAndRejectsConflict(t *testing.T) {
 		"traefik.http.services.notes-gui.loadbalancer.server.port":   "8080",
 		"traefik.http.services.notes-gui.loadbalancer.server.scheme": "http",
 	}
-	n, err := PatchServiceLabels(path, "notes", labels)
+}
+
+func TestPatchLabelsTextMergesAndRejectsConflict(t *testing.T) {
+	labels := notesLabels()
+	body, n, err := PatchLabelsText(sampleCompose, "notes", labels)
 	if err != nil || n != 5 {
 		t.Fatal(n, err)
 	}
-	body, _ := os.ReadFile(path)
-	if !strings.Contains(string(body), "Host(`notes-gui.isolated.test`)") || !strings.Contains(string(body), "image: docker.io/library/node") {
-		t.Fatal(string(body))
+	if !strings.Contains(body, "Host(`notes-gui.isolated.test`)") || !strings.Contains(body, "image: docker.io/library/node") {
+		t.Fatal(body)
 	}
-	n, err = PatchServiceLabels(path, "notes", labels)
-	if err != nil || n != 0 {
+	if _, n, err = PatchLabelsText(body, "notes", labels); err != nil || n != 0 {
 		t.Fatal("idempotent", n, err)
 	}
 	labels["traefik.enable"] = "false"
-	if _, err = PatchServiceLabels(path, "notes", labels); err != ErrComposeLabelConflict {
+	if _, _, err = PatchLabelsText(body, "notes", labels); err != ErrComposeLabelConflict {
 		t.Fatal(err)
 	}
 }
 
-func TestPatchServiceLabelsInsertsMissingMap(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "compose.yaml")
-	src := "name: app\nservices:\n  web:\n    image: x\n"
-	if err := os.WriteFile(path, []byte(src), 0644); err != nil {
-		t.Fatal(err)
-	}
-	n, err := PatchServiceLabels(path, "web", map[string]string{"traefik.enable": "true"})
+func TestPatchLabelsTextInsertsMissingMap(t *testing.T) {
+	body, n, err := PatchLabelsText("name: app\nservices:\n  web:\n    image: x\n", "web", map[string]string{"traefik.enable": "true"})
 	if err != nil || n != 1 {
 		t.Fatal(n, err)
 	}
-	body, _ := os.ReadFile(path)
-	if !strings.Contains(string(body), "labels:") || !strings.Contains(string(body), "traefik.enable") || !strings.Contains(string(body), "image: x") {
-		t.Fatal(string(body))
+	if !strings.Contains(body, "labels:") || !strings.Contains(body, "traefik.enable") || !strings.Contains(body, "image: x") {
+		t.Fatal(body)
 	}
 }
 
-func TestPatchServiceLabelsRejectsListForm(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "compose.yaml")
+func TestPatchLabelsTextRejectsListForm(t *testing.T) {
 	src := "name: app\nservices:\n  web:\n    labels:\n      - traefik.enable=true\n"
-	if err := os.WriteFile(path, []byte(src), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := PatchServiceLabels(path, "web", map[string]string{"traefik.enable": "true"}); err != ErrComposeLabelsForm {
+	if _, _, err := PatchLabelsText(src, "web", map[string]string{"traefik.enable": "true"}); err != ErrComposeLabelsForm {
 		t.Fatal(err)
 	}
 }

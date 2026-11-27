@@ -233,8 +233,8 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
         </button>
       </div>
       <p className="banner" role="status">
-        Preview generates labels. Apply writes them into the selected Compose file. Recreate that service
-        separately so Traefik reloads them.
+        Preview generates labels. Apply writes them to the project's Compose override file and leaves the
+        Compose file itself unchanged. Recreate that service separately so Traefik reloads them.
       </p>
       <nav aria-label="Traefik sections" className="proxy-tabs">
         {sections.map((item) => (
@@ -743,7 +743,7 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
                   {labelsWrote ? (
                     <p>
                       Wrote Traefik labels into {labelsWrote}. Recreate the Compose service so Traefik reloads
-                      them (docker compose, or Arcane/Dockhand if one is on the host).
+                      them (docker compose without -f, or Arcane/Dockhand if one is on the host).
                     </p>
                   ) : null}
                 </>
@@ -802,9 +802,9 @@ export function Traefik({ csrf, onUnauthorized }: { csrf: string; onUnauthorized
                 : unknown}
           </p>
           <p>
-            Compose-label apply writes Traefik keys into an allowlisted Compose file. CORE has no Docker
-            socket. Certificate management stays unavailable. Application discovery uses the configured CORE
-            metadata provider.
+            Compose-label apply writes Traefik keys into the Compose override file of an allowlisted project
+            and never edits a hand-written override. CORE has no Docker socket. Certificate management stays
+            unavailable. Application discovery uses the configured CORE metadata provider.
           </p>
         </section>
       )}

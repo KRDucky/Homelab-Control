@@ -238,13 +238,32 @@ func TestTraefikComposeApplyPatchesLabels(t *testing.T) {
 	if rr := h.do("POST", proxyPath+"/compose-preview", composeBody, headers); rr.Code != 200 || !strings.Contains(rr.Body.String(), `"labelApplyAvailable":true`) {
 		t.Fatal(rr.Code, rr.Body)
 	}
-	if rr := h.do("POST", proxyPath+"/compose-apply", composeBody, headers); rr.Code != 200 || !strings.Contains(rr.Body.String(), `"wrote":"compose.yaml"`) {
+	before, _ := os.ReadFile(filepath.Join(dir, "compose.yaml"))
+	if rr := h.do("POST", proxyPath+"/compose-apply", composeBody, headers); rr.Code != 200 || !strings.Contains(rr.Body.String(), `"wrote":"compose.override.yaml"`) {
 		t.Fatal(rr.Code, rr.Body)
 	}
-	b, err := os.ReadFile(filepath.Join(dir, "compose.yaml"))
-	if err != nil || !strings.Contains(string(b), "Host(`notes.example.com`)") || !strings.Contains(string(b), "image: x") {
+	if after, _ := os.ReadFile(filepath.Join(dir, "compose.yaml")); string(after) != string(before) {
+		t.Fatal("the Compose file was edited:", string(after))
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "compose.override.yaml"))
+	if err != nil || !strings.Contains(string(b), "Host(`notes.example.com`)") || !strings.Contains(string(b), "Managed by Homelab Control") {
 		t.Fatal(string(b), err)
 	}
+	// A hand-written override that Compose would load first blocks the file apply and is not changed.
+	hand := "services:\n  web:\n    environment: [A=1]\n"
+	if err := os.WriteFile(filepath.Join(dir, "compose.override.yml"), []byte(hand), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if rr := h.do("POST", proxyPath+"/compose-preview", composeBody, headers); rr.Code != 200 || !strings.Contains(rr.Body.String(), `"labelApplyAvailable":false`) {
+		t.Fatal("unmanaged override must block the file apply", rr.Code, rr.Body)
+	}
+	if rr := h.do("POST", proxyPath+"/compose-apply", composeBody, headers); rr.Code != 409 {
+		t.Fatal("unmanaged override", rr.Code, rr.Body)
+	}
+	if got, _ := os.ReadFile(filepath.Join(dir, "compose.override.yml")); string(got) != hand {
+		t.Fatal("unmanaged override changed")
+	}
+	_ = os.Remove(filepath.Join(dir, "compose.override.yml"))
 	if rr := h.do("POST", proxyPath+"/apply", composeBody, headers); rr.Code != 404 {
 		t.Fatal("generic apply stays missing", rr.Code)
 	}
@@ -389,13 +408,13 @@ func TestTraefikComposeApplyFallsBackToFileWhenArcaneHasNoProject(t *testing.T) 
 	headers := packagesHeaders(h)
 	headers["Content-Type"] = "application/json"
 	rr := h.do("POST", proxyPath+"/compose-apply", composeBody, headers)
-	if rr.Code != 200 || strings.Contains(rr.Body.String(), `"via":"arcane"`) || !strings.Contains(rr.Body.String(), `"wrote":"compose.yaml"`) {
+	if rr.Code != 200 || strings.Contains(rr.Body.String(), `"via":"arcane"`) || !strings.Contains(rr.Body.String(), `"wrote":"compose.override.yaml"`) {
 		t.Fatal(rr.Code, rr.Body)
 	}
 	if arcane.putBody != nil {
 		t.Fatal("Arcane must not be written when it does not own the project")
 	}
-	b, err := os.ReadFile(filepath.Join(dir, "compose.yaml"))
+	b, err := os.ReadFile(filepath.Join(dir, "compose.override.yaml"))
 	if err != nil || !strings.Contains(string(b), "traefik.enable") {
 		t.Fatal("file fallback did not patch", string(b), err)
 	}
@@ -452,7 +471,7 @@ func TestTraefikComposeApplyDoesNotAutoEnableFromDetection(t *testing.T) {
 	if rr.Code != 200 || strings.Contains(rr.Body.String(), `"via":"arcane"`) {
 		t.Fatal(rr.Code, rr.Body)
 	}
-	b, err := os.ReadFile(filepath.Join(dir, "compose.yaml"))
+	b, err := os.ReadFile(filepath.Join(dir, "compose.override.yaml"))
 	if err != nil || !strings.Contains(string(b), "traefik.enable") {
 		t.Fatal("detection must not auto-enable Arcane; file apply expected", string(b), err)
 	}
