@@ -1,0 +1,67 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<!--
+SPDX-FileCopyrightText: 2026 The Homelab Control Authors
+
+SPDX-License-Identifier: GPL-3.0-or-later
+
+Jenkins job Homelab-Control-prepush (ci/README.md "Pre-push testing"; it also says how to create
+it). The pipeline is the root Jenkinsfile from GitHub's main, cloned anonymously (the repository is
+public), so the job holds no credential and publishes no GitHub check. The n8n workflow "HC pre-push"
+starts it with buildWithParameters; nothing else should.
+-->
+<flow-definition plugin="workflow-job">
+  <description>Pre-push testing of an unpushed commit (ci/README.md). Started by the n8n workflow "HC pre-push"; the commit comes from a git bundle that n8n holds.</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>HC_PREPUSH_SHA</name>
+          <description>Full id of the unpushed head commit.</description>
+          <defaultValue></defaultValue>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>HC_PREPUSH_BRANCH</name>
+          <description>Local branch name (reporting only).</description>
+          <defaultValue></defaultValue>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>HC_PREPUSH_BUNDLE_URL</name>
+          <description>n8n URL of the git bundle with the commits that are not on main.</description>
+          <defaultValue></defaultValue>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>HC_PREPUSH_RUN</name>
+          <description>n8n run id (reporting only).</description>
+          <defaultValue></defaultValue>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition" plugin="workflow-cps">
+    <scm class="hudson.plugins.git.GitSCM" plugin="git">
+      <configVersion>2</configVersion>
+      <userRemoteConfigs>
+        <hudson.plugins.git.UserRemoteConfig>
+          <url>https://github.com/KRDucky/Homelab-Control.git</url>
+        </hudson.plugins.git.UserRemoteConfig>
+      </userRemoteConfigs>
+      <branches>
+        <hudson.plugins.git.BranchSpec>
+          <name>*/main</name>
+        </hudson.plugins.git.BranchSpec>
+      </branches>
+      <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+      <submoduleCfg class="empty-list"/>
+      <extensions/>
+    </scm>
+    <scriptPath>Jenkinsfile</scriptPath>
+    <lightweight>true</lightweight>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>

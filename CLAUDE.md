@@ -66,6 +66,12 @@ Ignore SELinux work for this release. The storage probe already has an AppArmor 
   full gate; `ci/run.sh -- ci/check.sh` runs it in the pinned toolchain container (`ci/README.md`).
 - **Results:** each build archives `ci-result.json` (commit, result, failed stages) and publishes
   the "Jenkins" check on the pull request.
+- **Graphify:** the first stage, `graphify`, indexes the tested commit and archives
+  `reports/graphify/IMPACT.md`. It is the evidence for the mandatory Graphify review, not the
+  review itself. An `incomplete` index makes the build UNSTABLE.
+- **Pre-push:** `scripts/prepush-ci.sh` sends unpushed commits through n8n to the
+  `Homelab-Control-prepush` job, and its pre-push hook blocks a push until that run passes
+  (`ci/README.md` "Pre-push testing").
 - **Not covered:** Jenkins does not run the systemd and upgrade jobs (systemd-ubuntu,
   systemd-ubuntu-2604, upgrade-ubuntu). Only GitHub Actions validates them; see `ci/README.md`.
 
