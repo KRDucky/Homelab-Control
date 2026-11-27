@@ -54,7 +54,7 @@ build_image() { # build_image TARGET -> prints the tag
     --build-arg "PLAYWRIGHT_VERSION=$(pin playwright "$(grep -o 'playwright==[0-9.]*' "$ci" | head -n1 | cut -d= -f3)")"
   )
   local tag
-  tag="hc-ci-$1:$( { cat ci/Dockerfile; printf '%s\n' "${args[@]}"; } | sha256sum | cut -c1-16)"
+  tag="hc-ci-$1:$( { cat ci/Dockerfile ci/graphify-requirements.txt; printf '%s\n' "${args[@]}"; } | sha256sum | cut -c1-16)"
   if ! docker image inspect "$tag" >/dev/null 2>&1; then
     echo "ci/run.sh: building $tag" >&2
     docker build --progress=plain --pull --target "$1" --label hc-ci=1 "${args[@]}" -t "$tag" -f ci/Dockerfile ci >&2

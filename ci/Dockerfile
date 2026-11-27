@@ -43,6 +43,12 @@ RUN GOBIN=/usr/local/bin go install "golang.org/x/vuln/cmd/govulncheck@${GOVULNC
     && rm -rf /root/go /root/.cache
 RUN python3 -m venv /opt/ci-py \
     && /opt/ci-py/bin/pip install --no-cache-dir -q "spdx-tools==${SPDX_TOOLS_VERSION}" "reuse==${REUSE_VERSION}"
+# Graphify for the "graphify" stage, in its own environment, every package pinned by hash.
+COPY graphify-requirements.txt /opt/graphify-requirements.txt
+RUN python3 -m venv /opt/graphify \
+    && /opt/graphify/bin/pip install --no-cache-dir -q --require-hashes --only-binary :all: \
+       -r /opt/graphify-requirements.txt \
+    && /opt/graphify/bin/python -c 'import graphify.extract, graphify.build'
 # Builds and tests run as this unprivileged user (Go tests must not run as root; hc-api refuses root).
 RUN useradd --create-home --uid 1000 ci && install -d -o ci -g ci /src
 USER ci
