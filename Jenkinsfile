@@ -27,6 +27,8 @@ def checkoutFull() {
 def tracked(List failedStages, String stage, Closure body) {
   try {
     body()
+  } catch (org.jenkinsci.plugins.workflow.steps.FlowInterruptedException e) {
+    throw e // aborted or superseded: not a failure of this stage
   } catch (e) {
     failedStages << stage
     throw e
