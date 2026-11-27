@@ -5,7 +5,9 @@
 package partplan
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -52,13 +54,7 @@ func GPTScript(req Request, sectorSize uint64) (string, error) {
 		sl.FSType = fs
 		items[i] = row{n: i + 1, sl: sl}
 	}
-	for i := 1; i < len(items); i++ {
-		j := i
-		for j > 0 && items[j].sl.StartBytes < items[j-1].sl.StartBytes {
-			items[j], items[j-1] = items[j-1], items[j]
-			j--
-		}
-	}
+	slices.SortStableFunc(items, func(a, b row) int { return cmp.Compare(a.sl.StartBytes, b.sl.StartBytes) })
 	var b strings.Builder
 	b.WriteString("label: gpt\nunit: sectors\n")
 	for _, it := range items {

@@ -3,6 +3,8 @@
 package containeridentity
 
 import (
+	"maps"
+	"slices"
 	"strconv"
 )
 
@@ -94,24 +96,11 @@ func render(p *Preview, req Request) {
 			}
 			k.PodSecurityContext = &PodSecurityContext{SupplementalGroups: sg}
 		}
-		for _, name := range sortedKeys(env) {
+		for _, name := range slices.Sorted(maps.Keys(env)) {
 			k.Env = append(k.Env, EnvVar{Name: name, Value: env[name]})
 		}
 		if k.ContainerSecurityContext != nil || k.PodSecurityContext != nil || k.Env != nil {
 			p.Kubernetes = k
 		}
 	}
-}
-
-func sortedKeys(m map[string]string) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	for i := 1; i < len(keys); i++ {
-		for j := i; j > 0 && keys[j] < keys[j-1]; j-- {
-			keys[j], keys[j-1] = keys[j-1], keys[j]
-		}
-	}
-	return keys
 }

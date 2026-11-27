@@ -119,6 +119,22 @@ runs on Ubuntu 26.04.1 and Debian 13 (installed package, API 47/47 and UI 15/15 
 in [`evidence/m11/README.md`](evidence/m11/README.md). Firewall, bond and port-binding writes need their
 own owner authorization and an ADR 0011 review. Not a merge, not production.
 
+**Update 2026-11-27 (M6–M11 review, "use the standard tools"):** the custom readers stay. The broker runs
+with `PrivateNetwork=yes`, `RestrictAddressFamilies=AF_UNIX` and no network capabilities, so `ss`,
+`nft -j list ruleset` and `ip -j link`, which all need netlink, cannot run there. Reading PID 1's
+`/proc/1/net/*` tables and the saved firewall configuration is the approach that works inside that
+boundary. Reading the live ruleset with the distro tools needs a separate helper with network access,
+as M7 did for storage. That is new architecture and needs its own owner decision and ADR review.
+
+## M10 reverse proxy (Traefik): review note (2026-11-27; not M10 acceptance)
+
+The M6–M11 review found M10 talks to the services' own APIs (Traefik API, Docker Engine API over its
+socket, Arcane API), with no copied tool logic. One local hand-written sort was replaced by the standard
+library. The Compose label write (`composediscovery.PatchLabelsText`) edits the selected Compose file as
+text, because Go is standard library only (ADR 0006) and has no YAML parser. The standard alternative is
+to write the labels into a Compose override file and leave the user's file unchanged. That changes an
+owner-authorized write path, so it is recorded as a recommendation and not changed here.
+
 ## M3 plugin SDK — first checkpoint on main (development note; not M3 acceptance, not M2 close)
 
 The plugin half of the M3 Theme/Plugin SDK landed on `main` as PR #54 (squash `20ddc2b7`, on PR #53
@@ -496,6 +512,11 @@ so this guest used the already installed UEFI firmware. The blank virtio disk
 showed the same starts, sizes, unknown steps, and overlap rejection. A BIOS
 domain from that attempt was left shut off and was not undefined. This was
 not an installed package and not the Web UI.
+
+**Update 2026-11-27 (M6–M11 review, "use the standard tools"):** the planner already leaves the write to
+`sfdisk` and reads disk geometry from sysfs. Two copied insertion sorts were replaced by the standard
+library, with no behaviour change. After `sfdisk` exits 0 the new table is still not read back. Reading
+it back with `sfdisk --json` needs a new closed root template, which needs its own review.
 
 ## M2-3: expanded service management (development authorized 2026-11-04; implementation not accepted)
 
