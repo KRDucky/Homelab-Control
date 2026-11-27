@@ -156,6 +156,16 @@ class ReleaseWorkflowPolicy(unittest.TestCase):
         for v in versions:
             self.assertEqual(str(v), pin, "ci.yml go-version must equal GO_VERSION in toolchain.env (no floating .x)")
 
+    def test_ci_and_release_use_the_same_node(self):
+        # ci.yml used node-version '22', so its check and browser-e2e jobs ran whatever 22.x
+        # setup-node resolved (v22.23.5 on 2026-11-27), not the release toolchain.
+        with open(os.path.join(ROOT, "packaging", "release", "toolchain.env"), encoding="utf-8") as f:
+            pin = re.search(r"^NODE_VERSION=(\S+)$", f.read(), re.M).group(1)
+        versions = [st["with"]["node-version"] for _, st in steps(self.ci) if st.get("uses", "").startswith("actions/setup-node")]
+        self.assertTrue(versions)
+        for v in versions:
+            self.assertEqual(str(v), pin, "ci.yml node-version must equal NODE_VERSION in toolchain.env (no floating major)")
+
     def test_rust_pin_matches_the_crate_toolchain(self):
         with open(os.path.join(ROOT, "packaging", "release", "toolchain.env"), encoding="utf-8") as f:
             pin = re.search(r"^RUST_VERSION=(\S+)$", f.read(), re.M).group(1)

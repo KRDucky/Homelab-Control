@@ -21,11 +21,12 @@ ARG GOVULNCHECK_VERSION
 ARG SPDX_TOOLS_VERSION
 ARG REUSE_VERSION
 RUN test -n "$GOVULNCHECK_VERSION" && test -n "$SPDX_TOOLS_VERSION" && test -n "$REUSE_VERSION"
-# Distribution packages at the release's current versions, as the GitHub job installs them; pinning
+# Distribution packages at the release's current versions, as the GitHub job installs them (rpm,
+# as on the GitHub runner, for the RPM ordering check in tests/release/version-order-test.sh); pinning
 # Debian versions would break when the archive drops the old ones.
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      file lintian musl-tools python3-venv python3-yaml shellcheck zstd \
+      file lintian musl-tools python3-venv python3-yaml rpm shellcheck zstd \
     && rm -rf /var/lib/apt/lists/*
 # Same components and target as backend/audit-retention/rust-toolchain.toml, installed now so a
 # build never writes to RUSTUP_HOME.
