@@ -46,6 +46,20 @@ func TestDryRunAcceptsAlignedGapAndRefusesExecution(t *testing.T) {
 	}
 }
 
+// Slices that share a start keep request order, so the later one is the one
+// reported (as in the M6 virtual-disk run: "slice 2 overlaps another slice").
+func TestDryRunSameStartReportsTheLaterSlice(t *testing.T) {
+	for _, parts := range [][]Slice{
+		{{StartBytes: 1 << 20, SizeBytes: 1 << 20}, {StartBytes: 1 << 20, SizeBytes: 2 << 20}},
+		{{StartBytes: 1 << 20, SizeBytes: 2 << 20}, {StartBytes: 1 << 20, SizeBytes: 1 << 20}},
+	} {
+		rep := DryRun(Request{DiskBytes: 8 << 20, Parts: parts})
+		if rep.OK || len(rep.Errors) != 1 || rep.Errors[0] != "slice 2 overlaps another slice" {
+			t.Fatalf("parts %+v: errors %q", parts, rep.Errors)
+		}
+	}
+}
+
 func TestDryRunRejectsOverlapAlignmentOverflowAndFilesystem(t *testing.T) {
 	rep := DryRun(Request{
 		DiskBytes: 4 << 20,
