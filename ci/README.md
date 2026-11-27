@@ -109,11 +109,32 @@ Plugins the Jenkinsfile uses, all already installed and compatible with 2.580.3:
 No new plugin is needed. Pipeline Utility Steps is not installed and not used; the summary is
 written with `groovy.json.JsonOutput`, which the sandbox allows.
 
+## Operations
+
+- **Executors:** the docker agent has one executor, so the later stages wait for each other. A
+  build takes about 15 minutes. With 2–3 executors on that agent they run in parallel; every
+  container keeps its own CPU and memory limits.
+- **Disk:** a build archives about 190 MB (binaries, `.deb`, release candidate) on the
+  controller. `artifactNumToKeep` is 5 per branch.
+- **Images:** each toolchain change builds new `hc-ci-*` images on the rootless daemon. Remove
+  old ones with:
+
+  ```sh
+  docker image prune --all --filter label=hc-ci=1 --filter until=336h
+  ```
+
+- **Leftover containers:** `docker ps -a --filter label=hc-ci=1` should be empty between builds.
+  An aborted build removes its container (`ci/run.sh` traps the signal).
+
 ## Results for n8n or a coding agent
 
 Each build archives `ci-result.json`, with these fields:
-- `repository`, `branch`, `pullRequest`, `pullRequestTarget`, `commit`;
+- `repository`, `branch`, `pullRequest`, `pullRequestTarget`, `commit`. For a pull request,
+  `commit` is the head commit; Jenkins builds it merged with the target;
 - `result`, `failedStages`, `buildUrl`, `durationMillis`.
+
+`failedStages` names only the stages whose own steps failed. A stage stopped by an abort, or
+superseded by a newer build, is not listed; `result` is then `ABORTED` or `NOT_BUILT`.
 
 The Jenkins REST API gives the rest. Use a dedicated Jenkins user with an API token and read-only
 permissions:
