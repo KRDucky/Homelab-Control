@@ -66,10 +66,8 @@ jobs:
         run: make test-rust
       - name: Cross-language retention check (Go records, Rust archive/prune, Go verify)
         run: make test-retention-xcheck
-      - name: Fuzz broker argument decoding (60 s)
-        run: cd backend && go test -run='^$' -fuzz='^FuzzLogsArgs$' -fuzztime=60s ./internal/broker/ops
-      - name: Fuzz write-operation argument decoding (60 s)
-        run: cd backend && go test -run='^$' -fuzz='^FuzzWriteArgs$' -fuzztime=60s ./internal/broker/ops
+      - name: Fuzz broker read and write argument decoding (60 s each)
+        run: make fuzz
       - name: Frontend tests
         run: make test-frontend
       - name: Release tooling + workflow policy tests
@@ -81,13 +79,8 @@ jobs:
       - name: Packages (deb)
         run: make deb
       - name: Release payload compliance (deb)
-        run: |
-          for p in build/*.deb; do scripts/package-inventory.sh "$p" "$p.inventory.txt"; done
-          # Debian copyright/licence tags only; other lintian findings are tracked separately (dev package).
-          for p in build/*.deb; do
-            lintian --tag-display-limit 0 "$p" | tee "$p.lintian.txt" || true
-            if grep -iE 'copyright|licen[cs]e|dep-?5' "$p.lintian.txt"; then echo "::error::lintian copyright/licence findings in $p"; exit 1; fi
-          done
+        # Debian copyright/licence tags only; other lintian findings are tracked separately (dev package).
+        run: scripts/deb-compliance.sh build/*.deb
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: build

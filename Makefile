@@ -27,7 +27,7 @@ LDFLAGS := -s -w -buildid= -X homelab-control/backend/internal/version.Version=$
 OUT := build
 
 .PHONY: all deps frontend backend build test test-go test-rust test-retention-xcheck test-frontend test-release lint fmt check security \
-        verify-extensions repro-check deb rpm systemd-smoke e2e clean
+        verify-extensions repro-check deb rpm systemd-smoke e2e fuzz clean
 
 all: build
 
@@ -64,8 +64,11 @@ build: frontend backend
 
 test: test-go test-rust test-frontend test-release
 
+# GO_TEST_FLAGS and VITEST_FLAGS add report files in CI (ci/README.md); both are empty by default.
+GO_TEST_FLAGS ?=
+VITEST_FLAGS ?=
 test-go:
-	cd backend && $(GO) test -count=1 -cover ./...
+	cd backend && $(GO) test -count=1 -cover $(GO_TEST_FLAGS) ./...
 
 # Rust unit and fixture tests, including the Go golden digest vectors.
 test-rust:
@@ -76,7 +79,7 @@ test-retention-xcheck:
 	tests/retention/go-cross-check.sh $(OUT)/hc-audit-retention $(OUT)/hlctl
 
 test-frontend: deps
-	cd frontend/app && npm test
+	cd frontend/app && npm test -- $(VITEST_FLAGS)
 	node --test sdk/theme/tdk.test.mjs
 	node --test sdk/plugin/tdk.test.mjs
 	node --test scripts/build-extensions.test.mjs
@@ -130,6 +133,12 @@ systemd-smoke: deb
 
 e2e: build
 	tests/integration/run-hc-e2e.sh
+
+# Fuzz the broker's argument decoding (read and write operations).
+FUZZTIME ?= 60s
+fuzz:
+	cd backend && $(GO) test -run='^$$' -fuzz='^FuzzLogsArgs$$' -fuzztime=$(FUZZTIME) ./internal/broker/ops
+	cd backend && $(GO) test -run='^$$' -fuzz='^FuzzWriteArgs$$' -fuzztime=$(FUZZTIME) ./internal/broker/ops
 
 clean:
 	rm -rf $(OUT) frontend/app/dist
