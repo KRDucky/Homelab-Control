@@ -73,7 +73,7 @@ trap 'exit 143' TERM INT
 
 opts=(--name "$name" --label hc-ci=1 --label "hc-ci.build=${BUILD_TAG:-local}"
   --cpus "${HC_CI_CPUS:-4}" --memory "${HC_CI_MEMORY:-8g}" --pids-limit 8192
-  --security-opt no-new-privileges --shm-size 1g -i "${envs[@]}")
+  --security-opt no-new-privileges --shm-size 1g --init -i "${envs[@]}")
 if [ "$root" = 1 ]; then
   opts+=(--user 0)
 else
@@ -81,10 +81,13 @@ else
 fi
 echo "ci/run.sh: $ref ($(docker image inspect --format '{{.Id}}' "$ref" 2>/dev/null || echo 'pulled on first use')): $*" >&2
 
+# In the background with wait, so an abort (TERM) runs the traps at once and removes the container,
+# instead of after the command ends by itself.
 set +e
 # shellcheck disable=SC2016 # expanded by the container's shell
 tar -C . --exclude=./ci-out -cf - . | docker run "${opts[@]}" "$ref" \
-  sh -c 'mkdir -p /src && tar -xf - -C /src --no-same-owner && cd /src && exec "$@"' sh "$@"
+  sh -c 'mkdir -p /src && tar -xf - -C /src --no-same-owner && cd /src && exec "$@"' sh "$@" &
+wait $!
 status=$?
 set -e
 

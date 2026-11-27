@@ -179,5 +179,29 @@ class ReleaseWorkflowPolicy(unittest.TestCase):
         self.assertIn("negative-tests.sh", self.btext)
 
 
+class JenkinsReadsCiPins(unittest.TestCase):
+    """ci/run.sh and the Jenkinsfile read these values from ci.yml instead of pinning them again.
+    A reformat of ci.yml that hides one would make Jenkins stop with "cannot read the ... pin"
+    or find no install images; this test says so on the pull request instead."""
+
+    def setUp(self):
+        with open(os.path.join(WF, "ci.yml"), encoding="utf-8") as f:
+            self.text = f.read()
+
+    def test_tool_pins_are_readable(self):
+        # The same patterns as ci/run.sh (grep -o ... | head -n1).
+        for pattern in (r"govulncheck@v[0-9.]+", r"spdx-tools==[0-9.]+", r"reuse==[0-9.]+", r"playwright==[0-9.]+"):
+            self.assertRegex(self.text, pattern, f"ci.yml no longer has {pattern}")
+
+    def test_install_matrix_rows_are_readable(self):
+        # The same pattern as the Jenkinsfile's sed: { image: '...', prep: '...' }.
+        rows = re.findall(r"\{ image: '([^']*)', prep: '([^']*)' \}", self.text)
+        _, ci = load("ci.yml") if yaml is not None else (None, None)
+        if ci is not None:
+            images = [r["image"] for r in ci["jobs"]["install-matrix"]["strategy"]["matrix"]["include"]]
+            self.assertEqual([r[0] for r in rows], images)
+        self.assertGreater(len(rows), 0)
+
+
 if __name__ == "__main__":
     unittest.main()
