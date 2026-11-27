@@ -168,7 +168,9 @@ class N8nCode(unittest.TestCase):
     def status(self, found, result):
         nodes = {"Find build": found}
         if result is not None:
-            nodes["ci-result.json"] = {"statusCode": 200, "body": json.dumps(result)}
+            # The shape n8n's HTTP Request node gives with fullResponse and responseFormat "text": the body
+            # is under "data", not "body" (seen live on MediaMouse, Jenkins build 1, 2026-11-27).
+            nodes["ci-result.json"] = {"statusCode": 200, "statusMessage": "OK", "headers": {}, "data": json.dumps(result)}
         return self.run_js("Status reply", nodes, [{"json": {}}])
 
     def test_pass_needs_success_same_commit_and_graphify(self):

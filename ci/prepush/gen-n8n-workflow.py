@@ -107,7 +107,9 @@ const found = $('Find build').first().json;
 let result = null;
 try {
   const r = $('ci-result.json').first().json;
-  if (r && r.statusCode === 200) result = typeof r.body === 'string' ? JSON.parse(r.body) : r.body;
+  // With fullResponse and responseFormat "text", n8n puts the body under "data", not "body".
+  const raw = r && r.data !== undefined ? r.data : r && r.body;
+  if (r && r.statusCode === 200) result = typeof raw === 'string' ? JSON.parse(raw) : raw;
 } catch (e) { /* not fetched: the build is not finished */ }
 // A finished build is only a pass for this commit when its summary names it and Graphify indexed what was tested.
 let pass = false;
