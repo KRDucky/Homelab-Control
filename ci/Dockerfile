@@ -46,8 +46,12 @@ ENV CARGO_HOME=/home/ci/.cargo
 WORKDIR /src
 
 # Browser e2e: the official Playwright image for the pinned Playwright version (Ubuntu 24.04, as the
-# GitHub job), plus Node for the accessibility test dependency.
+# GitHub job), plus Node for the accessibility test dependency. The image has the browsers and their
+# libraries but not the Python package, which is installed here at the same version.
 FROM mcr.microsoft.com/playwright/python:v${PLAYWRIGHT_VERSION}-noble AS e2e
+ARG PLAYWRIGHT_VERSION
+RUN python3 -m pip install --no-cache-dir --break-system-packages "playwright==${PLAYWRIGHT_VERSION}" \
+    && python3 -c 'import playwright'
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
 COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \

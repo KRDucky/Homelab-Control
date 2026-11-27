@@ -122,7 +122,7 @@ pipeline {
             checkoutFull()
             unstash 'build'
             sh '''
-              ci/run.sh --image e2e --env HC_CSP_BROWSERS -- sh -ec '
+              ci/run.sh --image e2e --env HC_CI --env HC_CSP_BROWSERS -- sh -ec '
                 (cd frontend/app && npm ci --ignore-scripts --no-fund)
                 chmod +x build/hc-api build/hlctl
                 tests/integration/run-hc-e2e.sh'
