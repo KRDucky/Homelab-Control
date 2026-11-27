@@ -18,6 +18,7 @@ for p in "$@"; do
   lintian --tag-display-limit 0 "$p" | tee "$p.lintian.txt" || true
   if grep -iE 'copyright|licen[cs]e|dep-?5' "$p.lintian.txt"; then
     echo "deb-compliance: lintian copyright/licence findings in $p" >&2
+    if [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::error::lintian copyright/licence findings in $p"; fi
     exit 1
   fi
 done

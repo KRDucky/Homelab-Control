@@ -85,7 +85,7 @@ echo "ci/run.sh: $ref ($(docker image inspect --format '{{.Id}}' "$ref" 2>/dev/n
 # instead of after the command ends by itself.
 set +e
 # shellcheck disable=SC2016 # expanded by the container's shell
-tar -C . --exclude=./ci-out -cf - . | docker run "${opts[@]}" "$ref" \
+tar -C . -cf - . | docker run "${opts[@]}" "$ref" \
   sh -c 'mkdir -p /src && tar -xf - -C /src --no-same-owner && cd /src && exec "$@"' sh "$@" &
 wait $!
 status=$?
