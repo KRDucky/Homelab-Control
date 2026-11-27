@@ -2,12 +2,13 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   getMergerFS,
   getSnapraidStatus,
   type MergerFSInventory,
   type MergerFSToolItem,
+  type SnapraidRun,
   type SnapraidStatus,
 } from '../api';
 import { formatBytes } from '../format';
@@ -67,6 +68,8 @@ export function MergerFSView({
   packagesEnabled: boolean;
 }) {
   const { tooling, mergerfs, snapraid } = data;
+  // Bumped when a sync, scrub or fix is confirmed, so SnapRAID status is read.
+  const [runStarted, setRunStarted] = useState(0);
   const kernelFuse = data.kernelFuse;
   const kernelRelease = data.kernelRelease;
   const fuseAccess = data.fuseAccess;
@@ -283,24 +286,31 @@ export function MergerFSView({
             are not protected. This view does not read content files. Sync, scrub, and recovery are separate
             reviews and stay hidden without mergerfs.maintain.
           </p>
-          <SnapraidStatusPanel csrf={csrf} />
+          <SnapraidStatusPanel csrf={csrf} refreshKey={runStarted} />
           <PathList title="Data" paths={snapraid.data} />
           <PathList title="Parity" paths={snapraid.parity} />
           <PathList title="Content" paths={snapraid.content} />
         </section>
       )}
 
-      <MergerFSActions csrf={csrf} scopes={scopes} />
+      <MergerFSActions csrf={csrf} scopes={scopes} onRunStarted={() => setRunStarted((n) => n + 1)} />
     </div>
   );
 }
 
-function SnapraidStatusPanel({ csrf }: { csrf: string }) {
+/** How often SnapRAID status is read again while a run is checking or running. */
+export const runPollMs = 10_000;
+
+function runActive(run?: SnapraidRun): boolean {
+  return run?.state === 'checking' || run?.state === 'running';
+}
+
+function SnapraidStatusPanel({ csrf, refreshKey = 0 }: { csrf: string; refreshKey?: number }) {
   const [status, setStatus] = useState<SnapraidStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function load() {
+  const load = useCallback(async () => {
     setBusy(true);
     setError(null);
     try {
@@ -311,7 +321,20 @@ function SnapraidStatusPanel({ csrf }: { csrf: string }) {
     } finally {
       setBusy(false);
     }
-  }
+  }, [csrf]);
+
+  useEffect(() => {
+    if (refreshKey === 0) return;
+    const id = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(id);
+  }, [refreshKey, load]);
+
+  const active = runActive(status?.lastRun);
+  useEffect(() => {
+    if (!active) return;
+    const id = window.setTimeout(() => void load(), runPollMs);
+    return () => window.clearTimeout(id);
+  }, [active, status, load]);
 
   return (
     <>
@@ -321,9 +344,9 @@ function SnapraidStatusPanel({ csrf }: { csrf: string }) {
         </button>
       </p>
       <p>
-        This runs <code>snapraid status</code> only, after you press the button. SnapRAID reads its content
-        file, so the report describes the latest sync; later writes are not counted. The scrub graph is not
-        shown.
+        This runs <code>snapraid status</code> only, after you press the button or confirm a sync, scrub or
+        fix, and every {runPollMs / 1000} seconds while one is running. SnapRAID reads its content file, so
+        the report describes the latest sync; later writes are not counted. The scrub graph is not shown.
       </p>
       {error && (
         <p className="banner" role="alert">
@@ -332,10 +355,13 @@ function SnapraidStatusPanel({ csrf }: { csrf: string }) {
       )}
       {status && (
         <div>
+          {status.lastRun && <LastRun run={status.lastRun} />}
           <p>{status.note}</p>
           {status.locked && (
             <p className="banner" role="status">
-              Another SnapRAID command (sync, scrub or fix) is running, so status could not be read now.
+              {active
+                ? 'SnapRAID holds the array lock during this run, so the disk table is read again after it ends.'
+                : 'Another SnapRAID command (sync, scrub or fix) is running, so status could not be read now.'}
             </p>
           )}
           {status.syncInProgress && <p role="status">A sync is in progress.</p>}
@@ -386,6 +412,74 @@ function SnapraidStatusPanel({ csrf }: { csrf: string }) {
         </div>
       )}
     </>
+  );
+}
+
+const runName = { sync: 'Sync', scrub: 'Scrub', fix: 'Recovery (fix)' } as const;
+
+const blockedText: Record<string, string> = {
+  'missing-disk': 'a disk is missing',
+  'removed-files': 'files were removed since the last sync',
+  'diff-unreadable': 'snapraid diff could not be read',
+  locked: 'another SnapRAID command held the array lock',
+};
+
+function when(iso?: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();
+}
+
+function took(from?: string, to?: string): string {
+  if (!from || !to) return '';
+  const s = Math.max(0, Math.round((Date.parse(to) - Date.parse(from)) / 1000));
+  if (Number.isNaN(s)) return '';
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (h > 0) return `${h} h ${m} min`;
+  return m > 0 ? `${m} min ${s % 60} s` : `${s} s`;
+}
+
+/** The latest sync, scrub or fix, as the MergerFS helper recorded it. */
+export function LastRun({ run }: { run: SnapraidRun }) {
+  const name = runName[run.action];
+  let text: string;
+  switch (run.state) {
+    case 'checking':
+      text = `Checking the array (snapraid diff) since ${when(run.startedAt)}. ${name} starts only if no disk is missing and no file was removed.`;
+      break;
+    case 'running':
+      text = `Running since ${when(run.runningAt || run.startedAt)}. SnapRAID holds the array lock until it ends.`;
+      break;
+    case 'finished':
+      text = `Finished at ${when(run.endedAt)}, after ${took(run.runningAt || run.startedAt, run.endedAt)}. SnapRAID exit status 0.`;
+      break;
+    case 'failed':
+      text =
+        run.exitCode === -1
+          ? `Did not start (${when(run.endedAt)}).`
+          : `Failed at ${when(run.endedAt)}: SnapRAID exited with status ${run.exitCode}.`;
+      break;
+    case 'refused':
+      text = `Not started (${when(run.endedAt)}): ${blockedText[run.blocked ?? ''] ?? 'the check before it refused it'}.`;
+      break;
+    default:
+      text = `Stopped before it ended, for example at a restart. It began ${when(run.startedAt)}.`;
+  }
+  const problem = run.state === 'failed' || run.state === 'refused' || run.state === 'interrupted';
+  return (
+    <div id="snapraid-run" role="status" className={problem ? 'banner' : undefined}>
+      <h3>
+        Latest {name.toLowerCase()}: {run.state}
+      </h3>
+      <p>{text}</p>
+      {(run.state === 'failed' || run.state === 'interrupted') && (
+        <p>
+          SnapRAID&apos;s own output is in the system journal:{' '}
+          <code>journalctl -u &apos;homelab-control-mergerfs-apply@*&apos;</code>
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -482,11 +576,14 @@ function Pools({ pools }: { pools: MergerFSInventory['mergerfs']['pools'] }) {
             <dt>Branches</dt>
             <dd>
               <BranchCapacity pool={pool} />
-              {pool.branchesFrom === 'fstab' || pool.branchesFrom === 'systemd' ? (
+              {pool.branchesFrom === 'runtime' ? (
+                <p className="muted">As mergerfs reports them now (its control file).</p>
+              ) : pool.branchesFrom === 'fstab' || pool.branchesFrom === 'systemd' ? (
                 <p className="muted">
                   From the configured{' '}
-                  {pool.branchesFrom === 'fstab' ? '/etc/fstab line' : 'systemd mount unit'}: this mount's
-                  fsname= hides its branches from the kernel mount table.
+                  {pool.branchesFrom === 'fstab' ? '/etc/fstab line' : 'systemd mount unit'}: mergerfs did not
+                  report them and this mount's fsname= hides them from the kernel mount table. A change made
+                  while mounted is not shown.
                 </p>
               ) : (
                 !pool.branchesFrom && (
@@ -496,7 +593,41 @@ function Pools({ pools }: { pools: MergerFSInventory['mergerfs']['pools'] }) {
                 )
               )}
             </dd>
-            <dt>Options</dt>
+            {pool.runtime ? (
+              <>
+                <dt>Branch modes</dt>
+                <dd>
+                  {pool.runtime.branches
+                    .map((b) => `${b.path} ${b.mode ?? 'RW'}${b.minFree ? `, keeps ${b.minFree} free` : ''}`)
+                    .join('; ')}
+                </dd>
+                <dt>Policies</dt>
+                <dd>
+                  create {pool.runtime.createPolicy ?? '—'}, action {pool.runtime.actionPolicy ?? '—'}, search{' '}
+                  {pool.runtime.searchPolicy ?? '—'}
+                </dd>
+                {pool.runtime.minFreeSpace && (
+                  <>
+                    <dt>Minimum free space</dt>
+                    <dd>{formatBytes(Number(pool.runtime.minFreeSpace))}</dd>
+                  </>
+                )}
+                {pool.runtime.version && (
+                  <>
+                    <dt>mergerfs</dt>
+                    <dd>{pool.runtime.version}</dd>
+                  </>
+                )}
+              </>
+            ) : (
+              pool.runtimeReason && (
+                <>
+                  <dt>Live configuration</dt>
+                  <dd className="muted">Not read: {pool.runtimeReason}.</dd>
+                </>
+              )
+            )}
+            <dt>Mount options</dt>
             <dd>{pool.options.length > 0 ? pool.options.join(', ') : '—'}</dd>
           </dl>
         </li>

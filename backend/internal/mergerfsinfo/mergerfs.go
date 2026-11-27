@@ -5,7 +5,9 @@
 // Package mergerfsinfo is the unprivileged, read-only MergerFS + optional
 // SnapRAID inventory (M8 first checkpoint). It reads bounded kernel mountinfo,
 // /etc/fstab, systemd .mount units, and a single administrator-configured
-// snapraid.conf. Live pool branches are opened only as directories under the
+// snapraid.conf. Each pool's live configuration is read from mergerfs's own
+// control file (<mountpoint>/.mergerfs, getxattr only; runtime.go). Live pool
+// branches are opened only as directories under the
 // collect root (os.OpenRoot, directory) for fstatfs of root-owned live pool
 // branches. Listed SnapRAID paths are not opened as such; a data disk that is
 // also a branch is measured as a branch. fstab/systemd paths are not opened.
@@ -25,10 +27,15 @@ import (
 type Pool struct {
 	Mountpoint string   `json:"mountpoint"`
 	Branches   []string `json:"branches"`
-	// BranchesFrom says where Branches came from: "mountinfo" (the mount
-	// source), or "fstab"/"systemd" when the mount's fsname= hides them and the
-	// matching configured mount names them. Empty when they are unknown.
-	BranchesFrom   string        `json:"branchesFrom,omitempty"`
+	// BranchesFrom says where Branches came from: "runtime" (mergerfs's own
+	// control file, the live list), "mountinfo" (the mount source), or
+	// "fstab"/"systemd" when neither names them and the matching configured
+	// mount does. Empty when they are unknown.
+	BranchesFrom string `json:"branchesFrom,omitempty"`
+	// Runtime is mergerfs's live configuration from <mountpoint>/.mergerfs;
+	// RuntimeReason says why it is absent.
+	Runtime        *Runtime      `json:"runtime,omitempty"`
+	RuntimeReason  string        `json:"runtimeReason,omitempty"`
 	Options        []string      `json:"options"`
 	Usage          []BranchUsage `json:"usage"`
 	UsageTruncated bool          `json:"usageTruncated,omitempty"`
@@ -184,6 +191,11 @@ func Collect(ctx context.Context, osRoot, snapraidPath, family string) (Snapshot
 	if pools == nil {
 		pools = []Pool{}
 	}
+	if err == nil {
+		// mergerfs's own report of its branches and policies; bounded, so a
+		// hung FUSE daemon cannot hold the page.
+		readRuntimes(osRoot, pools)
+	}
 	configured, truncated := collectConfigured(ctx, osRoot, pools)
 	fillBranchesFromConfigured(pools, configured)
 	base := MergerFS{Pools: pools, Configured: configured, ConfiguredTruncated: truncated}
@@ -217,11 +229,10 @@ func Collect(ctx context.Context, osRoot, snapraidPath, family string) (Snapshot
 	return snap, nil
 }
 
-// fillBranchesFromConfigured gives a live pool whose mount source did not list
-// its branches (fsname=) the branches of the configured fstab or systemd mount
-// with the same mountpoint. The configured branches are what the mount was
-// started with; a later runtime change through mergerfs' control file would
-// not be seen.
+// fillBranchesFromConfigured gives a live pool whose branches neither
+// mergerfs's control file nor the mount source named the branches of the
+// configured fstab or systemd mount with the same mountpoint. Those are what
+// the mount was started with, not necessarily what it uses now.
 func fillBranchesFromConfigured(pools []Pool, configured []ConfiguredMount) {
 	for i := range pools {
 		if pools[i].BranchesFrom != "" {

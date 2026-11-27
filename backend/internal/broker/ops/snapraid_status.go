@@ -43,11 +43,12 @@ func snapraidStatus(ctx context.Context, env *Env, raw json.RawMessage) (any, er
 	if err := requireNoArgs(raw); err != nil {
 		return nil, err
 	}
-	stdout, exitCode, cut, err := snapraidStatusRun(ctx, env)
+	stdout, exitCode, cut, last, err := snapraidStatusRun(ctx, env)
 	if err != nil {
 		return nil, err
 	}
 	out := ParseSnapraidStatus(stdout, exitCode)
+	out.LastRun = snapraidRun(last)
 	if cut {
 		// The helper stopped reading at its output cap: what was parsed is a
 		// prefix of the report, not all of it.
@@ -56,28 +57,37 @@ func snapraidStatus(ctx context.Context, env *Env, raw json.RawMessage) (any, er
 	return out, nil
 }
 
-// snapraidStatusRun returns snapraid's text, its exit code, and whether the
-// helper cut the text at its output cap.
-func snapraidStatusRun(ctx context.Context, env *Env) ([]byte, int, bool, error) {
+// snapraidStatusRun returns snapraid's text, its exit code, whether the
+// helper cut the text at its output cap, and the helper's latest run record.
+func snapraidStatusRun(ctx context.Context, env *Env) ([]byte, int, bool, *mergerfsapply.RunRecord, error) {
 	if env.SnapraidStatus != nil {
 		stdout, exitCode, err := env.SnapraidStatus(ctx)
 		if err != nil {
 			var pe *proto.Error
 			if errors.As(err, &pe) {
-				return nil, 0, false, err
+				return nil, 0, false, nil, err
 			}
-			return nil, 0, false, snapraidRunErr(err)
+			return nil, 0, false, nil, snapraidRunErr(err)
 		}
-		return stdout, exitCode, false, nil
+		return stdout, exitCode, false, nil, nil
 	}
 	res, err := env.callMergerFS(ctx, mergerfsapply.Request{Version: mergerfsapply.ProtocolVersion, Action: mergerfsapply.ActionStatus})
 	if err != nil {
-		return nil, 0, false, snapraidRunErr(err)
+		return nil, 0, false, nil, snapraidRunErr(err)
 	}
 	if res.Output == "" && !res.OK {
-		return nil, 0, false, &proto.Error{Code: proto.CodeInternal, Message: "snapraid status could not be run by the helper"}
+		return nil, 0, false, nil, &proto.Error{Code: proto.CodeInternal, Message: "snapraid status could not be run by the helper"}
 	}
-	return []byte(res.Output), res.ExitCode, res.OutputTruncated, nil
+	return []byte(res.Output), res.ExitCode, res.OutputTruncated, res.LastRun, nil
+}
+
+// snapraidRun passes on a run record with known values only.
+func snapraidRun(r *mergerfsapply.RunRecord) *SnapraidRun {
+	if r == nil || !r.Valid() {
+		return nil
+	}
+	return &SnapraidRun{Action: r.Action, State: r.State, StartedAt: r.StartedAt, RunningAt: r.RunningAt,
+		EndedAt: r.EndedAt, ExitCode: r.ExitCode, Blocked: r.Blocked}
 }
 
 func snapraidRunErr(err error) error {

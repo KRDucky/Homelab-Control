@@ -137,6 +137,23 @@ type SnapraidStatus struct {
 	Truncated bool           `json:"truncated,omitempty"`
 	Note      string         `json:"note"`
 	Source    string         `json:"source"`
+	// LastRun is the latest sync, scrub or fix started through Homelab
+	// Control, as the helper recorded it. Absent before the first one.
+	LastRun *SnapraidRun `json:"lastRun,omitempty"`
+}
+
+// SnapraidRun is the helper's record of one sync, scrub or fix. State is
+// checking (snapraid diff before sync or scrub), running, finished, failed,
+// refused (Blocked says why) or interrupted (it stopped before it ended, for
+// example at a reboot). Times are RFC 3339 UTC.
+type SnapraidRun struct {
+	Action    string `json:"action"`
+	State     string `json:"state"`
+	StartedAt string `json:"startedAt"`
+	RunningAt string `json:"runningAt,omitempty"`
+	EndedAt   string `json:"endedAt,omitempty"`
+	ExitCode  *int   `json:"exitCode,omitempty"`
+	Blocked   string `json:"blocked,omitempty"`
 }
 
 // SnapraidDisk is one data disk row of `snapraid status`. Sizes are GB as

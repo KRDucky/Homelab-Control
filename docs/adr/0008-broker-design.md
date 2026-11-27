@@ -558,3 +558,48 @@ file system, and content files are root `0600`. A disposable Ubuntu 26.04 guest 
 - **AppArmor:** `/var/snapraid.content* rwlk` for SnapRAID's example content path.
 - **Persist:** the array definition is no longer saved over a `snapraid.conf` that the helper did not
   write (first line is the managed header); nothing, including fstab, is written then.
+
+## Amendment 19 (2026-11-26, M8): SnapRAID sync, scrub and fix run to completion
+
+The helper ran `snapraid sync`, `scrub` and `fix` inside its request: an 80 s context, `TimeoutStartSec=85`,
+the broker's 80 s call and a 4 KiB output pipe. Each kills SnapRAID, so these actions only finished on
+arrays small enough to sync in about a minute. On a real array a sync takes hours. Three more limits stopped
+real arrays:
+- `MemoryMax=512M`. SnapRAID needs about 1 GiB of RAM per 16 TB (SnapRAID manual, "hashsize").
+- `MaxConnections=1`. A status read was refused during any helper run.
+- A 1 MiB cap on `snapraid diff`. diff lists every changed file before its summary, so a day of new files
+  blocked sync permanently as "diff unreadable".
+
+- **Change:** after the diff gate (sync, scrub), the helper starts SnapRAID with its output on the helper's
+  stderr (the journal) and no deadline. An exit within 5 s is the reply, with SnapRAID's exit status. A run
+  still going after that is replied to as `running` ("started and continues in the background"). The
+  helper shuts the connection down (`shutdown(2)`: with `Accept=yes` systemd holds its own copy of the
+  connection until the instance stops, so closing the helper's descriptors alone leaves the broker
+  waiting for its 80 s deadline, as a VM run showed), waits for SnapRAID, and logs `snapraid <action> exited with status N`. The
+  process keeps the helper's unit, capabilities, syscall filter and AppArmor profile. There is no new unit.
+- **Unit:** `TimeoutStartSec=infinity`, no `MemoryMax`, socket `MaxConnections=4`. SnapRAID's own array lock
+  refuses a second sync, scrub or fix. A status read during a run reports `locked`.
+- **Diff gate:** keeps the first and the last 64 KiB of diff's output, the disk checks and the summary,
+  instead of refusing at a cap. The `diff-truncated` block is gone. A new block `locked` is used when diff
+  reports SnapRAID's lock message.
+- **Diff gate without a deadline:** `snapraid diff` reads every file of the array, so on a large array it can
+  outlast the 80 s request. It used to run under that deadline, before a 5 s start grace, so a big array was
+  refused as "diff unreadable", or the broker hit its own 80 s deadline and reported `uncertain` while sync
+  went on. diff now runs with no deadline. A block or SnapRAID's early exit within 60 s is the reply. After
+  that the reply is `running` with `checking` set ("snapraid diff is still checking the array"), and the
+  helper logs either `snapraid <action> was not started: <block>` or the run's exit status. A block is never
+  passed over: sync or scrub starts only after the gate passes.
+- **Run record (owner request, 2026-11-26):** the end of a background run was only in the journal, and the
+  page only said `locked`. The helper now keeps the latest sync, scrub or fix in the unit's
+  `StateDirectory=homelab-control-mergerfs-apply` (`last-run.json`, 0600, root): action, state (`checking`,
+  `running`, `finished`, `failed`, `refused`), start, SnapRAID start, end, exit status and block. The helper
+  holds an `flock` on `last-run.lock` for the run and SnapRAID inherits it, so the lock is held while
+  SnapRAID runs. A record that says checking or running while the lock is free is reported as
+  `interrupted`, for example after a reboot. A second sync, scrub or fix while the lock is held is refused
+  as `locked` before diff runs. The status action returns the record with SnapRAID's text, also while
+  SnapRAID holds the array lock. The broker passes on known values only, as `lastRun` on
+  `GET /mergerfs/snapraid/status`. The page shows it, reads status after a sync, scrub or fix is
+  confirmed, and reads it every 10 s while the run is checking or running. Nothing else is written.
+- **Not changed:** the broker's operation journal keeps the "started" outcome. It is not rewritten when the
+  run ends, and the run record is the record of the end. The journal, the SnapRAID status page and the operation journal's "started" message are
+  the record.

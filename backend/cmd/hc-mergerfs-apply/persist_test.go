@@ -87,7 +87,7 @@ func TestPersistRefusesUnmanagedSnapraidConf(t *testing.T) {
 	if b, _ := os.ReadFile(root + "/etc/fstab"); string(b) != fstab0 {
 		t.Fatalf("fstab changed: %s", b)
 	}
-	res := execute(t.Context(), mergerfsapply.Request{Version: 1, Action: mergerfsapply.ActionPersist, Mountpoint: spec.Mountpoint,
+	res, _ := execute(t.Context(), mergerfsapply.Request{Version: 1, Action: mergerfsapply.ActionPersist, Mountpoint: spec.Mountpoint,
 		Branches: spec.Branches, Policy: spec.Policy, Parity: spec.Parity, Content: spec.Content}, root)
 	if res.OK || !strings.Contains(res.Summary, "not written by Homelab Control") {
 		t.Fatalf("%+v", res)
