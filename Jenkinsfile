@@ -82,9 +82,10 @@ pipeline {
     // An index that misses a changed source file makes the build UNSTABLE, not green.
     stage('graphify') {
       agent { label 'docker' }
-      options { timeout(time: 20, unit: 'MINUTES') }
       steps {
-        script {
+        // In the steps, not the stage options: a stage option also counts the wait for the single
+        // docker executor, which can be longer than the review itself.
+        timeout(time: 20, unit: 'MINUTES') { script {
           tracked(failedStages, env.STAGE_NAME) {
             if (env.CHANGE_FORK) {
               error("Pull request ${env.CHANGE_ID} comes from the fork ${env.CHANGE_FORK}; it is not built here.")
@@ -108,7 +109,7 @@ pipeline {
               error("Graphify indexed ${graphify.indexedCommit}, not the commit under test ${src.commit}")
             }
           }
-        }
+        } }
       }
       post {
         always {
