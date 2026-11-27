@@ -1379,11 +1379,29 @@ export interface MergerFSBranchUsage {
 export interface MergerFSPool {
   mountpoint: string;
   branches: string[];
-  /** Where the branches came from; fstab/systemd when the mount's fsname= hides them. */
-  branchesFrom?: 'mountinfo' | 'fstab' | 'systemd';
+  /**
+   * Where the branches came from: runtime is mergerfs's own live list (control file); fstab/systemd
+   * when neither mergerfs nor the mount source named them.
+   */
+  branchesFrom?: 'runtime' | 'mountinfo' | 'fstab' | 'systemd';
+  /** mergerfs's live configuration from <mountpoint>/.mergerfs. */
+  runtime?: MergerFSRuntime;
+  /** Why runtime is absent. */
+  runtimeReason?: string;
   options: string[];
   usage?: MergerFSBranchUsage[];
   usageTruncated?: boolean;
+}
+
+export interface MergerFSRuntime {
+  version?: string;
+  branches: { path: string; mode?: 'RW' | 'RO' | 'NC'; minFree?: string }[];
+  createPolicy?: string;
+  actionPolicy?: string;
+  searchPolicy?: string;
+  /** Bytes, as mergerfs reports it. */
+  minFreeSpace?: string;
+  moveOnENOSPC?: string;
 }
 
 export interface MergerFSConfiguredMount {
