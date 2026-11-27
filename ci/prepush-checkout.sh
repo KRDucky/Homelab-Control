@@ -20,7 +20,7 @@ url=${HC_PREPUSH_BUNDLE_URL:-}
 [[ $sha =~ ^[0-9a-f]{40}$ ]] || { echo "prepush-checkout: HC_PREPUSH_SHA is not a full commit id" >&2; exit 2; }
 [[ $url =~ ^https?://[A-Za-z0-9.:-]+/[A-Za-z0-9._~/?=\&%-]+$ ]] || { echo "prepush-checkout: bad HC_PREPUSH_BUNDLE_URL" >&2; exit 2; }
 
-base=${HC_PREPUSH_BASE:-$(git rev-parse --verify origin/main^{commit})}
+base=${HC_PREPUSH_BASE:-$(git rev-parse --verify "origin/main^{commit}")}
 [[ $base =~ ^[0-9a-f]{40}$ ]] || { echo "prepush-checkout: bad base $base" >&2; exit 2; }
 git cat-file -e "$base^{commit}" || { echo "prepush-checkout: main commit $base is not in the clone" >&2; exit 2; }
 

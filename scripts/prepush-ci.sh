@@ -138,6 +138,7 @@ case $cmd in
   install-hook)
     hookfile="$(git rev-parse --git-path hooks)/pre-push"
     [ -e "$hookfile" ] && ! grep -q 'prepush-ci.sh hook' "$hookfile" && die "$hookfile exists; add: exec scripts/prepush-ci.sh hook \"\$@\""
+    # shellcheck disable=SC2016 # expanded when the hook runs
     printf '#!/bin/sh\n# Installed by scripts/prepush-ci.sh install-hook (ci/README.md).\nexec "$(git rev-parse --show-toplevel)/scripts/prepush-ci.sh" hook "$@"\n' > "$hookfile"
     chmod +x "$hookfile"
     echo "prepush-ci: installed $hookfile" >&2 ;;

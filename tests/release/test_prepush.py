@@ -16,6 +16,7 @@ import subprocess
 import tempfile
 import threading
 import unittest
+import urllib.parse
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -162,8 +163,8 @@ class _Quiet(http.server.SimpleHTTPRequestHandler):
 
 
 @unittest.skipIf(shutil.which("git") is None, "git is not installed")
-class PrepushCheckout(unittest.TestCase):
-    """ci/prepush-checkout.sh against a real bundle served over HTTP."""
+class _Repos(unittest.TestCase):
+    """A "github" repository with main, a "dev" clone with local commits, and an HTTP server for bundles."""
 
     def setUp(self):
         self.tmp = tempfile.mkdtemp(prefix="hc-prepush-test-")
@@ -214,6 +215,11 @@ class PrepushCheckout(unittest.TestCase):
                            env={**self.env, "HC_PREPUSH_SHA": sha, "HC_PREPUSH_BUNDLE_URL": url, "HC_PREPUSH_BASE": base})
         return r, ci
 
+
+
+class PrepushCheckout(_Repos):
+    """ci/prepush-checkout.sh against a real bundle served over HTTP."""
+
     def test_head_is_merged_with_main_the_same_way_each_time(self):
         head = self.commit(self.dev, "b.txt", "local\n")
         main = self.commit(self.gh, "c.txt", "main moved\n")
@@ -247,6 +253,105 @@ class PrepushCheckout(unittest.TestCase):
         self.assertEqual(r.returncode, 2)
         r, _ = self.checkout("HEAD", url)
         self.assertEqual(r.returncode, 2)
+
+
+class _FakeN8n(http.server.BaseHTTPRequestHandler):
+    """The two webhooks scripts/prepush-ci.sh calls; records requests, answers from server.status."""
+
+    def log_message(self, *args):
+        pass
+
+    def reply(self, code, body):
+        data = json.dumps(body).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def handle_one(self, method):
+        url = urllib.parse.urlsplit(self.path)
+        q = dict(urllib.parse.parse_qsl(url.query))
+        body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
+        self.server.calls.append({"method": method, "path": url.path, "query": q, "body": body,
+                                  "token": self.headers.get("X-HC-Prepush-Token")})
+        if self.headers.get("X-HC-Prepush-Token") != "s3cret":
+            return self.reply(403, {"error": "auth"})
+        if url.path == "/webhook/hc-prepush/submit":
+            return self.reply(202, {"ok": True, "queue": "http://j/queue/item/1/"})
+        if url.path == "/webhook/hc-prepush/status":
+            return self.reply(200, {"sha": q.get("sha"), **self.server.status})
+        self.reply(404, {})
+
+    def do_GET(self):
+        self.handle_one("GET")
+
+    def do_POST(self):
+        self.handle_one("POST")
+
+
+class Client(_Repos):
+    """scripts/prepush-ci.sh against a stand-in for the n8n webhooks."""
+
+    def setUp(self):
+        super().setUp()
+        self.n8n = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _FakeN8n)
+        self.n8n.calls, self.n8n.status = [], {"state": "unknown", "pass": False}
+        threading.Thread(target=self.n8n.serve_forever, daemon=True).start()
+        self.addCleanup(self.n8n.server_close)
+        self.addCleanup(self.n8n.shutdown)
+        self.conf = os.path.join(self.tmp, "env")
+        with open(self.conf, "w", encoding="utf-8") as f:
+            f.write("HC_PREPUSH_URL=http://127.0.0.1:%d\nHC_PREPUSH_TOKEN=s3cret\n" % self.n8n.server_address[1])
+        self.git(self.dev, "checkout", "-q", "-b", "feat/x")
+        self.head = self.commit(self.dev, "b.txt", "local\n")
+
+    def client(self, *args, stdin="", **env):
+        return subprocess.run([os.path.join(ROOT, "scripts/prepush-ci.sh"), *args], cwd=self.dev, input=stdin,
+                              capture_output=True, text=True, env={**self.env, "HC_PREPUSH_CONFIG": self.conf, **env})
+
+    def push_line(self, sha):
+        return "refs/heads/feat/x %s refs/heads/feat/x %s\n" % (sha, "0" * 40)
+
+    GITHUB = "git@github.com:KRDucky/Homelab-Control.git"
+
+    def test_submit_sends_a_bundle_of_the_local_commits(self):
+        r = self.client("submit")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        (call,) = self.n8n.calls
+        self.assertEqual((call["method"], call["path"], call["token"]), ("POST", "/webhook/hc-prepush/submit", "s3cret"))
+        self.assertEqual((call["query"]["sha"], call["query"]["branch"]), (self.head, "feat/x"))
+        self.assertRegex(call["query"]["nonce"], r"^[0-9a-f]{32}$")
+        bundle = os.path.join(self.tmp, "got.bundle")
+        with open(bundle, "wb") as f:
+            f.write(call["body"])
+        ci = os.path.join(self.tmp, "verify")
+        self.git(self.tmp, "clone", "-q", self.gh, ci)
+        self.git(ci, "bundle", "verify", "-q", bundle)
+        self.assertIn(self.head, self.git(ci, "bundle", "list-heads", bundle))
+        self.assertEqual([f for f in os.listdir(os.path.join(self.dev, ".git")) if f.endswith(".bundle")], [])
+
+    def test_hook_decisions(self):
+        line = self.push_line(self.head)
+        r = self.client("hook", "other", "https://example.invalid/x.git", stdin=line)
+        self.assertEqual((r.returncode, self.n8n.calls), (0, []))  # not GitHub: not checked
+        r = self.client("hook", "origin", self.GITHUB, stdin=line, HC_PREPUSH_SKIP="1")
+        self.assertEqual((r.returncode, self.n8n.calls), (0, []))
+        r = self.client("hook", "origin", self.GITHUB, stdin=line)  # no run yet: submitted, push refused
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertEqual([c["path"].rsplit("/", 1)[1] for c in self.n8n.calls], ["status", "submit"])
+        self.n8n.status = {"state": "running", "pass": False}
+        self.assertEqual(self.client("hook", "origin", self.GITHUB, stdin=line).returncode, 1)
+        self.n8n.status = {"state": "FAILURE", "pass": False, "result": {"failedStages": ["check"]}}
+        r = self.client("hook", "origin", self.GITHUB, stdin=line)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("check", r.stdout)
+        self.n8n.status = {"state": "SUCCESS", "pass": True}
+        self.assertEqual(self.client("hook", "origin", self.GITHUB, stdin=line).returncode, 0)
+        main = self.git(self.dev, "rev-parse", "origin/main")
+        before = len(self.n8n.calls)
+        r = self.client("hook", "origin", self.GITHUB, stdin=self.push_line(main) + "(delete) %s refs/heads/old %s\n" % ("0" * 40, main))
+        self.assertEqual((r.returncode, len(self.n8n.calls)), (0, before))  # on main, or a deletion: nothing to test
 
 
 class Wiring(unittest.TestCase):

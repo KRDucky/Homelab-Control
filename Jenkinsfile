@@ -42,7 +42,7 @@ def checkoutSource(String base) {
     withEnv(["HC_PREPUSH_SHA=${params.HC_PREPUSH_SHA}", "HC_PREPUSH_BUNDLE_URL=${params.HC_PREPUSH_BUNDLE_URL}",
              "HC_PREPUSH_BASE=${base ?: ''}"]) {
       def out = sh(returnStdout: true, script: 'ci/prepush-checkout.sh').trim()
-      if (!base) { base = (out.readLines().last() - 'base ').trim() }
+      if (!base) { base = out.readLines().last().replaceFirst('^base ', '').trim() }
     }
   }
   def ids = sh(returnStdout: true, script: 'git rev-parse HEAD HEAD^{tree}').trim().readLines()
