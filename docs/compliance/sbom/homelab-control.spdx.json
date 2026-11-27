@@ -1,15 +1,15 @@
 {
   "SPDXID": "SPDXRef-DOCUMENT",
   "creationInfo": {
-    "comment": "Inputs sha256 b74a5ee1e90f24c779c974c0a21f23262ce28fb700b40cb3a31ad70305910aff over frontend/app/package-lock.json, backend/go.mod, backend/go.sum, backend/go-deps-allowlist.json, backend/audit-retention/Cargo.lock, backend/audit-retention/rust-deps-allowlist.json, scripts/gen-sbom.py. Build toolchain (CI): Go 1.26.11, Node.js 22.23.3, npm lockfileVersion 3, Vite 8.3.4, TypeScript 6.0.3. Package-payload inventories are produced per build by scripts/package-inventory.sh.",
-    "created": "2026-11-27T04:11:56Z",
+    "comment": "Inputs sha256 bd1f31b8b2109869f1728441cf2d54a83896ab3161445583db75ca631fd6bd41 over frontend/app/package-lock.json, backend/go.mod, backend/go.sum, backend/go-deps-allowlist.json, backend/audit-retention/Cargo.lock, backend/audit-retention/rust-deps-allowlist.json, scripts/gen-sbom.py. Build toolchain (CI): Go 1.27.4, Node.js 26.13.0, npm lockfileVersion 3, Vite 8.3.4, TypeScript 6.0.3. Package-payload inventories are produced per build by scripts/package-inventory.sh.",
+    "created": "2026-11-27T04:01:39Z",
     "creators": [
       "Person: Ian comings",
       "Tool: homelab-control-gen-sbom-1.0"
     ]
   },
   "dataLicense": "CC0-1.0",
-  "documentNamespace": "https://github.com/KRDucky/Homelab-Control/spdx/b74a5ee1e90f24c779c974c0a21f23262ce28fb700b40cb3a31ad70305910aff",
+  "documentNamespace": "https://github.com/KRDucky/Homelab-Control/spdx/bd1f31b8b2109869f1728441cf2d54a83896ab3161445583db75ca631fd6bd41",
   "name": "homelab-control-source-sbom",
   "packages": [
     {
@@ -26,13 +26,13 @@
     },
     {
       "SPDXID": "SPDXRef-Package-go-stdlib",
-      "comment": "Statically linked into all three binaries. go.mod minimum: go 1.26.0; CI release toolchain: 1.26.11. Third-party Go modules are listed separately (ADR 0006 amendment 1).",
+      "comment": "Statically linked into all three binaries. go.mod minimum: go 1.26.0; CI release toolchain: 1.27.4. Third-party Go modules are listed separately (ADR 0006 amendment 1).",
       "copyrightText": "Copyright 2009 The Go Authors.",
       "downloadLocation": "https://go.dev/dl/",
       "externalRefs": [
         {
           "referenceCategory": "PACKAGE-MANAGER",
-          "referenceLocator": "pkg:golang/stdlib@1.26.11",
+          "referenceLocator": "pkg:golang/stdlib@1.27.4",
           "referenceType": "purl"
         }
       ],
@@ -40,7 +40,7 @@
       "licenseConcluded": "BSD-3-Clause",
       "licenseDeclared": "BSD-3-Clause",
       "name": "go-stdlib",
-      "versionInfo": "1.26.11"
+      "versionInfo": "1.27.4"
     },
     {
       "SPDXID": "SPDXRef-Package-go-modernc.org-sqlite-v1.60.1",

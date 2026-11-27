@@ -9,10 +9,10 @@ Develop on Debian and Ubuntu. Fedora and Arch are not part of this release. Retu
 ## Requirements
 | Tool | Version used in M0 | Notes |
 |---|---|---|
-| Go | 1.26.11 (CI and releases, exact pin in `packaging/release/toolchain.env`; older local toolchains fetch it with `GOTOOLCHAIN=go1.26.11`) | `go.mod` requires ≥ 1.26.0 (`modernc.org/sqlite`). Third-party modules only from the reviewed allow-list `backend/go-deps-allowlist.json` (ADR 0006 amendment 1); `hc-broker` stays standard-library only. Release/CI builds must use a *supported* Go line so stdlib security fixes apply; govulncheck in CI fails otherwise. |
-| Node.js / npm | 22.22.0 / 10.9.4 | jsdom (dev-only) warns it prefers Node ≥ 22.22.2; tests pass on 22.22.0. |
+| Go | 1.27.4 (CI and releases, exact pin in `packaging/release/toolchain.env`; the hc-go-dev runner uses it; older local toolchains fetch it with `GOTOOLCHAIN=go1.27.4`) | `go.mod` requires ≥ 1.26.0 (`modernc.org/sqlite`). Third-party modules only from the reviewed allow-list `backend/go-deps-allowlist.json` (ADR 0006 amendment 1); `hc-broker` stays standard-library only. Release/CI builds must use a *supported* Go line so stdlib security fixes apply; govulncheck in CI fails otherwise. |
+| Node.js / npm | 26.13.0 / 11.20.0 (CI and releases, exact pin in `packaging/release/toolchain.env`; the hc-ui-dev runner uses Node 26) | Node ≥ 22 still builds; CI uses the pin. |
 | GNU make, git, bash, coreutils | any recent | |
-| Python 3 + Playwright (optional) | 1.x with Chromium | Browser e2e test only. |
+| Python 3 + Playwright (optional) | 1.63.0 (CI pin in `.github/workflows/ci.yml`) | Browser e2e test only. Not 1.64.1 (the hc-qa-dev runner's version) yet: its WebKit reports and enforces `style-src-attr` violations for `<select>` elements that have no `style` attribute, so `tests/e2e/hcis-ui.mjs` fails "no CSP errors while applying custom theme" on WebKit only (found 2026-11-27; Chromium and Firefox are clean). |
 | shellcheck 0.9.0, govulncheck v1.9.0 (optional) | — | Run in CI; skipped locally if missing. govulncheck v1.9.0 needs Go ≥ 1.26.0: `go install golang.org/x/vuln/cmd/govulncheck@v1.9.0`. |
 
 On CachyOS/Arch: `sudo pacman -S go nodejs npm make git` (all official repos).
