@@ -136,6 +136,17 @@ class N8nCode(unittest.TestCase):
         for name in ("../" + good, good + "/x", "x.bundle", ""):
             self.assertFalse(self.run_js("Validate bundle", {}, [{"json": {"query": {"name": name}}}])["ok"], name)
 
+    def test_missing_bundle_is_404_not_empty_200(self):
+        # n8n's file node emits no item for a missing file, so without this the webhook ended with no
+        # reply node run and answered 200 with an empty body (seen live on MediaMouse, 2026-11-27).
+        wf = json.loads(gen.OUT.read_text(encoding="utf-8"))
+        node = {n["name"]: n for n in wf["nodes"]}
+        self.assertTrue(node["Read bundle"].get("alwaysOutputData"))
+        self.assertEqual(wf["connections"]["Read bundle"]["main"], [[{"node": "Bundle found?", "type": "main", "index": 0}]])
+        found = wf["connections"]["Bundle found?"]["main"]
+        self.assertEqual([[c["node"] for c in out] for out in found], [["Send bundle"], ["No such bundle"]])
+        self.assertIn("$binary.bundle", node["Bundle found?"]["parameters"]["conditions"]["conditions"][0]["leftValue"])
+
     def build(self, sha, result, in_progress=False, number=7):
         return {"number": number, "url": "http://j/job/p/%d/" % number, "result": result, "inProgress": in_progress,
                 "actions": [{}, {"parameters": [{"name": "HC_PREPUSH_SHA", "value": sha}]}]}

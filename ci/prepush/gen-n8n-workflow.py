@@ -211,10 +211,13 @@ def workflow():
         if_ok("Bundle name valid?", "={{ $json.ok }}", 440, 800),
         {"parameters": {"operation": "read", "fileSelector": "={{ $json.path }}",
                         "options": {"dataPropertyName": "bundle"}},
-         "name": "Read bundle", "type": "n8n-nodes-base.readWriteFile", "typeVersion": 1, "position": [660, 720]},
+         "name": "Read bundle", "type": "n8n-nodes-base.readWriteFile", "typeVersion": 1, "position": [660, 720],
+         # A missing file gives no item; without one no reply node runs and n8n answers an empty 200.
+         "alwaysOutputData": True},
+        if_ok("Bundle found?", "={{ !!$binary.bundle }}", 880, 720),
         {"parameters": {"respondWith": "binary", "responseDataSource": "set", "inputFieldName": "bundle",
                         "options": {}},
-         "name": "Send bundle", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.1, "position": [880, 720]},
+         "name": "Send bundle", "type": "n8n-nodes-base.respondToWebhook", "typeVersion": 1.1, "position": [1100, 720]},
         respond_json("No such bundle", '={{ {"error": "not found"} }}', 404, 660, 920),
     ]
 
@@ -243,7 +246,8 @@ def workflow():
         "Bundle": {"main": to("Validate bundle")},
         "Validate bundle": {"main": to("Bundle name valid?")},
         "Bundle name valid?": branch("Read bundle", "No such bundle"),
-        "Read bundle": {"main": to("Send bundle")},
+        "Read bundle": {"main": to("Bundle found?")},
+        "Bundle found?": branch("Send bundle", "No such bundle"),
     }
     return {"name": "HC pre-push", "nodes": n, "connections": c, "active": False,
             "settings": {"executionOrder": "v1", "saveDataSuccessExecution": "none"},

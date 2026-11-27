@@ -484,6 +484,39 @@
       "position": [
         660,
         720
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "Bundle found?",
+              "leftValue": "={{ !!$binary.bundle }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Bundle found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        880,
+        720
       ]
     },
     {
@@ -497,7 +530,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        880,
+        1100,
         720
       ]
     },
@@ -749,7 +782,25 @@
       "main": [
         [
           {
+            "node": "Bundle found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bundle found?": {
+      "main": [
+        [
+          {
             "node": "Send bundle",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No such bundle",
             "type": "main",
             "index": 0
           }
