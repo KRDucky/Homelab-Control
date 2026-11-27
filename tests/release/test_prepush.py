@@ -380,6 +380,27 @@ class Client(_Repos):
         r = self.client("hook", "origin", self.GITHUB, stdin=self.push_line(main) + "(delete) %s refs/heads/old %s\n" % ("0" * 40, main))
         self.assertEqual((r.returncode, len(self.n8n.calls)), (0, before))  # on main, or a deletion: nothing to test
 
+    def test_installed_hook(self):
+        self.assertEqual(self.client("install-hook").returncode, 0)
+        r = self.client("install-hook")  # the hook it wrote is recognised, not refused
+        self.assertEqual(r.returncode, 0, r.stderr)
+        hookfile = os.path.join(self.dev, ".git", "hooks", "pre-push")
+        line = self.push_line(self.head)
+        env = {**self.env, "HC_PREPUSH_CONFIG": self.conf}
+
+        def run_hook():
+            return subprocess.run([hookfile, "origin", self.GITHUB], cwd=self.dev, input=line,
+                                  capture_output=True, text=True, env=env)
+        # A branch made before pre-push testing has no scripts/prepush-ci.sh: the push goes through, with a note.
+        r = run_hook()
+        self.assertEqual((r.returncode, self.n8n.calls), (0, []), r.stderr)
+        self.assertIn("not checking", r.stderr)
+        # A branch that has the script: the hook runs it (no run yet: submitted, push refused).
+        os.makedirs(os.path.join(self.dev, "scripts"))
+        shutil.copy(os.path.join(ROOT, "scripts/prepush-ci.sh"), os.path.join(self.dev, "scripts"))
+        self.assertEqual(run_hook().returncode, 1)
+        self.assertEqual([c["path"].rsplit("/", 1)[1] for c in self.n8n.calls], ["status", "submit"])
+
 
 class Wiring(unittest.TestCase):
     def read(self, path):
