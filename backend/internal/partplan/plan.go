@@ -8,8 +8,10 @@
 package partplan
 
 import (
+	"cmp"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 )
 
@@ -99,15 +101,7 @@ func DryRun(req Request) Report {
 		}
 		items = append(items, it)
 	}
-	// Insertion sort keeps the file free of an extra import and stays within
-	// the 128-slice cap.
-	for i := 1; i < len(items); i++ {
-		j := i
-		for j > 0 && less(items[j], items[j-1]) {
-			items[j], items[j-1] = items[j-1], items[j]
-			j--
-		}
-	}
+	slices.SortStableFunc(items, func(a, b placed) int { return cmp.Compare(a.Start(), b.Start()) })
 	var cursor uint64
 	var have bool
 	for _, it := range items {
@@ -136,13 +130,6 @@ func DryRun(req Request) Report {
 }
 
 func (it placed) Start() uint64 { return it.slice.StartBytes }
-
-func less(a, b placed) bool {
-	if a.Start() != b.Start() {
-		return a.Start() < b.Start()
-	}
-	return a.n < b.n
-}
 
 func canonicalFS(s string) (string, bool) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
