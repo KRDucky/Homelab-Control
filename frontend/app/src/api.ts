@@ -1496,6 +1496,23 @@ export interface SnapraidStatus {
   truncated?: boolean;
   note: string;
   source: string;
+  /** The latest sync, scrub or fix started through Homelab Control. */
+  lastRun?: SnapraidRun;
+}
+
+/**
+ * The MergerFS helper's record of one sync, scrub or fix. `checking` is
+ * snapraid diff before sync or scrub; `refused` means that check blocked the
+ * run; `interrupted` means it stopped before it ended (for example a reboot).
+ */
+export interface SnapraidRun {
+  action: 'sync' | 'scrub' | 'fix';
+  state: 'checking' | 'running' | 'finished' | 'failed' | 'refused' | 'interrupted';
+  startedAt: string;
+  runningAt?: string;
+  endedAt?: string;
+  exitCode?: number;
+  blocked?: 'missing-disk' | 'removed-files' | 'diff-unreadable' | 'locked';
 }
 
 export interface SnapraidDisk {

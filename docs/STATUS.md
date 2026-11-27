@@ -393,8 +393,11 @@ Pool mount, array definition (fstab plus snapraid.conf), sync, scrub, and filter
 (`snapraid fix -m -f` only) are plan/apply broker ops. `mergerfs.configure` and `mergerfs.maintain`
 are not default grants and do not imply `mergerfs.read` or each other. The broker dials an opt-in
 helper socket. The package ships `/etc/homelab-control/mergerfs-apply.enabled`. The socket has no
-`[Install]` section and the package does not enable it at boot. Sync and scrub refuse a missing disk
-or removed files. There is no `--force`, no `-e`, and no unfiltered fix. Disks are not formatted.
+`[Install]` section and the package does not enable it at boot. Sync and scrub refuse a missing disk,
+removed files, or an array lock that another SnapRAID command holds. Sync, scrub and fix run to completion
+(ADR 0008 Amendment 19; evidence `docs/evidence/m8/SNAPRAID-LONG-RUN.md`). A run that lasts more than 5 s is reported as started and continues in the
+helper's unit, with SnapRAID's output and exit status in the journal. The diff gate reads the start and
+end of `snapraid diff`, so a long list of changed files does not block sync. `snapraid diff` has no deadline; if it is still checking after 60 s the apply says so, and sync or scrub starts only if the check passes. SnapRAID status shows the latest sync, scrub or fix (checking, running, finished, failed, refused or interrupted) from the helper's run record, and the page reads it again while the run is active. There is no `--force`, no `-e`, and no unfiltered fix. Disks are not formatted.
 `storagecap.Advance` enters `execute` after a passing confirm, then `progress` and `postcheck`.
 It still does not format a device itself. `ext4.format.plan` / `ext4.format.apply` (scope
 `ext4.format`, not implied by `ext4.read`) call `mkfs.ext4 -q --` on one by-id path after that

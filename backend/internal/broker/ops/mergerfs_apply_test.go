@@ -100,3 +100,56 @@ func TestMergerFSWriteOpsRefuseStatus(t *testing.T) {
 		}
 	}
 }
+
+// A sync that is still running when the helper replies is reported as
+// started, with no exit status, and says where its end is recorded.
+func TestMergerFSApplyReportsARunningSync(t *testing.T) {
+	env := mergerfsEnv(t)
+	env.MergerFSApply = func(context.Context, mergerfsapply.Request) (mergerfsapply.Result, error) {
+		return mergerfsapply.Result{Version: 1, OK: true, Running: true, Summary: "sync started and continues in the background"}, nil
+	}
+	got, err := mergerfsPlan(mergerfsKeepPlan)(context.Background(), env, json.RawMessage(`{"action":"sync"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	env.Actor.StepUpAt = time.Now().Unix()
+	out, err := mergerfsApply(mergerfsMaintainOp)(context.Background(), env,
+		json.RawMessage(`{"action":"sync","token":"`+got.(MergerFSPlan).Token+`"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	o := out.(MergerFSOutcome)
+	if o.Outcome != OutcomeSucceeded || o.ExitCode != nil || o.Message != "Sync started and continues in the background. Follow it under SnapRAID status." {
+		t.Fatalf("%+v", o)
+	}
+}
+
+// A reply sent while snapraid diff is still checking must not say the run
+// started without saying it can still be refused.
+func TestMergerFSApplyReportsAStillRunningCheck(t *testing.T) {
+	env := mergerfsEnv(t)
+	env.MergerFSApply = func(context.Context, mergerfsapply.Request) (mergerfsapply.Result, error) {
+		return mergerfsapply.Result{Version: 1, OK: true, Running: true, Checking: true, Summary: "the check before sync continues in the background"}, nil
+	}
+	got, err := mergerfsPlan(mergerfsKeepPlan)(context.Background(), env, json.RawMessage(`{"action":"sync"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	env.Actor.StepUpAt = time.Now().Unix()
+	out, err := mergerfsApply(mergerfsMaintainOp)(context.Background(), env,
+		json.RawMessage(`{"action":"sync","token":"`+got.(MergerFSPlan).Token+`"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	o := out.(MergerFSOutcome)
+	if o.Outcome != OutcomeSucceeded || o.ExitCode != nil || !strings.HasPrefix(o.Message, "Checking the array before sync") ||
+		!strings.Contains(o.Message, "Sync starts only if") || !strings.Contains(o.Message, "SnapRAID status") {
+		t.Fatalf("%+v", o)
+	}
+}
+
+func TestMergerFSApplyNamesTheHeldLock(t *testing.T) {
+	if m := blockedMessage(mergerfsapply.BlockLocked); !strings.Contains(m, "lock") || !strings.Contains(m, "Nothing was started") {
+		t.Fatal(m)
+	}
+}

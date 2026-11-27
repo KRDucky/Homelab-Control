@@ -71,6 +71,15 @@ type Result struct {
 	Output string `json:"output,omitempty"`
 	// OutputTruncated: Output is a prefix cut at MaxStatusOutput.
 	OutputTruncated bool `json:"outputTruncated,omitempty"`
+	// Running: sync, scrub or fix was still running when the helper replied.
+	// It continues; its exit status goes to the journal, not to this reply.
+	Running bool `json:"running,omitempty"`
+	// Checking: with Running, snapraid diff (the check before sync or scrub)
+	// had not finished when the helper replied. It continues, and sync or
+	// scrub starts only if it passes; either result goes to the journal.
+	Checking bool `json:"checking,omitempty"`
+	// LastRun is set only for ActionStatus: the latest sync, scrub or fix.
+	LastRun *RunRecord `json:"lastRun,omitempty"`
 }
 
 // Spec is a request that passed Validate.
@@ -360,12 +369,15 @@ func (s Spec) Consequences() []string {
 		return append(common,
 			"A missing disk or a removed file blocks this operation. Nothing is synced or scrubbed.",
 			"There is no way to continue past that block. Restore the disk or the files first.",
+			"On a large array that check can outlast the reply. It then continues in the background, and the block or the run's result is recorded in the system journal.",
+			"A run longer than a few seconds continues in the background. SnapRAID status shows the array as locked until it ends.",
 		)
 	case ActionFix:
 		return append(common,
 			"The command is snapraid fix -m -f for the reviewed relative paths only.",
 			"-e is not used. A full unfiltered fix is not used.",
 			"A missing data disk does not block this recovery. Sync and scrub still refuse a missing disk.",
+			"A run longer than a few seconds continues in the background. SnapRAID status shows the array as locked until it ends.",
 		)
 	default:
 		return common

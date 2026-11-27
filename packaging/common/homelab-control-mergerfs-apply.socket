@@ -7,7 +7,9 @@ ConditionPathExists=/etc/homelab-control/mergerfs-apply.enabled
 [Socket]
 ListenStream=/run/homelab-control/mergerfs-apply.sock
 Accept=yes
-MaxConnections=1
+# More than one: a status read must still answer while a sync is running.
+# SnapRAID's own array lock refuses a second sync, scrub or fix.
+MaxConnections=4
 SocketMode=0600
 SocketUser=root
 SocketGroup=root

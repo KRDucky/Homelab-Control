@@ -18,6 +18,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"syscall"
 	"time"
 
 	"homelab-control/backend/internal/mergerfsapply"
@@ -27,19 +28,20 @@ import (
 const (
 	maxRequestBytes  = 1 << 20
 	maxResponseBytes = 256 << 10
-	maxDiffBytes     = 1 << 20
+	diffKeepBytes    = 64 << 10
 	maxFileBytes     = 256 << 10
 	systemdRun       = "/usr/bin/systemd-run"
 )
 
 func main() {
-	if err := run(os.Stdin, os.Stdout, ""); err != nil {
+	detach := func() { endReply(os.Stdout, os.Stdin) }
+	if err := run(os.Stdin, os.Stdout, "", detach); err != nil {
 		fmt.Fprintln(os.Stderr, "hc-mergerfs-apply:", err.Error())
 		os.Exit(1)
 	}
 }
 
-func run(in io.Reader, out io.Writer, root string) error {
+func run(in io.Reader, out io.Writer, root string, detach func()) error {
 	b, err := io.ReadAll(io.LimitReader(in, maxRequestBytes+1))
 	if err != nil {
 		return err
@@ -53,7 +55,7 @@ func run(in io.Reader, out io.Writer, root string) error {
 	if err := dec.Decode(&req); err != nil {
 		return err
 	}
-	res := execute(context.Background(), req, root)
+	res, rest := execute(context.Background(), req, root)
 	body, err := json.Marshal(res)
 	if err != nil {
 		return err
@@ -62,64 +64,205 @@ func run(in io.Reader, out io.Writer, root string) error {
 	if len(body) > maxResponseBytes {
 		return errors.New("response too large")
 	}
-	_, err = out.Write(body)
-	return err
+	if _, err = out.Write(body); err != nil || rest == nil {
+		return err
+	}
+	if detach != nil {
+		detach()
+	}
+	rest()
+	return nil
 }
 
-func execute(ctx context.Context, req mergerfsapply.Request, root string) mergerfsapply.Result {
+// endReply ends the connection so the broker returns while a long SnapRAID
+// run continues. stdin and stdout are the accepted socket, and with
+// Accept=yes systemd keeps its own copy of it until this instance stops, so
+// closing ours is not enough: shutdown ends the connection for every holder.
+func endReply(files ...*os.File) {
+	for _, f := range files {
+		if sc, err := f.SyscallConn(); err == nil {
+			_ = sc.Control(func(fd uintptr) { _ = syscall.Shutdown(int(fd), syscall.SHUT_RDWR) })
+		}
+		_ = f.Close()
+	}
+}
+
+// execute runs one request. A non-nil second result is the rest of a long
+// SnapRAID run: the caller sends the reply first, then waits for it.
+func execute(ctx context.Context, req mergerfsapply.Request, root string) (mergerfsapply.Result, func()) {
 	spec, err := mergerfsapply.Validate(req)
 	if err != nil {
-		return done(false, 0, "request refused", "")
+		return done(false, 0, "request refused", ""), nil
 	}
 	ctx, cancel := context.WithTimeout(ctx, 80*time.Second)
 	defer cancel()
 	switch spec.Action {
 	case mergerfsapply.ActionMount:
-		return mount(ctx, spec)
+		return mount(ctx, spec), nil
 	case mergerfsapply.ActionPersist:
 		if err := persist(root, spec); err != nil {
 			if errors.Is(err, errUnmanagedSnapraid) {
-				return done(false, 0, "array definition was not written: the existing snapraid.conf was not written by Homelab Control, so it was not replaced", "")
+				return done(false, 0, "array definition was not written: the existing snapraid.conf was not written by Homelab Control, so it was not replaced", ""), nil
 			}
-			return done(false, 0, "array definition was not written", "")
+			return done(false, 0, "array definition was not written", ""), nil
 		}
-		return done(true, 0, "array definition written", "")
+		return done(true, 0, "array definition written", ""), nil
 	case mergerfsapply.ActionSync, mergerfsapply.ActionScrub:
-		reason := diffBlock(ctx)
-		if reason != "" {
-			return done(false, 0, "operation refused before it started", reason)
-		}
-		argv, err := spec.Argv()
-		if err != nil {
-			return done(false, 0, "request refused", "")
-		}
-		code, _, _ := runCmd(ctx, argv, 4<<10)
-		if code != 0 {
-			return done(false, code, "snapraid exited", "")
-		}
-		if spec.Action == mergerfsapply.ActionSync {
-			return done(true, 0, "sync finished", "")
-		}
-		return done(true, 0, "scrub finished", "")
+		return startSnapraid(root, spec, diffCheck)
 	case mergerfsapply.ActionStatus:
 		argv, err := spec.Argv()
 		if err != nil {
-			return done(false, 0, "request refused", "")
+			return done(false, 0, "request refused", ""), nil
 		}
-		return statusResult(runCmd(ctx, argv, mergerfsapply.MaxStatusOutput))
+		res := statusResult(runCmd(ctx, argv, mergerfsapply.MaxStatusOutput))
+		res.LastRun = readRun(root)
+		return res, nil
 	case mergerfsapply.ActionFix:
-		argv, err := spec.Argv()
-		if err != nil || len(argv) < 5 {
-			return done(false, 0, "request refused", "")
-		}
-		code, _, _ := runCmd(ctx, argv, 4<<10)
-		if code != 0 {
-			return done(false, code, "snapraid exited", "")
-		}
-		return done(true, 0, "recovery finished", "")
+		return startSnapraid(root, spec, nil)
 	default:
-		return done(false, 0, "request refused", "")
+		return done(false, 0, "request refused", ""), nil
 	}
+}
+
+// startGrace: SnapRAID stops within moments on a held array lock, a bad
+// configuration or a missing disk. A run still going after this is reported
+// as started; sync, scrub and fix take minutes to many hours on a real array.
+var startGrace = 5 * time.Second
+
+// snapraidLog receives SnapRAID's own output: the helper's stderr, which the
+// unit sends to the journal. It is not piped, so a long run is never stopped
+// by a full pipe or an output cap.
+var snapraidLog io.Writer = os.Stderr
+
+// replyBudget bounds the wait for a reply. The broker waits 80 seconds for
+// the helper; this leaves a margin.
+var replyBudget = 60 * time.Second
+
+// diffCheck is the check before sync and scrub (a test seam).
+var diffCheck = func() string { return diffBlock(context.Background()) }
+
+// startSnapraid runs gate (if any) and then SnapRAID. gate is snapraid diff,
+// which reads every file of the array, so it has no deadline: on a large
+// array it can take longer than the broker waits.
+func startSnapraid(root string, spec mergerfsapply.Spec, gate func() string) (mergerfsapply.Result, func()) {
+	argv, err := spec.Argv()
+	if err != nil || !argvAllowed(argv) || argv[0] != mergerfsapply.SnapRAIDBin || (spec.Action == mergerfsapply.ActionFix && len(argv) < 5) {
+		return done(false, 0, "request refused", ""), nil
+	}
+	t, err := beginRun(root, spec.Action, gate != nil)
+	switch {
+	case errors.Is(err, errRunActive):
+		return done(false, 0, "operation refused before it started", mergerfsapply.BlockLocked), nil
+	case err != nil:
+		// The record is for the page; SnapRAID's own lock still guards the array.
+		fmt.Fprintln(snapraidLog, "hc-mergerfs-apply: the run record is not available")
+		t = nil
+	}
+	if gate == nil {
+		return startLong(argv, spec.Action, t)
+	}
+	return startGated(argv, spec.Action, gate, t)
+}
+
+// startGated replies with the gate's block or startLong's reply if they come
+// within replyBudget. Otherwise it replies that the check is running, and the
+// returned func waits for it and logs the block or the run's exit status.
+func startGated(argv []string, action string, gate func() string, t *tracker) (mergerfsapply.Result, func()) {
+	type reply struct {
+		res  mergerfsapply.Result
+		rest func()
+	}
+	first := make(chan reply, 1)
+	go func() {
+		if reason := gate(); reason != "" {
+			t.refuse(reason)
+			first <- reply{done(false, 0, "operation refused before it started", reason), nil}
+			return
+		}
+		t.running()
+		res, rest := startLong(argv, action, t)
+		first <- reply{res, rest}
+	}()
+	timer := time.NewTimer(replyBudget)
+	defer timer.Stop()
+	select {
+	case r := <-first:
+		return r.res, r.rest
+	case <-timer.C:
+		res := done(true, 0, "the check before "+action+" continues in the background", "")
+		res.Running, res.Checking = true, true
+		return res, func() {
+			r := <-first
+			switch {
+			case r.res.Blocked != "":
+				fmt.Fprintf(snapraidLog, "hc-mergerfs-apply: snapraid %s was not started: %s\n", action, r.res.Blocked)
+			case r.rest != nil:
+				r.rest()
+			default:
+				fmt.Fprintf(snapraidLog, "hc-mergerfs-apply: snapraid %s exited with status %d\n", action, r.res.ExitCode)
+			}
+		}
+	}
+}
+
+// startLong starts argv without a deadline. If it exits within startGrace the
+// reply carries its exit status; otherwise the reply says it is running and
+// the returned func waits for it and logs the exit status.
+func startLong(argv []string, action string, t *tracker) (mergerfsapply.Result, func()) {
+	cmd := exec.Command(argv[0], argv[1:]...)
+	cmd.Env = []string{"PATH=/usr/bin:/bin", "LANG=C", "LC_ALL=C"}
+	cmd.Dir = "/"
+	cmd.Stdout, cmd.Stderr = snapraidLog, snapraidLog
+	if f := t.lockFile(); f != nil {
+		cmd.ExtraFiles = []*os.File{f}
+	}
+	if err := cmd.Start(); err != nil {
+		t.finish(-1)
+		return done(false, -1, "snapraid did not start", ""), nil
+	}
+	exit := make(chan int, 1)
+	go func() {
+		code := exitStatus(cmd.Wait())
+		t.finish(code)
+		exit <- code
+	}()
+	timer := time.NewTimer(startGrace)
+	defer timer.Stop()
+	select {
+	case code := <-exit:
+		if code != 0 {
+			return done(false, code, "snapraid exited", ""), nil
+		}
+		return done(true, 0, finishedSummary(action), ""), nil
+	case <-timer.C:
+		res := done(true, 0, action+" started and continues in the background", "")
+		res.Running = true
+		return res, func() {
+			fmt.Fprintf(snapraidLog, "hc-mergerfs-apply: snapraid %s exited with status %d\n", action, <-exit)
+		}
+	}
+}
+
+func finishedSummary(action string) string {
+	switch action {
+	case mergerfsapply.ActionSync:
+		return "sync finished"
+	case mergerfsapply.ActionScrub:
+		return "scrub finished"
+	default:
+		return "recovery finished"
+	}
+}
+
+func exitStatus(err error) int {
+	if err == nil {
+		return 0
+	}
+	var ee *exec.ExitError
+	if errors.As(err, &ee) {
+		return ee.ExitCode()
+	}
+	return -1
 }
 
 // statusResult carries snapraid's status text to the broker and marks text
@@ -159,9 +302,13 @@ func mount(ctx context.Context, spec mergerfsapply.Spec) mergerfsapply.Result {
 	return done(true, 0, "mounted", "")
 }
 
+// diffBlock runs snapraid diff and keeps the start and end of its output.
+// diff lists every changed file between its disk checks and its summary, so
+// a capped prefix would lose the summary after a busy day of new files.
 func diffBlock(ctx context.Context) string {
-	code, out, truncated := runCmd(ctx, []string{mergerfsapply.SnapRAIDBin, "diff"}, maxDiffBytes)
-	return mergerfsapply.DiffGate(code, string(out), truncated)
+	out := &mergerfsapply.HeadTail{Keep: diffKeepBytes}
+	code := runTo(ctx, []string{mergerfsapply.SnapRAIDBin, "diff"}, out)
+	return mergerfsapply.DiffGate(code, out.String())
 }
 
 func done(ok bool, code int, summary, blocked string) mergerfsapply.Result {
@@ -221,27 +368,25 @@ func argvAllowed(argv []string) bool {
 }
 
 func runCmd(ctx context.Context, argv []string, limit int) (int, []byte, bool) {
+	buf := &capBuf{max: limit}
+	code := runTo(ctx, argv, buf)
+	if buf.truncated {
+		return -1, buf.buf.Bytes(), true
+	}
+	return code, buf.buf.Bytes(), false
+}
+
+// runTo runs one allowed argv with its output to w and returns the exit status.
+func runTo(ctx context.Context, argv []string, w io.Writer) int {
 	if !argvAllowed(argv) {
-		return -1, nil, false
+		return -1
 	}
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	cmd.Env = []string{"PATH=/usr/bin:/bin", "LANG=C", "LC_ALL=C"}
 	cmd.Dir = "/"
-	buf := &capBuf{max: limit}
-	cmd.Stdout = buf
-	cmd.Stderr = buf
-	err := cmd.Run()
-	if buf.truncated {
-		return -1, buf.buf.Bytes(), true
-	}
-	if err == nil {
-		return 0, buf.buf.Bytes(), false
-	}
-	var ee *exec.ExitError
-	if errors.As(err, &ee) {
-		return ee.ExitCode(), buf.buf.Bytes(), false
-	}
-	return -1, buf.buf.Bytes(), false
+	cmd.Stdout = w
+	cmd.Stderr = w
+	return exitStatus(cmd.Run())
 }
 
 func under(root, abs string) string { return root + abs }

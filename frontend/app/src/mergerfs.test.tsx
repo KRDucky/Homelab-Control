@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MergerFS } from './pages/MergerFS';
+import { LastRun, MergerFS, runPollMs } from './pages/MergerFS';
 import {
   ApiError,
   applyMergerFS,
@@ -12,6 +12,7 @@ import {
   stepUp,
   type MergerFSInventory,
   type MergerFSToolItem,
+  type SnapraidStatus,
 } from './api';
 
 vi.mock('./api', async (importOriginal) => {
@@ -849,5 +850,144 @@ describe('MergerFS read-only page', () => {
     expect(stepUp).toHaveBeenCalledWith('secret', csrf);
     expect(applyMergerFS).toHaveBeenCalledWith('maintain', { action: 'sync', token: 'hcp1.token' }, csrf);
     expect(await screen.findByText('SnapRAID sync finished.')).toBeTruthy();
+  });
+
+  // Owner request: a sync, scrub or fix that continues in the background had
+  // no visible end on the page, only "locked" and the system journal.
+  describe('latest SnapRAID run', () => {
+    const base: SnapraidStatus = {
+      exitCode: 0,
+      syncInProgress: false,
+      disks: [],
+      summary: [],
+      note: 'n',
+      source: 's',
+    };
+
+    it('shows each state in plain words', () => {
+      const { rerender } = render(
+        <LastRun
+          run={{
+            action: 'sync',
+            state: 'finished',
+            startedAt: '2026-11-26T22:40:00Z',
+            runningAt: '2026-11-26T22:40:10Z',
+            endedAt: '2026-11-26T22:43:05Z',
+            exitCode: 0,
+          }}
+        />,
+      );
+      expect(screen.getByRole('heading', { name: 'Latest sync: finished' })).toBeTruthy();
+      expect(screen.getByText(/after 2 min 55 s\. SnapRAID exit status 0\./)).toBeTruthy();
+      rerender(
+        <LastRun
+          run={{
+            action: 'scrub',
+            state: 'refused',
+            startedAt: '2026-11-26T22:40:00Z',
+            endedAt: '2026-11-26T22:40:02Z',
+            blocked: 'missing-disk',
+          }}
+        />,
+      );
+      expect(screen.getByText(/Not started .*: a disk is missing\./)).toBeTruthy();
+      rerender(
+        <LastRun
+          run={{
+            action: 'sync',
+            state: 'failed',
+            startedAt: '2026-11-26T22:40:00Z',
+            endedAt: '2026-11-26T22:41:00Z',
+            exitCode: 1,
+          }}
+        />,
+      );
+      expect(screen.getByText(/SnapRAID exited with status 1\./)).toBeTruthy();
+      expect(screen.getByText(/homelab-control-mergerfs-apply@\*/)).toBeTruthy();
+      rerender(<LastRun run={{ action: 'sync', state: 'checking', startedAt: '2026-11-26T22:40:00Z' }} />);
+      expect(
+        screen.getByText(/Checking the array \(snapraid diff\) since .*Sync starts only if/),
+      ).toBeTruthy();
+      rerender(<LastRun run={{ action: 'fix', state: 'interrupted', startedAt: '2026-11-26T22:40:00Z' }} />);
+      expect(screen.getByRole('heading', { name: 'Latest recovery (fix): interrupted' })).toBeTruthy();
+      expect(screen.getByText(/Stopped before it ended/)).toBeTruthy();
+    });
+
+    it('reads status after a confirmed sync and again until the run ends', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        vi.mocked(getMergerFS).mockResolvedValue(
+          inventory({
+            mergerfsInstalled: true,
+            snapraidInstalled: true,
+            mergerfsPresent: true,
+            snapraidPresent: true,
+          }),
+        );
+        vi.mocked(planMergerFS).mockResolvedValue({
+          action: 'sync',
+          risk: 'disruptive',
+          step_up_required: false,
+          token: 'hcp1.token',
+          expires_at: '2099-01-01T00:00:00Z',
+          effect: 'e',
+          consequences: [],
+          argv: ['/usr/bin/snapraid', 'sync'],
+        });
+        vi.mocked(applyMergerFS).mockResolvedValue({
+          operation_id: 'op-1',
+          action: 'sync',
+          outcome: 'succeeded',
+          message: 'Sync started and continues in the background. Follow it under SnapRAID status.',
+        });
+        vi.mocked(getSnapraidStatus)
+          .mockResolvedValueOnce({
+            ...base,
+            exitCode: 1,
+            locked: true,
+            lastRun: {
+              action: 'sync',
+              state: 'running',
+              startedAt: '2026-11-26T22:40:00Z',
+              runningAt: '2026-11-26T22:40:10Z',
+            },
+          })
+          .mockResolvedValue({
+            ...base,
+            lastRun: {
+              action: 'sync',
+              state: 'finished',
+              startedAt: '2026-11-26T22:40:00Z',
+              runningAt: '2026-11-26T22:40:10Z',
+              endedAt: '2026-11-26T22:43:05Z',
+              exitCode: 0,
+            },
+          });
+        render(
+          <MergerFS
+            csrf={csrf}
+            scopes={['mergerfs.maintain']}
+            packagesEnabled={false}
+            onUnauthorized={onUnauthorized}
+          />,
+        );
+        await screen.findByText('/mnt/media');
+        fireEvent.click(screen.getByRole('button', { name: 'Review SnapRAID sync' }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Confirm reviewed action' }));
+        expect(await screen.findByRole('heading', { name: 'Latest sync: running' })).toBeTruthy();
+        expect(screen.getByText(/the disk table is read again after it ends/)).toBeTruthy();
+        expect(screen.getByRole('link', { name: 'Go to SnapRAID status' }).getAttribute('href')).toBe(
+          '#snapraid-heading',
+        );
+        expect(getSnapraidStatus).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(runPollMs);
+        expect(await screen.findByRole('heading', { name: 'Latest sync: finished' })).toBeTruthy();
+        expect(getSnapraidStatus).toHaveBeenCalledTimes(2);
+        await vi.advanceTimersByTimeAsync(runPollMs * 3);
+        expect(getSnapraidStatus).toHaveBeenCalledTimes(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });
