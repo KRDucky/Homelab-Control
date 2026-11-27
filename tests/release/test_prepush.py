@@ -77,6 +77,20 @@ class Impact(unittest.TestCase):
         self.assertIn("review incomplete", md)
         self.assertIn("`backend/d/new.go`", md)
 
+    def test_tests_that_name_a_changed_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            src = review.Path(tmp)
+            (src / "tests").mkdir()
+            (src / "tests/test_tool.py").write_text("load('ci/tool.py')\n", encoding="utf-8")
+            (src / "ci").mkdir()
+            (src / "ci/tool.py").write_text("x = 1  # not a test, so not counted: ci/other.sh\n", encoding="utf-8")
+            changed = [("M", "ci/tool.py"), ("M", "ci/other.sh"), ("D", "ci/gone.py")]
+            mentions = review.test_mentions(src, changed)
+        self.assertEqual(mentions, {"ci/tool.py": ["tests/test_tool.py"]})
+        r = review.impact(self.NODES, self.LINKS, changed, mentions)
+        self.assertEqual(r["files"][0]["testsNaming"], ["tests/test_tool.py"])
+        self.assertEqual(r["files"][1]["testsNaming"], [])
+
     def test_test_file_pattern(self):
         for path in ("backend/x/y_test.go", "frontend/app/src/a.test.tsx", "tests/release/test_x.py", "tests/e2e/run.sh"):
             self.assertRegex(path, review.TEST_FILE)

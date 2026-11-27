@@ -54,8 +54,26 @@ def changed_files(base):
     return rows
 
 
-def impact(nodes, links, changed):
-    """Pure: the review data for each changed file, from Graphify's node and link lists."""
+def test_mentions(src, changed):
+    """{changed path: [test files whose text names that path]}. Tests that load a module with importlib
+    or run a script leave no edge in the graph; naming the path is how they link to it."""
+    paths = [p for s, p in changed if s != "D"]
+    found = {}
+    for f in sorted(src.rglob("*")):
+        rel = f.relative_to(src).as_posix()
+        if not f.is_file() or not TEST_FILE.search(rel) or f.stat().st_size > 2_000_000:
+            continue
+        text = f.read_text(encoding="utf-8", errors="replace")
+        for p in paths:
+            if p != rel and p in text:
+                found.setdefault(p, []).append(rel)
+    return found
+
+
+def impact(nodes, links, changed, mentions=None):
+    """Pure: the review data for each changed file, from Graphify's node and link lists, and the
+    test files that name a changed path (test_mentions)."""
+    mentions = mentions or {}
     file_of = {n["id"]: n.get("source_file") for n in nodes}
     per_file = {}
     for n in nodes:
@@ -64,7 +82,8 @@ def impact(nodes, links, changed):
     files, gaps, unindexed = [], [], []
     for status, path in changed:
         ext = os.path.splitext(path)[1]
-        entry = {"path": path, "status": status, "nodes": 0, "dependents": [], "dependencies": [], "tests": []}
+        entry = {"path": path, "status": status, "nodes": 0, "dependents": [], "dependencies": [], "tests": [],
+                 "testsNaming": mentions.get(path, [])}
         if status == "D":
             entry["note"] = "deleted; Graphify indexes the tested commit only, so check former callers by search"
             files.append(entry)
@@ -135,8 +154,10 @@ def markdown(result):
                 more = f" and {len(items) - LIST_CAP} more" if len(items) > LIST_CAP else ""
                 lines.append(f"- {title} ({len(items)}): {shown}{more}")
         if f["nodes"]:
-            tests = ", ".join(f"`{t}`" for t in f["tests"]) or "none found"
+            tests = ", ".join(f"`{t}`" for t in f["tests"]) or "none in the graph"
             lines.append(f"- Linked tests: {tests}")
+        if f.get("testsNaming"):
+            lines.append("- Tests that name this file: " + ", ".join(f"`{t}`" for t in f["testsNaming"]))
         lines.append("")
     return "\n".join(lines)
 
@@ -210,10 +231,11 @@ def main(argv=None):
             print("graphify_review: git archive failed", file=sys.stderr)
             return 2
         nodes, links, meta, gversion = build_graph(src, a.out, commit)
+        mentions = test_mentions(src, changed)
     if git("rev-parse", "HEAD").strip() != commit:
         print("graphify_review: HEAD moved while indexing", file=sys.stderr)
         return 2
-    result = impact(nodes, links, changed)
+    result = impact(nodes, links, changed, mentions)
     result.update(indexedCommit=commit, indexedTree=tree, headCommit=head, baseCommit=base,
                   graphifyVersion=gversion, graph=meta)
     (a.out / "INDEXED_SHA").write_text(commit + "\n", encoding="utf-8")
