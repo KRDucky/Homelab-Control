@@ -35,12 +35,12 @@ jobs:
           # and EOL lines (1.24 since Feb 2026) no longer receive stdlib security fixes.
           # go.mod's `go 1.24` stays as the minimum language version.
           # Exact version, equal to GO_VERSION in packaging/release/toolchain.env (the release toolchain;
-          # tests/release/test_workflow_policy.py checks they match). 1.26.11 fixes GO-2026-6859.
-          go-version: '1.26.11'
+          # tests/release/test_workflow_policy.py checks they match).
+          go-version: '1.27.4'
           cache: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '22.23.3'
+          node-version: '26.13.0'
           # No dependency cache: builds must come from the lockfile, never from a restored cache
           # (the release dry run in particular).
           package-manager-cache: false
@@ -226,13 +226,14 @@ jobs:
           python-version: '3.12'
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '22.23.3'
+          node-version: '26.13.0'
           package-manager-cache: false
       - name: Accessibility test dependency
         run: cd frontend/app && npm ci --ignore-scripts --no-fund
       - name: Playwright
         run: |
-          pip install playwright==1.63.0  # >= 1.61 needed for Ubuntu 26.04; same pin as dev/vm/guest-validate.sh
+          pip install playwright==1.63.0  # >= 1.61 needed for Ubuntu 26.04; same pin as dev/vm/guest-validate.sh. 1.64.1's WebKit
+          # reports style-src-attr violations for <select> elements with no style attribute (docs/dev/DEVELOPMENT.md).
           python -m playwright install --with-deps chromium firefox webkit
       - name: API security checks + browser e2e (unprivileged)
         env:

@@ -8,7 +8,7 @@ same split from the lockfile.
 ## 1. Redistributed (in binaries and packages)
 | Component | Version | License | How it ships | Verified by |
 |---|---|---|---|---|
-| Go standard library | CI and release toolchain 1.26.11 (`go.mod` minimum 1.26.0) | BSD-3-Clause | Statically linked into `hc-api`, `hlctl`, `hc-broker` | `backend/go.mod`; `go version -m` |
+| Go standard library | CI and release toolchain 1.27.4 (`go.mod` minimum 1.26.0) | BSD-3-Clause | Statically linked into `hc-api`, `hlctl`, `hc-broker` | `backend/go.mod`; `go version -m` |
 | modernc.org/sqlite | 1.60.1 | BSD-3-Clause | Statically linked into `hc-api`, `hlctl` | Go dependency allowlist; `go version -m` |
 | modernc.org/libc | 1.77.1 | BSD-3-Clause | Statically linked into `hc-api`, `hlctl` | Go dependency allowlist; `go version -m` |
 | modernc.org/mathutil | 1.7.1 | BSD-3-Clause | Statically linked into `hc-api`, `hlctl` | Go dependency allowlist; `go version -m` |
@@ -61,7 +61,7 @@ output) is our own code, not a copy of the tool.
 | Tool | License | Use |
 |---|---|---|
 | Go toolchain | BSD-3-Clause | Compiles the backend |
-| Node.js 22 / npm | MIT / Artistic-2.0 | Frontend build and tests |
+| Node.js 26 / npm | MIT / Artistic-2.0 | Frontend build and tests |
 | govulncheck v1.9.0 | BSD-3-Clause | Security gate (CI) |
 | shellcheck 0.9 | GPL-3.0 | Shell lint (CI) |
 | spdx-tools 0.8.3 | Apache-2.0 | SBOM validation (CI) |
