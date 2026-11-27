@@ -156,6 +156,16 @@ class ReleaseWorkflowPolicy(unittest.TestCase):
         for v in versions:
             self.assertEqual(str(v), pin, "ci.yml go-version must equal GO_VERSION in toolchain.env (no floating .x)")
 
+    def test_ci_and_release_use_the_same_node(self):
+        # ci.yml used node-version '22', so its check and browser-e2e jobs ran whatever 22.x
+        # setup-node resolved (v22.23.5 on 2026-11-27), not the release toolchain.
+        with open(os.path.join(ROOT, "packaging", "release", "toolchain.env"), encoding="utf-8") as f:
+            pin = re.search(r"^NODE_VERSION=(\S+)$", f.read(), re.M).group(1)
+        versions = [st["with"]["node-version"] for _, st in steps(self.ci) if st.get("uses", "").startswith("actions/setup-node")]
+        self.assertTrue(versions)
+        for v in versions:
+            self.assertEqual(str(v), pin, "ci.yml node-version must equal NODE_VERSION in toolchain.env (no floating major)")
+
     def test_rust_pin_matches_the_crate_toolchain(self):
         with open(os.path.join(ROOT, "packaging", "release", "toolchain.env"), encoding="utf-8") as f:
             pin = re.search(r"^RUST_VERSION=(\S+)$", f.read(), re.M).group(1)
@@ -177,6 +187,30 @@ class ReleaseWorkflowPolicy(unittest.TestCase):
         self.assertIn("check-toolchain packaging/release/toolchain.env", self.btext)
         self.assertIn("--require-tools", self.btext)
         self.assertIn("negative-tests.sh", self.btext)
+
+
+class JenkinsReadsCiPins(unittest.TestCase):
+    """ci/run.sh and the Jenkinsfile read these values from ci.yml instead of pinning them again.
+    A reformat of ci.yml that hides one would make Jenkins stop with "cannot read the ... pin"
+    or find no install images; this test says so on the pull request instead."""
+
+    def setUp(self):
+        with open(os.path.join(WF, "ci.yml"), encoding="utf-8") as f:
+            self.text = f.read()
+
+    def test_tool_pins_are_readable(self):
+        # The same patterns as ci/run.sh (grep -o ... | head -n1).
+        for pattern in (r"govulncheck@v[0-9.]+", r"spdx-tools==[0-9.]+", r"reuse==[0-9.]+", r"playwright==[0-9.]+"):
+            self.assertRegex(self.text, pattern, f"ci.yml no longer has {pattern}")
+
+    def test_install_matrix_rows_are_readable(self):
+        # The same pattern as the Jenkinsfile's sed: { image: '...', prep: '...' }.
+        rows = re.findall(r"\{ image: '([^']*)', prep: '([^']*)' \}", self.text)
+        _, ci = load("ci.yml") if yaml is not None else (None, None)
+        if ci is not None:
+            images = [r["image"] for r in ci["jobs"]["install-matrix"]["strategy"]["matrix"]["include"]]
+            self.assertEqual([r[0] for r in rows], images)
+        self.assertGreater(len(rows), 0)
 
 
 if __name__ == "__main__":

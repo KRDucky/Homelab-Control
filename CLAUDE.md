@@ -55,6 +55,20 @@ Ignore SELinux work for this release. The storage probe already has an AppArmor 
 - Go: standard library only unless ADR 0006 is updated. npm: exact versions, `npm ci --ignore-scripts`.
 - Run `make check` before committing; run Go tests as a non-root user.
 
+## Remote CI (Jenkins on MediaMouse)
+- GitHub Actions (`.github/workflows/ci.yml`) stays the CI that pull requests are judged by.
+  Jenkins also validates every change remotely; follow the user-level `jenkins-ci` skill for the
+  procedure, credentials and failure handling.
+- **Job:** `Homelab-Control`, a multibranch pipeline over branches and same-repository pull
+  requests that contain the root `Jenkinsfile`. A push is built after the next branch scan
+  (≤ 5 minutes). Wait for that build and do not trigger a second one for the same SHA.
+- **Local first:** run the local checks for what changed before pushing. `ci/check.sh` lists the
+  full gate; `ci/run.sh -- ci/check.sh` runs it in the pinned toolchain container (`ci/README.md`).
+- **Results:** each build archives `ci-result.json` (commit, result, failed stages) and publishes
+  the "Jenkins" check on the pull request.
+- **Not covered:** Jenkins does not run the systemd and upgrade jobs (systemd-ubuntu,
+  systemd-ubuntu-2604, upgrade-ubuntu). Only GitHub Actions validates them; see `ci/README.md`.
+
 ## Engineering conventions
 - Go for new long-running services and typed API implementations where justified; React/TypeScript/Vite for UI; SQLite for local job/audit/config state where appropriate.
 - Use OpenAPI and JSON Schema for public/internal contracts. Avoid tight coupling between UI, distro adapters and privileged operations.
