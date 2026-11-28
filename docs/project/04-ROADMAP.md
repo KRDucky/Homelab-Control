@@ -18,7 +18,7 @@ Times are rough effort bands for a small team with AI assistance, not delivery g
 | M7 | ZFS, mdraid, Btrfs adapters | Real read-only topology, health, scrub/rebuild status, safe maintenance jobs |
 | M8 | mergerfs + SnapRAID adapters | Branch/parity config discovery, validation, scheduled status/scrub, combined planner |
 | M9 | Guided drive replacement | Technology-specific preflight, identity confirmation, VM-verified procedures |
-| M10 | Reverse proxy, ACME, DDNS | Caddy/Nginx/Traefik adapters, TLS, Cloudflare DNS, safe config reload |
+| M10 | Multi-provider Reverse Proxy Manager, ACME, DDNS | Traefik, NPM, Caddy, Nginx, SWAG, HAProxy adapters; guided local native / Docker / Podman / LXD / LXC / remote registration; real scoped plan/apply/verify/rollback, TLS and Cloudflare DNS |
 | M11 | Port-use tracker, LACP/bonding detect, firewall WebUI (active backend) | Read-only port map; bonding detect; firewall UI for the installed **active** backend; installed-tooling gate |
 | M12 | Identity, Tailscale, cooling, UPS, containers, virtualization | Supported capability adapters and permissions; hardware safety checks |
 | M13 | Backups, monitoring, alerts, automation, multi-host exploration | Verified restore workflows, notification tests, resilience |
