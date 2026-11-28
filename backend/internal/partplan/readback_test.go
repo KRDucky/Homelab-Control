@@ -93,7 +93,10 @@ func TestCheckSfdiskJSONRefusesADifferentTable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rows, _ := GPTRows(twoSlices(), 512)
+	rows, err := GPTRows(twoSlices(), 512)
+	if err != nil {
+		t.Fatal(err)
+	}
 	cases := map[string]struct {
 		out  string
 		rows []Row
