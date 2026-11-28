@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The Homelab Control Authors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ApiError, dryRunPartitionPlan, type PartitionPlanReport } from '../api';
 import { formatBytes } from '../format';
 import type { StorageEdge, StorageNode } from '../storageModel';
@@ -50,6 +50,14 @@ export function PartitionPlan({
   const [report, setReport] = useState<PartitionPlanReport | null>(null);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const requestVersion = useRef(0);
+
+  function invalidateResult() {
+    // A preview belongs to exact input values, not just this disk.
+    requestVersion.current += 1;
+    setReport(null);
+    setMessage('');
+  }
 
   const observed = edges
     .filter((edge) => edge.from === disk.id && edge.kind === 'contains')
@@ -67,14 +75,18 @@ export function PartitionPlan({
       setMessage('This disk has no observed size, so the layout cannot be checked.');
       return;
     }
+    const version = ++requestVersion.current;
     setBusy(true);
     setMessage('');
     setReport(null);
     try {
-      setReport(await dryRunPartitionPlan(csrf, { disk_bytes: diskBytes, parts }));
+      const next = await dryRunPartitionPlan(csrf, { disk_bytes: diskBytes, parts });
+      if (version === requestVersion.current) setReport(next);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) onUnauthorized();
-      setMessage(err instanceof ApiError ? err.message : 'Dry run failed.');
+      if (version === requestVersion.current) {
+        if (err instanceof ApiError && err.status === 401) onUnauthorized();
+        setMessage(err instanceof ApiError ? err.message : 'Dry run failed.');
+      }
     } finally {
       setBusy(false);
     }
@@ -179,11 +191,12 @@ export function PartitionPlan({
                 <input
                   value={row.start}
                   inputMode="numeric"
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    invalidateResult();
                     setRows((current) =>
                       current.map((item, i) => (i === index ? { ...item, start: event.target.value } : item)),
-                    )
-                  }
+                    );
+                  }}
                 />
               </label>
               <label>
@@ -191,24 +204,26 @@ export function PartitionPlan({
                 <input
                   value={row.size}
                   inputMode="numeric"
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    invalidateResult();
                     setRows((current) =>
                       current.map((item, i) => (i === index ? { ...item, size: event.target.value } : item)),
-                    )
-                  }
+                    );
+                  }}
                 />
               </label>
               <label>
                 Slice {index + 1} filesystem
                 <select
                   value={row.fs}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    invalidateResult();
                     setRows((current) =>
                       current.map((item, i) =>
                         i === index ? { ...item, fs: formFilesystem(event.target.value) } : item,
                       ),
-                    )
-                  }
+                    );
+                  }}
                 >
                   {FILESYSTEMS.map((name) => (
                     <option key={name} value={name}>
