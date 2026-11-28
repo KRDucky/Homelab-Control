@@ -228,6 +228,14 @@ describe('partition dry run', () => {
     expect(
       screen.getByRole('img', { name: 'Partition layout: sda1 from 1048576 bytes, 1048576 bytes' }),
     ).toBeTruthy();
+    const visualization = screen.getByRole('img', {
+      name: 'Partition layout: sda1 from 1048576 bytes, 1048576 bytes',
+    });
+    expect(visualization.tagName.toLowerCase()).toBe('svg');
+    expect(visualization.querySelectorAll('[style]')).toHaveLength(0);
+    expect(visualization.querySelector('rect')?.getAttribute('x')).toBe('250');
+    expect(visualization.querySelector('rect')?.getAttribute('width')).toBe('250');
+    expect(visualization.querySelector('title')?.textContent).toContain('sda1');
     expect(screen.getByText('Dry run only. Nothing is partitioned or formatted.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /apply/i })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Validate observed layout' }));
