@@ -121,6 +121,34 @@ describe('Meter', () => {
 });
 
 describe('App', () => {
+  it('explains capability loading failures and recovers on retry', async () => {
+    let attempts = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url === '/api/v1/auth/session')
+          return new Response(
+            JSON.stringify({ username: 'admin', scopes: ['system.read'], csrf_token: 't', version: '0.1.0' }),
+            { status: 200 },
+          );
+        if (url === '/api/v1/capabilities') {
+          attempts += 1;
+          return new Response(JSON.stringify(attempts === 1 ? {} : allCaps), {
+            status: attempts === 1 ? 503 : 200,
+          });
+        }
+        return new Response('{}', { status: 503 });
+      }),
+    );
+    render(<App />);
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('Could not load module availability');
+    fireEvent.click(screen.getByRole('button', { name: 'Retry loading modules' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Retry loading modules' })).toBeNull());
+    expect(attempts).toBe(2);
+    expect(await screen.findByRole('link', { name: /Services/ })).toBeTruthy();
+  });
+
   it('shows the login form when there is no session', async () => {
     mockFetch({
       'GET /api/v1/auth/session': { status: 401, body: { error: 'unauthenticated', message: 'x' } },

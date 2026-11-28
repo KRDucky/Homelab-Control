@@ -57,6 +57,8 @@ export function App() {
   const [phase, setPhase] = useState<Phase>('checking');
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [caps, setCaps] = useState<Capabilities | null>(null);
+  const [capabilityError, setCapabilityError] = useState(false);
+  const [capabilityRetry, setCapabilityRetry] = useState(0);
   const path = usePath();
 
   useEffect(() => {
@@ -75,6 +77,7 @@ export function App() {
   const signedOut = useCallback(() => {
     setSession(null);
     setCaps(null);
+    setCapabilityError(false);
     setPhase('anonymous');
     document.title = 'Sign in · Homelab Control';
   }, []);
@@ -83,15 +86,18 @@ export function App() {
     if (phase !== 'ready') return;
     const load = () =>
       getCapabilities()
-        .then(setCaps)
-        .catch(() => undefined);
+        .then((next) => {
+          setCaps(next);
+          setCapabilityError(false);
+        })
+        .catch(() => setCapabilityError(true));
     const first = window.setTimeout(load, 0);
     const t = window.setInterval(load, 30_000);
     return () => {
       window.clearTimeout(first);
       window.clearInterval(t);
     };
-  }, [phase]);
+  }, [phase, capabilityRetry]);
 
   if (phase === 'checking') return <div className="boot" aria-busy="true" />;
   if (phase === 'anonymous' || !session) {
@@ -290,6 +296,14 @@ export function App() {
         <p className="banner" role="status">
           {caps.broker.reason}
         </p>
+      )}
+      {capabilityError && (
+        <div className="banner" role="alert">
+          Could not load module availability. Navigation may be incomplete.{' '}
+          <button type="button" onClick={() => setCapabilityRetry((n) => n + 1)}>
+            Retry loading modules
+          </button>
+        </div>
       )}
       {page}
     </Shell>
