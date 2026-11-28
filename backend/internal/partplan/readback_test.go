@@ -5,6 +5,7 @@
 package partplan
 
 import (
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -33,6 +34,60 @@ func TestCheckSfdiskJSONMatchesTheWrittenPlan(t *testing.T) {
 	}
 }
 
+// changeFixtureLabel edits the JSON field rather than relying on whitespace-
+// sensitive text replacement; it preserves all other fixture fields.
+func changeFixtureLabel(t *testing.T, original []byte, label string) string {
+	t.Helper()
+	var doc map[string]json.RawMessage
+	if err := json.Unmarshal(original, &doc); err != nil {
+		t.Fatal(err)
+	}
+	var table map[string]json.RawMessage
+	if err := json.Unmarshal(doc["partitiontable"], &table); err != nil {
+		t.Fatal(err)
+	}
+	encodedLabel, err := json.Marshal(label)
+	if err != nil {
+		t.Fatal(err)
+	}
+	table["label"] = encodedLabel
+	encodedTable, err := json.Marshal(table)
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc["partitiontable"] = encodedTable
+	changed, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(changed)
+}
+
+func TestSfdiskLabelMismatchFixtureIsActuallyDOS(t *testing.T) {
+	original, err := os.ReadFile("testdata/sfdisk-json-gpt-2.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	changed := changeFixtureLabel(t, original, "dos")
+	if changed == string(original) {
+		t.Fatal("the label mismatch fixture was not changed")
+	}
+	var got sfdiskDump
+	if err := json.Unmarshal([]byte(changed), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.PartitionTable == nil || got.PartitionTable.Label != "dos" {
+		t.Fatalf("changed table label = %v; want dos", got.PartitionTable)
+	}
+	var source sfdiskDump
+	if err := json.Unmarshal(original, &source); err != nil {
+		t.Fatal(err)
+	}
+	if source.PartitionTable == nil || source.PartitionTable.Label != "gpt" {
+		t.Fatal("source fixture must remain GPT")
+	}
+}
+
 func TestCheckSfdiskJSONRefusesADifferentTable(t *testing.T) {
 	out, err := os.ReadFile("testdata/sfdisk-json-gpt-2.json")
 	if err != nil {
@@ -47,7 +102,7 @@ func TestCheckSfdiskJSONRefusesADifferentTable(t *testing.T) {
 		"size":     {string(out), []Row{rows[0], {Start: rows[1].Start, Size: rows[1].Size + 8, Type: rows[1].Type}}, "partition 2"},
 		"type":     {string(out), []Row{{Start: rows[0].Start, Size: rows[0].Size, Type: GPTSwap}, rows[1]}, "partition 1"},
 		"count":    {string(out), rows[:1], "has 2 partitions; the plan has 1"},
-		"label":    {strings.Replace(string(out), `"gpt"`, `"dos"`, 1), rows, "not gpt"},
+		"label":    {changeFixtureLabel(t, out, "dos"), rows, "not gpt"},
 		"no table": {`{}`, rows, "could not be read"},
 		"not json": {"Disk /dev/sdb", rows, "could not be read"},
 	}
