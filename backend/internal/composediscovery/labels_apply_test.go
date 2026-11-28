@@ -113,3 +113,44 @@ func TestFindComposeFileRejectsEscape(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+
+func TestPatchServiceLabelsPreservesPrivateFileModeAndSkipsNoOpRewrite(t *testing.T) {
+	for _, mode := range []os.FileMode{0600, 0640} {
+		t.Run(mode.String(), func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "compose.yaml")
+			if err := os.WriteFile(path, []byte(sampleCompose), mode); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Chmod(path, mode); err != nil {
+				t.Fatal(err)
+			}
+			labels := map[string]string{"traefik.http.routers.notes-gui.entrypoints": "web"}
+			added, err := PatchServiceLabels(path, "notes", labels)
+			if err != nil || added != 1 {
+				t.Fatalf("apply: added %d, err %v", added, err)
+			}
+			before, err := os.Stat(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if before.Mode().Perm() != mode {
+				t.Fatalf("file mode broadened to %04o; want %04o", before.Mode().Perm(), mode)
+			}
+			added, err = PatchServiceLabels(path, "notes", labels)
+			if err != nil || added != 0 {
+				t.Fatalf("idempotent apply: added %d, err %v", added, err)
+			}
+			after, err := os.Stat(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !os.SameFile(before, after) {
+				t.Fatal("no-op patch replaced the Compose file")
+			}
+			if after.Mode().Perm() != mode {
+				t.Fatalf("no-op changed mode to %04o; want %04o", after.Mode().Perm(), mode)
+			}
+		})
+	}
+}

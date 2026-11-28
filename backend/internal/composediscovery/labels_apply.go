@@ -101,6 +101,10 @@ func FindComposeFile(root, project, service string) (string, error) {
 // in the file at path. Other keys are left untouched. List or flow-style labels
 // are rejected. It is a thin wrapper over PatchLabelsText that adds file I/O.
 func PatchServiceLabels(path, service string, labels map[string]string) (int, error) {
+	info, err := os.Stat(path)
+	if err != nil || !info.Mode().IsRegular() {
+		return 0, ErrComposeApply
+	}
 	raw, err := os.ReadFile(path)
 	if err != nil || len(raw) == 0 || len(raw) > maxComposeBytes || strings.ContainsRune(string(raw), 0) {
 		return 0, ErrComposeApply
@@ -109,7 +113,10 @@ func PatchServiceLabels(path, service string, labels map[string]string) (int, er
 	if err != nil {
 		return 0, err
 	}
-	if err = writeAtomic(path, patched); err != nil {
+	if added == 0 {
+		return 0, nil
+	}
+	if err = writeAtomic(path, patched, info.Mode().Perm()); err != nil {
 		return 0, err
 	}
 	return added, nil
@@ -373,7 +380,7 @@ func confinedFile(root, path string) (string, error) {
 	return resolved, nil
 }
 
-func writeAtomic(path, body string) error {
+func writeAtomic(path, body string, mode fs.FileMode) error {
 	dir := filepath.Dir(path)
 	tmp, err := os.CreateTemp(dir, filepath.Base(path)+".*.tmp")
 	if err != nil {
@@ -390,7 +397,8 @@ func writeAtomic(path, body string) error {
 	if _, err = tmp.WriteString(body); err != nil {
 		return ErrComposeApply
 	}
-	if err = tmp.Chmod(0644); err != nil {
+	// Never widen access to a Compose file that was private before this update.
+	if err = tmp.Chmod(mode); err != nil {
 		return ErrComposeApply
 	}
 	if err = tmp.Close(); err != nil {
