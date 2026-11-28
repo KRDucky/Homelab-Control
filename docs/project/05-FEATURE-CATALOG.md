@@ -22,8 +22,23 @@
 - Ceph: existing-cluster health, OSDs/MONs/MGRs/MDS, pools, CRUSH classes; consumable **RBD**, **CephFS**, **RGW**. Not a second Ceph orchestrator.
 - SMB/NFS/iSCSI and filesystem sharing plugins.
 
-## Reverse Proxy Manager (optional)
-Three adapters: **Caddy**, **Nginx**, **Traefik**. Support native systemd services, hostnames, upstreams, WebSockets, headers, redirects, access rules, config validation, atomic managed-file updates, reload and rollback. Respect unmanaged configurations; import only what can be parsed safely. Traefik file-provider and Docker-provider workflows must be distinguished. Avoid pretending all three have identical configuration semantics.
+## Reverse Proxy Manager (M10, optional; provider-neutral)
+
+**Owner expansion 2026-11-28 (issue #200):** Traefik is one adapter, not the reverse proxy product. The first supported group is **Traefik, Nginx Proxy Manager (NPM), Caddy, Nginx, LinuxServer.io SWAG (Nginx-based), and HAProxy**. Additional popular proxies, such as Envoy and Apache httpd, are candidates where a secure integration can be verified. SWAG must not be misrepresented as an independent proxy daemon: it is a LinuxServer.io Nginx distribution with its own configuration conventions. NPM's own management API is not equivalent to editing arbitrary Nginx configuration files.
+
+The setup wizard must ask **two separate questions**, not conflate them:
+1. **What proxy product/instance?** Choose discovered or explicitly registered provider. Multiple instances (including multiple products and remote hosts) must be supported.
+2. **Where/how is it installed?** Local native (bare-metal/VM system service), Docker, Podman, LXD, LXC, or remote. Remote is a location/transport choice, not a proxy type; a remote instance can itself be a container. Record a verified management transport/endpoint and the administrator's chosen ownership boundary. Unknown or inaccessible instances are shown as unavailable, not fabricated as ready.
+
+### Provider adapter contract and functional expectations
+
+Each adapter independently declares and detects capabilities for **discover, inventory, create/update/remove routes, upstreams, WebSockets, headers/redirects, access policy, TLS/certificates/ACME, validate, apply/reload, read-back, and rollback/recovery**. The UI must present unsupported functionality explicitly instead of assuming every product has the same semantics. Provider/instance identities must remain separate from the backing runtime (Docker, Podman, LXD/LXC, native, remote). If a supported API exists, integrate with it; otherwise support only administrator-approved, confined managed file paths with parser/syntax verification, backups and controlled reloads. Preserve unmanaged configurations unless explicitly adopted.
+
+For **every write or execute**, require per-instance scope and audit, a typed plan and exact diff, preflight conflict checks, explicit confirmation, locking and stale-state detection, verified resulting configuration/runtime behavior, and rollback or clear recovery steps. Operations that could cut off a remote administrator need a tested recovery path. Credentials and management sockets remain server-side; untrusted supplied URLs cannot become arbitrary network probes or privileged execution paths. A preview never counts as an applied configuration.
+
+The initial implementation slices should create a shared instance registration/discovery and capability contract, migrate existing Traefik functionality without regressions, then deliver NPM and the other named adapters with real operations. Installation forms must honor local systemd, Docker, Podman, LXD/LXC and remote connection constraints; do not imply a local helper can mutate a remote host without an authenticated, authorized management channel. Validate each supported combination with adapter contract tests and actual disposable guests/containers before declaring M10 complete.
+
+The previous scope (Caddy/Nginx/Traefik; native systemd; safe updates) remains included. Certificate/DNS capabilities are separate integrations below and must not be silently modified as a side effect of adding a proxy route.
 
 ## Certificates and DNS (optional)
 - Central ACME/Let's Encrypt manager: HTTP-01, DNS-01, staging/production, renewal, wildcard DNS-01, private key protection, deployment hooks, expiration alerts.
