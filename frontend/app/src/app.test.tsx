@@ -144,7 +144,7 @@ describe('App', () => {
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toContain('Could not load module availability');
     fireEvent.click(screen.getByRole('button', { name: 'Retry loading modules' }));
-    await waitFor(() => expect(screen.queryByText('Could not load module availability')).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Retry loading modules' })).toBeNull());
     expect(attempts).toBe(2);
     expect(await screen.findByRole('link', { name: /Services/ })).toBeTruthy();
   });
