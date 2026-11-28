@@ -54,6 +54,16 @@ Allow the operator to configure directory allowlists (e.g., `/containers/appdata
 
 Known repository starting points: `backend/internal/composediscovery/docker.go` currently rejects rootful `/var/run/docker.sock` and uses an explicitly selected rootless Unix socket; `backend/internal/composediscovery/labels_apply.go` discovers allowlisted Compose files under a fixed root; `backend/internal/arcanediscovery/client.go` already has a manager API integration for selected Compose content. These are foundations, not broad host filesystem/runtime management permissions. Dockhand and Komodo integrations require separate verified adapters. NPM remains native-API-first for proxy-host writes even when its container's `/data` is bind-mounted.
 
+### SWAG adapter: authoritative file edit with reload-mode detection (owner 2026-11-28)
+
+LinuxServer.io **SWAG is an Nginx-based, file-managed proxy**, not an API-first manager like NPM. For a Docker/Podman SWAG installation, detect its actual container identity and the bind-mounted host directory corresponding to container `/config`; find the active user-managed Nginx files (typically under `/config/nginx/`) and check include paths rather than guessing a project's root. Allow explicitly configured host-side roots and refuse unresolved paths, unmanaged/Git-reconciled content or unsafe mount ownership.
+
+To create or change a route: generate an exact confined file diff, validate the complete staged Nginx configuration with `nginx -t` against the matching container configuration, back up the previous file, atomically apply while preserving mode/ownership where supported, and verify the resulting route. Use a *controlled Nginx reload* through the registered container manager/runtime when automatic reload is unavailable; prefer an Nginx reload over a full container restart when supported and verified. Runtime exec/reload is a separate privileged operation, not implied by host file read access.
+
+**Detect rather than assume auto-reload.** Modern SWAG supports `SWAG_AUTORELOAD=true` (the project's documentation says this enables conf-file-triggered Nginx reload without stopping/restarting Nginx). Older deployments may use the SWAG auto-reload Docker mod. Report the configured and observed reload mode, verify the watcher is operating where possible, and always confirm that the live Nginx configuration/route reflects the saved file. If auto-reload cannot be verified, offer the separately authorized manual reload route; never report successful apply solely on the file write.
+
+Changing SWAG's Compose/environment settings or image lifecycle is **not the same operation** as changing its Nginx configuration: use the authoritative Compose or Arcane/Dockhand/Komodo manager workflow for those changes, including any necessary redeploy. No blind container restart, no arbitrary `docker exec`, and no direct write to certificates/secrets as part of proxy-host editing.
+
 The previous scope (Caddy/Nginx/Traefik; native systemd; safe updates) remains included. Certificate/DNS capabilities are separate integrations below and must not be silently modified as a side effect of adding a proxy route.
 
 ## Certificates and DNS (optional)
