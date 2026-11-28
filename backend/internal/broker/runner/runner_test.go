@@ -189,6 +189,7 @@ func TestRootTemplatesAreClosed(t *testing.T) {
 		RootTimedatectlListTimezones: {"timedatectl --no-ask-password list-timezones", nil},
 		RootMkfsExt4:                 {"mkfs.ext4 -q -- /dev/disk/by-id/virtio-mmvtestdisk01", []string{"/dev/disk/by-id/virtio-mmvtestdisk01"}},
 		RootSfdiskGPT:                {"sfdisk --wipe=always --wipe-partitions=always -- /dev/disk/by-id/virtio-mmvtestdisk01", []string{"/dev/disk/by-id/virtio-mmvtestdisk01"}},
+		RootSfdiskJSON:               {"sfdisk --json -- /dev/disk/by-id/virtio-mmvtestdisk01", []string{"/dev/disk/by-id/virtio-mmvtestdisk01"}},
 		// services.systemctl (owner 2026-11-21). File-level verbs do not reload PID 1.
 		RootSystemctlStartUnit:       {"systemctl --no-ask-password --job-mode=fail start -- demo.service", []string{"demo.service"}},
 		RootSystemctlStopUnit:        {"systemctl --no-ask-password --job-mode=fail stop -- demo.service", []string{"demo.service"}},
@@ -455,6 +456,24 @@ func TestRootSfdiskGPTIsAWholeDisk(t *testing.T) {
 	}
 	if _, err := new(Runner).RootExec().Run(t.Context(), RootSfdiskGPT, "/dev/disk/by-id/virtio-mmvtestdisk01"); !errors.Is(err, ErrBadArg) && !errors.Is(err, ErrNotAllowed) {
 		t.Errorf("sfdisk without stdin: %v", err)
+	}
+}
+
+// sfdisk.json is the read-back only: one whole by-id disk, nothing that writes.
+func TestRootSfdiskJSONIsReadOnlyOnAWholeDisk(t *testing.T) {
+	if _, err := RootArgv(RootSfdiskJSON, "/dev/disk/by-id/wwn-0x5000c500a1b2c3d4-part1"); !errors.Is(err, ErrBadArg) {
+		t.Errorf("partition path accepted: %v", err)
+	}
+	if _, err := RootArgv(RootSfdiskJSON, "/dev/disk/by-id/virtio-a", "/dev/disk/by-id/virtio-b"); !errors.Is(err, ErrBadArg) {
+		t.Errorf("two disks accepted: %v", err)
+	}
+	for _, a := range rootTemplates[RootSfdiskJSON].argv {
+		if strings.HasPrefix(a, "--wipe") || a == "--force" || a == "-f" || a == "--delete" {
+			t.Errorf("sfdisk read-back flag %q", a)
+		}
+	}
+	if templateFlagsByID[RootSfdiskJSON].readsStdin {
+		t.Error("the read-back reads stdin")
 	}
 }
 

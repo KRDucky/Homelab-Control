@@ -515,8 +515,14 @@ not an installed package and not the Web UI.
 
 **Update 2026-11-27 (M6–M11 review, "use the standard tools"):** the planner already leaves the write to
 `sfdisk` and reads disk geometry from sysfs. Two copied insertion sorts were replaced by the standard
-library, with no behaviour change. After `sfdisk` exits 0 the new table is still not read back. Reading
-it back with `sfdisk --json` needs a new closed root template, which needs its own review.
+library, with no behaviour change.
+
+**Update 2026-11-27 (owner-authorized read-back):** after `sfdisk` exits 0, `storage.partition.apply`
+reads the table back with the closed read-only template `sfdisk --json -- <by-id>` (ADR 0008
+Amendment 10) and compares label, start, size and type GUID with the plan. A match is `succeeded`; a
+mismatch or a failed read-back is `uncertain`. Tested with real `sfdisk --json` output (util-linux
+2.42.2, sparse image file). Not VM-tested end to end: the main broker is still `PrivateDevices=yes`,
+so the partition write cannot reach a disk in an installed build. Not M6 acceptance.
 
 ## M2-3: expanded service management (development authorized 2026-11-04; implementation not accepted)
 

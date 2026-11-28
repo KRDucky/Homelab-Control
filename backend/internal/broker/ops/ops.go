@@ -113,6 +113,9 @@ type Env struct {
 	PartSfdisk func(ctx context.Context, argv []string, stdin []byte) (runner.Result, error)
 	// PartTooling overrides the sfdisk presence probe (tests).
 	PartTooling *partToolFact
+	// PartReadback overrides the sfdisk --json read-back child (tests). Nil
+	// runs RootSfdiskJSON.
+	PartReadback func(ctx context.Context, argv []string) (runner.Result, error)
 }
 
 // WriteSpec documents a write op for review and the registry snapshot test

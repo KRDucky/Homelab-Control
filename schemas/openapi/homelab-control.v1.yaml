@@ -4141,7 +4141,7 @@ paths:
                 - type: object
                   required: [token]
       responses:
-        '200': { description: Partition result. succeeded means sfdisk exited 0 and the device identity still matched., content: { application/json: { schema: { $ref: '#/components/schemas/PartitionWriteOutcome' } } } }
+        '200': { description: 'Partition result. succeeded means sfdisk exited 0, the device identity still matched, and sfdisk --json read back exactly the planned table.', content: { application/json: { schema: { $ref: '#/components/schemas/PartitionWriteOutcome' } } } }
         '400': { description: Malformed token or body, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '401': { description: Authentication required, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '403': { description: Missing storage.partition, step-up required, or CSRF/Origin rejected, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }

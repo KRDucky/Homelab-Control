@@ -116,10 +116,12 @@ const (
 	RootMkfsExt4 RootTemplate = "mkfs.ext4"
 )
 
-// Closed sfdisk template. storage.partition.apply is the only caller.
-// The script is stdin, not an argument. No --force.
+// Closed sfdisk templates. storage.partition.apply is the only caller.
+// sfdisk.gpt: the script is stdin, not an argument. No --force.
+// sfdisk.json: read-only dump of the table just written (read-back).
 const (
-	RootSfdiskGPT RootTemplate = "sfdisk.gpt"
+	RootSfdiskGPT  RootTemplate = "sfdisk.gpt"
+	RootSfdiskJSON RootTemplate = "sfdisk.json"
 )
 
 // Closed systemctl templates for services.systemctl (owner 2026-11-21).
@@ -285,6 +287,8 @@ var rootTemplates = map[RootTemplate]rootTemplate{
 	RootMkfsExt4: {"mkfs.ext4", []string{"-q", "--"}, validStorageByID, 1},
 	// GPT only. The script is stdin. Called only by storage.partition.apply.
 	RootSfdiskGPT: {"sfdisk", []string{"--wipe=always", "--wipe-partitions=always", "--"}, validWholeDiskByID, 1},
+	// Read-only: prints the partition table as JSON. Read-back after sfdisk.gpt.
+	RootSfdiskJSON: {"sfdisk", []string{"--json", "--"}, validWholeDiskByID, 1},
 	// services.systemctl. Job-mode verbs queue one job and fail if another is
 	// already queued. File-level verbs pass --no-reload so they do not reload
 	// PID 1; daemon-reload is its own template. No --now, --force, --runtime,
@@ -330,6 +334,7 @@ var templateFlagsByID = map[RootTemplate]templateFlags{
 	RootSystemctlAddRequires: {exact: true},
 	RootSystemctlEdit:        {leadPrefix: "--drop-in=", leadValid: validDropInName, readsStdin: true, exact: true},
 	RootSfdiskGPT:            {readsStdin: true, exact: true},
+	RootSfdiskJSON:           {exact: true},
 }
 
 func validStaticHostname(t string) bool { return hostinfo.ValidStaticHostname(t) == "" }
