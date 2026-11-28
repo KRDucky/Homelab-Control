@@ -128,21 +128,25 @@ export function PartitionPlan({
         </ul>
       )}
       {geometry && typeof diskBytes === 'number' && (
-        <div className="partition-bar" role="img" aria-label={barLabel}>
+        <svg
+          className="partition-bar"
+          viewBox="0 0 1000 28"
+          preserveAspectRatio="none"
+          role="img"
+          aria-label={barLabel}
+        >
           {observed.map((node) => {
             const start = node.start_bytes ?? 0;
             const size = node.size_bytes ?? 0;
-            const left = Math.min(100, (start / diskBytes) * 100);
-            const width = Math.max(0, Math.min(100 - left, (size / diskBytes) * 100));
+            const x = Math.min(1000, (start / diskBytes) * 1000);
+            const width = Math.max(0, Math.min(1000 - x, (size / diskBytes) * 1000));
             return (
-              <span
-                key={node.id}
-                style={{ left: `${left}%`, width: `${width}%` }}
-                title={`${node.name} ${formatBytes(size)}`}
-              />
+              <rect key={node.id} x={x} y="0" width={width} height="28">
+                <title>{node.name} {formatBytes(size)}</title>
+              </rect>
             );
           })}
-        </div>
+        </svg>
       )}
       <p>
         <button

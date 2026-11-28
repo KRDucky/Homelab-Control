@@ -500,19 +500,16 @@ tbody th {
   margin: var(--hc-space-4) 0;
 }
 .partition-bar {
-  position: relative;
+  display: block;
+  width: 100%;
   height: 1.75rem;
   margin: var(--hc-space-2) 0;
   border: 1px solid var(--hc-color-border-strong);
   border-radius: var(--hc-radius-sm);
   background: var(--hc-color-surface-overlay);
 }
-.partition-bar > span {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  background: var(--hc-color-accent-base);
-  min-width: 2px;
+.partition-bar > rect {
+  fill: var(--hc-color-accent-base);
 }
 .partition-rows {
   display: grid;
